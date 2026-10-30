@@ -46,7 +46,66 @@ pub fn localize(en: &str) -> String {
     tr_note!("CALLFUNC: {ptr} is not a function pointer (use BIND or CODEPTR)");
     tr_note!("Unknown builtin function '{name}'");
     tr_note!("the evaluation ran too long and was stopped");
+    tr_note!("END can't run in an evaluation");
+    tr_note!("the evaluation ended the program");
+    tr_note!("the evaluation would wait (a dialog or a form): not while the program is stopped");
+    tr_note!("too many event arguments");
+    tr_note!("no frame {i}");
+    tr_note!("{what}({n}): strings are limited to {max} characters");
+    tr_note!("{what} ran inside itself {n} times: its handler fires it again before it ends");
+    tr_note!("events ran inside each other {n} deep (the last: {what}): their handlers fire events before they end");
+    tr_note!("{name} reads or writes a hardware port, which a program can't do on a modern system");
+    tr_note!("'{name}' is a function of a DLL ({base}): this program calls Windows itself, and the web can't load DLLs, so it runs on Windows only");
+    tr_note!("'{name}' is a Windows function ({base}): this program calls Windows itself, so it runs on Windows only");
+    tr_note!("'{name}' is a function of {base}.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only");
+    tr_note!("this variable does not refer to an object (reading field {slot} of {what})");
+    tr_note!("this variable does not refer to an object (setting field {slot} of {what})");
+    tr_note!("out of memory for addresses (VARPTR)");
+    tr_note!("address {addr} belongs to an array or TYPE that no longer exists");
+    tr_note!("address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)");
+    tr_note!("{n} bytes at address {addr} run past the end of its memory ({left} bytes left)");
+    tr_note!("a STRING isn't an address: use VARPTR(s$)");
+    tr_note!("VARPTR of an element of something that isn't an array");
+    tr_note!("a negative byte count ({n})");
+    tr_note!("PEEK takes an address, or a page and an address");
+    tr_note!("POKE takes an address and a byte, or a page, an address and a byte");
+    tr_note!("Cannot open file {path}.");
+    tr_note!("Cannot create file {path}.");
+    tr_note!("{what}: argument is not an array, or it has no dimension {d}");
+    // (a message under the object or the variable it came from: `Sales.At: …`,
+    // `DIM Grid: …` — the message after it, translated, and the head as it is)
+    if let Some((head, tail)) = en.split_once(": ") {
+        let plain = |h: &str| !h.is_empty() && !h.contains(' ') && !h.contains('(');
+        if (plain(head) || head.strip_prefix("DIM ").is_some_and(plain)) && !tail.is_empty() {
+            let said = localize(tail);
+            if said != tail {
+                return format!("{head}: {said}");
+            }
+        }
+    }
     en.to_string()
+}
+
+/// A debugged program's stop (`Session.StopMessage`: a run-time error's
+/// message, why a program that waits for its events was paused, a
+/// breakpoint's condition that failed) in the person's language.
+pub fn localize_stop(en: &str) -> String {
+    let lang = language();
+    if lang == "en" || lang.starts_with("en-") || en.is_empty() {
+        return en.to_string();
+    }
+    if en == "Waiting for events" {
+        return crate::i18n::tr_ui("Waiting for events");
+    }
+    // (the VM words a program's error `run-time error: …`: the message after it)
+    if let Some(message) = en.strip_prefix("run-time error: ") {
+        return tr_ui_fill("run-time error: {message}", &[("message", &localize(message))]);
+    }
+    if let Some(v) = match_whole("The breakpoint's condition `{cond}` failed: {error}", en) {
+        let get = |n: &str| v.iter().find(|(k, _)| k == n).map(|(_, x)| x.clone()).unwrap_or_default();
+        return tr_ui_fill("The breakpoint's condition `{cond}` failed: {error}", &[("cond", &get("cond")), ("error", &localize(&get("error")))]);
+    }
+    localize(en)
 }
 
 /// A report that has a run-time error in it (`run-time error: Division by

@@ -607,9 +607,9 @@ CONST LOOKS = "RapidR|RapidR Light|RapidR Dark|RapidR High Contrast|Classic"
 ' line, the code, keeps the English name (RapidR Light, Classic …).
 FUNCTION LookShown(Look AS STRING) AS STRING
   SELECT CASE LCASE$(Look)
-    CASE "rapidr light": Result = TR$("RapidR Light")
-    CASE "rapidr dark": Result = TR$("RapidR Dark")
-    CASE "rapidr high contrast": Result = TR$("RapidR High Contrast")
+    CASE "rapidr light": Result = TR$("RapidR Light", "a look in the Properties pane's Theme row")
+    CASE "rapidr dark": Result = TR$("RapidR Dark", "a look in the Properties pane's Theme row")
+    CASE "rapidr high contrast": Result = TR$("RapidR High Contrast", "a look in the Properties pane's Theme row")
     CASE "classic": Result = TR$("Classic")
     CASE ELSE: Result = Look
   END SELECT

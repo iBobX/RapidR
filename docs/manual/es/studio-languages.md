@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md f9f072488f99006c -->
+<!-- translated-from: studio-languages.md 222ba786070730f4 -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -112,11 +112,18 @@ en él (`tests/studio_lang.mjs`).
 ## Todavía no
 
 - El texto de Studio está en español (una primera versión que revisa Robert: cada
-  menú, panel, cuadro de diálogo y mensaje, los mensajes del compilador y las
-  sugerencias que van debajo); el portugués y el chino van después.
-- Los mensajes de error de ejecución de un programa en marcha, y las palabras
-  propias del panel Ayuda alrededor de una entrada (“Property of RButton”), están
-  en inglés.
+  menú, menú contextual, panel, cuadro de diálogo y mensaje, los mensajes del
+  compilador y las sugerencias que van debajo, las palabras propias del panel
+  Ayuda alrededor de una entrada, y los cuadros de diálogo que muestra un
+  programa: los de color y fuente y los mensajes); el portugués y el chino van
+  después.
+- Los errores de ejecución de un programa en marcha están traducidos los más
+  comunes (división por cero, un subíndice fuera de rango, quedarse sin `DATA`,
+  un archivo que no se puede abrir o crear, un desbordamiento de pila, una
+  variable que no es un objeto…), en la línea que Studio muestra donde se
+  detiene un programa en depuración y en las notas de Problemas. Los muchos
+  mensajes propios de un componente (una base de datos, un socket, una
+  impresora) todavía salen en inglés.
 - El manual en español empieza con sus páginas más leídas: el índice, *Primeros
   pasos*, el editor de código, los proyectos, Studio en tu idioma, la Depuración,
   el asistente de IA, las Versiones y la Solución de problemas; las demás páginas

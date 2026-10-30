@@ -1,0 +1,7 @@
+' A program that stops with a run-time error (tests/studio_lang.mjs: the
+' stop, the line in Output and the strip at the line, in every language).
+DIM z AS INTEGER
+z = 0
+PRINT "before"
+PRINT 10 \ z
+PRINT "after"

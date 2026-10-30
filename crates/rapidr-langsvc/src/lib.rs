@@ -723,14 +723,14 @@ impl Analysis {
 
     /// The name a rename at `offset` would change, or why it can't.
     pub fn prepare_rename(&mut self, file: &Path, offset: usize) -> Result<Location, String> {
-        let s = self.snapshot(file).ok_or("no analysis for this file")?;
+        let s = self.snapshot(file).ok_or_else(|| words::tr_ui("no analysis for this file"))?;
         navigate::prepare_rename(&s, file, offset)
     }
 
     /// Renames the symbol at `offset` everywhere it is used; refuses a
     /// name that isn't valid or that would change what another name means.
     pub fn rename(&mut self, file: &Path, offset: usize, new_name: &str) -> Result<WorkspaceEdit, String> {
-        let s = self.snapshot(file).ok_or("no analysis for this file")?;
+        let s = self.snapshot(file).ok_or_else(|| words::tr_ui("no analysis for this file"))?;
         navigate::rename(&s, file, offset, new_name)
     }
 

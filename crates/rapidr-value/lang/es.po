@@ -3340,3 +3340,451 @@ msgstr "no se puede crear su carpeta: {folder} es un archivo"
 #: crates/rapidr-studio/src/recovery.rs
 msgid "{folder} can't be written: {error}"
 msgstr "no se puede escribir en {folder}: {error}"
+
+# Lane ES-REFERENCE part 2b
+
+#. A quick fix's title: replaces the text with the name (code stays as written)
+#: crates/rapidr-langsvc/src/compat.rs crates/rapidr-langsvc/src/hints.rs
+msgid "Write {name}"
+msgstr "Escribir {name}"
+
+#. A quick fix's title
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "Change to {name}"
+msgstr "Cambiar a {name}"
+
+#. A quick fix's title
+#: crates/rapidr-langsvc/src/hints.rs
+msgid "Add $INCLUDE \"{inc}\""
+msgstr "Añadir $INCLUDE \"{inc}\""
+
+#: crates/rapidr-langsvc/src/lib.rs
+msgid "no analysis for this file"
+msgstr "no hay análisis de este archivo"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "Nothing to rename here: put the caret on a name of the program"
+msgstr "Aquí no hay nada que renombrar: pon el cursor en un nombre del programa"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "no position"
+msgstr "sin posición"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "no reference here"
+msgstr "aquí no hay ninguna referencia"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "{name} is used where it can't be renamed"
+msgstr "{name} se usa donde no se puede cambiar el nombre"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "{name} belongs to a library RapidR supplies"
+msgstr "{name} pertenece a una biblioteca que trae RapidR"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "Nothing to rename here"
+msgstr "Aquí no hay nada que renombrar"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is not a valid name"
+msgstr "'{name}' no es un nombre válido"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is a reserved word"
+msgstr "'{name}' es una palabra reservada"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is a builtin's name"
+msgstr "'{name}' es el nombre de una función incorporada"
+
+#. {what} is the kind with its article (la variable global x, el campo y): the sentence is built so that no 'de el' can come up
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is already the name of {what} here"
+msgstr "'{name}' ya está en uso aquí: es {what}"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' would be hidden by {what} in a SUB that uses it"
+msgstr "'{name}' quedaría oculto por {what} en una subrutina que lo usa"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the global variable"
+msgstr "la variable global"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the local variable"
+msgstr "la variable local"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the parameter"
+msgstr "el parámetro"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the STATIC variable"
+msgstr "la variable STATIC"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the constant"
+msgstr "la constante"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the component"
+msgstr "el componente"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the SUB"
+msgstr "la subrutina"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the FUNCTION"
+msgstr "la función"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the DLL routine"
+msgstr "la rutina de DLL"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the TYPE"
+msgstr "el tipo (TYPE)"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the field"
+msgstr "el campo"
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the label"
+msgstr "la etiqueta"
+
+#: crates/rapidr-studio/src/session.rs
+msgid "no program to run"
+msgstr "no hay ningún programa para ejecutar"
+
+#: crates/rapidr-studio/src/session.rs
+msgid "Studio runs in a browser already: Run (F5) runs the program here"
+msgstr "Studio ya se ejecuta en un navegador: Ejecutar (F5) ejecuta el programa aquí"
+
+#: crates/rapidr-studio/src/session.rs
+msgid "[Run in Browser ended: exit code {code}]"
+msgstr "[Ejecutar en el navegador terminó: código de salida {code}]"
+
+#. The colour dialog's title when the program gives none
+#: crates/rapidr-ui-app/src/dialogs.rs
+msgid "Color"
+msgstr "Color"
+
+#. What a screen reader calls a message box's picture
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Question"
+msgstr "Pregunta"
+
+#. The colour dialog's boxes: hue, saturation, luminosity, red, green, blue (the editor's own order)
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Hu&e:"
+msgstr "Ma&tiz:"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Sat:"
+msgstr "&Sat:"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Lum:"
+msgstr "&Lum:"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Red:"
+msgstr "&Rojo:"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Green:"
+msgstr "&Verde:"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Bl&ue:"
+msgstr "A&zul:"
+
+#. The font dialog's style list: Regular, Italic, Bold, Bold Italic
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Regular"
+msgstr "Normal"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Bold Italic"
+msgstr "Negrita cursiva"
+
+#. The font dialog's colour list (the sixteen colours of Windows' own list)
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Black"
+msgstr "Negro"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Maroon"
+msgstr "Granate"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Olive"
+msgstr "Oliva"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Navy"
+msgstr "Azul marino"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Purple"
+msgstr "Púrpura"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Teal"
+msgstr "Verde azulado"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Gray"
+msgstr "Gris"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Silver"
+msgstr "Plateado"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Lime"
+msgstr "Lima"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Yellow"
+msgstr "Amarillo"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Fuchsia"
+msgstr "Fucsia"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Aqua"
+msgstr "Aguamarina"
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "White"
+msgstr "Blanco"
+
+#. The font dialog's colour list, for a colour that is none of the sixteen
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Custom"
+msgstr "Personalizado"
+
+#. A message box's title for a question (MESSAGEDLG mtConfirmation)
+#: crates/rapidr-value/src/dialogs.rs
+msgid "Confirm"
+msgstr "Confirmar"
+
+#. A message box's buttons (answers are told by the English label: only the words change)
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Yes"
+msgstr "&Sí"
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&No"
+msgstr "&No"
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Retry"
+msgstr "&Reintentar"
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Abort"
+msgstr "&Anular"
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Ignore"
+msgstr "&Ignorar"
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&All"
+msgstr "&Todo"
+
+#. A colour in words, for screen readers and the code editor's name line (dark blue, light grey)
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "black"
+msgstr "negro"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "dark grey"
+msgstr "gris oscuro"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "grey"
+msgstr "gris"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "light grey"
+msgstr "gris claro"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "white"
+msgstr "blanco"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "red"
+msgstr "rojo"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "brown"
+msgstr "marrón"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "orange"
+msgstr "naranja"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "yellow"
+msgstr "amarillo"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "green"
+msgstr "verde"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "cyan"
+msgstr "cian"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "blue"
+msgstr "azul"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "purple"
+msgstr "púrpura"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "pink"
+msgstr "rosa"
+
+#. The colour's word follows (azul oscuro): a shade after the colour in Spanish
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "dark {name}"
+msgstr "{name} oscuro"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "light {name}"
+msgstr "{name} claro"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "a system colour"
+msgstr "un color del sistema"
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "{name}, the system's colour"
+msgstr "{name}, el color del sistema"
+
+#. Run-time errors: the English stays what the runtime and its tests read; the person sees these
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "END can't run in an evaluation"
+msgstr "END no se puede ejecutar en una evaluación"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation ended the program"
+msgstr "la evaluación terminó el programa"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation would wait (a dialog or a form): not while the program is stopped"
+msgstr "la evaluación tendría que esperar (un cuadro de diálogo o un formulario): no mientras el programa está detenido"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "too many event arguments"
+msgstr "demasiados argumentos del evento"
+
+#. Frame: a call on the call stack
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "no frame {i}"
+msgstr "no hay un marco {i}"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what}({n}): strings are limited to {max} characters"
+msgstr "{what}({n}): las cadenas están limitadas a {max} caracteres"
+
+#. Q4: controlador (event handler)
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what} ran inside itself {n} times: its handler fires it again before it ends"
+msgstr "{what} se ejecutó dentro de sí mismo {n} veces: su controlador lo vuelve a disparar antes de terminar"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "events ran inside each other {n} deep (the last: {what}): their handlers fire events before they end"
+msgstr "los eventos se ejecutaron unos dentro de otros a {n} niveles (el último: {what}): sus controladores disparan eventos antes de terminar"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{name} reads or writes a hardware port, which a program can't do on a modern system"
+msgstr "{name} lee o escribe un puerto de hardware, algo que un programa no puede hacer en un sistema moderno"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a function of a DLL ({base}): this program calls Windows itself, and the web can't load DLLs, so it runs on Windows only"
+msgstr "'{name}' es una función de una DLL ({base}): este programa llama a Windows directamente, y la web no puede cargar DLL, así que solo se ejecuta en Windows"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a Windows function ({base}): this program calls Windows itself, so it runs on Windows only"
+msgstr "'{name}' es una función de Windows ({base}): este programa llama a Windows directamente, así que solo se ejecuta en Windows"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a function of {base}.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only"
+msgstr "'{name}' es una función de {base}.dll, una DLL de Windows: este programa llama a una DLL, así que solo se ejecuta en Windows"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Cannot open file {path}."
+msgstr "No se puede abrir el archivo {path}."
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Cannot create file {path}."
+msgstr "No se puede crear el archivo {path}."
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what}: argument is not an array, or it has no dimension {d}"
+msgstr "{what}: el argumento no es un arreglo, o no tiene la dimensión {d}"
+
+#. Why a program that waits for its events was paused (Studio lower-cases it after 'Pausado,')
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Waiting for events"
+msgstr "Esperando eventos"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "The breakpoint's condition `{cond}` failed: {error}"
+msgstr "La condición `{cond}` del punto de interrupción falló: {error}"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (reading field {slot} of {what})"
+msgstr "esta variable no se refiere a un objeto (se lee el campo {slot} de {what})"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (setting field {slot} of {what})"
+msgstr "esta variable no se refiere a un objeto (se establece el campo {slot} de {what})"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "out of memory for addresses (VARPTR)"
+msgstr "sin memoria para direcciones (VARPTR)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "address {addr} belongs to an array or TYPE that no longer exists"
+msgstr "la dirección {addr} pertenece a un arreglo o TYPE que ya no existe"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)"
+msgstr "la dirección {addr} no es memoria de este programa (usa VARPTR de una variable, de un elemento de un arreglo, de un TYPE, o el Pointer de un flujo)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{n} bytes at address {addr} run past the end of its memory ({left} bytes left)"
+msgstr "{n} bytes en la dirección {addr} pasan del final de su memoria (quedan {left} bytes)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "a STRING isn't an address: use VARPTR(s$)"
+msgstr "una cadena no es una dirección: usa VARPTR(s$)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "VARPTR of an element of something that isn't an array"
+msgstr "VARPTR de un elemento de algo que no es un arreglo"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "a negative byte count ({n})"
+msgstr "una cantidad de bytes negativa ({n})"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "PEEK takes an address, or a page and an address"
+msgstr "PEEK recibe una dirección, o una página y una dirección"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "POKE takes an address and a byte, or a page, an address and a byte"
+msgstr "POKE recibe una dirección y un byte, o una página, una dirección y un byte"

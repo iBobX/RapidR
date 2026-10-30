@@ -391,7 +391,12 @@ fn parts(x: &Ctx, f: &FindBox) -> Parts {
     let close = (rx + w - 26, by + 2, 20, 20);
     let (replace, replace_one, replace_all) = if f.mode == Mode::Replace {
         let ry = by + 28;
-        (Some((bx, ry, query.2, 24)), Some((t0, ry + 2, 52, 20)), Some((t0 + 56, ry + 2, 40, 20)))
+        // (the buttons are as wide as their words need — 52 and 40 for the
+        // English ones — and the second follows the first)
+        let font = ui_font();
+        let need = |text: String, least: i64| (text_size(&text, &font).0 + 8).max(least);
+        let (one_w, all_w) = (need(tr_ui("Replace"), 52), need(tr_ui("All"), 40));
+        (Some((bx, ry, query.2, 24)), Some((t0, ry + 2, one_w, 20)), Some((t0 + one_w + 4, ry + 2, all_w, 20)))
     } else {
         (None, None, None)
     };

@@ -3786,14 +3786,17 @@ msgid "Properties"
 msgstr ""
 
 #: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR Light"
 msgstr ""
 
 #: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR Dark"
 msgstr ""
 
 #: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR High Contrast"
 msgstr ""
 

@@ -266,12 +266,16 @@ END SUB
 ' than the whole room are shortened, in their middle (a file's line number
 ' at the end stays), the whole of them the bar's tooltip)
 SUB LayOutStatus
-  DIM w AS INTEGER, w0 AS INTEGER
+  DIM w AS INTEGER, w0 AS INTEGER, wp AS INTEGER
   StatusMeasure.Font.Name = StatusFont.Name: StatusMeasure.Font.Size = StatusFont.Size
   w0 = StatusMeasure.TextWidth(TR$(StateText)) + 14
   IF w0 < 230 THEN w0 = 230
   IF w0 > StateRoom + 14 THEN w0 = StateRoom + 14
-  w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160 - McpStatusWidth
+  ' (the caret's place: 110 pixels hold the English words; a longer language
+  ' with a line in the hundreds takes what its words need)
+  wp = StatusMeasure.TextWidth(TR$("Ln {line}, Col {col}", "line", 999, "col", 99)) + 14
+  IF wp < 110 THEN wp = 110
+  w = Studio.ClientWidth - w0 - wp - 70 - 60 - 160 - McpStatusWidth
   IF w < 40 THEN w = 40
   ' (AI apps' panel, once they've been on: mcp.inc)
   IF McpStatusWidth > 0 THEN
@@ -281,7 +285,7 @@ SUB LayOutStatus
   Status.Panel(0).Width = w0
   Status.Panel(0).Caption = FitMiddle(TR$(StateText), w0 - 14)
   Status.Panel(1).Width = w
-  Status.Panel(2).Width = 110
+  Status.Panel(2).Width = wp
   Status.Panel(3).Width = 70
   Status.Panel(4).Width = 60
   ' (a layout's note there stays its four seconds: debug.inc's LayoutNote)

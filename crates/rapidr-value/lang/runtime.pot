@@ -412,6 +412,14 @@ msgstr ""
 msgid "*From `{inc}`.*"
 msgstr ""
 
+#: crates/rapidr-langsvc/src/compat.rs crates/rapidr-langsvc/src/hints.rs
+msgid "Write {name}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "Change to {name}"
+msgstr ""
+
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "Creates a component inside this one."
 msgstr ""
@@ -816,6 +824,10 @@ msgstr ""
 msgid "your label"
 msgstr ""
 
+#: crates/rapidr-langsvc/src/hints.rs
+msgid "Add $INCLUDE \"{inc}\""
+msgstr ""
+
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "built in"
 msgstr ""
@@ -918,6 +930,102 @@ msgstr ""
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "event of {owner}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/lib.rs
+msgid "no analysis for this file"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "Nothing to rename here: put the caret on a name of the program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "no position"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "no reference here"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "{name} is used where it can't be renamed"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "{name} belongs to a library RapidR supplies"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "Nothing to rename here"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is not a valid name"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is a reserved word"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is a builtin's name"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is already the name of {what} here"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' would be hidden by {what} in a SUB that uses it"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the global variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the local variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the parameter"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the STATIC variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the constant"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the component"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the SUB"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the FUNCTION"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the DLL routine"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the TYPE"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the field"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the label"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
@@ -1776,6 +1884,26 @@ msgstr ""
 msgid "Versions need RapidR Studio on your computer: in a browser, Studio keeps a local history of your saves only."
 msgstr ""
 
+#: crates/rapidr-studio/src/session.rs
+msgid "no program to run"
+msgstr ""
+
+#: crates/rapidr-studio/src/session.rs
+msgid "Studio runs in a browser already: Run (F5) runs the program here"
+msgstr ""
+
+#: crates/rapidr-studio/src/session.rs
+msgid "[Run in Browser ended: exit code {code}]"
+msgstr ""
+
+#: crates/rapidr-ui-app/src/dialogs.rs
+msgid "Color"
+msgstr ""
+
+#: crates/rapidr-ui-app/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
+msgid "Font"
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}, column {column}"
 msgstr ""
@@ -1821,6 +1949,14 @@ msgid "Replaced {count}"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
+msgid "Replace"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
+msgid "All"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Find"
 msgstr ""
 
@@ -1830,10 +1966,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "New name"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
-msgid "Replace"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
@@ -1846,10 +1978,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "? of {total}"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
-msgid "All"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
@@ -2324,7 +2452,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
+#: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/dialogs.rs
 msgid "Cancel"
 msgstr ""
 
@@ -2432,7 +2560,7 @@ msgstr ""
 msgid "At the caret: {format}"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/dialogs.rs
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs
 msgid "OK"
 msgstr ""
 
@@ -2508,6 +2636,130 @@ msgstr ""
 msgid "Color|Solid"
 msgstr ""
 
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Warning"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Error"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Information"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Question"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Hu&e:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Sat:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Lum:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Red:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Green:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Bl&ue:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Regular"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
+msgid "Italic"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
+msgid "Bold"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Bold Italic"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Black"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Maroon"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
+msgid "Green"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Olive"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Navy"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Purple"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Teal"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Gray"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Silver"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
+msgid "Red"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Lime"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Yellow"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
+msgid "Blue"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Fuchsia"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Aqua"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "White"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Custom"
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "was · now"
 msgstr ""
@@ -2550,18 +2802,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "{color} (was {original})"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/field.rs
-msgid "Red"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/field.rs
-msgid "Green"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/field.rs
-msgid "Blue"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
@@ -2612,10 +2852,6 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
-msgid "Font"
-msgstr ""
-
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{title}: {value}"
 msgstr ""
@@ -2662,14 +2898,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "The quick brown fox 0123"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/mod.rs
-msgid "Bold"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/mod.rs
-msgid "Italic"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
@@ -2856,6 +3084,34 @@ msgstr ""
 msgid "log point"
 msgstr ""
 
+#: crates/rapidr-value/src/dialogs.rs
+msgid "Confirm"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Yes"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&No"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Retry"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Abort"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Ignore"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&All"
+msgstr ""
+
 #: crates/rapidr-value/src/dock/access.rs crates/rapidr-value/src/dock/look.rs
 msgid "Documents"
 msgstr ""
@@ -2968,6 +3224,78 @@ msgstr ""
 msgid "Auto-hide bottom"
 msgstr ""
 
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "black"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "dark grey"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "grey"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "light grey"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "white"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "red"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "brown"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "orange"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "yellow"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "green"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "cyan"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "blue"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "purple"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "pink"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "dark {name}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "light {name}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "a system colour"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "{name}, the system's colour"
+msgstr ""
+
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "Hunk {n} of {total}: {what}"
 msgstr ""
@@ -3014,18 +3342,6 @@ msgstr ""
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/console.rs
-msgid "Error"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/console.rs
-msgid "Warning"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/console.rs
-msgid "Information"
 msgstr ""
 
 #: crates/rapidr-value/src/panels/console.rs
@@ -3298,6 +3614,74 @@ msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "the evaluation ran too long and was stopped"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "END can't run in an evaluation"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation ended the program"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation would wait (a dialog or a form): not while the program is stopped"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "too many event arguments"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "no frame {i}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what}({n}): strings are limited to {max} characters"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what} ran inside itself {n} times: its handler fires it again before it ends"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "events ran inside each other {n} deep (the last: {what}): their handlers fire events before they end"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{name} reads or writes a hardware port, which a program can't do on a modern system"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a function of a DLL ({base}): this program calls Windows itself, and the web can't load DLLs, so it runs on Windows only"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a Windows function ({base}): this program calls Windows itself, so it runs on Windows only"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a function of {base}.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Cannot open file {path}."
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Cannot create file {path}."
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what}: argument is not an array, or it has no dimension {d}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Waiting for events"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "The breakpoint's condition `{cond}` failed: {error}"
 msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs

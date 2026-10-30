@@ -1,0 +1,14 @@
+' a program with notes the language service writes
+DIM a AS INTEGER
+a = 1
+IF a && 1 THEN PRINT "x"
+console.log("hi")
+IF NOT FILEEXISTS("x.txt") THEN PRINT 1
+SUB Go(Result AS INTEGER)
+  PRINT Result
+END SUB
+x = mbYes
+CREATE Form1 AS RForm
+  Caption = "hi"
+END CREATE
+Form1.Capton = "x"

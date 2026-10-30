@@ -3365,6 +3365,7 @@ SUB SetUpDebug
   BpOnCheck.Left = 436: BpOnCheck.Top = 6: BpOnCheck.Width = 46
   BpOnCheck.Caption = TR$("On")
   BpOnCheck.OnClick = BpOnClicked
+  LayOutBpStrip
   DebugTree BpTree, TR$("Breakpoints")
   BpTree.Parent = BpPanel
   BpTree.Align = 5
@@ -3399,7 +3400,39 @@ END SUB
 ' The language changed: the debugger's panes made again in it (the titles
 ' and what the trees show; captions, hints and names follow by themselves,
 ' but the logpoint's hint has braces in it and is set again here).
+' (the condition strip under Breakpoints: each label as wide as its word needs
+' — the English words fit 40, 24, 28 and 46 pixels —, the boxes following;
+' a longer language, Registro, Veces, Activado: nothing cut off)
+DIM BpMeasure AS RBitmap
+SUB LayOutBpStrip
+  DIM x AS INTEGER, w AS INTEGER
+  BpMeasure.Font.Name = UIFont.Name: BpMeasure.Font.Size = UIFont.Size
+  w = BpMeasure.TextWidth(REPLACESUBSTR$(TR$("&When"), "&", "")) + 6
+  IF w < 40 THEN w = 40
+  BpCondLabel.Left = 6: BpCondLabel.Width = w
+  x = 6 + w + 4
+  BpCondEdit.Left = x
+  x = x + BpCondEdit.Width + 10
+  w = BpMeasure.TextWidth(REPLACESUBSTR$(TR$("&Hit"), "&", "")) + 6
+  IF w < 24 THEN w = 24
+  BpHitLabel.Left = x: BpHitLabel.Width = w
+  x = x + w + 4
+  BpHitEdit.Left = x
+  x = x + BpHitEdit.Width + 10
+  w = BpMeasure.TextWidth(REPLACESUBSTR$(TR$("&Log"), "&", "")) + 6
+  IF w < 28 THEN w = 28
+  BpLogLabel.Left = x: BpLogLabel.Width = w
+  x = x + w + 4
+  BpLogEdit.Left = x
+  x = x + BpLogEdit.Width + 10
+  ' (a check box: its square, a gap, the word)
+  w = BpMeasure.TextWidth(TR$("On")) + 26
+  IF w < 46 THEN w = 46
+  BpOnCheck.Left = x: BpOnCheck.Width = w
+END SUB
+
 SUB DebugLanguageChanged
+  LayOutBpStrip
   Dock.PaneTitle("varstree", TR$("Variables"))
   Dock.PaneTitle("watchpanel", TR$("Watch"))
   Dock.PaneTitle("stacktree", TR$("Call Stack"))

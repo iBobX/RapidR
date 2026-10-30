@@ -80,6 +80,7 @@ DECLARE SUB MarkdownLanguageChanged
 DECLARE FUNCTION UITextWidth(Text AS STRING) AS INTEGER
 DECLARE SUB SearchLanguageChanged
 DECLARE SUB DebugLanguageChanged
+DECLARE SUB LayOutBpStrip
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER

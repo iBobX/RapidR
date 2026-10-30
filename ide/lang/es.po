@@ -5542,7 +5542,7 @@ msgstr "Historial local: {file}"
 
 #: ide/versions.inc
 msgid "A copy each time the file was saved, kept in the project's .rapidr folder (never in a version)"
-msgstr "Una copia cada vez que se guardó el archivo, guardada en la carpeta .rapidr del proyecto (nunca en una versión)"
+msgstr "Una copia en cada guardado, en la carpeta .rapidr del proyecto (nunca en una versión)"
 
 #: ide/versions.inc
 msgid "Copies of {file}, newest first"
@@ -5951,18 +5951,20 @@ msgstr "Tu programa se detuvo: un problema de RapidR"
 
 
 #: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR Light"
-msgstr "RapidR claro"
+msgstr "Claro"
 
-#. too long
+#. A look in the Properties pane's Theme row: the row's value column is narrow, so the word is short (the View > Theme menu says RapidR claro / oscuro / contraste alto)
 #: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR Dark"
-msgstr "RapidR oscuro"
+msgstr "Oscuro"
 
-#. too long
 #: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR High Contrast"
-msgstr "RapidR contraste alto"
+msgstr "Contraste alto"
 
 #: ide/panels.inc
 msgid "Classic"

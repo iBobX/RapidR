@@ -1264,8 +1264,10 @@ SUB VerDiffActClick
   Application.Announce TR$("Restored. Save the file to keep it; Undo takes it back.")
 END SUB
 
+' (the list's copies as wide as their words need, when the pane has room: a
+' longer language, "Como estaba en el disco, hace 3 minutos": nothing cut off)
 SUB VerDiffLayOut
-  DIM w AS INTEGER, h AS INTEGER, ch AS INTEGER, hh AS INTEGER, bw AS INTEGER, lw AS INTEGER, x AS INTEGER, th AS INTEGER
+  DIM w AS INTEGER, h AS INTEGER, ch AS INTEGER, hh AS INTEGER, bw AS INTEGER, lw AS INTEGER, x AS INTEGER, th AS INTEGER, i AS INTEGER, tw AS INTEGER, most AS INTEGER
   ch = UiCompactH
   hh = UiPaneHeadH
   w = VerDiffPane.ClientWidth
@@ -1281,6 +1283,15 @@ SUB VerDiffLayOut
   VerDiffSub.Left = 12: VerDiffSub.Top = VerDiffHead.Top + VerDiffHead.Height + 2: VerDiffSub.Width = x - 12
   lw = 220
   IF lw > w \ 3 THEN lw = w \ 3
+  IF w >= 600 THEN
+    VerMeasure.Font.Name = UIFont.Name: VerMeasure.Font.Size = UIFont.Size
+    FOR i = 0 TO VerDiffList.ItemCount - 1
+      tw = VerMeasure.TextWidth(VerDiffList.Item(i)) + 30
+      IF tw > most THEN most = tw
+    NEXT
+    IF most > lw THEN lw = most
+    IF lw > w \ 2 THEN lw = w \ 2
+  END IF
   VerDiffList.Left = 0: VerDiffList.Top = hh: VerDiffList.Width = lw: VerDiffList.Height = h - hh
   VerDiff.Left = lw + 1: VerDiff.Top = hh: VerDiff.Width = w - lw - 1: VerDiff.Height = h - hh
 END SUB

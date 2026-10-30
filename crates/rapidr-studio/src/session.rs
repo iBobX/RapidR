@@ -415,7 +415,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "currentline" => Value::Integer(i64::from(s.current_line())),
             "exitcode" => Value::Integer(i64::from(s.exit_code().unwrap_or(0))),
             "stopreason" => Value::String(s.stop_reason().to_string().into()),
-            "stopmessage" => Value::String(s.stop_description().to_string().into()),
+            "stopmessage" => Value::String(rapidr_value::runtime_text::localize_stop(s.stop_description()).into()),
             "error" => Value::String(m.error.clone().into()),
             "frame" => Value::Integer(m.frame as i64),
             "localsref" => Value::Integer(i64::from(m.locals_ref())),
@@ -921,6 +921,7 @@ mod browser {
     use std::collections::BTreeMap;
     use std::sync::mpsc::{self, Receiver};
 
+    use rapidr_value::i18n::{tr_ui, tr_ui_fill};
     use rapidr_value::Value;
 
     use crate::Host;
@@ -939,9 +940,9 @@ mod browser {
         use std::io::{BufRead, BufReader};
         use std::process::{Command, Stdio};
         if program.is_empty() {
-            return Err("no program to run".into());
+            return Err(tr_ui("no program to run"));
         }
-        let rapidr = host.rapidr().ok_or("Studio runs in a browser already: Run (F5) runs the program here")?;
+        let rapidr = host.rapidr().ok_or_else(|| tr_ui("Studio runs in a browser already: Run (F5) runs the program here"))?;
         stop(name);
         let mut cmd = Command::new(&rapidr);
         cmd.arg("serve").arg(program).arg("--open").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -1002,7 +1003,7 @@ mod browser {
                 }
                 if let Ok(Some(status)) = server.child.try_wait() {
                     if server.url.is_empty() {
-                        out.push((name.clone(), format!("[Run in Browser ended: exit code {}]\n", status.code().unwrap_or(1))));
+                        out.push((name.clone(), format!("{}\n", tr_ui_fill("[Run in Browser ended: exit code {code}]", &[("code", &status.code().unwrap_or(1).to_string())]))));
                     }
                     ended.push(name.clone());
                 }

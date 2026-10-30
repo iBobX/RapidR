@@ -384,7 +384,7 @@ pub(crate) fn actions(diags: &[FileDiagnostic], text_of: impl Fn(&Path) -> Optio
         if matches!(d.code.as_deref(), Some(NOT_RAPIDQ_NAME | RAPIDR_NAME)) {
             if let Some(name) = d.message.rsplit(' ').next() {
                 out.push(CodeAction {
-                    title: format!("Write {name}"),
+                    title: tr_ui_fill("Write {name}", &[("name", name)]),
                     edit: vec![(d.file.clone(), vec![TextEdit { start: d.start, end: d.end, text: name.to_string() }])],
                     fixes: Some(d.clone()),
                     preferred: true,
@@ -426,7 +426,7 @@ fn did_you_mean(d: &FileDiagnostic, text: &str, member: &str, class: &str) -> Ve
         .take(3)
         .enumerate()
         .map(|(k, (_, name))| CodeAction {
-            title: format!("Change to {name}"),
+            title: tr_ui_fill("Change to {name}", &[("name", name)]),
             edit: vec![(d.file.clone(), vec![TextEdit { start, end: start + member.len(), text: name.to_string() }])],
             fixes: Some(d.clone()),
             preferred: k == 0,
