@@ -206,6 +206,8 @@ export const cases = [
     expect: ["www.example.com  -  stopped", "shop.example.com  -  running", "status.caption=www.example.com is stopped."] },
   { file: "recipes/server_manager.rr", runtimes: ["run", "interp", "native", "web"], events: "sitelist.__item_2,restartbtn.onclick", dump: "status.caption",
     expect: ["status.caption=blog.example.com restarted."] },
+  { file: "recipes/frame_audio.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("status", 30)}`, dump: "status.caption,speaker.underruns,speaker.__heard",
+    expect: ["speaker.underruns=0", " ms queued, 0 gaps", " 8000 7960 7920 7880 7841 7801 7762 7724"] },
   // studio/
   { file: "studio/panels.rr", runtimes: ["run", "interp", "native", "web"], events: "box.__dblclick_60_170", dump: "tree.projectname,tree.filecount,designer.compcount,insp.targettype",
     expect: ["tree.projectname=Greeter", "tree.filecount=4", "designer.compcount=2", "insp.targettype=RCheckBox"] },
@@ -244,6 +246,20 @@ export const cases = [
     expect: ["info.caption=24 frames of 64x48"] },
   { file: "media/video.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 50)}`, dump: "info.caption",
     expect: ["info.caption=Played to the end: 24 frames"] },
+  // (RAudioStream: the tests' clocked sink takes the samples in real time
+  // and keeps what it heard — `__heard`: how many, their sum, the first
+  // ones as 16-bit numbers —, so these check exact samples on every runtime)
+  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 20)}`, dump: "info.caption,sound.__heard",
+    expect: ["info.caption=440.0 Hz sine, playing: ", " 0 160 320 479 635 789 940 1088 1231 1369 1502 1629 1749 1863 1969 2068 2158 2240"] },
+  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,freqbar.__key_34,startbtn.onclick,${wait("info", 6)},startbtn.onclick`, dump: "info.caption,sound.playing",
+    expect: ["info.caption=880.0 Hz square, stopped", "sound.playing=0"] },
+  // (the timing test: the interpreter makes 50 frames a second from an
+  // RTimer, 882 samples each, and the sound never gaps; the first frame's
+  // samples exact)
+  { file: "media/beeper.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 60)}`, dump: "info.caption,beeper.underruns,beeper.__heard",
+    expect: ["beeper.underruns=0", " ms queued, 0 gaps", " -9000 -8955 -8910 -8865 -8821 -8777 -8733 -8689 -8646 -8603 -8559 4982 9457 9410"] },
+  { file: "media/chiptune.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 40)}`, dump: "info.caption,chip.underruns,chip.__heard",
+    expect: ["chip.underruns=0", " 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 1050 1050"] },
   // data/
   // (RSecrets in the test keystore — the runner's RAPIDR_AI_KEYSTORE=memory,
   // never the keychain: a password typed, saved, read back; an empty one

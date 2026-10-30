@@ -1,0 +1,221 @@
+' tone_generator.rr: a tone made sample by sample and played as it is
+' made (RAudioStream), with an oscilloscope drawn from the very samples
+' that were played. Pick a wave (sine, square, sawtooth, noise), move the
+' frequency in musical steps (A4 = 440 Hz), set the volume.
+'
+'   rapidr run tone_generator.rr          (or open it in RapidR Studio and press F5)
+'
+' How it works: the stream asks for more sound (OnNeedData, about every
+' 10 ms) when less than BufferMs (60 ms) is waiting; Feed makes exactly
+' that many samples, keeps a copy for the scope and writes them. The
+' phase carries on from block to block, so changing the frequency never
+' clicks. Runs on the desktop (run, interpreted, native) and on the web
+' (press Start: a browser plays sound only after a click).
+$THEME rapidr
+
+CONST RATE = 44100                ' samples a second
+CONST PI = 3.14159265358979
+CONST AMP = 16000                 ' the wave's height: half of the 16-bit range
+CONST KEEP = 4096                ' samples kept for the scope
+
+DECLARE SUB Feed (Count AS INTEGER)
+DECLARE SUB StartStop
+DECLARE SUB ControlsChanged
+DECLARE SUB ScopeTick
+DECLARE SUB ScopePaint
+
+DIM buf(KEEP - 1) AS INTEGER      ' one block, as written
+DIM hist(KEEP - 1) AS INTEGER     ' the last samples written, round and round
+DIM histAt AS INTEGER
+DIM phase AS DOUBLE               ' where in the cycle: 0 up to 1
+DIM freq AS DOUBLE
+DIM kind AS INTEGER               ' 0 sine, 1 square, 2 sawtooth, 3 noise
+DIM readout AS STRING
+
+freq = 440
+
+DIM Sound AS RAudioStream
+Sound.SampleRate = RATE
+Sound.BufferMs = 60
+Sound.OnNeedData = Feed
+
+CREATE Form AS RForm
+    Caption = "Tone generator"
+    ClientWidth = 680: ClientHeight = 380
+    Center
+    CREATE ToneBox AS RGroupBox
+        Caption = "Tone": Left = 12: Top = 8: Width = 232: Height = 316
+        CREATE WSine AS RRadioButton
+            Caption = "S&ine": Left = 12: Top = 24: Width = 100: Checked = 1
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE WSquare AS RRadioButton
+            Caption = "S&quare": Left = 120: Top = 24: Width = 100
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE WSaw AS RRadioButton
+            Caption = "Sa&wtooth": Left = 12: Top = 50: Width = 100
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE WNoise AS RRadioButton
+            Caption = "&Noise": Left = 120: Top = 50: Width = 100
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE FreqLabel AS RLabel
+            Left = 12: Top = 86: Width = 208
+        END CREATE
+        CREATE FreqBar AS RTrackBar
+            Left = 8: Top = 106: Width = 216: Height = 30
+            Min = 0: Max = 84: Position = 48: Frequency = 12: PageSize = 12
+            OnChange = ControlsChanged
+            AccessibleName = "Frequency, in musical steps"
+        END CREATE
+        CREATE VolLabel AS RLabel
+            Left = 12: Top = 146: Width = 208
+        END CREATE
+        CREATE VolBar AS RTrackBar
+            Left = 8: Top = 166: Width = 216: Height = 30
+            Min = 0: Max = 100: Position = 40: Frequency = 10: PageSize = 10
+            OnChange = ControlsChanged
+            AccessibleName = "Volume"
+        END CREATE
+        CREATE StartBtn AS RButton
+            Caption = "&Start": Left = 12: Top = 214: Width = 100: Height = 30
+            OnClick = StartStop
+        END CREATE
+        CREATE Note AS RLabel
+            Left = 12: Top = 256: Width = 208: Height = 50
+            Caption = "Starts quiet: turn it up slowly."
+        END CREATE
+    END CREATE
+    CREATE Scope AS RCanvas
+        Left = 256: Top = 14: Width = 412: Height = 310
+        OnPaint = ScopePaint
+        AccessibleName = "Oscilloscope"
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 338: Width = 656: Height = 34
+    END CREATE
+    CREATE Frames AS RTimer
+        Interval = 40: Enabled = 0
+        OnTimer = ScopeTick
+    END CREATE
+END CREATE
+
+' ---- the sound ------------------------------------------------------------------------
+
+' The stream wants Count more samples: make them, keep a copy, write them.
+SUB Feed (Count AS INTEGER)
+    DIM i AS INTEGER, v AS DOUBLE, stepSize AS DOUBLE
+    IF Count > KEEP THEN Count = KEEP
+    stepSize = freq / RATE
+    FOR i = 0 TO Count - 1
+        SELECT CASE kind
+            CASE 0: v = SIN(2 * PI * phase)
+            CASE 1: v = IIF(phase < 0.5, 0.7, -0.7)          ' (a square sounds louder: 0.7)
+            CASE 2: v = 0.8 * (2 * phase - 1)
+            CASE ELSE: v = 0.6 * (RND * 2 - 1)
+        END SELECT
+        buf(i) = v * AMP
+        hist(histAt) = buf(i)
+        histAt = (histAt + 1) MOD KEEP
+        phase = phase + stepSize
+        IF phase >= 1 THEN phase = phase - 1
+    NEXT
+    Sound.Write buf, Count
+END SUB
+
+SUB StartStop
+    IF Sound.Playing THEN
+        Sound.Stop
+        Frames.Enabled = 0
+        StartBtn.Caption = "&Start"
+    ELSE
+        Sound.Start
+        Frames.Enabled = 1
+        StartBtn.Caption = "&Stop"
+    END IF
+    ScopeTick
+END SUB
+
+' ---- the controls ---------------------------------------------------------------------
+
+FUNCTION NoteName (n AS INTEGER) AS STRING
+    ' (position 48 is A4, 440 Hz; 12 steps an octave)
+    DIM letter AS STRING
+    letter = RTRIM$(MID$("A A#B C C#D D#E F F#G G#", ((n MOD 12) * 2) + 1, 2))
+    NoteName = letter + FORMAT$("%d", (n + 9) \ 12)
+END FUNCTION
+
+SUB ControlsChanged
+    IF WSquare.Checked THEN
+        kind = 1
+    ELSEIF WSaw.Checked THEN
+        kind = 2
+    ELSEIF WNoise.Checked THEN
+        kind = 3
+    ELSE
+        kind = 0
+    END IF
+    freq = 440 * 2 ^ ((FreqBar.Position - 48) / 12)
+    Sound.Volume = VolBar.Position
+    FreqLabel.Caption = "Frequency: " + FORMAT$("%.1f", freq) + " Hz (" + NoteName(FreqBar.Position) + ")"
+    VolLabel.Caption = "Volume: " + FORMAT$("%d", VolBar.Position) + " %"
+    ScopeTick
+END SUB
+
+' ---- the scope ------------------------------------------------------------------------
+
+SUB ScopeTick
+    readout = FORMAT$("%.1f", freq) + " Hz " + RTRIM$(MID$("sine    square  sawtoothnoise   ", kind * 8 + 1, 8))
+    IF Sound.Playing THEN
+        readout = readout + ", playing: " + FORMAT$("%d", Sound.Queued) + " ms queued, " + FORMAT$("%d", Sound.Underruns) + " gaps"
+    ELSE
+        readout = readout + ", stopped"
+    END IF
+    IF Sound.Error <> "" THEN readout = readout + ". " + Sound.Error
+    Info.Caption = readout
+    Scope.AccessibleDescription = readout
+    Scope.Repaint
+END SUB
+
+SUB ScopePaint
+    DIM W AS INTEGER, H AS INTEGER, i AS INTEGER, midY AS INTEGER, shown AS INTEGER, start AS INTEGER, k AS INTEGER
+    DIM x1 AS DOUBLE, y1 AS DOUBLE, x2 AS DOUBLE, y2 AS DOUBLE, scale AS DOUBLE
+    W = Scope.Width: H = Scope.Height: midY = H \ 2
+    Scope.FillRect 0, 0, W, H, RGB(10, 22, 30)
+    FOR i = 0 TO 10
+        Scope.Line INT(i * (W - 1) / 10), 0, INT(i * (W - 1) / 10), H, RGB(30, 58, 72)
+    NEXT
+    FOR i = 0 TO 8
+        Scope.Line 0, INT(i * (H - 1) / 8), W, INT(i * (H - 1) / 8), RGB(30, 58, 72)
+    NEXT
+    Scope.Line 0, midY, W, midY, RGB(52, 96, 116)
+    ' about three cycles, from a place the wave rises through zero (it stands still)
+    shown = INT(3 * RATE / freq)
+    IF shown < 64 THEN shown = 64
+    IF shown > 1800 THEN shown = 1800
+    start = (histAt - shown - 1 + KEEP * 2) MOD KEEP
+    FOR i = 1 TO KEEP - shown - 2
+        k = (histAt - shown - i + KEEP * 2) MOD KEEP
+        IF hist(k) < 0 AND hist((k + 1) MOD KEEP) >= 0 THEN
+            start = (k + 1) MOD KEEP
+            EXIT FOR
+        END IF
+        IF i > 2 * RATE / freq THEN EXIT FOR
+    NEXT
+    scale = (H / 2 - 8) / 32768
+    Scope.PenWidth = 2
+    x1 = 0: y1 = midY - hist(start) * scale
+    FOR i = 1 TO shown - 1
+        x2 = i * (W - 1) / (shown - 1)
+        y2 = midY - hist((start + i) MOD KEEP) * scale
+        Scope.Line x1, y1, x2, y2, RGB(110, 220, 255)
+        x1 = x2: y1 = y2
+    NEXT
+    Scope.PenWidth = 1
+    Scope.TextOut 8, 6, readout, RGB(170, 220, 236), -1
+END SUB
+
+ControlsChanged
+Form.ShowModal

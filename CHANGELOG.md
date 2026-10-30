@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **RAudioStream: sound made sample by sample**, played as the program makes it — an emulator's beeper or sound chip, a synthesizer, a tone for a lesson ([the manual](docs/manual/directx-and-media.md#sound-made-sample-by-sample-raudiostream)). `Write` queues 16-bit samples from an INTEGER array, a binary string or an RMemoryStream (with Count and Offset), `WriteFloat` -1 to 1, `WriteSample` one at a time; `SampleRate` (8000–96000), `Channels`, `Bits` (16 or 8), `BufferMs`, `Volume` (by the ear, gliding), `Enabled`, `Playing`, `Queued` (ms), `Underruns`, `Error`; `Start`, `Stop`, `Clear`; `OnNeedData(Count)` on the program's thread when the queue drops under BufferMs. The queue is lock-free (the sound device never waits for the program); a gap plays silence after a 2 ms fade and is counted; the device converts the rate. Desktop (interpreted and native) through rodio, the web through Web Audio (after a click, as browsers require: Error says so until then); without a sound device it plays silently, in time. The tests' clocked sink checks exact samples on every runtime. Examples: `media/tone_generator.rr` (with an oscilloscope), `media/beeper.rr` (a one-bit speaker as an emulator plays it: 882 samples a frame from an RTimer), `media/chiptune.rr` (three square-wave voices, RapidR's own tune), and the recipe `recipes/frame_audio.rr` (emulator sound from a level timeline).
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

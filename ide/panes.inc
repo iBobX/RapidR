@@ -166,6 +166,9 @@ SUB FillExamples
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
+  AddMoreExample "media/tone_generator.rr", "A tone made sample by sample, with an oscilloscope"
+  AddMoreExample "media/beeper.rr", "A one-bit speaker played the way an emulator plays it"
+  AddMoreExample "media/chiptune.rr", "A three-voice square-wave music player"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"
@@ -177,6 +180,7 @@ SUB FillExamples
   AddMoreExample "recipes/password_generator.rr", "Recipe: a password generator"
   AddMoreExample "recipes/csv_viewer.rr", "Recipe: a CSV file in a grid"
   AddMoreExample "recipes/server_manager.rr", "Recipe: a list with Start, Stop and Restart"
+  AddMoreExample "recipes/frame_audio.rr", "Recipe: emulator sound from a speaker bit's flips"
   LayOutWelcome
 END SUB
 

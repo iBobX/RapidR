@@ -1,0 +1,174 @@
+' chiptune.rr: a three-voice square-wave music player, the way the sound
+' chips of small computers made music — and RapidR's own tune. Each voice
+' is a square wave with its own duty (how long it stays up: 50 % hollow,
+' 25 % thinner) and a volume that fades as the note goes on; the three are
+' added up sample by sample and written to an RAudioStream.
+'
+'   rapidr run chiptune.rr          (or open it in RapidR Studio and press F5)
+'
+' The song is 32 rows (eighth notes), each with a note for the lead, the
+' harmony and the bass (a MIDI note number; 0 holds the note playing).
+' OnNeedData asks for samples; Feed counts them into rows, so the timing is
+' exact whatever the program is doing. 22050 samples a second is plenty for
+' square waves and half the work. Runs on the desktop (run, interpreted,
+' native) and the web (Play: a browser plays sound only after a click).
+$THEME rapidr
+
+CONST RATE = 22050
+CONST ROWS = 32
+CONST ROWLEN = 2756              ' samples a row: 1/8 s at 22050 (120 beats a minute)
+CONST AMP = 4200                 ' each voice's height (three together stay well inside 16 bits)
+
+DECLARE SUB Feed (Count AS INTEGER)
+DECLARE SUB PlayStop
+DECLARE SUB VolChanged
+DECLARE SUB Redraw
+DECLARE SUB RollPaint
+
+DIM song(ROWS - 1, 2) AS INTEGER ' the rows: lead, harmony, bass
+DIM note(2) AS INTEGER           ' the note each voice plays
+DIM stepSize(2) AS DOUBLE, phase(2) AS DOUBLE, duty(2) AS DOUBLE, level(2) AS DOUBLE
+DIM row AS INTEGER, inRow AS INTEGER, loops AS INTEGER
+DIM buf(8191) AS INTEGER
+
+DATA 69,64,45, 0,0,0, 72,0,57, 0,0,0, 76,60,45, 0,0,0, 74,0,57, 72,0,0
+DATA 72,60,41, 0,0,0, 69,0,53, 0,0,0, 65,57,41, 0,0,0, 67,0,53, 69,0,0
+DATA 67,64,48, 0,0,0, 72,0,60, 0,0,0, 76,60,48, 0,0,0, 79,0,60, 76,0,0
+DATA 74,62,43, 0,0,0, 71,0,55, 0,0,0, 67,59,43, 0,0,0, 69,0,55, 71,0,0
+
+DIM Chip AS RAudioStream
+Chip.SampleRate = RATE
+Chip.BufferMs = 80
+Chip.OnNeedData = Feed
+
+CREATE Form AS RForm
+    Caption = "Chiptune"
+    ClientWidth = 560: ClientHeight = 300
+    Center
+    CREATE PlayBtn AS RButton
+        Caption = "&Play": Left = 12: Top = 12: Width = 100: Height = 30
+        OnClick = PlayStop
+    END CREATE
+    CREATE VolLabel AS RLabel
+        Left = 128: Top = 18: Width = 90
+    END CREATE
+    CREATE VolBar AS RTrackBar
+        Left = 216: Top = 12: Width = 180: Height = 30
+        Min = 0: Max = 100: Position = 50: Frequency = 10: PageSize = 10
+        OnChange = VolChanged
+        AccessibleName = "Volume"
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 270: Width = 536
+    END CREATE
+    CREATE Roll AS RCanvas
+        Left = 12: Top = 54: Width = 536: Height = 206
+        OnPaint = RollPaint
+        AccessibleName = "The song, a row a column"
+    END CREATE
+    CREATE Frames AS RTimer
+        Interval = 50: Enabled = 0
+        OnTimer = Redraw
+    END CREATE
+END CREATE
+
+' A row's notes start (0 holds the voice's note).
+SUB StartRow
+    DIM v AS INTEGER
+    FOR v = 0 TO 2
+        IF song(row, v) > 0 THEN
+            note(v) = song(row, v)
+            stepSize(v) = 440 * 2 ^ ((note(v) - 69) / 12) / RATE
+            level(v) = 1
+        END IF
+    NEXT
+END SUB
+
+' The stream wants Count samples: the three voices, added up.
+SUB Feed (Count AS INTEGER)
+    DIM i AS INTEGER, v AS INTEGER, x AS DOUBLE
+    IF Count > 8192 THEN Count = 8192
+    FOR i = 0 TO Count - 1
+        x = 0
+        FOR v = 0 TO 2
+            IF note(v) > 0 THEN
+                x = x + IIF(phase(v) < duty(v), level(v), -level(v))
+                phase(v) = phase(v) + stepSize(v)
+                IF phase(v) >= 1 THEN phase(v) = phase(v) - 1
+            END IF
+        NEXT
+        buf(i) = x * AMP
+        inRow = inRow + 1
+        IF inRow >= ROWLEN THEN
+            inRow = 0
+            ' (each voice fades a little a row, the bass least)
+            level(0) = level(0) * 0.8: level(1) = level(1) * 0.7: level(2) = level(2) * 0.9
+            row = row + 1
+            IF row = ROWS THEN row = 0: loops = loops + 1
+            StartRow
+        END IF
+    NEXT
+    Chip.Write buf, Count
+END SUB
+
+SUB PlayStop
+    IF Chip.Playing THEN
+        Chip.Stop: Frames.Enabled = 0
+        PlayBtn.Caption = "&Play"
+    ELSE
+        Chip.Start: Frames.Enabled = 1
+        PlayBtn.Caption = "&Stop"
+    END IF
+    Redraw
+END SUB
+
+SUB VolChanged
+    Chip.Volume = VolBar.Position
+    VolLabel.Caption = "Volume " + FORMAT$("%d", VolBar.Position) + " %"
+END SUB
+
+FUNCTION NoteName (n AS INTEGER) AS STRING
+    DIM letter AS STRING
+    letter = RTRIM$(MID$("C C#D D#E F F#G G#A A#B ", (n MOD 12) * 2 + 1, 2))
+    NoteName = letter + FORMAT$("%d", n \ 12 - 1)
+END FUNCTION
+
+SUB Redraw
+    Info.Caption = "Row " + FORMAT$("%d", row + 1) + " of 32: lead " + NoteName(note(0)) + ", harmony " + NoteName(note(1)) + ", bass " + NoteName(note(2)) + "; " + FORMAT$("%d", Chip.Queued) + " ms queued, " + FORMAT$("%d", Chip.Underruns) + " gaps"
+    Roll.AccessibleDescription = Info.Caption
+    Roll.Repaint
+END SUB
+
+' The song as a piano roll: a column a row, a lane a voice, the row playing lit.
+SUB RollPaint
+    DIM W AS INTEGER, H AS INTEGER, r AS INTEGER, v AS INTEGER, n AS INTEGER, x AS INTEGER, y AS INTEGER, cw AS DOUBLE, c AS LONG
+    W = Roll.Width: H = Roll.Height: cw = W / ROWS
+    Roll.FillRect 0, 0, W, H, RGB(22, 18, 38)
+    Roll.FillRect INT(row * cw), 0, INT((row + 1) * cw), H, RGB(48, 40, 84)
+    FOR v = 0 TO 2
+        n = 0
+        c = IIF(v = 0, RGB(255, 120, 180), IIF(v = 1, RGB(120, 220, 160), RGB(110, 170, 255)))
+        FOR r = 0 TO ROWS - 1
+            IF song(r, v) > 0 THEN n = song(r, v)
+            IF n > 0 THEN
+                x = INT(r * cw): y = H - 8 - (n - 40) * (H - 16) / 44
+                Roll.FillRect x + 1, y - 3, INT((r + 1) * cw) - 1, y + 3, c
+            END IF
+        NEXT
+    NEXT
+    Roll.TextOut 8, 6, "LEAD", RGB(255, 120, 180), -1
+    Roll.TextOut 56, 6, "HARMONY", RGB(120, 220, 160), -1
+    Roll.TextOut 136, 6, "BASS", RGB(110, 170, 255), -1
+END SUB
+
+DIM rr AS INTEGER, vv AS INTEGER
+FOR rr = 0 TO ROWS - 1
+    FOR vv = 0 TO 2
+        READ song(rr, vv)
+    NEXT
+NEXT
+duty(0) = 0.5: duty(1) = 0.25: duty(2) = 0.5
+row = 0: StartRow
+VolChanged
+Redraw
+Form.ShowModal
