@@ -17,7 +17,7 @@ Studio changes at once, without starting again: the menus, the panes, the
 open dialogs and the status bar. Your choice is kept for the next time.
 **Cancel** in Settings goes back to the language you had.
 
-![Settings > General > Language set to Español: the dialog in Spanish](images/studio-languages/settings-language.png)
+![Settings > General > Language set to Español: its row in Spanish (Idioma), the rest of the page still in English in the sample](images/studio-languages/settings-language.png)
 
 ![The menu bar in Spanish: Archivo, Edición, Ver, Proyecto, Ejecutar, Depurar](images/studio-languages/menus-spanish.png)
 
