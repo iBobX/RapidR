@@ -226,7 +226,7 @@ pub(crate) mod test {
     /// Reads `RAPIDR_TEST_CRASH` (`panic@12`, `overflow@main.rr:12`,
     /// `abort@12`) when a program's map is set.
     pub(crate) fn arm() {
-        let Ok(spec) = std::env::var("RAPIDR_TEST_CRASH") else { return };
+        let Ok(spec) = rapidr_testmode::env_var("RAPIDR_TEST_CRASH") else { return };
         let Some((kind, at)) = spec.split_once('@') else { return };
         let (file, line) = match at.rsplit_once(':') {
             Some((f, l)) => (f.to_string(), l),

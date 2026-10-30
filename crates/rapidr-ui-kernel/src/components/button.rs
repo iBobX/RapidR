@@ -31,6 +31,9 @@ pub struct ButtonData {
     pub kind: i64,
     /// Enter clicks it.
     pub default: bool,
+    /// (RapidR's) Drawn as its surface's main action — the accent — without
+    /// Enter clicking it: a pane's main button (`Primary`).
+    pub primary: bool,
     /// Escape clicks it.
     pub cancel: bool,
     /// What a click sets its form's ModalResult to (Kind's when 0).
@@ -49,7 +52,7 @@ impl ButtonData {
         if modal_result == 0 {
             modal_result = by_kind.map_or(0, |k| k.1);
         }
-        ButtonData { caption, kind, default: store::flag(store, id, "default", false), cancel: store::flag(store, id, "cancel", false), modal_result }
+        ButtonData { caption, kind, default: store::flag(store, id, "default", false), primary: store::flag(store, id, "primary", false), cancel: store::flag(store, id, "cancel", false), modal_result }
     }
 
     /// A click closes its form (a ModalResult, or bkClose).
@@ -73,7 +76,7 @@ impl ComponentKind for PushButton {
         if t.fluent() {
             // (the Default button in the accent; under the mouse, pressed,
             // disabled: the theme's fills)
-            let accent = data.default && s.enabled;
+            let accent = (data.default || data.primary) && s.enabled;
             let fill = match (accent, s.enabled, s.pressed, s.hover) {
                 (_, false, _, _) => t.control_disabled,
                 (true, _, true, _) => t.accent_pressed,

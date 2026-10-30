@@ -43,6 +43,7 @@ claims, headless).
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [hello.rr](basics/hello.rr) | The first program: `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
+| [if_one_line.rr](basics/if_one_line.rr) | `IF c THEN a ELSE b` on one line: a `PRINT` right before the `ELSE` leaves its line open (the classic form), a block `IF` ends it ([the manual](../docs/manual/language.md#control-flow)) | run · interp · native · web | `rapidr run basics/if_one_line.rr` |
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
 | [unicode.rr](basics/unicode.rr) | Text in any language in a file (accents, Chinese, emoji): `WriteStr(text, LEN(text))`, `ReadAllText`, `PRINT #` / `LINE INPUT #`, and binary strings that stay bytes ([the manual](../docs/manual/language.md#text-and-bytes-accents-chinese-emoji)) | run · interp · native · web | `rapidr run basics/unicode.rr` |
@@ -134,6 +135,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 |---------|---------------|---------|-----|
 | [sqlite.rr](data/sqlite.rr) | `RSQLite`: a table, inserts and queries with `?` parameters (and why they matter), `QueryScalar`, `GROUP BY` | run · interp · native · web | `rapidr run data/sqlite.rr` |
 | [secrets.rr](data/secrets.rr) | `RSecrets`: a password kept in the OS keychain (Save, Read, Delete), never in the program or a file; on the web the buttons say there's no keychain ([the manual](../docs/manual/secrets.md)) | run · interp · native · web | `rapidr run data/secrets.rr` |
+| [system_info.rr](system_info.rr) | `RSystemInfo`: what this computer has — system, processor, memory free, graphics, disk, battery — read here and never sent anywhere by RapidR (if your program sends them, tell its users); `Class` (small, medium, large) for a program that adapts; on the web what the browser can't tell (`Unknown`) ([the manual](../docs/manual/local-ai.md#rsysteminfo-what-this-computer-has)) | run · interp · native · web | `rapidr run system_info.rr` |
 | [archives.rr](data/archives.rr) | `RArchive`: a Z80 snapshot taken as it is or found inside a zip, 7z or .gz ([snapshots.zip](data/snapshots.zip) and friends are the samples); entries listed, an entry's first bytes in hex, a zip made ([the manual](../docs/manual/archives.md)) | run · interp · native · web | `cd data && rapidr run archives.rr` |
 | [json.rr](data/json.rr) | `RJson`: parse, read by path (`customer.city`, `items.0`), set, remove, save and load | run · interp · native · web | `rapidr run data/json.rr` |
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
@@ -208,18 +210,18 @@ Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/ser
 |---------|---------------|---------|-----|
 | [esp32_monitor.rr](iot/esp32_monitor.rr) | `RComPort` for boards: ports listed with their USB adapters, connect at 115200, reset through DTR / RTS, the boot log line by line, plug and unplug events. Never writes to the board | run · interp · native · web | `rapidr run iot/esp32_monitor.rr` |
 
-### rapidq/ — RapidQ programs, unchanged
+### rapidq/ — older programs, unchanged (to try the importer on)
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, Q components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
-| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
+| [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, classic components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
+| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | An older program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
 
-Programs written for RapidQ run unchanged. The other examples use RapidR's own
-names: `RButton`, `RForm`, `RStringGrid` …. To bring a RapidQ program of your
+Older programs run unchanged. The other examples use RapidR's own
+names: `RButton`, `RForm`, `RStringGrid` …. To bring an older program of your
 own over to RapidR's names, use `rapidr import-rapidq` (it writes a converted
 copy and a report, and leaves the original alone; see
-[Importing a RapidQ program](../docs/manual/importing-rapidq.md)).
+[Importing older programs](../docs/manual/importing-rapidq.md)).
 
 ### windows/ — Windows only: a form's Windows messages, winmm's MIDI
 
@@ -272,6 +274,7 @@ has a picture of each and explains its best lines.
 | [log_copy.rr](studio/log_copy.rr) | Copying from an `ROutputConsole`: drag, double-click or triple-click to select, Ctrl+C (⌘C); `SelText`, `HasSelection`, `CopySelection`, `CopyAll`, and a right-click menu with Copy Line (`ClickedLine`, `CopyLine`) like RapidR Studio's Output pane — colours never copied ([the manual](../docs/manual/debugging.md#copying-from-output-build-and-problems)) | run · interp · native · web | `rapidr run studio/log_copy.rr` |
 | [versions.rr](studio/versions.rr) | A project's versions from a program (`RRepository`, what Studio's Versions pane is built on): a little project made beside it, versions started, "first" and "second" saved, what one changed, Go Back to "first" (a new version: nothing thrown away), Undo, the local history's copies; run from your copy of the examples — inside another project with versions it says why it won't start ([the manual](../docs/manual/versions.md)) | run | `rapidr run studio/versions.rr` |
 | [watch_file.rr](studio/watch_file.rr) | A note that follows its file, as RapidR Studio follows your code: change `note.tmp.txt` in another editor and the window shows the new text when you come back to it — your own unsaved typing never replaced (`RProject`'s `Watch` and `ExternalChanges()`, `Application.Active`; [the manual](../docs/manual/studio-projects.md#when-files-change-outside-studio)) | run | `rapidr run studio/watch_file.rr` |
+| [school_lock.rr](studio/school_lock.rr) | School Lock as RapidR Studio sees it on this computer: the policy a school's IT wrote (what it turns off, or why it can't be read) and how hard a few passwords are to guess (`RProject`'s `SchoolLockLoad`, `SchoolLock()`, `SchoolLockStrength`; [For teachers](../docs/manual/for-teachers.md)) | run | `rapidr run studio/school_lock.rr` |
 | [helpers.rr](studio/helpers.rr) | A small window to try Studio's code helpers on: colours written as `RGB()`, `&H` and constants (each shows its swatch), a picture (its thumbnail), a font (its sample), a choice and an event's SUB; click a swatch or press Ctrl+. on a value to change it ([the manual](../docs/manual/studio-editor.md#helpers)) | run · interp · native · web | `rapidr run studio/helpers.rr` |
 | [ide.rr](ide.rr) | The first RapidR IDE, itself a large RapidR program, kept to read until RapidR Studio (`rapidr ide`, source in `ide/`) has replaced it | run · interp · native | `rapidr run ide.rr` |
 

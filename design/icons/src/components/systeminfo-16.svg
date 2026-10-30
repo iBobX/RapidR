@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>System info (what this computer has)</title>
+  <path d="M4.5 3.5H11.5A1 1 0 0 1 12.5 4.5V11.5A1 1 0 0 1 11.5 12.5H4.5A1 1 0 0 1 3.5 11.5V4.5A1 1 0 0 1 4.5 3.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M5.5 1.5L5.5 3.5" stroke="#5B6478"/>
+  <path d="M5.5 12.5L5.5 14.5" stroke="#5B6478"/>
+  <path d="M1.5 5.5L3.5 5.5" stroke="#5B6478"/>
+  <path d="M12.5 5.5L14.5 5.5" stroke="#5B6478"/>
+  <path d="M10.5 1.5L10.5 3.5" stroke="#5B6478"/>
+  <path d="M10.5 12.5L10.5 14.5" stroke="#5B6478"/>
+  <path d="M1.5 10.5L3.5 10.5" stroke="#5B6478"/>
+  <path d="M12.5 10.5L14.5 10.5" stroke="#5B6478"/>
+  <path d="M7 6.5H9A0.5 0.5 0 0 1 9.5 7V9A0.5 0.5 0 0 1 9 9.5H7A0.5 0.5 0 0 1 6.5 9V7A0.5 0.5 0 0 1 7 6.5Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+</svg>

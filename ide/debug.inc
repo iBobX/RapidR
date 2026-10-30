@@ -817,6 +817,8 @@ SUB StartProgram(WithDebugger AS INTEGER)
     OutputBox.Page = "problems"
     Dock.ShowPane("outputbox")
     GoToFirstProblem
+    ' (Coach: Help With This Error in RAI's pane)
+    AICoachShow
     EXIT SUB
   END IF
   SyncAllBreakpoints
@@ -826,6 +828,7 @@ SUB StartProgram(WithDebugger AS INTEGER)
   OutputBox.Clear "output"
   ' (the assistant sees the end of this run's output, not the last one's)
   AITools.RunOutput = ""
+  AICoachRunStarted
   OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
   ClearDebugPanes
@@ -1110,8 +1113,8 @@ SUB RunToCursor
   END IF
 END SUB
 
-' (the program's output as it comes; OutLineOpen: its last line isn't ended)
-DIM OutLineOpen AS INTEGER
+' (the program's output as it comes; OutputUnendedLine: its last line isn't ended)
+DIM OutputUnendedLine AS INTEGER
 
 SUB ProgramOutput(Text AS STRING)
   IF Text <> "" THEN RunOutputSeen = 1
@@ -1119,13 +1122,13 @@ SUB ProgramOutput(Text AS STRING)
   AITools.AddRunOutput Text
   ' (AI apps' read_output: mcp.inc)
   McpProgramOutput Text
-  IF Text <> "" THEN OutLineOpen = Flag(RIGHT$(Text, 1) <> CHR$(10))
+  IF Text <> "" THEN OutputUnendedLine = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 
 ' (a line of Studio's own after the program's: on a line of its own)
 SUB OutputAfterProgram(Text AS STRING)
-  IF OutLineOpen THEN OutputBox.Write CHR$(10)
-  OutLineOpen = 0
+  IF OutputUnendedLine THEN OutputBox.Write CHR$(10)
+  OutputUnendedLine = 0
   OutputLine Text
 END SUB
 
@@ -1156,6 +1159,8 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   ShowLocation PausedFile, LineNo, kind
   IF Reason = "exception" THEN
     OutputAfterProgram FileTitle(PausedFile) + ":" + Num(LineNo) + ": " + Session.StopMessage
+    ' (Coach: Help With This Error offers it — aicoach.inc)
+    AICoachSawRunError FileTitle(PausedFile) + ":" + Num(LineNo) + ": " + Session.StopMessage
   END IF
   ' (a new stop: its references are new; Locals and the globals are in)
   RefsIn = "|" + Num(Session.LocalsRef) + "|" + Num(Session.GlobalsRef) + "|" + Num(Session.ComponentsRef) + "|"

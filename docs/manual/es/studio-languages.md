@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md 222ba786070730f4 -->
+<!-- translated-from: studio-languages.md 8afefc8fc47dcafb -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -43,8 +43,8 @@ $ RAPIDR_LANG=es rapidr check hello.rr
 hello.rr:3:11: error: Se esperaba el fin de la línea, pero se encontró THEN [Expected end-of-line but got THEN]
 ```
 
-- Un mensaje que el compilador de RapidQ también da conserva las palabras propias
-  de RapidQ junto a la traducción, entre corchetes, para que las palabras que
+- Un mensaje con las palabras del compilador clásico conserva su original en
+  inglés junto a la traducción, entre corchetes, para que las palabras que
   conoces (y buscas) sigan estando.
 - `rapidr check file.rr` compila un programa y enumera sus errores sin
   ejecutarlo.
@@ -60,10 +60,18 @@ tiene traducción se muestra en inglés, con una nota que lo dice. El código, l
 nombres y los ejemplos nunca se traducen: `RButton`, `Caption`, `OnClick` se
 quedan como los escribes.
 
+## Sugiere una palabra mejor
+
+Si una palabra o una frase suena rara en tu idioma, o conoces una forma más
+común de decirla, cuéntanos: abre una
+[sugerencia de traducción](https://github.com/iBobX/RapidR/issues/new?template=translation.yml)
+en GitHub (puedes escribir en español). Di qué dice ahora, dónde lo viste y
+qué sugieres. No necesitas conocer los archivos de abajo.
+
 ## Ayuda a traducir RapidR
 
 Las traducciones son archivos de texto sin formato, en el mismo formato PO que
-usan tus propios programas ([Tu programa en todos los idiomas](../translations.md)).
+usan tus propios programas ([Tu programa en todos los idiomas](translations.md)).
 Cada parte de RapidR tiene una plantilla y un archivo por idioma:
 
 | Qué | Plantilla | El archivo de un idioma |
@@ -124,7 +132,7 @@ en él (`tests/studio_lang.mjs`).
   detiene un programa en depuración y en las notas de Problemas. Los muchos
   mensajes propios de un componente (una base de datos, un socket, una
   impresora) todavía salen en inglés.
-- El manual en español empieza con sus páginas más leídas: el índice, *Primeros
-  pasos*, el editor de código, los proyectos, Studio en tu idioma, la Depuración,
-  el asistente de IA, las Versiones y la Solución de problemas; las demás páginas
-  van después.
+- El manual está en español: todas sus páginas de guía. Las páginas de
+  referencia (los componentes, los miembros, las funciones integradas, las
+  instrucciones y las constantes), generadas desde el registro del lenguaje,
+  van después en español con el texto del registro.

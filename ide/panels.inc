@@ -73,8 +73,10 @@ FUNCTION PaletteCategory(Cat AS STRING) AS STRING
 END FUNCTION
 
 SUB FillPalette
-  DIM i AS INTEGER, cat AS STRING, icon AS STRING
+  DIM i AS INTEGER, cat AS STRING, icon AS STRING, t AS STRING, lk AS INTEGER
   Palette.Clear
+  ' (School Lock: the AI commands it turns off say why beside their titles)
+  lk = LockOffAI
   FOR i = 0 TO CmdCount - 1
     ' (Open Recent's items are named by FillRecent: "recent:k" entries)
     IF Cmd(i).Id <> "" AND LEFT$(Cmd(i).Id, 12) <> "file.recent." AND Cmd(i).Id <> "file.recentNone" THEN
@@ -82,7 +84,9 @@ SUB FillPalette
       IF INSTR(cat, "/") > 0 THEN cat = LEFT$(cat, INSTR(cat, "/") - 1)
       icon = CmdIcon(i)
       IF icon = "-" THEN icon = ""
-      Palette.AddCommand Cmd(i).Id, PlainTitle(Cmd(i).Title), CmdKeys(i), PaletteCategory(cat), icon
+      t = PlainTitle(Cmd(i).Title)
+      IF lk AND Cmd(i).EnabledWhen = "ai" THEN t = t + " (" + LockReason + ")"
+      Palette.AddCommand Cmd(i).Id, t, CmdKeys(i), PaletteCategory(cat), icon
     END IF
   NEXT
   FOR i = 0 TO ExampleCount - 1
@@ -1135,6 +1139,9 @@ END SUB
 '   search:<text>        the toolbox's search box
 '   palette:<text>       the command palette, opened with that typed
 '   pick:<Name>          a component selected in the active designer
+'   namewidth:<pixels>   the Properties pane's divider left there (as dragged) and
+'                        the settings kept, as when Studio closes (a test starts
+'                        Studio again on them)
 '   newproject:<template>|<folder>|<name>   File > New Project's Create
 '   rename:<file>|<new name>   F2 in the project tree, the name typed
 '   remove:<file>        Delete in the project tree (it asks first)
@@ -1168,6 +1175,9 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
       ' (as its OnSelect)
       InspectorRowSelected arg
     CASE "filter": Inspector.Filter = arg
+    CASE "namewidth"
+      Inspector.NameWidth = VAL(arg)
+      SaveSettings
     CASE "event": InspectorEvent arg
     CASE "focus": Dock.FocusPane(arg)
     CASE "search": Toolbox.Filter = arg

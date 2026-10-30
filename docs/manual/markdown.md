@@ -14,7 +14,7 @@ in **Preview**: headings, lists, tables and code as they are meant to be
 read. Open one from the Project pane (double click), with **File > Open
 Project or File…** (Ctrl+O; a `.md` file opens on its own, with or without
 a project), or by clicking a link to it in another Markdown file. The report
-RapidR writes when it imports a RapidQ program (`rapidr-import-report.md`)
+RapidR writes when it imports an older program (`rapidr-import-report.md`)
 opens the same way.
 
 ![An import report in Preview: its summary, a table, its headings in the Outline](images/markdown/import-report.png)
@@ -124,7 +124,7 @@ is the word after the opening ```` ``` ````:
 |---|---|
 | ```` ```sql ```` | SQL: every dialect's words |
 | ```` ```sqlite ````, ```` ```mysql ```` (or `mariadb`) | SQL with that dialect's words (`PRAGMA`, `AUTO_INCREMENT` …) |
-| ```` ```basic ```` (or `rapidr`, `rr`, `bas`, `rapidq`, `vb` …) | RapidR's BASIC |
+| ```` ```basic ```` (or `rapidr`, `rr`, `bas`, `vb` …) | RapidR's BASIC |
 | ```` ```json ````, ```` ```html ````, ```` ```css ````, ```` ```javascript ```` (`js`), ```` ```toml ````, ```` ```csv ````, ```` ```rust ````, ```` ```markdown ```` | that language |
 | any other word, or none | plain, in the code font |
 

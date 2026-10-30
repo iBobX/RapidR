@@ -3,7 +3,7 @@
 RapidR is a modern BASIC with its own IDE, RapidR Studio: an original
 implementation written from the ground up in pure Rust, on three runtimes —
 native executables, the interpreter (the RapidR Runtime) and the web browser.
-Programs written for RapidQ run too.
+Older programs run too ([Compatibility notes](compatibility.md)).
 
 This manual describes RapidR **2.119.0** (Preview 2). It states what the code
 does today; where something isn't done yet, it says so.
@@ -31,6 +31,8 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Debugging](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Step Into Specific, Set Next Statement, Pause, values as trees (data tips, Variables, Watch), the Call Stack, Immediate, run-time errors, how fast it runs, the desktop and the browser |
 | [The AI assistant and RAI](ai-assistant.md) | Setting up a provider and a key, asking, changes as diffs you accept, "Build me…", what was sent, privacy and tokens; the `RAI` component for your own programs, and keeping keys out of them |
+| [AI on this computer](local-ai.md) | RAI with a model on your own computer: the models a local AI app already has, which fit this computer, Check My Models, the best match in words, their licences as reported; RAI's small-model mode; `RSystemInfo`, what this computer has |
+| [For teachers: School Lock](for-teachers.md) | Turning Studio's AI (RAI and AI apps) off behind a password, what students see, unlocking for a lesson, the wrong-password wait; for a school's IT: the computer's policy file and `rapidr school-lock hash` |
 | [Let AI apps work in Studio](ai-apps.md) | Turning it on (off by default, this computer only, a token), giving an AI app the address and the header, the permission menu (Read only, Ask before changes, Allow edits, Allow everything), watching every call in the AI Apps pane, the tools, what AI apps can see, the activity log |
 | [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs, its code blocks coloured by language (SQL, BASIC, JSON …) |
 | [Versions: never lose your work](versions.md) | Saving versions, the timeline, going back, experiments, shared folders, safety points and Undo, the secret check — in plain words with Git's names beside them (the Studio panel comes in Preview 4); `RDiffView`'s text, form and table views in your own programs |
@@ -41,7 +43,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 |---|---|
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidR's BASIC differs from other BASICs |
 | [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es`, captions that follow a change of language, `Application.Languages` and `LanguageName`, the tools (`rapidr i18n`) and the pseudo-language |
-| [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the older Q names; the global objects; themes, high-DPI and accessibility |
+| [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the classic names; the global objects; themes, high-DPI and accessibility |
 | [Drawing: canvases, bitmaps and pixels](graphics.md) | `RCanvas`, `RBitmap` and `RImage` draw the same way; **drawing many pixels fast**: `SetPixels`, `SetPixels8` and `GetPixels` put a whole picture in or out of an array in one call (a 256 x 192 screen in about a tenth of a millisecond, not 70), `StretchDraw x, y, w, h` and `Smooth`, a picture every 20 ms on an `RTimer` |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events, encrypted MySQL connections (`SSLMode`) |
 | [A program's eyes and hands](app-eyes-and-hands.md) | `RWindowCapture`: pictures of the program's own windows and a report of what looks wrong (text cut off, controls on top of each other); `RAppHands`: clicks, typing and keys played into them with a pointer you see — tours, demos, self-tests; how AI apps and RAI look at and use your running program in Studio |
@@ -77,14 +79,14 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 
 | Chapter | What's in it |
 |---|---|
-| [Differences and extensions](differences.md) | What RapidR adds, what it does differently on purpose, and what it doesn't do |
+| [Compatibility notes](compatibility.md) | How older programs keep working, what RapidR adds, what it does differently on purpose, and what it doesn't do |
 | [Troubleshooting](troubleshooting.md) | Common messages and what to do about them |
 
 ## Reference tables
 
 Generated from RapidR's language registry (`rapidr lang export --manual`):
 
-- [Components](reference/components.md), and [their older Q names](reference/classic-names.md)
+- [Components](reference/components.md), and [their classic names](reference/classic-names.md)
 - [Every component's properties, methods and events](reference/members.md)
 - [Built-in functions](reference/builtins.md)
 - [Statements, directives, keywords and types](reference/statements.md)

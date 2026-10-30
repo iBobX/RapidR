@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use super::model::{RowKind, EXTENSIONS};
+use super::model::RowKind;
 use super::values::{self, Kind};
 use super::*;
 use crate::panels::subject::Host;
@@ -121,25 +121,35 @@ fn rows_come_from_the_registry() {
     let names: Vec<&str> = m.snap.props.iter().map(|p| p.name.as_str()).collect();
     assert!(names.contains(&"Caption") && names.contains(&"Anchors") && names.contains(&"Align") && names.contains(&"Font"));
     assert!(!names.contains(&"Handle") && !names.contains(&"Parent"));
-    // (categories A–Z, RapidR's own members last, with their badge)
+    // (categories A–Z — each one a purpose, none for where a member comes
+    // from — and each one's rows A–Z)
     let rows = m.rows();
     let cats: Vec<&str> = rows.iter().filter(|r| r.kind == RowKind::Category).map(|r| r.name.as_str()).collect();
-    assert_eq!(cats.last(), Some(&EXTENSIONS));
-    let mut sorted = cats[..cats.len() - 1].to_vec();
+    let mut sorted = cats.clone();
     sorted.sort_by_key(|c| c.to_ascii_lowercase());
-    assert_eq!(&cats[..cats.len() - 1], &sorted[..]);
+    assert_eq!(cats, sorted);
+    assert!(cats.iter().all(|c| rapidr_lang::PROPERTY_CATEGORIES.contains(c)), "{cats:?}");
+    assert!(!cats.iter().any(|c| c.to_ascii_lowercase().contains("extension") || c.to_ascii_lowercase().contains("rapidr")), "{cats:?}");
     let anchors = m.snap.props.iter().find(|p| p.name == "Anchors").unwrap();
-    assert!(anchors.ext && anchors.category == EXTENSIONS);
+    assert_eq!(anchors.category, "Layout", "Anchors is with the other properties of its purpose");
+    assert!(anchors.non_classic, "RapidR's own member of a component older programs know");
     assert_eq!(anchors.text(), "akLeft, akTop");
     assert!(anchors.is_default);
     let caption = m.snap.props.iter().find(|p| p.name == "Caption").unwrap();
     assert_eq!((caption.text(), caption.is_default), ("OK".to_string(), false));
-    // (extensions hidden)
-    with_mut("insp", |m| m.show_ext = false);
-    assert!(!with("insp", |m| m.rows().iter().any(|r| r.name == "Anchors")).unwrap());
+    assert!(!caption.non_classic);
+    // (a row is marked only while the inspector marks: MarkNonClassic)
+    assert!(!rows.iter().any(|r| r.non_classic), "nothing marked by default");
+    with_mut("insp", |m| m.mark_non_classic = true);
+    let marked = with("insp", |m| m.rows()).unwrap();
+    assert!(marked.iter().any(|r| r.name == "Anchors" && r.non_classic));
+    assert!(marked.iter().any(|r| r.name == "Caption" && !r.non_classic));
+    assert!(marked.iter().all(|r| r.kind != RowKind::Category || !r.non_classic), "a heading is never marked");
+    // (marking hides nothing: every row is there either way)
+    assert_eq!(marked.len(), rows.len());
+    with_mut("insp", |m| m.mark_non_classic = false);
     // (A–Z: no headings; the search marks what it found)
     with_mut("insp", |m| {
-        m.show_ext = true;
         m.alphabetic = true;
         m.filter = "cap".into();
     });
@@ -334,4 +344,33 @@ fn the_designer_models_selection_one_command_each() {
     reset(&host, "dm", "anchors");
     assert_eq!(node(b1).unwrap().1, None);
     super::designer_model::detach("fd1");
+}
+
+/// Every category the registry gives a property has a name in each language
+/// (`rapidr i18n runtime` finds the literals in `category_title`).
+#[test]
+fn every_category_has_a_title_in_spanish() {
+    let spanish = [
+        ("Accessibility", "Accesibilidad"),
+        ("Appearance", "Apariencia"),
+        ("Behavior", "Comportamiento"),
+        ("Data", "Datos"),
+        ("Drawing", "Dibujo"),
+        ("Font", "Fuente"),
+        ("Help", "Ayuda"),
+        ("Layout", "Disposición"),
+        ("Media", "Multimedia"),
+        ("Network", "Red"),
+        ("Window", "Ventana"),
+    ];
+    assert_eq!(spanish.len(), rapidr_lang::PROPERTY_CATEGORIES.len());
+    crate::i18n::set_language("es");
+    for c in rapidr_lang::PROPERTY_CATEGORIES {
+        let want = spanish.iter().find(|(e, _)| e == c).unwrap_or_else(|| panic!("{c}: no Spanish name in this test")).1;
+        assert_eq!(model::category_title(c), want, "{c}");
+    }
+    // (the program's own, uncategorised ones)
+    assert_eq!(model::category_title(model::MISC), "Varios");
+    crate::i18n::set_language("");
+    assert_eq!(model::category_title("Accessibility"), "Accessibility");
 }

@@ -211,7 +211,7 @@ properties = [
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
-  { name = "TabStop", type = "bool", default = false, origin = "rapidr", doc = "True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default) leaves it out of the keyboard's way." },
+  { name = "TabStop", type = "bool", default = false, origin = "rapidr", category = "Behavior", doc = "True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default) leaves it out of the keyboard's way." },
 ]
 methods = [
   { name = "Repaint" },
@@ -319,9 +319,9 @@ properties = [
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"] },
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
   { name = "Font", type = "font" },
-  { name = "ButtonSize", type = "int", default = 28, origin = "rapidr", doc = "The buttons' width and height in pixels (the icon is drawn in the middle, 16 or 20 pixels)." },
-  { name = "ShowCaptions", type = "bool", default = false, origin = "rapidr", doc = "Whether each button shows its caption beside its icon." },
-  { name = "Customizable", type = "bool", default = false, origin = "rapidr", doc = "The user can choose which buttons show, from the toolbar's menu (its overflow button)." },
+  { name = "ButtonSize", type = "int", default = 28, origin = "rapidr", category = "Appearance", doc = "The buttons' width and height in pixels (the icon is drawn in the middle, 16 or 20 pixels)." },
+  { name = "ShowCaptions", type = "bool", default = false, origin = "rapidr", category = "Appearance", doc = "Whether each button shows its caption beside its icon." },
+  { name = "Customizable", type = "bool", default = false, origin = "rapidr", category = "Behavior", doc = "The user can choose which buttons show, from the toolbar's menu (its overflow button)." },
   { name = "ButtonCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many buttons and separators it has." },
   { name = "Layout", type = "string", design = false, origin = "rapidr", doc = "Which buttons the user hid, as text to keep and set back (Customizable): their names, a comma between." },
   { name = "ClickedButton", type = "string", access = "read", design = false, origin = "rapidr", doc = "The name of the button the last click was on, for OnClick to read (empty when the strip itself was clicked)." },
@@ -623,7 +623,7 @@ sets = ["layout", "a11y"]
 doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. Tabbed documents can be split into groups by dragging a tab to a side, reordered by dragging along the strip, and given views (a Design | Code switch). The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
-  { name = "DocumentMode", type = "string", default = "mdi", doc = "How documents show: \"mdi\" (windows in the documents area, the default) or \"tabs\"." },
+  { name = "DocumentMode", type = "string", default = "mdi", category = "Behavior", doc = "How documents show: \"mdi\" (windows in the documents area, the default) or \"tabs\"." },
   { name = "ActiveDocument", type = "string", design = false, doc = "The active document's name; setting it activates that document." },
   { name = "ActivePane", type = "string", design = false, doc = "The active pane's name; setting it shows and focuses that pane." },
   { name = "PaneCount", type = "int", access = "read", design = false, doc = "How many panes the manager has (documents included)." },

@@ -320,8 +320,8 @@ msgstr "todo SELECT CASE necesita su END SELECT"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.and-and"
-msgid "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` joins text, so such a test is never what you meant)"
-msgstr "RapidR usa AND y OR: IF a > 0 AND b > 0 THEN (`&&` une texto, así que una condición así nunca es lo que querías)"
+msgid "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` is `&`: it joins text and adds numbers, so such a test is never what you meant)"
+msgstr "RapidR usa AND y OR: IF a > 0 AND b > 0 THEN (`&&` es `&`: une texto y suma números, así que una condición así nunca es lo que querías)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.else-line"

@@ -351,6 +351,10 @@ DIM DebugPanesMode AS STRING
 DIM EditBottom AS INTEGER
 DIM DebugBottom AS INTEGER
 DIM DebugWidth AS INTEGER
+' (the Properties pane's names column, kept with the settings: 0 until the
+' user dragged the divider or an older Studio saved none — project.inc)
+DIM InspectorNameWidth AS INTEGER
+DIM InspectorNameWidthDefault AS INTEGER
 DECLARE SUB RememberLayoutSizes
 DECLARE SUB LayoutNoteGone
 DECLARE SUB LayOutStatus
@@ -408,6 +412,11 @@ DIM AIPriceIn AS DOUBLE
 DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)
 DIM AIModels AS STRING
+' (a model on this computer Set Up RAI checked and the user picked:
+' "address|model|context|small or full" — RAI gets that context and mode
+' while that model is the one used: docs/local-ai-plan.md §6)
+DIM AILocalPick AS STRING
+DECLARE SUB AILocalApply
 DIM AIProvIds(8) AS STRING
 DIM AIProvNames(8) AS STRING
 DIM AIProvCount AS INTEGER
@@ -451,6 +460,8 @@ DECLARE SUB VerBeforeSave(d AS INTEGER)
 DECLARE SUB VerAfterSave(d AS INTEGER)
 DECLARE SUB VerApplyBase(d AS INTEGER)
 DECLARE SUB VersionsProjectChanged
+DECLARE SUB VerLayoutLoaded
+DECLARE SUB VerPaneChanged(Name AS STRING)
 DECLARE FUNCTION VersionsCommand(Id AS STRING) AS INTEGER
 DECLARE SUB VersionsStep(S AS STRING)
 
@@ -487,6 +498,38 @@ DECLARE SUB CrashRunStarts
 DECLARE SUB CrashProgramEnded(Code AS INTEGER)
 DECLARE SUB CrashLink(Target AS STRING)
 DECLARE FUNCTION CrashStep(Stp AS STRING) AS INTEGER
+
+' ---- School Lock (schoollock.inc: Studio's AI turned off behind a
+' password, by a teacher or the computer's policy) ----
+DECLARE SUB LoadSchoolLock
+DECLARE SUB SetUpSchoolLock
+DECLARE SUB SchoolLockApply
+DECLARE SUB SchoolLockChrome
+DECLARE SUB SchoolLockLanguageChanged
+DECLARE SUB SchoolLockStep(Stp AS STRING)
+DECLARE SUB ShowSchoolLock
+DECLARE FUNCTION LockOffAI AS INTEGER
+DECLARE FUNCTION LockOffApps AS INTEGER
+DECLARE FUNCTION LockByPolicy AS INTEGER
+DECLARE FUNCTION LockKeepsCoach AS INTEGER
+' ---- Coach mode (aicoach.inc): RAI's dial and hint ladder ----
+DECLARE FUNCTION AICoachNow AS INTEGER
+DECLARE SUB AICoachShow
+DECLARE SUB AICoachSawRunError(Text AS STRING)
+DECLARE SUB AICoachRunStarted
+DECLARE FUNCTION LockIsOn AS INTEGER
+DECLARE FUNCTION LockTitleText AS STRING
+DECLARE FUNCTION LockReason AS STRING
+DECLARE FUNCTION LockChipRoom AS INTEGER
+DECLARE SUB LockChipPlace(X AS INTEGER)
+DECLARE FUNCTION LockStripH AS INTEGER
+DECLARE SUB LockSetPlace(X AS INTEGER, Y AS INTEGER, W AS INTEGER)
+DECLARE SUB LockSuPlace(X AS INTEGER, Y AS INTEGER, W AS INTEGER)
+DECLARE SUB LockCardShow
+DECLARE SUB LockCardFocus
+DECLARE SUB LockSettingsShow
+DECLARE SUB LockSetupShow
+DECLARE FUNCTION AISetUpDone AS INTEGER
 
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject

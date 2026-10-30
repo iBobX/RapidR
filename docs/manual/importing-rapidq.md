@@ -46,8 +46,8 @@ END CREATE                                     END CREATE
 ## Include files
 
 A RapidQ program is often several files: the main program brings in its
-libraries and forms with `$INCLUDE`. RapidR finds each one where RapidQ did,
-on every system:
+libraries and forms with `$INCLUDE`. RapidR looks for each one in these
+places, in this order, on every system:
 
 1. **in the program's own folder** — a nested `$INCLUDE` too (an include
    that includes another names it from the program's folder, as RapidQ
@@ -168,7 +168,7 @@ changes first).
 
 - **Names you mix are fine.** RapidR reads `QBUTTON` and `RButton` as the
   same component, always, without any setting — in old and new files alike
-  (see [Components](components.md#the-older-q-names)).
+  (see [Components](components.md#the-classic-names)).
 - **When you add to a file, Studio follows its style.** In a file written
   with RapidQ's names, the designer adds `QBUTTON` and completion offers
   RapidQ's names, so the file never mixes them; elsewhere, RapidR's names.

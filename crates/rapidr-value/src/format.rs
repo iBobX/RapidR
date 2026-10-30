@@ -7,13 +7,44 @@ use crate::Value;
 
 /// `FORMAT$(fmt, arg0, arg1, …)`: plain text is copied; each
 /// `%[index:][-][width][.prec]type` takes the next argument (or argument
-/// `index`, counted from 0). Types: `d` `u` (integer; `.prec` = at least
-/// that many digits, zero-padded), `e` `f` `g` `n` `m` (floating point),
-/// `s` (string; `.prec` = at most that many characters), `x` (hex; `.prec`
-/// as for `d`). `*` as width or precision takes it from the arguments;
-/// `%%` is a `%`. A specifier with no argument left is kept as written.
+/// `index`, counted from 0). Types: `d` (integer; `.prec` = at least that
+/// many digits, zero-padded), `e` `f` `g` `n` `m` (floating point), `s`
+/// (string; `.prec` = at most that many characters), `x` (hex; `.prec` as for
+/// `d`). `*` as the width takes it from the arguments; `%%` is a `%`.
+///
+/// What RC.EXE does with it (docs/rapidq-ground-truth.md, `rapidq_format`),
+/// all kept here:
+/// - the arguments' types count: `%s` shows a string and nothing for a
+///   number, `%d` `%x` `%e` `%f` `%g` `%n` `%m` take a number and read a
+///   string as 0;
+/// - `%d` and `%x` take a number as a 32-bit integer (cut toward zero;
+///   beyond 32 bits, an infinity or NaN: -2147483648, `80000000`);
+/// - the digits of `%e` `%f` `%g` `%n` `%m` are RapidQ's own 18
+///   ([`rapidq_digits`]), so `%.2f` of 2.675 is `2.67` and `%.9f` of
+///   1234567890.1 `1234567890.099999840`; a negative number rounded to zero
+///   keeps its sign (`-0.0`); an infinity and NaN are `INF` and `NAN`; a
+///   whole part longer than 18 digits turns to `1E300`'s scientific form;
+/// - `.prec` is ignored above 15 for `d` `x` and above 18 for the floats
+///   (the default then: 2 decimals, 15 digits), and is at least 2 for `e`
+///   `g`;
+/// - a `%` ending the text, or ending in a `.`, `-`, `:` or an index is
+///   dropped; a specifier RapidQ's `Format` refuses (`%+d`, `% d`, `%#x`,
+///   `%ld`, `%i`, `%c`, `%.*f` …) stops the program: `Format '%+' invalid
+///   or incompatible with argument.` (RapidQ's EConvertError; for some
+///   letters it crashes with an access violation instead).
+/// A specifier with no argument left is kept as written (RapidQ shows
+/// whatever its stack holds there).
 pub fn format(fmt: &str, args: &[Value]) -> String {
+    try_format(fmt, args).unwrap_or_else(|e| crate::runtime_error(&e))
+}
+
+/// [`format`], the refused specifier as an error (the bytecode hosts').
+pub fn try_format(fmt: &str, args: &[Value]) -> Result<String, String> {
     let chars: Vec<char> = fmt.chars().collect();
+    let refused = |start: usize, end: usize| -> String {
+        let end = end.min(chars.len().saturating_sub(1));
+        format!("Format '{}' invalid or incompatible with argument.", chars[start..=end].iter().collect::<String>())
+    };
     let mut out = String::new();
     let mut next = 0usize;
     let mut i = 0;
@@ -30,71 +61,99 @@ pub fn format(fmt: &str, args: &[Value]) -> String {
         }
         let start = i;
         i += 1;
-        // A number, or `*` (taken from the arguments).
-        let number = |i: &mut usize, next: &mut usize| -> Option<usize> {
-            if chars.get(*i) == Some(&'*') {
-                *i += 1;
-                let v = args.get(*next).map(|v| v.to_i64().max(0) as usize);
-                *next += 1;
-                return v;
-            }
+        let digits = |i: &mut usize| -> Option<usize> {
             let from = *i;
             while chars.get(*i).is_some_and(|c| c.is_ascii_digit()) {
                 *i += 1;
             }
-            (*i > from).then(|| chars[from..*i].iter().collect::<String>().parse().unwrap_or(0))
+            (*i > from).then(|| chars[from..*i].iter().collect::<String>().parse().unwrap_or(usize::MAX))
         };
         // `%1:d`: an index is a number followed by `:`.
         let save = i;
-        if chars.get(i).is_some_and(|c| c.is_ascii_digit()) {
-            match number(&mut i, &mut next) {
-                Some(n) if chars.get(i) == Some(&':') => {
-                    next = n;
-                    i += 1;
-                }
-                _ => i = save,
+        if let Some(n) = digits(&mut i) {
+            if chars.get(i) == Some(&':') {
+                next = n;
+                i += 1;
+            } else {
+                i = save;
             }
         }
         let left = chars.get(i) == Some(&'-');
         if left {
             i += 1;
         }
-        let width = number(&mut i, &mut next);
-        let prec = if chars.get(i) == Some(&'.') {
+        // The width: a number, or `*` (the next argument).
+        let mut width = None;
+        if chars.get(i) == Some(&'*') {
             i += 1;
-            Some(number(&mut i, &mut next).unwrap_or(0))
-        } else {
-            None
-        };
+            width = args.get(next).map(|v| number_of(v).trunc().max(0.0) as usize);
+            next += 1;
+        } else if let Some(w) = digits(&mut i) {
+            width = Some(w);
+        }
+        let mut prec: Option<usize> = None;
+        let mut star_prec = false;
+        if chars.get(i) == Some(&'.') {
+            i += 1;
+            if chars.get(i) == Some(&'*') {
+                i += 1;
+                star_prec = true;
+            } else {
+                prec = Some(digits(&mut i).unwrap_or(0));
+            }
+        }
         let Some(&kind) = chars.get(i) else {
-            out.extend(&chars[start..]);
+            // (the text ends inside a specifier: what is left is dropped)
             break;
         };
+        // (`%-`, `%.` and the like: nothing follows the flag)
+        let type_at = i;
         i += 1;
+        if !matches!(kind.to_ascii_lowercase(), 'd' | 'x' | 'e' | 'f' | 'g' | 'n' | 'm' | 's') {
+            return Err(refused(start, type_at));
+        }
+        if star_prec {
+            return Err(refused(start, type_at));
+        }
         let Some(arg) = args.get(next) else {
             out.extend(&chars[start..i]);
             continue;
         };
         next += 1;
+        let float_prec = prec.filter(|p| *p <= 18);
+        let int_prec = prec.filter(|p| *p <= 15);
         let text = match kind.to_ascii_lowercase() {
-            'd' => min_digits(&arg.to_f64().trunc().to_string().replace("-0", "0"), prec),
-            'u' => min_digits(&(arg.to_i64() as u32).to_string(), prec),
-            'x' => min_digits(&format!("{:X}", arg.to_i64() as u32), prec),
-            'e' => exponent(arg.to_f64(), prec.unwrap_or(15), 3),
-            'f' => fixed(arg.to_f64(), prec.unwrap_or(2)),
-            'g' => general(arg.to_f64(), prec.unwrap_or(15), 0),
-            'n' => thousands(&fixed(arg.to_f64(), prec.unwrap_or(2))),
-            'm' => money(arg.to_f64(), prec.unwrap_or(2)),
             's' => {
-                let s = arg.to_string_val();
+                let s = match arg {
+                    Value::String(s) => s.as_str().to_string(),
+                    _ => String::new(),
+                };
                 match prec {
                     Some(p) => s.chars().take(p).collect(),
                     None => s,
                 }
             }
-            _ => {
-                out.extend(&chars[start..i]);
-                continue;
+            'd' => min_digits(&int32_trunc(number_of(arg)).to_string(), int_prec),
+            'x' => min_digits(&format!("{:X}", int32_trunc(number_of(arg)) as i32 as u32), int_prec),
+            kind => {
+                let v = number_of(arg);
+                if v.is_nan() {
+                    "NAN".to_string()
+                } else if v.is_infinite() {
+                    // (RapidQ writes no sign for an infinity, -1 / 0 too)
+                    "INF".to_string()
+                } else {
+                    match kind {
+                        'e' => exponent_from(Decimal::rapidq(v), float_prec.map_or(15, |p| p.max(2)), 3),
+                        'f' => fixed_rq(v, float_prec.unwrap_or(2)),
+                        'g' => general_rq(v, float_prec.map_or(15, |p| p.max(2)), 0),
+                        'n' => {
+                            let s = fixed_rq(v, float_prec.unwrap_or(2));
+                            if s.contains('E') { s } else { thousands(&s) }
+                        }
+                        _ => money(v, float_prec.unwrap_or(2)),
+                    }
+                }
             }
         };
         let pad = width.unwrap_or(0).saturating_sub(text.chars().count());
@@ -106,7 +165,28 @@ pub fn format(fmt: &str, args: &[Value]) -> String {
             out.push_str(&text);
         }
     }
-    out
+    Ok(out)
+}
+
+/// What a number-taking specifier reads from an argument: a number as it
+/// is, anything else (a string, nothing) 0 — RapidQ's `Format` is passed
+/// the argument's own bits.
+fn number_of(v: &Value) -> f64 {
+    match v {
+        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => v.to_f64(),
+        _ => 0.0,
+    }
+}
+
+/// A number as `%d` and `%x` make it a 32-bit integer: cut toward zero,
+/// -2147483648 beyond 32 bits (an infinity and NaN too).
+fn int32_trunc(v: f64) -> i64 {
+    let t = v.trunc();
+    if t.is_nan() || !(-2147483648.0..=2147483647.0).contains(&t) {
+        i32::MIN as i64
+    } else {
+        t as i64
+    }
 }
 
 /// `-42` with at least `prec` digits: `-00042`.
@@ -132,6 +212,17 @@ impl Decimal {
         let exp = exp.parse::<i32>().unwrap_or(0) + 1;
         let mut d = Decimal { neg: v < 0.0, digits, exp };
         d.trim();
+        d
+    }
+
+    /// `v` as RapidQ's `FloatToDecimal` gives it ([`rapidq_digits`]: 18
+    /// digits), the sign kept: what `FORMAT$` rounds.
+    fn rapidq(v: f64) -> Decimal {
+        if v == 0.0 || !v.is_finite() {
+            return Decimal::of(v);
+        }
+        let mut d = rapidq_digits(v.abs());
+        d.neg = v < 0.0 && !d.digits.is_empty();
         d
     }
 
@@ -193,9 +284,28 @@ impl Decimal {
 
 /// `-ddd.ddd` with `decimals` digits after the point.
 fn fixed(v: f64, decimals: usize) -> String {
-    let mut d = Decimal::of(v);
-    d.round_to(d.exp as i64 + decimals as i64);
-    let mut s = String::from(d.sign());
+    fixed_from(Decimal::of(v), decimals, false)
+}
+
+/// [`fixed`] on RapidQ's own digits, as `FORMAT$`'s `%f` shows it: a
+/// negative number that rounds to zero keeps its minus (`-0.0`), and a
+/// whole part of more than 18 digits is shown in scientific form
+/// (`9.99999999999999872E299`).
+fn fixed_rq(v: f64, decimals: usize) -> String {
+    let d = Decimal::rapidq(v);
+    if d.exp > 18 {
+        return general_rq(v, 18, 0);
+    }
+    fixed_from(d, decimals, true)
+}
+
+fn fixed_from(mut d: Decimal, decimals: usize, keep_sign: bool) -> String {
+    // (a negative number rounded to zero keeps its minus while the rounding
+    // reaches into its digits: `%.1f` of -0.04 is `-0.0`, `%.0f` of -0.04 `0`)
+    let reach = d.exp as i64 + decimals as i64;
+    let neg = d.neg && reach >= 0;
+    d.round_to(reach);
+    let mut s = String::from(if keep_sign && neg { "-" } else { d.sign() });
     if d.exp <= 0 {
         s.push('0');
     } else {
@@ -211,8 +321,11 @@ fn fixed(v: f64, decimals: usize) -> String {
 /// `-d.dddE+ddd`: `digits` significant digits, an exponent of at least
 /// `exp_digits` digits.
 fn exponent(v: f64, digits: usize, exp_digits: usize) -> String {
+    exponent_from(Decimal::of(v), digits, exp_digits)
+}
+
+fn exponent_from(mut d: Decimal, digits: usize, exp_digits: usize) -> String {
     let digits = digits.max(1);
-    let mut d = Decimal::of(v);
     d.round_to(digits as i64);
     let e = if d.digits.is_empty() { 0 } else { d.exp - 1 };
     let mut s = format!("{}{}", d.sign(), d.digit(0));
@@ -247,6 +360,24 @@ fn general(v: f64, precision: usize, exp_digits: usize) -> String {
     trim_zeros(&fixed(rounded, decimals))
 }
 
+/// [`general`] on RapidQ's own digits (`FORMAT$`'s `%g`): `%.18g` of 2.675
+/// is `2.67499999999999968`, `%.3g` of it `2.67`.
+fn general_rq(v: f64, precision: usize, exp_digits: usize) -> String {
+    let precision = precision.clamp(1, 18);
+    let mut d = Decimal::rapidq(v);
+    d.round_to(precision as i64);
+    if d.digits.is_empty() {
+        return "0".into();
+    }
+    if d.exp < -3 || d.exp > precision as i32 {
+        let s = exponent_from(d, precision, exp_digits);
+        let (mantissa, exp) = s.split_once('E').unwrap_or((&s, ""));
+        return format!("{}E{}", trim_zeros(mantissa), exp.trim_start_matches('+'));
+    }
+    let decimals = (precision as i64 - d.exp as i64).max(0) as usize;
+    trim_zeros(&fixed_from(d, decimals, false))
+}
+
 fn trim_zeros(s: &str) -> String {
     if s.contains('.') {
         s.trim_end_matches('0').trim_end_matches('.').to_string()
@@ -272,13 +403,17 @@ fn thousands(s: &str) -> String {
     }
 }
 
-/// `$1,234.50`, negative `($1,234.50)` (US currency settings).
+/// `$1,234.50`, negative `($1,234.50)` (US currency settings; RC.EXE: a
+/// negative number is in parentheses as `%f` shows it with a minus, so
+/// `($0.00)` for -0.004 and `$0.00` for -0.0000001).
 fn money(v: f64, decimals: usize) -> String {
-    let s = format!("${}", thousands(&fixed(v.abs(), decimals)));
-    if v < 0.0 && fixed(v, decimals).starts_with('-') {
-        format!("({s})")
-    } else {
-        s
+    let f = fixed_rq(v, decimals);
+    if f.contains('E') {
+        return f;
+    }
+    match f.strip_prefix('-') {
+        Some(rest) => format!("(${})", thousands(rest)),
+        None => format!("${}", thousands(&f)),
     }
 }
 
@@ -385,8 +520,9 @@ pub fn str_number(v: f64) -> String {
     if v.is_nan() {
         return "NAN".into();
     }
+    // (RC.EXE: STR$ of -1 / 0 is INF too, the sign dropped — as FORMAT$'s)
     if v.is_infinite() {
-        return if v > 0.0 { "INF".into() } else { "-INF".into() };
+        return "INF".into();
     }
     general(v, 9, 0)
 }
@@ -546,8 +682,28 @@ mod tests {
             (100.0 / 3.0, "33.3333333"),
             (123456789.123, "123456789"),
             (f64::INFINITY, "INF"),
+            (f64::NEG_INFINITY, "INF"),
         ] {
             assert_eq!(str_number(v), s, "{v}");
         }
+    }
+
+    // What RC.EXE's FORMAT$ gives (tests/conformance/cases/rapidq_format.bas
+    // is the whole table, in RapidQ's own output).
+    #[test]
+    fn format_as_rapidq() {
+        let f = |fmt: &str, args: &[Value]| try_format(fmt, args).unwrap();
+        // the digits are RapidQ's 18: 2.675 is a hair under
+        assert_eq!(f("%.2f|%.2f|%.9f", &[v_dbl(2.675), v_dbl(1.005), v_dbl(1234567890.1)]), "2.67|1.00|1234567890.099999840");
+        assert_eq!(f("%.1f|%.0f|%.0f|%.2m|%.2m", &[v_dbl(-0.04), v_dbl(-0.4), v_dbl(-0.04), v_dbl(-0.004), v_dbl(-0.0000001)]), "-0.0|-0|0|($0.00)|$0.00");
+        // 32-bit integers, cut toward zero; text where a number goes is 0
+        assert_eq!(f("%d|%d|%x|%x|%d", &[v_dbl(3.7), v_dbl(2147483648.0), v_dbl(4294967295.0), v_int(-1), v_str("12")]), "3|-2147483648|80000000|FFFFFFFF|0");
+        // a number where text goes is nothing; a precision beyond the caps is ignored
+        assert_eq!(f("[%s]|%.16d|%.19f|%.0e", &[v_int(5), v_int(5), v_dbl(0.5), v_dbl(1234.5)]), "[]|5|0.50|1.2E+003");
+        assert_eq!(f("%f|%e|%d|abc%", &[v_dbl(f64::INFINITY), v_dbl(f64::NAN), v_dbl(f64::INFINITY)]), "INF|NAN|-2147483648|abc");
+        // a specifier Format refuses
+        assert_eq!(try_format("%+d", &[v_int(1)]).unwrap_err(), "Format '%+' invalid or incompatible with argument.");
+        assert_eq!(try_format("%d %ld", &[v_int(1), v_int(2)]).unwrap_err(), "Format '%l' invalid or incompatible with argument.");
+        assert_eq!(try_format("%.*f", &[v_int(1), v_dbl(2.0)]).unwrap_err(), "Format '%.*f' invalid or incompatible with argument.");
     }
 }

@@ -6,6 +6,9 @@ publish = false
 license.workspace = true
 
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
 rapidr-value = { workspace = true }
 # (a GUI test's capture is the test's work, not a hang: ui/kernel.rs tells
 # RapidR Studio's hang watchdog — rapidr-crash, a leaf crate)
@@ -85,6 +88,10 @@ libc = "0.2"
 gilrs = { version = "0.11", optional = true }
 
 [features]
+# Local development builds only: the GUI test hooks act without a test-mode
+# token (SEC-24). Never in a release build (tools/release/, tools/studio_app.sh
+# release; tests/security/test_mode_release.mjs checks).
+dev-hooks = ["rapidr-testmode/dev-hooks"]
 default = ["database", "network", "gui", "datascience", "audio", "ffi", "gamepad"]
 database = ["dep:rapidr-db"]
 network = ["dep:ureq", "dep:rapidr-ai", "dep:getrandom"]

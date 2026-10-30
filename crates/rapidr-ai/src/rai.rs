@@ -348,7 +348,9 @@ fn looks_like_rapidr(code: &str) -> bool {
 /// closed code block (RapidR's get Insert too; one without a language that
 /// looks like RapidR's is labelled so, and coloured as the editor does),
 /// and the blocks' texts. `n` counts the blocks over the whole chat.
-fn decorate_code(text: &str, n: &mut usize) -> (String, Vec<String>) {
+/// `insert`: the Insert links (InsertLinks; RapidR Studio's Coach mode
+/// leaves them out — the learner types the code in).
+fn decorate_code(text: &str, n: &mut usize, insert: bool) -> (String, Vec<String>) {
     let mut out = String::with_capacity(text.len() + 64);
     let mut blocks = Vec::new();
     // (the fence being read: its marker, length, language, the lines, and
@@ -382,7 +384,7 @@ fn decorate_code(text: &str, n: &mut usize) -> (String, Vec<String>) {
                 *n += 1;
                 blocks.push(code.trim_end_matches(['\n', '\r']).to_string());
                 let copy = format!("[{}]({})", tr_ui("Copy"), own_link(&format!("rai:copy/{n}")));
-                let insert = if rapidr { format!(" · [{}]({})", tr_ui("Insert"), own_link(&format!("rai:insert/{n}"))) } else { String::new() };
+                let insert = if rapidr && insert { format!(" · [{}]({})", tr_ui("Insert"), own_link(&format!("rai:insert/{n}"))) } else { String::new() };
                 out.push_str(&format!("\n{copy}{insert}\n"));
             }
             (Some((_, _, _, lines, _)), _) => {
@@ -639,6 +641,13 @@ pub trait ToolProvider {
     fn nudge(&self, _question: &str, _answer: &str) -> Option<String> {
         None
     }
+    /// The answer [`Self::nudge`] asks again about is hidden — never shown
+    /// as text — with this muted line in its place and these words for the
+    /// progress checklist (RapidR Studio's Coach mode: a first hint that
+    /// showed code). `None`: hidden only when it claimed a change.
+    fn nudge_hides(&self, _answer: &str) -> Option<(String, String)> {
+        None
+    }
     /// What the tools send with the user's `question`, as data the model
     /// reads with it (RapidR Studio: a working program close to the new one
     /// asked for): part of the request — "what was sent" shows it —, never
@@ -732,6 +741,9 @@ struct Turn {
     buttons: Vec<(String, String)>,
     /// The steps are kept with the entry ([`Ai::keep_steps`]).
     kept: bool,
+    /// The muted line in place of a hidden draft, when the tools gave one
+    /// ([`ToolProvider::nudge_hides`]); else [`EARLIER_DRAFT`].
+    hidden_line: Option<String>,
 }
 
 impl Turn {
@@ -741,7 +753,8 @@ impl Turn {
     fn render(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.drafts.iter().any(|(_, collapsed)| *collapsed) {
-            parts.push(format!("> *{}*", tr_ui("An earlier draft said this was done before it was — Studio asked it to actually do it.")));
+            let line = self.hidden_line.clone().unwrap_or_else(|| tr_ui("An earlier draft said this was done before it was — Studio asked it to actually do it."));
+            parts.push(format!("> *{line}*"));
         }
         for (t, collapsed) in &self.drafts {
             if !collapsed && !t.trim().is_empty() {
@@ -779,9 +792,10 @@ impl Turn {
 /// project tools).
 pub type ToolFactory = fn(rai: &str, component: &str, kind: &str) -> Result<Box<dyn ToolProvider>, String>;
 
+static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 thread_local! {
     static AIS: RefCell<HashMap<String, Ai>> = RefCell::new(HashMap::new());
-    static NEXT_ID: Cell<u64> = const { Cell::new(1) };
     static FACTORY: Cell<Option<ToolFactory>> = const { Cell::new(None) };
 }
 
@@ -905,6 +919,8 @@ struct Ai {
     /// Edit links on the questions and Retry on the last answer
     /// (RapidR Studio's chat).
     editable: bool,
+    /// InsertLinks False: no Insert link under code blocks (Copy stays).
+    no_insert: bool,
     /// The reasoning effort chosen: "", "low", "medium" or "high".
     effort: String,
     /// (Anthropic) How each model took an effort.
@@ -943,8 +959,16 @@ struct Ai {
     /// A summary asked for by Compact; the status before an automatic one.
     compacting: bool,
     status_before_summary: String,
-    /// The tools' lite set was sent (a small window).
+    /// The tools' lite set was sent (a small window, or SmallModel).
     lite: bool,
+    /// SmallModel: `Some(true)` the small-model mode whatever the window
+    /// (RapidR Studio chose it from the model's check on this computer),
+    /// `Some(false)` never, `None` by the window (below [`LITE_BELOW`]).
+    small_model: Option<bool>,
+    /// ContextSize: the context the model runs with on this computer, as
+    /// RapidR Studio chose it from the memory free (0: the model's own) —
+    /// the conversation is kept within it.
+    context_size: u64,
     changed: bool,
     tokens: String,
     events: Vec<(&'static str, Vec<Value>)>,
@@ -955,11 +979,9 @@ fn with<R>(name: &str, f: impl FnOnce(&mut Ai) -> R) -> R {
 }
 
 fn next_id() -> u64 {
-    NEXT_ID.with(|n| {
-        let id = n.get();
-        n.set(id + 1);
-        id
-    })
+    // (one count for every thread: a request's news go to the thread that
+    // started it — http::take —, so two threads' RAIs never share an id)
+    NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 fn s(v: impl Into<String>) -> Value {
@@ -1057,7 +1079,19 @@ impl Ai {
     /// (or less, when its largest is less); a cloud model's that doesn't
     /// say: none (they take far more than a conversation needs).
     fn budget_window(&self) -> Option<u64> {
-        self.window().or_else(|| self.local().then(|| self.windows.get(&self.model).map_or(ASSUMED_LOCAL_WINDOW, |(w, _)| (*w).min(ASSUMED_LOCAL_WINDOW))))
+        let w = self.window().or_else(|| self.local().then(|| self.windows.get(&self.model).map_or(ASSUMED_LOCAL_WINDOW, |(w, _)| (*w).min(ASSUMED_LOCAL_WINDOW))));
+        // (the context Studio chose for this computer: never more)
+        match (w, self.context_size) {
+            (_, 0) => w,
+            (Some(w), c) => Some(w.min(c)),
+            (None, c) => Some(c),
+        }
+    }
+
+    /// Whether the small-model mode is used: SmallModel's choice, else a
+    /// window below [`LITE_BELOW`].
+    fn wants_lite(&self) -> bool {
+        self.small_model.unwrap_or_else(|| self.budget_window().is_some_and(|w| w < LITE_BELOW))
     }
 
     /// The characters a token takes, from the last request's size and the
@@ -1682,7 +1716,7 @@ impl Ai {
                             out.push_str("\n\n");
                         }
                     }
-                    let (text, _) = decorate_code(t, &mut blocks);
+                    let (text, _) = decorate_code(t, &mut blocks, !self.no_insert);
                     out.push_str(if t.is_empty() { "…" } else { &text });
                 }
                 _ => out.push_str(&format!("*{}*", text.trim_end())),
@@ -1698,7 +1732,7 @@ impl Ai {
         let mut all = Vec::new();
         for (who, text) in &self.log {
             if who == "assistant" {
-                all.extend(decorate_code(text.trim_end(), &mut n).1);
+                all.extend(decorate_code(text.trim_end(), &mut n, true).1);
             }
         }
         all
@@ -1789,12 +1823,13 @@ impl Ai {
             self.status = tr_ui("Answering…");
             return Ok(());
         }
-        // (a small window: the tools' lite set — K8)
-        let lite = self.budget_window().is_some_and(|w| w < LITE_BELOW);
+        // (a small window, or the small-model mode Studio chose: the
+        // tools' lite set — K8, docs/local-ai-plan.md §6)
+        let lite = self.wants_lite();
         if lite != self.lite {
             self.lite = lite;
             self.last_fixed = 0;
-            self.audit_log("lite", json!({"lite": lite, "window": self.budget_window()}));
+            self.audit_log("lite", json!({"lite": lite, "window": self.budget_window(), "chosen": self.small_model}));
         }
         for (_, _, t) in &mut self.tools {
             t.set_lite(lite);
@@ -2390,9 +2425,17 @@ impl Ai {
                         // (a reply that claimed the change: one muted line
                         // in the chat, never the claim as full text — the
                         // reply that comes next says what is true)
-                        let claimed = crate::claims::claims_change(&text);
+                        let hides = self.tools.iter().find_map(|(_, _, t)| t.nudge_hides(&text));
+                        let claimed = hides.is_some() || crate::claims::claims_change(&text);
                         self.reply_done(!claimed, claimed);
-                        self.turn.steps.push(tr_ui("Asked the model to make the change it described"));
+                        let step = match hides {
+                            Some((line, step)) => {
+                                self.turn.hidden_line = Some(line);
+                                step
+                            }
+                            None => tr_ui("Asked the model to make the change it described"),
+                        };
+                        self.turn.steps.push(step);
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;
@@ -2737,6 +2780,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "auditlocation" => s(audit::location()),
             "chatstate" => s(a.chat_state()),
             "editable" => flag(a.editable),
+            "insertlinks" => flag(!a.no_insert),
             "effort" => s(a.effort.clone()),
             "effortsupported" => flag(a.effort_supported()),
             // (a turn waiting for a tool's later answer — the program's, the
@@ -2749,6 +2793,12 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "contextwindow" => Value::Integer(a.window().unwrap_or(0) as i64),
             "questioncount" => Value::Integer(a.marks.len() as i64),
             "lite" => flag(a.lite),
+            "smallmodel" => Value::Integer(match a.small_model {
+                Some(true) => 1,
+                Some(false) => 0,
+                None => -1,
+            }),
+            "contextsize" => Value::Integer(a.context_size as i64),
             _ => return None,
         })
     })
@@ -2820,6 +2870,10 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 a.editable = truth(v);
                 a.changed = true;
             }
+            "insertlinks" => {
+                a.no_insert = !truth(v);
+                a.changed = true;
+            }
             "effort" => {
                 let e = t.trim().to_ascii_lowercase();
                 a.effort = if matches!(e.as_str(), "low" | "medium" | "high") { e } else { String::new() };
@@ -2831,6 +2885,14 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 }
             }
             "audit" => a.audit = truth(v),
+            "smallmodel" => {
+                a.small_model = match v.to_i64() {
+                    1 => Some(true),
+                    0 => Some(false),
+                    _ => None,
+                }
+            }
+            "contextsize" => a.context_size = v.to_i64().max(0) as u64,
             "pricein" => a.price_in = v.to_f64().max(0.0),
             "priceout" => a.price_out = v.to_f64().max(0.0),
             "busy" | "error" | "status" | "answer" | "transcript" | "steps" | "userlanguage" | "models" | "modelcount" | "haskey" | "keyhint" | "keysource" | "keyenv" | "keystore" | "needskey" | "pricingurl" | "keysurl" | "providers" | "presets" | "inputtokens" | "outputtokens" | "cachedtokens" | "usage" | "cost" | "lastrequest" | "toolcalls" | "auditlocation" | "effortsupported" | "activity" | "elapsed" | "quiet" | "contexttokens" | "contextlimit" | "contextwindow" | "questioncount" | "lite" => {}
@@ -3402,7 +3464,11 @@ mod chat_tests {
     fn code_blocks_get_copy_and_insert_and_their_language() {
         let mut n = 0;
         let text = "Here:\n\n```\nDIM A AS INTEGER\nA = 1\n```\n\nand\n\n```python\nprint(1)\n```\n\n```basic\nPRINT 2\n```\n\n```\nSUB Half(\n";
-        let (out, blocks) = decorate_code(text, &mut n);
+        let (out, blocks) = decorate_code(text, &mut n, true);
+        // (InsertLinks off: Copy only)
+        let mut m = 0;
+        let (bare, _) = decorate_code(text, &mut m, false);
+        assert!(bare.contains("[Copy](rai:copy/1") && !bare.contains("rai:insert"), "{bare}");
         assert_eq!(blocks, vec!["DIM A AS INTEGER\nA = 1".to_string(), "print(1)".to_string(), "PRINT 2".to_string()]);
         assert_eq!(n, 3);
         assert!(out.contains("```rapidr\nDIM A AS INTEGER"), "{out}");

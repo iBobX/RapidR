@@ -42,7 +42,7 @@ $ RAPIDR_LANG=es rapidr check hello.rr
 hello.rr:3:11: error: Se esperaba el fin de la línea, pero se encontró THEN [Expected end-of-line but got THEN]
 ```
 
-- A message that RapidQ's compiler also gives keeps RapidQ's own words
+- A message in the classic compiler's wording keeps its English original
   beside the translation, in brackets, so the words you know (and search
   for) are still there.
 - `rapidr check file.rr` compiles a program and lists its errors without
@@ -58,6 +58,14 @@ manual's pages: **Help > RapidR Help**, then *Getting started*. A page with
 no translation yet shows in English, with a note that says so. Code, names
 and examples are never translated: `RButton`, `Caption`, `OnClick` stay as
 you write them.
+
+## Suggest a better word
+
+If a word or a sentence reads oddly in your language, or you know a more
+common way to say it, tell us: open a
+[Translation suggestion](https://github.com/iBobX/RapidR/issues/new?template=translation.yml)
+on GitHub (you can write in your own language). Say what it says now, where
+you saw it, and what you suggest. You don't need to know the files below.
 
 ## Help translate RapidR
 
@@ -117,7 +125,7 @@ RapidR's tests run Studio's main scenes in it (`tests/studio_lang.mjs`).
   object …), in the line Studio shows where a debugged program stops, and in
   the notes Problems gives. The many messages that belong to one component
   (a database, a socket, a printer) still show in English.
-- The manual in Spanish starts with its most-read pages: the index,
-  *Getting started*, the code editor, projects, Studio in your language,
-  Debugging, the AI assistant, Versions and Troubleshooting; the other
-  pages follow.
+- The manual is in Spanish: all its guide pages. The reference pages (the
+  components, members, built-in functions, statements and constants),
+  generated from the language registry, follow in Spanish with the registry's
+  text.

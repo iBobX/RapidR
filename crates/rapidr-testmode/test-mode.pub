@@ -1,0 +1,4 @@
+# RapidR test-mode public key (Ed25519, hex), key id 16e96b467f9ec764.
+# Builds with this file in crates/rapidr-testmode/ trust tokens signed by its
+# secret half (docs/security/test-mode.md).
+public: 16e96b467f9ec76476f44dd4b26c2452a7c1e115cb069ac2478c6518f6836137

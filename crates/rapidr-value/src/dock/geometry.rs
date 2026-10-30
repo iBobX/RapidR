@@ -284,6 +284,30 @@ const GROUP_GIVE: i64 = 12;
 /// …and a document tab's, its left (12 down to 6): the close button keeps its room.
 const DOC_GIVE: i64 = 6;
 
+/// An icon-only tab's width: the icon and 8 on each side.
+pub const ICON_TAB: i64 = ICON + 16;
+
+/// Which of a group's tabs show their icon only (`want`: each tab's width
+/// with its name whole): none when the names fit once their padding has
+/// given way; else every tab but the shown one — which keeps its name when
+/// that fits beside the others' icons —, then all of them. A tab without
+/// an icon always keeps its name.
+pub fn compact_tabs(panes: &[String], want: &[i64], active: usize, room: i64, titles: &dyn Titles) -> Vec<bool> {
+    let n = want.len() as i64;
+    let total: i64 = want.iter().sum();
+    let none = vec![false; want.len()];
+    if total - GROUP_GIVE * n <= room {
+        return none;
+    }
+    let iconic: Vec<bool> = panes.iter().map(|p| !titles.icon(p).is_empty()).collect();
+    let width = |compact: &[bool]| -> i64 { want.iter().zip(compact).map(|(w, c)| if *c { ICON_TAB } else { w - GROUP_GIVE }).sum() };
+    let others: Vec<bool> = iconic.iter().enumerate().map(|(i, &ic)| ic && i != active).collect();
+    if width(&others) <= room {
+        return others;
+    }
+    iconic
+}
+
 /// A group's header and content in its own coordinates, `w` × `h`.
 pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font) -> Group {
     let (w, h) = (rect.2, rect.3);
@@ -307,11 +331,29 @@ pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<
         tabs.push(Tab { pane: panes[0].clone(), rect: (0, 0, room + 4, HEADER), close: None, text: (8 + icon, room) });
     } else {
         let want: Vec<i64> = panes.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), false, 10)).collect();
-        // (too many to fit: the padding goes first, then the widest tabs
-        // are trimmed alike, none under 40)
-        let widths = squeeze(&want, room, GROUP_GIVE, 40);
+        // (a tab that shows its icon only: where the names don't fit whole
+        // even with their padding gone — a name is never cut to "P…")
+        let compact = compact_tabs(panes, &want, active.min(panes.len() - 1), room, titles);
+        let iconic = compact.iter().filter(|c| **c).count() as i64;
+        // (every tab an icon and still too narrow: the icons' padding gives
+        // way, 2 a side at least)
+        let icon_w = if iconic > 0 && iconic == panes.len() as i64 { (room / iconic).clamp(ICON + 4, ICON_TAB) } else { ICON_TAB };
+        let fixed = iconic * icon_w;
+        // (the names' tabs in the rest: the padding goes first, then the
+        // widest are trimmed alike, none under 40)
+        let named: Vec<i64> = want.iter().zip(&compact).filter(|(_, c)| !**c).map(|(w, _)| *w).collect();
+        let mut named = squeeze(&named, room - fixed, GROUP_GIVE, 40).into_iter();
         let mut x = 4;
-        for ((p, wd), want) in panes.iter().zip(widths).zip(want) {
+        for ((p, want), compact) in panes.iter().zip(want).zip(compact) {
+            if compact {
+                // (the icon centred; its name in the tooltip and for a
+                // screen reader, as every tab's)
+                let tx = x + (icon_w - ICON) / 2 + ICON + 6;
+                tabs.push(Tab { pane: p.clone(), rect: (x, 0, icon_w, HEADER), close: None, text: (tx, tx) });
+                x += icon_w;
+                continue;
+            }
+            let wd = named.next().unwrap_or(want);
             let icon = if titles.icon(p).is_empty() { 0 } else { ICON + 6 };
             let shed = (want - wd).clamp(0, GROUP_GIVE);
             // (10 left and 8 right, less what was shed: the left gives the

@@ -69,7 +69,7 @@ fn start(id: &str, consumer: Consumer) -> Result<(), String> {
     }
     #[cfg(not(feature = "audio"))]
     {
-        let testing = ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| std::env::var_os(v).is_some());
+        let testing = ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| rapidr_testmode::var_os(v).is_some());
         clocked(consumer, testing);
         if testing {
             Ok(())

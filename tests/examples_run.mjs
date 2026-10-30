@@ -41,6 +41,8 @@ import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "./cargo_builds.mjs";
 import { startHttpServer } from "./http_test_server.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const EXAMPLES = join(ROOT, "examples");
@@ -92,6 +94,8 @@ export const cases = [
   // basics/
   { file: "basics/hello.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Hello from RapidR!", "3 x 7 = 21", "Squares: 1 4 9 16 25", "RAPIDR in reverse: RDIPAR"] },
+  { file: "basics/if_one_line.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["not two", "two  (i = 2)", "Several lines: every PRINT ends its line"] },
   { file: "basics/input.rr", runtimes: ["run", "interp", "native"], input: "Ada\n80\n\n4\n",
     expect: ["Hello, Ada.", "Total with a 15% tip: 92.00", "Each of 4 pays: 23.00"] },
   { file: "basics/files.rr", runtimes: ["run", "interp", "native", "web"],
@@ -327,6 +331,10 @@ export const cases = [
   { file: "recipes/cpu_timing.rr", runtimes: ["run", "interp", "native", "web"], events: `runbtn.onclick,${wait("regs", 8)},runbtn.onclick`, dump: "runbtn.caption,counts.caption",
     expect: ["runbtn.caption=&Run", "counts.caption=frame "] },
   // studio/
+  // (the code helpers' window: its button turns the form's colour round
+  // three, twice here)
+  { file: "studio/helpers.rr", runtimes: ["run", "interp", "native", "web"], events: "again.onclick,again.onclick", dump: "title.caption,form.color",
+    expect: ["title.caption=Colour 3 of 3", "form.color=16445676"] },
   { file: "studio/panels.rr", runtimes: ["run", "interp", "native", "web"], events: "box.__dblclick_60_170", dump: "tree.projectname,tree.filecount,designer.compcount,insp.targettype",
     expect: ["tree.projectname=Greeter", "tree.filecount=4", "designer.compcount=2", "insp.targettype=RCheckBox"] },
   // (the form designer's surface: six components added, the resize
@@ -344,6 +352,10 @@ export const cases = [
     expect: ["diff.kind=form", "diff.changecount=2", "info.caption=2 change(s): Go: Caption \"OK\" → \"Say hello\"; Width = 110 (new) ..."] },
   // (COPY-ANYWHERE: an ROutputConsole's selection and copies — a word
   // double-clicked, Copy Selection, then Copy All; the tests' own clipboard)
+  // (SCHOOL-LOCK: the computer's policy as Studio reads it — none here: the
+  // tests never write /Library, %ProgramData% or /etc — and the strength hints)
+  { file: "studio/school_lock.rr", runtimes: ["run"],
+    expect: ["School Lock as RapidR Studio sees it:", "abc12: too short", "123456: weak", "maestra1: fair", "Maestra-2026!: strong"] },
   { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "log.__wait_300,log.__dblclick_150_40,copybtn.onclick", dump: "log.seltext,log.hasselection,status.simpletext",
     expect: ["log.seltext=orders", "log.hasselection=1", "status.simpletext=Copied: orders"] },
   { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "log.linecount,status.simpletext",
@@ -418,6 +430,12 @@ export const cases = [
     expect: ["status.caption=There was nothing to delete.", "valueedit.text="] },
   { file: "data/secrets.rr", runtimes: ["web"], events: `${typeKeys("valueedit", "s3c")},savebtn.onclick`, dump: "status.caption,keptin.caption",
     expect: ["status.caption=Not saved: RSecrets isn't available in the browser: a web page has no keychain", "keptin.caption=Nowhere to keep it: no keychain (a web page has none)"] },
+  // (RSystemInfo: this computer's facts — what they say differs from one
+  // computer to the next: their shape is checked, and the program adapts)
+  { file: "system_info.rr", runtimes: ["run", "interp", "native", "web"], dump: "summary.caption,advice.caption,refreshbutton.caption",
+    expect: ["summary.caption=", " computer: this program would use its ", "refreshbutton.caption=&Refresh"] },
+  { file: "system_info.rr", runtimes: ["run", "interp", "native"], events: "refreshbutton.onclick", dump: "summary.caption",
+    expect: [" cores), ", " of memory ("] },
   // (RArchive: a .z80 found in a zip, a 7z, a .gz — or taken as it is —
   // its first bytes; a zip made and opened)
   { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption,loaded.caption,hexview.caption,entries.itemcount",

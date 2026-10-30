@@ -11,7 +11,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use rapidr_vcs::{create_shared_folder, write_ignore_file, ErrorKind, FileState, GetLatest, Person, SaveOptions, Share, Versions};
+use rapidr_vcs::{create_shared_folder, is_system_file, write_ignore_file, ErrorKind, FileState, GetLatest, Person, SaveOptions, Share, Versions};
 
 fn ana() -> Person {
     Person::new("Ana", "ana@example.com")
@@ -454,5 +454,40 @@ fn go_back_one_file_and_studio_folder() {
     if let Some(files) = git(&dir, &["ls-files"]) {
         assert_eq!(files, ".gitignore\nmain.rr\nother.rr\n");
         fsck(&dir);
+    }
+}
+
+/// (VERSIONS-POLISH) The system's own files — a folder's .DS_Store, the
+/// ._ copies macOS leaves on other disks, Windows' Thumbs.db and
+/// desktop.ini — are never a change and never saved, even in a project
+/// whose .gitignore doesn't name them or that saved one before; a new
+/// project's .gitignore names them (to see and edit).
+#[test]
+fn the_systems_own_files_are_never_changes() {
+    assert!(is_system_file(".DS_Store") && is_system_file("screens/.DS_Store") && is_system_file("._main.rr") && is_system_file("pics/THUMBS.DB") && is_system_file("Desktop.ini"));
+    assert!(!is_system_file("main.rr") && !is_system_file("DS_Store.txt") && !is_system_file("notes._txt"));
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = project(&tmp, "app");
+    let mut v = Versions::start(&dir, &ana()).unwrap();
+    // (the project's own .gitignore, without them)
+    std::fs::write(dir.join(".gitignore"), "# mine\n").unwrap();
+    write(&dir, "main.rr", "PRINT 1\n");
+    write(&dir, ".DS_Store", "view");
+    write(&dir, "art/Thumbs.db", "thumbs");
+    write(&dir, "art/._logo.png", "fork");
+    assert_eq!(v.changes().unwrap().iter().map(|c| c.path.as_str()).collect::<Vec<_>>(), [".gitignore", "main.rr"]);
+    v.save_version("first", &ana()).unwrap();
+    if let Some(files) = git(&dir, &["ls-files"]) {
+        assert_eq!(files, ".gitignore\nmain.rr\n", "never saved");
+        fsck(&dir);
+    }
+    write(&dir, ".DS_Store", "another view");
+    assert!(v.changes().unwrap().is_empty());
+    // (a new project's .gitignore lists them)
+    let other = project(&tmp, "other");
+    assert!(write_ignore_file(&other).unwrap());
+    let text = read(&other, ".gitignore");
+    for name in [".DS_Store", "._*", "Thumbs.db", "desktop.ini"] {
+        assert!(text.lines().any(|l| l == name), "{name} in {text}");
     }
 }

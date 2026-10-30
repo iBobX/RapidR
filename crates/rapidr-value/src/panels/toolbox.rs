@@ -40,7 +40,7 @@ impl Names {
     pub fn parse(s: &str) -> Option<Names> {
         match s.trim().to_ascii_lowercase().as_str() {
             "rapidr" | "r" | "" => Some(Names::RapidR),
-            "rapidq" | "q" | "as-written" | "aswritten" | "written" => Some(Names::RapidQ),
+            "classic" | "rapidq" | "q" | "as-written" | "aswritten" | "written" => Some(Names::RapidQ),
             "titles" | "title" | "words" => Some(Names::Titles),
             _ => None,
         }
@@ -49,7 +49,7 @@ impl Names {
     pub fn as_str(self) -> &'static str {
         match self {
             Names::RapidR => "rapidr",
-            Names::RapidQ => "rapidq",
+            Names::RapidQ => "classic",
             Names::Titles => "titles",
         }
     }
@@ -793,6 +793,8 @@ mod tests {
         t.names = Names::Titles;
         assert_eq!(t.name_of("RBUTTON"), "Button");
         assert_eq!(Names::parse("as-written"), Some(Names::RapidQ));
+        assert_eq!(Names::parse("classic"), Some(Names::RapidQ));
+        assert_eq!(Names::RapidQ.as_str(), "classic");
         assert_eq!(Names::parse(""), Some(Names::RapidR));
         // (events give RapidR's name, whatever is shown: the designer
         // writes it in its file's own style)

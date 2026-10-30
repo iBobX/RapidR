@@ -6,10 +6,17 @@ version.workspace = true
 publish = false
 license.workspace = true
 
-# A leaf crate (no RapidR dependency): the VM, its hosts, the UI hosts and
+# Nearly a leaf crate (only rapidr-testmode, a leaf): the VM, its hosts, the UI hosts and
 # Studio all reach it. No crates.io dependency but libc on Unix, already in
 # the tree (MIT OR Apache-2.0).
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
+
+# The page's clock in a browser (already in the tree, MIT OR Apache-2.0).
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3.106"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -1,4 +1,4 @@
-<!-- translated-from: versions.md e74e61ec909e7d51 -->
+<!-- translated-from: versions.md c340afd1271f4b1f -->
 # Versiones: nunca pierdas tu trabajo
 
 **Versiones** conserva cada estado guardado de tu proyecto, muestra qué cambió
@@ -15,12 +15,20 @@ Nada de lo que guardas se pierde jamás.
 
 ### Empezar a guardar versiones
 
-Abre tu proyecto y elige **Ver > Versiones** (o **Archivo > Versiones > Empezar
-a guardar versiones de este proyecto**). El panel Versiones se abre junto a
-Proyecto y explica qué es una versión. **Empezar a guardar versiones de este
-proyecto** hace que la carpeta del proyecto guarde versiones desde ahora.
+La pestaña **Versiones** siempre está ahí, junto a **Proyecto** y **Búsqueda** en
+la columna de la izquierda (haz clic en ella, o elige **Ver > Versiones**). Sin
+un proyecto abierto lo dice; con un proyecto que aún no guarda versiones, explica
+qué es una versión y tiene un solo botón: **Empezar a guardar versiones de este
+proyecto** (también **Archivo > Versiones > Empezar a guardar versiones de este
+proyecto**). Desde entonces, la carpeta del proyecto guarda versiones.
 
 ![Un proyecto sin versiones: qué son, Empezar a guardar versiones de este proyecto y el historial local, que ya conserva tus guardados](../images/versions/studio-start.png)
+
+¿Cerraste la pestaña? Sigue cerrada, aunque Studio vuelva a empezar, hasta que
+**Ver > Versiones** la trae de vuelta (**Ver > Restablecer disposición** también).
+Cuando la columna de la izquierda es estrecha, sus pestañas muestran solo sus
+iconos —el nombre de cada una está en su sugerencia y lo dice un lector de
+pantalla—, y la pestaña del frente conserva su nombre cuando cabe.
 
 Studio empieza a guardar versiones solo en la **propia carpeta** de un proyecto.
 Explica por qué, y no empieza nada, cuando se trata de una unidad completa, de
@@ -53,21 +61,50 @@ disco.
 líneas que añadiste. Una línea que parece una clave privada, una clave de API,
 un token de acceso o una contraseña escrita en el código detiene el guardado: el
 cuadro de diálogo dice en qué archivo y en qué línea está, con el secreto
-oculto. Quítalo (guarda los secretos de verdad con [RSecrets](../secrets.md)) o
+oculto. Quítalo (guarda los secretos de verdad con [RSecrets](secrets.md)) o
 marca **Estas no son claves ni contraseñas reales: guardarlas de todos modos**:
 solo entonces **Guardar de todos modos** guarda.
 
 ![Una clave escrita en el código: la línea indicada y oculta; Guardar de todos modos solo una vez marcada la casilla](../images/versions/studio-secret.png)
 
-### La línea de tiempo
+### El panel Versiones
 
-El panel enumera los archivos **sin guardar como versión**, cada uno con una
-letra (**M** cambiado, **N** nuevo, **D** quitado), y después la **Línea de
-tiempo**: cada versión, la más nueva primero, con sus palabras, quién la guardó
-y cuándo. Los puntos de control de una IA (lo que el asistente conserva antes de
-cambiar tus archivos) son más pequeños y más discretos.
+Arriba: **Versiones**, el nombre de tu proyecto y dos etiquetas: el experimento
+en el que estás (**main**: Git lo llama rama) y cuántos archivos tienen cambios
+sin guardar como versión (**Todo guardado** cuando no hay ninguno).
+
+**Cambios** enumera esos archivos, con **Guardar una versión...** —el botón
+principal del panel— a su derecha:
+
+- primero los archivos propios del proyecto, después **una fila por carpeta**
+  con cuántos de sus archivos cambiaron; una carpeta de más de cinco archivos
+  empieza **cerrada** cuando la lista es larga. Haz clic en su flecha (o
+  elígela y pulsa **Derecha**) para abrirla, **Izquierda** para cerrarla;
+- cada archivo muestra primero su **nombre** —uno largo se corta por el medio,
+  para que se vean su final y su extensión— y su cambio con palabras en una
+  etiqueta suave: **Nuevo**, **Cambiado** o **Eliminado**;
+- con más de 20 archivos cambiados, un cuadro de **filtro** muestra solo los
+  archivos cuyo nombre o carpeta tiene las letras que escribes;
+- los archivos propios de tu sistema (`.DS_Store`, las copias `._`,
+  `Thumbs.db`, `desktop.ini`) nunca aparecen ni se guardan en una versión.
+
+![El panel Versiones con 29 cambios: los archivos del proyecto, las carpetas art y docs abiertas, screenshots cerrada con sus 24 archivos, el filtro](../images/versions/studio-changes.png)
+
+La **Línea de tiempo** es cada versión, la más nueva primero: una línea que pasa
+por un punto para cada una, sus palabras (en dos líneas cuando las necesitan),
+quién la guardó y cuándo. La más nueva —la versión **actual**, aquella en la que
+se basan tus archivos— tiene un anillo del color de acento. Los puntos de
+control de una IA (lo que el asistente conserva antes de cambiar tus archivos)
+tienen un punto más pequeño y más discreto. Elige una versión y **¿Qué
+cambió?** y **Volver...** actúan sobre ella; **Deshacer** está a su lado, y debajo,
+con palabras, lo que desharía.
 
 ![El panel Versiones: un cambio sin guardar como versión, dos versiones en la línea de tiempo, ¿Qué cambió?, Volver..., Deshacer](../images/versions/studio-timeline.png)
+
+El panel se adapta a cualquier ancho: en el más estrecho, las etiquetas pasan
+debajo del título y los botones siguen en otra fila; nada queda cortado.
+
+![El mismo panel en una columna estrecha, con el aspecto oscuro de RapidR](../images/versions/studio-narrow.png)
 
 ### ¿Qué cambió?
 
@@ -146,14 +183,18 @@ navegador.
 |---|---|
 | Guardar una versión... | Ctrl+Shift+V (Cmd+Shift+V) |
 | Elegir una versión | Flecha arriba y flecha abajo en la línea de tiempo, y luego Tab hasta ¿Qué cambió? o Volver... |
-| Abrir un archivo cambiado | doble clic en la lista de cambios |
+| Abrir un archivo cambiado | doble clic (o Intro) en la lista de cambios |
+| Abrir o cerrar una carpeta de cambios | Derecha / Izquierda (o Espacio), o un clic en su flecha |
+| Ver solo algunos archivos cambiados | escribe en el cuadro de filtro (más de 20 cambios) |
 | Cerrar un cambio mostrado bajo su línea | Escape |
 | Todos los comandos de Versiones | Archivo > Versiones, o la paleta de comandos (Ctrl+Shift+P, “Versiones”) |
 
 Cada control tiene un nombre para los lectores de pantalla: la fila de un
-archivo cambiado dice “main.rr, cambiado desde la última versión”, la de una
-versión, “first, guardada por Ana, hace 2 minutos”, y las filas del panel
-Proyecto también dicen su cambio con palabras.
+archivo cambiado dice “logo.svg en art: nuevo, aún no está en una versión”, la
+de una carpeta, “Carpeta screenshots, 24 cambios, cerrada”, la de una versión,
+“first, guardada por Ana, hace 2 minutos” (la más nueva añade “la versión
+actual”), las etiquetas, “Experimento: main” y “3 cambios sin guardar como
+versión”, y las filas del panel Proyecto también dicen su cambio con palabras.
 
 ## Las ideas, en palabras sencillas
 
@@ -266,8 +307,11 @@ navegador lo tienen. Un ejecutable creado por sí solo muestra allí una nota.
 - Los repositorios son repositorios de Git corrientes (gitoxide, un motor de Git
   escrito en Rust): otras herramientas de Git los abren, y RapidR abre los
   suyos. Empezar a guardar versiones escribe un `.gitignore` que deja fuera de
-  ellos la propia carpeta de RapidR (`.rapidr/`) y lo que Compilar escribe junto
-  al programa.
+  ellos la propia carpeta de RapidR (`.rapidr/`), lo que Compilar escribe junto
+  al programa y los archivos propios de tu sistema (`.DS_Store`, `._*`,
+  `Thumbs.db`, `ehthumbs.db`, `desktop.ini`); edítalo para dejar fuera más
+  cosas. Esos archivos del sistema quedan fuera incluso en un proyecto cuyo
+  `.gitignore` no los nombra.
 - Los puntos de seguridad y los puntos de control son commits bajo
   `refs/rapidr/`; el historial de acciones es `.git/rapidr/history.jsonl`; el
   historial local es `.rapidr/history/index.jsonl` y su carpeta `blobs/` (cada

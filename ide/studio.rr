@@ -38,6 +38,8 @@
 '   safety.inc     Studio keeps your work: an error in Studio's own code
 '                  said (never the end of Studio), copies of unsaved work,
 '                  Restore at the next start
+'   schoollock.inc School Lock: Studio's AI turned off behind a password
+'                  (a teacher's, or the computer's policy)
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
@@ -66,11 +68,13 @@ $INCLUDE "settings.inc"
 $INCLUDE "ai.inc"
 $INCLUDE "aichats.inc"
 $INCLUDE "aisetup.inc"
+$INCLUDE "aicoach.inc"
 $INCLUDE "mcp.inc"
 $INCLUDE "prompts.inc"
 $INCLUDE "safety.inc"
 $INCLUDE "consent.inc"
 $INCLUDE "crash.inc"
+$INCLUDE "schoollock.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "versions.inc"

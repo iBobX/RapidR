@@ -43,6 +43,10 @@ fn now_ms() -> u64 {
 /// The window's thread has work (an event, a turn of the program).
 #[inline]
 pub fn busy() {
+    // (no watchdog in a browser — no threads — and no `Instant` either)
+    if cfg!(target_arch = "wasm32") {
+        return;
+    }
     if BUSY_SINCE.load(Ordering::Relaxed) == 0 {
         BUSY_SINCE.store(now_ms(), Ordering::Relaxed);
     }

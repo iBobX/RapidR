@@ -30,7 +30,7 @@ properties = [
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
   { name = "ShowHint", type = "bool", default = false },
   { name = "Tag", type = "int" },
-  { name = "TabStop", type = "bool", default = false, origin = "rapidr", doc = "True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default) leaves it out of the keyboard's way." },
+  { name = "TabStop", type = "bool", default = false, origin = "rapidr", category = "Behavior", doc = "True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default) leaves it out of the keyboard's way." },
   { name = "Top", type = "int", default = 0 },
   { name = "Transparent", type = "bool", default = false },
   { name = "UpperColor", type = "color", default = -2147483628 },
@@ -103,7 +103,7 @@ properties = [
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "FontName", type = "string", origin = "rapidr", kind = "font" },
   { name = "FontSize", type = "int", origin = "rapidr" },
-  { name = "Smooth", type = "bool", default = false, origin = "rapidr", doc = "Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs." },
+  { name = "Smooth", type = "bool", default = false, origin = "rapidr", category = "Appearance", doc = "Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs." },
 ]
 methods = [
   { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", value = true, arg_kinds = { c = "color", fill = "color" } },
@@ -176,7 +176,7 @@ properties = [
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "FontName", type = "string", origin = "rapidr", kind = "font" },
-  { name = "Smooth", type = "bool", default = false, origin = "rapidr", doc = "Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs." },
+  { name = "Smooth", type = "bool", default = false, origin = "rapidr", category = "Appearance", doc = "Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs." },
 ]
 methods = [
   { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", value = true, doc = "Draws the ellipse that fits the box from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out: its outline in colour `c`, its inside in colour `fill`. `Circle(cx, cy, r [, c])` (three or four arguments) draws a circle's outline around a centre.", example = "CREATE f AS RForm\n  CREATE cv AS RCanvas\n    Width = 20: Height = 20\n  END CREATE\nEND CREATE\ncv.FillRect 0, 0, 30, 30, 0\nx1 = 2\ny1 = 2\nx2 = 12\ny2 = 8\nc = 255\nfill = 1000\ncv.Circle x1, y1, x2, y2, c, fill\nPRINT cv.Pixel(7, 2); \"|\"; cv.Pixel(7, 5); \"|\"; cv.Pixel(2, 7)", expect = "255|1000|0", arg_kinds = { c = "color", fill = "color" } },
@@ -391,11 +391,11 @@ properties = [
   { name = "SelCount", type = "int", access = "read", doc = "How many components are selected (Shift / Ctrl+click, a rubber band)." },
   { name = "PreviewWidth", type = "int", design = false, doc = "The resize preview: the designed form shown this wide, its components where the running program puts them (Align, Anchors, Constraints); 0 ends the preview. Dragging the form's corner does the same." },
   { name = "PreviewHeight", type = "int", design = false, doc = "The resize preview's height (see PreviewWidth); 0 ends the preview." },
-  { name = "ShowGuides", type = "bool", default = true, doc = "Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping)." },
-  { name = "SnapToGrid", type = "bool", default = true, doc = "Whether moves and resizes snap to the grid where no guide is near." },
-  { name = "GridSize", type = "int", default = 8, doc = "The grid's step in pixels." },
-  { name = "ShowGrid", type = "bool", default = true, doc = "Whether the grid's dots show on the designed form." },
-  { name = "ShowSelection", type = "bool", default = true, doc = "Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it." },
+  { name = "ShowGuides", type = "bool", default = true, category = "Appearance", doc = "Whether a drag snaps to and shows smart guides: siblings' edges, centres and baselines, the form's centre lines, margins, equal spacing (Alt suspends snapping)." },
+  { name = "SnapToGrid", type = "bool", default = true, category = "Behavior", doc = "Whether moves and resizes snap to the grid where no guide is near." },
+  { name = "GridSize", type = "int", default = 8, category = "Layout", doc = "The grid's step in pixels." },
+  { name = "ShowGrid", type = "bool", default = true, category = "Appearance", doc = "Whether the grid's dots show on the designed form." },
+  { name = "ShowSelection", type = "bool", default = true, category = "Appearance", doc = "Whether the designer's own marks show: the selection's frames and handles, the anchor pins, the form's sizing grips. Off: the designed form alone, as the running program shows it." },
   { name = "Source", type = "string", design = false, doc = "The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first RForm) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere." },
   { name = "SourceFile", type = "string", design = false, doc = "The source's file name, set before Source: its $INCLUDE files are found from there.", kind = "file:any" },
   { name = "FormName", type = "string", design = false, doc = "The name of the form being designed (\"\" when the source creates none). Setting it designs that form of the source instead." },

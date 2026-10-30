@@ -1,0 +1,44 @@
+name: 🌐 Translation suggestion
+description: A better word, a typo or a sentence that reads oddly in Studio, the compiler's messages, Help or the manual.
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Every suggestion makes RapidR feel more at home in your language.
+        You can write in your own language. Sugerencias en español, bienvenidas.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - Español
+        - Other (say which below)
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where you saw it
+      options:
+        - Studio (menus, dialogs, panes)
+        - A compiler or run-time message
+        - Help or a hover
+        - The manual
+        - RAI's answers
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: What it says now
+      description: Copy the text, or describe where it is (a menu, a dialog's title, a manual page and heading).
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What you suggest
+      description: Your wording, and why if it helps (more common in your country, clearer for students, a typo…).
+    validations:
+      required: true

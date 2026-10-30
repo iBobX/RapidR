@@ -10,6 +10,9 @@ license.workspace = true
 # explanations are pure; the transport and the key store are the
 # platform's (cfg: a thread and ureq on the desktop, fetch in a browser).
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
 serde_json = { version = "1", features = ["preserve_order"] }
 # RapidR's own words in the person's language (rapidr_i18n::host: the host
 # installs how to translate; English without) and `{name}` templates; no

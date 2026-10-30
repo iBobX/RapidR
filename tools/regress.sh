@@ -5,7 +5,10 @@
 # interpreted), the web suites, and the legal
 # checks (licences, and the notices every build carries).
 #
-# Needs: ./rapidr built (cargo build --release -p rapidr-cli, then copy it),
+# Needs: ./rapidr built (cargo build --release -p rapidr-cli, then copy it;
+# its GUI test hooks act with the test-mode token in
+# ~/.rapidr/test-mode.token — or, until a key is installed, build it with
+# `--features dev-hooks`: docs/security/test-mode.md, SEC-24),
 # the web artifacts (tools/build_web_artifacts.sh; the web stage builds
 # RapidR Studio's web site from them, target/studio-web) and the repo served on
 # http://localhost:8765 (or RAPIDR_URL) for the browser tests (Playwright);
@@ -19,7 +22,9 @@
 #                                     examples, gui, visual, web, studio,
 #                                     studio-goldens, security, perf, legal,
 #                                     words (the quick one: no other
-#                                     products named in RapidR's text;
+#                                     products named in RapidR's text, and
+#                                     the older BASIC's name only where the
+#                                     allow-list says;
 #                                     Studio's design guard)),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
@@ -45,6 +50,10 @@ export RAPIDR_BUILD_CACHE="$PWD/$W/build-cache"
 # own words and the compiler's messages in English (the language tests ask
 # for theirs: tests/studio_lang.mjs).
 export LANGUAGE=en_US.UTF-8 RAPIDR_LANG=en
+# The GUI test hooks of a release build act only with a signed test-mode
+# token (SEC-24, docs/security/test-mode.md): Robert's, kept outside the
+# repository; a development build (dev-hooks) needs none.
+if [ -z "${RAPIDR_TEST_MODE:-}" ] && [ -f "$HOME/.rapidr/test-mode.token" ]; then export RAPIDR_TEST_MODE="$HOME/.rapidr/test-mode.token"; fi
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
 [ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web studio security perf legal); CLEAN=1; }
@@ -78,6 +87,9 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (RapidR's own words: no other products as models or comparisons in the
   # code, docs or UI text; tools/words-allowlist.txt lists what stays)
   python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  # (the older BASIC's name only in the importer's texts and the compatibility
+  # page's one line; tools/rapidq-allowlist.txt lists where else it stays)
+  python3 tools/check_rapidq_mentions.py || echo "tools/check_rapidq_mentions.py: FAILED"
   # (RapidR Studio's design guide, docs/design-guidelines.md: no colour
   # written as a number, no unknown token, no control height off the
   # guide's scale — new ones only; tools/check_design_baseline.txt lists
@@ -88,6 +100,7 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (no private key, certificate, signing key or token in a tracked file)
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; echo "(unit done)"; fi
 if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  python3 tools/check_rapidq_mentions.py || echo "tools/check_rapidq_mentions.py: FAILED"
   python3 tools/check_design.py || echo "tools/check_design.py: FAILED"
   python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; fi
@@ -170,14 +183,15 @@ fi
 # (its `security_regressions` module) — the web bundle's policy and
 # escaping, the language server's and the debug adapter's confinement, whose
 # keys and secrets a program reaches, RAI's redirects and kept files, the
-# assistant's tools and links (the memory keystore only). The
+# assistant's tools and links (the memory keystore only), the test-mode
+# tokens and a release build's hooks off without one (SEC-24). The
 # browser's side is in the web stage (tests/web_bundle_csp.mjs,
 # tests/web_overlays.mjs).
 if want security; then echo "== security"
   for t in tests/security/*.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "FAIL|Error"; }
   done
-  out=$(CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-3}" RAPIDR_AI_KEYSTORE=memory RAPIDR_KEYSTORE=memory cargo test -q -p rapidr-webbundle -p rapidr-lsp -p rapidr-dap -p rapidr-ai -p rapidr-studio --features rapidr-ai/component security_ 2>&1) || { echo "cargo security tests: FAILED"; echo "$out" | grep -E "panicked|FAILED|^error" | head -5; }
+  out=$(CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-3}" RAPIDR_AI_KEYSTORE=memory RAPIDR_KEYSTORE=memory cargo test -q -p rapidr-webbundle -p rapidr-lsp -p rapidr-dap -p rapidr-ai -p rapidr-studio -p rapidr-testmode --features rapidr-ai/component security_ 2>&1) || { echo "cargo security tests: FAILED"; echo "$out" | grep -E "panicked|FAILED|^error" | head -5; }
   echo "(security done)"
 fi
 # Licences, advisories and notices (LEGAL.md, docs/licensing.md): a licence

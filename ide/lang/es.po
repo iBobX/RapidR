@@ -44,7 +44,7 @@ msgstr "A&plicar"
 msgid "Apply the accepted changes"
 msgstr "Aplicar los cambios aceptados"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -100,7 +100,7 @@ msgstr "El código del archivo"
 msgid "What Was Sent"
 msgstr "Qué se envió"
 
-#: ide/ai.inc ide/debug.inc
+#: ide/ai.inc ide/aisetup.inc ide/debug.inc
 msgid "Close"
 msgstr "Cerrar"
 
@@ -1082,6 +1082,161 @@ msgstr "No se reintentó: antes no se pudo copiar el chat."
 msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
 msgstr "IA: la respuesta anterior a Reintentar se guarda en {q}{title}{q} (Chats)."
 
+#: ide/aicoach.inc
+#, review
+msgid "a nudge"
+msgstr "un empujoncito"
+
+#: ide/aicoach.inc
+#, review
+msgid "the idea"
+msgstr "la idea"
+
+#: ide/aicoach.inc
+#, review
+msgid "the shape of the code"
+msgstr "la forma del código"
+
+#: ide/aicoach.inc
+#, review
+msgid "the code"
+msgstr "el código"
+
+#: ide/aicoach.inc
+#, review
+msgid "Build"
+msgstr "Construir"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach"
+msgstr "Tutor"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach hints"
+msgstr "Pistas del tutor"
+
+#: ide/aicoach.inc
+#, review
+msgid "I &Got It"
+msgstr "Ya lo &entendí"
+
+#: ide/aicoach.inc
+#, review
+msgid "Ends this problem: your next question starts again at the first hint"
+msgstr "Termina este problema: tu próxima pregunta empieza otra vez en la primera pista"
+
+#: ide/aicoach.inc
+#, review
+msgid "&Help With This Error"
+msgstr "&Ayuda con este error"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach, chosen"
+msgstr "Tutor, elegido"
+
+#: ide/aicoach.inc
+#, review
+msgid "Build, chosen"
+msgstr "Construir, elegido"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI writes changes for you to review and apply"
+msgstr "RAI escribe cambios para que los revises y los apliques"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI gives hints one step at a time and never writes the answer into your code"
+msgstr "RAI da pistas paso a paso y nunca escribe la respuesta en tu código"
+
+#: ide/aicoach.inc
+#, review
+msgid "Your school keeps RAI in Coach mode."
+msgstr "Tu escuela mantiene a RAI en modo tutor."
+
+#: ide/aicoach.inc
+#, review
+msgid "Your teacher keeps RAI in Coach mode."
+msgstr "Tu docente mantiene a RAI en modo tutor."
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach mode: RAI gives hints one step at a time. You write the code."
+msgstr "Modo tutor: RAI da pistas paso a paso. El código lo escribes tú."
+
+#: ide/aicoach.inc
+#, review
+msgid "Build mode: RAI writes changes for you to review and apply."
+msgstr "Modo construir: RAI escribe cambios para que los revises y los apliques."
+
+#: ide/aicoach.inc
+#, review
+msgid "Hint {n} of 4"
+msgstr "Pista {n} de 4"
+
+#: ide/aicoach.inc
+#, review
+msgid "Hint {n} of 4: {what}"
+msgstr "Pista {n} de 4: {what}"
+
+#: ide/aicoach.inc
+#, review
+msgid "&Show the Code"
+msgstr "&Mostrar el código"
+
+#: ide/aicoach.inc
+#, review
+msgid "&Next Hint"
+msgstr "&Siguiente pista"
+
+#: ide/aicoach.inc
+#, review
+msgid "The fourth hint: RAI shows the code, for you to type or copy in yourself"
+msgstr "La cuarta pista: RAI muestra el código para que lo escribas o lo copies tú"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI gives the next hint: a little more each time"
+msgstr "RAI da la siguiente pista: un poco más cada vez"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI says what the error means, why it happens, and gives a hint to fix it yourself: {error}"
+msgstr "RAI explica qué significa el error y por qué ocurre, y te da una pista para que lo corrijas tú: {error}"
+
+#: ide/aicoach.inc
+#, review
+msgid "I Got It"
+msgstr "Ya lo entendí"
+
+#: ide/aicoach.inc
+#, review
+msgid "Show me the code."
+msgstr "Muéstrame el código."
+
+#: ide/aicoach.inc
+#, review
+msgid "Give me the next hint."
+msgstr "Dame la siguiente pista."
+
+#: ide/aicoach.inc
+#, review
+msgid "Nice work. Ask about the next thing when you're ready."
+msgstr "Buen trabajo. Pregunta por lo siguiente cuando quieras."
+
+#: ide/aicoach.inc
+#, review
+msgid "Help me with this error: {error}"
+msgstr "Ayúdame con este error: {error}"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach mode: ask about your code, or about what you want to make. RAI gives one hint at a time — a nudge, the idea, the shape of the code — and shows code only when you ask a fourth time. You write the code yourself."
+msgstr "Modo tutor: pregunta sobre tu código o sobre lo que quieres hacer. RAI da una pista a la vez —un empujón, la idea, la forma del código— y muestra el código solo cuando lo pides por cuarta vez. El código lo escribes tú."
+
 #: ide/aisetup.inc ide/mcp.inc
 msgid "Set Up RAI"
 msgstr "Configurar RAI"
@@ -1104,20 +1259,20 @@ msgstr "&Gratis, en esta computadora"
 
 # legal
 #: ide/aisetup.inc
-msgid "Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's."
-msgstr "Nada de lo que preguntas sale de esta computadora, y no cuesta nada. Un modelo se ejecuta aquí con Ollama, LM Studio o MLX Serve (programas gratuitos que tú instalas). Necesita una computadora rápida con mucha memoria (16 GB o más); las respuestas son más lentas y más simples que las de un modelo en la nube."
+msgid "It costs nothing, and Studio sends what you ask only to a local AI app on this computer — a free program you install that keeps AI models on your computer — so what you ask stays here, unless that app is set up to pass it on to a service elsewhere. Studio finds the models it already has and checks which ones fit this computer. Answers are slower and simpler than a cloud model's."
+msgstr "No cuesta nada, y Studio envía lo que preguntas solo a una app de IA local en esta computadora —un programa gratuito que instalas y que guarda modelos de IA en tu computadora—, así que lo que preguntas se queda aquí, a menos que esa app esté configurada para pasarlo a un servicio externo. Studio encuentra los modelos que ya tienes y comprueba cuáles caben en esta computadora. Las respuestas son más lentas y más simples que las de un modelo en la nube."
 
 #: ide/aisetup.inc
-msgid "The servers found on this computer"
-msgstr "Los servidores encontrados en esta computadora"
+msgid "The AI models found on this computer"
+msgstr "Los modelos de IA encontrados en esta computadora"
 
 #: ide/aisetup.inc
 msgid "&Look Again"
 msgstr "&Buscar de nuevo"
 
 #: ide/aisetup.inc
-msgid "Look again for a server on this computer"
-msgstr "Buscar de nuevo un servidor en esta computadora"
+msgid "Look again for AI models on this computer"
+msgstr "Buscar de nuevo modelos de IA en esta computadora"
 
 #: ide/aisetup.inc
 msgid "A &cloud service, with your own key"
@@ -1129,32 +1284,70 @@ msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You mak
 msgstr "Anthropic (Claude), OpenAI o DeepSeek: normalmente las mejores respuestas. Creas una clave en el sitio web del proveedor y le pagas por lo que usas: una pregunta suele costar desde una décima de centavo (modelos pequeños y rápidos) hasta unos pocos centavos (los más grandes). Lo que envías —tu pregunta, el chat, las partes de tu proyecto que RAI lee y, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a ese proveedor, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto."
 
 #: ide/aisetup.inc
-msgid "A server on this computer"
-msgstr "Un servidor en esta computadora"
+msgid "The AI models on this computer"
+msgstr "Los modelos de IA en esta computadora"
 
 #: ide/aisetup.inc
-msgid "&Server:"
-msgstr "Ser&vidor:"
+msgid "This computer's memory"
+msgstr "La memoria de esta computadora"
 
 #: ide/aisetup.inc
-msgid "The server on this computer"
-msgstr "El servidor en esta computadora"
+#, review
+msgid "The AI models on this computer, the best match first"
+msgstr "Los modelos de IA en esta computadora, primero la mejor opción"
 
 #: ide/aisetup.inc
-msgid "&Address:"
-msgstr "&Dirección:"
+msgid "Each says whether it fits this computer and how it does with RAI. Choose one, then Finish."
+msgstr "Cada uno dice si cabe en esta computadora y cómo le va con RAI. Elige uno y luego presiona Finalizar."
 
 #: ide/aisetup.inc
-msgid "The server's address"
-msgstr "La dirección del servidor"
-
-#: ide/aisetup.inc ide/settings.inc
-msgid "&Model:"
-msgstr "&Modelo:"
+msgid "How to add a local AI app"
+msgstr "Cómo añadir una app de IA local"
 
 #: ide/aisetup.inc
-msgid "About this server"
-msgstr "Sobre este servidor"
+msgid "How to add a local AI app: the manual's page, in Help"
+msgstr "Cómo añadir una app de IA local: la página del manual, en Ayuda"
+
+#: ide/aisetup.inc
+msgid "About the model chosen"
+msgstr "Sobre el modelo elegido"
+
+#: ide/aisetup.inc
+msgid "&Check My Models"
+msgstr "&Comprobar mis modelos"
+
+#: ide/aisetup.inc
+msgid "Read the L&icence..."
+msgstr "Leer la &licencia..."
+
+#: ide/aisetup.inc
+msgid "Read the chosen model's licence, as its local AI app reports it"
+msgstr "Leer la licencia del modelo elegido, tal como la informa su app de IA local"
+
+#: ide/aisetup.inc
+msgid "Check My Models"
+msgstr "Comprobar mis modelos"
+
+#: ide/aisetup.inc
+msgid "Another &address:"
+msgstr "&Otra dirección:"
+
+#: ide/aisetup.inc
+msgid "Another address on this computer"
+msgstr "Otra dirección en esta computadora"
+
+# legal
+#: ide/aisetup.inc
+msgid "A local AI app's address on this computer, for example 127.0.0.1:8080. Studio only asks this computer."
+msgstr "La dirección de una app de IA local en esta computadora, por ejemplo 127.0.0.1:8080. Studio solo consulta esta computadora."
+
+#: ide/aisetup.inc
+msgid "Loo&k"
+msgstr "&Buscar"
+
+#: ide/aisetup.inc
+msgid "Look for models at this address"
+msgstr "Buscar modelos en esta dirección"
 
 #: ide/aisetup.inc
 msgid "A cloud service"
@@ -1201,10 +1394,30 @@ msgstr "Probar la clave: pedir al proveedor sus modelos"
 msgid "The key's test"
 msgstr "La prueba de la clave"
 
+#: ide/aisetup.inc ide/settings.inc
+msgid "&Model:"
+msgstr "&Modelo:"
+
 # legal
 #: ide/aisetup.inc
 msgid "What it costs, and what is sent"
 msgstr "Cuánto cuesta y qué se envía"
+
+#: ide/aisetup.inc
+msgid "Licence"
+msgstr "Licencia"
+
+#: ide/aisetup.inc
+msgid "The licence's text"
+msgstr "El texto de la licencia"
+
+#: ide/aisetup.inc
+msgid "Stop Checking"
+msgstr "Detener comprobación"
+
+#: ide/aisetup.inc
+msgid "Read the Licence..."
+msgstr "Leer la licencia..."
 
 #: ide/aisetup.inc
 msgid "Where should RAI's answers come from?"
@@ -1227,51 +1440,253 @@ msgid "Set Up RAI — {title}"
 msgstr "Configurar RAI — {title}"
 
 #: ide/aisetup.inc
-msgid "{name} (no model yet: download one in it first)"
-msgstr "{name} (aún sin modelo: descarga uno en él primero)"
+msgid "Looking for AI apps on this computer…"
+msgstr "Buscando apps de IA en esta computadora…"
 
 #: ide/aisetup.inc
-msgid "{name} ({n} model)"
-msgid_plural "{name} ({n} models)"
-msgstr[0] "{name} ({n} modelo)"
-msgstr[1] "{name} ({n} modelos)"
+msgid "✓ Found {n} model in {k} local AI apps on this computer."
+msgid_plural "✓ Found {n} models in {k} local AI apps on this computer."
+msgstr[0] "✓ Se encontró {n} modelo en {k} apps de IA locales en esta computadora."
+msgstr[1] "✓ Se encontraron {n} modelos en {k} apps de IA locales en esta computadora."
 
 #: ide/aisetup.inc
-msgid "✓ Found on this computer: {servers}. Not running: {others}."
-msgstr "✓ Encontrados en esta computadora: {servers}. Sin ejecutarse: {others}."
+msgid "✓ Found {n} model in a local AI app on this computer."
+msgid_plural "✓ Found {n} models in a local AI app on this computer."
+msgstr[0] "✓ Se encontró {n} modelo en una app de IA local en esta computadora."
+msgstr[1] "✓ Se encontraron {n} modelos en una app de IA local en esta computadora."
 
 #: ide/aisetup.inc
-msgid "✓ Found on this computer: {servers}."
-msgstr "✓ Encontrados en esta computadora: {servers}."
+msgid "In a browser Studio can't look around this computer: Next asks for your local AI app's address."
+msgstr "En un navegador, Studio no puede buscar en esta computadora: Siguiente te pide la dirección de tu app de IA local."
 
 #: ide/aisetup.inc
-msgid "Looking for a server on this computer…"
-msgstr "Buscando un servidor en esta computadora…"
+msgid "A local AI app answers on this computer, but it has no model yet: add one in it, then Look Again."
+msgstr "Una app de IA local responde en esta computadora, pero aún no tiene ningún modelo: añade uno en ella y luego usa Buscar de nuevo."
 
 #: ide/aisetup.inc
-msgid "None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again."
-msgstr "No se encontró ninguno en ejecución: instala Ollama, LM Studio o MLX Serve, inícialo y luego usa Buscar de nuevo."
+msgid "No local AI app found running on this computer: Next says what one is and how to add one."
+msgstr "No se encontró ninguna app de IA local ejecutándose en esta computadora: Siguiente explica qué es y cómo añadir una."
 
 #: ide/aisetup.inc
-msgid "{name} (running)"
-msgstr "{name} (en ejecución)"
+msgid "timing an answer"
+msgstr "midiendo una respuesta"
 
 #: ide/aisetup.inc
-msgid "{name} (not running)"
-msgstr "{name} (sin ejecutarse)"
+#, review
+msgid "trying a tool call"
+msgstr "probando una llamada a una herramienta"
 
 #: ide/aisetup.inc
-msgid "{name} is running here, but has no model yet: download one in {name} (Studio never downloads or starts one for you), then go Back and Look Again."
-msgstr "{name} se está ejecutando aquí, pero aún no tiene ningún modelo: descarga uno en {name} (Studio nunca descarga ni inicia uno por ti), luego presiona Atrás y usa Buscar de nuevo."
+msgid "building a tiny app"
+msgstr "construyendo una app muy pequeña"
+
+#: ide/aisetup.inc
+msgid "loading it"
+msgstr "cargándolo"
 
 # legal
 #: ide/aisetup.inc
-msgid "{name} is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help."
-msgstr "{name} se está ejecutando aquí. Elige un modelo y presiona Finalizar. Es gratis, y nada de lo que preguntas sale de esta computadora. Un modelo con una ventana pequeña (menos de 16 000 tokens) recibe las instrucciones ligeras de RAI, así que aún puede ayudar."
+msgid "Runs elsewhere"
+msgstr "Se ejecuta en otro lugar"
 
 #: ide/aisetup.inc
-msgid "{name} isn't running at {url}. Start it (Studio never starts it for you), then go Back and Look Again; or type another address."
-msgstr "{name} no se está ejecutando en {url}. Inícialo (Studio nunca lo inicia por ti), luego presiona Atrás y usa Buscar de nuevo; o escribe otra dirección."
+msgid "Fits"
+msgstr "Cabe"
+
+#: ide/aisetup.inc
+msgid "Fits if you close other apps"
+msgstr "Cabe si cierras otras apps"
+
+#: ide/aisetup.inc
+msgid "Too big for this computer"
+msgstr "Demasiado grande para esta computadora"
+
+#: ide/aisetup.inc
+msgid "Size not known"
+msgstr "Tamaño desconocido"
+
+#: ide/aisetup.inc
+msgid "Checking it now: {step}…"
+msgstr "Comprobándolo ahora: {step}…"
+
+#: ide/aisetup.inc
+msgid "Waiting for its check…"
+msgstr "Esperando su comprobación…"
+
+#: ide/aisetup.inc
+msgid "Can't chat: its local AI app says it is made for something else."
+msgstr "No puede conversar: su app de IA local dice que está hecho para otra cosa."
+
+# legal
+#: ide/aisetup.inc
+msgid "Its local AI app runs this model on a service elsewhere: what you ask is sent there."
+msgstr "Su app de IA local ejecuta este modelo en un servicio externo: lo que preguntas se envía allí."
+
+#: ide/aisetup.inc
+msgid "Too big for this computer: it needs {need}; a model can have {most} here at most."
+msgstr "Demasiado grande para esta computadora: necesita {need}; un modelo puede tener como máximo {most} aquí."
+
+#: ide/aisetup.inc
+msgid "Its check couldn't finish: {why}"
+msgstr "Su comprobación no pudo terminar: {why}"
+
+#: ide/aisetup.inc
+msgid "Can chat, but can't build apps with RAI: its tool calls didn't work here."
+msgstr "Puede conversar, pero no puede construir apps con RAI: sus llamadas a herramientas no funcionaron aquí."
+
+#: ide/aisetup.inc
+#, review
+msgid "Best match for this computer: it built Studio's test app, answers in about {s} s."
+msgstr "Mejor opción para esta computadora: construyó la app de prueba de Studio, responde en alrededor de {s} s."
+
+#: ide/aisetup.inc
+msgid "It built Studio's test app, answers in about {s} s."
+msgstr "Construyó la app de prueba de Studio, responde en alrededor de {s} s."
+
+#: ide/aisetup.inc
+msgid "Works, but slowly here (about {s} s per answer)."
+msgstr "Funciona, pero despacio aquí (alrededor de {s} s por respuesta)."
+
+#: ide/aisetup.inc
+msgid "Uses RAI's tools, but couldn't build the test app here: RAI starts its programs from RapidR's recipes."
+msgstr "Usa las herramientas de RAI, pero no pudo construir la app de prueba aquí: RAI empieza sus programas desde las recetas de RapidR."
+
+#: ide/aisetup.inc
+msgid "Its local AI app says it takes no tools, so RAI can't build apps with it."
+msgstr "Su app de IA local dice que no acepta herramientas, así que RAI no puede construir apps con ese modelo."
+
+#: ide/aisetup.inc
+msgid "A browser can't tell if it fits: Studio on the desktop can check it."
+msgstr "Un navegador no puede saber si cabe: Studio en el escritorio puede comprobarlo."
+
+#: ide/aisetup.inc
+msgid "Its size isn't known: Check My Models to see how it does here."
+msgstr "No se conoce su tamaño: usa Comprobar mis modelos para ver cómo le va aquí."
+
+#: ide/aisetup.inc
+#, review
+msgid "Best match for this computer by its size: Check My Models to see how it does."
+msgstr "Mejor opción para esta computadora según su tamaño: usa Comprobar mis modelos para ver cómo le va."
+
+#: ide/aisetup.inc
+msgid "Needs {need}: close other apps, Look Again, then Check My Models."
+msgstr "Necesita {need}: cierra otras apps, usa Buscar de nuevo y luego Comprobar mis modelos."
+
+#: ide/aisetup.inc
+msgid "Needs {need} with a {k}K context. Not checked yet."
+msgstr "Necesita {need} con un contexto de {k}K. Aún sin comprobar."
+
+#: ide/aisetup.inc
+msgid "A browser can't tell how much memory this computer has free, so a model's fit can't be checked here: Studio on the desktop can."
+msgstr "Un navegador no puede saber cuánta memoria libre tiene esta computadora, así que aquí no se puede comprobar si un modelo cabe: Studio de escritorio sí puede."
+
+#: ide/aisetup.inc
+msgid "Type your local AI app's address on this computer (for example http://127.0.0.1:11434), then Look. It must allow this page to ask it: the manual says how."
+msgstr "Escribe la dirección de tu app de IA local en esta computadora (por ejemplo http://127.0.0.1:11434) y luego presiona Buscar. Debe permitir que esta página le pregunte: el manual explica cómo."
+
+#: ide/aisetup.inc
+msgid "This computer: {total} of memory; {free} free for a model now ({most} with other apps closed)."
+msgstr "Esta computadora: {total} de memoria; {free} libres para un modelo ahora ({most} con otras apps cerradas)."
+
+# legal
+#: ide/aisetup.inc
+msgid "No AI model answered on this computer. A local AI app is a free program you install: it keeps AI models on your computer and answers RAI here, so what you ask stays on this computer, unless the app is set up to pass it on. Install one, add a model in it, start it, then go Back and Look Again — or type its address below if it uses another one."
+msgstr "Ningún modelo de IA respondió en esta computadora. Una app de IA local es un programa gratuito que instalas: guarda modelos de IA en tu computadora y responde a RAI aquí, así que lo que preguntas se queda en esta computadora, a menos que la app esté configurada para pasarlo a otro servicio. Instala una, añade un modelo en ella, iníciala y luego presiona Atrás y usa Buscar de nuevo, o escribe su dirección abajo si usa otra."
+
+#: ide/aisetup.inc
+msgid "{n} parameters"
+msgstr "{n} parámetros"
+
+#: ide/aisetup.inc
+#, review
+msgid "takes tools"
+msgstr "acepta herramientas"
+
+#: ide/aisetup.inc
+msgid "no tools"
+msgstr "sin herramientas"
+
+#: ide/aisetup.inc
+msgid "RAI gets a {k} context"
+msgstr "RAI recibe un contexto de {k}"
+
+#: ide/aisetup.inc
+msgid "and its small-model mode (shorter instructions, a recipe first)"
+msgstr "y su modo para modelos pequeños (instrucciones más cortas, primero una receta)"
+
+# legal
+#: ide/aisetup.inc
+msgid "Licence, as its local AI app reports it (Studio doesn't check it; it can be wrong or out of date): {licence}."
+msgstr "Licencia, tal como la informa su app de IA local (Studio no la comprueba; puede ser incorrecta o estar desactualizada): {licence}."
+
+# legal
+#: ide/aisetup.inc
+msgid "Its local AI app doesn't say its licence: check it where you got the model."
+msgstr "Su app de IA local no indica su licencia: revísala donde conseguiste el modelo."
+
+# legal
+#: ide/aisetup.inc
+msgid "Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
+msgstr "¿Creas apps para vender? Revisa la licencia de este modelo: puede limitar el uso comercial, o lo que puedes hacer con lo que el modelo escribe."
+
+#: ide/aisetup.inc
+msgid "Stopping the check…"
+msgstr "Deteniendo la comprobación…"
+
+#: ide/aisetup.inc
+msgid "Every model that fits is checked already."
+msgstr "Todos los modelos que caben ya están comprobados."
+
+#: ide/aisetup.inc
+msgid "Checking models runs in RapidR Studio on the desktop."
+msgstr "La comprobación de modelos se ejecuta en RapidR Studio de escritorio."
+
+#: ide/aisetup.inc
+msgid "&Stop Checking"
+msgstr "&Detener comprobación"
+
+#: ide/aisetup.inc
+msgid "Checking {model} ({k} of {n}): {step}…"
+msgstr "Comprobando {model} ({k} de {n}): {step}…"
+
+#: ide/aisetup.inc
+msgid "The check stopped. {n} model isn't checked yet: Check My Models goes on with it."
+msgid_plural "The check stopped. {n} models aren't checked yet: Check My Models goes on with them."
+msgstr[0] "Se detuvo la comprobación. {n} modelo aún no está comprobado: Comprobar mis modelos continúa con él."
+msgstr[1] "Se detuvo la comprobación. {n} modelos aún no están comprobados: Comprobar mis modelos continúa con ellos."
+
+# legal
+#: ide/aisetup.inc
+msgid "Optional, about {n} minute: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
+msgid_plural "Optional, about {n} minutes: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
+msgstr[0] "Opcional, alrededor de {n} min: Studio carga cada modelo que cabe aquí, uno a la vez, y lo prueba —cuánto tarda en responder, si puede usar las herramientas de RAI y si construye una app muy pequeña— y luego lo libera (también se prueba un modelo cuyo tamaño no se conoce). La comprobación usa, mientras tanto, la memoria y el procesador de esta computadora, y puede cerrar un modelo que otra app haya cargado. Puedes detenerla en cualquier momento. Studio solo se comunica con esta computadora."
+msgstr[1] "Opcional, alrededor de {n} min: Studio carga cada modelo que cabe aquí, uno a la vez, y lo prueba —cuánto tarda en responder, si puede usar las herramientas de RAI y si construye una app muy pequeña— y luego lo libera (también se prueba un modelo cuyo tamaño no se conoce). La comprobación usa, mientras tanto, la memoria y el procesador de esta computadora, y puede cerrar un modelo que otra app haya cargado. Puedes detenerla en cualquier momento. Studio solo se comunica con esta computadora."
+
+#: ide/aisetup.inc
+msgid "Every model that fits is checked. Choose one, then Finish."
+msgstr "Todos los modelos que caben están comprobados. Elige uno y luego presiona Finalizar."
+
+# legal
+#: ide/aisetup.inc
+msgid "Studio only asks this computer: {why}"
+msgstr "Studio solo consulta esta computadora: {why}"
+
+#: ide/aisetup.inc
+msgid "Asking {url}…"
+msgstr "Consultando {url}…"
+
+#: ide/aisetup.inc
+msgid "Nothing answered at {url}: {why}"
+msgstr "Nada respondió en {url}: {why}"
+
+#: ide/aisetup.inc
+msgid "Licence of {model}"
+msgstr "Licencia de {model}"
+
+# legal
+#: ide/aisetup.inc
+msgid "As its local AI app reports it (Studio doesn't check it). Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
+msgstr "Tal como la informa su app de IA local (Studio no la comprueba). ¿Creas apps para vender? Revisa la licencia de este modelo: puede limitar el uso comercial, o lo que puedes hacer con lo que el modelo escribe."
 
 #: ide/aisetup.inc
 msgid "A key for {name} is already found ({hint}, {store}): Test it, or paste another."
@@ -1321,8 +1736,21 @@ msgstr[0] "✓ La clave funciona: {n} modelo. El primero, {model}, es rápido y 
 msgstr[1] "✓ La clave funciona: {n} modelos. El primero, {model}, es rápido y económico: un buen comienzo. Presiona Finalizar cuando hayas elegido."
 
 #: ide/aisetup.inc
-msgid "Choose a model first (the server lists its own): start the server and Look Again if the list is empty."
-msgstr "Elige primero un modelo (el servidor muestra los suyos): inicia el servidor y usa Buscar de nuevo si la lista está vacía."
+msgid "Choose a model first: Studio lists the ones on this computer. Start your local AI app and Look Again if the list is empty."
+msgstr "Elige primero un modelo: Studio muestra los que hay en esta computadora. Inicia tu app de IA local y usa Buscar de nuevo si la lista está vacía."
+
+# legal
+#: ide/aisetup.inc
+msgid "{model} runs on a service elsewhere, not on this computer: choose a model that runs here, or set that service up as a cloud service."
+msgstr "{model} se ejecuta en un servicio externo, no en esta computadora: elige un modelo que se ejecute aquí, o configura ese servicio como un servicio en la nube."
+
+#: ide/aisetup.inc
+msgid "{model} can't chat: choose another model."
+msgstr "{model} no puede conversar: elige otro modelo."
+
+#: ide/aisetup.inc
+msgid "{model} is too big for this computer: choose another model."
+msgstr "{model} es demasiado grande para esta computadora: elige otro modelo."
 
 #: ide/aisetup.inc
 msgid "Test the key first: then choose one of the provider's models."
@@ -1472,7 +1900,7 @@ msgstr "El ícono de la aplicación"
 msgid "Icons and pictures"
 msgstr "Íconos e imágenes"
 
-#: ide/build.inc ide/project.inc ide/shell.inc
+#: ide/build.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
 msgstr "Todos los archivos"
 
@@ -1642,7 +2070,7 @@ msgstr "Guardar una &versión..."
 msgid "Versio&ns"
 msgstr "Versio&nes"
 
-#: ide/commands.inc ide/versions.inc
+#: ide/commands.inc
 msgid "&Start Versioning This Project"
 msgstr "&Empezar a guardar versiones de este proyecto"
 
@@ -2222,6 +2650,10 @@ msgid "AI Apps Acti&vity"
 msgstr "Acti&vidad de aplicaciones de IA"
 
 #: ide/commands.inc
+msgid "School &Lock..."
+msgstr "&Bloqueo escolar..."
+
+#: ide/commands.inc
 msgid "Split &Right"
 msgstr "&Dividir a la derecha"
 
@@ -2318,6 +2750,192 @@ msgstr "Más información"
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
 msgstr "Abre la página del manual en tu navegador"
+
+# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
+#: ide/crash.inc
+msgid "&View Report"
+msgstr "&Ver informe"
+
+#: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "Cop&iar informe"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "&Guardar informe..."
+
+#: ide/crash.inc
+msgid "Report on &GitHub..."
+msgstr "Informar en Git&Hub..."
+
+#: ide/crash.inc
+msgid "&Dismiss"
+msgstr "&Ocultar"
+
+#: ide/crash.inc
+msgid "Opens the report in a tab"
+msgstr "Abre el informe en una pestaña"
+
+#: ide/crash.inc
+msgid "Copies the report's text"
+msgstr "Copia el texto del informe"
+
+#: ide/crash.inc
+msgid "Saves a copy of the report where you choose"
+msgstr "Guarda una copia del informe donde elijas"
+
+# legal
+#: ide/crash.inc
+msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
+msgstr "Abre en tu navegador la página de GitHub para informar un problema nuevo, con el informe ya escrito. No se envía nada hasta que tú lo envíes allí."
+
+# legal
+#: ide/crash.inc
+msgid "Closes this note. The report stays on this computer for 30 days."
+msgstr "Cierra este aviso. El informe queda en esta computadora durante 30 días."
+
+#: ide/crash.inc
+msgid "RapidR Studio isn't responding"
+msgstr "RapidR Studio no responde"
+
+# legal
+#: ide/crash.inc
+msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
+msgstr "Su ventana no responde desde hace unos segundos. Esperar le da más tiempo. Guardar copias y salir lo cierra: las copias de tu trabajo sin guardar que Studio guarda mientras escribes (cada 20 segundos) se ofrecen cuando vuelva a abrirse. Se escribió un informe en esta computadora."
+
+#: ide/crash.inc
+msgid "&Wait"
+msgstr "&Esperar"
+
+#: ide/crash.inc
+msgid "&Save Copies and Quit"
+msgstr "&Guardar copias y salir"
+
+#: ide/crash.inc
+msgid "RapidR Studio stopped responding last time and was closed."
+msgstr "La última vez, RapidR Studio dejó de responder y se cerró."
+
+#: ide/crash.inc
+msgid "RapidR Studio closed unexpectedly last time."
+msgstr "La última vez, RapidR Studio se cerró de forma inesperada."
+
+# legal
+#: ide/crash.inc
+msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
+msgstr "Un informe de lo que pasó queda en esta computadora; no se envió nada. Puedes verlo, copiarlo, guardarlo o informar el problema en GitHub para ayudar a corregirlo."
+
+#: ide/crash.inc
+msgid "The report isn't there any more."
+msgstr "El informe ya no está."
+
+#: ide/crash.inc
+msgid "The report was copied."
+msgstr "Se copió el informe."
+
+#: ide/crash.inc
+msgid "Save Report"
+msgstr "Guardar informe"
+
+#: ide/crash.inc
+msgid "Text files"
+msgstr "Archivos de texto"
+
+#: ide/crash.inc
+msgid "Saved the report as {file}."
+msgstr "Se guardó el informe como {file}."
+
+#: ide/crash.inc
+msgid "Couldn't save the report: {error}"
+msgstr "No se pudo guardar el informe: {error}"
+
+#: ide/crash.inc
+msgid "Report this on GitHub?"
+msgstr "¿Informar esto en GitHub?"
+
+# legal
+#: ide/crash.inc
+msgid "Your browser opens RapidR's page for a new issue on GitHub, filled in with this report. Nothing is sent until you send it there yourself."
+msgstr "Tu navegador abre la página de RapidR en GitHub para informar un problema nuevo, con este informe ya escrito. No se envía nada hasta que tú lo envíes allí."
+
+#: ide/crash.inc
+msgid "It shows"
+msgstr "Muestra"
+
+# legal
+#: ide/crash.inc
+msgid "RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords."
+msgstr "La versión de RapidR, tu sistema, dónde se detuvo, sus últimos mensajes y los nombres de las últimas llamadas de IA. Tu carpeta personal aparece como ~; nada del contenido de tus archivos, ni claves ni contraseñas."
+
+#: ide/crash.inc
+msgid "You need"
+msgstr "Necesitas"
+
+# legal
+#: ide/crash.inc
+msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
+msgstr "Una cuenta de GitHub. Las condiciones de GitHub piden tener 13 años o más; un estudiante más joven puede pedirle a un docente, a su madre, a su padre o a su tutor que lo informe."
+
+# legal
+#: ide/crash.inc ide/mcp.inc
+msgid "Keep in mind"
+msgstr "Ten en cuenta"
+
+# legal
+#: ide/crash.inc
+msgid "Issues on GitHub are public: anyone can read them. Read the report first, and take out anything you don't want to share."
+msgstr "Los problemas informados en GitHub son públicos: cualquiera puede leerlos. Lee primero el informe y quita lo que no quieras compartir."
+
+#: ide/crash.inc
+msgid "&Open GitHub"
+msgstr "&Abrir GitHub"
+
+#: ide/crash.inc
+msgid "The page has a shorter report; the whole one was copied: paste it into the issue's text too."
+msgstr "La página tiene un informe más corto; el informe completo se copió: pégalo también en el texto del problema."
+
+#: ide/crash.inc
+msgid "the stack overflowed (calls went too deep)"
+msgstr "se desbordó la pila (las llamadas fueron demasiado profundas)"
+
+#: ide/crash.inc ide/safety.inc
+msgid "{file} line {n}"
+msgstr "{file} línea {n}"
+
+#: ide/crash.inc ide/safety.inc
+msgid "line {n}"
+msgstr "línea {n}"
+
+#: ide/crash.inc
+msgid "{place}, in {routine}"
+msgstr "{place}, en {routine}"
+
+#: ide/crash.inc
+msgid "{place}, in the main program"
+msgstr "{place}, en el programa principal"
+
+#: ide/crash.inc
+msgid "{event} of {component}"
+msgstr "{event} de {component}"
+
+#: ide/crash.inc
+msgid "Your program stopped: {what}, at {where}."
+msgstr "Tu programa se detuvo: {what}, en {where}."
+
+#: ide/crash.inc
+msgid "Your program stopped: {what}."
+msgstr "Tu programa se detuvo: {what}."
+
+#: ide/crash.inc
+msgid "RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer:"
+msgstr "RapidR lo detuvo: es un problema de RapidR, no de tu código. Un informe queda en esta computadora:"
+
+#: ide/crash.inc
+msgid "View Report"
+msgstr "Ver informe"
+
+#: ide/crash.inc
+msgid "Your program stopped: a problem in RapidR"
+msgstr "Tu programa se detuvo: un problema de RapidR"
 
 #: ide/debug.inc
 msgid "Text"
@@ -3236,11 +3854,6 @@ msgstr "Nada espera tu permiso: las aplicaciones de IA cambian archivos, ejecuta
 
 # legal
 #: ide/mcp.inc
-msgid "Keep in mind"
-msgstr "Ten en cuenta"
-
-# legal
-#: ide/mcp.inc
 msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
 msgstr "Un programa que ejecuten puede hacer en esta computadora todo lo que tú puedes, y los clics que hagan en él son reales. Elige esto solo mientras observas una aplicación de IA en la que confías."
 
@@ -3326,6 +3939,10 @@ msgid "Share only what you may share: schoolwork, an employer's code or someone 
 msgstr "Comparte solo lo que puedas compartir: las tareas escolares, el código de un empleador o el código con licencia de otra persona pueden no ser tuyos para compartir. Desactiva esto, o usa Restablecer token, para desconectar todas las aplicaciones de IA. Studio guarda una lista de lo que hicieron solo en esta computadora; Borrar actividad la quita."
 
 #: ide/mcp.inc
+msgid "AI apps can't start: School Lock is on (Tools > School Lock...)."
+msgstr "Las aplicaciones de IA no pueden iniciarse: el bloqueo escolar está activado (Herramientas > Bloqueo escolar...)."
+
+#: ide/mcp.inc
 msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
 msgstr "Las aplicaciones de IA no se pueden conectar: {error}. Elige otro puerto en Herramientas > Configuración > Aplicaciones de IA."
 
@@ -3362,6 +3979,10 @@ msgstr[1] "{n} llamadas"
 #: ide/mcp.inc
 msgid "AI apps: off"
 msgstr "Aplicaciones de IA: desactivadas"
+
+#: ide/mcp.inc
+msgid "School Lock is on: AI apps can't connect."
+msgstr "El bloqueo escolar está activado: las aplicaciones de IA no pueden conectarse."
 
 #: ide/mcp.inc
 msgid "Tools > Settings > AI Apps turns them on."
@@ -3945,6 +4566,10 @@ msgid "A bug in a handler: the program goes on and says so"
 msgstr "Un error en un controlador: el programa sigue y lo dice"
 
 #: ide/panes.inc
+msgid "What this computer has: memory, processor, disk"
+msgstr "Lo que tiene esta computadora: memoria, procesador, disco"
+
+#: ide/panes.inc
 msgid "Click the sky: rockets and thousands of sparks"
 msgstr "Haz clic en el cielo: cohetes y miles de chispas"
 
@@ -4378,14 +5003,6 @@ msgid "&Copy Details"
 msgstr "&Copiar detalles"
 
 #: ide/safety.inc
-msgid "{file} line {n}"
-msgstr "{file} línea {n}"
-
-#: ide/safety.inc
-msgid "line {n}"
-msgstr "línea {n}"
-
-#: ide/safety.inc
 msgid "Something went wrong in Studio: {message} ({where}). Your work is safe; Studio goes on."
 msgstr "Algo salió mal en Studio: {message} ({where}). Tu trabajo está a salvo; Studio sigue funcionando."
 
@@ -4446,6 +5063,289 @@ msgid "Restored the unsaved work of {n} file (not saved yet)."
 msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
 msgstr[0] "Se restauró el trabajo sin guardar de {n} archivo (aún sin guardar)."
 msgstr[1] "Se restauró el trabajo sin guardar de {n} archivos (aún sin guardar)."
+
+#: ide/schoollock.inc
+msgid "School Lock"
+msgstr "Bloqueo escolar"
+
+#: ide/schoollock.inc
+msgid "What to lock:"
+msgstr "Qué bloquear:"
+
+#: ide/schoollock.inc
+msgid "&AI in Studio (RAI)"
+msgstr "&IA en Studio (RAI)"
+
+#: ide/schoollock.inc
+msgid "The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI"
+msgstr "El panel del asistente de IA, Configurar RAI y Configuración > IA: no se envía nada a una IA"
+
+#: ide/schoollock.inc
+msgid "AI apps (&MCP)"
+msgstr "A&plicaciones de IA (MCP)"
+
+#: ide/schoollock.inc
+msgid "AI apps on this computer can't connect to RapidR Studio"
+msgstr "Las aplicaciones de IA de esta computadora no pueden conectarse a RapidR Studio"
+
+#: ide/schoollock.inc
+#, review
+msgid "Keep RAI in &Coach mode"
+msgstr "Mantener a RAI en modo &tutor"
+
+# legal
+#: ide/schoollock.inc
+#, review
+msgid "RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this."
+msgstr "RAI sigue activo, pero solo da pistas. Nunca escribe la respuesta en el código del estudiante. Para elegir esto, desmarca IA en Studio."
+
+#: ide/schoollock.inc
+msgid "&Password:"
+msgstr "&Contraseña:"
+
+#: ide/schoollock.inc
+msgid "Password"
+msgstr "Contraseña"
+
+#: ide/schoollock.inc
+msgid "Type it a&gain:"
+msgstr "&Repetir la contraseña:"
+
+#: ide/schoollock.inc
+msgid "Type the password again"
+msgstr "Escribe la contraseña de nuevo"
+
+#: ide/schoollock.inc
+msgid "About the password"
+msgstr "Sobre la contraseña"
+
+#: ide/schoollock.inc
+msgid "Learn more about School Lock"
+msgstr "Más información sobre el bloqueo escolar"
+
+#: ide/schoollock.inc
+msgid "Opens the manual's page for teachers in your browser"
+msgstr "Abre en tu navegador la página del manual para docentes"
+
+#: ide/schoollock.inc
+msgid "&Turn School Lock Off"
+msgstr "Desac&tivar el bloqueo escolar"
+
+#: ide/schoollock.inc
+msgid "RAI and AI apps are off in RapidR Studio on this computer."
+msgstr "RAI y las aplicaciones de IA están desactivados en RapidR Studio en esta computadora."
+
+#: ide/schoollock.inc
+msgid "RAI is off in RapidR Studio on this computer."
+msgstr "RAI está desactivado en RapidR Studio en esta computadora."
+
+# legal
+#: ide/schoollock.inc
+#, review
+msgid "RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer."
+msgstr "RAI se mantiene en modo tutor y las aplicaciones de IA no pueden conectarse a RapidR Studio en esta computadora."
+
+# legal
+#: ide/schoollock.inc
+#, review
+msgid "RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files."
+msgstr "RAI se mantiene en modo tutor en RapidR Studio en esta computadora: da pistas paso a paso y no cambia los archivos del estudiante."
+
+#: ide/schoollock.inc
+msgid "AI apps can't connect to RapidR Studio on this computer."
+msgstr "Las aplicaciones de IA no pueden conectarse a RapidR Studio en esta computadora."
+
+#: ide/schoollock.inc
+msgid "AI is turned off by your school"
+msgstr "Tu escuela desactivó la IA"
+
+#: ide/schoollock.inc
+msgid "AI is turned off by your teacher"
+msgstr "Tu docente desactivó la IA"
+
+#: ide/schoollock.inc
+msgid "turned off by your school"
+msgstr "desactivado por tu escuela"
+
+#: ide/schoollock.inc
+msgid "turned off by your teacher"
+msgstr "desactivado por tu docente"
+
+#: ide/schoollock.inc
+msgid "School Lock: this computer's policy ({file}) can't be read: {error}. AI stays off until your school's IT fixes it."
+msgstr "Bloqueo escolar: no se puede leer la política de esta computadora ({file}): {error}. La IA sigue desactivada hasta que el equipo de informática de tu escuela lo corrija."
+
+#: ide/schoollock.inc
+msgid "AI apps: stopped, School Lock is on. Every AI app was disconnected."
+msgstr "Aplicaciones de IA: detenidas, el bloqueo escolar está activado. Se desconectaron todas las aplicaciones de IA."
+
+#: ide/schoollock.inc
+msgid "School Lock is on: {what}"
+msgstr "El bloqueo escolar está activado: {what}"
+
+#: ide/schoollock.inc
+msgid "School Lock is unlocked until Studio closes."
+msgstr "Bloqueo escolar: desbloqueado hasta que se cierre Studio."
+
+#: ide/schoollock.inc
+msgid "School Lock is off."
+msgstr "El bloqueo escolar está desactivado."
+
+#: ide/schoollock.inc
+msgid "Everything else works as usual."
+msgstr "Todo lo demás funciona como siempre."
+
+#: ide/schoollock.inc
+msgid "&Unlock..."
+msgstr "&Desbloquear..."
+
+#: ide/schoollock.inc
+msgid "Asks for the password"
+msgstr "Pide la contraseña"
+
+#: ide/schoollock.inc
+msgid "School Lock: unlocked"
+msgstr "Bloqueo escolar: desbloqueado"
+
+#: ide/schoollock.inc
+msgid "School Lock is unlocked until Studio closes"
+msgstr "Bloqueo escolar desbloqueado hasta que se cierre Studio"
+
+#: ide/schoollock.inc
+msgid "These settings can't be changed while School Lock is on."
+msgstr "Esta configuración no se puede cambiar mientras el bloqueo escolar esté activado."
+
+#: ide/schoollock.inc
+msgid "RAI can't be set up while School Lock is on."
+msgstr "RAI no se puede configurar mientras el bloqueo escolar esté activado."
+
+#: ide/schoollock.inc
+msgid "Turn on School Lock?"
+msgstr "¿Activar el bloqueo escolar?"
+
+# legal
+#: ide/schoollock.inc
+msgid "Features of RapidR Studio are turned off for everyone who uses this account on this computer, until someone types the password. Everything else keeps working."
+msgstr "Se desactivan funciones de RapidR Studio para cada persona que use esta cuenta en esta computadora, hasta que alguien escriba la contraseña. Todo lo demás sigue funcionando."
+
+# legal
+#: ide/schoollock.inc
+msgid "RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do."
+msgstr "RapidR guarda en esta computadora solo una versión codificada de la contraseña que no se puede revertir, nunca la contraseña. Quien la conozca puede desbloquear hasta que se cierre Studio, así que no la compartas. ¿La olvidaste? La página del manual para docentes explica qué hacer."
+
+#: ide/schoollock.inc
+msgid "&Lock"
+msgstr "&Bloquear"
+
+#: ide/schoollock.inc
+msgid "Turns School Lock on with this password"
+msgstr "Activa el bloqueo escolar con esta contraseña"
+
+#: ide/schoollock.inc
+msgid "At least 6 characters."
+msgstr "Al menos 6 caracteres."
+
+#: ide/schoollock.inc
+msgid "Type the password to unlock it until Studio closes."
+msgstr "Escribe la contraseña para desbloquear hasta que se cierre Studio."
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this for every account on this computer. It can be unlocked until Studio closes, but only IT can turn it off."
+msgstr "El equipo de informática de tu escuela lo configuró para todas las cuentas de esta computadora. Se puede desbloquear hasta que se cierre Studio, pero solo ese equipo puede desactivarlo."
+
+#: ide/schoollock.inc
+msgid "Turn School Lock Off ends the lock on this account until a teacher turns it on again. It needs the password too."
+msgstr "Desactivar el bloqueo escolar lo quita en esta cuenta hasta que se vuelva a activar. También pide la contraseña."
+
+#: ide/schoollock.inc
+msgid "&Unlock Until Studio Closes"
+msgstr "&Desbloquear hasta cerrar Studio"
+
+#: ide/schoollock.inc
+msgid "AI works again until RapidR Studio closes"
+msgstr "La IA vuelve a funcionar hasta que se cierre RapidR Studio"
+
+#: ide/schoollock.inc
+msgid "AI works again until RapidR Studio closes. It is locked again the next time Studio starts."
+msgstr "La IA vuelve a funcionar hasta que se cierre RapidR Studio. Se bloquea otra vez la próxima vez que se abra Studio."
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this for every account on this computer: only IT can turn it off."
+msgstr "El equipo de informática de tu escuela lo configuró para todas las cuentas de esta computadora: solo ese equipo puede desactivarlo."
+
+#: ide/schoollock.inc
+msgid "To turn School Lock off for good, type the password and choose Turn School Lock Off."
+msgstr "Para quitar el bloqueo escolar del todo, escribe la contraseña y elige Desactivar el bloqueo escolar."
+
+#: ide/schoollock.inc
+msgid "Lock &Again"
+msgstr "&Volver a bloquear"
+
+#: ide/schoollock.inc
+msgid "AI is turned off again now"
+msgstr "La IA se desactiva de nuevo ahora"
+
+#: ide/schoollock.inc
+msgid "The two passwords differ."
+msgstr "Las dos contraseñas no coinciden."
+
+#: ide/schoollock.inc
+msgid "Weak: easy to guess. A longer one with numbers or symbols is safer."
+msgstr "Débil: fácil de adivinar. Una más larga, con números o símbolos, es más segura."
+
+#: ide/schoollock.inc
+msgid "Fair. Longer, with capitals, numbers or symbols, is stronger."
+msgstr "Aceptable. Más larga, con mayúsculas, números o símbolos, es más fuerte."
+
+#: ide/schoollock.inc
+msgid "Strong."
+msgstr "Fuerte."
+
+#: ide/schoollock.inc
+msgid "Too many wrong passwords. Try again in {time}."
+msgstr "Demasiadas contraseñas incorrectas. Vuelve a intentarlo en {time}."
+
+#: ide/schoollock.inc
+msgid "You can try the password again."
+msgstr "Ya puedes volver a probar la contraseña."
+
+#: ide/schoollock.inc
+msgid "That isn't the password. {n} more try before a one-minute wait."
+msgid_plural "That isn't the password. {n} more tries before a one-minute wait."
+msgstr[0] "Esa no es la contraseña. Queda {n} intento antes de una espera de un minuto."
+msgstr[1] "Esa no es la contraseña. Quedan {n} intentos antes de una espera de un minuto."
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this lock: only IT can turn it off."
+msgstr "El equipo de informática de tu escuela configuró este bloqueo: solo ese equipo puede desactivarlo."
+
+#: ide/schoollock.inc
+msgid "No password can unlock this lock: ask your school's IT."
+msgstr "Ninguna contraseña puede desbloquearlo: consulta al equipo de informática de tu escuela."
+
+#: ide/schoollock.inc
+msgid "Choose at least one feature to lock."
+msgstr "Elige al menos una función para bloquear."
+
+#: ide/schoollock.inc
+msgid "The password needs at least 6 characters."
+msgstr "La contraseña necesita al menos 6 caracteres."
+
+#: ide/schoollock.inc
+msgid "The two passwords differ: type the same one twice."
+msgstr "Las dos contraseñas no coinciden: escribe la misma dos veces."
+
+#: ide/schoollock.inc
+msgid "Type the password."
+msgstr "Escribe la contraseña."
+
+#: ide/schoollock.inc
+msgid "Type the password to turn School Lock off."
+msgstr "Escribe la contraseña para desactivar el bloqueo escolar."
+
+#: ide/schoollock.inc
+msgid "School Lock couldn't be turned on: {error}"
+msgstr "No se pudo activar el bloqueo escolar: {error}"
 
 #: ide/search.inc
 msgid "Search"
@@ -5135,8 +6035,16 @@ msgid "Versions"
 msgstr "Versiones"
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions of This Project"
+msgstr "&Empezar a guardar versiones de este proyecto"
+
+#: ide/versions.inc
 msgid "Start keeping versions of this project (Git calls this git init)"
 msgstr "Empezar a guardar versiones de este proyecto (Git lo llama git init)"
+
+#: ide/versions.inc
+msgid "Start keeping versions of this project"
+msgstr "Empezar a guardar versiones de este proyecto"
 
 #: ide/versions.inc
 msgid "&Local History..."
@@ -5147,16 +6055,8 @@ msgid "The copies Studio kept of this file each time it was saved"
 msgstr "Las copias que Studio guardó de este archivo cada vez que se guardó"
 
 #: ide/versions.inc
-msgid "Changes not saved as a version"
-msgstr "Cambios sin guardar como versión"
-
-#: ide/versions.inc
-msgid "Files not saved as a version"
-msgstr "Archivos sin guardar como versión"
-
-#: ide/versions.inc
-msgid "A double click opens the file"
-msgstr "Un doble clic abre el archivo"
+msgid "Changes"
+msgstr "Cambios"
 
 #: ide/versions.inc
 msgid "&Save a Version..."
@@ -5169,6 +6069,22 @@ msgstr "Guardar una versión de tus archivos (Git lo llama commit)"
 #: ide/versions.inc
 msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
 msgstr "Conserva los archivos cambiados como están ahora, con unas palabras sobre lo que cambió (Git lo llama commit)"
+
+#: ide/versions.inc
+msgid "Filter the changed files"
+msgstr "Filtrar los archivos cambiados"
+
+#: ide/versions.inc
+msgid "Shows only the files whose name or folder has these letters"
+msgstr "Muestra solo los archivos cuyo nombre o carpeta tiene estas letras"
+
+#: ide/versions.inc
+msgid "Files not saved as a version, by folder"
+msgstr "Archivos sin guardar en una versión, por carpeta"
+
+#: ide/versions.inc
+msgid "A double click or Enter opens a file; Right opens a folder, Left closes it"
+msgstr "Un doble clic o Intro abre un archivo; Derecha abre una carpeta, Izquierda la cierra"
 
 #: ide/versions.inc
 msgid "Timeline"
@@ -5293,18 +6209,6 @@ msgstr[0] "hace {n} día"
 msgstr[1] "hace {n} días"
 
 #: ide/versions.inc
-msgid "new, not in a version yet"
-msgstr "nuevo, aún no está en una versión"
-
-#: ide/versions.inc
-msgid "removed since the last version"
-msgstr "quitado desde la última versión"
-
-#: ide/versions.inc
-msgid "changed since the last version"
-msgstr "cambiado desde la última versión"
-
-#: ide/versions.inc
 #, review
 msgid "AI checkpoint: {what}, {when}"
 msgstr "Punto de control de la IA: {what}, {when}"
@@ -5314,12 +6218,62 @@ msgid "saved by {who}, {when}"
 msgstr "guardada por {who}, {when}"
 
 #: ide/versions.inc
-msgid "Open a project to see its versions"
-msgstr "Abre un proyecto para ver sus versiones"
+msgid "the current version"
+msgstr "la versión actual"
 
 #: ide/versions.inc
-msgid "Versions keep your project's files as they were at each step, so nothing is ever lost."
-msgstr "Las versiones conservan los archivos de tu proyecto como estaban en cada paso, para que nunca se pierda nada."
+msgid "new, not in a version yet"
+msgstr "nuevo, aún no está en una versión"
+
+#: ide/versions.inc
+msgid "deleted since the last version"
+msgstr "eliminado desde la última versión"
+
+#: ide/versions.inc
+msgid "changed since the last version"
+msgstr "cambiado desde la última versión"
+
+#: ide/versions.inc
+msgid "closed"
+msgstr "cerrada"
+
+#: ide/versions.inc
+msgid "open"
+msgstr "abierta"
+
+#: ide/versions.inc
+msgid "Folder {folder}, {changes}, {state}"
+msgstr "Carpeta {folder}, {changes}, {state}"
+
+#: ide/versions.inc
+msgid "{n} change"
+msgid_plural "{n} changes"
+msgstr[0] "{n} cambio"
+msgstr[1] "{n} cambios"
+
+#: ide/versions.inc
+msgid "{file}: {state}"
+msgstr "{file}: {state}"
+
+#: ide/versions.inc
+msgid "{file} in {folder}: {state}"
+msgstr "{file} en {folder}: {state}"
+
+#: ide/versions.inc
+msgid "{folder} opened"
+msgstr "{folder} abierta"
+
+#: ide/versions.inc
+msgid "{folder} closed"
+msgstr "{folder} cerrada"
+
+#: ide/versions.inc
+msgid "No project open"
+msgstr "Ningún proyecto abierto"
+
+#: ide/versions.inc
+msgid "Open a project to keep versions of it: every step of your work, so nothing is ever lost."
+msgstr "Abre un proyecto para guardar versiones de él: cada paso de tu trabajo, para que nunca se pierda nada."
 
 #: ide/versions.inc
 msgid "Not in a browser"
@@ -5346,22 +6300,16 @@ msgid "Until then Studio keeps a copy of each file every time you save it. Local
 msgstr "Mientras tanto, Studio guarda una copia de cada archivo cada vez que lo guardas. Historial local las muestra."
 
 #: ide/versions.inc
-msgid "{experiment} · all saved"
-msgstr "{experiment} · todo guardado"
+msgid "Experiment: {experiment}"
+msgstr "Experimento: {experiment}"
 
 #: ide/versions.inc
-msgid "{experiment} · {n} change"
-msgid_plural "{experiment} · {n} changes"
-msgstr[0] "{experiment} · {n} cambio"
-msgstr[1] "{experiment} · {n} cambios"
+msgid "All saved"
+msgstr "Todo guardado"
 
 #: ide/versions.inc
-msgid "No changes since the last version"
-msgstr "No hay cambios desde la última versión"
-
-#: ide/versions.inc
-msgid "Changes not saved as a version ({n})"
-msgstr "Cambios sin guardar como versión ({n})"
+msgid "Everything is saved in a version."
+msgstr "Todo está guardado en una versión."
 
 #: ide/versions.inc
 msgid "Undo: {what}"
@@ -5378,6 +6326,18 @@ msgstr[0] "{n} cambio sin guardar como versión"
 msgstr[1] "{n} cambios sin guardar como versión"
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions"
+msgstr "&Empezar a guardar versiones"
+
+#: ide/versions.inc
+msgid "{n} min ago"
+msgstr "hace {n} min"
+
+#: ide/versions.inc
+msgid "{n} h ago"
+msgstr "hace {n} h"
+
+#: ide/versions.inc
 #, review
 msgid "AI checkpoint: {what}"
 msgstr "Punto de control de la IA: {what}"
@@ -5385,6 +6345,22 @@ msgstr "Punto de control de la IA: {what}"
 #: ide/versions.inc
 msgid "{who} · {when}"
 msgstr "{who} · {when}"
+
+#: ide/versions.inc
+msgid "Current"
+msgstr "Actual"
+
+#: ide/versions.inc
+msgid "New"
+msgstr "Nuevo"
+
+#: ide/versions.inc
+msgid "Deleted"
+msgstr "Eliminado"
+
+#: ide/versions.inc
+msgid "Changed"
+msgstr "Cambiado"
 
 #: ide/versions.inc
 msgid "Only {file}"
@@ -5423,8 +6399,8 @@ msgid "new"
 msgstr "nuevo"
 
 #: ide/versions.inc
-msgid "removed"
-msgstr "quitado"
+msgid "deleted"
+msgstr "eliminado"
 
 #: ide/versions.inc
 msgid "changed"
@@ -5774,181 +6750,6 @@ msgstr "Aplicación MDI"
 #: ide/workspace.inc
 msgid "Child windows, File and Window menus."
 msgstr "Ventanas secundarias, menús Archivo y Ventana."
-
-# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
-
-#: ide/crash.inc
-msgid "&View Report"
-msgstr "&Ver informe"
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr "Cop&iar informe"
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr "&Guardar informe..."
-
-#: ide/crash.inc
-msgid "Report on &GitHub..."
-msgstr "Informar en Git&Hub..."
-
-#: ide/crash.inc
-msgid "&Dismiss"
-msgstr "&Ocultar"
-
-#: ide/crash.inc
-msgid "Opens the report in a tab"
-msgstr "Abre el informe en una pestaña"
-
-#: ide/crash.inc
-msgid "Copies the report's text"
-msgstr "Copia el texto del informe"
-
-#: ide/crash.inc
-msgid "Saves a copy of the report where you choose"
-msgstr "Guarda una copia del informe donde elijas"
-
-# legal
-#: ide/crash.inc
-msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
-msgstr "Abre en tu navegador la página de GitHub para informar un problema nuevo, con el informe ya escrito. No se envía nada hasta que tú lo envíes allí."
-
-# legal
-#: ide/crash.inc
-msgid "Closes this note. The report stays on this computer for 30 days."
-msgstr "Cierra este aviso. El informe queda en esta computadora durante 30 días."
-
-#: ide/crash.inc
-msgid "RapidR Studio isn't responding"
-msgstr "RapidR Studio no responde"
-
-# legal
-#: ide/crash.inc
-msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
-msgstr "Su ventana no responde desde hace unos segundos. Esperar le da más tiempo. Guardar copias y salir lo cierra: las copias de tu trabajo sin guardar que Studio guarda mientras escribes (cada 20 segundos) se ofrecen cuando vuelva a abrirse. Se escribió un informe en esta computadora."
-
-#: ide/crash.inc
-msgid "&Wait"
-msgstr "&Esperar"
-
-#: ide/crash.inc
-msgid "&Save Copies and Quit"
-msgstr "&Guardar copias y salir"
-
-#: ide/crash.inc
-msgid "RapidR Studio stopped responding last time and was closed."
-msgstr "La última vez, RapidR Studio dejó de responder y se cerró."
-
-#: ide/crash.inc
-msgid "RapidR Studio closed unexpectedly last time."
-msgstr "La última vez, RapidR Studio se cerró de forma inesperada."
-
-# legal
-#: ide/crash.inc
-msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
-msgstr "Un informe de lo que pasó queda en esta computadora; no se envió nada. Puedes verlo, copiarlo, guardarlo o informar el problema en GitHub para ayudar a corregirlo."
-
-#: ide/crash.inc
-msgid "The report isn't there any more."
-msgstr "El informe ya no está."
-
-#: ide/crash.inc
-msgid "The report was copied."
-msgstr "Se copió el informe."
-
-#: ide/crash.inc
-msgid "Save Report"
-msgstr "Guardar informe"
-
-#: ide/crash.inc
-msgid "Text files"
-msgstr "Archivos de texto"
-
-#: ide/crash.inc
-msgid "Saved the report as {file}."
-msgstr "Se guardó el informe como {file}."
-
-#: ide/crash.inc
-msgid "Couldn't save the report: {error}"
-msgstr "No se pudo guardar el informe: {error}"
-
-#: ide/crash.inc
-msgid "Report this on GitHub?"
-msgstr "¿Informar esto en GitHub?"
-
-# legal
-#: ide/crash.inc
-msgid "Your browser opens RapidR's page for a new issue on GitHub, filled in with this report. Nothing is sent until you send it there yourself."
-msgstr "Tu navegador abre la página de RapidR en GitHub para informar un problema nuevo, con este informe ya escrito. No se envía nada hasta que tú lo envíes allí."
-
-#: ide/crash.inc
-msgid "It shows"
-msgstr "Muestra"
-
-# legal
-#: ide/crash.inc
-msgid "RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords."
-msgstr "La versión de RapidR, tu sistema, dónde se detuvo, sus últimos mensajes y los nombres de las últimas llamadas de IA. Tu carpeta personal aparece como ~; nada del contenido de tus archivos, ni claves ni contraseñas."
-
-#: ide/crash.inc
-msgid "You need"
-msgstr "Necesitas"
-
-# legal
-#: ide/crash.inc
-msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
-msgstr "Una cuenta de GitHub. Las condiciones de GitHub piden tener 13 años o más; un estudiante más joven puede pedirle a un docente, a su madre, a su padre o a su tutor que lo informe."
-
-# legal
-#: ide/crash.inc
-msgid "Issues on GitHub are public: anyone can read them. Read the report first, and take out anything you don't want to share."
-msgstr "Los problemas informados en GitHub son públicos: cualquiera puede leerlos. Lee primero el informe y quita lo que no quieras compartir."
-
-#: ide/crash.inc
-msgid "&Open GitHub"
-msgstr "&Abrir GitHub"
-
-#: ide/crash.inc
-msgid "The page has a shorter report; the whole one was copied: paste it into the issue's text too."
-msgstr "La página tiene un informe más corto; el informe completo se copió: pégalo también en el texto del problema."
-
-#: ide/crash.inc
-msgid "the stack overflowed (calls went too deep)"
-msgstr "se desbordó la pila (las llamadas fueron demasiado profundas)"
-
-#: ide/crash.inc
-msgid "{place}, in {routine}"
-msgstr "{place}, en {routine}"
-
-#: ide/crash.inc
-msgid "{place}, in the main program"
-msgstr "{place}, en el programa principal"
-
-#: ide/crash.inc
-msgid "{event} of {component}"
-msgstr "{event} de {component}"
-
-#: ide/crash.inc
-msgid "Your program stopped: {what}, at {where}."
-msgstr "Tu programa se detuvo: {what}, en {where}."
-
-#: ide/crash.inc
-msgid "Your program stopped: {what}."
-msgstr "Tu programa se detuvo: {what}."
-
-#: ide/crash.inc
-msgid "RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer:"
-msgstr "RapidR lo detuvo: es un problema de RapidR, no de tu código. Un informe queda en esta computadora:"
-
-#: ide/crash.inc
-msgid "View Report"
-msgstr "Ver informe"
-
-#: ide/crash.inc
-msgid "Your program stopped: a problem in RapidR"
-msgstr "Tu programa se detuvo: un problema de RapidR"
-
 
 #: ide/panels.inc
 msgctxt "a look in the Properties pane's Theme row"

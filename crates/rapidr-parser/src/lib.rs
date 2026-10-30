@@ -130,11 +130,36 @@ const SOFT_KEYWORDS: &[TokenType] = &[
     TokenType::Bind,
 ];
 
+/// Words that RC.EXE lets name a SUB or FUNCTION though the language uses
+/// them (`retag_routine_names`).
+const OPERATOR_WORDS: &[TokenType] = &[TokenType::Step, TokenType::To, TokenType::Then, TokenType::And];
+
+/// The type names: RC.EXE refuses them as a variable's, a CONST's, a SUB's
+/// or a FUNCTION's name and as the target of an assignment, each in its own
+/// words ([`Parser::describe_failure`], [`Parser::parse_routine_name`]).
+fn is_type_word(kind: TokenType) -> bool {
+    use TokenType::*;
+    matches!(kind, Integer | String | Double | Single | Byte | Word | Dword | Long | Variant)
+}
+
 /// When a program declares a SUB/FUNCTION named like a soft keyword
 /// (`SUB Close`, `DECLARE SUB Open`), every use of that word is the routine:
 /// retag those tokens as identifiers. `None` when nothing needs retagging.
 fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
     let mut names: Vec<String> = Vec::new();
+    // (`SUB Step`, `SUB To`, `SUB Then`, `SUB And`: RC.EXE takes them, the
+    // routine called by that name — `Step 1, 2`, `CALL Step(3)` — while a
+    // FOR's TO and STEP and an IF's THEN stay the keywords: only a word
+    // where a statement starts or a routine is named is the routine)
+    let mut operator_names: Vec<String> = Vec::new();
+    for pair in tokens.windows(2) {
+        if matches!(pair[0].kind, TokenType::Sub | TokenType::Function) && OPERATOR_WORDS.contains(&pair[1].kind) {
+            let upper = pair[1].lexeme.to_ascii_uppercase();
+            if !operator_names.contains(&upper) {
+                operator_names.push(upper);
+            }
+        }
+    }
     // (`SUB $XP_MANIFEST` … `$XP_MANIFEST`: a routine named like a
     // directive, called by that name — RC.EXE, RapidQ's XP_Manifest.inc)
     let dollar = |t: &Token| t.kind == TokenType::Directive && t.trailing.as_deref().is_none_or(|r| r.trim().is_empty() || r.trim_start().starts_with('\''));
@@ -153,16 +178,25 @@ fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
             }
         }
     }
-    if names.is_empty() && dollar_names.is_empty() {
+    if names.is_empty() && dollar_names.is_empty() && operator_names.is_empty() {
         return None;
     }
     Some(
         tokens
             .iter()
-            .map(|t| {
+            .enumerate()
+            .map(|(i, t)| {
                 let mut t = t.clone();
                 if SOFT_KEYWORDS.contains(&t.kind) && names.contains(&t.lexeme.to_ascii_uppercase()) {
                     t.kind = TokenType::Identifier;
+                }
+                if OPERATOR_WORDS.contains(&t.kind) && operator_names.contains(&t.lexeme.to_ascii_uppercase()) {
+                    let prev = i.checked_sub(1).map(|j| tokens[j].kind);
+                    // (a statement's first word, the word after CALL, or the
+                    // name a SUB / FUNCTION / DECLARE gives)
+                    if matches!(prev, None | Some(TokenType::Newline | TokenType::Colon | TokenType::Then | TokenType::Else | TokenType::Call | TokenType::Sub | TokenType::Function)) {
+                        t.kind = TokenType::Identifier;
+                    }
                 }
                 if dollar(&t) && dollar_names.contains(&t.lexeme.to_ascii_uppercase()) {
                     t.kind = TokenType::Identifier;
@@ -172,6 +206,13 @@ fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
             })
             .collect(),
     )
+}
+
+/// RapidQ's PRINT right before an ELSE ends without a new line.
+fn print_ends_without_newline(body: &mut [Statement]) {
+    if let Some(Statement::Print(p)) = body.last_mut() {
+        p.append_newline = false;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -221,11 +262,27 @@ struct Parser<'a> {
     dot_scope: usize,
     /// Inside a TYPE's code (its methods): how deep.
     type_scope: usize,
+    /// How RC.EXE pairs the ELSEs of a single-line IF ([`Parser::parse_if`]).
+    line_else: LineElse,
+}
+
+/// RC.EXE's bookkeeping for the ELSEs of one line of single-line IFs: one
+/// IF waiting for its ELSE (a nested IF takes the place of the one waiting),
+/// and one more ELSE put up with after an ELSE took its IF — compiled, and
+/// what follows it never runs. A third ELSE is RC's `ELSE without IF`.
+#[derive(Default)]
+struct LineElse {
+    /// Single-line IFs being parsed, one inside the other.
+    depth: usize,
+    /// An IF is waiting for its ELSE.
+    waiting: bool,
+    /// An ELSE took its IF: one more is put up with.
+    spare: bool,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0 }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0, line_else: LineElse::default() }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -303,6 +360,21 @@ impl<'a> Parser<'a> {
             return "Syntax error: unexpected end of file".into();
         };
         let word = tok.lexeme.to_uppercase();
+        // `DIM Word AS ...`, `DIM a AS INTEGER, Word AS ...`: a type's name
+        // where a name is expected — RC.EXE's own words, then the reason.
+        if matches!(tok.kind, TokenType::Dim | TokenType::Const) {
+            let end = self.tokens[start..].iter().position(|t| matches!(t.kind, TokenType::Newline | TokenType::Eof | TokenType::Colon)).map_or(self.tokens.len(), |n| start + n);
+            let at = (start + 1..end).find(|&j| {
+                (j == start + 1 || self.tokens[j - 1].kind == TokenType::Comma)
+                    && is_type_word(self.tokens[j].kind)
+                    && matches!(self.tokens.get(j + 1).map(|t| t.kind), Some(TokenType::As | TokenType::LParen | TokenType::Comma | TokenType::Eq | TokenType::Newline | TokenType::Eof))
+            });
+            if let Some(j) = at {
+                let (name, up) = (self.tokens[j].lexeme.clone(), self.tokens[j].lexeme.to_uppercase());
+                let head = if tok.kind == TokenType::Dim { format!("Identifier {name} already used, try another name") } else { format!("CONST variable {name} already defined") };
+                return format!("{head} — '{up}' is a reserved word (a data type's name) and can't be used as a name");
+            }
+        }
         // `DIM step AS ...`: a keyword where a name is expected.
         if matches!(tok.kind, TokenType::Dim | TokenType::Const) {
             if let Some(next) = self.tokens.get(start + 1) {
@@ -678,6 +750,12 @@ impl<'a> Parser<'a> {
         // `=` start no statement); from here on it is that variable.
         if self.peek_kind() != Some(TokenType::Identifier) && self.peek_is_word() && self.peek_kind_at(1) == Some(TokenType::Eq) {
             let name = self.peek()?.lexeme.to_ascii_lowercase();
+            // (a type's name is no variable — RC.EXE: `Trying to assign
+            // reserved word WORD` — unless this routine has a parameter of
+            // that name)
+            if self.type_scope == 0 && self.peek_kind().is_some_and(is_type_word) && !self.keyword_params.contains(&name) {
+                self.error_at(self.pos, format!("Trying to assign reserved word {} — it is a data type's name, not a variable: use another name", name.to_uppercase()));
+            }
             if !self.keyword_vars.contains(&name) {
                 self.keyword_vars.push(name);
             }
@@ -712,7 +790,7 @@ impl<'a> Parser<'a> {
                 let start = self.pos;
                 self.skip_to_eol();
                 let span = self.span_from(start);
-                Some(Statement::Comment(CommentStatement { span, text: "CASE outside a SELECT CASE (RapidQ ignores it in a TYPE)".into() }))
+                Some(Statement::Comment(CommentStatement { span, text: "CASE outside a SELECT CASE (ignored in a TYPE, as in classic programs)".into() }))
             }
             TokenType::Const if self.peek_kind_at(1) == Some(TokenType::Number) && self.peek_kind_at(2) == Some(TokenType::Eq) => {
                 let start = self.pos;
@@ -721,7 +799,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let _ = self.parse_expression()?;
                 let span = self.span_from(start);
-                Some(Statement::Comment(CommentStatement { span, text: "CONST of a number (RapidQ ignores it)".into() }))
+                Some(Statement::Comment(CommentStatement { span, text: "CONST of a number (ignored, as in classic programs)".into() }))
             }
             TokenType::Const => self.parse_const().map(Statement::Const),
             TokenType::Import => self.parse_import().map(Statement::Import),
@@ -1742,6 +1820,13 @@ impl<'a> Parser<'a> {
 
         // Single-line IF: non-empty remainder after THEN on the same line
         if !block_after_colon && !self.at_eol() {
+            // (RC.EXE pairs the ELSEs of a line as [`LineElse`] says; the
+            // line's first IF starts afresh)
+            if self.line_else.depth == 0 {
+                self.line_else = LineElse::default();
+            }
+            self.line_else.depth += 1;
+            self.line_else.waiting = true;
             let mut then_body = Vec::new();
             // Parse one or more colon-separated statements on the THEN line
             loop {
@@ -1753,27 +1838,56 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            // RapidQ's PRINT right before the ELSE of a single-line IF ends
+            // RapidQ's PRINT right before an ELSE of a single-line IF ends
             // without a new line (RC.EXE: `IF 1 THEN PRINT "a" ELSE PRINT
             // "b" : PRINT "c"` prints "ac").
             if self.peek_kind() == Some(TokenType::Else) {
-                if let Some(Statement::Print(p)) = then_body.last_mut() {
-                    p.append_newline = false;
-                }
+                print_ends_without_newline(&mut then_body);
             }
             let mut else_body = Vec::new();
-            if self.match_kind(TokenType::Else) || self.peek_kind() == Some(TokenType::Else) {
+            // The ELSE belongs to the IF waiting for one: a nested IF in the
+            // THEN part took its place (and has its ELSE or none), so an
+            // ELSE after the nested IF's own is not this IF's (RC.EXE:
+            // `IF 0 THEN IF 1 THEN a ELSE b ELSE c` prints nothing).
+            let own_else = self.peek_kind() == Some(TokenType::Else) && self.line_else.waiting;
+            if own_else && self.match_kind(TokenType::Else) {
                 self.match_kind(TokenType::Else);
+                self.line_else.waiting = false;
+                self.line_else.spare = true;
                 loop {
                     if let Some(s) = self.parse_statement() {
                         else_body.push(s);
                         else_body.append(&mut self.pending);
+                    }
+                    // A second ELSE (as in a block IF, RapidQ's forms/Window
+                    // Sizer.BAS): RC.EXE takes it, and the statement after
+                    // it never runs — kept, under a condition that is never
+                    // true. The statements after a `:` are the ELSE part's
+                    // still (`IF 0 THEN a ELSE b ELSE c : d` runs b and d).
+                    if self.peek_kind() == Some(TokenType::Else) && self.line_else.spare {
+                        print_ends_without_newline(&mut else_body);
+                        self.advance();
+                        self.line_else.spare = false;
+                        let dead_start = self.pos;
+                        if let Some(s) = self.parse_statement() {
+                            let mut dead = vec![s];
+                            dead.append(&mut self.pending);
+                            let span = self.span_from(dead_start);
+                            else_body.push(Statement::If(IfStatement {
+                                span,
+                                condition: Expression::Literal(Literal { span, value: LiteralValue::Integer(0) }),
+                                then_body: dead,
+                                elseif_branches: Vec::new(),
+                                else_body: Vec::new(),
+                            }));
+                        }
                     }
                     if !self.match_kind(TokenType::Colon) || self.at_eol() {
                         break;
                     }
                 }
             }
+            self.line_else.depth -= 1;
             // `IF c THEN x END IF` on one line: the END IF is redundant.
             if self.peek_kind() == Some(TokenType::End) && self.peek_kind_at(1) == Some(TokenType::If) {
                 self.advance();
@@ -2129,6 +2243,12 @@ impl<'a> Parser<'a> {
     fn parse_routine_name(&mut self) -> Option<String> {
         // (a keyword names a method too: QDataBase.inc's `FUNCTION Create`)
         let mut name = if self.peek_is_word() && self.peek_kind() != Some(TokenType::Identifier) {
+            // (a type's name — RC.EXE: `WORD identifier already in use, try
+            // another name`; not for a TYPE's method, QDataBase.inc's names)
+            if self.type_scope == 0 && self.peek_kind().is_some_and(is_type_word) && self.peek_kind_at(1) != Some(TokenType::Dot) {
+                let word = self.peek()?.lexeme.clone();
+                self.error_at(self.pos, format!("{word} identifier already in use, try another name — '{}' is a reserved word (a data type's name) and can't be used as a name", word.to_uppercase()));
+            }
             self.advance()?.lexeme.clone()
         } else {
             self.expect(TokenType::Identifier)?.lexeme.clone()
@@ -3973,6 +4093,67 @@ mod tests {
         assert!(errs[0].2.contains("Expected end-of-line but got THEN"), "{errs:?}");
     }
 
+    /// The PRINT statements of a body, as `append_newline` flags.
+    fn print_newlines(body: &[Statement]) -> Vec<bool> {
+        body.iter().filter_map(|s| if let Statement::Print(p) = s { Some(p.append_newline) } else { None }).collect()
+    }
+
+    #[test]
+    fn single_line_if_print_before_else_keeps_the_line() {
+        // RC.EXE: a PRINT right before an ELSE ends without a new line, the
+        // ELSE's own PRINT (before the end of the line) with one
+        let stmts = parse("IF 1 THEN PRINT \"a\" ELSE PRINT \"b\"\n");
+        let Statement::If(i) = &stmts[0] else { panic!("{stmts:?}") };
+        assert_eq!(print_newlines(&i.then_body), vec![false]);
+        assert_eq!(print_newlines(&i.else_body), vec![true]);
+        // … and before a second ELSE, in a nested IF's ELSE part too
+        let stmts = parse("IF 1 THEN IF 0 THEN PRINT \"e\" ELSE PRINT \"f\" ELSE PRINT \"g\"\n");
+        let Statement::If(outer) = &stmts[0] else { panic!("{stmts:?}") };
+        let Statement::If(inner) = &outer.then_body[0] else { panic!("{outer:?}") };
+        assert_eq!(print_newlines(&inner.then_body), vec![false]);
+        assert_eq!(print_newlines(&inner.else_body), vec![false]);
+    }
+
+    #[test]
+    fn single_line_if_second_else_is_dead_and_the_third_is_an_error() {
+        // `IF 0 THEN a ELSE b ELSE c : d`: b and d run, c never (RC.EXE)
+        let stmts = parse("IF 0 THEN x = 1 ELSE x = 2 ELSE x = 3 : x = 4\n");
+        let Statement::If(i) = &stmts[0] else { panic!("{stmts:?}") };
+        assert_eq!(i.else_body.len(), 3, "{i:?}");
+        assert!(matches!(&i.else_body[1], Statement::If(dead) if matches!(&dead.condition, Expression::Literal(Literal { value: LiteralValue::Integer(0), .. }))), "{i:?}");
+        assert!(matches!(&i.else_body[2], Statement::Assignment(_)), "{i:?}");
+        assert!(errors("IF 0 THEN x = 1 ELSE x = 2 ELSE x = 3\n").is_empty());
+        // a third ELSE: RC.EXE's `ELSE without IF statement`
+        let errs = errors("IF 0 THEN x = 1 ELSE x = 2 ELSE x = 3 ELSE x = 4\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!((errs[0].0, errs[0].1), (1, 39));
+        assert!(errs[0].2.contains("Expected end-of-line but got ELSE"), "{errs:?}");
+        // a statement is needed after the second one
+        assert!(!errors("IF 0 THEN x = 1 ELSE x = 2 ELSE\n").is_empty());
+    }
+
+    #[test]
+    fn single_line_if_nested_in_then_takes_the_outer_else() {
+        // `IF 0 THEN IF 1 THEN a ELSE b ELSE c`: the second ELSE is the
+        // nested IF's own spare — the outer IF has none (it prints nothing
+        // when false: RC.EXE), and a third ELSE is an error
+        let stmts = parse("IF 0 THEN IF 1 THEN x = 1 ELSE x = 2 ELSE x = 3\n");
+        let Statement::If(outer) = &stmts[0] else { panic!("{stmts:?}") };
+        assert!(outer.else_body.is_empty(), "{outer:?}");
+        let Statement::If(inner) = &outer.then_body[0] else { panic!("{outer:?}") };
+        assert_eq!(inner.else_body.len(), 2, "{inner:?}");
+        assert!(!errors("IF 0 THEN IF 1 THEN IF 1 THEN x = 1 ELSE x = 2 ELSE x = 3 ELSE x = 4\n").is_empty());
+        // each line starts afresh: the next line's IF has its ELSE
+        let stmts = parse("IF 0 THEN IF 1 THEN x = 1 ELSE x = 2 ELSE x = 3\nIF 0 THEN x = 1 ELSE x = 2\n");
+        let Statement::If(second) = &stmts[1] else { panic!("{stmts:?}") };
+        assert_eq!(second.else_body.len(), 1, "{second:?}");
+        // an ELSE chain: `ELSE IF … ELSE …` — the nested IF's ELSE, then its spare
+        let stmts = parse("IF 0 THEN x = 1 ELSE IF 0 THEN x = 2 ELSE x = 3 ELSE x = 4\n");
+        let Statement::If(first) = &stmts[0] else { panic!("{stmts:?}") };
+        let Statement::If(chain) = &first.else_body[0] else { panic!("{first:?}") };
+        assert_eq!(chain.else_body.len(), 2, "{chain:?}");
+    }
+
     #[test]
     fn operands_side_by_side() {
         // RC.EXE: the operand stack's bottom (`A B OR C` is A) …
@@ -4138,6 +4319,24 @@ mod tests {
         let errs = errors("DIM step AS DOUBLE\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert!(errs[0].2.contains("'STEP' is a reserved word"), "{errs:?}");
+    }
+
+    /// A type's name as a name, in RC.EXE's words for where it is (the
+    /// first error: RC stops there), and STEP / TO / THEN / AND as SUBs.
+    #[test]
+    fn type_names_as_names_and_operator_words_as_sub_names() {
+        let first = |src: &str| errors(src).into_iter().next().map(|e| e.2).unwrap_or_default();
+        assert!(first("DIM Word AS INTEGER\n").starts_with("Identifier WORD already used, try another name"), "{}", first("DIM Word AS INTEGER\n"));
+        assert!(first("DIM a AS INTEGER, Byte AS STRING\n").starts_with("Identifier BYTE already used, try another name"));
+        assert!(first("CONST Integer = 5\n").starts_with("CONST variable INTEGER already defined"));
+        assert!(first("SUB Word\nEND SUB\n").starts_with("WORD identifier already in use, try another name"));
+        assert!(first("FUNCTION String AS INTEGER\nEND FUNCTION\n").starts_with("STRING identifier already in use, try another name"));
+        assert!(first("Word = 5\n").starts_with("Trying to assign reserved word WORD"));
+        // (a parameter of that name is the routine's own; a TYPE's method may be named so)
+        assert!(errors("SUB Foo(Word AS INTEGER)\n  Word = 5\nEND SUB\n").is_empty());
+        // RC.EXE takes STEP, TO, THEN and AND as SUB names, called by name; a FOR's TO and STEP and an IF's THEN stay theirs
+        let src = "SUB Step(a AS INTEGER)\nEND SUB\nSUB To\nEND SUB\nSUB Then\nEND SUB\nSUB And\nEND SUB\nStep 1\nCALL Step(2)\nTo\nThen\nAnd\nDIM i AS INTEGER\nFOR i = 1 TO 5 STEP 2\nNEXT\nIF i = 7 AND i > 1 THEN PRINT i\n";
+        assert!(errors(src).is_empty(), "{:?}", errors(src));
     }
 
     /// Every string literal's text and every name read in `e`, in order

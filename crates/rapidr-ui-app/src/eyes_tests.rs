@@ -161,6 +161,9 @@ fn world() {
     // (a word-wrapped label sized by the program, too low for its lines)
     place(&mut s, "note", "RLABEL", (110, 82, 50, 14), "A note far too long for one line");
     s.set("note", "autosize", v_int(0)).set("note", "wordwrap", v_int(1));
+    // (a panel too narrow for its button: the panel cuts it off)
+    place(&mut s, "pnl", "RPANEL", (160, 80, 30, 30), "");
+    s.add("bcut", "RBUTTON", Some("pnl")).set("bcut", "left", v_int(4)).set("bcut", "top", v_int(4)).set("bcut", "width", v_int(32)).set("bcut", "height", v_int(20));
     s.set("calc", "visible", v_int(1));
     let mut desk = Desktop::new(Box::new(MemClipboard::default()));
     desk.default_scale = 2.0;
@@ -213,6 +216,7 @@ fn the_layout_report_lists_what_shows_and_what_looks_wrong() {
     assert!(all.contains("bover and bunder are on top of each other"), "{all}");
     assert!(all.contains("boff (RButton) is cut off by the window's edge"), "{all}");
     assert!(all.contains("note's text is cut off: wrapped it takes"), "{all}");
+    assert!(all.contains("bcut (RButton) is cut off by pnl's edge (it reaches 196,104; pnl ends at 190,110)"), "{all}");
     // (fine ones aren't judged)
     assert!(!all.contains("b7") && !all.contains("edname"), "{all}");
     let text = eyes::layout_text(&report);

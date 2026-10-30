@@ -726,7 +726,8 @@ mod tests {
         assert_eq!(s(call(r, "saveversion", &[text("again")])), "");
         assert_eq!(s(get(r, "errorkind")), "nothing-to-save");
         // a secret stops the save, said with the line; Save anyway saves
-        std::fs::write(format!("{f}/keys.rr"), "key$ = \"sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH\"\n").unwrap();
+        // (not a real key: two pieces, so no file holds a key's shape)
+        std::fs::write(format!("{f}/keys.rr"), concat!("key$ = \"sk", "-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH\"\n")).unwrap();
         call(r, "refresh", &[]);
         assert_eq!(s(call(r, "saveversion", &[text("keys")])), "");
         assert_eq!(s(get(r, "errorkind")), "secrets");

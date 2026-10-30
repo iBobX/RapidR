@@ -28,7 +28,7 @@ pub fn install() {
     if DONE.with(|d| d.replace(true)) {
         return;
     }
-    if let Some(text) = std::env::var_os("RAPIDR_TEST_JOYSTICK") {
+    if let Some(text) = rapidr_testmode::var_os("RAPIDR_TEST_JOYSTICK") {
         match Script::parse(&text.to_string_lossy()) {
             Ok(script) => set_source(Box::new(script)),
             Err(e) => {
@@ -38,7 +38,7 @@ pub fn install() {
         }
         return;
     }
-    let testing = std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some();
+    let testing = rapidr_testmode::var_os("RAPIDR_CAPTURE").is_some() || rapidr_testmode::var_os("RAPIDR_TEST_EVENTS").is_some();
     if testing {
         set_source(Box::new(NoPads));
         return;

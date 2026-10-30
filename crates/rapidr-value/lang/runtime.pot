@@ -1085,6 +1085,14 @@ msgid "The assistant proposed changes to {files} files that don't compile yet: r
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "A first hint showed code too early: Studio asked RAI for a nudge without it."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Asked for the hint without code"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "You applied the change to {path}."
 msgstr ""
 
@@ -1102,6 +1110,10 @@ msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} couldn't be applied in its editor: {path} is as it was. Ask again."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Started from the recipe {recipe}, unchanged: the model's own {n} tries didn't work"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
@@ -1426,6 +1438,22 @@ msgstr ""
 
 #: crates/rapidr-studio/src/lib.rs
 msgid "there is no file manager here"
+msgstr ""
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "{address} isn't an address on this computer (only 127.0.0.1, [::1] or localhost)."
+msgstr ""
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "A web page can't look for AI apps on this computer by itself: type the address of yours."
+msgstr ""
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "Checking models runs in RapidR Studio on the desktop."
+msgstr ""
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "A check is running: wait for it, or stop it."
 msgstr ""
 
 #: crates/rapidr-studio/src/local_history.rs
@@ -2372,6 +2400,14 @@ msgstr ""
 msgid "Nothing to inspect"
 msgstr ""
 
+#: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
+msgid "new"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
+msgid "Not in classic programs"
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties of {name} ({type})"
 msgstr ""
@@ -2394,10 +2430,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "values differ"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-msgid "RapidR extension"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
@@ -2585,15 +2617,15 @@ msgid "&Add to Custom Colors"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
-msgid "&Font:"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Font st&yle:"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Size:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Font:"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
@@ -3393,10 +3425,6 @@ msgid "Window"
 msgstr ""
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
-msgid "RapidR extensions"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Add a column"
 msgstr ""
 
@@ -3665,6 +3693,50 @@ msgid "'{name}' is a function of {base}.dll, a Windows DLL: this program calls a
 msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (reading field {slot} of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (setting field {slot} of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "out of memory for addresses (VARPTR)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "address {addr} belongs to an array or TYPE that no longer exists"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{n} bytes at address {addr} run past the end of its memory ({left} bytes left)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "a STRING isn't an address: use VARPTR(s$)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "VARPTR of an element of something that isn't an array"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "a negative byte count ({n})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "PEEK takes an address, or a page and an address"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "POKE takes an address and a byte, or a page, an address and a byte"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
 msgid "Cannot open file {path}."
 msgstr ""
 
@@ -3681,11 +3753,11 @@ msgid "Waiting for events"
 msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs
-msgid "The breakpoint's condition `{cond}` failed: {error}"
+msgid "run-time error: {message}"
 msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs
-msgid "run-time error: {message}"
+msgid "The breakpoint's condition `{cond}` failed: {error}"
 msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs

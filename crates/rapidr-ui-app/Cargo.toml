@@ -13,6 +13,9 @@ description = "RapidR's host-neutral program glue for the UI kernel: the kernel'
 # It must keep building for wasm32-unknown-unknown (tools/regress.sh's unit
 # stage checks it, with the kernel).
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
 rapidr-value = { workspace = true }
 rapidr-ui-kernel = { workspace = true }
 # (the eyes: the program's windows drawn by the CPU renderer both hosts

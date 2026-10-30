@@ -1294,6 +1294,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                 return v;
             }
         }
+        // RSystemInfo: what the browser tells (Unknown names the rest).
+        if rapidr_value::sysinfo::component::is_sysinfo(&t) {
+            if let Some(v) = rapidr_value::sysinfo::component::get_with(name, &lprop, &web_facts) {
+                return v;
+            }
+        }
     }
     // RWindowCapture and RAppHands: the program's own eyes and hands
     // (kernel_web.rs, rapidr_ui_app::app_components).
@@ -1569,6 +1575,12 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         // and the console (no fallback to the page's storage).
         if rapidr_ai::secrets::component::is_secrets(&t) {
             if let Some(v) = rapidr_ai::secrets::component::call(name, &method.to_ascii_lowercase(), args) {
+                return v;
+            }
+        }
+        // RSystemInfo: Refresh.
+        if rapidr_value::sysinfo::component::is_sysinfo(&t) {
+            if let Some(v) = rapidr_value::sysinfo::component::call(name, &method.to_ascii_lowercase(), args) {
                 return v;
             }
         }
@@ -3059,4 +3071,40 @@ fn indexed_sub_object(name: &str, method: &str, args: &[Value]) -> Option<Value>
     } else {
         Some(rp_comp_get(name, &key))
     }
+}
+
+/// RSystemInfo on a web page: what the browser tells — its cores, roughly
+/// its memory (`deviceMemory`, where the browser gives it: rounded, at
+/// most 8 GB), the system it runs on. The rest — the memory free, the
+/// graphics, the disk, the battery — a page isn't told (or only through
+/// ways that single a visitor out): `Unknown` names them.
+fn web_facts(_battery: bool) -> rapidr_value::sysinfo::Facts {
+    let mut f = rapidr_value::sysinfo::Facts { browser: true, ..Default::default() };
+    let Some(nav) = web_sys::window().map(|w| JsValue::from(w.navigator())) else { return f };
+    let get = |o: &JsValue, k: &str| js_sys::Reflect::get(o, &JsValue::from_str(k)).ok().filter(|v| !v.is_undefined() && !v.is_null());
+    if let Some(n) = get(&nav, "hardwareConcurrency").and_then(|v| v.as_f64()) {
+        f.cores = n as u32;
+    }
+    if let Some(gb) = get(&nav, "deviceMemory").and_then(|v| v.as_f64()) {
+        f.total_memory = Some((gb * 1024.0 * 1024.0 * 1024.0) as u64);
+    }
+    let platform = get(&nav, "userAgentData").and_then(|d| get(&d, "platform")).and_then(|v| v.as_string()).or_else(|| get(&nav, "platform").and_then(|v| v.as_string())).unwrap_or_default();
+    let p = platform.to_ascii_lowercase();
+    f.os = if p.contains("mac") {
+        "macOS"
+    } else if p.contains("win") {
+        "Windows"
+    } else if p.contains("android") {
+        "Android"
+    } else if p.contains("iphone") || p.contains("ipad") || p.contains("ios") {
+        "iOS"
+    } else if p.contains("cros") || p.contains("chrome os") {
+        "ChromeOS"
+    } else if p.contains("linux") {
+        "Linux"
+    } else {
+        ""
+    }
+    .to_string();
+    f
 }

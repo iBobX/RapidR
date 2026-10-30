@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 7150718d7a0b7fff -->
+<!-- translated-from: ai-assistant.md 99eebc4666e8562d -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -7,10 +7,13 @@ diferencias que aceptas o rechazas) o pídele que construya un programa nuevo, c
 una vista previa antes de que se escriba nada. Tus propios programas pueden usar la
 misma IA mediante el componente **RAI**; el asistente es en sí mismo un RAI.
 
+En una clase, cada docente puede mantener el asistente desactivado con una
+contraseña: [Para docentes: bloqueo escolar](for-teachers.md).
+
 Funciona con el proveedor de IA que elijas: **Anthropic** (Claude), **OpenAI**,
-**DeepSeek**, o cualquier servidor **compatible con OpenAI**, incluido un servidor
-de modelos en tu propia computadora (Ollama, LM Studio), que no necesita clave y no
-envía nada fuera.
+**DeepSeek**, o cualquier servidor **compatible con OpenAI**, incluida una app de IA
+local en tu propia computadora, que no necesita clave: Studio envía lo que preguntas
+solo a esa app ([IA en esta computadora](local-ai.md)).
 
 <!-- legal -->
 **Desactivado de forma predeterminada.** No se envía nada a ninguna parte hasta que
@@ -34,19 +37,20 @@ Configuración, y **Ctrl+I** antes de que el asistente esté configurado) pregun
 sola cosa a la vez:
 
 1. **¿De dónde deben venir las respuestas de RAI?**
-   - **Gratis, en esta computadora.** Un modelo se ejecuta en tu propia computadora
-     con Ollama, LM Studio o MLX Serve (programas gratuitos que tú instalas). Nada de
-     lo que preguntas sale de la computadora, y no cuesta nada; necesita una
-     computadora rápida con mucha memoria, y las respuestas son más lentas y más
-     simples que las de un modelo en la nube. Studio busca cada uno de ellos al
-     instante y dice qué encontró (*✓ Encontrados en esta computadora: Ollama
-     (3 modelos)*) o que no se está ejecutando ninguno. Nunca inicia uno por ti:
-     inicia el tuyo y luego usa **Buscar de nuevo**.
+   - **Gratis, en esta computadora.** Un modelo se ejecuta en tu propia computadora,
+     en una app de IA local (un programa gratuito que instalas y que guarda modelos
+     de IA en tu computadora). No cuesta nada, necesita una computadora rápida con
+     mucha memoria, y las respuestas son más lentas y más simples que las de un
+     modelo en la nube. Studio le pregunta a esta computadora qué modelos ya tiene y
+     dice qué encontró —*✓ Se encontraron 3 modelos en una app de IA local en esta
+     computadora*— o que no se está ejecutando ninguna. Nunca inicia una por ti.
+     [IA en esta computadora](local-ai.md) tiene el resto: qué modelos caben,
+     Comprobar mis modelos, la mejor opción.
    - **Un servicio en la nube, con tu propia clave**: Anthropic (Claude), OpenAI o
      DeepSeek, por lo general las mejores respuestas. Le pagas al proveedor por lo que
      uses; la página dice cuánto cuesta una pregunta y qué se envía.
 
-   ![Configurar RAI: gratis en esta computadora (Ollama encontrado), o un servicio en la nube con tu clave](../images/ai/setup.png)
+   ![Configurar RAI: gratis en esta computadora (3 modelos encontrados en una app de IA local), o un servicio en la nube con tu clave](../images/ai/setup.png)
 
 2. **En esta computadora**: el servidor (los que se están ejecutando van primero) y
    uno de sus modelos. **En la nube**: el proveedor, tu clave (**Obtener una clave**
@@ -124,6 +128,10 @@ después en Configuración.
    quede cortado.
 9. **Puede hacer**: *Leer el proyecto y proponer cambios que revisas* (el valor
    predeterminado), o *Solo leer el proyecto y responder*.
+10. **RAI responde en**: *El idioma de Studio* (el valor predeterminado), o *El
+    idioma en que escribo*, que conserva el idioma de tu último mensaje (y el del
+    anterior, cuando un mensaje es demasiado corto para saberlo). Mira *Tu idioma*,
+    en Preguntar.
 
 El panel del asistente y su botón de la barra de herramientas aparecen cuando está
 activado y tiene un proveedor, una clave (cuando el proveedor la necesita) y un
@@ -161,11 +169,16 @@ cola vuelve al cuadro, sin enviarse, para que lo envíes o lo cambies.
 
 ![Un mensaje escrito mientras el asistente trabaja: en cola encima del cuadro, con × para retirarlo](../images/ai/queued.png)
 
-**Tu idioma.** El asistente responde en el idioma de tu último mensaje: escribe en
-español y la respuesta es en español, incluso cuando tus archivos, tus mensajes
-anteriores o el resumen de un chat largo estén en otro idioma. Cuando un mensaje es
-demasiado corto para saberlo (*ok*, una línea de código), conserva el idioma en el que
-estabas escribiendo; antes de tu primer mensaje, el idioma de Studio.
+**Tu idioma.** El asistente responde en **el idioma de Studio**
+(Herramientas > Configuración > General > Idioma), con las palabras de RapidR en ese
+idioma, y lee las páginas del manual y de la ayuda en ese idioma (una página que aún no
+está traducida se lee en inglés, y lo dice). Si escribes claramente en otro idioma,
+responde en el tuyo: escribe en inglés en un Studio en español y la respuesta es en
+inglés, incluso cuando tus archivos, tus mensajes anteriores o el resumen de un chat
+largo estén en otro idioma. Un mensaje demasiado corto para saberlo (*ok*, una línea de
+código) se responde en el idioma de Studio. Para que conserve el idioma en el que
+escribes, elige **El idioma en que escribo** en **RAI responde en**
+(Herramientas > Configuración > IA).
 
 **Una conexión que se cae.** Cuando una pregunta no puede llegar al proveedor (no se
 encuentra su nombre, no hay conexión por un momento), Studio vuelve a intentarlo una
@@ -380,6 +393,95 @@ de tu computadora se les pide con su propia opción, cuando el modelo la tiene; 
 modelos de DeepSeek eligen por sí mismos, así que la lista está desactivada para ellos.
 Un modelo que no acepta esfuerzo lo dice una sola vez y responde como suele hacerlo.
 
+## Modo tutor
+
+El panel de RAI tiene un selector debajo de la lista de modelos: **Construir** y
+**Tutor**.
+
+- **Construir** (lo predeterminado): RAI escribe el cambio y tú decides; cada
+  cambio es una diferencia que revisas y aplicas ([Los cambios, como diferencias](#los-cambios-como-diferencias)).
+- **Tutor**: RAI enseña. Nunca escribe la respuesta en tu código. Tú preguntas,
+  RAI da una pista a la vez y el código lo escribes tú: escribir el código tú
+  mismo ayuda a que se te quede.
+
+![El selector en el panel de RAI, Construir y Tutor, con Tutor elegido; el chat vacío explica cómo funciona el modo tutor](../images/ai/coach-dial.png)
+
+Haz clic en **Tutor**, o presiona Tab hasta que el selector tenga el teclado y luego
+Enter o la barra espaciadora. Studio recuerda tu elección y puedes cambiarla cuando
+quieras; al cambiar, las pistas empiezan de nuevo.
+
+### La escalera de pistas
+
+Cada problema tiene cuatro pistas, de un poco de ayuda a mucha. RAI da la siguiente
+solo cuando la pides:
+
+| Pista | Qué da RAI |
+|---|---|
+| 1. Un empujoncito | Una pregunta que muestra el camino. Nada de código. |
+| 2. La idea | La idea con palabras sencillas y un ejemplo pequeño sobre otra cosa, no sobre tu programa. |
+| 3. La forma del código | Los pasos, o el esqueleto de tu código con espacios (`___`) para que los completes. |
+| 4. El código | Solo cuando lo pides por cuarta vez: el código que lo resuelve, como texto. Lo escribes o lo copias tú en tu programa. |
+
+La franja debajo del chat dice en qué pista estás (**Pista 2 de 4**) y tiene dos
+botones:
+
+- **Siguiente pista** pide la siguiente (después de la tercera dice **Mostrar el
+  código**).
+- **Ya lo entendí** termina el problema: tu próxima pregunta empieza otra vez en la
+  pista 1.
+
+Una pregunta que escribes sobre el mismo problema se queda en la misma pista:
+preguntar con otras palabras no te pasa a la siguiente pista. Studio lleva la
+cuenta y a RAI se le indica qué pista escribir.
+
+![Pista 1 de 4: RAI pregunta qué debe pasar cada vez que se hace clic en el botón; Siguiente pista y Ya lo entendí debajo del chat](../images/ai/coach-hint-1.png)
+
+![Pista 3 de 4: la forma del código, con espacios para completar](../images/ai/coach-hint-3.png)
+
+![Pista 4 de 4: el código como texto, solo con el enlace Copiar y sin Siguiente pista](../images/ai/coach-hint-4.png)
+
+### Ayuda con un error
+
+Cuando tu programa no compila, o se detiene con un error en tiempo de ejecución, la
+franja muestra **Ayuda con este error**. RAI explica qué significa el mensaje, por
+qué ocurre en esa línea y te da una pista para corregirlo tú. La línea corregida
+llega solo después de las pistas, como pista 4.
+
+![Ayuda con este error: RAI explica que no conoce un nombre de la línea 24 y sugiere compararlo con su DIM](../images/ai/coach-error.png)
+
+### Cómo funciona el modo tutor
+
+Lo que Studio hace cumplir, en su propio código:
+
+- **En modo tutor, RAI no puede cambiar tus archivos.** Las herramientas que
+  proponen cambios o crean programas no se le ofrecen al modelo, y si un modelo
+  intenta usar una igual, Studio la rechaza antes de que pase nada. No hay nada
+  que revisar ni aplicar, y los bloques de código tienen **Copiar**, nunca
+  **Insertar**.
+- **La escalera vive en Studio**, no en el modelo: Studio lleva la cuenta y le
+  dice al modelo qué pista escribir cada vez. Por eso el modo tutor funciona
+  también con modelos pequeños en tu propia computadora ([IA en esta computadora](local-ai.md)).
+  Si una primera pista muestra código de todos modos, Studio le pide a RAI una
+  vez que la escriba de nuevo sin código, y ese código no se muestra.
+
+Lo que se le pide a RAI (un modelo puede decir más de lo pedido):
+
+- Dar una pista a la vez: sin código en la primera, un ejemplo pequeño sobre otra
+  cosa en la segunda, espacios en blanco en la tercera.
+- Leer tu proyecto, revisar tu código con el compilador, mirar tu programa en
+  ejecución (cuando lo permites en esa ejecución) y buscar en el manual y en los
+  ejemplos de RapidR para elegir la idea adecuada.
+- Escribir las pistas en el idioma en que escribes (o en el de Studio, cuando no
+  se puede saber).
+
+<!-- legal -->
+Lo que se envía y se guarda: lo mismo que en el modo construir (tu pregunta, el
+chat, lo que RAI lee), más las instrucciones propias del modo tutor de Studio; y
+los mismos registros en tu computadora: tu chat, el registro de auditoría y el
+modo que elegiste.
+
+Un docente puede mantener a RAI en modo tutor: [Para docentes](for-teachers.md#mantener-a-rai-en-modo-tutor).
+
 ## Los cambios, como diferencias
 
 El asistente nunca cambia uno de tus archivos por sí mismo. **Propone**: cuando una
@@ -501,7 +603,7 @@ lista con botones Iniciar / Detener ([examples/recipes](../../../examples/recipe
 para los programas que manejan las entrañas de una máquina, diez recetas de sistemas: la
 memoria, bits e indicadores, una CPU diminuta, la pila, un volcado hexadecimal, un
 desensamblador, un archivo binario, la memoria de video, un teclado, ciclos por cuadro
-([Recetas para programas de sistemas](../recipes-systems.md)). Envía esa receta con tu
+([Recetas para programas de sistemas](recipes-systems.md)). Envía esa receta con tu
 petición, para que el asistente adapte un programa que ya funciona en lugar de inventar
 uno. La búsqueda se ejecuta en tu computadora, en inglés, español y portugués; *Qué se
 envió* muestra la receta que se envió.
@@ -579,7 +681,7 @@ siguiente solicitud.
   mismas para cada proyecto), lo que el asistente lee del proyecto abierto y, mientras
   tu programa se ejecuta y lo permitiste (una tarjeta en el chat lo pregunta una vez por
   ejecución), lo que muestran las ventanas del programa: nada fuera de eso, nada antes
-  de que presiones Enviar. Mira [Los ojos y las manos de un programa](../app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program).
+  de que presiones Enviar. Mira [Los ojos y las manos de un programa](app-eyes-and-hands.md#en-rapidr-studio-las-aplicaciones-de-ia-y-rai-miran-tu-programa-en-ejecución).
 <!-- legal -->
 - **El texto de tus archivos son datos.** Un comentario o un archivo de datos que dice
   “ignora tus instrucciones y …” es algo que el asistente informa, no algo que obedece;
@@ -598,7 +700,9 @@ siguiente solicitud.
   escribió en un archivo del proyecto se reemplaza por *(una clave de API, no se
   muestra)* antes de que el asistente lea el archivo.
 <!-- legal -->
-- **Un modelo en tu propia computadora** (Ollama, LM Studio): nada sale de ella.
+- **Un modelo en tu propia computadora**, en una app de IA local: Studio envía lo que
+  preguntas solo a esa app, así que se queda en la computadora a menos que la app esté
+  configurada para pasarlo a otro servicio.
 <!-- legal -->
 - **Tus chats se quedan en tu computadora**, en la carpeta de Studio, nunca en el
   proyecto (mira [Tus chats se conservan](#tus-chats-se-conservan)); las claves y los
@@ -729,11 +833,13 @@ PRINT AI.Usage; AI.Error
   no puede usar, demasiadas solicitudes.
 - **ReplyLanguage**: el idioma en el que van las respuestas. `""` (el valor
   predeterminado) no dice nada al respecto: el modelo elige, como necesita un programa
-  que traduce. `"auto"` sigue el idioma del último mensaje del usuario (**UserLanguage**
-  dice cuál leyó), como hace el asistente de Studio: cada solicitud termina diciéndolo, y
-  el resumen de un chat largo se escribe en él, para que el modelo no se desvíe a otro
-  idioma. El nombre de un idioma (`AI.ReplyLanguage = "Spanish"`) siempre responde en
-  ese.
+  que traduce. `"app"` responde en el idioma del programa (`Application.Language`), a
+  menos que el último mensaje de la persona esté claramente en otro: en ese, como hace
+  por omisión el asistente de Studio. `"auto"` sigue el idioma del último mensaje de la
+  persona (**UserLanguage** dice cuál leyó; se conserva mientras un mensaje es demasiado
+  corto para saberlo): cada solicitud termina diciéndolo, y el resumen de un chat largo
+  se escribe en él, para que el modelo no se desvíe a otro idioma. El nombre de un idioma
+  (`AI.ReplyLanguage = "Spanish"`) siempre responde en ese.
 - Una solicitud que nunca llegó al proveedor (sin red por un momento) se vuelve a
   intentar una vez por sí sola, dos segundos después; un rechazo, nunca.
 - **MaxTokens** (la respuesta más larga; 1024 de forma predeterminada), **System** (tus

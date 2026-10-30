@@ -79,7 +79,7 @@ pub fn open_in_browser(url: &str) {
     if !rapidr_value::panels::markdown::is_web_link(url) {
         return;
     }
-    if std::env::var_os("RAPIDR_TEST_DUMP").is_some() || std::env::var_os("RAPIDR_CAPTURE").is_some() || std::env::var_os("RAPIDR_TEST_EVENTS").is_some() {
+    if rapidr_testmode::var_os("RAPIDR_TEST_DUMP").is_some() || rapidr_testmode::var_os("RAPIDR_CAPTURE").is_some() || rapidr_testmode::var_os("RAPIDR_TEST_EVENTS").is_some() {
         eprintln!("[rapidr] (test) would open {url}");
         return;
     }

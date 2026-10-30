@@ -1,10 +1,15 @@
-' versions.inc: Versions (docs/versions-plan.md, lane G3) — the project's
-' versions in plain words, each word with its Git name in a tooltip, and
-' nothing ever lost:
-'   - the Versions pane (a tab beside Project; View > Versions): Start
-'     Versioning This Project for a project without versions; then the
-'     files not saved as a version, Save a Version..., the Timeline (an
-'     AI's checkpoints lighter), What Changed?, Go Back..., Undo;
+' versions.inc: Versions (docs/versions-plan.md, lanes G3 and
+' VERSIONS-POLISH) — the project's versions in plain words, each word with
+' its Git name in a tooltip, and nothing ever lost:
+'   - the Versions pane (a tab beside Project and Search in every layout,
+'     an old layout's too, unless the person closed it; View > Versions):
+'     a header with the project, its experiment and its changes as chips;
+'     no versions yet: what they are and Start Keeping Versions; then the
+'     files not saved as a version, by folder (closed folders, a filter
+'     past 20 files), Save a Version... (the pane's primary button), the
+'     Timeline (a line through a dot for each version, the current one
+'     filled, an AI's checkpoints lighter), What Changed?, Go Back...,
+'     Undo and what it takes back;
 '   - Save a Version... (File; Ctrl+Shift+V, Cmd+Shift+V on a Mac — Ctrl+S
 '     stays Save): the words, the files (every changed one ticked), the
 '     check for keys and passwords said in words, saved anyway only once
@@ -59,6 +64,24 @@ DECLARE SUB VerStart
 DECLARE SUB VerGoBack(OneFile AS INTEGER)
 DECLARE SUB VerUndo
 DECLARE SUB VerWarnShow(Text AS STRING, Lines AS STRING)
+DECLARE SUB VerFillChanges
+DECLARE SUB VerToggle(Row AS INTEGER, WantOpen AS INTEGER)
+DECLARE SUB VerFilterChanged
+DECLARE SUB VerChangeKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB VerChangeMouse(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB VerChipLayOut(Chip AS RPanel, Ground AS RCanvas, Icon AS RImage, Words AS RLabel, X AS INTEGER, Y AS INTEGER)
+DECLARE FUNCTION VerTextW(Text AS STRING, Style AS INTEGER) AS INTEGER
+DECLARE FUNCTION VerLineH(Dimmed AS INTEGER) AS INTEGER
+DECLARE FUNCTION VerWrap(Text AS STRING, Room AS INTEGER, MaxLines AS INTEGER, Style AS INTEGER) AS STRING
+DECLARE FUNCTION VerLinesOf(Text AS STRING, Room AS INTEGER, MaxLines AS INTEGER, Style AS INTEGER) AS INTEGER
+DECLARE FUNCTION VerBtnW(Caption AS STRING) AS INTEGER
+DECLARE FUNCTION VerFit(Text AS STRING, Room AS INTEGER) AS STRING
+DECLARE FUNCTION VerFitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
+DECLARE FUNCTION VerAgoShort(Seconds AS LONG) AS STRING
+DECLARE FUNCTION VerDirOf(Path AS STRING) AS STRING
+DECLARE FUNCTION VerDirShut(K AS INTEGER) AS INTEGER
+DECLARE FUNCTION VerRowKey(Row AS INTEGER) AS STRING
+DECLARE FUNCTION VerStateWords(Letter AS STRING) AS STRING
 
 CONST VERMAX = 200
 
@@ -70,10 +93,38 @@ DIM VerTimeMsg(VERMAX) AS STRING
 DIM VerTimeWho(VERMAX) AS STRING
 DIM VerTimeWhen(VERMAX) AS LONG
 DIM VerTimeCount AS INTEGER
-' (the changes not saved as a version: each row's letter and path)
-DIM VerChLetter(VERMAX) AS STRING
-DIM VerChPath(VERMAX) AS STRING
+' (the changes not saved as a version: each one's letter and path, and
+' its folder's number in the list — -1 when the filter leaves it out)
+CONST VERCHMAX = 3000
+' (more changes than this: the filter box)
+CONST VERFILTERAT = 20
+DIM VerChLetter(VERCHMAX) AS STRING
+DIM VerChPath(VERCHMAX) AS STRING
+DIM VerChDir(VERCHMAX) AS INTEGER
 DIM VerChCount AS INTEGER
+' (the folders with changes — "" the project's own —, how many each, in
+' the list's order)
+DIM VerDir(VERCHMAX) AS STRING
+DIM VerDirFiles(VERCHMAX) AS INTEGER
+DIM VerDirOrder(VERCHMAX) AS INTEGER
+DIM VerDirCount AS INTEGER
+' (the list's rows: a folder's (Ref its number) or a file's (Ref the change's))
+DIM VerRowFolder(VERCHMAX) AS INTEGER
+DIM VerRowRef(VERCHMAX) AS INTEGER
+DIM VerRowCount AS INTEGER
+' (the folders the person closed or opened, a line each, while Studio
+' runs; a filter typed: every folder open)
+DIM VerShut AS STRING
+DIM VerOpened AS STRING
+DIM VerFiltering AS INTEGER
+' (the Versions tab closed by the person: it stays closed — Settings'
+' "VersionsTab")
+DIM VerTabClosed AS INTEGER
+' (Studio itself placing the tab — at start, a layout read —: not the
+' person's choice; the dock's OnPaneChange runs right after each call)
+DIM VerQuiet AS INTEGER
+' (Undo's words wanted under the buttons: shown when the pane has room)
+DIM VerUndoWanted AS INTEGER
 ' (the What Changed / Local History document: what it shows — "version"
 ' (VerDiffVersion's files), "changes" (since the last version) or
 ' "history" (VerDiffFile's copies) — and its rows)
@@ -90,16 +141,23 @@ DIM VerAuthor AS STRING
 DIM VerBackMenu AS RPopupMenu
 DIM VerBackItem(1) AS RMenuItem
 DIM VerSaveFound AS INTEGER
-DIM VerBmp(3) AS RBitmap
+DIM VerBmp(4) AS RBitmap
 ' (the lists' text measured: a long message cut with "…")
 DIM VerMeasure AS RBitmap
+' (the header's second line, whole: cut to fit, its tooltip says it all)
+DIM VerSubFull AS STRING
+' (a test's look at the pane: the layout report's problems — VersionsStep)
+DIM VerEyes AS RWindowCapture
 
 ' ---- the Versions pane ------------------------------------------------------------------
+' (docs/design-guidelines.md "Pane anatomy": a header — the title, the
+' project's name under it, the experiment's and the changes' chips —; then
+' the changes, grouped by folder, with Save a Version... the pane's one
+' primary button; the timeline, a line through a dot for each version;
+' What Changed?, Go Back... and Undo, and what Undo takes back in words)
 CREATE VerPanel AS RPanel
   BevelOuter = 0
   AccessibleName = TR$("Versions")
-  ' (the header, docs/design-guidelines.md "Pane anatomy": the title and
-  ' a line under it; Save a Version... compact at the right)
   CREATE VerTop AS RPanel
     Align = 1
     Height = 52
@@ -111,15 +169,55 @@ CREATE VerPanel AS RPanel
     CREATE VerSub AS RLabel
       Left = 12: Top = 27: Width = 200
     END CREATE
+    ' (the experiment you're on: a soft info chip, the branch icon)
+    CREATE VerBranch AS RPanel
+      BevelOuter = 0
+      ShowHint = 1
+      CREATE VerBranchChip AS RCanvas
+        Left = 0: Top = 0
+        Tag = 0
+        OnPaint = ChipPaint
+      END CREATE
+      CREATE VerBranchIcon AS RImage
+        Width = 16: Height = 16
+      END CREATE
+      CREATE VerBranchText AS RLabel
+        Transparent = 1
+      END CREATE
+    END CREATE
+    ' (the changes not saved as a version, or all saved: info / success)
+    CREATE VerCount AS RPanel
+      BevelOuter = 0
+      CREATE VerCountChip AS RCanvas
+        Left = 0: Top = 0
+        Tag = 0
+        OnPaint = ChipPaint
+      END CREATE
+      CREATE VerCountIcon AS RImage
+        Width = 16: Height = 16
+      END CREATE
+      CREATE VerCountText AS RLabel
+        Transparent = 1
+      END CREATE
+    END CREATE
   END CREATE
-  ' (a project without versions: what they are, one button)
+  ' (no project, or one without versions: what they are, one button)
+  CREATE VerEmptyIcon AS RImage
+    Width = 24: Height = 24
+    AccessibleHidden = 1
+  END CREATE
+  CREATE VerEmptyTitle AS RLabel
+    WordWrap = 1: AutoSize = 0
+  END CREATE
   CREATE VerEmptyText AS RLabel
     WordWrap = 1: AutoSize = 0
   END CREATE
   CREATE VerStartBtn AS RButton
-    Caption = TR$("&Start Versioning This Project")
+    Caption = TR$("&Start Keeping Versions of This Project")
+    Primary = 1
     Hint = TR$("Start keeping versions of this project (Git calls this git init)")
     ShowHint = 1
+    AccessibleName = TR$("Start keeping versions of this project")
     OnClick = VerStartClick
   END CREATE
   CREATE VerLocalNote AS RLabel
@@ -133,24 +231,35 @@ CREATE VerPanel AS RPanel
   END CREATE
   ' (a project with versions: its changes, its timeline, what to do)
   CREATE VerChangesHead AS RLabel
-    Caption = TR$("Changes not saved as a version")
-    WordWrap = 1: AutoSize = 0
-  END CREATE
-  CREATE VerChanges AS RListBox
-    Style = lbOwnerDrawFixed
-    AccessibleName = TR$("Files not saved as a version")
-    AccessibleDescription = TR$("A double click opens the file")
-    OnDrawItem = VerDrawChange
-    OnClick = VerChangePicked
-    OnChange = VerChangePicked
-    OnDblClick = VerChangeOpen
+    Caption = TR$("Changes")
   END CREATE
   CREATE VerSaveBtn AS RButton
     Caption = TR$("&Save a Version...")
+    Primary = 1
     Hint = TR$("Save a version of your files (Git calls this a commit)")
     ShowHint = 1
     AccessibleDescription = TR$("Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)")
     OnClick = VerSaveClick
+  END CREATE
+  CREATE VerNoChanges AS RLabel
+    WordWrap = 1: AutoSize = 0
+  END CREATE
+  CREATE VerFilter AS REdit
+    Placeholder = TR$("Filter the changed files")
+    AccessibleName = TR$("Filter the changed files")
+    AccessibleDescription = TR$("Shows only the files whose name or folder has these letters")
+    OnChange = VerFilterChanged
+  END CREATE
+  CREATE VerChanges AS RListBox
+    Style = lbOwnerDrawFixed
+    AccessibleName = TR$("Files not saved as a version, by folder")
+    AccessibleDescription = TR$("A double click or Enter opens a file; Right opens a folder, Left closes it")
+    OnDrawItem = VerDrawChange
+    OnClick = VerChangePicked
+    OnChange = VerChangePicked
+    OnDblClick = VerChangeOpen
+    OnKeyDown = VerChangeKey
+    OnMouseUp = VerChangeMouse
   END CREATE
   CREATE VerTimeHead AS RLabel
     Caption = TR$("Timeline")
@@ -185,6 +294,7 @@ CREATE VerPanel AS RPanel
   END CREATE
   CREATE VerUndoNote AS RLabel
     WordWrap = 1: AutoSize = 0
+    ShowHint = 1
   END CREATE
 END CREATE
 
@@ -295,15 +405,24 @@ END CREATE
 
 SUB SetUpVersions
   DIM k AS INTEGER
-  IF Reg.ValueExists("VersionsName") THEN VerAuthor = Reg.ReadString("VersionsName")
+  ' (Studio's settings: the name versions are saved with; the Versions tab
+  ' closed on purpose by the person — remembered —, it stays closed; View >
+  ' Versions brings it back)
+  Reg.RootKey = HKCU
+  IF Reg.KeyExists(STUDIO_KEY) THEN
+    Reg.OpenKey(STUDIO_KEY, 0)
+    IF Reg.ValueExists("VersionsName") THEN VerAuthor = Reg.ReadString("VersionsName")
+    IF Reg.ValueExists("VersionsTab") THEN VerTabClosed = Flag(Reg.ReadString("VersionsTab") = "closed")
+    Reg.CloseKey
+  END IF
   VerPanel.OnResize = VerLayOut
   VerDiffPane.OnResize = VerDiffLayOut
-  ' (a tab beside Project, hidden until it's wanted — View > Versions, a
-  ' versions command, a project that has versions —: the side pane keeps
-  ' room for Project and Search's titles)
+  ' (a tab beside Project and Search in every layout, Project in front)
+  VerQuiet = 1
   Dock.AddPane(VerPanel, TR$("Versions"), "tab:projecttree", "versions")
-  Dock.HidePane("verpanel")
+  IF VerTabClosed THEN Dock.HidePane("verpanel")
   Dock.ShowPane("projecttree")
+  VerQuiet = 0
   VerBackItem(0).Caption = TR$("The &Whole Project")
   VerBackItem(1).Caption = TR$("Only This &File")
   FOR k = 0 TO 1
@@ -313,6 +432,49 @@ SUB SetUpVersions
   NEXT
   VerFilesList.AddColumns TR$("File"), TR$("Change")
   VerRefresh
+END SUB
+
+' (a layout read — the one saved last, an old Studio's without Versions —:
+' the Versions tab back beside Project unless the person closed it; the
+' tab in front stays in front)
+SUB VerLayoutLoaded
+  DIM front AS STRING, where AS STRING
+  VerQuiet = 1
+  ' (closed on purpose: closed, whatever the layout says)
+  IF VerTabClosed THEN
+    IF Dock.PaneState("verpanel") <> "hidden" THEN
+      IF Dock.PaneVisible("verpanel") THEN front = "projecttree"
+      Dock.HidePane("verpanel")
+      IF front <> "" THEN Dock.ShowPane(front)
+    END IF
+  ELSEIF Dock.PaneState("verpanel") = "hidden" THEN
+    IF Dock.PaneVisible("searchpane") THEN front = "searchpane" ELSE front = "projecttree"
+    IF Dock.PaneState("searchpane") = "hidden" OR Dock.PaneState("searchpane") = "" THEN where = "tab:projecttree" ELSE where = "tab:searchpane"
+    IF Dock.PaneState("projecttree") = "hidden" AND where = "tab:projecttree" THEN
+      Dock.ShowPane("verpanel")
+    ELSE
+      Dock.DockPane("verpanel", where)
+      Dock.ShowPane(front)
+    END IF
+  END IF
+  VerQuiet = 0
+END SUB
+
+' (window.inc's PaneChanged: the Versions tab closed by the person — its
+' close button — is remembered, so it isn't put back at the next start)
+SUB VerPaneChanged(Name AS STRING)
+  IF LCASE$(Name) <> "verpanel" OR VerQuiet THEN EXIT SUB
+  IF Dock.PaneState("verpanel") = "hidden" THEN
+    IF VerTabClosed THEN EXIT SUB
+    VerTabClosed = 1
+  ELSE
+    IF VerTabClosed = 0 THEN EXIT SUB
+    VerTabClosed = 0
+  END IF
+  Reg.RootKey = HKCU
+  Reg.OpenKey(STUDIO_KEY, 1)
+  IF VerTabClosed THEN Reg.WriteString("VersionsTab", "closed") ELSE Reg.WriteString("VersionsTab", "shown")
+  Reg.CloseKey
 END SUB
 
 SUB ApplyVersionsChrome
@@ -325,20 +487,46 @@ SUB ApplyVersionsChrome
   VerHead.Font.Color = TC("page.text")
   VerSub.Font = DimFont
   VerSub.Font.Color = TC("page.dim")
+  ' (the chips: a soft pill on the header's ground, the icon, the words
+  ' in the status's strong colour; read as one by a screen reader)
+  VerBranch.Color = TC("page")
+  VerBranchChip.Color = TC("page")
+  VerBranchChip.AccessibleHidden = 1
+  VerBranchIcon.AccessibleHidden = 1
+  VerBranchText.AccessibleHidden = 1
+  VerBranchText.Font = UIFont
+  VerBranchText.Font.Color = TC("status.info.text")
+  VerBmp(1).LoadIcon "branch", 16
+  VerBranchIcon.BMPHandle = VerBmp(1)
+  VerCount.Color = TC("page")
+  VerCountChip.Color = TC("page")
+  VerCountChip.AccessibleHidden = 1
+  VerCountIcon.AccessibleHidden = 1
+  VerCountText.AccessibleHidden = 1
+  VerCountText.Font = UIFont
+  VerEmptyTitle.Font = UIFont
+  VerEmptyTitle.Font.Bold = 1
+  VerEmptyTitle.Font.Color = TC("page.text")
   VerEmptyText.Font = UIFont
-  VerEmptyText.Font.Color = TC("page.text")
+  VerEmptyText.Font.Color = TC("page.dim")
+  VerBmp(3).LoadIcon "timeline", 24
+  VerEmptyIcon.BMPHandle = VerBmp(3)
   VerLocalNote.Font = DimFont
   VerLocalNote.Font.Color = TC("page.dim")
   VerUndoNote.Font = DimFont
   VerUndoNote.Font.Color = TC("page.dim")
-  VerChangesHead.Font = DimFont
-  VerChangesHead.Font.Color = TC("page.dim")
-  VerTimeHead.Font = DimFont
-  VerTimeHead.Font.Color = TC("page.dim")
+  VerNoChanges.Font = UIFont
+  VerNoChanges.Font.Color = TC("page.dim")
+  VerChangesHead.Font = UIFont
+  VerChangesHead.Font.Bold = 1
+  VerChangesHead.Font.Color = TC("page.text")
+  VerTimeHead.Font = UIFont
+  VerTimeHead.Font.Bold = 1
+  VerTimeHead.Font.Color = TC("page.text")
+  VerFilter.Font = UIFont
   VerChanges.Font = UIFont
   VerChanges.ItemHeight = rows
   VerTimeline.Font = UIFont
-  VerTimeline.ItemHeight = rows * 2
   VerSaveBtn.Font = UIFont
   VerStartBtn.Font = UIFont
   VerLocalBtn.Font = UIFont
@@ -370,12 +558,89 @@ SUB ApplyVersionsChrome
   VerWarnLines.Font.Color = TC("page.text")
   VerBmp(0).LoadIcon "warning", 16
   VerWarnIcon.BMPHandle = VerBmp(0)
-  VerLayOut
+  VerShowState
   VerDiffLayOut
   VerSaveLayOut
+  VerBranchChip.Repaint
+  VerCountChip.Repaint
   VerChanges.Repaint
   VerTimeline.Repaint
 END SUB
+
+' ---- measuring: the pane's words in their fonts ---------------------------------------------
+
+' (Text's width in the chrome's font — Style 0 —, bold — 1 — or the
+' secondary text's — 2)
+FUNCTION VerTextW(Text AS STRING, Style AS INTEGER) AS INTEGER
+  IF Style = 2 THEN
+    VerMeasure.Font.Name = DimFont.Name: VerMeasure.Font.Size = DimFont.Size: VerMeasure.Font.Bold = 0
+  ELSE
+    VerMeasure.Font.Name = UIFont.Name: VerMeasure.Font.Size = UIFont.Size: VerMeasure.Font.Bold = Flag(Style = 1)
+  END IF
+  Result = VerMeasure.TextWidth(Text)
+END FUNCTION
+
+' (a line's height in the chrome's font, or the secondary one)
+FUNCTION VerLineH(Dimmed AS INTEGER) AS INTEGER
+  IF Dimmed THEN
+    VerMeasure.Font.Name = DimFont.Name: VerMeasure.Font.Size = DimFont.Size
+  ELSE
+    VerMeasure.Font.Name = UIFont.Name: VerMeasure.Font.Size = UIFont.Size
+  END IF
+  VerMeasure.Font.Bold = 0
+  Result = VerMeasure.TextHeight("Ag")
+END FUNCTION
+
+' Text wrapped at word breaks to Room pixels (in VerTextW's Style), at
+' most MaxLines lines (0: all), the last cut with "…" when there is more:
+' the lines, CHR$(10) between them.
+FUNCTION VerWrap(Text AS STRING, Room AS INTEGER, MaxLines AS INTEGER, Style AS INTEGER) AS STRING
+  DIM t AS STRING, cur AS STRING, wd AS STRING, out AS STRING, i AS INTEGER, j AS INTEGER, n AS INTEGER, lines AS INTEGER
+  t = LTRIM$(RTRIM$(Text))
+  IF t = "" THEN EXIT FUNCTION
+  n = TALLY(t, " ") + 1
+  lines = 1
+  FOR i = 1 TO n
+    wd = FIELD$(t, " ", i)
+    IF cur = "" THEN
+      cur = wd
+    ELSEIF VerTextW(cur + " " + wd, Style) > Room THEN
+      IF MaxLines > 0 AND lines >= MaxLines THEN
+        ' (the last line: what's left of it, cut)
+        FOR j = i TO n
+          cur = cur + " " + FIELD$(t, " ", j)
+        NEXT
+        EXIT FOR
+      END IF
+      out = out + cur + CHR$(10)
+      lines = lines + 1
+      cur = wd
+    ELSE
+      cur = cur + " " + wd
+    END IF
+  NEXT
+  ' (the last line cut with "…" when it doesn't fit)
+  IF VerTextW(cur, Style) > Room AND LEN(cur) > 3 THEN
+    FOR j = LEN(cur) - 1 TO 1 STEP -1
+      IF VerTextW(LEFT$(cur, j) + "…", Style) <= Room THEN EXIT FOR
+    NEXT
+    cur = LEFT$(cur, j) + "…"
+  END IF
+  Result = out + cur
+END FUNCTION
+
+' (how many lines VerWrap makes)
+FUNCTION VerLinesOf(Text AS STRING, Room AS INTEGER, MaxLines AS INTEGER, Style AS INTEGER) AS INTEGER
+  DIM t AS STRING
+  t = VerWrap(Text, Room, MaxLines, Style)
+  IF t = "" THEN Result = 0 ELSE Result = TALLY(t, CHR$(10)) + 1
+END FUNCTION
+
+' (a button's width for its caption: 12 on each side, 72 at least)
+FUNCTION VerBtnW(Caption AS STRING) AS INTEGER
+  Result = VerTextW(REPLACESUBSTR$(Caption, "&", ""), 0) + 24
+  IF Result < 72 THEN Result = 72
+END FUNCTION
 
 ' ---- the state: refreshed after a save, an action, a project opened ---------------------------
 
@@ -408,33 +673,29 @@ END FUNCTION
 ' The project's versions read again: the pane, the badges, the status bar,
 ' the editors' change marks.
 SUB VerRefresh
-  DIM t AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, d AS INTEGER, c AS STRING
+  DIM t AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, d AS INTEGER, c AS STRING, p AS LONG, q AS LONG
   IF ProjectOpen THEN
     IF Repo.Folder <> Proj.Folder THEN Repo.Folder = Proj.Folder ELSE Repo.Refresh
   ELSE
     Repo.Folder = ""
   END IF
   IF VerAuthor <> "" THEN Repo.Author = VerAuthor
-  ' (the changes)
-  VerChanges.Clear
+  ' (the changes: a line each, walked once — thousands stay quick)
   VerChCount = 0
   c = Repo.Changes
-  n = TALLY(c, CHR$(10)) + 1
-  IF c = "" THEN n = 0
-  FOR i = 1 TO n
-    IF VerChCount <= VERMAX THEN
-      row = FIELD$(c, CHR$(10), i)
+  p = 1
+  DO WHILE p <= LEN(c) AND VerChCount < VERCHMAX
+    q = INSTR(p, c, CHR$(10))
+    IF q = 0 THEN q = LEN(c) + 1
+    row = MID$(c, p, q - p)
+    IF row <> "" THEN
       VerChLetter(VerChCount) = FIELD$(row, CHR$(9), 1)
       VerChPath(VerChCount) = FIELD$(row, CHR$(9), 2)
-      ' (what a screen reader says of the row: the file and the change in words)
-      SELECT CASE VerChLetter(VerChCount)
-        CASE "N": VerChanges.AddItems VerChPath(VerChCount) + ", " + TR$("new, not in a version yet")
-        CASE "D": VerChanges.AddItems VerChPath(VerChCount) + ", " + TR$("removed since the last version")
-        CASE ELSE: VerChanges.AddItems VerChPath(VerChCount) + ", " + TR$("changed since the last version")
-      END SELECT
       VerChCount = VerChCount + 1
     END IF
-  NEXT
+    p = q + 1
+  LOOP
+  VerFillChanges
   ' (the timeline)
   VerTimeline.Clear
   VerTimeCount = 0
@@ -449,11 +710,15 @@ SUB VerRefresh
       VerTimeWho(VerTimeCount) = FIELD$(row, CHR$(9), 4)
       VerTimeMsg(VerTimeCount) = FIELD$(row, CHR$(9), 5)
       VerTimeKind(VerTimeCount) = FIELD$(row, CHR$(9), 6)
+      ' (what a screen reader says of the row: the words, who and when; the
+      ' newest is the version the files are based on)
       IF VerTimeKind(VerTimeCount) = "checkpoint" THEN
-        VerTimeline.AddItems TR$("AI checkpoint: {what}, {when}", "what", VerTimeMsg(VerTimeCount), "when", VerAgo(VerTimeWhen(VerTimeCount)))
+        row = TR$("AI checkpoint: {what}, {when}", "what", VerTimeMsg(VerTimeCount), "when", VerAgo(VerTimeWhen(VerTimeCount)))
       ELSE
-        VerTimeline.AddItems VerTimeMsg(VerTimeCount) + ", " + TR$("saved by {who}, {when}", "who", VerTimeWho(VerTimeCount), "when", VerAgo(VerTimeWhen(VerTimeCount)))
+        row = VerTimeMsg(VerTimeCount) + ", " + TR$("saved by {who}, {when}", "who", VerTimeWho(VerTimeCount), "when", VerAgo(VerTimeWhen(VerTimeCount)))
       END IF
+      IF VerTimeCount = 0 THEN row = row + ", " + TR$("the current version")
+      VerTimeline.AddItems row
       VerTimeCount = VerTimeCount + 1
     NEXT
     IF VerTimeCount > 0 THEN VerTimeline.ItemIndex = 0
@@ -477,6 +742,227 @@ SUB VerRefresh
   UpdateCommands
 END SUB
 
+' ---- the changes, by folder --------------------------------------------------------------------
+
+' (a path's folder: "" for the project's own)
+FUNCTION VerDirOf(Path AS STRING) AS STRING
+  DIM i AS INTEGER
+  i = RINSTR(Path, "/")
+  IF i > 0 THEN Result = LEFT$(Path, i - 1)
+END FUNCTION
+
+' (whether folder number K's rows are closed: as the person left it, else
+' — a long list — a folder of more than five closed, so the list starts short)
+FUNCTION VerDirShut(K AS INTEGER) AS INTEGER
+  DIM key AS STRING
+  IF VerDir(K) = "" OR VerFiltering THEN EXIT FUNCTION
+  key = CHR$(10) + VerDir(K) + CHR$(10)
+  IF INSTR(CHR$(10) + VerShut, key) > 0 THEN
+    Result = 1
+  ELSEIF INSTR(CHR$(10) + VerOpened, key) > 0 THEN
+    Result = 0
+  ELSE
+    Result = Flag(VerChCount > VERFILTERAT AND VerDirFiles(K) > 5)
+  END IF
+END FUNCTION
+
+' (what a row is, to find it again after the list is made again)
+FUNCTION VerRowKey(Row AS INTEGER) AS STRING
+  IF Row < 0 OR Row >= VerRowCount THEN EXIT FUNCTION
+  IF VerRowFolder(Row) THEN Result = "d:" + VerDir(VerRowRef(Row)) ELSE Result = "f:" + VerChPath(VerRowRef(Row))
+END FUNCTION
+
+' (a change's state in words, for a screen reader)
+FUNCTION VerStateWords(Letter AS STRING) AS STRING
+  SELECT CASE Letter
+    CASE "N": Result = TR$("new, not in a version yet")
+    CASE "D": Result = TR$("deleted since the last version")
+    CASE ELSE: Result = TR$("changed since the last version")
+  END SELECT
+END FUNCTION
+
+' The changes list made again: the project's own files first, then each
+' folder — its row (open or closed) and its files —, only the files the
+' filter names; the row picked before picked again.
+SUB VerFillChanges
+  DIM i AS INTEGER, j AS INTEGER, k AS INTEGER, d AS STRING, f AS STRING, key AS STRING, shut AS INTEGER, s AS STRING, n AS INTEGER, pick AS INTEGER
+  key = VerRowKey(VerChanges.ItemIndex)
+  f = ""
+  IF VerChCount > VERFILTERAT THEN f = LCASE$(LTRIM$(RTRIM$(VerFilter.Text)))
+  VerFiltering = Flag(f <> "")
+  ' (each change's folder, numbered as found; -1: the filter leaves it out)
+  VerDirCount = 0
+  FOR i = 0 TO VerChCount - 1
+    VerChDir(i) = -1
+    IF f = "" OR INSTR(LCASE$(VerChPath(i)), f) > 0 THEN
+      d = VerDirOf(VerChPath(i))
+      k = -1
+      FOR j = VerDirCount - 1 TO 0 STEP -1
+        IF VerDir(j) = d THEN
+          k = j
+          EXIT FOR
+        END IF
+      NEXT
+      IF k < 0 THEN
+        k = VerDirCount
+        VerDir(k) = d
+        VerDirFiles(k) = 0
+        VerDirCount = VerDirCount + 1
+      END IF
+      VerDirFiles(k) = VerDirFiles(k) + 1
+      VerChDir(i) = k
+    END IF
+  NEXT
+  ' (the folders in order: the project's own first, then by name)
+  FOR i = 0 TO VerDirCount - 1
+    VerDirOrder(i) = i
+  NEXT
+  FOR i = 1 TO VerDirCount - 1
+    k = VerDirOrder(i)
+    j = i - 1
+    DO WHILE j >= 0
+      IF LCASE$(VerDir(VerDirOrder(j))) <= LCASE$(VerDir(k)) THEN EXIT DO
+      VerDirOrder(j + 1) = VerDirOrder(j)
+      j = j - 1
+    LOOP
+    VerDirOrder(j + 1) = k
+  NEXT
+  VerChanges.Clear
+  VerRowCount = 0
+  pick = -1
+  FOR j = 0 TO VerDirCount - 1
+    k = VerDirOrder(j)
+    shut = VerDirShut(k)
+    IF VerDir(k) <> "" AND VerRowCount < VERCHMAX THEN
+      VerRowFolder(VerRowCount) = 1
+      VerRowRef(VerRowCount) = k
+      IF shut THEN s = TR$("closed") ELSE s = TR$("open")
+      VerChanges.AddItems TR$("Folder {folder}, {changes}, {state}", "folder", VerDir(k), "changes", TRN$("{n} change", "{n} changes", VerDirFiles(k)), "state", s)
+      IF key = "d:" + VerDir(k) THEN pick = VerRowCount
+      VerRowCount = VerRowCount + 1
+    END IF
+    IF shut = 0 THEN
+      FOR i = 0 TO VerChCount - 1
+        IF VerChDir(i) = k AND VerRowCount < VERCHMAX THEN
+          VerRowFolder(VerRowCount) = 0
+          VerRowRef(VerRowCount) = i
+          IF VerDir(k) = "" THEN
+            VerChanges.AddItems TR$("{file}: {state}", "file", FileTitle(VerChPath(i)), "state", VerStateWords(VerChLetter(i)))
+          ELSE
+            VerChanges.AddItems TR$("{file} in {folder}: {state}", "file", FileTitle(VerChPath(i)), "folder", VerDir(k), "state", VerStateWords(VerChLetter(i)))
+          END IF
+          IF key = "f:" + VerChPath(i) THEN pick = VerRowCount
+          VerRowCount = VerRowCount + 1
+        END IF
+      NEXT
+    END IF
+  NEXT
+  IF pick >= 0 THEN VerChanges.ItemIndex = pick
+END SUB
+
+' Folder row Row opened or closed (WantOpen: 1 open, 0 closed, -1 the other
+' way), remembered while Studio runs; the list and the pane again.
+SUB VerToggle(Row AS INTEGER, WantOpen AS INTEGER)
+  DIM d AS STRING, now AS INTEGER, want AS INTEGER
+  IF Row < 0 OR Row >= VerRowCount THEN EXIT SUB
+  IF VerRowFolder(Row) = 0 THEN EXIT SUB
+  d = VerDir(VerRowRef(Row))
+  now = Flag(VerDirShut(VerRowRef(Row)) = 0)
+  IF WantOpen < 0 THEN want = Flag(now = 0) ELSE want = WantOpen
+  IF want = now THEN EXIT SUB
+  VerShut = REPLACESUBSTR$(CHR$(10) + VerShut, CHR$(10) + d + CHR$(10), CHR$(10))
+  VerShut = MID$(VerShut, 2)
+  VerOpened = REPLACESUBSTR$(CHR$(10) + VerOpened, CHR$(10) + d + CHR$(10), CHR$(10))
+  VerOpened = MID$(VerOpened, 2)
+  IF want THEN VerOpened = VerOpened + d + CHR$(10) ELSE VerShut = VerShut + d + CHR$(10)
+  VerFillChanges
+  VerLayOut
+  IF want THEN Application.Announce TR$("{folder} opened", "folder", d) ELSE Application.Announce TR$("{folder} closed", "folder", d)
+END SUB
+
+SUB VerFilterChanged
+  VerFillChanges
+  VerLayOut
+END SUB
+
+' The pane's words and which of its parts show.
+SUB VerShowState
+  DIM vis AS INTEGER, k AS INTEGER, u AS STRING
+  vis = Flag(Repo.Versioned <> 0)
+  VerBranch.Visible = vis
+  VerCount.Visible = vis
+  VerSaveBtn.Visible = vis
+  VerChangesHead.Visible = vis
+  VerNoChanges.Visible = Flag(vis AND VerChCount = 0)
+  VerChanges.Visible = Flag(vis AND VerChCount > 0)
+  VerFilter.Visible = Flag(vis AND VerChCount > VERFILTERAT)
+  VerTimeHead.Visible = vis
+  VerTimeline.Visible = vis
+  VerWhatBtn.Visible = vis
+  VerBackBtn.Visible = vis
+  VerUndoBtn.Visible = vis
+  VerEmptyIcon.Visible = Flag(vis = 0)
+  VerEmptyTitle.Visible = Flag(vis = 0)
+  VerEmptyText.Visible = Flag(vis = 0)
+  VerStartBtn.Visible = Flag(vis = 0 AND Repo.Available <> 0 AND ProjectOpen <> 0)
+  VerLocalNote.Visible = Flag(vis = 0 AND ProjectOpen <> 0)
+  VerLocalBtn.Visible = Flag(vis = 0 AND ProjectOpen <> 0)
+  IF ProjectOpen THEN VerSubFull = ProjectName ELSE VerSubFull = TR$("No project open")
+  IF ProjectOpen = 0 THEN
+    VerEmptyTitle.Caption = TR$("No project open")
+    VerEmptyText.Caption = TR$("Open a project to keep versions of it: every step of your work, so nothing is ever lost.")
+    VerLocalNote.Caption = ""
+  ELSEIF Repo.Available = 0 THEN
+    VerEmptyTitle.Caption = TR$("Not in a browser")
+    VerEmptyText.Caption = TR$("Versions need RapidR Studio on your computer: a browser can't keep them yet.")
+    VerLocalNote.Caption = TR$("Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them.")
+  ELSEIF vis = 0 THEN
+    VerEmptyTitle.Caption = TR$("No versions yet")
+    VerEmptyText.Caption = TR$("A version keeps all your files as they are now, with a few words about what changed, so you can always go back. Git calls versions commits.")
+    VerLocalNote.Caption = TR$("Until then Studio keeps a copy of each file every time you save it. Local History shows them.")
+  ELSE
+    ' (the chips: the experiment, and the changes or "All saved")
+    VerBranchText.Caption = Repo.Experiment
+    VerBranch.Hint = TR$("{experiment} is the experiment you're on (Git calls it a branch)", "experiment", Repo.Experiment)
+    VerBranch.AccessibleName = TR$("Experiment: {experiment}", "experiment", Repo.Experiment)
+    VerBranch.AccessibleDescription = VerBranch.Hint
+    IF VerChCount = 0 THEN
+      VerCountChip.Tag = 1
+      VerCountText.Caption = TR$("All saved")
+      VerCountText.Font.Color = TC("status.success.text")
+      VerBmp(2).LoadIcon "success", 16
+    ELSE
+      VerCountChip.Tag = 0
+      VerCountText.Caption = TRN$("{n} change", "{n} changes", VerChCount)
+      VerCountText.Font.Color = TC("status.info.text")
+      VerBmp(2).LoadIcon "info", 16
+    END IF
+    VerCountIcon.BMPHandle = VerBmp(2)
+    VerCount.AccessibleName = VerChangesWords
+    VerCountChip.Repaint
+  END IF
+  VerNoChanges.Caption = TR$("Everything is saved in a version.")
+  u = Repo.CanUndo
+  VerUndoBtn.Enabled = Flag(u <> "")
+  IF u = "" THEN
+    VerUndoNote.Caption = ""
+    VerUndoNote.Hint = ""
+    VerUndoBtn.Hint = TR$("Nothing to undo")
+  ELSE
+    VerUndoNote.Hint = TR$("Undo: {what}", "what", u)
+    VerUndoBtn.Hint = VerUndoNote.Hint
+  END IF
+  VerUndoWanted = Flag(vis AND u <> "")
+  VerUndoNote.Visible = VerUndoWanted
+  VerUndoNote.AccessibleName = VerUndoNote.Hint
+  VerUndoBtn.AccessibleDescription = VerUndoBtn.Hint
+  k = VerTimeline.ItemIndex
+  VerWhatBtn.Enabled = Flag(k >= 0 AND k < VerTimeCount)
+  VerBackBtn.Enabled = Flag(k >= 0 AND k < VerTimeCount)
+  VerSaveBtn.Enabled = Flag(VerChCount > 0 AND Repo.ReadOnly = 0)
+  VerLayOut
+END SUB
+
 ' Document d's gutter marks: against its file in the last version when the
 ' project has versions (a file the last version hadn't: every line added),
 ' else since its last save.
@@ -496,69 +982,6 @@ SUB VerApplyBase(d AS INTEGER)
   END IF
 END SUB
 
-' The pane's words and which of its parts show.
-SUB VerShowState
-  DIM vis AS INTEGER, k AS INTEGER, u AS STRING
-  vis = Flag(Repo.Versioned <> 0)
-  VerSaveBtn.Visible = vis
-  VerChangesHead.Visible = vis
-  VerChanges.Visible = vis
-  VerTimeHead.Visible = vis
-  VerTimeline.Visible = vis
-  VerWhatBtn.Visible = vis
-  VerBackBtn.Visible = vis
-  VerUndoBtn.Visible = vis
-  VerUndoNote.Visible = vis
-  VerEmptyText.Visible = Flag(vis = 0)
-  VerStartBtn.Visible = Flag(vis = 0 AND Repo.Available <> 0)
-  VerLocalNote.Visible = Flag(vis = 0)
-  VerLocalBtn.Visible = 1
-  IF ProjectOpen = 0 THEN
-    VerSub.Caption = TR$("Open a project to see its versions")
-    VerEmptyText.Caption = TR$("Versions keep your project's files as they were at each step, so nothing is ever lost.")
-    VerStartBtn.Visible = 0
-    VerLocalBtn.Visible = 0
-    VerLocalNote.Caption = ""
-  ELSEIF Repo.Available = 0 THEN
-    VerSub.Caption = TR$("Not in a browser")
-    VerEmptyText.Caption = TR$("Versions need RapidR Studio on your computer: a browser can't keep them yet.")
-    VerLocalNote.Caption = TR$("Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them.")
-  ELSEIF vis = 0 THEN
-    VerSub.Caption = TR$("No versions yet")
-    VerEmptyText.Caption = TR$("A version keeps all your files as they are now, with a few words about what changed, so you can always go back. Git calls versions commits.")
-    VerLocalNote.Caption = TR$("Until then Studio keeps a copy of each file every time you save it. Local History shows them.")
-  ELSE
-    ' (short: the pane is narrow — the status bar says it whole)
-    IF VerChCount = 0 THEN
-      VerSub.Caption = TR$("{experiment} · all saved", "experiment", Repo.Experiment)
-    ELSE
-      VerSub.Caption = TRN$("{experiment} · {n} change", "{experiment} · {n} changes", VerChCount, "experiment", Repo.Experiment)
-    END IF
-    VerSub.Hint = TR$("{experiment} is the experiment you're on (Git calls it a branch)", "experiment", Repo.Experiment)
-    VerSub.ShowHint = 1
-  END IF
-  IF VerChCount = 0 THEN
-    VerChangesHead.Caption = TR$("No changes since the last version")
-  ELSE
-    VerChangesHead.Caption = TR$("Changes not saved as a version ({n})", "n", Num(VerChCount))
-  END IF
-  u = Repo.CanUndo
-  VerUndoBtn.Enabled = Flag(u <> "")
-  IF u = "" THEN
-    VerUndoNote.Caption = ""
-    VerUndoBtn.Hint = TR$("Nothing to undo")
-  ELSE
-    VerUndoNote.Caption = TR$("Undo: {what}", "what", u)
-    VerUndoBtn.Hint = TR$("Undo: {what}", "what", u)
-  END IF
-  VerUndoBtn.AccessibleDescription = VerUndoBtn.Hint
-  k = VerTimeline.ItemIndex
-  VerWhatBtn.Enabled = Flag(k >= 0 AND k < VerTimeCount)
-  VerBackBtn.Enabled = Flag(k >= 0 AND k < VerTimeCount)
-  VerSaveBtn.Enabled = Flag(VerChCount > 0 AND Repo.ReadOnly = 0)
-  VerLayOut
-END SUB
-
 ' ("1 change not saved as a version", "No changes since the last version")
 FUNCTION VerChangesWords AS STRING
   IF VerChCount = 0 THEN
@@ -575,93 +998,220 @@ FUNCTION VerStatusText AS STRING
   Result = "  ·  " + Repo.Experiment + " · " + VerChangesWords
 END FUNCTION
 
-' The pane's controls for its size: the header; then, without versions, the
-' words and Start; with them, the changes (up to five rows), the timeline
-' (the rest), the buttons under it and Undo's words.
+' (a chip's parts for its words: 8, the icon, 6, the words, 12 — Width
+' its whole width)
+SUB VerChipLayOut(Chip AS RPanel, Ground AS RCanvas, Icon AS RImage, Words AS RLabel, X AS INTEGER, Y AS INTEGER)
+  DIM ch AS INTEGER, cw AS INTEGER
+  ch = UiCompactH
+  cw = 8 + 16 + 6 + VerTextW(Words.Caption, 0) + 12
+  Chip.Left = X: Chip.Top = Y: Chip.Width = cw: Chip.Height = ch
+  Ground.Left = 0: Ground.Top = 0: Ground.Width = cw: Ground.Height = ch
+  Icon.Left = 8: Icon.Top = (ch - 16) \ 2
+  Words.Left = 30: Words.Top = (ch - Words.Height) \ 2: Words.Width = cw - 30 - 12
+END SUB
+
+' The pane's controls for its size (the design guide's pane anatomy):
+'   - the header: the title and the project's name; the chips at the
+'     right on its centre line, or on a row of their own under them when
+'     the pane is narrow (one under the other when narrower still);
+'   - without versions: an icon, a title, a line, Start (the one primary
+'     button) and the local history's note and button;
+'   - with them: "Changes" with Save a Version... at its right (or under
+'     it), the filter (more than 20 changes), the list (up to about 40% of
+'     the room); "Timeline", the timeline (the rest); What Changed?, Go
+'     Back..., Undo — each as wide as its words, on as many rows as the
+'     width needs —; what Undo takes back, in up to two lines.
+' Every size comes from the width and the words only — nothing read back
+' from what the layout set —, so a pane resized step by step moves its
+' controls one way, never back and forth.
 SUB VerLayOut
-  DIM w AS INTEGER, h AS INTEGER, ch AS INTEGER, hh AS INTEGER, y AS INTEGER, x AS INTEGER, bw AS INTEGER, th AS INTEGER, lh AS INTEGER, rows AS INTEGER
+  DIM w AS INTEGER, h AS INTEGER, ch AS INTEGER, hh AS INTEGER, y AS INTEGER, x AS INTEGER, lh AS INTEGER, dh AS INTEGER
+  DIM th AS INTEGER, top AS INTEGER, cw1 AS INTEGER, cw2 AS INTEGER, tw AS INTEGER, bw AS INTEGER, n AS INTEGER, rows AS INTEGER
+  DIM rh AS INTEGER, need AS INTEGER, room AS INTEGER, i AS INTEGER, k AS INTEGER, ty AS INTEGER, s AS STRING, three AS INTEGER, rowh AS INTEGER
+  DIM bwd(2) AS INTEGER, blockh AS INTEGER, noteh AS INTEGER, lines AS INTEGER
   ch = UiCompactH
   hh = UiPaneHeadH
   w = VerPanel.ClientWidth
   h = VerPanel.ClientHeight
-  IF w < 120 THEN w = 260
-  IF h < 120 THEN h = 500
-  IF VerTop.Height <> hh THEN VerTop.Height = hh
-  ' (the header: the title and the experiment's line, the pane's width —
-  ' a narrow side pane: Save a Version... goes under the changes it saves)
+  IF w < 120 THEN w = 120
+  IF h < 160 THEN h = 160
+  lh = VerLineH(0)
+  dh = VerLineH(1)
+  ' ---- the header
+  th = lh + 2 + dh
+  tw = VerTextW(VerHead.Caption, 1)
+  IF VerTextW(VerSubFull, 2) > tw THEN tw = VerTextW(VerSubFull, 2)
+  ty = (hh - th) \ 2
+  top = hh
   x = w - 12
-  th = VerHead.Height + 2 + VerSub.Height
-  VerHead.Left = 12: VerHead.Top = (hh - th) \ 2: VerHead.Width = x - 12
-  VerSub.Left = 12: VerSub.Top = VerHead.Top + VerHead.Height + 2: VerSub.Width = x - 12
-  y = hh + 12
+  IF VerBranch.Visible THEN
+    cw1 = 8 + 16 + 6 + VerTextW(VerBranchText.Caption, 0) + 12
+    cw2 = 8 + 16 + 6 + VerTextW(VerCountText.Caption, 0) + 12
+    IF 12 + tw + 12 + cw1 + 8 + cw2 + 12 <= w THEN
+      ' (beside the title, on the header's centre line)
+      VerChipLayOut VerCount, VerCountChip, VerCountIcon, VerCountText, w - 12 - cw2, (hh - ch) \ 2
+      VerChipLayOut VerBranch, VerBranchChip, VerBranchIcon, VerBranchText, w - 12 - cw2 - 8 - cw1, (hh - ch) \ 2
+      x = VerBranch.Left - 12
+    ELSEIF 12 + cw1 + 8 + cw2 + 12 <= w THEN
+      ' (a row of their own under the title)
+      ty = 10
+      VerChipLayOut VerBranch, VerBranchChip, VerBranchIcon, VerBranchText, 12, ty + th + 8
+      VerChipLayOut VerCount, VerCountChip, VerCountIcon, VerCountText, 12 + cw1 + 8, ty + th + 8
+      top = ty + th + 8 + ch + 10
+    ELSE
+      ' (narrower still: one under the other)
+      ty = 10
+      VerChipLayOut VerBranch, VerBranchChip, VerBranchIcon, VerBranchText, 12, ty + th + 8
+      VerChipLayOut VerCount, VerCountChip, VerCountIcon, VerCountText, 12, ty + th + 8 + ch + 6
+      top = ty + th + 8 + 2 * ch + 6 + 10
+    END IF
+  END IF
+  IF VerTop.Height <> top THEN VerTop.Height = top
+  VerHead.Left = 12: VerHead.Top = ty: VerHead.Width = x - 12: VerHead.Height = lh
+  VerSub.Left = 12: VerSub.Top = ty + lh + 2: VerSub.Width = x - 12: VerSub.Height = dh
+  ' (a long project name cut with "…" to the room it has, whole in its tooltip)
+  VerSub.Caption = VerWrap(VerSubFull, x - 12, 1, 2)
+  IF VerSub.Caption <> VerSubFull THEN VerSub.Hint = VerSubFull ELSE VerSub.Hint = ""
+  VerSub.ShowHint = Flag(VerSub.Hint <> "")
+  y = top + 12
+  ' ---- no versions: what they are, Start
   IF Repo.Versioned = 0 THEN
-    lh = AISetLinesHigh(VerEmptyText.Caption, w - 24)
-    VerEmptyText.Left = 12: VerEmptyText.Top = y: VerEmptyText.Width = w - 24: VerEmptyText.Height = lh
-    y = y + lh + 12
+    VerEmptyIcon.Left = 12: VerEmptyIcon.Top = y
+    y = y + 24 + 8
+    lines = VerLinesOf(VerEmptyTitle.Caption, w - 24, 0, 1)
+    VerEmptyTitle.Left = 12: VerEmptyTitle.Top = y: VerEmptyTitle.Width = w - 24: VerEmptyTitle.Height = lines * lh + 2
+    y = y + lines * lh + 2 + 4
+    lines = VerLinesOf(VerEmptyText.Caption, w - 24, 0, 0)
+    VerEmptyText.Left = 12: VerEmptyText.Top = y: VerEmptyText.Width = w - 24: VerEmptyText.Height = lines * lh + 2
+    y = y + lines * lh + 2 + 16
     IF VerStartBtn.Visible THEN
-      bw = 230
+      ' (its whole words when they fit, else the short ones: its name for a
+      ' screen reader stays whole)
+      s = TR$("&Start Keeping Versions of This Project")
+      IF VerBtnW(s) > w - 24 THEN s = TR$("&Start Keeping Versions")
+      VerStartBtn.Caption = s
+      bw = VerBtnW(s)
       IF bw > w - 24 THEN bw = w - 24
       VerStartBtn.Left = 12: VerStartBtn.Top = y: VerStartBtn.Width = bw: VerStartBtn.Height = ch
-      y = y + ch + 16
+      y = y + ch + 24
     END IF
-    lh = AISetLinesHigh(VerLocalNote.Caption, w - 24) + 4
-    VerLocalNote.Left = 12: VerLocalNote.Top = y: VerLocalNote.Width = w - 24: VerLocalNote.Height = lh
-    y = y + lh + 8
-    VerLocalBtn.Left = 12: VerLocalBtn.Top = y: VerLocalBtn.Width = 132: VerLocalBtn.Height = ch
+    IF VerLocalNote.Visible THEN
+      lines = VerLinesOf(VerLocalNote.Caption, w - 24, 0, 2)
+      VerLocalNote.Left = 12: VerLocalNote.Top = y: VerLocalNote.Width = w - 24: VerLocalNote.Height = lines * dh + 4
+      y = y + lines * dh + 4 + 8
+      bw = VerBtnW(VerLocalBtn.Caption)
+      IF bw > w - 24 THEN bw = w - 24
+      VerLocalBtn.Left = 12: VerLocalBtn.Top = y: VerLocalBtn.Width = bw: VerLocalBtn.Height = ch
+    END IF
     EXIT SUB
   END IF
-  VerLocalBtn.Visible = 0
-  ' (the changes: up to five rows; none — a line saying so; Save a
-  ' Version... under them, the pane's main action)
-  ' (a longer language wraps the line: "No hay cambios desde la última versión")
-  lh = AISetLinesHigh(VerChangesHead.Caption, w - 24)
-  IF lh < 18 THEN lh = 18
-  VerChangesHead.Left = 12: VerChangesHead.Top = y: VerChangesHead.Width = w - 24: VerChangesHead.Height = lh
-  y = y + lh + 2
-  rows = VerChCount
-  IF rows > 5 THEN rows = 5
-  IF rows = 0 THEN
-    VerChanges.Visible = 0
-  ELSE
-    VerChanges.Left = 8: VerChanges.Top = y: VerChanges.Width = w - 16: VerChanges.Height = rows * VerChanges.ItemHeight + 4
-    y = y + VerChanges.Height + 8
+  ' ---- what goes under the changes, measured first: the buttons' rows,
+  ' Undo's words (dropped when the pane is too short for them: Undo's
+  ' tooltip and its description for a screen reader still say them), a
+  ' version's row
+  bwd(0) = VerBtnW(VerWhatBtn.Caption): bwd(1) = VerBtnW(VerBackBtn.Caption): bwd(2) = VerBtnW(VerUndoBtn.Caption)
+  n = 1: x = 12
+  FOR i = 0 TO 2
+    IF bwd(i) > w - 24 THEN bwd(i) = w - 24
+    IF x > 12 AND x + bwd(i) > w - 12 THEN
+      n = n + 1
+      x = 12
+    END IF
+    x = x + bwd(i) + 8
+  NEXT
+  blockh = n * ch + (n - 1) * 8
+  noteh = 0
+  IF VerUndoWanted THEN
+    s = VerWrap(VerUndoNote.Hint, w - 24, 2, 2)
+    VerUndoNote.Caption = s
+    noteh = (TALLY(s, CHR$(10)) + 1) * dh + 4
   END IF
-  bw = 140
-  IF bw > w - 16 THEN bw = w - 16
-  VerSaveBtn.Left = 8: VerSaveBtn.Top = y: VerSaveBtn.Width = bw: VerSaveBtn.Height = ch
-  y = y + ch + 16
-  VerTimeHead.Left = 12: VerTimeHead.Top = y: VerTimeHead.Width = w - 24: VerTimeHead.Height = 18
-  y = y + 20
-  ' (What Changed?, Go Back..., Undo: compact, 8 apart; a narrow pane puts
-  ' Undo on a row of its own — the timeline takes what's left above them
-  ' and Undo's words)
-  lh = 1
-  IF 8 + 112 + 8 + 92 + 8 + 72 > w - 8 THEN lh = 2
-  th = h - y - (8 + lh * (ch + 8) + 34)
-  IF th < VerTimeline.ItemHeight * 2 + 4 THEN th = VerTimeline.ItemHeight * 2 + 4
+  ' (a version's row: its words on one line, or two when one of them needs
+  ' it at this width; who and when under them — a scroll bar's room taken
+  ' off when they may need it)
+  room = (w - 16) - 4 - 36 - 8
+  rowh = 8 + 2 * lh + 2 + 8
+  three = 0
+  FOR i = 0 TO VerTimeCount - 1
+    IF VerTextW(VerTimeMsg(i), 0) > room - Flag(VerTimeCount > 1) * 16 THEN
+      three = 1
+      EXIT FOR
+    END IF
+  NEXT
+  IF three THEN rowh = rowh + lh
+  IF VerTimeline.ItemHeight <> rowh THEN VerTimeline.ItemHeight = rowh
+  ' ---- the changes: "Changes" and Save a Version... beside it (or under it)
+  bw = VerBtnW(VerSaveBtn.Caption)
+  IF 12 + VerTextW(VerChangesHead.Caption, 1) + 12 + bw + 12 <= w THEN
+    VerChangesHead.Left = 12: VerChangesHead.Top = y + (ch - lh) \ 2: VerChangesHead.Width = w - 36 - bw: VerChangesHead.Height = lh
+    VerSaveBtn.Left = w - 12 - bw: VerSaveBtn.Top = y: VerSaveBtn.Width = bw: VerSaveBtn.Height = ch
+    y = y + ch + 8
+  ELSE
+    VerChangesHead.Left = 12: VerChangesHead.Top = y: VerChangesHead.Width = w - 24: VerChangesHead.Height = lh
+    y = y + lh + 6
+    IF bw > w - 24 THEN bw = w - 24
+    VerSaveBtn.Left = 12: VerSaveBtn.Top = y: VerSaveBtn.Width = bw: VerSaveBtn.Height = ch
+    y = y + ch + 8
+  END IF
+  ' (what the timeline's part needs at least: its title, one version, the
+  ' buttons; Undo's words when there is room)
+  need = lh + 6 + rowh + 4 + 8 + blockh + 12
+  IF VerChCount = 0 THEN
+    lines = VerLinesOf(VerNoChanges.Caption, w - 24, 0, 0)
+    VerNoChanges.Left = 12: VerNoChanges.Top = y: VerNoChanges.Width = w - 24: VerNoChanges.Height = lines * lh + 2
+    y = y + lines * lh + 2 + 16
+  ELSE
+    IF VerFilter.Visible THEN
+      VerFilter.Left = 12: VerFilter.Top = y: VerFilter.Width = w - 24: VerFilter.Height = ch
+      y = y + ch + 8
+    END IF
+    ' (up to about 40% of the room left, three rows at least — fewer when
+    ' there are fewer, or when the pane is short)
+    rh = VerChanges.ItemHeight
+    rows = ((h - y) * 4 \ 10) \ rh
+    IF rows < 3 THEN rows = 3
+    IF rows > VerRowCount THEN rows = VerRowCount
+    k = (h - y - 16 - need - Flag(noteh > 0) * (6 + noteh) - 4) \ rh
+    IF rows > k THEN rows = k
+    IF rows < 1 THEN rows = 1
+    VerChanges.Left = 8: VerChanges.Top = y: VerChanges.Width = w - 16: VerChanges.Height = rows * rh + 4
+    y = y + rows * rh + 4 + 16
+  END IF
+  ' (Undo's words: only when they fit with one version's row above them)
+  VerUndoNote.Visible = Flag(noteh > 0 AND h - y - need - 6 - noteh >= 0)
+  IF VerUndoNote.Visible THEN blockh = blockh + 6 + noteh
+  ' ---- the timeline
+  VerTimeHead.Left = 12: VerTimeHead.Top = y: VerTimeHead.Width = w - 24: VerTimeHead.Height = lh
+  y = y + lh + 6
+  th = h - y - 8 - blockh - 12
+  IF th < rowh + 4 THEN th = rowh + 4
   VerTimeline.Left = 8: VerTimeline.Top = y: VerTimeline.Width = w - 16: VerTimeline.Height = th
   y = y + th + 8
-  x = 8
-  VerWhatBtn.Left = x: VerWhatBtn.Top = y: VerWhatBtn.Width = 112: VerWhatBtn.Height = ch
-  x = x + 112 + 8
-  VerBackBtn.Left = x: VerBackBtn.Top = y: VerBackBtn.Width = 92: VerBackBtn.Height = ch
-  x = x + 92 + 8
-  VerUndoBtn.Left = x: VerUndoBtn.Top = y: VerUndoBtn.Width = 72: VerUndoBtn.Height = ch
-  IF lh = 2 THEN
-    y = y + ch + 8
-    VerUndoBtn.Left = 8: VerUndoBtn.Top = y
-    ' (Undo's words beside it)
-    VerUndoNote.Left = 88: VerUndoNote.Top = y: VerUndoNote.Width = w - 96: VerUndoNote.Height = 32
-  ELSE
-    y = y + ch + 6
-    VerUndoNote.Left = 12: VerUndoNote.Top = y: VerUndoNote.Width = w - 24: VerUndoNote.Height = 32
+  ' (What Changed?, Go Back..., Undo: each as wide as its words, 8 apart,
+  ' a new row when the next doesn't fit)
+  x = 12
+  FOR i = 0 TO 2
+    IF x > 12 AND x + bwd(i) > w - 12 THEN
+      x = 12
+      y = y + ch + 8
+    END IF
+    SELECT CASE i
+      CASE 0: VerWhatBtn.Left = x: VerWhatBtn.Top = y: VerWhatBtn.Width = bwd(i): VerWhatBtn.Height = ch
+      CASE 1: VerBackBtn.Left = x: VerBackBtn.Top = y: VerBackBtn.Width = bwd(i): VerBackBtn.Height = ch
+      CASE 2: VerUndoBtn.Left = x: VerUndoBtn.Top = y: VerUndoBtn.Width = bwd(i): VerUndoBtn.Height = ch
+    END SELECT
+    x = x + bwd(i) + 8
+  NEXT
+  y = y + ch + 6
+  IF VerUndoNote.Visible THEN
+    VerUndoNote.Left = 12: VerUndoNote.Top = y: VerUndoNote.Width = w - 24: VerUndoNote.Height = noteh
   END IF
 END SUB
 
 ' (Text as it fits Room pixels of the lists' font: whole, or cut with "…")
 FUNCTION VerFit(Text AS STRING, Room AS INTEGER) AS STRING
   DIM k AS INTEGER
-  VerMeasure.Font.Name = UIFont.Name: VerMeasure.Font.Size = UIFont.Size
+  VerMeasure.Font.Name = UIFont.Name: VerMeasure.Font.Size = UIFont.Size: VerMeasure.Font.Bold = 0
   IF VerMeasure.TextWidth(Text) <= Room OR LEN(Text) < 4 THEN
     Result = Text
     EXIT FUNCTION
@@ -672,61 +1222,160 @@ FUNCTION VerFit(Text AS STRING, Room AS INTEGER) AS STRING
   Result = LEFT$(Text, k) + "…"
 END FUNCTION
 
-' A timeline row: a ring on the line of versions (an AI's checkpoint a
-' smaller, lighter one), the message, then who and when — dimmed for a
-' checkpoint; the selected row in the selection's colours.
+' (…cut in the middle: a file's name keeps its start and its extension)
+FUNCTION VerFitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
+  DIM k AS INTEGER, s AS STRING
+  VerMeasure.Font.Name = UIFont.Name: VerMeasure.Font.Size = UIFont.Size: VerMeasure.Font.Bold = 0
+  IF VerMeasure.TextWidth(Text) <= Room OR LEN(Text) < 6 THEN
+    Result = Text
+    EXIT FUNCTION
+  END IF
+  s = "…"
+  FOR k = LEN(Text) - 1 TO 2 STEP -1
+    s = LEFT$(Text, k - k \ 2) + "…" + RIGHT$(Text, k \ 2)
+    IF VerMeasure.TextWidth(s) <= Room THEN EXIT FOR
+  NEXT
+  Result = s
+END FUNCTION
+
+' (a short "when": "just now", "3 min ago", "2 h ago", "yesterday", "5 days ago")
+FUNCTION VerAgoShort(Seconds AS LONG) AS STRING
+  DIM d AS LONG
+  d = Repo.Now - Seconds
+  IF d < 60 THEN
+    Result = TR$("just now")
+  ELSEIF d < 3600 THEN
+    Result = TR$("{n} min ago", "n", Num(d \ 60))
+  ELSEIF d < 86400 THEN
+    Result = TR$("{n} h ago", "n", Num(d \ 3600))
+  ELSEIF d < 172800 THEN
+    Result = TR$("yesterday")
+  ELSE
+    Result = TRN$("{n} day ago", "{n} days ago", d \ 86400)
+  END IF
+END FUNCTION
+
+' A version's row on the timeline: a line through a dot for each version
+' (the newest — the version your files are based on — filled in the
+' accent; an AI's checkpoint a small, lighter one), the words in up to two
+' lines, then who and when, dimmed; the row picked in the selection's
+' colours, the whole width.
 SUB VerDrawTime(Index AS INTEGER, State AS INTEGER, R AS RRect)
-  DIM bg AS LONG, fg AS LONG, dm AS LONG, lc AS LONG, cx AS INTEGER, cy AS INTEGER, rr AS INTEGER, half AS INTEGER, sel AS INTEGER, room AS INTEGER
+  DIM bg AS LONG, fg AS LONG, dm AS LONG, lc AS LONG, ac AS LONG, cx AS INTEGER, cy AS INTEGER, rr AS INTEGER, sel AS INTEGER, room AS INTEGER
+  DIM lh AS INTEGER, x AS INTEGER, y AS INTEGER, t AS STRING, n AS INTEGER, i AS INTEGER, meta AS STRING, cur AS STRING
   IF Index < 0 OR Index >= VerTimeCount THEN EXIT SUB
   sel = Flag(Index = VerTimeline.ItemIndex)
+  IF sel THEN
+    bg = TC("selected"): fg = TC("selected.text"): dm = TC("selected.text"): ac = TC("selected.text")
+  ELSE
+    bg = TC("window"): fg = TC("text"): dm = TC("page.dim"): ac = TC("page.link")
+  END IF
+  lc = TC("border")
+  VerTimeline.FillRect R.Left, R.Top, R.Right, R.Bottom, bg
+  lh = VerLineH(0)
+  cx = R.Left + 18: cy = R.Top + 8 + lh \ 2
+  ' (the line through the dots: from the row above, to the row below)
+  IF Index > 0 THEN VerTimeline.Line cx, R.Top, cx, cy, lc
+  IF Index < VerTimeCount - 1 THEN VerTimeline.Line cx, cy, cx, R.Bottom, lc
+  x = R.Left + 36
+  room = R.Right - x - 8
+  IF VerTimeKind(Index) = "checkpoint" THEN
+    rr = 3
+    VerTimeline.Circle cx - rr, cy - rr, cx + rr + 1, cy + rr + 1, dm, dm
+    t = VerWrap(TR$("AI checkpoint: {what}", "what", VerTimeMsg(Index)), room, 2, 0)
+  ELSE
+    rr = 5
+    IF Index = 0 THEN
+      ' (the current version: a ring and a dot in the accent)
+      VerTimeline.Circle cx - rr - 1, cy - rr - 1, cx + rr + 2, cy + rr + 2, ac, bg
+      VerTimeline.Circle cx - rr, cy - rr, cx + rr + 1, cy + rr + 1, ac, bg
+      VerTimeline.Circle cx - 2, cy - 2, cx + 3, cy + 3, ac, ac
+    ELSE
+      VerTimeline.Circle cx - rr, cy - rr, cx + rr + 1, cy + rr + 1, dm, bg
+    END IF
+    t = VerWrap(VerTimeMsg(Index), room, 2, 0)
+  END IF
+  n = TALLY(t, CHR$(10)) + 1
+  y = R.Top + 8
+  FOR i = 1 TO n
+    IF VerTimeKind(Index) = "checkpoint" THEN
+      VerTimeline.TextOut x, y, FIELD$(t, CHR$(10), i), dm, -1
+    ELSE
+      VerTimeline.TextOut x, y, FIELD$(t, CHR$(10), i), fg, -1
+    END IF
+    y = y + lh
+  NEXT
+  y = y + 2
+  ' (who and when; the newest says it's the current version)
+  IF VerTimeKind(Index) = "checkpoint" THEN
+    meta = VerAgoShort(VerTimeWhen(Index))
+  ELSE
+    meta = TR$("{who} · {when}", "who", VerTimeWho(Index), "when", VerAgoShort(VerTimeWhen(Index)))
+  END IF
+  ' (the newest: "Current", when it fits with who and when — the ring says
+  ' it too, and a screen reader hears "the current version")
+  cur = TR$("Current") + " · "
+  IF Index = 0 AND VerTimeKind(Index) <> "checkpoint" AND VerTextW(cur + meta, 0) <= room THEN
+    VerTimeline.TextOut x, y, TR$("Current"), ac, -1
+    x = x + VerTextW(TR$("Current"), 0)
+    VerTimeline.TextOut x, y, " · " + meta, dm, -1
+  ELSE
+    VerTimeline.TextOut x, y, VerFit(meta, room), dm, -1
+  END IF
+END SUB
+
+' A row of the changes: a folder's — its arrow (open or closed), its name,
+' how many files changed in it —, or a file's: its name (cut in the
+' middle when it must be), then its change in words on a soft chip at the
+' right — New, Changed, Deleted —; the row picked in the selection's
+' colours, the whole width.
+SUB VerDrawChange(Index AS INTEGER, State AS INTEGER, R AS RRect)
+  DIM bg AS LONG, fg AS LONG, dm AS LONG, k AS STRING, chipword AS STRING, sel AS INTEGER, lh AS INTEGER, ty AS INTEGER
+  DIM x AS INTEGER, cx AS INTEGER, cy AS INTEGER, c AS INTEGER, cw AS INTEGER, x1 AS INTEGER, x2 AS INTEGER, y1 AS INTEGER, i AS INTEGER, d AS INTEGER, num AS STRING
+  IF Index < 0 OR Index >= VerRowCount THEN EXIT SUB
+  sel = Flag(Index = VerChanges.ItemIndex)
   IF sel THEN
     bg = TC("selected"): fg = TC("selected.text"): dm = TC("selected.text")
   ELSE
     bg = TC("window"): fg = TC("text"): dm = TC("page.dim")
   END IF
-  lc = TC("border")
-  VerTimeline.FillRect R.Left, R.Top, R.Right, R.Bottom, bg
-  half = (R.Bottom - R.Top) \ 2
-  cx = R.Left + 16: cy = R.Top + half \ 2 + 4
-  ' (the line through the rings: from the row above, to the row below)
-  IF Index > 0 THEN VerTimeline.Line cx, R.Top, cx, cy, lc
-  IF Index < VerTimeCount - 1 THEN VerTimeline.Line cx, cy, cx, R.Bottom, lc
-  room = R.Right - R.Left - 36
-  IF VerTimeKind(Index) = "checkpoint" THEN
-    rr = 3
-    VerTimeline.Circle cx - rr, cy - rr, cx + rr + 1, cy + rr + 1, dm, bg
-    VerTimeline.TextOut R.Left + 32, R.Top + 3, VerFit(TR$("AI checkpoint: {what}", "what", VerTimeMsg(Index)), room), dm, -1
-    VerTimeline.TextOut R.Left + 32, R.Top + half + 1, VerFit(VerAgo(VerTimeWhen(Index)), room), dm, -1
-  ELSE
-    rr = 5
-    VerTimeline.Circle cx - rr, cy - rr, cx + rr + 1, cy + rr + 1, fg, bg
-    VerTimeline.TextOut R.Left + 32, R.Top + 3, VerFit(VerTimeMsg(Index), room), fg, -1
-    VerTimeline.TextOut R.Left + 32, R.Top + half + 1, VerFit(TR$("{who} · {when}", "who", VerTimeWho(Index), "when", VerAgo(VerTimeWhen(Index))), room), dm, -1
-  END IF
-END SUB
-
-' A changed file's row: its letter in a soft status square (M changed, N
-' new, D removed), then its path.
-SUB VerDrawChange(Index AS INTEGER, State AS INTEGER, R AS RRect)
-  DIM bg AS LONG, fg AS LONG, k AS STRING, sx AS INTEGER, sy AS INTEGER, sel AS INTEGER
-  IF Index < 0 OR Index >= VerChCount THEN EXIT SUB
-  sel = Flag(Index = VerChanges.ItemIndex)
-  IF sel THEN
-    bg = TC("selected"): fg = TC("selected.text")
-  ELSE
-    bg = TC("window"): fg = TC("text")
-  END IF
   VerChanges.FillRect R.Left, R.Top, R.Right, R.Bottom, bg
-  SELECT CASE VerChLetter(Index)
-    CASE "N": k = "status.success"
-    CASE "D": k = "status.danger"
-    CASE ELSE: k = "status.info"
+  lh = VerLineH(0)
+  ty = R.Top + (R.Bottom - R.Top - lh) \ 2
+  IF VerRowFolder(Index) THEN
+    d = VerRowRef(Index)
+    ' (the arrow: › closed, ⌄ open — two strokes)
+    cx = R.Left + 14: cy = R.Top + (R.Bottom - R.Top) \ 2
+    FOR c = 0 TO 1
+      IF VerDirShut(d) THEN
+        VerChanges.Line cx - 2 + c, cy - 4, cx + 2 + c, cy, fg
+        VerChanges.Line cx + 2 + c, cy, cx - 2 + c, cy + 4, fg
+      ELSE
+        VerChanges.Line cx - 4, cy - 2 + c, cx, cy + 2 + c, fg
+        VerChanges.Line cx, cy + 2 + c, cx + 4, cy - 2 + c, fg
+      END IF
+    NEXT
+    num = Num(VerDirFiles(d))
+    x2 = R.Right - 10 - VerTextW(num, 0)
+    VerChanges.TextOut x2, ty, num, dm, -1
+    VerChanges.TextOut R.Left + 28, ty, VerFitMiddle(VerDir(d) + "/", x2 - 8 - (R.Left + 28)), fg, -1
+    EXIT SUB
+  END IF
+  i = VerRowRef(Index)
+  SELECT CASE VerChLetter(i)
+    CASE "N": k = "status.success": chipword = TR$("New")
+    CASE "D": k = "status.danger": chipword = TR$("Deleted")
+    CASE ELSE: k = "status.info": chipword = TR$("Changed")
   END SELECT
-  sx = R.Left + 8: sy = R.Top + (R.Bottom - R.Top - 16) \ 2
-  VerChanges.RoundRect sx, sy, sx + 16, sy + 16, 6, 6, TC(k + ".border")
-  VerChanges.RoundRect sx + 1, sy + 1, sx + 15, sy + 15, 5, 5, TC(k)
-  VerChanges.TextOut sx + 4, sy + 1, VerChLetter(Index), TC(k + ".text"), -1
-  VerChanges.TextOut R.Left + 32, R.Top + (R.Bottom - R.Top - 16) \ 2, VerFit(VerChPath(Index), R.Right - R.Left - 36), fg, -1
+  ' (the chip: a soft pill at the right, its chipword in the status's colour)
+  cw = VerTextW(chipword, 0) + 16
+  x2 = R.Right - 8: x1 = x2 - cw
+  y1 = R.Top + (R.Bottom - R.Top - 18) \ 2
+  VerChanges.RoundRect x1, y1, x2, y1 + 18, 18, 18, TC(k + ".border")
+  VerChanges.RoundRect x1 + 1, y1 + 1, x2 - 1, y1 + 17, 16, 16, TC(k)
+  VerChanges.TextOut x1 + 8, y1 + (18 - lh) \ 2, chipword, TC(k + ".text"), -1
+  IF VerDir(VerChDir(i)) = "" THEN x = R.Left + 12 ELSE x = R.Left + 28
+  VerChanges.TextOut x, ty, VerFitMiddle(FileTitle(VerChPath(i)), x1 - 8 - x), fg, -1
 END SUB
 
 SUB VerTimePicked
@@ -743,19 +1392,59 @@ SUB VerChangePicked
   VerChanges.Repaint
 END SUB
 
-' (a changed file opened: its document)
+' (a double click: a folder opened or closed, a changed file opened)
 SUB VerChangeOpen
+  DIM k AS INTEGER, i AS INTEGER
+  k = VerChanges.ItemIndex
+  IF k < 0 OR k >= VerRowCount THEN EXIT SUB
+  IF VerRowFolder(k) THEN
+    VerToggle k, -1
+    EXIT SUB
+  END IF
+  i = VerRowRef(k)
+  IF VerChLetter(i) <> "D" THEN OpenDocument Proj.Folder + "/" + VerChPath(i)
+END SUB
+
+' (the keys: Right opens a folder, Left closes it — on a file, goes to its
+' folder —, Enter and Space open or close a folder, Enter opens a file)
+SUB VerChangeKey(Key AS INTEGER, Shift AS INTEGER)
+  DIM k AS INTEGER, j AS INTEGER
+  k = VerChanges.ItemIndex
+  IF k < 0 OR k >= VerRowCount THEN EXIT SUB
+  SELECT CASE Key
+    CASE 39: IF VerRowFolder(k) THEN VerToggle k, 1
+    CASE 37
+      IF VerRowFolder(k) THEN
+        VerToggle k, 0
+      ELSE
+        FOR j = k - 1 TO 0 STEP -1
+          IF VerRowFolder(j) THEN
+            VerChanges.ItemIndex = j
+            VerChanges.Repaint
+            EXIT FOR
+          END IF
+        NEXT
+      END IF
+    CASE 32: IF VerRowFolder(k) THEN VerToggle k, -1
+    CASE 13: VerChangeOpen
+  END SELECT
+END SUB
+
+' (a click on a folder's arrow opens or closes it)
+SUB VerChangeMouse(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
   DIM k AS INTEGER
   k = VerChanges.ItemIndex
-  IF k < 0 OR k >= VerChCount THEN EXIT SUB
-  IF VerChLetter(k) <> "D" THEN OpenDocument Proj.Folder + "/" + VerChPath(k)
+  IF Button <> 0 OR X > 30 THEN EXIT SUB
+  IF k >= 0 AND k < VerRowCount THEN
+    IF VerRowFolder(k) THEN VerToggle k, -1
+  END IF
 END SUB
 
 ' ---- the actions ------------------------------------------------------------------------------
 
 ' View > Versions: the pane, to the front, the keyboard in it.
 SUB VerShowPane
-  IF Dock.PaneState("verpanel") = "" THEN Dock.AddPane(VerPanel, TR$("Versions"), "tab:projecttree", "versions")
+  IF Dock.PaneState("verpanel") = "hidden" THEN Dock.ShowPane("verpanel")
   Dock.FocusPane("verpanel")
   VerRefresh
 END SUB
@@ -804,7 +1493,7 @@ SUB VerStart
   SetState "stopped", TR$("Versions started: save your first version")
   Application.Announce TR$("Versions started. Save a Version keeps your files as they are now.")
   VerRefresh
-  Dock.ShowPane("verpanel")
+  IF Dock.PaneState("verpanel") <> "hidden" THEN Dock.ShowPane("verpanel")
 END SUB
 
 ' (the files open with changes: saved first — a version keeps what's on
@@ -837,7 +1526,7 @@ SUB ShowSaveVersion
     VerFilesList.AddItems VerChPath(i)
     SELECT CASE VerChLetter(i)
       CASE "N": VerFilesList.AddSubItem i, TR$("new")
-      CASE "D": VerFilesList.AddSubItem i, TR$("removed")
+      CASE "D": VerFilesList.AddSubItem i, TR$("deleted")
       CASE ELSE: VerFilesList.AddSubItem i, TR$("changed")
     END SELECT
     VerFilesList.Item(i).Checked = 1
@@ -886,8 +1575,10 @@ SUB VerSaveOkClick
   END IF
   VerAuthor = LTRIM$(RTRIM$(VerNameEdit.Text))
   Repo.Author = VerAuthor
+  Reg.RootKey = HKCU
   Reg.OpenKey(STUDIO_KEY, 1)
   Reg.WriteString("VersionsName", VerAuthor)
+  Reg.CloseKey
   id = Repo.SaveVersion(VerMsgEdit.Text, fl, Flag(VerSaveFound <> 0 AND VerAnyway.Checked <> 0))
   IF id = "" THEN
     IF Repo.ErrorKind = "secrets" THEN
@@ -1315,16 +2006,15 @@ SUB VerAfterSave(d AS INTEGER)
   VerRefresh
 END SUB
 
-' (project.inc: a project opened or closed — one with versions shows the
-' Versions tab beside Project, Project staying in front)
+' (project.inc: a project opened or closed — the Versions tab, always
+' beside Project, says it; the folders' open and closed rows start again)
 SUB VersionsProjectChanged
   VerBadged = ""
+  VerShut = ""
+  VerOpened = ""
+  VerFilter.Text = ""
   ProjectTree.ClearBadges
   VerRefresh
-  IF Repo.Versioned AND Dock.PaneVisible("verpanel") = 0 THEN
-    Dock.ShowPane("verpanel")
-    Dock.ShowPane("projecttree")
-  END IF
 END SUB
 
 ' The commands (commands.inc's table): 1 when Id was one of them.
@@ -1383,6 +2073,12 @@ SUB VersionsStep(S AS STRING)
       IF Repo.Versioned = 0 THEN VerStart
       IF Repo.SaveVersion(v, "", 0) = "" THEN OutputLine "versions:save: " + Repo.Error
       VerRefresh
+    CASE "saveonly"
+      ' (versions:saveonly=<message>;<file>;<file>…: those files only, as
+      ' Save Version with the others unticked)
+      IF Repo.Versioned = 0 THEN VerStart
+      IF Repo.SaveVersion(FIELD$(v, ";", 1), REPLACESUBSTR$(MID$(v, INSTR(v, ";") + 1), ";", CHR$(10)) + CHR$(10), 0) = "" THEN OutputLine "versions:saveonly: " + Repo.Error
+      VerRefresh
     CASE "pick"
       ' (versions:pick=<message>: that version selected in the timeline)
       FOR i = 0 TO VerTimeCount - 1
@@ -1403,6 +2099,31 @@ SUB VersionsStep(S AS STRING)
       ' keeps one before it changes files — RAI's own wiring is lane G8)
       IF Repo.Checkpoint(v) = "" THEN OutputLine "versions:checkpoint: " + Repo.Error
       VerRefresh
+    CASE "width"
+      ' (versions:width=<pixels>: the side column the Versions tab is in made
+      ' that wide, as its splitter dragged would)
+      Dock.PaneExtent("verpanel", "width", VAL(v))
+    CASE "oldlayout"
+      ' (versions:oldlayout: the layout as a Studio from before Versions was
+      ' a tab of its own saved it — no Versions pane in it —, read again as
+      ' at start)
+      v = REPLACESUBSTR$(Dock.SaveLayout, " verpanel", "")
+      Dock.LoadLayout(v)
+      VerLayoutLoaded
+    CASE "problems"
+      ' (versions:problems: what the layout report finds wrong with the
+      ' Versions pane's controls — text cut off, a control past the pane's
+      ' edge or on top of another —, a line each in the Output)
+      v = VerEyes.Problems("")
+      k = 0
+      FOR i = 1 TO TALLY(v, CHR$(10)) + 1
+        what = FIELD$(v, CHR$(10), i)
+        IF LEFT$(LCASE$(what), 3) = "ver" OR INSTR(LCASE$(what), " and ver") > 0 THEN
+          OutputLine "[versions] problem: " + what
+          k = k + 1
+        END IF
+      NEXT
+      OutputLine "[versions] problems=" + Num(k)
     CASE "report"
       ' (versions:report=<file>: what the pane, the Project pane's badge of
       ' that file and the status bar say)

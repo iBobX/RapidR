@@ -255,7 +255,8 @@ fn in_scroller(ui: &FormUi, i: usize) -> bool {
 }
 
 /// What a person would see wrong in form `form` as laid out now: text cut
-/// off, controls on top of each other, a control past the window's edge.
+/// off, controls on top of each other, a control past the window's edge
+/// or past its panel's.
 /// Plain sentences, each with the numbers and what to do.
 pub fn problems(desk: &mut Desktop, store: &dyn Store, form: &str) -> Vec<String> {
     let Some(f) = desk.forms.get_mut(&form.to_lowercase()) else { return Vec::new() };
@@ -275,6 +276,17 @@ pub fn problems(desk: &mut Desktop, store: &dyn Store, form: &str) -> Vec<String
                 continue;
             } else if x + w > cw + 1 || y + h > ch + 1 || x < -1 {
                 out.push(format!("{} ({}) is cut off by the window's edge (it reaches {},{}; the inside is {cw} × {ch}) — make the window bigger (ClientWidth / ClientHeight) or move it.", n.id, type_name(&n.type_name), x + w, y + h));
+            }
+        }
+        // (past its panel's edge: the panel cuts it off — a scroll box
+        // scrolls, a page shows its own)
+        if let Some(pi) = n.parent {
+            let pn = &ui.nodes[pi];
+            if matches!(pn.type_name.as_str(), "RPANEL" | "RGROUPBOX") && !in_scroller(ui, i) {
+                let (px, py, pw, ph) = pn.abs;
+                if x < px - 1 || y < py - 1 || x + w > px + pw + 1 || y + h > py + ph + 1 {
+                    out.push(format!("{} ({}) is cut off by {}'s edge (it reaches {},{}; {} ends at {},{}) — make {} bigger or move {} inside it.", n.id, type_name(&n.type_name), pn.id, x + w, y + h, pn.id, px + pw, py + ph, pn.id, n.id));
+                }
             }
         }
         // (text that doesn't fit what shows it)

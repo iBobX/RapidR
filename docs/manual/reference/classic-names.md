@@ -2,7 +2,7 @@
 
 # Classic component names
 
-Programs written for RapidQ name their components with a Q: `QBUTTON`, `QFORM`. RapidR reads each of these names as the component it stands for (same properties, methods, events and behaviour), and a program may use either name and mix them. `rapidr import-rapidq` converts a copy of such a program to RapidR's names; see [Differences](../differences.md) and [Importing a RapidQ program](../importing-rapidq.md).
+Older programs name their components with a Q: `QBUTTON`, `QFORM`. RapidR reads each of these classic names as the component it stands for (same properties, methods, events and behaviour), and a program may use either name and mix them. `rapidr import-rapidq` converts a copy of such a program to RapidR's names; see [Compatibility notes](../compatibility.md) and [Importing older programs](../importing-rapidq.md).
 
 | Classic name | Component |
 |---|---|

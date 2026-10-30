@@ -51,8 +51,8 @@ own computer; off until you turn it on.
   tree views, MDI, the tray icon, `RRegistry`, the printer, sockets, MySQL,
   CGI, serial ports, downloads, `RMIDI` / `RWave` / `RVideo`, and the DirectX
   2D and Direct3D objects (reimplemented by RapidR on its own renderer).
-- **Programs written for RapidQ run too**, unchanged, and the importer brings
-  old projects over with their include files.
+- **Older programs keep working**: RapidR includes a compatibility layer to
+  import programs written for RapidQ, include files and all.
 - **RapidR's own UI kernel** draws every window, the same on every system:
   RapidR Studio's look by default (light, dark or high contrast, as the
   system is set), a classic Windows look with `$THEME Classic`,

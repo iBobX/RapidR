@@ -874,3 +874,4 @@
 "RUPDOWN.VISIBLE" = "Si el control o formulario se muestra."
 "RUPDOWN.WIDTH" = "El ancho, en píxeles; en `Screen`, el de la pantalla."
 "RUPDOWN.WRAP" = "Si al avanzar más allá de Max se vuelve a Min, y más allá de Min a Max, en lugar de detenerse en el extremo."
+"RBUTTON.PRIMARY" = "Dibuja el botón como la acción principal de su panel o franja, relleno con el color de acento, sin hacer que Enter lo presione (la propiedad `Default` hace las dos cosas: úsala en un cuadro de diálogo)."

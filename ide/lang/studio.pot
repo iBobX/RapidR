@@ -36,7 +36,7 @@ msgstr ""
 msgid "Apply the accepted changes"
 msgstr ""
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr ""
 
@@ -92,7 +92,7 @@ msgstr ""
 msgid "What Was Sent"
 msgstr ""
 
-#: ide/ai.inc ide/debug.inc
+#: ide/ai.inc ide/aisetup.inc ide/debug.inc
 msgid "Close"
 msgstr ""
 
@@ -1059,6 +1059,130 @@ msgstr ""
 msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
 msgstr ""
 
+#: ide/aicoach.inc
+msgid "a nudge"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "the idea"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "the shape of the code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "the code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Build"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach hints"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "I &Got It"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Ends this problem: your next question starts again at the first hint"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "&Help With This Error"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach, chosen"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Build, chosen"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI writes changes for you to review and apply"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI gives hints one step at a time and never writes the answer into your code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Your school keeps RAI in Coach mode."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Your teacher keeps RAI in Coach mode."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach mode: RAI gives hints one step at a time. You write the code."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Build mode: RAI writes changes for you to review and apply."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Hint {n} of 4"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Hint {n} of 4: {what}"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "&Show the Code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "&Next Hint"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "The fourth hint: RAI shows the code, for you to type or copy in yourself"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI gives the next hint: a little more each time"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI says what the error means, why it happens, and gives a hint to fix it yourself: {error}"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "I Got It"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Show me the code."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Give me the next hint."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Nice work. Ask about the next thing when you're ready."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Help me with this error: {error}"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach mode: ask about your code, or about what you want to make. RAI gives one hint at a time — a nudge, the idea, the shape of the code — and shows code only when you ask a fourth time. You write the code yourself."
+msgstr ""
+
 #: ide/aisetup.inc ide/mcp.inc
 msgid "Set Up RAI"
 msgstr ""
@@ -1080,11 +1204,11 @@ msgid "Free, on &this computer"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's."
+msgid "It costs nothing, and Studio sends what you ask only to a local AI app on this computer — a free program you install that keeps AI models on your computer — so what you ask stays here, unless that app is set up to pass it on to a service elsewhere. Studio finds the models it already has and checks which ones fit this computer. Answers are slower and simpler than a cloud model's."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "The servers found on this computer"
+msgid "The AI models found on this computer"
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1092,7 +1216,7 @@ msgid "&Look Again"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Look again for a server on this computer"
+msgid "Look again for AI models on this computer"
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1104,31 +1228,67 @@ msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You mak
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "A server on this computer"
+msgid "The AI models on this computer"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "&Server:"
+msgid "This computer's memory"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "The server on this computer"
+msgid "The AI models on this computer, the best match first"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "&Address:"
+msgid "Each says whether it fits this computer and how it does with RAI. Choose one, then Finish."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "The server's address"
-msgstr ""
-
-#: ide/aisetup.inc ide/settings.inc
-msgid "&Model:"
+msgid "How to add a local AI app"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "About this server"
+msgid "How to add a local AI app: the manual's page, in Help"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "About the model chosen"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Check My Models"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Read the L&icence..."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Read the chosen model's licence, as its local AI app reports it"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Check My Models"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Another &address:"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Another address on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A local AI app's address on this computer, for example 127.0.0.1:8080. Studio only asks this computer."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Loo&k"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Look for models at this address"
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1175,8 +1335,28 @@ msgstr ""
 msgid "The key's test"
 msgstr ""
 
+#: ide/aisetup.inc ide/settings.inc
+msgid "&Model:"
+msgstr ""
+
 #: ide/aisetup.inc
 msgid "What it costs, and what is sent"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Licence"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The licence's text"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Stop Checking"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Read the Licence..."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1200,49 +1380,239 @@ msgid "Set Up RAI — {title}"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} (no model yet: download one in it first)"
+msgid "Looking for AI apps on this computer…"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} ({n} model)"
-msgid_plural "{name} ({n} models)"
+msgid "✓ Found {n} model in {k} local AI apps on this computer."
+msgid_plural "✓ Found {n} models in {k} local AI apps on this computer."
 msgstr[0] ""
 msgstr[1] ""
 
 #: ide/aisetup.inc
-msgid "✓ Found on this computer: {servers}. Not running: {others}."
+msgid "✓ Found {n} model in a local AI app on this computer."
+msgid_plural "✓ Found {n} models in a local AI app on this computer."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "In a browser Studio can't look around this computer: Next asks for your local AI app's address."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "✓ Found on this computer: {servers}."
+msgid "A local AI app answers on this computer, but it has no model yet: add one in it, then Look Again."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Looking for a server on this computer…"
+msgid "No local AI app found running on this computer: Next says what one is and how to add one."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again."
+msgid "timing an answer"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} (running)"
+msgid "trying a tool call"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} (not running)"
+msgid "building a tiny app"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} is running here, but has no model yet: download one in {name} (Studio never downloads or starts one for you), then go Back and Look Again."
+msgid "loading it"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help."
+msgid "Runs elsewhere"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} isn't running at {url}. Start it (Studio never starts it for you), then go Back and Look Again; or type another address."
+msgid "Fits"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Fits if you close other apps"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Too big for this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Size not known"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Checking it now: {step}…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Waiting for its check…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Can't chat: its local AI app says it is made for something else."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its local AI app runs this model on a service elsewhere: what you ask is sent there."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Too big for this computer: it needs {need}; a model can have {most} here at most."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its check couldn't finish: {why}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Can chat, but can't build apps with RAI: its tool calls didn't work here."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Best match for this computer: it built Studio's test app, answers in about {s} s."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "It built Studio's test app, answers in about {s} s."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Works, but slowly here (about {s} s per answer)."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Uses RAI's tools, but couldn't build the test app here: RAI starts its programs from RapidR's recipes."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its local AI app says it takes no tools, so RAI can't build apps with it."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A browser can't tell if it fits: Studio on the desktop can check it."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its size isn't known: Check My Models to see how it does here."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Best match for this computer by its size: Check My Models to see how it does."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Needs {need}: close other apps, Look Again, then Check My Models."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Needs {need} with a {k}K context. Not checked yet."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A browser can't tell how much memory this computer has free, so a model's fit can't be checked here: Studio on the desktop can."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Type your local AI app's address on this computer (for example http://127.0.0.1:11434), then Look. It must allow this page to ask it: the manual says how."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "This computer: {total} of memory; {free} free for a model now ({most} with other apps closed)."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "No AI model answered on this computer. A local AI app is a free program you install: it keeps AI models on your computer and answers RAI here, so what you ask stays on this computer, unless the app is set up to pass it on. Install one, add a model in it, start it, then go Back and Look Again — or type its address below if it uses another one."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{n} parameters"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "takes tools"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "no tools"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "RAI gets a {k} context"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "and its small-model mode (shorter instructions, a recipe first)"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Licence, as its local AI app reports it (Studio doesn't check it; it can be wrong or out of date): {licence}."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its local AI app doesn't say its licence: check it where you got the model."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Stopping the check…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Every model that fits is checked already."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Checking models runs in RapidR Studio on the desktop."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Stop Checking"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Checking {model} ({k} of {n}): {step}…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The check stopped. {n} model isn't checked yet: Check My Models goes on with it."
+msgid_plural "The check stopped. {n} models aren't checked yet: Check My Models goes on with them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "Optional, about {n} minute: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
+msgid_plural "Optional, about {n} minutes: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "Every model that fits is checked. Choose one, then Finish."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Studio only asks this computer: {why}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Asking {url}…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Nothing answered at {url}: {why}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Licence of {model}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "As its local AI app reports it (Studio doesn't check it). Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1288,7 +1658,19 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/aisetup.inc
-msgid "Choose a model first (the server lists its own): start the server and Look Again if the list is empty."
+msgid "Choose a model first: Studio lists the ones on this computer. Start your local AI app and Look Again if the list is empty."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{model} runs on a service elsewhere, not on this computer: choose a model that runs here, or set that service up as a cloud service."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{model} can't chat: choose another model."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{model} is too big for this computer: choose another model."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1609,7 +1991,7 @@ msgstr ""
 msgid "Versio&ns"
 msgstr ""
 
-#: ide/commands.inc ide/versions.inc
+#: ide/commands.inc
 msgid "&Start Versioning This Project"
 msgstr ""
 
@@ -2179,6 +2561,10 @@ msgstr ""
 
 #: ide/commands.inc
 msgid "AI Apps Acti&vity"
+msgstr ""
+
+#: ide/commands.inc
+msgid "School &Lock..."
 msgstr ""
 
 #: ide/commands.inc
@@ -3424,6 +3810,10 @@ msgid "Share only what you may share: schoolwork, an employer's code or someone 
 msgstr ""
 
 #: ide/mcp.inc
+msgid "AI apps can't start: School Lock is on (Tools > School Lock...)."
+msgstr ""
+
+#: ide/mcp.inc
 msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
 msgstr ""
 
@@ -3459,6 +3849,10 @@ msgstr[1] ""
 
 #: ide/mcp.inc
 msgid "AI apps: off"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "School Lock is on: AI apps can't connect."
 msgstr ""
 
 #: ide/mcp.inc
@@ -4055,6 +4449,10 @@ msgid "A bug in a handler: the program goes on and says so"
 msgstr ""
 
 #: ide/panes.inc
+msgid "What this computer has: memory, processor, disk"
+msgstr ""
+
+#: ide/panes.inc
 msgid "Click the sky: rockets and thousands of sparks"
 msgstr ""
 
@@ -4547,6 +4945,280 @@ msgid "Restored the unsaved work of {n} file (not saved yet)."
 msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
 msgstr[0] ""
 msgstr[1] ""
+
+#: ide/schoollock.inc
+msgid "School Lock"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "What to lock:"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "&AI in Studio (RAI)"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI apps (&MCP)"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI apps on this computer can't connect to RapidR Studio"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Keep RAI in &Coach mode"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "&Password:"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Password"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Type it a&gain:"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Type the password again"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "About the password"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Learn more about School Lock"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Opens the manual's page for teachers in your browser"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "&Turn School Lock Off"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI and AI apps are off in RapidR Studio on this computer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI is off in RapidR Studio on this computer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI apps can't connect to RapidR Studio on this computer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI is turned off by your school"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI is turned off by your teacher"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "turned off by your school"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "turned off by your teacher"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock: this computer's policy ({file}) can't be read: {error}. AI stays off until your school's IT fixes it."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI apps: stopped, School Lock is on. Every AI app was disconnected."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock is on: {what}"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock is unlocked until Studio closes."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock is off."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Everything else works as usual."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "&Unlock..."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Asks for the password"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock: unlocked"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock is unlocked until Studio closes"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "These settings can't be changed while School Lock is on."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI can't be set up while School Lock is on."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Turn on School Lock?"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Features of RapidR Studio are turned off for everyone who uses this account on this computer, until someone types the password. Everything else keeps working."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "&Lock"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Turns School Lock on with this password"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "At least 6 characters."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Type the password to unlock it until Studio closes."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this for every account on this computer. It can be unlocked until Studio closes, but only IT can turn it off."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Turn School Lock Off ends the lock on this account until a teacher turns it on again. It needs the password too."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "&Unlock Until Studio Closes"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI works again until RapidR Studio closes"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI works again until RapidR Studio closes. It is locked again the next time Studio starts."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this for every account on this computer: only IT can turn it off."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "To turn School Lock off for good, type the password and choose Turn School Lock Off."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Lock &Again"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "AI is turned off again now"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "The two passwords differ."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Weak: easy to guess. A longer one with numbers or symbols is safer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Fair. Longer, with capitals, numbers or symbols, is stronger."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Strong."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Too many wrong passwords. Try again in {time}."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "You can try the password again."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "That isn't the password. {n} more try before a one-minute wait."
+msgid_plural "That isn't the password. {n} more tries before a one-minute wait."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this lock: only IT can turn it off."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "No password can unlock this lock: ask your school's IT."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Choose at least one feature to lock."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "The password needs at least 6 characters."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "The two passwords differ: type the same one twice."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Type the password."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "Type the password to turn School Lock off."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "School Lock couldn't be turned on: {error}"
+msgstr ""
 
 #: ide/search.inc
 msgid "Search"
@@ -5213,7 +5885,15 @@ msgid "Versions"
 msgstr ""
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions of This Project"
+msgstr ""
+
+#: ide/versions.inc
 msgid "Start keeping versions of this project (Git calls this git init)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Start keeping versions of this project"
 msgstr ""
 
 #: ide/versions.inc
@@ -5225,15 +5905,7 @@ msgid "The copies Studio kept of this file each time it was saved"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Changes not saved as a version"
-msgstr ""
-
-#: ide/versions.inc
-msgid "Files not saved as a version"
-msgstr ""
-
-#: ide/versions.inc
-msgid "A double click opens the file"
+msgid "Changes"
 msgstr ""
 
 #: ide/versions.inc
@@ -5246,6 +5918,22 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Filter the changed files"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Shows only the files whose name or folder has these letters"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Files not saved as a version, by folder"
+msgstr ""
+
+#: ide/versions.inc
+msgid "A double click or Enter opens a file; Right opens a folder, Left closes it"
 msgstr ""
 
 #: ide/versions.inc
@@ -5371,18 +6059,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/versions.inc
-msgid "new, not in a version yet"
-msgstr ""
-
-#: ide/versions.inc
-msgid "removed since the last version"
-msgstr ""
-
-#: ide/versions.inc
-msgid "changed since the last version"
-msgstr ""
-
-#: ide/versions.inc
 msgid "AI checkpoint: {what}, {when}"
 msgstr ""
 
@@ -5391,11 +6067,61 @@ msgid "saved by {who}, {when}"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Open a project to see its versions"
+msgid "the current version"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Versions keep your project's files as they were at each step, so nothing is ever lost."
+msgid "new, not in a version yet"
+msgstr ""
+
+#: ide/versions.inc
+msgid "deleted since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "changed since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "closed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "open"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Folder {folder}, {changes}, {state}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} change"
+msgid_plural "{n} changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "{file}: {state}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file} in {folder}: {state}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{folder} opened"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{folder} closed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "No project open"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Open a project to keep versions of it: every step of your work, so nothing is ever lost."
 msgstr ""
 
 #: ide/versions.inc
@@ -5423,21 +6149,15 @@ msgid "Until then Studio keeps a copy of each file every time you save it. Local
 msgstr ""
 
 #: ide/versions.inc
-msgid "{experiment} · all saved"
+msgid "Experiment: {experiment}"
 msgstr ""
 
 #: ide/versions.inc
-msgid "{experiment} · {n} change"
-msgid_plural "{experiment} · {n} changes"
-msgstr[0] ""
-msgstr[1] ""
-
-#: ide/versions.inc
-msgid "No changes since the last version"
+msgid "All saved"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Changes not saved as a version ({n})"
+msgid "Everything is saved in a version."
 msgstr ""
 
 #: ide/versions.inc
@@ -5455,11 +6175,39 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} min ago"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} h ago"
+msgstr ""
+
+#: ide/versions.inc
 msgid "AI checkpoint: {what}"
 msgstr ""
 
 #: ide/versions.inc
 msgid "{who} · {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Current"
+msgstr ""
+
+#: ide/versions.inc
+msgid "New"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Deleted"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Changed"
 msgstr ""
 
 #: ide/versions.inc
@@ -5499,7 +6247,7 @@ msgid "new"
 msgstr ""
 
 #: ide/versions.inc
-msgid "removed"
+msgid "deleted"
 msgstr ""
 
 #: ide/versions.inc

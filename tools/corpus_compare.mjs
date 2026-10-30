@@ -20,6 +20,8 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "../tests/test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const [jsonPath, examplesArg, includeArg, filter] = process.argv.slice(2);

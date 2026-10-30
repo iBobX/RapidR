@@ -145,7 +145,7 @@ impl Clipboard for RtClipboard {
 /// Whether the host is headless: under a GUI test (`RAPIDR_CAPTURE`
 /// without `RAPIDR_CAPTURE_WINDOWS`).
 fn headless_requested() -> bool {
-    Capture::from_env().is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
+    Capture::from_env().is_some() && rapidr_testmode::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
 }
 
 /// The host, started the first time a window is needed: headless under a
@@ -242,6 +242,8 @@ fn pump(timeout: Option<Duration>) {
     crate::object::rp_in_host_callback(|| {
         let Ok(mut k) = k.try_borrow_mut() else { return };
         sync_desk(&mut k.desk);
+        // (a test's frame trace: what a frame drawn in this turn shows)
+        k.desk.trace_frame();
         let Kern { host, desk } = &mut *k;
         // (the system tray's icons, when the program changed them)
         let tray = rapidr_value::tray::revision();
@@ -1359,7 +1361,7 @@ fn headless_look() -> bool {
 
 /// The host is the headless one (whose mouse stays at (0, 0)).
 fn headless_known() -> bool {
-    Capture::from_env().is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
+    Capture::from_env().is_some() && rapidr_testmode::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
 }
 
 pub fn monitors() -> i64 {
@@ -1424,8 +1426,8 @@ fn capture_and_end(prefix: &str) -> ! {
     // (the test's own work from here, not the program's: Studio's hang
     // watchdog doesn't count it — rapidr-crash)
     rapidr_crash::watchdog::stop();
-    let a11y = std::env::var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
-    let contrast = std::env::var("RAPIDR_TEST_CONTRAST").ok().filter(|p| !p.is_empty());
+    let a11y = rapidr_testmode::env_var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
+    let contrast = rapidr_testmode::env_var("RAPIDR_TEST_CONTRAST").ok().filter(|p| !p.is_empty());
     let mut reports = Vec::new();
     let shots = with_kern(|k| {
         sync_desk(&mut k.desk);

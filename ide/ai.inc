@@ -133,6 +133,19 @@ DECLARE FUNCTION AIChatStep(Verb AS STRING, Arg AS STRING) AS INTEGER
 ' (aisetup.inc: Set up RAI)
 DECLARE SUB SetUpAISetup
 DECLARE FUNCTION AISetupStep(Verb AS STRING, Arg AS STRING) AS INTEGER
+' (aicoach.inc: the dial — Build or Coach — and Coach's hint strip)
+DECLARE SUB SetUpAIDial
+DECLARE SUB SetUpAICoachBar
+DECLARE SUB AICoachFonts
+DECLARE SUB AIDialApply
+DECLARE SUB AIDialShow
+DECLARE FUNCTION LayOutAIDial(Top AS INTEGER, W AS INTEGER) AS INTEGER
+DECLARE SUB LayOutAICoach
+DECLARE SUB AICoachEnable
+DECLARE SUB AICoachTyped
+DECLARE SUB AICoachNewChat
+DECLARE FUNCTION AICoachEmptyText AS STRING
+DECLARE FUNCTION AICoachStep(Verb AS STRING, Arg AS STRING) AS INTEGER
 
 CONST AIMAXPROPS = 32
 
@@ -531,6 +544,8 @@ SUB SetUpAI
   AINewBtn.AccessibleName = TR$("Start a new chat")
   AINewBtn.AccessibleDescription = TR$("This chat is kept: Chats lists it")
   AINewBtn.OnClick = AINewChat
+  ' (the dial — Build or Coach — its own row under the model: aicoach.inc)
+  SetUpAIDial
 
   ' (the bottom: the status sentence a screen reader announces, the box
   ' to ask in, Send, Stop, and what Send shares)
@@ -649,6 +664,8 @@ SUB SetUpAI
   AIReviewBtn.Caption = TR$("Review the Changes...")
   AIReviewBtn.AccessibleName = TR$("Review the proposed changes")
   AIReviewBtn.OnClick = AIReviewClick
+  ' (Coach's hint strip, right under the chat: aicoach.inc)
+  SetUpAICoachBar
 
   ' (RAI shows its work: the strip under the conversation, only while an
   ' answer works)
@@ -779,6 +796,8 @@ SUB AiLanguageChanged
   IF AIBanner.Visible THEN AISetBanner AIBannerErrors
   ' (the chats list, its title, the bars)
   AiChatsLanguageChanged
+  ' (the dial's spoken names, the hint strip's words)
+  AIDialShow
   LayOutAIPanel
 END SUB
 
@@ -834,6 +853,9 @@ SUB LayOutAIPanel
   AIEffortBox.Left = w - 6 - ew: AIEffortBox.Top = 38: AIEffortBox.Width = ew
   AIRefreshBtn.Left = w - 6 - ew - 4 - 30: AIRefreshBtn.Top = 37: AIRefreshBtn.Width = 30: AIRefreshBtn.Height = bh
   AIModelBox.Left = 6: AIModelBox.Top = 38: AIModelBox.Width = w - 12 - ew - 4 - 30 - 4
+  ' (the dial: Build or Coach, a row of its own — and School Lock's line)
+  y = 70 + LayOutAIDial(70, w) + 6
+  IF AITop.Height <> y THEN AITop.Height = y
   ' (the box; Send and Stop, the answer's seconds at the right; the
   ' context with Compact; the meter, two lines when narrow; "What was
   ' sent" beside the buttons when it fits, else under the meter; what
@@ -868,6 +890,7 @@ SUB LayOutAIPanel
   AIQueueCancel.Left = w - 34: AIQueueCancel.Top = (32 - 26) \ 2: AIQueueCancel.Width = 28: AIQueueCancel.Height = 26
   AIQueueText.Left = 8: AIQueueText.Top = 8: AIQueueText.Width = w - 48: AIQueueText.Height = 18
   AIShowQueue
+  LayOutAICoach
   AIChat.EmptyText = AIEmptyText
 END SUB
 
@@ -935,6 +958,7 @@ SUB AIPanelFonts
   AINewWhat.Font = UIFont
   AINewCode.Font = MonoFont
   AISentText.Font = MonoFont
+  AICoachFonts
 END SUB
 
 ' What the empty conversation says: how to start, or what is missing.
@@ -945,6 +969,8 @@ FUNCTION AIEmptyText AS STRING
     Result = TR$("Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program.")
   ELSEIF AI.Model = "" THEN
     Result = TR$("Choose a model in the list above (↻ asks the provider for its models).")
+  ELSEIF AICoachNow THEN
+    Result = AICoachEmptyText
   ELSE
     Result = TR$("Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands.", "q", CHR$(34))
   END IF
@@ -983,10 +1009,14 @@ SUB AIApplySettings
   AITools.Permission = AIPermission
   AITools.ReviewFirst = AIReviewFirst
   AIApplyReplyLanguage
+  ' (the dial: Build or Coach, as the user left it — School Lock may keep
+  ' Coach on)
+  AIDialApply
   ' (the key: Studio's keychain entry for the provider, else its usual
   ' environment variable — never in the settings)
   AI.APIKeySource = AIKeySourceOf(AIProvider)
   AI.Model = AIModelOf(AIProvider)
+  AILocalApply
   AI.Effort = AIEffort
   AIFilling = 1
   AIFillModels
@@ -1115,6 +1145,7 @@ SUB AIEnableSend
   AIStopBtn.Enabled = Flag(AI.Busy <> 0)
   AIRefreshBtn.Enabled = Flag(AI.Busy = 0 AND AI.Provider <> "")
   AICompactBtn.Enabled = Flag(AI.Busy = 0 AND AI.QuestionCount > 0)
+  AICoachEnable
   ' (the clock while it works: the seconds, the provider's silence)
   IF AI.Busy THEN
     IF AIClock.Enabled = 0 THEN
@@ -1227,6 +1258,11 @@ END FUNCTION
 ' Whether the assistant may show itself: turned on, with a provider, a
 ' key (a local server needs none) and a model the user chose.
 FUNCTION AIReady AS INTEGER
+  Result = Flag(AISetUpDone <> 0 AND LockOffAI = 0)
+END FUNCTION
+
+' (set up as above, whether School Lock turns it off now or not)
+FUNCTION AISetUpDone AS INTEGER
   Result = Flag(AIOn <> 0 AND AI.Provider <> "" AND AI.Model <> "" AND (AI.NeedsKey = 0 OR AI.HasKey <> 0))
 END FUNCTION
 
@@ -1263,6 +1299,8 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIReplyIn") THEN AIReplyIn = Reg.ReadString("AIReplyIn")
   IF Reg.ValueExists("AIReviewFirst") THEN AIReviewFirst = VAL(Reg.ReadString("AIReviewFirst"))
   IF Reg.ValueExists("AIEffort") THEN AIEffort = Reg.ReadString("AIEffort")
+  IF Reg.ValueExists("AIMode") THEN AIMode = Reg.ReadString("AIMode")
+  IF Reg.ValueExists("AILocalPick") THEN AILocalPick = Reg.ReadString("AILocalPick")
   IF Reg.ValueExists("AIPrices") THEN
     AIPriceIn = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 1))
     AIPriceOut = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 2))
@@ -1284,6 +1322,8 @@ SUB SaveAISettings
   Reg.WriteString("AIReplyIn", AIReplyIn)
   Reg.WriteString("AIReviewFirst", LTRIM$(STR$(AIReviewFirst)))
   Reg.WriteString("AIEffort", AIEffort)
+  Reg.WriteString("AIMode", AIMode)
+  Reg.WriteString("AILocalPick", AILocalPick)
   Reg.WriteString("AIPrices", LTRIM$(STR$(AIPriceIn)) + "/" + LTRIM$(STR$(AIPriceOut)))
 END SUB
 
@@ -1351,10 +1391,15 @@ SUB AIShowOrHide
     wasHidden = (Dock.PaneState("aipanel") = "hidden")
     Dock.ShowPane("aipanel")
     IF wasHidden THEN WidenAIPanel
+  ELSEIF LockOffAI THEN
+    ' (School Lock: the pane stays where it is, its card in place of the
+    ' chat; nothing is asked — schoollock.inc)
+    AI.Cancel
   ELSE
     AI.Cancel
     Dock.HidePane("aipanel")
   END IF
+  LockCardShow
   ' (Send and Stop as the assistant now is: ready or not, a key saved or
   ' removed in Settings)
   AIEnableSend
@@ -1365,6 +1410,17 @@ END SUB
 ' set up yet, Set up RAI (the provider chosen, a model; Settings > AI has
 ' every detail).
 SUB ShowAIPanel
+  DIM wasHidden AS INTEGER
+  ' (School Lock: the pane with its card — Unlock… has the keyboard)
+  IF LockOffAI THEN
+    wasHidden = (Dock.PaneState("aipanel") = "hidden")
+    Dock.ShowPane("aipanel")
+    IF wasHidden THEN WidenAIPanel
+    LockCardShow
+    Dock.FocusPane("aipanel")
+    LockCardFocus
+    EXIT SUB
+  END IF
   IF AIReady = 0 THEN
     ShowAISetup
     EXIT SUB
@@ -1423,6 +1479,9 @@ SUB AISend
     IF AISendEdited(t) THEN AIInput.Text = ""
     EXIT SUB
   END IF
+  ' (Coach: a question typed is a new problem on the first hint, or the
+  ' open one's — Next Hint climbs: aicoach.inc)
+  AICoachTyped
   ' (while it works: the message waits, shown, and goes when the answer
   ' ends — typing never stops an answer; a second one joins the first)
   IF AI.Busy THEN
@@ -1437,6 +1496,11 @@ END SUB
 
 ' (a question to the assistant now: typed in the box, or the one queued)
 SUB AISendNow(T AS STRING, FromBox AS INTEGER)
+  ' (School Lock: nothing goes to an AI while it is off)
+  IF LockOffAI THEN
+    AIStatus.SimpleText = LockTitleText
+    EXIT SUB
+  END IF
   ' (the answer followed again, a thought opened before or not)
   AIChat.FollowEnd = 1
   AISyncProject
@@ -1693,6 +1757,7 @@ SUB AINewChat
   AIStartNewChat
   AITools.ClearProposals
   AIReviewBar.Visible = 0
+  AICoachNewChat
   AIEnableSend
   AIInput.SetFocus
 END SUB
@@ -1768,6 +1833,8 @@ SUB AIDone(Status AS STRING)
     END IF
   END IF
   AIShowUsage
+  ' (Coach: the hint strip as the ladder is now)
+  AICoachShow
   ' (R1: the chat kept, as it is now)
   AISaveChat
   AISendQueued Status
@@ -1837,9 +1904,21 @@ SUB AIModelsIn(Count AS INTEGER)
   AISendQueued "ok"
 END SUB
 
+' (a model on this computer Set Up RAI picked: its context and RAI's mode
+' from its check, while it is the model used; any other: RAI's own choice)
+SUB AILocalApply
+  AI.SmallModel = -1
+  AI.ContextSize = 0
+  IF AIProvider <> "compatible" OR AILocalPick = "" THEN EXIT SUB
+  IF FIELD$(AILocalPick, "|", 1) <> AIBase OR FIELD$(AILocalPick, "|", 2) <> AI.Model THEN EXIT SUB
+  AI.ContextSize = VAL(FIELD$(AILocalPick, "|", 3))
+  IF FIELD$(AILocalPick, "|", 4) = "small" THEN AI.SmallModel = 1 ELSE AI.SmallModel = 0
+END SUB
+
 SUB AIModelPicked
   IF AIFilling THEN EXIT SUB
   AI.Model = AIModelId(AIModelBox.Text)
+  AILocalApply
   AISetModelOf AI.Provider, AI.Model
   ' (the model chosen is kept, as Settings keeps it)
   SaveSettings
@@ -2929,6 +3008,7 @@ SUB AIStep(Stp AS STRING)
   END IF
   ' (the chats' steps — aichats.inc —, Set up RAI's — aisetup.inc)
   IF AIChatStep(verb, arg) THEN EXIT SUB
+  IF AICoachStep(verb, arg) THEN EXIT SUB
   IF AISetupStep(verb, arg) THEN EXIT SUB
   SELECT CASE verb
     CASE "effort": AISetEffort arg

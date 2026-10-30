@@ -1,0 +1,6 @@
+str len4 pos3 [97 98 99 32 ]
+bin len3 pos6 [100 101 102 ]
+str1 len2 pos7 [103 32 ]
+all len9 pos8 [97 98 99 100 101 102 103 104 32 ]
+mem len3 pos3 [97 98 99 ]
+membin len3 pos6 [100 101 102 ]

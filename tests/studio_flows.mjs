@@ -24,6 +24,8 @@ import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
@@ -465,8 +467,76 @@ const V_OPEN = { open: "tests/fixtures/studio_versions/Hello.rrproj", copyDir: t
 const V_FIRST = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
 const V_EDIT = 'code:PRINT "Done."=>PRINT "All done!",file.save';
 const V_SECOND = `${V_FIRST},${V_EDIT},versions:save=second`;
+// (VERSIONS-POLISH) A project with 29 changes in folders — a first version
+// of main.rr and the project file only; then .gitignore, notes.txt, docs/
+// (2), art/ (logo.svg; desktop.ini, the system's, never listed) and
+// screenshots/ (24) new — for the pane's grouping, folders and filter.
+const V_MANY = { open: "tests/fixtures/studio_versions_many/Shots.rrproj", copyDir: true, fsck: true };
+const V_MANY_FIRST = "versions.pane,versions.start,versions:author=Ana,versions:saveonly=first;main.rr;Shots.rrproj,versions.pane";
+const V_MANY_ROWS = [
+  ".gitignore: new, not in a version yet",
+  "notes.txt: new, not in a version yet",
+  "Folder art, 1 change, open",
+  "logo.svg in art: new, not in a version yet",
+  "Folder docs, 2 changes, open",
+  "faq.md in docs: new, not in a version yet",
+  "guide.md in docs: new, not in a version yet",
+  "Folder screenshots, 24 changes, closed",
+];
+// (the dock's splitter between the left column and the documents dragged
+// step by step as a person's mouse — right, back left past where it
+// started, then slowly further left —, each step a turn)
+const V_DRAG = (() => {
+  const ev = ["dock.__mousedown_241_300"];
+  let x = 241;
+  for (let i = 0; i < 20; i++) ev.push(`dock.__mousemove_${(x += 8)}_300`);
+  for (let i = 0; i < 30; i++) ev.push(`dock.__mousemove_${(x -= 8)}_300`);
+  for (let i = 0; i < 12; i++) ev.push(`dock.__mousemove_${(x -= 3)}_300`);
+  ev.push(`dock.__mouseup_${x}_300`, "dock.__wait_500");
+  return ev.join(",");
+})();
+const V_FRAMED = ["verpanel", "verchanges", "vertimeline", "versavebtn", "verfilter", "verwhatbtn", "verbackbtn", "verundobtn", "verundonote"];
+// (the frames a drag made: every frame shows the lists drawn — never their
+// items' plain text —, each control placed for the panel's width in that
+// very frame — its right edge where the panel's says —, and each moving one
+// way while the panel does: no control comes back to a place it left)
+function stableFrames(text) {
+  const frames = text.trim().split("\n").filter(Boolean).map((line) => Object.fromEntries(line.split(" ").map((p) => {
+    const [k, v] = p.split("=");
+    return [k, v === "-" ? null : v.split(",")];
+  })));
+  const out = [];
+  let drawn = false, plain = 0, off = 0, back = 0, moves = 0;
+  let last = null, dir = 0;
+  // (from the frame before the drag's first step: the steps before it —
+  // the project opened, versions saved — change the lists' items, whose new
+  // rows show their ground for a frame until drawn)
+  const start = frames.findIndex((f, i) => i > 0 && f.verpanel && frames[i - 1].verpanel && f.verpanel[2] !== frames[i - 1].verpanel[2]);
+  for (const f of frames.slice(Math.max(0, start - 1))) {
+    const lists = ["verchanges", "vertimeline"].filter((k) => f[k]);
+    if (lists.length && lists.every((k) => f[k][4] !== "plain")) drawn = true;
+    if (drawn && lists.some((k) => f[k][4] === "plain")) plain++;
+    const p = f.verpanel;
+    if (!p) continue;
+    const right = +p[0] + +p[2];
+    for (const k of ["verchanges", "vertimeline"]) {
+      if (f[k] && +f[k][0] + +f[k][2] !== right - 8) off++;
+    }
+    if (last && +p[2] !== +last.verpanel[2]) {
+      moves++;
+      const d = Math.sign(+p[2] - +last.verpanel[2]);
+      for (const k of ["vertimeline", "verchanges", "verfilter"]) {
+        if (f[k] && last[k] && Math.sign(+f[k][2] - +last[k][2]) === -d) back++;
+      }
+      dir = d;
+    }
+    last = f;
+  }
+  out.push(`${frames.length} frames, ${moves} with a new width`);
+  return [drawn && moves >= 40 && plain === 0 && off === 0 && back === 0, `the drag's frames: ${out.join("")}; lists flashing their plain text: ${plain}; lists not placed for their frame's width: ${off}; controls moving against the drag: ${back}`];
+}
 // (a key written in the code: the secret check's line; not a real key)
-const V_SECRET = 'code:PRINT "Done."=>key$ = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save';
+const V_SECRET = `code:PRINT "Done."=>key$ = "${"sk"}-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save`;
 
 // (EXTERNAL-CHANGES) The walk's project — a copy of tests/fixtures/
 // studio_external outside this repository — and what another process writes
@@ -1298,7 +1368,8 @@ const CASES = [
     do: "wait,view.designer,pick:AddBtn,wait",
     delay: 6,
     dump: {
-      "inspector.__cursor_120_246": /^col-resize$/,
+      // (INSPECTOR-CATEGORIES: the names' column starts 148 wide)
+      "inspector.__cursor_148_246": /^col-resize$/,
       "inspector.__cursor_60_246": /^default$/,
       "inspector.__cursor_120_80": /^text$/,
       "dock.__cursor_241_200": /^col-resize$/,
@@ -1308,6 +1379,98 @@ const CASES = [
       "designdoc(0).__cursor_355_306": /^move$/,
       "designdoc(0).__cursor_339_306": /^nwse-resize$/,
     },
+  },
+  // (INSPECTOR-CATEGORIES, Robert 2026-10-30: "RapidR extensions … makes no
+  // sense") Every member is under the heading of what it is for, in every
+  // look: the form's Accessible* three under Accessibility, Anchors, AutoSize
+  // and the Min/Max sizes in Layout, BrushColor and PenColor in Drawing,
+  // FontColor / FontName / FontSize in Font, HelpFile in Help — and no heading
+  // that names where a member comes from. A project not kept classic-compatible
+  // marks nothing (no "R", no "new"): MarkNonClassic, and its older name
+  // ShowRapidRExtensions, read False; Anchors' row has no description.
+  {
+    name: "inspector-categories",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:Form,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^Form$/,
+      "inspector.rows": /^\[Accessibility\]\nAccessibleDescription=\nAccessibleHidden=False\nAccessibleName=\n\[Appearance\]\n[\s\S]*^\[Drawing\]\nBrushColor=[^\n]*\nCopyMode=[^\n]*\nPenColor=[^\n]*\n\[Font\]\nFont=[^\n]*\nFontColor=[^\n]*\nFontName=[^\n]*\nFontSize=[^\n]*\n\[Help\]\nHelpFile=[^\n]*\nHint=[^\n]*\nShowHint=[^\n]*\n\[Layout\]\nAnchors=akLeft, akTop\nAutoScroll=[^\n]*\nAutoSize=[^\n]*\nHeight=[^\n]*\nLeft=[^\n]*\nMaxHeight=[^\n]*\nMaxWidth=[^\n]*\nMinHeight=[^\n]*\nMinWidth=[^\n]*\nTop=[^\n]*\nWidth=[^\n]*\n\[Window\]\n/m,
+      "inspector.marknonclassic": /^(0|False)$/i,
+      "inspector.showrapidrextensions": /^(0|False)$/i,
+    },
+    a11y: [
+      ["Accessibility", "row", null, (n) => n.description === "3 properties"],
+      ["Layout", "row", null, (n) => n.description === "11 properties"],
+      ["Anchors", "row", null, (n) => !n.description],
+      ["AccessibleDescription", "row", null, (n) => !n.description],
+    ],
+  },
+  // (INSPECTOR-CATEGORIES) A project kept classic-compatible ([compat]
+  // rapidq_compatible) marks, with a small calm "new" chip, the members a
+  // classic program doesn't have; its tooltip and the row's description (what a
+  // screen reader says) are "Not in classic programs", and Caption — which
+  // classic programs have — says nothing. The inspector reads the project's
+  // setting (MarkNonClassic, ShowRapidRExtensions its older name). The same
+  // pane in Spanish: the headings and the words.
+  {
+    name: "inspector-classic-marks",
+    open: "tests/fixtures/studio_classic/Classic.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_classic/Classic.rrproj", "tests/fixtures/studio_classic/main.rr"],
+    do: "wait,view.designer,pick:GoBtn,wait,row:MinHeight,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^GoBtn$/,
+      "inspector.marknonclassic": /^(1|-1|True)$/i,
+      "inspector.showrapidrextensions": /^(1|-1|True)$/i,
+      "inspector.rows": /^\[Accessibility\]\nAccessibleDescription=\nAccessibleHidden=False\nAccessibleName=\n/,
+    },
+    a11y: [
+      ["Anchors", "row", null, (n) => n.description === "Not in classic programs"],
+      ["MinHeight", "row", null, (n) => n.description === "Not in classic programs"],
+      ["AccessibleName", "row", null, (n) => n.description === "Not in classic programs"],
+      ["Caption", "row", null, (n) => !/classic/.test(n.description)],
+      ["Height", "row", null, (n) => !n.description],
+    ],
+  },
+  {
+    name: "inspector-classic-marks-es",
+    open: "tests/fixtures/studio_classic/Classic.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_classic/Classic.rrproj", "tests/fixtures/studio_classic/main.rr"],
+    do: "wait,view.designer,pick:GoBtn,wait,lang:es,wait,row:MinHeight,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    dump: { "inspector.target": /^GoBtn$/, "inspector.marknonclassic": /^(1|-1|True)$/i },
+    a11y: [
+      ["Anchors", "row", null, (n) => n.description === "No está en los programas clásicos"],
+      ["Accesibilidad", "row", null, (n) => n.description === "3 propiedades"],
+      ["Disposición", "row", null, (n) => n.description === "10 propiedades"],
+      ["Ayuda", "row", null, (n) => n.description === "2 propiedades"],
+      ["Caption", "row", null, (n) => !/clásic/.test(n.description)],
+    ],
+  },
+  // (INSPECTOR-CATEGORIES) The divider between the name and value columns
+  // remembers where the user left it: left at 180 (namewidth:180 — what a
+  // drag does; the real press, move and release on the line is the kernel's
+  // own test — and the settings kept as Studio closing keeps them), Studio
+  // started again on the same settings (not --fresh): the column is 180 wide,
+  // not its default 148.
+  {
+    name: "inspector-divider-remembered",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,namewidth:180,wait",
+    delay: 5,
+    restart: { do: "wait,view.designer,pick:AddBtn,wait", delay: 5 },
+    dump: { "inspector.namewidth": /^180$/ },
   },
   // (the web) A screen reader on the inspector: Chrome's accessibility
   // tree (what VoiceOver, NVDA and JAWS read) has a tree grid of rows, each
@@ -2422,7 +2585,7 @@ const CASES = [
     do: "wait,view.code,wait,caret:    PickedFont,help.contents,wait",
     delay: 6,
     dump: {
-      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · desktop and web\n[^\n]*\nProperties \(\d+\)\n/,
+      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · [^\n]*\n[^\n]*\nProperties \(\d+\)\n/,
       "helpsearch.text": /^PickedFont$/,
     },
   },
@@ -3060,7 +3223,8 @@ const CASES = [
     do: "wait",
     delay: 3,
     dump: { "dock.layout": /tabs \d+ outputbox immediatebox bppanel\n[\s\S]*hidden [^\n]*varstree[^\n]*watchpanel[^\n]*stacktree/, "outputbox.width": /^\d+$/ },
-    checks: [(d) => [+d["outputbox.width"] >= 780, `Output the documents' whole width (${d["outputbox.width"]})`]],
+    // (the documents are 756 wide in a 1280 window: the Properties pane is 272, the others 240)
+    checks: [(d) => [+d["outputbox.width"] >= 750, `Output the documents' whole width (${d["outputbox.width"]})`]],
   },
   {
     // (S9) A run with the debugger: the debugging layout — Variables,
@@ -5562,14 +5726,16 @@ const CASES = [
     },
   },
   {
-    // R6: Set up RAI, free on this computer — the servers looked for (the
-    // tests' addresses: the mock as Ollama, nothing for the others);
-    // found, said in plain words
+    // R6 + LOCAL-AI (docs/local-ai-plan.md): Set up RAI, free on this
+    // computer — the models of a local AI app found (the tests' addresses:
+    // the mock's local AI app, a closed port; the memory the tests'
+    // 16 GB with 12 free — never this computer's or the user's servers),
+    // said in plain words with no product named
     name: "ai-r6-setup-found",
     open: "examples/gui/hello_form.rr",
     webFiles: ["examples/gui/hello_form.rr"],
-    do: "ai:setupprobes={mock}|http://127.0.0.1:9/v1|{mockroot}/s/bad/v1,ai:setup,wait",
-    events: [idle(6)].join(","),
+    do: "ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8)].join(","),
     delay: 5,
     themes: LOOKS,
     capture: true,
@@ -5577,29 +5743,208 @@ const CASES = [
     window: 2,
     dump: {
       "aisetup.visible": /^(-1|1|True)$/i,
-      "aisufoundtext.caption": /^✓ Found on this computer: Ollama \(2 models\)\. Not running: LM Studio, MLX Serve\.$/,
+      "aisufoundtext.caption": /^✓ Found 3 models in a local AI app on this computer\.$/,
+      "aisulocal.checked": /^(-1|1|True)$/i,
+      "aisulocaltext.caption": /local AI app(?![\s\S]*(Ollama|LM Studio|MLX))/,
+    },
+    // (the web: a browser can't look around this computer — the address
+    // typed is asked: the first one, as the tests type it; every model
+    // listed, none described)
+    webDump: {
+      "aisetup.visible": /^(-1|1|True)$/i,
+      "aisufoundtext.caption": /^✓ Found 4 models in a local AI app on this computer\.$/,
       "aisulocal.checked": /^(-1|1|True)$/i,
     },
   },
   {
-    // ... Next (the mouse), the server and its model, Finish (the mouse):
-    // the assistant on, set up, its pane shown
-    name: "ai-r6-setup-local",
+    // ... Next (the mouse): the models, the best match first and chosen,
+    // each with its chip and its line for a student — mock-small fits
+    // (16K for RAI), mock-chat takes no tools, mock-huge is too big, the
+    // embedding model can't chat; its licence as reported, the note for
+    // apps to sell; Check My Models' estimate
+    name: "local-ai-models",
     open: "examples/gui/hello_form.rr",
-    webFiles: ["examples/gui/hello_form.rr"],
-    do: "ai:setupprobes={mock}|http://127.0.0.1:9/v1|{mockroot}/s/bad/v1,ai:setup,wait",
-    events: [idle(6), CLICK("aisunextbtn", 30, 14), idle(2), CLICK("aisunextbtn", 30, 14), idle(4)].join(","),
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    window: 2,
+    dump: {
+      "aisumodels.itemcount": /^4$/,
+      "aisumodels.itemindex": /^0$/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to see how it does\.\r?\n/,
+      "aisumemtext.caption": /^This computer: 16 GB of memory; 1[01](\.\d)? GB free for a model now \(13 GB with other apps closed\)\.$/,
+      "aisudetail.caption": /^Best match for this computer by its size: Check My Models to see how it does\.\nmock-small · 1\.9 GB · 3\.2B parameters · Q4_K_M · takes tools · RAI gets a 16K context\.\nLicence, as its local AI app reports it \(Studio doesn't check it; it can be wrong or out of date\): Mock Model Licence 1\.0\. Building apps to sell\? Check this model's licence: it may limit commercial use, or what you may do with what the model writes\.$/,
+      "aisuchecknote.caption": /^Optional, about \d+ minutes?: Studio loads each model that fits here, one at a time/,
+      "aisucheckbtn.enabled": /^(-1|1|True)$/i,
+      "aisulicbtn.enabled": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // ... each row said in words (a screen reader reads the list's items):
+    // the model with no tools
+    name: "local-ai-rows",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), "aisumodels.__item_1", idle(2)].join(","),
     delay: 5,
+    dump: {
+      "aisumodels.text": /\nmock-chat\. Fits\. Its local AI app says it takes no tools, so RAI can't build apps with it\.\r?\n/,
+      "aisudetail.caption": /no tools[\s\S]*Its local AI app doesn't say its licence: check it where you got the model\. Building apps to sell\? Check this model's licence: it may limit commercial use, or what you may do with what the model writes\.$/,
+      "aisulicbtn.enabled": /^(0|False)$/i,
+    },
+  },
+  {
+    // ... a computer too small (4 GB, 1 free): every model shown, none
+    // picked — Finish says so and stays
+    name: "local-ai-toobig",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=4096&free=1024,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), "aisumodels.__item_0", idle(2), CLICK("aisunextbtn", 30, 14), idle(2)].join(","),
+    delay: 5,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisetup.visible": /^(-1|1|True)$/i,
+      "aisumodels.text": /^mock-small\. Too big for this computer\. Too big for this computer: it needs [\d.]+ GB; a model can have 1 GB here at most\.\r?\n/,
+      "aisuchecknote.caption": /^mock-small is too big for this computer: choose another model\.$/,
+      "aisucheckbtn.enabled": /^(0|False)$/i,
+      "ai.provider": /^$/,
+    },
+  },
+  {
+    // ... none found (a closed port): what a local AI app is, how to add
+    // one (the manual), another address — and one of another computer
+    // refused before anything is asked
+    name: "local-ai-none",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes=http://127.0.0.1:9/v1,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), typeInto("aisuaddredit", "192.168.1.20:11434"), CLICK("aisuaddrbtn", 30, 12), idle(4)].join(","),
+    delay: 5,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisufoundtext.caption": /^No local AI app found running on this computer: Next says what one is and how to add one\.$/,
+      "aisumodels.visible": /^(0|False)$/i,
+      "aisunone.visible": /^(-1|1|True)$/i,
+      "aisunone.caption": /^No AI model answered on this computer\. A local AI app is a free program you install/,
+      "aisunonelink.visible": /^(-1|1|True)$/i,
+      "aisuchecknote.caption": /^Studio only asks this computer: 192\.168\.1\.20:11434 isn't an address on this computer/,
+    },
+  },
+  {
+    // ... Check My Models (the mouse): one model at a time against the
+    // mock's local AI app — mock-small calls the tool and builds the Hello
+    // app, so it is the best match "builds apps"; mock-chat writes its call
+    // as text: it can chat, not build
+    name: "local-ai-check",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(4)].join(","),
+    delay: 12,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    window: 2,
+    dump: {
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer: it built Studio's test app, answers in about \d+ s\.\r?\nmock-chat\. Fits\. Can chat, but can't build apps with RAI: its tool calls didn't work here\.\r?\n/,
+      "aisuchecknote.caption": /^Every model that fits is checked\. Choose one, then Finish\.$/,
+      "aisucheckbtn.caption": /^&Check My Models$/,
+    },
+  },
+  {
+    // ... and Finish (the mouse): RAI on with that model, the context and
+    // the mode its check chose (it built the app, fast, with tools: the
+    // full mode, 16K); its pane shown
+    name: "local-ai-finish",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(2), CLICK("aisunextbtn", 30, 14), idle(4)].join(","),
+    delay: 12,
     dump: {
       "aisetup.visible": /^(0|False)$/i,
       "ai.provider": /^compatible$/,
       "ai.model": /^mock-small$/,
-      "ai.baseurl": /^http:\/\/127\.0\.0\.1:\d+\/v1$/,
+      "ai.baseurl": /^http:\/\/127\.0\.0\.1:\d+\/s\/local\/v1$/,
+      "ai.smallmodel": /^0$/,
+      "ai.contextsize": /^16384$/,
       "aistatus.simpletext": /^RAI is ready: mock-small\.$/,
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
-      // (POLISH-2: the models asked for at Finish, as ↻: the panel's own
-      // list, not only the wizard's)
-      "ai.modelcount": /^[1-9]\d*$/,
+    },
+  },
+  {
+    // ... a check stopped (Stop Checking): the model being checked is left
+    // unchecked, said — the slow local AI app holds each answer 5 s
+    name: "local-ai-cancel",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/localslow/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(2)].join(","),
+    delay: 6,
+    dump: {
+      "aisuchecknote.caption": /^The check stopped\. 2 models aren't checked yet: Check My Models goes on with them\.$/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to see how it does\.\r?\n/,
+      "aisucheckbtn.caption": /^&Check My Models$/,
+    },
+  },
+  {
+    // ... in Spanish: the page, the chips, the lines
+    name: "local-ai-es",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisumodels.text": /^mock-small\. Cabe\. /,
+      "aisucheckbtn.caption": /^&Comprobar mis modelos$/,
+    },
+  },
+  {
+    // ... the web: a browser can't look around this computer — the
+    // address typed is asked (the mock's local AI app), its models listed
+    // with what the browser can tell; no check there
+    name: "local-ai-web",
+    open: "examples/gui/hello_form.rr",
+    webOnly: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupaddr={mockroot}/s/local/v1,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisumodels.itemcount": /^4$/,
+      "aisumodels.text": /^mock-small\. Size not known\. A browser can't tell if it fits: Studio on the desktop can check it\.\r?\n/,
+      "aisumemtext.caption": /^A browser can't tell how much memory this computer has free/,
+      "aisucheckbtn.enabled": /^(0|False)$/i,
+    },
+  },
+  {
+    // ... while School Lock turns RAI off: nothing is looked for — the
+    // mock's local AI app isn't asked anything
+    name: "local-ai-locked",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,wait,ai:setupprobes={mockroot}/s/local/v1,ai:setup,wait",
+    events: [idle(8)].join(","),
+    delay: 5,
+    mockLog: /^\[\]$/,
+    dump: {
+      "locksustrip.visible": /^1$/,
+      "aisufoundtext.caption": /^$/,
+      "aisunextbtn.enabled": /^0$/,
     },
   },
   {
@@ -5608,9 +5953,9 @@ const CASES = [
     // meter's limit is the model's
     name: "ai-r6-setup-local-window",
     open: "examples/gui/hello_form.rr",
-    webFiles: ["examples/gui/hello_form.rr"],
-    do: "ai:setupprobes={mockroot}/s/tiny/v1|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup,wait",
-    events: [idle(6), CLICK("aisunextbtn", 30, 14), idle(2), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/tiny/v1,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
     delay: 6,
     dump: {
       "aisetup.visible": /^(0|False)$/i,
@@ -6051,7 +6396,7 @@ const CASES = [
     delay: 6,
     dump: {
       "ai.steps": /^Looked up RButton\nLooked at the form$/,
-      "ai.transcript": /RButton is RButton \(RapidQ: QButton\)[\s\S]*the form has 5 components/,
+      "ai.transcript": /RButton is RButton \(classic name: QButton\)[\s\S]*the form has 5 components/,
       "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/anthropic\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
       "ai.keyhint": /^…wxyz$/,
       "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received$/,
@@ -6468,13 +6813,14 @@ const CASES = [
   {
     name: "versions-empty",
     ...V_OPEN,
-    do: "versions.pane",
+    do: "versions.pane,versions:problems",
     delay: 4,
     themes: LOOKS,
     capture: true,
     contrast: true,
-    dump: { "versub.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO },
-    webDump: { "versub.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
+    a11y: [["Local History...", "button"]],
+    dump: { "versub.caption": /^Hello$/, "veremptytitle.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verstartbtn.primary": /^(1|-1|True)$/i, "verstartbtn.accessiblename": /^Start keeping versions of this project$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO, "verbranch.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
+    webDump: { "veremptytitle.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
   },
   {
     name: "versions-first",
@@ -6485,8 +6831,8 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    a11y: [["Timeline: every version, newest first", null], [/^first, saved by Ana, just now$/, null]],
-    dump: { "repo.versioned": YES, "vertimeline.itemcount": /^1$/, "versub.caption": /^main · all saved$/, "repo.experiment": /^main$/ },
+    a11y: [["Timeline: every version, newest first", null], [/^first, saved by Ana, just now, the current version$/, null], ["Experiment: main", null], ["no changes since the last version", null]],
+    dump: { "repo.versioned": YES, "vertimeline.itemcount": /^1$/, "verbranchtext.caption": /^main$/, "vercounttext.caption": /^All saved$/, "vercountchip.tag": /^1$/, "repo.experiment": /^main$/, "versavebtn.enabled": /^0$/, "vernochanges.visible": /^1$/ },
     desktopFiles: ["project/.gitignore", "project/.git/HEAD"],
   },
   {
@@ -6603,7 +6949,7 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    dump: { "vertimeline.itemcount": /^3$/, "outputbox.text": /Went back to “first”: a new version/, "codedoc(0).text": /PRINT "Done\."$/, "verundonote.caption": /^Undo: Went back to “first”/ },
+    dump: { "vertimeline.itemcount": /^3$/, "outputbox.text": /Went back to “first”: a new version/, "codedoc(0).text": /PRINT "Done\."$/, "verundonote.hint": /^Undo: Went back to “first”/, "verundonote.visible": /^1$/ },
     files: { "main.rr": /PRINT "Done\."\n$/ },
   },
   {
@@ -6674,6 +7020,181 @@ const CASES = [
     events: `verdifflist.__item_2,${CLICK("verdiffact", 40, 12)},verdiffpane.__wait_1500`,
     delay: 6,
     dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES, "verdiff.changecount": /^0$/ },
+  },
+  // (VERSIONS-POLISH) The Versions pane as a person meets it (Robert's
+  // walk on a real project, 2026-10-30): a tab beside Project and Search in
+  // every layout — a fresh profile's, an old layout's — unless closed on
+  // purpose (remembered; View > Versions brings it back); its calm empty
+  // state; the changes grouped by folder (a long folder closed, opened with
+  // Right, the filter past 20 files; the system's desktop.ini never listed);
+  // the timeline's row picked across its whole width; no control cut off or
+  // on top of another at 260 and 400 pixels (the layout report), in the
+  // three looks; the dock's splitter dragged step by step with every frame
+  // drawn and placed for its own width; Spanish.
+  {
+    name: "versions-default-tab",
+    do: "wait,versions:problems",
+    delay: 4,
+    capture: true,
+    dump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m, "veremptytitle.caption": /^No project open$/, "versub.caption": /^No project open$/, "verstartbtn.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
+    webDump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m, "veremptytitle.caption": /^No project open$/ },
+  },
+  {
+    // (a project open: the tab is there, Project in front)
+    name: "versions-default-tab-project",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "wait",
+    delay: 4,
+    dump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m, "versub.caption": /^Hello$/ },
+  },
+  {
+    // (a layout an older Studio saved — no Versions in it —, read at start:
+    // the tab put back beside Project and Search, Project still in front)
+    name: "versions-old-layout",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "wait,versions:oldlayout,wait",
+    delay: 4,
+    dump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m },
+  },
+  {
+    // (the person closes the tab — its close button —: Studio started again
+    // keeps it closed)
+    name: "versions-closed-stays-closed",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "versions.pane,wait",
+    events: `${CLICK("dock__g0", 226, 14)},dock.__wait_300`,
+    delay: 4,
+    restart: { delay: 5, events: "" },
+    dump: { "dock.layout": /^hidden[^\n]*\bverpanel\b/m },
+    checks: [(d) => [!/tabs \d+ projecttree searchpane verpanel/.test(d["dock.layout"] || ""), "the Versions tab isn't among Project's tabs"]],
+  },
+  {
+    // (…and View > Versions brings it back, for good)
+    name: "versions-closed-view-brings-back",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "versions.pane,wait",
+    events: `${CLICK("dock__g0", 226, 14)},dock.__wait_300`,
+    delay: 4,
+    restart: { delay: 5, events: "", do: "versions.pane,wait" },
+    dump: { "dock.layout": /tabs \d+ projecttree searchpane verpanel/, "verpanel.visible": /^(1|-1)$/ },
+  },
+  {
+    name: "versions-grouped",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},versions:problems`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Folder screenshots, 24 changes, closed", null], ["logo.svg in art: new, not in a version yet", null], ["Filter the changed files", null], ["29 changes not saved as a version", null]],
+    dump: {
+      "verchanges.items": new RegExp(`^${V_MANY_ROWS.map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\n")}$`),
+      "vercounttext.caption": /^29 changes$/, "verfilter.visible": /^1$/, "repo.changecount": /^29$/, "outputbox.text": /\[versions\] problems=0/,
+    },
+  },
+  {
+    // (the closed folder picked, Right: its 24 files under it; Left on one
+    // of them: back on the folder)
+    name: "versions-folder-open",
+    ...V_MANY,
+    desktopOnly: true,
+    do: V_MANY_FIRST,
+    events: "verchanges.__item_7,verchanges.__key_39,verchanges.__wait_200,verchanges.__item_9,verchanges.__key_37",
+    delay: 6,
+    capture: true,
+    dump: { "verchanges.itemcount": /^32$/, "verchanges.items": /^Folder screenshots, 24 changes, open$/m, "verchanges.itemindex": /^7$/ },
+  },
+  {
+    // (the filter: only the files with "pane-0" — nine screenshots, their
+    // folder open while filtering)
+    name: "versions-filter",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},focus:verfilter`,
+    events: `${typeInto("verfilter", "pane-0")},verfilter.__wait_300`,
+    delay: 6,
+    capture: true,
+    dump: { "verchanges.itemcount": /^10$/, "verchanges.items": /^Folder screenshots, 9 changes, open\n/ },
+  },
+  {
+    // (a version picked: its row in the selection's colours to the list's
+    // right edge — the timeline has room, no scroll bar —; What Changed? and
+    // Go Back... on)
+    name: "versions-timeline-pick",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,versions:pick=first`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^first, saved by Ana, just now$/, null, "selected"], [/^second, saved by Ana, just now, the current version$/, null]],
+    dump: { "vertimeline.itemindex": /^1$/, "verwhatbtn.enabled": /^1$/, "verbackbtn.enabled": /^1$/ },
+  },
+  ...[260, 400].map((width) => ({
+    // (narrow side columns: nothing cut off, nothing on top of another)
+    name: `versions-narrow-${width}`,
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},code:PRINT "All done!"=>PRINT "Bye",file.save,versions.pane,versions:width=${width},wait,versions:problems`,
+    delay: 8,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verpanel.width": new RegExp(`^${width - 2}$`), "outputbox.text": /\[versions\] problems=0/ },
+  })),
+  {
+    name: "versions-narrow-many-260",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},versions:width=260,wait,versions:problems`,
+    delay: 6,
+    capture: true,
+    dump: { "outputbox.text": /\[versions\] problems=0/ },
+  },
+  {
+    // (the dock's splitter dragged step by step: every frame drawn and
+    // placed for its own width — Robert saw the lists flash their plain
+    // text between frames)
+    name: "versions-splitter-stable",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},versions:saveonly=second;notes.txt,versions.pane`,
+    events: V_DRAG,
+    frames: V_FRAMED,
+    delay: 6,
+    dump: { "verpanel.width": /^\d+$/ },
+    checks: [(d) => stableFrames(d.__frames || "")],
+  },
+  {
+    name: "versions-es",
+    ...V_MANY,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${V_MANY_FIRST},versions:problems`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    a11y: [["Carpeta screenshots, 24 cambios, cerrada", null], ["Experimento: main", null]],
+    dump: { "verchangeshead.caption": /^Cambios$/, "vercounttext.caption": /^29 cambios$/, "versavebtn.caption": /^&Guardar una versión\.\.\.$/, "outputbox.text": /\[versions\] problems=0/ },
+  },
+  {
+    // (in Spanish, no versions yet: the long words of Start fit, or the
+    // short ones)
+    name: "versions-empty-es",
+    ...V_OPEN,
+    desktopArgs: ["--lang", "es"],
+    do: "versions.pane,versions:problems",
+    delay: 4,
+    capture: true,
+    dump: { "veremptytitle.caption": /^Aún no hay versiones$|^Todavía no hay versiones$|^No hay versiones/, "verstartbtn.caption": /^&Empezar a guardar versiones/, "outputbox.text": /\[versions\] problems=0/ },
+    webDump: { "veremptytitle.caption": /^No disponible en un navegador$/, "verstartbtn.visible": /^0$/ },
   },
   // (EXTERNAL-CHANGES) Files changed outside Studio — another AI agent, an
   // editor, git — walked as a person sees it (the lane's acceptance): a
@@ -6993,6 +7514,615 @@ const CASES = [
     delay: 4,
     dump: {},
     webDump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
+  },  // ---- SCHOOL-LOCK (Preview 5): a teacher turns Studio's AI off behind a
+  // password — ide/schoollock.inc, rapidr-studio's school_lock.rs, the
+  // manual's "For teachers". The password "maestra1" (a test's); the
+  // computer's policy is tests/fixtures/school_lock (RAPIDR_SCHOOL_POLICY:
+  // never the real /Library, %ProgramData% or /etc file). Each password
+  // costs 600,000 PBKDF2 rounds: the delays leave room for a busy machine.
+  // (A dialog's events fire at the end of the delay, the dump at once: no
+  // step runs after them.) ----
+  {
+    // Tools > School Lock…, the password typed twice with the keyboard,
+    // Enter: locked — the status bar's chip, RAI's card, said
+    name: "school-lock-set",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), typeInto("lockpw2edit", "maestra1"), "lockpw2edit.__key_13"].join(","),
+    delay: 6,
+    capture: true,
+    a11y: [[/^School Lock is on: RAI and AI apps are off in RapidR Studio on this computer\.$/]],
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockcard.visible": /^1$/,
+      "lockchipbox.visible": /^1$/,
+      "lockchiptext.caption": /^School Lock$/,
+      "outputbox.text": /> tools\.schoolLock\nSchool Lock is on: RAI and AI apps are off in RapidR Studio on this computer\.$/,
+    },
+  },
+  {
+    // Locked: RAI's pane shows the teacher's card (View > AI Assistant),
+    // the AI commands disabled with the reason in the menu and the palette,
+    // AI apps off — in the three looks, every text readable
+    name: "school-lock-card",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,ai.assistant,wait,lock:state",
+    delay: 8,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^School Lock is on: RAI and AI apps are off in RapidR Studio on this computer\.$/], [/^AI is turned off by your teacher$/], [/^Unlock\.\.\.$/, "button"]],
+    dump: {
+      "lockcard.visible": /^1$/,
+      "lockcardtitle.caption": /^AI is turned off by your teacher$/,
+      "lockcardbody.caption": /^RAI and AI apps are off in RapidR Studio on this computer\. Everything else works as usual\.$/,
+      "lockcardbtn.caption": /^&Unlock\.\.\.$/,
+      "aichat.visible": /^0$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=0 features=ai,ai_apps ai=1 ai_apps=1 wait=0 left=5 mcp=0\nSchool Lock commands: newchat palette=0 menu=0 hint=turned off by your teacher/,
+    },
+  },
+  {
+    // Escape is Cancel: nothing locked, nothing kept
+    name: "school-lock-cancel",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), "lockpwedit.__key_27"].join(","),
+    delay: 4,
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockchipbox.visible": /^0$/,
+      "outputbox.text": /> tools\.schoolLock$/,
+    },
+  },
+  {
+    // Two passwords that differ: said under the field, nothing locked
+    name: "school-lock-set-refused",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), typeInto("lockpw2edit", "maestra2"), "lockpw2edit.__key_13"].join(","),
+    delay: 4,
+    dump: {
+      "lockhint.caption": /^The two passwords differ: type the same one twice\.$/,
+      "lockchipbox.visible": /^0$/,
+    },
+  },
+  {
+    // Settings > AI read-only: the strip with Unlock…, every control greyed
+    name: "school-lock-settings",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,wait,ai.settings",
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    dump: {
+      "locksetstrip.visible": /^1$/,
+      "locksethead.caption": /^AI is turned off by your teacher\.$/,
+      "locksetbody.caption": /^These settings can't be changed while School Lock is on\.$/,
+      "aionbox.enabled": /^0$/,
+      "aisetupbtn.enabled": /^0$/,
+      "aiprovbox.enabled": /^0$/,
+      "aikeyedit.enabled": /^0$/,
+      "aifetchbtn.enabled": /^0$/,
+      "aionnote.visible": /^0$/,
+    },
+  },
+  {
+    // Settings > AI Apps: the switch off and greyed, the rest read-only;
+    // the server never started (the tests' token stands in for the
+    // keychain's)
+    name: "school-lock-apps",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_MCP_TOKEN: "school-lock-test-token-0123456789abcdef" },
+    do: "lock:set=maestra1,mcp:on=47395,lock:state,mcp.settings",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "locksetstrip.visible": /^1$/,
+      "mcponbox.enabled": /^0$/,
+      "mcponbox.checked": /^0$/,
+      "mcpresetbtn.enabled": /^0$/,
+      "outputbox.text": /AI apps can't start: School Lock is on \(Tools > School Lock\.\.\.\)\.[\s\S]*School Lock state: on=1 [^\n]* ai_apps=1 [^\n]* mcp=0/,
+    },
+  },
+  {
+    // AI apps on, then locked: the server stops (every AI app
+    // disconnected); unlocked, it starts again as the user had it
+    name: "school-lock-apps-running",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_MCP_TOKEN: "school-lock-test-token-0123456789abcdef" },
+    do: "mcp:on=47396,lock:state,lock:set=maestra1,lock:state,lock:unlock=maestra1,lock:state",
+    delay: 10,
+    dump: {
+      "outputbox.text": /mcp=1\n[\s\S]*AI apps: stopped, School Lock is on\. Every AI app was disconnected\.[\s\S]*School Lock state: on=1 unlocked=0 [^\n]* mcp=0[\s\S]*AI apps can connect at http:\/\/127\.0\.0\.1:47396\/mcp[\s\S]*School Lock state: on=1 unlocked=1 [^\n]* mcp=1/,
+    },
+  },
+  {
+    // Set Up RAI read-only: the strip on its first page, nothing looked for
+    name: "school-lock-setup",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,wait,ai.setup",
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "locksustrip.visible": /^1$/,
+      "locksubody.caption": /^RAI can't be set up while School Lock is on\.$/,
+      "aisulocal.enabled": /^0$/,
+      "aisucloudradio.enabled": /^0$/,
+      "aisunextbtn.enabled": /^0$/,
+      "aisufoundtext.caption": /^$/,
+    },
+  },
+  {
+    // RAI set up and asked once; locked: its pane keeps its place, the card
+    // over the chat, a question isn't sent
+    name: "school-lock-ai-ready",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello there,ai:wait,wait,lock:set=maestra1,wait,ai:ask=hello again,wait`,
+    delay: 10,
+    capture: true,
+    dump: {
+      "lockcard.visible": /^1$/,
+      "aichat.visible": /^0$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+      "ai.questioncount": /^1$/,
+      "aistatus.simpletext": /^AI is turned off by your teacher$/,
+    },
+  },
+  {
+    // …and unlocked: the chat is back as it was
+    name: "school-lock-ai-unlocked",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello there,ai:wait,wait,lock:set=maestra1,wait,lock:unlock=maestra1,wait`,
+    delay: 10,
+    dump: {
+      "lockcard.visible": /^0$/,
+      "aichat.visible": /^1$/,
+      "aitop.visible": /^1$/,
+      "ai.questioncount": /^1$/,
+      "lockchiptext.caption": /^School Lock: unlocked$/,
+    },
+  },
+  {
+    // Unlock… > five wrong passwords (Enter each time): the tries left said,
+    // then a minute's wait counted down — the right one isn't even checked
+    name: "school-lock-wrong",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,tools.schoolLock",
+    events: [1, 2, 3, 4, 5].map((k) => `${typeInto("lockpwedit", `nope${k}`)},lockpwedit.__key_13`).concat([typeInto("lockpwedit", "maestra1"), "lockpwedit.__key_13"]).join(","),
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockhint.caption": /^Too many wrong passwords\. Try again in (0:5\d|1:00)\.$/,
+      "lockmainbtn.enabled": /^0$/,
+      "lockoffbtn.enabled": /^0$/,
+      "lockdialog.visible": /^(1|-1|True)$/i,
+      "lockchiptext.caption": /^School Lock$/,
+    },
+  },
+  {
+    // One wrong (the tries left said), then the right one with the
+    // keyboard: unlocked until Studio closes — the chip says so
+    name: "school-lock-unlock",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,lock:unlock=wrong-one,tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), "lockpwedit.__key_13"].join(","),
+    delay: 7,
+    capture: true,
+    a11y: [[/^School Lock is unlocked until Studio closes$/]],
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockchiptext.caption": /^School Lock: unlocked$/,
+      "lockcard.visible": /^0$/,
+      "outputbox.text": /School Lock answered: 0 — That isn't the password\. 4 more tries before a one-minute wait\.[\s\S]*> tools\.schoolLock\nSchool Lock is unlocked until Studio closes\.$/,
+    },
+  },
+  {
+    // Unlocked, Studio closed and started again: locked again
+    name: "school-lock-restart",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,lock:unlock=maestra1,lock:state",
+    delay: 7,
+    restart: { do: "lock:state", delay: 5 },
+    dump: {
+      "lockchiptext.caption": /^School Lock$/,
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=0 features=ai,ai_apps ai=1 ai_apps=1/,
+    },
+  },
+  {
+    // The wrong tries are kept: five, Studio closed and started again —
+    // still waiting
+    name: "school-lock-wait-kept",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,lock:unlock=a1b2c3,lock:unlock=a1b2c4,lock:unlock=a1b2c5,lock:unlock=a1b2c6,lock:unlock=a1b2c7,lock:state",
+    delay: 12,
+    restart: { do: "lock:unlock=maestra1,lock:state", delay: 6 },
+    dump: {
+      "outputbox.text": /School Lock answered: -1 — Too many wrong passwords\. Try again in (0:[1-5]\d|1:00)\.\n[\s\S]*School Lock state: on=1 unlocked=0 [^\n]* wait=[1-6]\d? left=5/,
+    },
+  },
+  {
+    // Turn School Lock Off: the password again (a wrong one refused); off
+    // for good — kept so (the next start has no lock)
+    name: "school-lock-off",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,lock:off=maestra2,lock:off=maestra1,lock:state",
+    delay: 8,
+    restart: { do: "lock:state", delay: 5 },
+    dump: {
+      "lockchipbox.visible": /^0$/,
+      "outputbox.text": /School Lock state: on=0 unlocked=0 policy=0 features= ai=0 ai_apps=0/,
+    },
+  },
+  {
+    // (the same, on both hosts: what Turn Off says)
+    name: "school-lock-off-said",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,lock:off=maestra2,lock:off=maestra1,lock:state",
+    delay: 8,
+    dump: {
+      "lockchipbox.visible": /^0$/,
+      "outputbox.text": /School Lock answered: 0 — That isn't the password\.[\s\S]*School Lock is off\.\nSchool Lock answered: 1 — \n[\s\S]*School Lock state: on=0/,
+    },
+  },
+  {
+    // The computer's policy (IT's file): locked from the start, the
+    // school's words; Turn Off refused and not offered — only unlocked for
+    // this run, with IT's password
+    name: "school-lock-policy",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/policy.toml") },
+    do: "lock:state,lock:off=it-secret-1,ai.assistant,wait,tools.schoolLock",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockcardtitle.caption": /^AI is turned off by your school$/,
+      "lockoffbtn.visible": /^0$/,
+      "lockfoot.caption": /^Your school's IT set this for every account on this computer\. It can be unlocked until Studio closes, but only IT can turn it off\.$/,
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps ai=1 ai_apps=1[\s\S]*School Lock answered: -2 — Your school's IT set this lock: only IT can turn it off\./,
+    },
+  },
+  {
+    // …unlocked with IT's password until Studio closes (the dialog then
+    // offers only Lock Again); started again: locked again
+    name: "school-lock-policy-unlock",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/policy.toml") },
+    do: "lock:unlock=it-secret-1,lock:state,tools.schoolLock",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockmainbtn.caption": /^Lock &Again$/,
+      "lockoffbtn.visible": /^0$/,
+      "lockpwedit.visible": /^0$/,
+      "outputbox.text": /School Lock state: on=1 unlocked=1 policy=1 [^\n]* ai=0 ai_apps=0/,
+    },
+  },
+  {
+    name: "school-lock-policy-restart",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/policy.toml") },
+    do: "lock:unlock=it-secret-1,lock:state",
+    delay: 6,
+    restart: { do: "lock:state", delay: 5 },
+    dump: {
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps ai=1 ai_apps=1/,
+    },
+  },
+  {
+    // A policy file that can't be read: everything locked, said once, no
+    // password unlocks it
+    name: "school-lock-policy-broken",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/broken.toml") },
+    do: "lock:unlock=it-secret-1,lock:state",
+    delay: 6,
+    dump: {
+      "outputbox.text": /School Lock: this computer's policy \([^)]*broken\.toml\) can't be read: it isn't TOML[^\n]*AI stays off until your school's IT fixes it\.[\s\S]*School Lock answered: -3 — No password can unlock this lock: ask your school's IT\.[\s\S]*School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps,coach ai=1 ai_apps=1/,
+    },
+  },
+  {
+    // A crash while School Lock is on (crash.inc's CrashSchoolLock): at the
+    // next start no crash strip, no Report on GitHub — a GitHub account is
+    // for 13 and over
+    name: "school-lock-crash",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "lock:set=maestra1,wait,crash:panic",
+    delay: 6,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:check,crash:report,lock:state", delay: 9 },
+    dump: {
+      "crashbar.visible": /^0$/,
+      "crashgitb.__shown": /^0$/,
+      "lockchiptext.caption": /^School Lock$/,
+      "outputbox.text": /\[crash\] bar=0 [\s\S]*School Lock state: on=1 unlocked=0/,
+    },
+  },
+  {
+    // …and once a teacher turned it off, the strip and Report on GitHub
+    // are offered again (the same crash)
+    name: "school-lock-crash-off",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "lock:set=maestra1,lock:off=maestra1,wait,crash:panic",
+    delay: 7,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    dump: {
+      "crashbar.visible": /^1$/,
+      "crashgitb.__shown": /^1$/,
+      "outputbox.text": /\[crash\] bar=1 /,
+    },
+  },
+  {
+    // In Spanish: the card, the chip and the dialog
+    name: "school-lock-es",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: "lock:set=maestra1,ai.assistant,wait,tools.schoolLock",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    themes: ["rapidr-light", "rapidr-dark"],
+    dump: {
+      "lockcardtitle.caption": /^Tu docente desactivó la IA$/,
+      "lockchiptext.caption": /^Bloqueo escolar$/,
+      "lockmainbtn.caption": /^&Desbloquear hasta cerrar Studio$/,
+    },
+  },
+  // ---- COACH-MODE (Preview 5, "Pair with AI"): RAI's dial — Build or
+  // Coach — and Coach's hint ladder (ide/aicoach.inc, rapidr-studio's
+  // coach.rs, the manual's "Coach mode"). The mock provider answers in Coach
+  // with the hint Studio asks for (tests/ai_mock_server.mjs), so each step
+  // of the ladder is seen; a question with "edit" in it makes the mock call
+  // propose_edit, write_file and create_project — Studio never offers them
+  // in Coach, and refuses each. ----
+  {
+    // The dial by keyboard: Coach's segment has the keys (Tab reaches
+    // it), Enter chooses it — said, the pill moves, kept; a screen reader
+    // hears "Coach, chosen" as a button
+    name: "coach-dial-keyboard",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,wait,ai:coach:focus=coach`,
+    events: "aidialcoach.__key_13",
+    delay: 4,
+    capture: true,
+    a11y: [[/^Coach, chosen$/, "button"], [/^Build$/, "button"]],
+    dump: {
+      "aitools.mode": /^coach$/,
+      "aistatus.simpletext": /^Coach mode: RAI gives hints one step at a time\. You write the code\.$/,
+      "aidialcoachtext.caption": /^Coach$/,
+      "aidialbuildtext.caption": /^Build$/,
+      "ai.insertlinks": /^(0|False)$/i,
+      "aichat.emptytext": /^Coach mode: ask about your code/,
+    },
+  },
+  {
+    // …kept per user: Studio started again, still Coach; Space on Build
+    // turns it back
+    name: "coach-dial-kept",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: `${AI_READY},ai.assistant,wait,ai:coach:mode=coach`,
+    delay: 4,
+    restart: { do: `${AI_READY},ai.assistant,wait,ai:coach:state,ai:coach:focus=build`, events: "aidialbuild.__key_32", delay: 5 },
+    dump: {
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=0/,
+      "aitools.mode": /^build$/,
+      "ai.insertlinks": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // The four rungs, as a student climbs them: a question (a nudge, no
+    // code), Next Hint (the idea), Next Hint (the shape, blanks), Show the
+    // Code (the code as text: Copy, never Insert) — the chip says which
+    name: "coach-ladder",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks on my button,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:state`,
+    delay: 10,
+    capture: true,
+    dump: {
+      "ai.transcript": /how do I count the clicks[\s\S]*\*\*each time\*\*[\s\S]*Give me the next hint\.[\s\S]*declared outside the SUB[\s\S]*Give me the next hint\.[\s\S]*DIM ___ AS INTEGER[\s\S]*Show me the code\.[\s\S]*Label1\.Caption = STR\$\(Count\)[\s\S]*\[Copy\]\(rai:copy\/3/,
+      "aicoachchiptext.caption": /^Hint 4 of 4$/,
+      "aicoachnext.visible": /^0$/,
+      "aicoachgot.visible": /^1$/,
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=4 error=0 bar=1 next=0 insert=0 proposals=0 review=0/,
+    },
+    checks: [(d) => [!/rai:insert/.test(d["ai.transcript"] || ""), "no Insert link under any code block in Coach"]],
+  },
+  {
+    // The strip in the three looks after the first hint: the soft chip
+    // (Hint 1 of 4), Next Hint and I Got It — every text readable, the
+    // chip said as one sentence
+    name: "coach-strip",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks on my button,ai:wait,wait`,
+    delay: 6,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^Hint 1 of 4: a nudge$/], [/^Next Hint$/, "button"], [/^I Got It$/, "button"], [/^Coach, chosen$/, "button"]],
+    dump: {
+      "aicoachbar.visible": /^1$/,
+      "aicoachchiptext.caption": /^Hint 1 of 4$/,
+      "aicoachnext.caption": /^&Next Hint$/,
+    },
+  },
+  {
+    // I Got It: the problem done — the strip goes, the next question starts
+    // at the first hint again
+    name: "coach-gotit",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:gotit,ai:coach:state,ai:ask=and how do I reset it,ai:wait,wait,ai:coach:state`,
+    delay: 8,
+    dump: {
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=0 error=0 bar=0[\s\S]*Coach state: mode=coach chosen=coach locked=0 rung=1 error=0 bar=1/,
+      "aistatus.simpletext": /./,
+      "aicoachchiptext.caption": /^Hint 1 of 4$/,
+    },
+  },
+  {
+    // The model tries to write the answer anyway — propose_edit,
+    // write_file, create_project: none offered, each refused; nothing to
+    // review, the editor's text as it was
+    name: "coach-no-edit",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=just edit my program for me,ai:wait,wait,wait,ai:coach:state`,
+    delay: 8,
+    dump: {
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=1 error=0 bar=1 next=1 insert=0 proposals=0 review=0/,
+      "aireviewbar.visible": /^0$/,
+      "aibanner.visible": /^0$/,
+      "codedoc(0).text": /CREATE Form AS RForm\n/,
+      "ai.steps": /not in Coach mode/,
+    },
+    checks: [(d) => [!/Proposed a change|ai:review|PRINT 1/.test(d["ai.transcript"] || "") && !/PRINT 1/.test(d["codedoc(0).text"] || ""), "nothing proposed, nothing written"]],
+  },
+  {
+    // A program that doesn't compile, run: Help With This Error — what it
+    // means, why, a hint; no fix until the hints (Show the Code after the
+    // third)
+    name: "coach-error",
+    open: "tests/fixtures/studio_coach/main.rr",
+    webFiles: ["tests/fixtures/studio_coach/main.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,run.start,wait,ai:coach:error,ai:wait,wait`,
+    delay: 8,
+    capture: true,
+    dump: {
+      // (the Output shows Problems after the failed Run: the transcript and
+      // the strip say the rest)
+      "ai.transcript": /Help me with this error: main\.rr:24: Unknown SUB or FUNCTION 'STRR\$'[\s\S]*This error means RapidR doesn't know a name/,
+      "aitools.coacherror": /^(-1|1|True)$/i,
+      "aitools.coachrung": /^1$/,
+      "aicoachchiptext.caption": /^Hint 1 of 4$/,
+      "aicoachnext.caption": /^&Next Hint$/,
+      "aicoacherr.visible": /^0$/,
+    },
+  },
+  {
+    // The teacher's lock, Keep RAI in Coach mode: the dial shows Coach,
+    // Build can't be chosen (said), the lock's line beside it — in the
+    // three looks, readable, said to a screen reader
+    name: "coach-lock",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,lock:set=maestra1|coach,wait,ai:coach:mode=build,ai:coach:state,lock:state`,
+    delay: 9,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^Coach, chosen$/, "button"], [/^Build$/, "button", "disabled"]],
+    dump: {
+      "aitools.mode": /^coach$/,
+      "aidialbuild.enabled": /^(0|False)$/i,
+      "aidiallocktext.caption": /^Your teacher keeps RAI in Coach mode\.$/,
+      "aidiallocktext.visible": /^1$/,
+      "lockcard.visible": /^0$/,
+      "aichat.visible": /^(-1|1|True)$/i,
+      "outputbox.text": /School Lock is on: RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn.t change the student.s files\.[\s\S]*Coach state: mode=coach chosen=build locked=1[\s\S]*School Lock state: on=1 unlocked=0 policy=0 features=coach ai=0 ai_apps=0[^\n]*\nSchool Lock keeps Coach: 1/,
+    },
+  },
+  {
+    // Tools > School Lock…: AI in Studio unchecked, Keep RAI in Coach mode
+    // checked, the password twice, Enter: locked to Coach
+    name: "coach-lock-dialog",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: ["lockaibox.__key_32", "lockcoachbox.__key_32", "lockappsbox.__key_32", typeInto("lockpwedit", "maestra1"), typeInto("lockpw2edit", "maestra1"), "lockpw2edit.__key_13"].join(","),
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockchiptext.caption": /^School Lock$/,
+      "aitools.mode": /^coach$/,
+      "outputbox.text": /School Lock is on: RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn.t change the student.s files\./,
+    },
+  },
+  {
+    // …unlocked until Studio closes: Build can be chosen again
+    name: "coach-lock-unlocked",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,lock:set=maestra1|coach,wait,lock:unlock=maestra1,wait,ai:coach:mode=build,ai:coach:state`,
+    delay: 9,
+    dump: {
+      "aitools.mode": /^build$/,
+      "aidialbuild.enabled": /^(-1|1|True)$/i,
+      "aidiallocktext.visible": /^0$/,
+      "outputbox.text": /Coach state: mode=build chosen=build locked=0/,
+    },
+  },
+  {
+    // The computer's policy, coach_only = true (tests/fixtures/school_lock/
+    // coach.toml): Coach kept by the school, RAI on, AI apps locked
+    name: "coach-lock-policy",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/coach.toml") },
+    do: `${AI_READY},ai.assistant,wait,ai:coach:mode=build,ai:coach:state,lock:state`,
+    delay: 7,
+    capture: true,
+    dump: {
+      "aitools.mode": /^coach$/,
+      "aidiallocktext.caption": /^Your school keeps RAI in Coach mode\.$/,
+      "outputbox.text": /Coach state: mode=coach chosen=build locked=1[\s\S]*School Lock state: on=1 unlocked=0 policy=1 features=ai_apps,coach ai=0 ai_apps=1[^\n]*\nSchool Lock keeps Coach: 1/,
+    },
+  },
+  {
+    // In Spanish: the dial (Construir / Tutor), the chip (Pista 1 de 4), the
+    // buttons, the hint in the student's language
+    name: "coach-es",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=¿cómo cuento los clics de mi botón?,ai:wait,wait`,
+    delay: 7,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark"],
+    dump: {
+      "aidialbuildtext.caption": /^Construir$/,
+      "aidialcoachtext.caption": /^Tutor$/,
+      "aicoachchiptext.caption": /^Pista 1 de 4$/,
+      "aicoachnext.caption": /^&Siguiente pista$/,
+      "aicoachgot.caption": /^Ya lo &entendí$/,
+      "ai.transcript": /¿Qué debe pasar \*\*cada vez\*\*/,
+      "aistatus.simpletext": /./,
+    },
   },
   // (CRASH-REPORTS) RapidR's crash and hang reports, walked as a person
   // meets them: Studio crashed for real (crash:panic, a Rust panic in a
@@ -7324,6 +8454,9 @@ function runDesktop(c, scale = 1) {
       ...(c.reducedMotion ? { RAPIDR_REDUCED_MOTION: "1" } : {}),
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       ...(c.a11y ? { RAPIDR_TEST_A11Y: join(dir, "a11y.json") } : {}),
+      // (VERSIONS-POLISH: each turn's place and size of these components —
+      // what every frame shows —, read back as dump.__frames)
+      ...(c.frames ? { RAPIDR_TEST_FRAMES: join(dir, "frames.txt"), RAPIDR_TEST_FRAMES_OF: c.frames.join(",") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
       // (an example's copy, a build that can't go beside its program: the
@@ -7387,6 +8520,7 @@ function runDesktop(c, scale = 1) {
     const g = spawnSync("git", ["fsck", "--full", "--strict", "--no-dangling"], { cwd: join(dir, "project"), encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", LC_ALL: "C" } });
     dump.__fsck = g.error ? "no git" : g.status === 0 ? "ok" : `${g.stdout}${g.stderr}`.trim();
   }
+  if (c.frames) dump.__frames = existsSync(join(dir, "frames.txt")) ? readFileSync(join(dir, "frames.txt"), "utf8") : "";
   // (files the run must leave: the program's own window captured)
   for (const f of c.desktopFiles || []) dump["file " + f] = existsSync(join(dir, f)) ? "there" : "missing";
   for (const f of c.desktopGone || []) dump["gone " + f] = existsSync(join(dir, f)) ? "there" : "gone";
@@ -7514,6 +8648,9 @@ async function runWebPage(ctx, c, last, scale, record) {
     });
     const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");
+    // (a case in another language: the page's ?lang=, as the desktop's --lang)
+    const langAt = (c.desktopArgs || []).indexOf("--lang");
+    if (langAt >= 0) q.set("lang", c.desktopArgs[langAt + 1]);
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
     // (`lang`: Studio started in that language)

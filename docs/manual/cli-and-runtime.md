@@ -25,6 +25,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH. `rapidr setup --rust` only answers whether native builds can run (exit code 0 yes, 1 no); a native `rapidr build` without Rust stops and says to use `--interp` or run `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
 | `rapidr ai providers`, `rapidr ai models --provider P`, `rapidr ai ask --provider P [--model M] "question"` | RapidR's AI providers from a terminal: which there are, a provider's own models, a question and its streamed answer; the key comes from the provider's environment variable or the keychain ([The AI assistant and RAI](ai-assistant.md)) |
+| `rapidr school-lock hash [--stdin]`, `rapidr school-lock check [file]` | School Lock for a school's IT: the policy file's `password_hash` line for a password typed twice (never shown, never kept), and what the computer's policy (or a file) locks ([For teachers](for-teachers.md#for-a-schools-it-the-computers-policy)) |
 | `rapidr lsp`, `rapidr dap` | The language server and the debug adapter (standard protocols over stdin and stdout), for other editors such as VS Code |
 | `rapidr lang export --json\|--prompt\|--manual\|--all` | What the language registry generates: the data for completion and hover help, an AI prompt, and [the reference tables](reference/components.md) of this manual |
 | `rapidr about`, `rapidr version` | |
@@ -180,6 +181,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_RENDERER=cpu\|gpu` | force drawing on the CPU or the GPU (by default the GPU, or the CPU when the only GPU is a software one) |
 | `RAPIDR_PRINT_TO=<file or folder>` | printed documents go there as PDFs instead of to a printer |
 | `RAPIDR_REGISTRY=<file>` | RRegistry keeps its keys in this file instead of the system's (Windows' registry; a per-user store elsewhere) |
+| `RAPIDR_SCHOOL_POLICY=<file>` | School Lock's policy read from this file when the computer has none (the tests'): it can add a lock, never take the computer's away |
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
 | `RAPIDR_DOCUMENTS=<folder>` | the folder used as your Documents: RapidR Studio's copies of the examples (`RapidR/Examples/`) and builds that can't go beside their program (`RapidR/Builds/`) |
 | `RAPIDR_HOME=<folder>` | RapidR's home (above) |

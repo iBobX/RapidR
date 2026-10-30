@@ -2,7 +2,7 @@
 
 # Components' members
 
-Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a member RapidR adds to a classic component; *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.
+Every property, method and event of every component, from the language registry, under RapidR's names. *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.
 
 <a id="rform"></a>
 ## RForm
@@ -35,27 +35,27 @@ A window: the top-level container of a program's components, with its caption, b
 | `Visible` | bool | False | Whether the control or form is shown. |
 | `Width` | int | 320 | The width, in pixels; on `Screen`, the screen's. |
 | `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
-| `AutoSize` *(RapidR)* | int |  | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `AutoSize` | int |  | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `HelpFile` *(RapidR)* | string |  | The help file the program opens for F1. |
-| `Modified` *(RapidR)* | bool | False | True while what the window shows has changes not saved: macOS draws a dot in its close button, and in a browser leaving the page (closing the tab, reloading) asks first, with the browser's own question. Set it when a document changes, False again once it is saved. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `HelpFile` | string |  | The help file the program opens for F1. |
+| `Modified` | bool | False | True while what the window shows has changes not saved: macOS draws a dot in its close button, and in a browser leaving the page (closing the tab, reloading) asks first, with the browser's own question. Set it when a document changes, False again once it is saved. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (it is fsNormal only). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `TileMode` | int | 0 | How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -83,17 +83,17 @@ A window: the top-level container of a program's components, with its caption, b
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `SaveImage(FileName AS STRING) AS INTEGER` *(RapidR)* *(desktop)* | Saves what the form shows now — its controls as drawn, at the screen's scale — as a picture: a PNG file (a BMP when the name ends in .bmp). True when it was saved; False when the form isn't shown or the file can't be written. Only the program's own windows: never the screen or another program's. Desktop only for now. |
-| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SaveImage(FileName AS STRING) AS INTEGER` *(desktop)* | Saves what the form shows now — its controls as drawn, at the screen's scale — as a picture: a PNG file (a BMP when the name ends in .bmp). True when it was saved; False when the form isn't shown or the file can't be written. Only the program's own windows: never the screen or another program's. Desktop only for now. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` | Clears the drawing area to its background color. |
+| `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
 | `Cascade` | Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
 | `Next` | Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
@@ -115,11 +115,11 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `OnShow` | Fires when the form is shown, by Show, ShowModal or `Visible = True`. |
 | `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), so a program hears its icon's clicks. |
-| `OnMessage(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` *(RapidR)* | Another name for WndProc (RapidR's): `OnMessage = MySub` in its CREATE (or `Form.OnMessage = MySub`). It is the same event, with the same four parameters, delivered the same way and in the same places: on Windows every message Windows sends or posts to the form's window; on macOS, Linux and the web only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon). With both bound, the one bound last hears the messages. |
-| `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnTimer` *(RapidR)* | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
-| `OnLoad` *(RapidR)* | Fires when the content has loaded: the web view's page, a file read in the browser. |
-| `OnDropFiles(Files AS STRING)` *(RapidR)* | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
+| `OnMessage(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Another name for WndProc (RapidR's): `OnMessage = MySub` in its CREATE (or `Form.OnMessage = MySub`). It is the same event, with the same four parameters, delivered the same way and in the same places: on Windows every message Windows sends or posts to the form's window; on macOS, Linux and the web only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon). With both bound, the one bound last hears the messages. |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
+| `OnLoad` | Fires when the content has loaded: the web view's page, a file read in the browser. |
+| `OnDropFiles(Files AS STRING)` | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
 
 <a id="rformmdi"></a>
 ## RFormMDI
@@ -141,11 +141,11 @@ An MDI parent window: a form whose child windows open, tile, cascade and minimiz
 | `MDIMenu` | int |  | The menu that lists the MDI child windows. |
 | `ComponentIndex` (read-only) | int |  | The index the active MDI child was added with (`AddChild`'s third argument); read-only. |
 | `ChildResult` | bool | False | Set it to False in `OnChildClose` to keep the child window open. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
 
 | Method | |
 |---|---|
@@ -166,12 +166,12 @@ An MDI parent window: a form whose child windows open, tile, cascade and minimiz
 | `ActiveChild(Index AS LONG)` | Brings the MDI child with index `Index` to the front, restoring it if it is minimized. |
 | `FreeChild(handle AS LONG) AS VARIANT` | Returns true when the form with handle `handle` isn't shown as an MDI child, so it can be added. |
 | `SetDeskBar` | Sets up the MDI form's bar for its child windows; RapidR accepts it and does nothing. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` | Clears the drawing area to its background color. |
+| `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 
 | Event | |
 |---|---|
@@ -210,24 +210,24 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
-| `TabStop` *(RapidR)* | bool | False | True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default) leaves it out of the keyboard's way. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `TabStop` | bool | False | True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default) leaves it out of the keyboard's way. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `SetFocus` *(RapidR)* | Gives the panel the keyboard focus when it takes it (TabStop = True: a clickable card): its focus ring shows, and Enter or Space clicks it. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the panel the keyboard focus when it takes it (TabStop = True: a clickable card): its focus ring shows, and Enter or Space clicks it. |
 
 | Event | |
 |---|---|
@@ -236,10 +236,10 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnResize` *(RapidR)* | Fires when the control's size changes, by the user, the program or its alignment. |
+| `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
-| `OnExit` *(RapidR)* | Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
+| `OnEnter` | Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
+| `OnExit` | Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rtabcontrol"></a>
 ## RTabControl
@@ -281,36 +281,36 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `VerticalTabs` | bool | False | Puts the tabs down the side instead of along the top. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Flatseparators` *(RapidR)* | int |  | RapidR's spelling of `FlatSeperators`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Flatseparators` | int |  | RapidR's spelling of `FlatSeperators`. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `AddTabs(Items, …)` | Appends tabs, one per caption given. |
 | `DelTabs(Items, …)` | Removes the tabs at the indexes given. |
 | `InsertTab(Index AS INTEGER, String AS STRING)` | Inserts a tab with caption `String` at position `Index`. |
-| `AddTab` *(RapidR)* | Appends a tab with the caption given. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `DelTab` *(RapidR)* | Removes the tab at the index given. |
-| `RemoveTab` *(RapidR)* | Removes the tab at the index given. |
-| `Tabs` *(RapidR)* | Returns the caption of the tab at an index, or sets it when a second value follows. |
+| `AddTab` | Appends a tab with the caption given. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `DelTab` | Removes the tab at the index given. |
+| `RemoveTab` | Removes the tab at the index given. |
+| `Tabs` | Returns the caption of the tab at an index, or sets it when a second value follows. |
 
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rtoolbar"></a>
 ## RToolBar
@@ -392,32 +392,32 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Caption` *(RapidR)* | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
-| `PanelCount` *(RapidR)* | int |  | The number of status bar panels; setting it adds or removes some. |
-| `Font` *(RapidR)* | font |  | The font of the text, an RFont; assigning one copies it. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Color` *(RapidR)* | color |  | The bar's colour (RapidR's): flat in every look, as an IDE's state bar; unset, the theme's. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Caption` | string |  | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `PanelCount` | int |  | The number of status bar panels; setting it adds or removes some. |
+| `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Color` | color |  | The bar's colour (RapidR's): flat in every look, as an IDE's state bar; unset, the theme's. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `AddPanels(Items, …)` | Appends panels to the status bar, one per caption given. |
 | `Clear` | Removes every panel: panels added after it start again at `Panel(0)`. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rsplitter"></a>
 ## RSplitter
@@ -443,15 +443,15 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Orientation` *(RapidR)* | enum |  | A track bar's or splitter's direction (`tbHorizontal`, `tbVertical`); on a printer, portrait or landscape. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Orientation` | enum |  | A track bar's or splitter's direction (`tbHorizontal`, `tbVertical`); on a printer, portrait or landscape. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Event | |
 |---|---|
@@ -495,19 +495,19 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `VertTracking` | bool | False | Scrolls the content while the vertical thumb is dragged, not only when it's let go. |
 | `VertVisible` | bool | True | Shows the vertical scroll bar when it's needed. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
@@ -543,21 +543,21 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
@@ -597,14 +597,14 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -761,23 +761,24 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Primary` | bool | False | Draws the button as the main action of its pane or strip, filled with the accent colour, without making Enter press it (`Default` does both: use it in a dialog). |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
@@ -791,8 +792,8 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `OnEndDrag` | Fires when the drag OnStartDrag began ends: the mouse let go (instead of OnMouseUp and OnClick) or Escape pressed. No arguments. |
 | `OnStartDrag` | Binding it makes the button a drag source: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments. |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="redit"></a>
 ## REdit
@@ -831,34 +832,34 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Alignment` *(RapidR)* | enum |  | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
-| `Placeholder` *(RapidR)* | string | `""` | The grey line shown in the box while it is empty, saying what to type ("Search the help"). It is not the text: it is never read back, and goes when the user types. |
-| `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table. |
-| `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows and edits ("name"). |
-| `DataError` *(RapidR)* (read-only) | string | `""` | Why the text the user typed isn't its DataField's value ("stock is a whole number: \"4x\" isn't one"): a number column takes numbers only. The field keeps its value and the edit the user's text until it's fixed or the row changes; "" when the field took it. Read it in OnChange to tell the user. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Alignment` | enum |  | How the text lines up inside the control: `taLeftJustify`, `taCenter` or `taRightJustify`; on a popup menu, which side of the point it opens on. |
+| `Placeholder` | string | `""` | The grey line shown in the box while it is empty, saying what to type ("Search the help"). It is not the text: it is never read back, and goes when the user types. |
+| `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `DataSource` | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table. |
+| `DataField` | string | `""` | The column of DataSource's current row it shows and edits ("name"). |
+| `DataError` (read-only) | string | `""` | Why the text the user typed isn't its DataField's value ("stock is a whole number: \"4x\" isn't one"): a number column takes numbers only. The field keeps its value and the edit the user's text until it's fixed or the row changes; "" when the field took it. Read it in OnChange to tell the user. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `SelectAll` *(RapidR)* | Selects all the text. |
-| `CopyToClipboard` *(RapidR)* | Copies the selected text to the clipboard. |
-| `CutToClipboard` *(RapidR)* | Moves the selected text to the clipboard. |
-| `PasteFromClipboard` *(RapidR)* | Inserts the clipboard's text at the caret, replacing the selection. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `ClearSelection` *(RapidR)* | Deletes the selected text. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `SelectAll` | Selects all the text. |
+| `CopyToClipboard` | Copies the selected text to the clipboard. |
+| `CutToClipboard` | Moves the selected text to the clipboard. |
+| `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `ClearSelection` | Deletes the selected text. |
 
 | Event | |
 |---|---|
@@ -867,10 +868,10 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcheckbox"></a>
 ## RCheckBox
@@ -896,32 +897,32 @@ A box with a caption that the user ticks on or off (Checked).
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Color` *(RapidR)* | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `State` *(RapidR)* | int |  | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
-| `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `State` | int |  | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
+| `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rradiobutton"></a>
 ## RRadioButton
@@ -947,31 +948,31 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Color` *(RapidR)* | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcombobox"></a>
 ## RComboBox
@@ -1007,24 +1008,24 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
-| `ListCount` *(RapidR)* | int |  | RapidR's name for `ItemCount`. |
-| `ListIndex` *(RapidR)* | int |  | RapidR's name for `ItemIndex`. |
-| `Items` *(RapidR)* | string |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `ListCount` | int |  | RapidR's name for `ItemCount`. |
+| `ListIndex` | int |  | RapidR's name for `ItemIndex`. |
+| `Items` | string |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1047,25 +1048,25 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `DeleteItem` *(RapidR)* | Removes the item at the index given. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `AddString` *(RapidR)* | Appends one string as a new item or line. |
-| `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
-| `RemoveItem` *(RapidR)* | Removes the item at the index given. |
-| `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
+| `AddItem` | Appends one item (a list entry, line, node or menu item) to the component. |
+| `DeleteItem` | Removes the item at the index given. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `AddString` | Appends one string as a new item or line. |
+| `DeleteItems` | Removes the items at the indexes given. |
+| `RemoveItem` | Removes the item at the index given. |
+| `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
 
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rrichedit"></a>
 ## RRichEdit
@@ -1109,20 +1110,20 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `WhereY` (read-only) | int |  | The caret's line, from 0; read-only. |
 | `WordWrap` | bool | True | Wraps long lines at the control's edge. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `SelFont` (write-only) | font |  | SelAttributes = Font's other name: the font's settings on the selection (write-only). |
-| `Paragraph` *(RapidR)* | item |  | The format of the paragraphs the selection is in (at a caret, its paragraph's): Alignment, LeftIndent, FirstIndent, RightIndent (pixels) and Numbering (bullets). Reading gives the first one's. |
-| `TextRTF` *(RapidR)* | string |  | The text with its formats as RTF — what SaveToFile writes while PlainText is False; setting it loads RTF (or plain text) as LoadFromFile does. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Paragraph` | item |  | The format of the paragraphs the selection is in (at a caret, its paragraph's): Alignment, LeftIndent, FirstIndent, RightIndent (pixels) and Numbering (bullets). Reading gives the first one's. |
+| `TextRTF` | string |  | The text with its formats as RTF — what SaveToFile writes while PlainText is False; setting it loads RTF (or plain text) as LoadFromFile does. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1136,15 +1137,15 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `SaveToFile(FileName AS STRING)` | Writes the text with its formats as RTF (ending with a NUL byte), or with PlainText True the text, lines ending CR LF. |
 | `SaveToStream(Stream AS RFILESTREAM)` | Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it. |
 | `SelectAll` | Selects all the text. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Lines` *(RapidR)* | Reads a line of the text by index, or sets it when a second value follows. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Lines` | Reads a line of the text by index, or sets it when a second value follows. |
 | `AddString` | Appends one string as a new item or line. |
-| `AddLines` *(RapidR)* | Appends lines of text, one per argument; in a tree view each line's leading spaces set its depth. |
-| `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
-| `AddItems` *(RapidR)* | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `ClearSelection` *(RapidR)* | Deletes the selected text. |
+| `AddLines` | Appends lines of text, one per argument; in a tree view each line's leading spaces set its depth. |
+| `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
+| `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
+| `ClearSelection` | Deletes the selected text. |
 
 | Event | |
 |---|---|
@@ -1155,10 +1156,10 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rmemo"></a>
 ## RMemo
@@ -1254,19 +1255,19 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
@@ -1275,8 +1276,8 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnScroll(ScrollCode AS BYTE, ScrollPos AS LONG)` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rupdown"></a>
 ## RUpDown
@@ -1384,29 +1385,29 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `SetTick(Pos AS INTEGER)` | Puts a tick mark at position `Pos`. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `ClearTicks` *(RapidR)* | Removes every tick mark put with `SetTick`. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `ClearTicks` | Removes every tick mark put with `SetTick`. |
 
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcodeeditor"></a>
 ## RCodeEditor
@@ -1704,24 +1705,24 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Color` *(RapidR)* | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
 
 | Event | |
@@ -1766,24 +1767,24 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `TransParentColor` | color |  | The colour drawn see-through, as &HBBGGRR. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `AllowAllUp` *(RapidR)* | bool |  | With a `GroupIndex`, lets every button of the group be up at once; otherwise one always stays down. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `AllowAllUp` | bool |  | With a `GroupIndex`, lets every button of the group be up at once; otherwise one always stays down. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
+| `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
 
 | Event | |
@@ -1820,35 +1821,35 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `TabStop` *(RapidR)* | bool | False | True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default) leaves it out of the keyboard's way. |
+| `TabStop` | bool | False | True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default) leaves it out of the keyboard's way. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
 | `UpperColor` | color | -2147483628 | The highlight colour of a raised or lowered label, as &HBBGGRR. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `WordWrap` | bool | False | Wraps long lines at the control's edge. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Layout` | enum |  | Where the picture sits next to the caption: `blBMPLeft`, `blBMPRight`, `blBMPTop` or `blBMPBottom`. |
 | `TextStyle` | any |  | How the label draws its text, together with `LabelStyle`. |
-| `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column) — its Caption follows as the row moves. |
-| `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows ("name"). |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `DataSource` | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column) — its Caption follows as the row moves. |
+| `DataField` | string | `""` | The column of DataSource's current row it shows ("name"). |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `SetFocus` *(RapidR)* | Gives the label the keyboard focus when it takes it (TabStop = True: a link): its focus ring shows, and Enter or Space clicks it. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the label the keyboard focus when it takes it (TabStop = True: a link): its focus ring shows, and Enter or Space clicks it. |
 
 | Event | |
 |---|---|
@@ -1858,8 +1859,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
-| `OnExit` *(RapidR)* | Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
+| `OnEnter` | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
+| `OnExit` | Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rimage"></a>
 ## RImage
@@ -1894,20 +1895,20 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Smooth` *(RapidR)* | bool | False | Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Smooth` | bool | False | Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1927,15 +1928,15 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
-| `SaveToFile(FileName AS STRING)` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
-| `Cls` *(RapidR)* | Removes the picture: nothing shows. Same as `Clear`. |
-| `Load(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
-| `Clear` *(RapidR)* | Removes the picture: nothing shows. Same as `Cls`. |
-| `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` *(RapidR)* | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
-| `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` *(RapidR)* | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
-| `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` *(RapidR)* | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
+| `LoadFromFile(FileName AS STRING)` | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
+| `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromPlot` | Shows an RPlot's chart as the image. |
+| `Cls` | Removes the picture: nothing shows. Same as `Clear`. |
+| `Load(FileName AS STRING)` | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
+| `Clear` | Removes the picture: nothing shows. Same as `Cls`. |
+| `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
+| `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
+| `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
 
 | Event | |
 |---|---|
@@ -1972,21 +1973,21 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `PenWidth` *(RapidR)* | int |  | The width of the lines the drawing methods draw, in pixels. |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `Smooth` *(RapidR)* | bool | False | Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `PenWidth` | int |  | The width of the lines the drawing methods draw, in pixels. |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `Smooth` | bool | False | Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2006,22 +2007,22 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Cls` *(RapidR)* | Clears the canvas using the current Color. |
-| `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `DrawText(x, y, text, [color])` *(RapidR)* | Draws text at (x, y). Optional color argument (RGB integer). |
-| `SetFont(family, [size])` *(RapidR)* | Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` | Clears the canvas using the current Color. |
+| `FillCircle(x, y, radius, [color])` | Draws a filled circle. |
+| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `DrawText(x, y, text, [color])` | Draws text at (x, y). Optional color argument (RGB integer). |
+| `SetFont(family, [size])` | Sets the font used by subsequent DrawText calls. On the web runtime this maps to ctx.font = "<size>px <family>". Default size 12. |
+| `SetPixel` | Sets one pixel to a color. Same as `Pset`. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
+| `Ellipse` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Get AS INTEGER` | Takes nothing, draws and keeps nothing, and gives 0 — a Put after it doesn't bring the pixels back. |
 | `Put AS INTEGER` | Takes nothing, draws nothing and gives 0. |
-| `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` *(RapidR)* | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
-| `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` *(RapidR)* | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
-| `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` *(RapidR)* | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
+| `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
+| `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
+| `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
 
 | Event | |
 |---|---|
@@ -2061,20 +2062,20 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `SectionCount` *(RapidR)* | int |  | RapidR's name for `SectionsCount`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `SectionCount` | int |  | RapidR's name for `SectionsCount`. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2095,18 +2096,18 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
-| `AddSection` *(RapidR)* | Appends a section with the caption given. Same as `AddSections` with one. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
+| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` | Clears the drawing area to its background color. |
+| `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `SetFont` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `AddSection` | Appends a section with the caption given. Same as `AddSections` with one. |
 
 | Event | |
 |---|---|
@@ -2178,19 +2179,19 @@ The gauge: shows progress from Min to Max at Position as a bar, a pie, a needle 
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 <a id="rdesignsurface"></a>
 ## RDesignSurface
@@ -2324,29 +2325,29 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `Width` | int | 12 | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Display` | string | `"0"` | The text the digital display shows: digits, and the few letters and signs segments can form. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
-| `Rect` *(RapidR)* | Draws the outline of a rectangle. Same as `Rectangle`. |
-| `SetPixel` *(RapidR)* | Sets one pixel to a color. Same as `Pset`. |
-| `FillCircle` *(RapidR)* | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
-| `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Cls` *(RapidR)* | Clears the drawing area to its background color. |
-| `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `SetFont` *(RapidR)* | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` | Clears the drawing area to its background color. |
+| `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `SetFont` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
 
 | Event | |
 |---|---|
@@ -2397,24 +2398,24 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `TopIndex` | int |  | The item shown at the top of the list, from 0. Setting it scrolls the list so that item is the first row (as far as the list goes: the last item shows its last page); reading it gives the first row shown. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
-| `ListCount` *(RapidR)* | int |  | RapidR's name for `ItemCount`. |
-| `ListIndex` *(RapidR)* | int |  | RapidR's name for `ItemIndex`. |
-| `Items` *(RapidR)* | string |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `ListCount` | int |  | RapidR's name for `ItemCount`. |
+| `ListIndex` | int |  | RapidR's name for `ItemIndex`. |
+| `Items` | string |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2439,14 +2440,14 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `DeleteItem` *(RapidR)* | Removes the item at the index given. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `AddString` *(RapidR)* | Appends one string as a new item or line. |
-| `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
-| `RemoveItem` *(RapidR)* | Removes the item at the index given. |
-| `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
+| `AddItem` | Appends one item (a list entry, line, node or menu item) to the component. |
+| `DeleteItem` | Removes the item at the index given. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `AddString` | Appends one string as a new item or line. |
+| `DeleteItems` | Removes the items at the indexes given. |
+| `RemoveItem` | Removes the item at the index given. |
+| `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
 
 | Event | |
 |---|---|
@@ -2456,8 +2457,10 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows. |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | A mouse button let go over the list (X, Y in the list): after OnClick, the item under the mouse picked — a click the program tells from the keyboard's picks. |
 
 <a id="rfilelistbox"></a>
 ## RFileListBox
@@ -2496,31 +2499,31 @@ A list of the files in a folder that match Mask, for picking a file.
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
-| `ListCount` *(RapidR)* | int |  | RapidR's name for `ItemCount`. |
-| `ListIndex` *(RapidR)* | int |  | RapidR's name for `ItemIndex`. |
-| `Items` *(RapidR)* | any |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `ListCount` | int |  | RapidR's name for `ItemCount`. |
+| `ListIndex` | int |  | RapidR's name for `ItemIndex`. |
+| `Items` | any |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
 | `AddFileTypes(Items, …)` | Adds kinds of files, by attribute (read-only, hidden, system …), to those the list shows. |
 | `DelFileTypes(Items, …)` | Removes kinds of files, by attribute, from those the list shows. |
 | `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `AddString` *(RapidR)* | Appends one string as a new item or line. |
-| `DeleteItem` *(RapidR)* | Removes the item at the index given. |
-| `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
-| `RemoveItem` *(RapidR)* | Removes the item at the index given. |
-| `Find` *(RapidR)* | Searches the items for a string and returns the index of the match (-1 when there is none). |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `AddItem` | Appends one item (a list entry, line, node or menu item) to the component. |
+| `AddString` | Appends one string as a new item or line. |
+| `DeleteItem` | Removes the item at the index given. |
+| `DeleteItems` | Removes the items at the indexes given. |
+| `RemoveItem` | Removes the item at the index given. |
+| `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
@@ -2528,7 +2531,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rdirtree"></a>
 ## RDirTree
@@ -2559,15 +2562,15 @@ A tree of drives and folders for picking a folder (Directory).
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `ItemCount` *(RapidR)* | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2577,15 +2580,15 @@ A tree of drives and folders for picking a folder (Directory).
 | `FullCollapse` | Collapses every node. |
 | `FullExpand` | Expands every node. |
 | `Reload` | Reads the folders from disk again. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `Repaint` *(RapidR)* | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Repaint` | Redraws the component. |
 | `DelDriveTypes` | Removes kinds of drives from those the tree lists. |
 
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rstringgrid"></a>
 ## RStringGrid
@@ -2637,27 +2640,27 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `VisibleColCount` (read-only) | int |  | How many scrollable columns fit in the grid's view; read-only. |
 | `VisibleRowCount` (read-only) | int |  | How many scrollable rows fit in the grid's view; read-only. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Cells` *(RapidR)* | string |  | The same as `Cell(col, row)`: a cell's text. |
-| `Cols` *(RapidR)* | int |  | RapidR's name for a grid's `ColCount`. |
-| `Rows` *(RapidR)* | int |  | RapidR's name for a grid's `RowCount`. |
-| `ColWidth` *(RapidR)* | int |  | RapidR's name for a grid's `DefaultColWidth`. |
-| `SelectedRow` *(RapidR)* | int |  | RapidR's name for a grid's `Row`. |
-| `SelectedCol` *(RapidR)* | int |  | RapidR's name for a grid's `Col`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `Cells` | string |  | The same as `Cell(col, row)`: a cell's text. |
+| `Cols` | int |  | RapidR's name for a grid's `ColCount`. |
+| `Rows` | int |  | RapidR's name for a grid's `RowCount`. |
+| `ColWidth` | int |  | RapidR's name for a grid's `DefaultColWidth`. |
+| `SelectedRow` | int |  | RapidR's name for a grid's `Row`. |
+| `SelectedCol` | int |  | RapidR's name for a grid's `Col`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2688,18 +2691,18 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `AddRow` *(RapidR)* | Appends a row made of the values given; a grid widens to fit them. |
-| `SetCell` *(RapidR)* | Sets the text of the cell at a column and row. |
-| `GetCell` *(RapidR)* | Returns the text of the cell at a column and row. |
-| `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `SetRowCount` *(RapidR)* | Sets the number of rows, adding or removing them at the end. |
-| `SetColCount` *(RapidR)* | Sets the number of columns, adding or removing them at the end. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `MoveCol` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveColumn`. |
-| `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
-| `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
-| `SetSuggestions` *(RapidR)* | Sets the suggestions offered while a cell is edited, one per line. |
+| `AddRow` | Appends a row made of the values given; a grid widens to fit them. |
+| `SetCell` | Sets the text of the cell at a column and row. |
+| `GetCell` | Returns the text of the cell at a column and row. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `SetRowCount` | Sets the number of rows, adding or removing them at the end. |
+| `SetColCount` | Sets the number of columns, adding or removing them at the end. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `MoveCol` | Moves a column to another position; those between shift over. Same as `MoveColumn`. |
+| `MoveColumn` | Moves a column to another position; those between shift over. Same as `MoveCol`. |
+| `MoveRow` | Moves a row to another position; those between shift over. |
+| `SetSuggestions` | Sets the suggestions offered while a cell is edited, one per line. |
 | `DeleteColumn(Column AS INTEGER)` | Removes column `Column`, as DeleteCol does (both names work). |
 
 | Event | |
@@ -2712,11 +2715,11 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `OnListDropDown(Col AS INTEGER, Row AS INTEGER, BYREF S AS STRING)` | Fires before a list-style grid column's drop-down opens for cell (Col, Row); S holds its items, one per line, and the handler can change them. |
 | `OnSelectCell(Col AS INTEGER, Row AS INTEGER, CanSelect AS INTEGER)` | Fires before the grid selects cell (Col, Row); set CanSelect to 0 to refuse it. |
 | `OnSetEditText(Col AS INTEGER, Row AS INTEGER, Value AS STRING)` | Fires when the user has edited grid cell (Col, Row) in place; Value is the new text. |
-| `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rtreeview"></a>
 ## RTreeView
@@ -2772,21 +2775,21 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OutLineStyle` | enum | `osTreePictureText` | What each outline node shows: its text alone, or with plus / minus buttons, pictures or tree lines (`osXXX`). |
 | `Row` | int |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
 | `ScrollBars` | enum | `ssBoth` | Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
-| `SelectedItem` *(RapidR)* | string |  | The selected tree node's text. |
-| `Text` *(RapidR)* (read-only) | string |  | Every node as text: a line each, a tab per level before it (what LoadFromFile reads). |
-| `Selected` *(RapidR)* | int |  | Whether item i is selected, `Selected(i)`; setting it selects or deselects. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `SelectedItem` | string |  | The selected tree node's text. |
+| `Text` (read-only) | string |  | Every node as text: a line each, a tab per level before it (what LoadFromFile reads). |
+| `Selected` | int |  | Whether item i is selected, `Selected(i)`; setting it selects or deselects. |
 | `TopItem` | any |  | The node shown at the top of the tree. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2809,16 +2812,16 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `DelLines(Items, …)` | Removes the lines (nodes) at the indexes given. Same as `DelItems`. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Insert(Index AS INTEGER, String AS STRING)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
-| `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
-| `DelItem` *(RapidR)* | Removes the node at the index given. |
-| `AlphaSort` *(RapidR)* | Sorts the nodes alphabetically. Same as `Sort`. |
-| `AddRoot` *(RapidR)* | Adds a top-level node with the given text. Same as `AddNode`. |
-| `AddNode` *(RapidR)* | Adds a top-level node with the given text. |
-| `SetFocus` *(RapidR)* | Gives the tree the keyboard focus: its keys move the selection, F2 edits, Enter and the arrows open and close. |
-| `EditItem(Index AS INTEGER, [Text AS STRING])` *(RapidR)* | Opens node Index's editor in place, holding Text (the node's own text when left out), as F2 does but without asking OnEditing: the program wants it — a debugger's value fetched whole first. On a value node (SetItemValue) the editor sits over the value, its name still showing. Enter keeps what was typed (OnEdited, as F2's), Esc leaves it. |
-| `SetItemValue(Index AS INTEGER, Name AS STRING, Kind AS STRING, Value AS STRING, [Count AS INTEGER], [Hint AS STRING])` *(RapidR)* | Shows node Index as a value, as a debugger's Variables and Watch do: its kind's icon, then `Name = Value` with the value styled by kind (numbers, text, True/False, constants), an empty text as a quiet `""`, a colour as a swatch and its name, an array with its count. Kind is the debugger's word for it (`Integer`, `Double`, `String`, `Boolean`, `Array`, `Empty`, a TYPE's or a component's name, `Include`, `Components`, `More`) or a heading's (`Locals`, `Globals`, `Components` with no Value, `Watch`, `CallStack`, `Frame`, `CurrentFrame`: drawn as a title with its icon; `Breakpoint`, its state in Hint — `on`, `off`, `unverified`, `conditional`, `hitcount`, `log` — drawn with the gutter's icon for it). Count is how many children it has (an array's elements); Hint says what more is known, comma-separated: `color`, `handle`, `bool` (a True / False property kept as a number: "on" or "off" after it), `const:alClient`, `choices:alNone\|alTop\|…`, `result`, `readonly`. The node's Text becomes `Name = Value`; screen readers hear a sentence ("FontColor, colour clWindowText"). An empty Kind and Value make it a plain node again, with Name as its text. |
+| `AddItem` | Appends one item (a list entry, line, node or menu item) to the component. |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
+| `DelItem` | Removes the node at the index given. |
+| `AlphaSort` | Sorts the nodes alphabetically. Same as `Sort`. |
+| `AddRoot` | Adds a top-level node with the given text. Same as `AddNode`. |
+| `AddNode` | Adds a top-level node with the given text. |
+| `SetFocus` | Gives the tree the keyboard focus: its keys move the selection, F2 edits, Enter and the arrows open and close. |
+| `EditItem(Index AS INTEGER, [Text AS STRING])` | Opens node Index's editor in place, holding Text (the node's own text when left out), as F2 does but without asking OnEditing: the program wants it — a debugger's value fetched whole first. On a value node (SetItemValue) the editor sits over the value, its name still showing. Enter keeps what was typed (OnEdited, as F2's), Esc leaves it. |
+| `SetItemValue(Index AS INTEGER, Name AS STRING, Kind AS STRING, Value AS STRING, [Count AS INTEGER], [Hint AS STRING])` | Shows node Index as a value, as a debugger's Variables and Watch do: its kind's icon, then `Name = Value` with the value styled by kind (numbers, text, True/False, constants), an empty text as a quiet `""`, a colour as a swatch and its name, an array with its count. Kind is the debugger's word for it (`Integer`, `Double`, `String`, `Boolean`, `Array`, `Empty`, a TYPE's or a component's name, `Include`, `Components`, `More`) or a heading's (`Locals`, `Globals`, `Components` with no Value, `Watch`, `CallStack`, `Frame`, `CurrentFrame`: drawn as a title with its icon; `Breakpoint`, its state in Hint — `on`, `off`, `unverified`, `conditional`, `hitcount`, `log` — drawn with the gutter's icon for it). Count is how many children it has (an array's elements); Hint says what more is known, comma-separated: `color`, `handle`, `bool` (a True / False property kept as a number: "on" or "off" after it), `const:alClient`, `choices:alNone\|alTop\|…`, `result`, `readonly`. The node's Text becomes `Name = Value`; screen readers hear a sentence ("FontColor, colour clWindowText"). An empty Kind and Value make it a plain node again, with Name as its text. |
 
 | Event | |
 |---|---|
@@ -2838,13 +2841,13 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
-| `OnUndo` *(RapidR)* | Ctrl+Z (⌘Z on a Mac) while the tree has the focus and isn't editing a node: the program takes back what it last did there — RapidR Studio's Variables put back the last value set. |
-| `OnCopy` *(RapidR)* | Ctrl+C (⌘C on a Mac, which OnKeyDown's Shift can't say) while the tree has the focus and isn't editing a node: the program copies what it shows there — RapidR Studio's Variables copy the selected value. |
+| `OnUndo` | Ctrl+Z (⌘Z on a Mac) while the tree has the focus and isn't editing a node: the program takes back what it last did there — RapidR Studio's Variables put back the last value set. |
+| `OnCopy` | Ctrl+C (⌘C on a Mac, which OnKeyDown's Shift can't say) while the tree has the focus and isn't editing a node: the program copies what it shows there — RapidR Studio's Variables copy the selected value. |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rlistview"></a>
 ## RListView
@@ -2893,20 +2896,20 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `ViewStyle` | enum | `vsIcon` | How the items show: `vsIcon`, `vsSmallIcon`, `vsList`, or `vsReport` (rows with columns). |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Columns` *(RapidR)* | int |  | On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Columns` | int |  | On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2920,9 +2923,9 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
 | `InsertSubItem(Index AS INTEGER, SubIndex AS INTEGER, String AS STRING)` | Inserts sub-item text `String` at column `SubIndex` of the item at `Index`. |
 | `SwapItem(Index1 AS INTEGER, Index2 AS INTEGER)` | Swaps the items at `Index1` and `Index2`. |
-| `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
-| `Repaint` *(RapidR)* | Redraws the component. |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Repaint` | Redraws the component. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 | Event | |
 |---|---|
@@ -2931,8 +2934,8 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `OnColumnClick(Column AS INTEGER)` | Fires when the user clicks a column header of the list view (Column: its index); the usual place to sort by that column. |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rmainmenu"></a>
 ## RMainMenu
@@ -2943,7 +2946,7 @@ A form's menu bar; its menus and commands are QMENUITEMs.
 |---|---|---|---|
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
-| `ItemCount` *(RapidR)* | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 
 | Method | |
 |---|---|
@@ -2951,8 +2954,8 @@ A form's menu bar; its menus and commands are QMENUITEMs.
 | `DelIndex(index AS LONG)` | Removes the menu item at position `index`. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Insert(I AS INTEGER, Item AS RMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
-| `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
-| `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 
 <a id="rmenuitem"></a>
 ## RMenuItem
@@ -2973,7 +2976,7 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 | `ShortCut` | string |  | The key that runs the menu item, as text (`Ctrl+S`, `F5`). |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `Visible` | bool | True | Whether the control or form is shown. |
-| `ItemCount` *(RapidR)* | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 
 | Method | |
 |---|---|
@@ -2981,8 +2984,8 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 | `DelIndex(index AS LONG)` | Removes the menu item at position `index`. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Insert(I AS INTEGER, Item AS RMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
-| `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 
 | Event | |
 |---|---|
@@ -3000,7 +3003,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `WindowHandle` | int |  | The window that gets the popup menu's messages. |
-| `ItemCount` *(RapidR)* | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 
 | Method | |
 |---|---|
@@ -3009,9 +3012,9 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Insert(I AS INTEGER, Item AS RMENUITEM)` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
 | `Popup(X AS INTEGER, Y AS INTEGER)` | Shows the popup menu at screen point (`X`, `Y`). |
-| `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
-| `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
-| `PopupAt(Control, X AS INTEGER, Y AS INTEGER)` *(RapidR)* | Shows the menu at (X, Y) inside Control (any component on a form), its top-left corner the origin, wherever Control sits in its window (docked, in a panel): a menu under a list's item or beside a button, where Popup takes the screen's coordinates. As with Popup, OnPopup comes first and the item picked fires its OnClick. |
+| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
+| `PopupAt(Control, X AS INTEGER, Y AS INTEGER)` | Shows the menu at (X, Y) inside Control (any component on a form), its top-left corner the origin, wherever Control sits in its window (docked, in a panel): a menu under a list's item or beside a button, where Popup takes the screen's coordinates. As with Popup, OnPopup comes first and the item picked fires its OnClick. |
 
 | Event | |
 |---|---|
@@ -3024,14 +3027,14 @@ The system's Open dialog: Execute shows it and returns whether the user chose a 
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `PickFolder` *(RapidR)* | bool | False | Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back). |
+| `PickFolder` | bool | False | Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back). |
 | `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
 | `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Filter` | string | `""` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
 | `FilterIndex` | int | 1 | Which filter is selected, from 1. |
 | `InitialDir` | string | `""` | The folder the dialog or tree starts in. |
-| `Title` *(RapidR)* | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
-| `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
+| `Title` | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `DefaultExt` | string |  | The extension added to a file name typed without one (`txt`, no dot). |
 
 | Method | |
 |---|---|
@@ -3049,8 +3052,8 @@ The system's Save dialog: Execute shows it and returns whether the user chose a 
 | `Filter` | string | `""` | The file types offered, as description\|patterns pairs (`Text\|*.txt\|All Files\|*.*`), patterns split by `;`. |
 | `FilterIndex` | int | 1 | Which filter is selected, from 1. |
 | `InitialDir` | string | `""` | The folder the dialog or tree starts in. |
-| `Title` *(RapidR)* | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
-| `DefaultExt` *(RapidR)* | string |  | The extension added to a file name typed without one (`txt`, no dot). |
+| `Title` | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `DefaultExt` | string |  | The extension added to a file name typed without one (`txt`, no dot). |
 
 | Method | |
 |---|---|
@@ -3077,7 +3080,7 @@ A file dialog: one component for Open and Save (Mode), with several files at onc
 | `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `SelCount` (read-only) | int | 0 | How many items (or files) are selected. |
 | `WarnIfOverWrite` | bool | True | Asks before saving over a file that's already there. |
-| `Title` *(RapidR)* | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
+| `Title` | string | `""` | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 
 | Method | |
 |---|---|
@@ -3114,8 +3117,8 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `MaxFontSize` | int |  | The largest size the font dialog offers (0: no limit). |
 | `MinFontSize` | int |  | The smallest size the font dialog offers (0: no limit). |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Name` | string |  | The font's name (`Arial`); on a joystick, the device's name. |
 
 | Method | |
@@ -3171,8 +3174,8 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `LineCount` (read-only) | int |  | The number of lines of text (on a tree, of nodes). |
 | `Position` | int | 0 | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `Size` (read-only) | int | 0 | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `FileName` *(RapidR)* | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Text` *(RapidR)* | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 
 | Method | |
 |---|---|
@@ -3193,16 +3196,16 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as older programs expect; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
-| `Download` *(RapidR)* *(web)* | Saves the stream's text to the user's computer as a browser download, named by `FileName`. |
-| `PickFile` *(RapidR)* *(web)* | Opens the browser's file picker and reads the chosen file into the stream; an optional filter such as `.txt` limits the choice. |
-| `LoadFromUrl` *(RapidR)* *(web)* | Fetches a URL's text into the stream; an event fires when it has arrived. |
-| `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
-| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
-| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
-| `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
-| `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
+| `Download` *(web)* | Saves the stream's text to the user's computer as a browser download, named by `FileName`. |
+| `PickFile` *(web)* | Opens the browser's file picker and reads the chosen file into the stream; an optional filter such as `.txt` limits the choice. |
+| `LoadFromUrl` *(web)* | Fetches a URL's text into the stream; an event fires when it has arrived. |
+| `ReadAll` | Returns the rest of the stream as text. |
+| `ReadAllText` | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as older programs expect. |
+| `WriteText(S AS STRING)` | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as older programs expect, and one with any other character as its UTF-8. |
+| `Writeln` | Writes text followed by a line end. Same as `WriteLine`. |
+| `Readln` | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
 | `ReadByte AS BYTE` | Reads one byte at Position (26, DOS's end-of-file mark, past the end). |
 | `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory. |
@@ -3220,10 +3223,10 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `ItemCount` (read-only) | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 | `Sorted` | bool | False | Keeps the items in alphabetical order. |
 | `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
-| `Count` *(RapidR)* | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
-| `ListCount` *(RapidR)* | int |  | RapidR's name for `ItemCount`. |
-| `ListIndex` *(RapidR)* | int |  | RapidR's name for `ItemIndex`. |
-| `Items` *(RapidR)* | string |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
+| `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `ListCount` | int |  | RapidR's name for `ItemCount`. |
+| `ListIndex` | int |  | RapidR's name for `ItemIndex`. |
+| `Items` | string |  | RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`. |
 
 | Method | |
 |---|---|
@@ -3241,20 +3244,20 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `SaveToFile(File AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(File AS QSTREAM)` | This reads the list from the stream, exactly as LoadFromStream does, and writes nothing (it erases the list). To write the items to a stream, use `Stream.WriteStr(List.Text, LEN(List.Text))`. |
 | `Sort` | Sorts the items, nodes or elements in ascending order. |
-| `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
-| `Delete` *(RapidR)* | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
-| `Insert` *(RapidR)* | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
-| `Remove` *(RapidR)* | Removes something: a list's string by index, the element from the page, or a stored value by key. |
-| `Get` *(RapidR)* | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
-| `Strings` *(RapidR)* | Returns the string at the index given. Same as `Item`. |
-| `String` *(RapidR)* | Returns the string at the index given. Same as `Item`. |
-| `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
-| `AddString` *(RapidR)* | Appends one string as a new item or line. |
-| `DeleteItem` *(RapidR)* | Removes the item at the index given. |
-| `DeleteItems` *(RapidR)* | Removes the items at the indexes given. |
-| `RemoveItem` *(RapidR)* | Removes the item at the index given. |
+| `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
+| `Delete` | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
+| `Insert` | Inserts at a position: a node or string before index `Index`, or menu item `Item` at position `I`. |
+| `Remove` | Removes something: a list's string by index, the element from the page, or a stored value by key. |
+| `Get` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
+| `Strings` | Returns the string at the index given. Same as `Item`. |
+| `String` | Returns the string at the index given. Same as `Item`. |
+| `AddItem` | Appends one item (a list entry, line, node or menu item) to the component. |
+| `AddString` | Appends one string as a new item or line. |
+| `DeleteItem` | Removes the item at the index given. |
+| `DeleteItems` | Removes the items at the indexes given. |
+| `RemoveItem` | Removes the item at the index given. |
 | `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
-| `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 <a id="rprinter"></a>
 ## RPrinter
@@ -3359,6 +3362,37 @@ Keeps passwords, tokens and keys in the operating system's keychain (the macOS K
 | `Delete(Service AS STRING, Name AS STRING) AS INTEGER` | Removes `Name` of `Service` from the keychain. True when there was one; False when there wasn't or it couldn't (Error says why). |
 | `Exists(Service AS STRING, Name AS STRING) AS INTEGER` | True when something is kept as `Name` of `Service`. |
 
+<a id="rsysteminfo"></a>
+## RSystemInfo
+
+What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer. RapidR never sends them anywhere. If your program does (to a server, in a log, in a report), tell its users first and send only what you need (`Class`, not every fact): together they can single out one computer, and a program for children shouldn't send them at all. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or "". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `OS` (read-only) | string |  | The operating system: "macOS", "Windows", "Linux" (a web page: the system the browser says it runs on). |
+| `OSVersion` (read-only) | string |  | The system's version, as it says it: "27.2", "11 24H2 (26100)", "Ubuntu 24.04 LTS"; "" on the web. |
+| `Architecture` (read-only) | string |  | The processor's kind: "arm64", "x86_64" or "x86"; "" on the web. |
+| `CPU` (read-only) | string |  | The processor's name ("Apple M4 Max", "Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz"); "" when the system doesn't say, and on the web. |
+| `Cores` (read-only) | int |  | How many things the processor does at once (logical cores). |
+| `TotalMemory` (read-only) | int |  | All the memory, in megabytes (`\ 1024` gives gigabytes). On the web, where the browser says it, rounded and at most 8 GB; else 0. |
+| `FreeMemory` (read-only) | int |  | The memory a program can have now, in megabytes: what is free and what the system gives back at once (caches). Read again each time. 0 on the web. |
+| `GPU` (read-only) | string |  | The graphics processor's name (on Apple silicon the chip's: "Apple M4 Max"); "" when not known, and on the web. |
+| `GPUMemory` (read-only) | int |  | The memory the graphics processor can use, in megabytes: its own, or where the memory is shared (UnifiedMemory) the part it may take, about three quarters of it. 0 when not known. |
+| `UnifiedMemory` (read-only) | bool |  | True when the processor and the graphics share one memory (Apple silicon): a large AI model can use most of it. |
+| `DiskTotal` (read-only) | int |  | The size of the disk your files are on (the home folder's), in megabytes; 0 on the web. |
+| `DiskFree` (read-only) | int |  | What is free on that disk, in megabytes; 0 on the web. |
+| `HasBattery` (read-only) | bool |  | True when the computer has a battery (a laptop). False on the web, where it isn't known. |
+| `OnBattery` (read-only) | bool |  | True when it runs on its battery now (unplugged): a program may do less to save it. |
+| `BatteryLevel` (read-only) | int |  | The battery's charge, 0 to 100; -1 with no battery or when not known. |
+| `Class` (read-only) | string |  | The computer's size in plain words: "small" (under 8 GB of memory, or fewer than 4 cores), "large" (32 GB or more and 8 cores or more), else "medium". |
+| `Summary` (read-only) | string |  | One sentence for people: "macOS 27.2 on Apple M4 Max (16 cores), 48 GB of memory (31 GB free), 410 GB free on the disk, plugged in." |
+| `Unknown` (read-only) | string |  | The properties this computer or browser can't tell, by name, separated by ", " ("FreeMemory, GPU, DiskFree, …" on the web); "" when everything is known. |
+| `Browser` (read-only) | bool |  | True on a web page: the facts are the browser's, and fewer. |
+
+| Method | |
+|---|---|
+| `Refresh` | Reads everything again (the battery, a disk that filled up). FreeMemory is always read now; the rest is read once, the first time it is asked for. |
+
 <a id="rjson"></a>
 ## RJson
 
@@ -3422,8 +3456,8 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
 | `SetSize` (write-only) | int |  | Size's other name (`Mem.SetSize = 0`), only written. |
-| `FileName` *(RapidR)* | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
-| `Text` *(RapidR)* | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
+| `FileName` | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
+| `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 
 | Method | |
 |---|---|
@@ -3445,13 +3479,13 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as older programs expect; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
-| `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
-| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
-| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
-| `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
-| `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
+| `ReadAll` | Returns the rest of the stream as text. |
+| `ReadAllText` | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as older programs expect. |
+| `WriteText(S AS STRING)` | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as older programs expect, and one with any other character as its UTF-8. |
+| `Writeln` | Writes text followed by a line end. Same as `WriteLine`. |
+| `Readln` | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` | Empties the stream: `Size` and `Position` 0. |
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
 | `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory. |
@@ -3521,12 +3555,12 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `TransparentColor` | color |  | The colour drawn see-through, as &HBBGGRR. |
 | `TransparentMode` | int | 0 | 0 takes the see-through colour from the bitmap's bottom-left pixel; 1 uses `TransparentColor`. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Smooth` *(RapidR)* | bool | False | Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Smooth` | bool | False | Whether `StretchDraw` and `CopyRect` blend when they scale. False (the default, and how a scaled copy has always been drawn) takes the nearest pixel: crisp edges, right for pixel art, an emulator's screen, a QR code. True blends the four pixels around each one (bilinear): smooth, right for photographs. |
 
 | Method | |
 |---|---|
@@ -3549,10 +3583,10 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` with its top-left corner at (`x`, `y`), in colour `fc` on a background of colour `bc`. |
-| `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
-| `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` *(RapidR)* | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
-| `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` *(RapidR)* | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
-| `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` *(RapidR)* | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
+| `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
+| `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
+| `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
+| `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
 
 <a id="rimagelist"></a>
 ## RImageList
@@ -3587,8 +3621,8 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `InsertICOFile(Index AS INTEGER, Filename AS STRING)` | Loads an icon file and inserts it at position `Index`. |
 | `InsertBMPHandle(Index AS INTEGER, BMP_Resource, Mask AS INTEGER)` | Inserts a bitmap resource's image at position `Index`, with `Mask` as its transparent color. |
 | `InsertICOHandle(Index AS INTEGER, ICO_Resource)` | Inserts an icon resource at position `Index`. |
-| `AddIcon(Name AS STRING, [Theme AS STRING])` *(RapidR)* | Adds one of RapidR's own icons (an icon name, a component type or a command id) at the list's Width × Height, in the current theme's colours or Theme's. |
-| `AddSVGFile(FileName AS STRING, [Theme AS STRING]) AS INTEGER` *(RapidR)* | Adds your own SVG icon — a file, or one built into the program by `$RESOURCE` (its name) — drawn at the list's Width × Height and at the screen's scale, so it stays sharp at 2×. Drawn with RapidR's icon colour tokens (ink #5B6478, blue #2F5BFF … as their light values) or `currentColor`, it takes the theme's colours (light, dark, high contrast) and follows the theme when it changes; Theme ("dark", "highcontrast" …) fixes them. An SVG with colours of its own keeps them. Returns the new image's index. |
+| `AddIcon(Name AS STRING, [Theme AS STRING])` | Adds one of RapidR's own icons (an icon name, a component type or a command id) at the list's Width × Height, in the current theme's colours or Theme's. |
+| `AddSVGFile(FileName AS STRING, [Theme AS STRING]) AS INTEGER` | Adds your own SVG icon — a file, or one built into the program by `$RESOURCE` (its name) — drawn at the list's Width × Height and at the screen's scale, so it stays sharp at 2×. Drawn with RapidR's icon colour tokens (ink #5B6478, blue #2F5BFF … as their light values) or `currentColor`, it takes the theme's colours (light, dark, high contrast) and follows the theme when it changes; Theme ("dark", "highcontrast" …) fixes them. An SVG with colours of its own keeps them. Returns the new image's index. |
 
 <a id="rnotifyicondata"></a>
 ## RNotifyIconData
@@ -3664,19 +3698,19 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `Length` (read-only) | int |  | `Length(i)`: how many bytes field `i` (from 0) of the row the last FetchLengths measured has (a NULL 0); 0 before any. |
 | `Row` (read-only) | string |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
 | `RowCount` (read-only) | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
-| `Busy` *(RapidR)* (read-only) | int |  | 1 while a background query (QueryAsync) runs, else 0. |
+| `Busy` (read-only) | int |  | 1 while a background query (QueryAsync) runs, else 0. |
 | `Table` (read-only) | string |  | A table's name, `Table(i)` from 0, as the database lists them; read-only. |
 | `TableCount` (read-only) | int |  | The number of tables in the database. |
-| `Host` *(RapidR)* | string |  | The server's host name or address. |
-| `User` *(RapidR)* | string |  | The user name the database connection logs in with. |
-| `Password` *(RapidR)* | string |  | The password the database connection logs in with. |
-| `Database` *(RapidR)* | string |  | The database in use: an SQLite file, or a MySQL database's name. |
-| `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `SSLMode` *(RapidR)* | string | `"Preferred"` | How the connection is encrypted (TLS, the operating system's), as MySQL's own client says it. Preferred (the default): encrypted when the server can, else plain; the certificate isn't checked. Disabled: never. Required: encrypted or no connection; the certificate isn't checked. VerifyCA: also the server's certificate signed by SSLCA (or an authority the system trusts). VerifyFull: also the certificate names Host. Only VerifyCA and VerifyFull check that it is your server: Preferred and Required encrypt but don't check who answers, so on a network you don't trust someone in between can read the password and the data — use VerifyFull for a server on another computer. A Unix socket or named pipe carries no TLS: Required and stricter refuse it. Read before Connect / RealConnect; Encrypted says what this connection is. |
-| `SSLCA` *(RapidR)* | string |  | The certificate authority VerifyCA and VerifyFull trust: a .pem (one or more certificates) or .der file, such as the server's ca.pem. "": the authorities the system trusts. |
-| `Encrypted` *(RapidR)* (read-only) | int |  | 1 while the connection is encrypted (TLS), 0 when it is plain or there is none. |
-| `InTransaction` *(RapidR)* (read-only) | int |  | 1 while a transaction is open on the session, 0 when none, -1 when the server's answers didn't say: as the server reports it (MySQL 5.7+ and MariaDB 10.3+ track it) in its answer to each statement that changes it — BEGIN / START TRANSACTION, COMMIT, ROLLBACK, a change with Autocommit off, the implicit commit after CREATE, ALTER or DROP, SET autocommit = 1 —, so reading it runs no query and the rows stay. -1 (true in an IF: treat it as open) after a query of several statements whose last gives rows (`BEGIN; SELECT …`), after a read with Autocommit off (it may have begun one), and on an older server; the next statement's answer says it again. Closing rolls an open transaction back: `IF My.InTransaction THEN` ask first. |
-| `Autocommit` *(RapidR)* (read-only) | int |  | 1 while the session commits each statement by itself (MySQL's autocommit, on by default), 0 after `SET autocommit = 0` (each change then waits for COMMIT), -1 before Connect or when the server didn't say. Followed from the server's answers, as InTransaction is. |
+| `Host` | string |  | The server's host name or address. |
+| `User` | string |  | The user name the database connection logs in with. |
+| `Password` | string |  | The password the database connection logs in with. |
+| `Database` | string |  | The database in use: an SQLite file, or a MySQL database's name. |
+| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `SSLMode` | string | `"Preferred"` | How the connection is encrypted (TLS, the operating system's), as MySQL's own client says it. Preferred (the default): encrypted when the server can, else plain; the certificate isn't checked. Disabled: never. Required: encrypted or no connection; the certificate isn't checked. VerifyCA: also the server's certificate signed by SSLCA (or an authority the system trusts). VerifyFull: also the certificate names Host. Only VerifyCA and VerifyFull check that it is your server: Preferred and Required encrypt but don't check who answers, so on a network you don't trust someone in between can read the password and the data — use VerifyFull for a server on another computer. A Unix socket or named pipe carries no TLS: Required and stricter refuse it. Read before Connect / RealConnect; Encrypted says what this connection is. |
+| `SSLCA` | string |  | The certificate authority VerifyCA and VerifyFull trust: a .pem (one or more certificates) or .der file, such as the server's ca.pem. "": the authorities the system trusts. |
+| `Encrypted` (read-only) | int |  | 1 while the connection is encrypted (TLS), 0 when it is plain or there is none. |
+| `InTransaction` (read-only) | int |  | 1 while a transaction is open on the session, 0 when none, -1 when the server's answers didn't say: as the server reports it (MySQL 5.7+ and MariaDB 10.3+ track it) in its answer to each statement that changes it — BEGIN / START TRANSACTION, COMMIT, ROLLBACK, a change with Autocommit off, the implicit commit after CREATE, ALTER or DROP, SET autocommit = 1 —, so reading it runs no query and the rows stay. -1 (true in an IF: treat it as open) after a query of several statements whose last gives rows (`BEGIN; SELECT …`), after a read with Autocommit off (it may have begun one), and on an older server; the next statement's answer says it again. Closing rolls an open transaction back: `IF My.InTransaction THEN` ask first. |
+| `Autocommit` (read-only) | int |  | 1 while the session commits each statement by itself (MySQL's autocommit, on by default), 0 after `SET autocommit = 0` (each change then waits for COMMIT), -1 before Connect or when the server didn't say. Followed from the server's answers, as InTransaction is. |
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `NumFields` | int |  | The number of fields in the last query's result. |
 | `NumRows` | int |  | The number of rows in the last query's result. |
@@ -3691,29 +3725,29 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `FetchField AS VARIANT` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
 | `FetchLengths AS INTEGER` | Measures the current row's fields in bytes for Length(i), which keeps those values until the next FetchLengths. Returns 1, or 0 when there's no current row (before the first FetchRow, past the last). |
 | `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
-| `ColName(Index AS INTEGER) AS STRING` *(RapidR)* | The name of column `Index` (from 0) of the last query's rows, from the result's own metadata (`SELECT name AS who` → "who"): known on a read-only connection too, nothing run again. "" past the last column. A background query's too, as soon as its columns are known. |
-| `Schema AS STRING` *(RapidR)* | The selected database's tables and views, each with its columns and their types (from information_schema: a read-only connection's too), as JSON — what an RCodeEditor's SetSchema takes: `Editor.SetSchema DB.Schema`. "" when not connected or while a background query runs (OnError says which). |
-| `ColType(Index AS INTEGER) AS STRING` *(RapidR)* | The type of column `Index` (from 0) of the last query's rows, from the result's metadata, as MySQL names it in a table: "INT", "BIGINT UNSIGNED", "DECIMAL", "VARCHAR", "TEXT", "BLOB", "DATETIME", "ENUM", "JSON" …; "" past the last column. |
+| `ColName(Index AS INTEGER) AS STRING` | The name of column `Index` (from 0) of the last query's rows, from the result's own metadata (`SELECT name AS who` → "who"): known on a read-only connection too, nothing run again. "" past the last column. A background query's too, as soon as its columns are known. |
+| `Schema AS STRING` | The selected database's tables and views, each with its columns and their types (from information_schema: a read-only connection's too), as JSON — what an RCodeEditor's SetSchema takes: `Editor.SetSchema DB.Schema`. "" when not connected or while a background query runs (OnError says which). |
+| `ColType(Index AS INTEGER) AS STRING` | The type of column `Index` (from 0) of the last query's rows, from the result's metadata, as MySQL names it in a table: "INT", "BIGINT UNSIGNED", "DECIMAL", "VARCHAR", "TEXT", "BLOB", "DATETIME", "ENUM", "JSON" …; "" past the last column. |
 | `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
 | `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
-| `QueryAsync(Query AS STRING, [Value, …]) AS INTEGER` *(RapidR)* | Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) ("cancelled" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError "busy: …"). Returns 1 if it started, else 0 (OnError says why). Its cells are text (binary data: use Query, RowBlob). |
-| `Cancel AS INTEGER` *(RapidR)* | Stops the background query (the server's KILL QUERY): OnError("cancelled") follows — or OnDone, if it had just finished. Returns 1 if one was running. |
+| `QueryAsync(Query AS STRING, [Value, …]) AS INTEGER` | Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) ("cancelled" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError "busy: …"). Returns 1 if it started, else 0 (OnError says why). Its cells are text (binary data: use Query, RowBlob). |
+| `Cancel AS INTEGER` | Stops the background query (the server's KILL QUERY): OnError("cancelled") follows — or OnDone, if it had just finished. Returns 1 if one was running. |
 | `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` | Connects like Connect, with more say: `DB` is the database to use ("" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP ("" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL = 2048 asks for an encrypted connection: SSLMode Required, unless SSLMode asks for more). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell). |
 | `Refresh(RefreshFlags AS INTEGER) AS INTEGER` | Asks the server to reload or clear what the flags name (MYSQL.INC): Refresh_Grant (1) the privilege tables, Refresh_Log (2) the logs, Refresh_Table (4) the open tables, Refresh_Hosts (8) the host cache, Refresh_Status (16) the status counters — added together for several. The user needs MySQL's RELOAD privilege. Returns 1 if all of it was done, 0 if not (OnError gets the server's message). |
 | `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` | Binary data from the current row: the first `Bytes` bytes of its field number `Row` (from 0; despite the name, a column), one character per byte, NUL and all. `Bytes` is usually Length(Row) after FetchLengths. "" without a current row or such a field. |
 | `RowSeek(Row AS INTEGER) AS VARIANT` | Moves to row `Row` of the query's result, the next one `FetchRow` reads. |
 | `SelectDB(DB AS STRING) AS INTEGER` | Makes database `DB` the current one; returns true on success. |
-| `ClearParams` *(RapidR)* | Drops the values queued with AddParam. |
+| `ClearParams` | Drops the values queued with AddParam. |
 | `LoadBlob(File AS STRING) AS STRING` | Reads a file's bytes and returns them as EscapeString would, ready to go between quotes in an INSERT or UPDATE. "" if the file can't be read (OnError says why). |
 | `SaveBlob(Field AS INTEGER, File AS STRING)` | Writes field `Field` (from 0) of the current row, its bytes as the server sent them, to a new file `File` (no FetchLengths needed). Does nothing without a current row or such a field. |
 
 | Event | |
 |---|---|
-| `OnConnect` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
-| `OnDisconnect` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` *(RapidR)* | Something failed: the message (the server's, "busy: …" while a background query runs, "cancelled" after Cancel). |
-| `OnRows(Count AS INTEGER)` *(RapidR)* | A background query's rows arrived: Count is how many have so far (RowCount too). |
-| `OnDone(Rows AS INTEGER, Ms AS INTEGER)` *(RapidR)* | A background query finished: its rows, and the milliseconds it took. |
+| `OnConnect` | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
+| `OnDisconnect` | Fires when the connection is closed: a database by Close, a socket by either side. |
+| `OnError(Message AS STRING)` | Something failed: the message (the server's, "busy: …" while a background query runs, "cancelled" after Cancel). |
+| `OnRows(Count AS INTEGER)` | A background query's rows arrived: Count is how many have so far (RowCount too). |
+| `OnDone(Rows AS INTEGER, Ms AS INTEGER)` | A background query finished: its rows, and the milliseconds it took. |
 
 <a id="rsocket"></a>
 ## RSocket
@@ -3730,11 +3764,11 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `Transferred` (read-only) | int |  | Bytes sent or received by the last transfer; read-only. |
 | `WMessage` | int | 0 | The window message the socket posts on its events (0: none). |
-| `Host` *(RapidR)* | string |  | The server's host name or address. |
-| `BindAddress` *(RapidR)* *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
-| `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `Timeout` *(RapidR)* | int |  | How long to wait for the network, in milliseconds. |
+| `Host` | string |  | The server's host name or address. |
+| `BindAddress` *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
+| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `Connected` | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `Timeout` | int |  | How long to wait for the network, in milliseconds. |
 | `Type` | int |  | The socket's type: a stream (TCP) or datagram (UDP) socket. |
 
 | Method | |
@@ -3756,15 +3790,15 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Write(Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteByte(Socket AS INTEGER, B AS BYTE)` | Writes one byte to the socket or stream. |
 | `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
-| `Disconnect` *(RapidR)* | Closes the connection. Same as `Close`. |
-| `Send` *(RapidR)* *(web)* | Sends text over the WebSocket. Same as `Write`. |
-| `Receive` *(RapidR)* *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |
+| `Disconnect` | Closes the connection. Same as `Close`. |
+| `Send` *(web)* | Sends text over the WebSocket. Same as `Write`. |
+| `Receive` *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |
 
 | Event | |
 |---|---|
-| `OnConnect(State AS STRING)` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
-| `OnDisconnect(State AS STRING)` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+| `OnConnect(State AS STRING)` | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
+| `OnDisconnect(State AS STRING)` | Fires when the connection is closed: a database by Close, a socket by either side. |
+| `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 
 <a id="rserversocket"></a>
 ## RServerSocket
@@ -3969,19 +4003,19 @@ A serial port: set the port and its speed, Open it, then read and write strings.
 | `StopBits` | int | 1 | The serial line's stop bits: `sbOneStopBit`, `sbOne5StopBits` or `sbTwoStopBits`. |
 | `WriteBufSize` | int | 1024 | The size of the serial port's send buffer, in bytes, read at `Open`. |
 | `Port` | any |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `DcbFlags` *(RapidR)* | int |  | The serial port's flow-control flag bits, read at `Open`: 20625 none, 24725 hardware, 21393 XON / XOFF. |
+| `DcbFlags` | int |  | The serial port's flow-control flag bits, read at `Open`: 20625 none, 24725 hardware, 21393 XON / XOFF. |
 | `InQue` (read-only) | int |  | Bytes waiting in the receive buffer now; read-only. |
 | `OutQue` (read-only) | int |  | Bytes waiting in the send buffer now; read-only. |
 | `PendingIO` (read-only) | int |  | Writes still pending: always 0, as RapidR's I/O never stays pending; read-only. |
-| `DTR` *(RapidR)* | int | 1 | The Data Terminal Ready line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). Many boards wire it, with RTS, to their reset and boot pins. |
-| `RTS` *(RapidR)* | int | 1 | The Request To Send line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). With hardware flow control the port drives it. |
-| `CTS` *(RapidR)* (read-only) | int |  | The Clear To Send line the other end drives: 1 when set (0 while the port is closed). |
-| `DSR` *(RapidR)* (read-only) | int |  | The Data Set Ready line the other end drives: 1 when set (0 while the port is closed). |
-| `CD` *(RapidR)* (read-only) | int |  | The Carrier Detect line: 1 when set (0 while the port is closed). |
-| `RI` *(RapidR)* (read-only) | int |  | The Ring Indicator line: 1 when set (0 while the port is closed). |
-| `LineEnd` *(RapidR)* | string |  | What ends a line for ReadLine and OnLine: CHR$(10) unless set. With CHR$(10) a CR just before it is dropped too, so lines ending CR LF or LF both read clean. |
-| `HasLine` *(RapidR)* (read-only) | int |  | 1 when a whole line has arrived (ReadLine returns it at once). |
-| `PortCount` *(RapidR)* (read-only) | int |  | How many ports ListPorts found (it looks first when it hasn't yet). |
+| `DTR` | int | 1 | The Data Terminal Ready line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). Many boards wire it, with RTS, to their reset and boot pins. |
+| `RTS` | int | 1 | The Request To Send line: 1 set, 0 clear. It changes at once on an open port, else at Open; until set it follows DcbFlags (set). With hardware flow control the port drives it. |
+| `CTS` (read-only) | int |  | The Clear To Send line the other end drives: 1 when set (0 while the port is closed). |
+| `DSR` (read-only) | int |  | The Data Set Ready line the other end drives: 1 when set (0 while the port is closed). |
+| `CD` (read-only) | int |  | The Carrier Detect line: 1 when set (0 while the port is closed). |
+| `RI` (read-only) | int |  | The Ring Indicator line: 1 when set (0 while the port is closed). |
+| `LineEnd` | string |  | What ends a line for ReadLine and OnLine: CHR$(10) unless set. With CHR$(10) a CR just before it is dropped too, so lines ending CR LF or LF both read clean. |
+| `HasLine` (read-only) | int |  | 1 when a whole line has arrived (ReadLine returns it at once). |
+| `PortCount` (read-only) | int |  | How many ports ListPorts found (it looks first when it hasn't yet). |
 
 | Method | |
 |---|---|
@@ -3997,16 +4031,16 @@ A serial port: set the port and its speed, Open it, then read and write strings.
 | `WriteString(Str AS STRING, Wait AS INTEGER)` | Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key. |
 | `AddFlowControl` | Turns on flow-control options of the serial port. |
 | `DelFlowControl` | Turns off flow-control options of the serial port. |
-| `ListPorts AS INTEGER` *(RapidR)* | Looks at the serial ports there are now and returns how many; PortName, PortDescription and the others read them, 0 being the first. On the desktop every port the system has, a USB adapter's IDs and names with it; in the browser the ports the page was allowed (COM1, COM2 …). |
-| `PortName(Index AS INTEGER) AS STRING` *(RapidR)* | Port Index's name as Port takes it (COM3, /dev/cu.usbserial-1420, /dev/ttyUSB0); empty past the last. |
-| `PortDescription(Index AS INTEGER) AS STRING` *(RapidR)* | What port Index is: the system's name for its device (CP2102N USB to UART Bridge Controller), else the USB chip its IDs name (CH340 USB to serial); empty when nothing says. |
-| `PortManufacturer(Index AS INTEGER) AS STRING` *(RapidR)* | Who made port Index's USB device, as the device says (empty when not USB). |
-| `PortSerialNumber(Index AS INTEGER) AS STRING` *(RapidR)* | Port Index's USB device's serial number (empty when it has none): it tells two boards of the same kind apart. |
-| `PortVendorID(Index AS INTEGER) AS INTEGER` *(RapidR)* | Port Index's USB vendor ID (&H10C4 Silicon Labs, &H1A86 WCH, &H0403 FTDI, &H303A Espressif); 0 when not USB. |
-| `PortProductID(Index AS INTEGER) AS INTEGER` *(RapidR)* | Port Index's USB product ID; 0 when not USB. |
-| `FillList(Control) AS INTEGER` *(RapidR)* | Looks at the ports again and puts them in a list box or combo box, one item each (the name, then the description in brackets) in PortName's order, selecting Port's; returns how many. Port = PortName(Combo.ItemIndex) then picks one. |
-| `ReadLine([Timeout AS INTEGER]) AS STRING` *(RapidR)* | The next whole line that has arrived, without its LineEnd, waiting up to Timeout ms for one (1000 without it; 0 doesn't wait). Empty when none came in time: what part of a line has arrived stays for the next read. |
-| `SendBreak([Duration AS INTEGER])` *(RapidR)* | Holds the line in a break for Duration ms (250 without it). |
+| `ListPorts AS INTEGER` | Looks at the serial ports there are now and returns how many; PortName, PortDescription and the others read them, 0 being the first. On the desktop every port the system has, a USB adapter's IDs and names with it; in the browser the ports the page was allowed (COM1, COM2 …). |
+| `PortName(Index AS INTEGER) AS STRING` | Port Index's name as Port takes it (COM3, /dev/cu.usbserial-1420, /dev/ttyUSB0); empty past the last. |
+| `PortDescription(Index AS INTEGER) AS STRING` | What port Index is: the system's name for its device (CP2102N USB to UART Bridge Controller), else the USB chip its IDs name (CH340 USB to serial); empty when nothing says. |
+| `PortManufacturer(Index AS INTEGER) AS STRING` | Who made port Index's USB device, as the device says (empty when not USB). |
+| `PortSerialNumber(Index AS INTEGER) AS STRING` | Port Index's USB device's serial number (empty when it has none): it tells two boards of the same kind apart. |
+| `PortVendorID(Index AS INTEGER) AS INTEGER` | Port Index's USB vendor ID (&H10C4 Silicon Labs, &H1A86 WCH, &H0403 FTDI, &H303A Espressif); 0 when not USB. |
+| `PortProductID(Index AS INTEGER) AS INTEGER` | Port Index's USB product ID; 0 when not USB. |
+| `FillList(Control) AS INTEGER` | Looks at the ports again and puts them in a list box or combo box, one item each (the name, then the description in brackets) in PortName's order, selecting Port's; returns how many. Port = PortName(Combo.ItemIndex) then picks one. |
+| `ReadLine([Timeout AS INTEGER]) AS STRING` | The next whole line that has arrived, without its LineEnd, waiting up to Timeout ms for one (1000 without it; 0 doesn't wait). Empty when none came in time: what part of a line has arrived stays for the next read. |
+| `SendBreak([Duration AS INTEGER])` | Holds the line in a break for Duration ms (250 without it). |
 
 | Event | |
 |---|---|
@@ -4020,8 +4054,8 @@ A serial port: set the port and its speed, Open it, then read and write strings.
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
 | `OnTxEmpty` | The output buffer is empty: everything a Write or WriteString sent has gone out — fired after its OnWriteString. |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
-| `OnLine(Received AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
-| `OnPortsChanged(Added AS STRING, Removed AS STRING)` *(RapidR)* | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
+| `OnLine(Received AS STRING)` | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
+| `OnPortsChanged(Added AS STRING, Removed AS STRING)` | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
 
 <a id="rdownload"></a>
 ## RDownload
@@ -4064,11 +4098,11 @@ Plays a standard MIDI file (QMidi.inc) on a system MIDI output that makes sound 
 | `CurrentFrame` | int |  | The frame (video) or position (MIDI) playing now; setting it seeks there. |
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Length` | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `LengthTime` | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 
 | Method | |
 |---|---|
@@ -4100,11 +4134,11 @@ Plays, records and saves WAV sound (QWave.inc).
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
 | `DeviceType` | string |  | The device type the wave opens with (`waveaudio`). |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Length` | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `LengthTime` | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 
 | Method | |
 |---|---|
@@ -4149,11 +4183,11 @@ Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its 
 | `BorderStyle` | enum | `bsNone` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
-| `LengthTime` *(RapidR)* | int |  | RapidR's spelling of `LenghtTime`: the length as time. |
-| `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Length` | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
+| `LengthTime` | int |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 
 | Method | |
 |---|---|
@@ -4185,9 +4219,9 @@ Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 | `Present` (read-only) | bool | False | True when there's a disc in the drive; read-only. |
 | `CurrentTrack` | int |  | The CD track playing or selected, from 1; setting it moves there. |
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
-| `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
+| `Interval` | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `LengthTime` | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 
 | Method | |
@@ -4261,19 +4295,19 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `UseHardware` | bool | -1 | Uses the graphics card's acceleration when it can. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
-| `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
-| `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
-| `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
-| `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
-| `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
-| `MaxWidth` *(RapidR)* | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
-| `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
-| `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
-| `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
-| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4401,17 +4435,17 @@ A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …
 | `IsRight` | int |  | True while the joystick is pushed right, as the last `Update` read it. |
 | `IsUp` | int |  | True while the joystick is pushed up (away from the player), as the last `Update` read it. |
 | `IsDown` | int |  | True while the joystick is pushed down (towards the player), as the last `Update` read it. |
-| `Index` *(RapidR)* | int |  | On a joystick, which one it reads (0 the first); on a tree node (`Item(i).Index`), its position from 0. |
-| `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `Name` *(RapidR)* | string |  | The font's name (`Arial`); on a joystick, the device's name. |
-| `X` *(RapidR)* | int |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
-| `Y` *(RapidR)* | int |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
-| `Z` *(RapidR)* | int |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
-| `R` *(RapidR)* | int |  | The joystick's fourth axis (rudder), 0 to 65535, 32767 at rest. |
-| `U` *(RapidR)* | int |  | The joystick's fifth axis, 0 to 65535, 32767 at rest. |
-| `V` *(RapidR)* | int |  | The joystick's sixth axis, 0 to 65535, 32767 at rest. |
-| `Buttons` *(RapidR)* | int |  | The joystick buttons held down, one bit each: bit n − 1 for button n. |
-| `Pov` *(RapidR)* | int |  | The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred. |
+| `Index` | int |  | On a joystick, which one it reads (0 the first); on a tree node (`Item(i).Index`), its position from 0. |
+| `Connected` | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
+| `Name` | string |  | The font's name (`Arial`); on a joystick, the device's name. |
+| `X` | int |  | An X: the vector's component, the joystick's first axis (0 to 65535, 32767 at rest), or the mouse pointer's on the screen. |
+| `Y` | int |  | A Y: the vector's component, the joystick's second axis (0 to 65535, 32767 at rest, growing downward), or the mouse pointer's on the screen. |
+| `Z` | int |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
+| `R` | int |  | The joystick's fourth axis (rudder), 0 to 65535, 32767 at rest. |
+| `U` | int |  | The joystick's fifth axis, 0 to 65535, 32767 at rest. |
+| `V` | int |  | The joystick's sixth axis, 0 to 65535, 32767 at rest. |
+| `Buttons` | int |  | The joystick buttons held down, one bit each: bit n − 1 for button n. |
+| `Pov` | int |  | The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred. |
 
 | Method | |
 |---|---|
@@ -4420,9 +4454,9 @@ A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …
 
 | Event | |
 |---|---|
-| `OnButtonDown(Button AS INTEGER)` *(RapidR)* | Fires when a joystick button is pressed; Button is its number, from 1 (RapidR's, looked for at each of the joystick's ticks). |
-| `OnButtonUp(Button AS INTEGER)` *(RapidR)* | Fires when a joystick button is released; Button is its number, from 1. |
-| `OnMove` *(RapidR)* | Fires when the joystick's position changes (X, Y and the other axes read the new values). |
+| `OnButtonDown(Button AS INTEGER)` | Fires when a joystick button is pressed; Button is its number, from 1 (RapidR's, looked for at each of the joystick's ticks). |
+| `OnButtonUp(Button AS INTEGER)` | Fires when a joystick button is released; Button is its number, from 1. |
+| `OnMove` | Fires when the joystick's position changes (X, Y and the other axes read the new values). |
 
 <a id="rd3dframe"></a>
 ## RD3DFrame
@@ -4456,7 +4490,7 @@ A node of a Direct3D retained-mode scene: it has a position, orientation and mot
 | `SetPosition(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Moves the frame to (`X`, `Y`, `Z`). |
 | `SetRotation(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, Theta AS DOUBLE)` | Sets the frame spinning around the axis (`X`, `Y`, `Z`), `Theta` radians each time step of `Move`. |
 | `SetTexture(Tex AS RD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
-| `SetVelocity` *(RapidR)* | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
+| `SetVelocity` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 
 <a id="rd3dmeshbuilder"></a>
 ## RD3DMeshBuilder
@@ -4484,7 +4518,7 @@ Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colou
 | `SetRGBA(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE, A AS DOUBLE)` | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
 | `SetTexture(Tex AS RD3DTEXTURE)` | Puts texture `Tex` on the frame or mesh. |
 | `Translate(TX AS DOUBLE, TY AS DOUBLE, TZ AS DOUBLE)` | Moves the mesh's vertices by (`TX`, `TY`, `TZ`). |
-| `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
+| `SetColorRGB` | Sets the color from `R`, `G`, `B` (0 to 1). |
 
 <a id="rd3dmesh"></a>
 ## RD3DMesh
@@ -4499,7 +4533,7 @@ A finished 3D mesh, made by a mesh builder, ready to add to frames.
 
 | Method | |
 |---|---|
-| `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
+| `SetColorRGB` | Sets the color from `R`, `G`, `B` (0 to 1). |
 
 <a id="rd3dface"></a>
 ## RD3DFace
@@ -4515,9 +4549,9 @@ One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
 | `AddVertex(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE)` | Adds a vertex at `X`, `Y`, `Z`. |
 | `GetVertex(Index AS LONG, Position AS RD3DVECTOR, Normal AS RD3DVECTOR)` | Reads vertex `Index` of the face: its position and normal. |
 | `SetColorRGB(R AS DOUBLE, G AS DOUBLE, B AS DOUBLE)` | Sets the color from `R`, `G`, `B` (0 to 1). |
-| `SetRGB` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
-| `SetColorRGBA` *(RapidR)* | Sets the colour and its opacity from red, green, blue and alpha parts (0 to 1). Same as SetRGBA. |
-| `SetRGBA` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
+| `SetRGB` | Sets the mesh's color from `R`, `G`, `B` (0 to 1). |
+| `SetColorRGBA` | Sets the colour and its opacity from red, green, blue and alpha parts (0 to 1). Same as SetRGBA. |
+| `SetRGBA` | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
 
 <a id="rd3dlight"></a>
 ## RD3DLight
@@ -5270,7 +5304,7 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 <a id="rpropertyinspector"></a>
 ## RPropertyInspector
 
-An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; the members RapidR adds to a classic component are grouped under "RapidR extensions". An Events page lists the component's events and the SUB each one runs.
+An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset. Every property is in the category of what it is for (Layout, Appearance, Font, Behavior, Help, Accessibility …), the same for every component. An Events page lists the component's events and the SUB each one runs.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5281,11 +5315,12 @@ An object inspector: the properties of a component (or of every component a desi
 | `Page` | string | `"properties"` | The page shown: "properties" or "events". |
 | `Filter` | string | `""` | The search box's text: only the rows whose name matches it are shown. |
 | `ShowEvents` | bool | True | Whether the Events page can be shown (its tab is there). |
-| `ShowRapidRExtensions` | bool | True | Whether the members RapidR adds to a classic component are shown (under "RapidR extensions", with a badge). |
+| `MarkNonClassic` | bool | False | Marks, in a project kept classic-compatible, the rows a classic program doesn't have (a small "not in classic programs" note, with a tooltip and for a screen reader); False (the default) marks nothing. RapidR Studio sets it from the project's setting. |
+| `ShowRapidRExtensions` | bool | False | Another name for MarkNonClassic, for programs written before it: the same value. |
 | `ReadOnly` | bool | False | Values are shown but can't be changed. |
 | `Handlers` | string | `""` | The SUBs an event can run, one per line as `Name(parameters)`: the Events page offers those whose parameters fit the event. |
 | `EmptyText` | string | `""` | What the description under the rows says while nothing is inspected ("Select a component on the form"). |
-| `NameWidth` | int | 120 | The width of the names' column, in pixels (the user drags the line between the columns). |
+| `NameWidth` | int | 148 | The width of the names' column, in pixels (the user drags the line between the columns; a name the column cuts short shows whole in its tooltip). Until the divider is dragged or this is set, a pane narrower than about 255 pixels gives the names 58 % of its width, so the values still read. RapidR Studio keeps where the user left it. |
 | `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
 | `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
 | `TargetType` (read-only) | string |  | The inspected component's type: as its code writes it for a designer's component, RapidR's name (RButton) for a running program's; "" when several of different types are inspected. |
@@ -5346,7 +5381,7 @@ The palette of components a form designer places, under RapidR's names (RButton)
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
-| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "rapidq" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or "titles" (in words: "Button"). |
+| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "classic" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or "titles" (in words: "Button"). |
 | `Selected` | string | `""` | The selected component's type under RapidR's name (RButton), or a template's name. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -5644,6 +5679,7 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Effort` | string |  | How hard the model thinks before it answers: "" (the default) as the model usually does; "low", "medium" or "high" ask for more thinking where the provider has it — Anthropic's adaptive thinking at that effort (a thinking budget on older models), an OpenAI-compatible reasoning_effort; DeepSeek's models choose for themselves. More thinking takes longer and costs more: each answer may use up to 16,384 more tokens at high. The answer's reasoning, when the provider shows it, is in Transcript as "Thought for N s" (ToggleThought shows it). A model that takes none says so once and answers as usual (EffortSupported). |
 | `EffortSupported` (read-only) | bool |  | True when Provider and Model take an Effort (False for DeepSeek, and for a model that refused one). |
 | `ChatState` | string |  | The conversation as JSON — its messages, its transcript, its questions, the answers' reasoning, the user's language — to keep (a file, a database) and set back later, in this run or the next: setting it replaces the conversation (an answer being written stops). API keys and tokens in it are removed ("[key removed]"), as are the program's secrets. RapidR Studio keeps its chats this way. |
+| `InsertLinks` | bool | True | False leaves the Insert link out from under code blocks in Transcript (Copy stays): RapidR Studio's Coach mode, where the learner types or copies the code in themselves. |
 | `Editable` | bool | False | True: Transcript has an Edit link under each question (rai:edit/N) and Retry under the last answer (rai:retry), for an RMarkdownView's OnLinkClick: the program calls Rewind and asks again. RapidR Studio's chat. |
 | `QuestionCount` (read-only) | int |  | How many questions the conversation has (QuestionText and Rewind number them from 1). |
 | `Activity` (read-only) | string |  | What it is doing now, in words, while Busy: "Thinking", "Writing the answer", what an attached tool does ("Reading main.rr", "Reading the help of RListBox", "Writing server.rr (+318 lines)", "Checking (compiling)", "Searching the manual"), "Fixing 2 problems" after a check found them, "Continuing (part 2)" after an answer reached its length limit, "Compacting the conversation" or "Summarising the chat to keep it short"; "" when idle. OnUpdate fires when it changes. |
@@ -5652,7 +5688,9 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `ContextTokens` (read-only) | int |  | The conversation's size in tokens as the next question would send it (the instructions, tools, messages and the last reply): the last request's as the provider counted it, else estimated. With ContextLimit, a context meter. |
 | `ContextLimit` (read-only) | int |  | Where the conversation is compacted by itself: SummaryAt, or 70% of the model's context window when that is less. |
 | `ContextWindow` (read-only) | int |  | The model's context window in tokens, when the provider's models list says it (0 when not). |
-| `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens): the attached tools sent their lite instructions and tools, so a small local model can start. |
+| `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens), or SmallModel is 1: the attached tools sent their lite instructions and tools, so a small local model can start. |
+| `SmallModel` | int | -1 | The small-model mode: shorter instructions, fewer tools, a recipe first, and RapidR Studio's tools start from a recipe after repeated errors. -1 (the default): used when the model's window is under 16,384 tokens; 1: always; 0: never. RapidR Studio sets it from its check of a model on this computer (Set Up RAI), never from the model's name. RapidR's own. |
+| `ContextSize` | int | 0 | The context the model runs with, in tokens, when it is smaller than its window: the conversation is kept within it (0, the default: the model's own window). RapidR Studio sets it for a model on this computer from the memory free (8,192 by default, 16,384 when there is room, never below 4,096). RapidR's own. |
 | `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it, a muted "Answer was long: continuing (part 2 of up to 5)" where an answer reached its length limit and RAI went on by itself (a "Continue in smaller steps" link, rai:continue, if it finally stopped), a "✓ 6 steps · show" link under a finished answer (rai:steps/N), and under each closed code block "Copy · Insert" links (rai:copy/N, rai:insert/N; Insert for RapidR code, which is coloured as the code editor colours it, a block with no language that looks like RapidR's included). |
 | `Steps` (read-only) | string |  | What the attached tools did in the current (or last) answer, a line each ("Read main.rr (40 lines)"): a progress checklist while it works. |
 | `TurnInputTokens` (read-only) | int |  | The tokens sent so far in the current (or last) answer, all its requests: the provider's count, updated while the answer streams in. |
@@ -5817,7 +5855,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `InstallRust AS INTEGER` | Installs Rust with rapidr setup --yes --no-path (the free toolchain native builds need), in the background like Build: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not. |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
-| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
+| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the classic-compatibility setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
 | `StudioFolder AS STRING` | Studio's own folder (never a project's): where the copies of unsaved work and the log of what went wrong in Studio are kept — RapidR's folder of the user's settings (~/Library/Application Support/RapidR on macOS, %APPDATA%\RapidR on Windows, ~/.config/rapidr on Linux; RAPIDR_STUDIO_DATA when set); on the web, the page's store. |
 | `RecoveryKeep(Key AS STRING, Path AS STRING, Caption AS STRING, Text AS STRING) AS INTEGER` | Keeps a copy of a document's unsaved text (Key: what tells the document apart, Path its file — "" for one never saved —, Caption as its tab says it) in Studio's folder, for RecoveryFound after a Studio that ended without closing. True when it was kept; Error says why not. |
 | `RecoveryForget(Key AS STRING)` | Lets go of a document's copy (it was saved, or closed and its changes let go). |
@@ -5857,6 +5895,23 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
 | `MacKeys AS INTEGER` | True when the keyboard is a Mac's: Cmd is the shortcut key and Option with an arrow moves by words in text (RapidR Studio on macOS, or Studio's page in a browser on a Mac). Studio's Navigate Back and Forward are Cmd+Option+Left and Right there, so Option+Left still moves by words; elsewhere Alt+Left and Alt+Right. |
+| `SchoolLockLoad(Setting AS STRING) AS INTEGER` | School Lock — RapidR Studio's AI turned off behind a password, by a teacher or by the computer's IT: takes the per-user setting Studio kept (SchoolLock("setting")) and reads the computer's policy again — /Library/Application Support/RapidR/policy.toml on macOS, %ProgramData%\RapidR\policy.toml on Windows, /etc/rapidr/policy.toml on Linux, only an administrator can write there (none in a browser) — and the wrong tries kept in Studio's folder. True when the lock is on. A policy file that can't be read locks everything with no password (Error says why). |
+| `SchoolLock(What AS STRING) AS STRING` | School Lock's state: "on" ("1" when it is on: the computer's policy or the user's setting), "unlocked" ("1" unlocked until the program ends), "policy" ("1" the computer's policy keeps it on), "features" (what it turns off, "ai,ai_apps"), "wait" (seconds before another password is checked), "left" (wrong tries before that wait), "setting" (the per-user setting to keep: never the password, only its salted hash), "file" (the policy file read), "error" (why that file can't be read). |
+| `SchoolLocked(Feature AS STRING) AS INTEGER` | True when School Lock turns Feature off now: "ai" (RAI in RapidR Studio) or "ai_apps" (AI apps working in Studio over MCP). False while it is unlocked until the program ends. |
+| `SchoolLockTurnOn(Password AS STRING, Features AS STRING) AS INTEGER` | Turns School Lock on for Features ("ai,ai_apps") with Password (6 characters at least). Only a salted, slow hash of the password is kept — PBKDF2-HMAC-SHA256, 600,000 rounds, a random 16-byte salt —, never the password. False when it can't (Error says why: too short, nothing chosen, or the computer's policy sets the lock). |
+| `SchoolLockUnlock(Password AS STRING) AS INTEGER` | Unlocks School Lock until the program ends (RapidR Studio: until it closes) when Password is right: 1. 0: wrong. After 5 wrong tries in a row the next one waits a minute: -1, not checked (SchoolLock("wait") says how long; the count is kept in Studio's folder, so closing doesn't reset it). -3: no password can unlock it (a policy without one, or one that can't be read). |
+| `SchoolLockTurnOff(Password AS STRING) AS INTEGER` | Turns the user's School Lock off when Password is right: 1. 0 wrong, -1 wait (as SchoolLockUnlock), -2 the computer's policy keeps it on (only the computer's IT can turn it off), -3 no password can. |
+| `SchoolLockRelock` | Locks School Lock again after SchoolLockUnlock. |
+| `LocalAIFind(Address AS STRING) AS INTEGER` | Set Up RAI › On this computer: looks for the AI models already on this computer, in the background — the servers on 127.0.0.1 that speak the OpenAI-compatible API, at their usual ports and at Address (one the user typed; "" none). True when it started; False for an address that isn't this computer (Error says why: only 127.0.0.1, [::1] or localhost) and on a web page, which can't look by itself (LocalAIAddModels). Nothing is sent anywhere: a server is asked for its models and how it describes them. LocalAI("busy") says when it is done. |
+| `LocalAI(What AS STRING) AS STRING` | The models found, in words a page shows: "busy" ("1" looking or checking), "looking", "news" ("1" once after anything changed), "count", "chatcount", "servers", "serverlist" ("127.0.0.1:11434"), "best" (the best match's place, -1 none), "checking" (the place of the model being checked, -1 none), "step" (load, speed, tools, task), "queue", "done", "unchecked", "estimate" (seconds to check every one that fits), "totalwords", "freewords" (the memory a model can have now), "mostwords" (with other apps closed), "unified", "error", "web". |
+| `LocalAIModel(Index AS INTEGER, Field AS STRING) AS STRING` | A field of the model at place Index, the best match first: "id", "base", "server", "sizewords", "params", "quant", "maxcontext", "context" (the context RAI gets: 16384 when there is room, 8192, never below 4096), "needwords", "spare", "fit" (fits, close, toobig, unknown), "tools", "chat", "licence" and "licencetext" (as its server reports them), "loaded", "checked", "kept", "first" (seconds before an answer starts), "words" (words a second), "toolsok", "toolswhy" (as-text, no-call, bad-arguments, wrong-tool), "task", "taskwhy" (errors, no-button, no-program, recipe, too-slow), "fast", "mode" (small or full: RAI's small-model mode, from the check), "best", "checking", "queued", "step", "estimate", "error". |
+| `LocalAICheck(Index AS INTEGER) AS INTEGER` | Checks the model at place Index (-1: every one that fits and isn't checked) in the background, one at a time: how fast RAI's first answer starts, whether a tool call arrives as a call, and a tiny RapidR task through RAI's real loop (a window with a button that says Hello: it compiles and the button is there; nothing the model writes is run or saved). A model it loaded is let go after. The results are kept per model and Studio version. How many it checks; 0 with none (Error says why when a check is running already). |
+| `LocalAICancel` | Stops the check now: the model being checked is left unchecked. |
+| `LocalAIAddModels(Address AS STRING, Models AS STRING) AS INTEGER` | (a web page) The models a server at Address (this computer's) listed to an RAI — its Models text — as rows with what is known. How many. |
+| `LocalAIClear` | Forgets the models found (the checks kept stay kept). |
+| `LocalAIAddress(Address AS STRING) AS STRING` | Address as Studio asks it — this computer's only (127.0.0.1 for localhost, /v1 added) — or "" for another computer's (Error says why): a web page checks an address typed before anything is sent. |
+| `LocalAITest(What AS STRING, Value AS STRING) AS INTEGER` | (tests) "addresses": the servers asked instead of the usual ports ("url\|url", this computer's only; "" the usual ones again); "facts": the computer's memory instead of this one's ("total=16384,free=8192,unified=0", megabytes; "" this one's). |
+| `SchoolLockStrength(Password AS STRING) AS INTEGER` | How hard Password is to guess, for a hint beside the field: 0 too short (under 6 characters), 1 weak (common, a run like 123456, one letter repeated), 2 fair, 3 strong. |
 | `FilesIn(Folder AS STRING) AS STRING` | The text files under Folder, at any depth, a line each (full paths, sorted): hidden folders, build and target folders, and pictures, sounds, videos, fonts, archives and programs left out; at most 2,000. Search's "A folder" scope reads them (the disk on the desktop, the page's store on the web). |
 | `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as older programs wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
 | `Watch(Path AS STRING) AS INTEGER` | Files changed outside the program: remembers the disk's file at Path — its time, size and a hash of its bytes — as the program's own now (call it after reading the file, and after each time the program writes it). False where there is no disk to watch (the web: files change only through the program). |
@@ -5995,6 +6050,10 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
 | `ChatsFolder` (read-only) | string |  | Where the project's chats are kept, in words: Studio's data folder (never the project's), chats/ beside its settings — ~/Library/Application Support/RapidR/chats on macOS, %APPDATA%\RapidR\chats on Windows, ~/.config/rapidr/chats on Linux; this browser's storage for the page on the web. |
 | `Lite` (read-only) | bool |  | True while the model's window is small (under 16,384 tokens): the lite instructions and tools are sent. |
+| `Mode` | string | `"build"` | The dial: "build" (the model proposes changes, as Permission allows) or "coach" (Coach mode: it teaches with a ladder of hints and never writes the answer into the user's code — the tools that change files aren't offered, and a call to one is refused). Reads "coach" while School Lock keeps RAI in Coach mode (CoachLocked), whatever was set. Setting another mode starts the hint ladder over. |
+| `CoachRung` | int |  | Coach mode's hint for the problem open now: 0 none, 1 a nudge (a question that points the way), 2 the concept (plain words and a tiny example that isn't the user's solution), 3 the shape of the code (a skeleton with blanks), 4 the code shown as text — the user types or copies it in. The model is told which to write with every request. |
+| `CoachError` (read-only) | bool |  | True when the problem open in Coach mode is an error (CoachForError): its first hint says what the error means, why it happens and how to fix it yourself. |
+| `CoachLocked` (read-only) | bool |  | True while School Lock keeps RAI in Coach mode (a teacher's lock or the computer's policy, coach_only = true): Mode reads "coach" whatever is set. |
 | `ProgramUseAsked` (read-only) | bool |  | True while RAI waits for the user's answer to its card in the chat — it wants to look at or use the running program (once a run: "Allow for this run" or "Don't allow"); AllowProgramUse answers it. |
 | `CallFailed` (read-only) | bool |  | True when the last CallTool failed (its text says why: the AI app reads it and can try again). |
 | `CallNote` (read-only) | string |  | What the last CallTool did, in one line ("Read main.rr (40 lines)", "Proposed a change to main.rr"): for an activity log. |
@@ -6015,6 +6074,10 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ClearDecided` | Forgets the proposals the user decided on (after a review is applied): what is left waits for a decision. |
 | `ClearProposals` | Forgets the proposals. |
 | `AllowProgramUse(Allowed AS INTEGER)` | The user's answer to RAI's card (ProgramUseAsked): True — RAI may look at, click and type in the running program until this run ends, and the calls that waited go on; False — not in this answer (RAI is told, and asks again in a later one). Without a question waiting it does nothing. |
+| `CoachAsk AS INTEGER` | A question typed in Coach mode: a new problem starts on hint 1; while one is open it stays on its hint (asking again in words never skips one). Returns the hint the answer writes (CoachRung). |
+| `CoachNext AS INTEGER` | Next Hint: one hint up, 4 (the code, shown as text) at most. Returns it. |
+| `CoachForError AS INTEGER` | Help With This Error: a new problem about an error, on hint 1 (what it means, why it happens, a hint to fix it yourself). Returns 1. |
+| `CoachReset` | I Got It: the problem done; the next question starts on hint 1. |
 | `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder named from its title ("Scientific Calculator" → ScientificCalculator; never over one that is there: then ScientificCalculator2, 3 …), with a project file naming it by its title: that file's path, to open; "error: " and why when it couldn't. What it wrote is kept for Undo. |
 | `ChatList(Project AS STRING) AS STRING` | The kept chats of the project in folder Project ("": no project), the newest first, a line each, tab-separated: its id, its title, when it was last changed (ISO 8601, UTC) and how many questions it has. |
 | `SearchChats(Project AS STRING, Text AS STRING) AS STRING` | The project's chats whose title or text has Text in it (any case), as ChatList gives them, with a fifth field: the first line that has it ("" when the title does). |
@@ -6107,8 +6170,8 @@ The screen: its size and work area, the mouse's position, the monitors, the mous
 | `MouseButtons` (read-only) | int |  | The number of buttons on the mouse; read-only. |
 | `MousePresent` (read-only) | int |  | Non-zero when a mouse is attached; read-only. |
 | `MouseSwap` (read-only) | int |  | Non-zero when the left and right mouse buttons are swapped; read-only. |
-| `PixelsPerInch` *(RapidR)* (read-only) | int |  | The screen's pixels per inch as programs see it: always 96, as RapidR scales for high-DPI screens itself; read-only. |
-| `Scale` *(RapidR)* (read-only) | float |  | The screen's scale factor (2 on a Retina display); read-only. |
+| `PixelsPerInch` (read-only) | int |  | The screen's pixels per inch as programs see it: always 96, as RapidR scales for high-DPI screens itself; read-only. |
+| `Scale` (read-only) | float |  | The screen's scale factor (2 on a Retina display); read-only. |
 
 | Method | |
 |---|---|
@@ -6133,13 +6196,13 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
-| `Theme` *(RapidR)* | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
-| `Language` *(RapidR)* | string |  | The language the program speaks, as a language tag (`es`, `es-AR`, `pt-BR`, `zh-Hans`): the system's until the program sets it. `TR$` and `TRN$` translate into it from the program's `lang` folder (`es-AR`: `lang/es-AR.po`, then `lang/es.po`, then the program's own text). Setting it reads the catalogs again; "" goes back to the system's language. Any spelling is taken (`es_ar` reads back as `es-AR`). When the language changes, captions, hints and accessible names that came from the catalogs are translated again by themselves (OnLanguageChange makes the rest). |
-| `LanguageFolder` *(RapidR)* | string |  | The folder the program's catalogs (`es.po`, `pt-BR.po` …) are in: "" (the default) is the `lang` folder beside the program; a relative folder is beside the program too, on the web beside the page. Setting it reads the catalogs again, as a change of language does. |
-| `Languages` *(RapidR)* (read-only) | string |  | The languages the program's catalogs have, one language tag a line (`es`, `pt-BR`): the `.po` files in its catalog folder (LanguageFolder; on the web, the folder's `index.txt` that builds write). For a list people pick their language from, with LanguageName. |
-| `ReducedMotion` *(RapidR)* (read-only) | bool |  | True when the user asked the system for reduced motion (macOS' Reduce Motion, Windows' animations turned off, the browser's prefers-reduced-motion): a program's own animations — a pulse, a slide — then stay still or end at once, as RapidR's own do. Read it each time an animation starts. |
-| `KeysPending` *(RapidR)* (read-only) | int |  | How many keystrokes sent with SendKeys are still waiting to reach the program's windows. |
-| `Active` *(RapidR)* (read-only) | bool |  | True while the program is the application in front: one of its windows has the keyboard. False while the person works in another application. For work that waits until they come back — RapidR Studio looks for files changed outside it when it is in front again. Always True on the web and for a program without windows. |
+| `Theme` | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
+| `Language` | string |  | The language the program speaks, as a language tag (`es`, `es-AR`, `pt-BR`, `zh-Hans`): the system's until the program sets it. `TR$` and `TRN$` translate into it from the program's `lang` folder (`es-AR`: `lang/es-AR.po`, then `lang/es.po`, then the program's own text). Setting it reads the catalogs again; "" goes back to the system's language. Any spelling is taken (`es_ar` reads back as `es-AR`). When the language changes, captions, hints and accessible names that came from the catalogs are translated again by themselves (OnLanguageChange makes the rest). |
+| `LanguageFolder` | string |  | The folder the program's catalogs (`es.po`, `pt-BR.po` …) are in: "" (the default) is the `lang` folder beside the program; a relative folder is beside the program too, on the web beside the page. Setting it reads the catalogs again, as a change of language does. |
+| `Languages` (read-only) | string |  | The languages the program's catalogs have, one language tag a line (`es`, `pt-BR`): the `.po` files in its catalog folder (LanguageFolder; on the web, the folder's `index.txt` that builds write). For a list people pick their language from, with LanguageName. |
+| `ReducedMotion` (read-only) | bool |  | True when the user asked the system for reduced motion (macOS' Reduce Motion, Windows' animations turned off, the browser's prefers-reduced-motion): a program's own animations — a pulse, a slide — then stay still or end at once, as RapidR's own do. Read it each time an animation starts. |
+| `KeysPending` (read-only) | int |  | How many keystrokes sent with SendKeys are still waiting to reach the program's windows. |
+| `Active` (read-only) | bool |  | True while the program is the application in front: one of its windows has the keyboard. False while the person works in another application. For work that waits until they come back — RapidR Studio looks for files changed outside it when it is in front again. Always True on the web and for a program without windows. |
 
 | Method | |
 |---|---|
@@ -6148,18 +6211,18 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
-| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a colour value (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …; the status colours "status.info", "status.success", "status.warning", "status.danger" — a soft fill — each with its ".text" and ".border"); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
-| `LanguageName(Tag AS STRING) AS STRING` *(RapidR)* | A language's own name, as its speakers write it, for a list people pick from: `Español` for "es", `Português (Brasil)` for "pt-BR", `中文（简体）` for "zh-Hans"; the tag itself for a language RapidR doesn't name. |
-| `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). The classic SendKeys notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
-| `Announce(Text AS STRING, [Assertive AS INTEGER])` *(RapidR)* | Has the system's screen reader say Text without moving the focus: politely, when they have finished what they are saying — or at once, interrupting, when Assertive is True (keep that for what can't wait: an error, a lost connection). For news the person didn't ask for: a search's result, a new card in a feed, a finished download. The same text said again is said again. On the desktop through the focused window's live regions (AccessKit), on the web through the page's aria-live region; with no screen reader on, nothing happens. |
+| `ThemeColor(Name AS STRING) AS LONG` | A colour of the current theme by name, as a colour value (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …; the status colours "status.info", "status.success", "status.warning", "status.danger" — a soft fill — each with its ".text" and ".border"); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
+| `LanguageName(Tag AS STRING) AS STRING` | A language's own name, as its speakers write it, for a list people pick from: `Español` for "es", `Português (Brasil)` for "pt-BR", `中文（简体）` for "zh-Hans"; the tag itself for a language RapidR doesn't name. |
+| `SendKeys(Keys AS STRING) AS INTEGER` | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). The classic SendKeys notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
+| `Announce(Text AS STRING, [Assertive AS INTEGER])` | Has the system's screen reader say Text without moving the focus: politely, when they have finished what they are saying — or at once, interrupting, when Assertive is True (keep that for what can't wait: an error, a lost connection). For news the person didn't ask for: a search's result, a new card in a feed, a finished download. The same text said again is said again. On the desktop through the focused window's live regions (AccessKit), on the web through the page's aria-live region; with no screen reader on, nothing happens. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 
 | Event | |
 |---|---|
-| `OnError(Message AS STRING, File AS STRING, Line AS INTEGER)` *(RapidR)* | A run-time error ended one of the program's event handlers (a click's, a timer's …) and the program goes on, as it does after such an error: the error's message ("Division by zero", "Cannot create file icons/a.svg."), the file and the line it happened on ("" and 0 when not known). For a program that keeps its user's work safe: say what happened, write it to a log, save what's unsaved. Fires after the error, at the next turn of the event loop, once per error — not for an error in this handler itself. Without a handler the error is only written to the program's error output. An error in the main program's own code (not a handler) still ends the program. `SUB Failed(Message AS STRING, File AS STRING, Line AS INTEGER)` … `Application.OnError = Failed`. A native build says no file or line ("" and 0). |
-| `OnLanguageChange` *(RapidR)* | The program's language changed (it set Language to another one): fires once per change, at the next turn of the event loop, from the moment the handler is bound. Captions, hints and accessible names that are a catalog's text whole are translated again before it runs; text the program made with placeholders filled (`TR$("Line {n}", "n", 5)`), list items and tabs are values, not links: make them again here (`Label1.Caption = TR$("Save file")`). Language says the language now. |
-| `OnThemeChange` *(RapidR)* | The look the program is drawn in changed: the program set Theme to another look, or the system switched between light, dark and high contrast while the program follows it (RapidR's look, `$THEME rapidr`, the default). Fires once per change, after it, from the moment the handler is bound. Colours the program read with ThemeColor are values, not links: read them again here and assign them (`Label1.Font.Color = Application.ThemeColor("page.text")`); Windows' system colours (clBtnFace, clWindowText …) and components' own colours follow the look by themselves. Theme says the look now. |
+| `OnError(Message AS STRING, File AS STRING, Line AS INTEGER)` | A run-time error ended one of the program's event handlers (a click's, a timer's …) and the program goes on, as it does after such an error: the error's message ("Division by zero", "Cannot create file icons/a.svg."), the file and the line it happened on ("" and 0 when not known). For a program that keeps its user's work safe: say what happened, write it to a log, save what's unsaved. Fires after the error, at the next turn of the event loop, once per error — not for an error in this handler itself. Without a handler the error is only written to the program's error output. An error in the main program's own code (not a handler) still ends the program. `SUB Failed(Message AS STRING, File AS STRING, Line AS INTEGER)` … `Application.OnError = Failed`. A native build says no file or line ("" and 0). |
+| `OnLanguageChange` | The program's language changed (it set Language to another one): fires once per change, at the next turn of the event loop, from the moment the handler is bound. Captions, hints and accessible names that are a catalog's text whole are translated again before it runs; text the program made with placeholders filled (`TR$("Line {n}", "n", 5)`), list items and tabs are values, not links: make them again here (`Label1.Caption = TR$("Save file")`). Language says the language now. |
+| `OnThemeChange` | The look the program is drawn in changed: the program set Theme to another look, or the system switched between light, dark and high contrast while the program follows it (RapidR's look, `$THEME rapidr`, the default). Fires once per change, after it, from the moment the handler is bound. Colours the program read with ThemeColor are values, not links: read them again here and assign them (`Label1.Font.Color = Application.ThemeColor("page.text")`); Windows' system colours (clBtnFace, clWindowText …) and components' own colours follow the look by themselves. Theme says the look now. |
 
 <a id="clipboard"></a>
 ## Clipboard
@@ -6225,21 +6288,21 @@ One node of an RTreeView (`Tree.Item(i)`, counted from 0 in display order): its 
 | `StateIndex` | int |  | An extra state picture (from StateImages) left of the node; -1 for none. |
 | `Expanded` | bool |  | Whether the node's children show. |
 | `HasChildren` | bool |  | Whether the node shows an expand button, even before it has children. |
-| `TextColor` *(RapidR)* | color |  | The node's text colour; -1 (the default) for the tree's own. |
-| `Changed` *(RapidR)* | bool |  | The node's value changed since the program last stopped: a value node (SetItemValue) is highlighted and marked with a small triangle, and screen readers hear "changed". |
-| `MarkStart` *(RapidR)* | int |  | Where a marked part of the node's text starts — a search's match in its line, say — counted in characters from 0; MarkLength says how long it is. The part is drawn on the theme's match colour, the text over it unchanged. |
-| `Icon` *(RapidR)* | string |  | An icon of RapidR's own set beside the node, by name (`files/rr`, `kinds/form`), or `file:` and a file's path for the icon RapidR Studio's Project pane gives that file (by its type); "" (the default) for none — the Images list's picture then, if any. |
-| `Column` *(RapidR)* | string |  | Muted text in a column of its own before the node's text, as wide as the widest one shown (a search result's line and column: `12:5`); "" for none. |
-| `Detail` *(RapidR)* | string |  | Dimmed text after the node's text (a file's folder, say); cut first when the row is too narrow. |
-| `Badge` *(RapidR)* | string |  | A small pill at the right end of the node's row, holding this text (how many results a file has); "" for none. |
-| `Bold` *(RapidR)* | bool |  | The node's text in bold (a group's heading). |
-| `MarkLength` *(RapidR)* | int |  | How many characters of the node's text are marked, from MarkStart; 0 (the default) marks none. `Tree.Item(i).MarkStart = 4: Tree.Item(i).MarkLength = 5` marks the fifth to the ninth. |
-| `ValueKind` *(RapidR)* (read-only) | string |  | The kind SetItemValue gave the node (`Integer`, `String`, `Locals` …); empty for a plain node. |
+| `TextColor` | color |  | The node's text colour; -1 (the default) for the tree's own. |
+| `Changed` | bool |  | The node's value changed since the program last stopped: a value node (SetItemValue) is highlighted and marked with a small triangle, and screen readers hear "changed". |
+| `MarkStart` | int |  | Where a marked part of the node's text starts — a search's match in its line, say — counted in characters from 0; MarkLength says how long it is. The part is drawn on the theme's match colour, the text over it unchanged. |
+| `Icon` | string |  | An icon of RapidR's own set beside the node, by name (`files/rr`, `kinds/form`), or `file:` and a file's path for the icon RapidR Studio's Project pane gives that file (by its type); "" (the default) for none — the Images list's picture then, if any. |
+| `Column` | string |  | Muted text in a column of its own before the node's text, as wide as the widest one shown (a search result's line and column: `12:5`); "" for none. |
+| `Detail` | string |  | Dimmed text after the node's text (a file's folder, say); cut first when the row is too narrow. |
+| `Badge` | string |  | A small pill at the right end of the node's row, holding this text (how many results a file has); "" for none. |
+| `Bold` | bool |  | The node's text in bold (a group's heading). |
+| `MarkLength` | int |  | How many characters of the node's text are marked, from MarkStart; 0 (the default) marks none. `Tree.Item(i).MarkStart = 4: Tree.Item(i).MarkLength = 5` marks the fifth to the ninth. |
+| `ValueKind` (read-only) | string |  | The kind SetItemValue gave the node (`Integer`, `String`, `Locals` …); empty for a plain node. |
 | `Selected` | bool |  | Whether the node is the selected one; setting it selects it. |
 | `Level` (read-only) | int |  | How deep the node is: 0 for a root node. |
 | `Count` (read-only) | int |  | How many children the node has. |
 | `IsVisible` (read-only) | bool |  | Whether the node can be seen (all its parents expanded). |
-| `Top` *(RapidR)* (read-only) | int |  | Where the node's row starts, in pixels from the tree's top edge (scrolled with TopIndex: negative above the rows shown); -1 when it can't be seen. A menu under the node: `Menu.PopupAt Tree, 40, Tree.Item(i).Top + Tree.ItemHeight`. |
+| `Top` (read-only) | int |  | Where the node's row starts, in pixels from the tree's top edge (scrolled with TopIndex: negative above the rows shown); -1 when it can't be seen. A menu under the node: `Menu.PopupAt Tree, 40, Tree.Item(i).Top + Tree.ItemHeight`. |
 | `Index` (read-only) | int |  | The node's position among its parent's children, from 0. |
 | `AbsoluteIndex` (read-only) | int |  | The node's position in the whole tree, from 0. |
 | `Parent` (read-only) | int |  | The index of the node's parent; -1 for a root node. |

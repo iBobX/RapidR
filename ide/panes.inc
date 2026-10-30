@@ -25,6 +25,9 @@ SUB SetUpDock
   Dock.AddPane(OutputBox, TR$("Output"), "bottom:documents", "output")
   Dock.AddPane(ImmediateBox, TR$("Immediate"), "tab:outputbox", "immediate")
   Dock.AddPane(Welcome, TR$("Welcome"), "documents", "list")
+  ' (Properties wide enough for the names' column — 148 — and values that
+  ' still read beside it: 272 against the others' 240; a saved layout wins)
+  Dock.PaneExtent("inspector", "width", 272)
   Dock.ShowPane("outputbox")
 END SUB
 
@@ -171,6 +174,7 @@ SUB FillExamples
   MoreCount = 0
   AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"
   AddMoreExample "gui/on_error.rr", "A bug in a handler: the program goes on and says so"
+  AddMoreExample "system_info.rr", "What this computer has: memory, processor, disk"
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
   AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"

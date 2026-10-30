@@ -22,6 +22,7 @@ pub const PAGES: &[(&str, &str)] = &[
     ("archives.md", include_str!("../../../docs/manual/archives.md")),
     ("building-apps.md", include_str!("../../../docs/manual/building-apps.md")),
     ("cli-and-runtime.md", include_str!("../../../docs/manual/cli-and-runtime.md")),
+    ("compatibility.md", include_str!("../../../docs/manual/compatibility.md")),
     ("code-editor.md", include_str!("../../../docs/manual/code-editor.md")),
     ("components.md", include_str!("../../../docs/manual/components.md")),
     ("data-science-with-rapidr.md", include_str!("../../../docs/manual/data-science-with-rapidr.md")),
@@ -29,12 +30,13 @@ pub const PAGES: &[(&str, &str)] = &[
     ("databases.md", include_str!("../../../docs/manual/databases.md")),
     ("debugging.md", include_str!("../../../docs/manual/debugging.md")),
     ("designing-forms.md", include_str!("../../../docs/manual/designing-forms.md")),
-    ("differences.md", include_str!("../../../docs/manual/differences.md")),
     ("directx-and-media.md", include_str!("../../../docs/manual/directx-and-media.md")),
+    ("for-teachers.md", include_str!("../../../docs/manual/for-teachers.md")),
     ("getting-started.md", include_str!("../../../docs/manual/getting-started.md")),
     ("graphics.md", include_str!("../../../docs/manual/graphics.md")),
     ("importing-rapidq.md", include_str!("../../../docs/manual/importing-rapidq.md")),
     ("language.md", include_str!("../../../docs/manual/language.md")),
+    ("local-ai.md", include_str!("../../../docs/manual/local-ai.md")),
     ("markdown.md", include_str!("../../../docs/manual/markdown.md")),
     ("network.md", include_str!("../../../docs/manual/network.md")),
     ("other-editors.md", include_str!("../../../docs/manual/other-editors.md")),
@@ -148,14 +150,44 @@ pub fn sections() -> &'static [Section] {
 /// translation is read in English.
 pub const TRANSLATED: &[(&str, &str, &str)] = &[
     ("es", "README.md", include_str!("../../../docs/manual/es/README.md")),
+    ("es", "ai-apps.md", include_str!("../../../docs/manual/es/ai-apps.md")),
     ("es", "ai-assistant.md", include_str!("../../../docs/manual/es/ai-assistant.md")),
+    ("es", "app-eyes-and-hands.md", include_str!("../../../docs/manual/es/app-eyes-and-hands.md")),
+    ("es", "archives.md", include_str!("../../../docs/manual/es/archives.md")),
+    ("es", "building-apps.md", include_str!("../../../docs/manual/es/building-apps.md")),
+    ("es", "cli-and-runtime.md", include_str!("../../../docs/manual/es/cli-and-runtime.md")),
+    ("es", "code-editor.md", include_str!("../../../docs/manual/es/code-editor.md")),
+    ("es", "compatibility.md", include_str!("../../../docs/manual/es/compatibility.md")),
+    ("es", "components.md", include_str!("../../../docs/manual/es/components.md")),
+    ("es", "data-science-with-rapidr.md", include_str!("../../../docs/manual/es/data-science-with-rapidr.md")),
+    ("es", "data-science.md", include_str!("../../../docs/manual/es/data-science.md")),
+    ("es", "databases.md", include_str!("../../../docs/manual/es/databases.md")),
     ("es", "debugging.md", include_str!("../../../docs/manual/es/debugging.md")),
+    ("es", "designing-forms.md", include_str!("../../../docs/manual/es/designing-forms.md")),
+    ("es", "directx-and-media.md", include_str!("../../../docs/manual/es/directx-and-media.md")),
+    ("es", "for-teachers.md", include_str!("../../../docs/manual/es/for-teachers.md")),
     ("es", "getting-started.md", include_str!("../../../docs/manual/es/getting-started.md")),
+    ("es", "graphics.md", include_str!("../../../docs/manual/es/graphics.md")),
+    ("es", "importing-rapidq.md", include_str!("../../../docs/manual/es/importing-rapidq.md")),
+    ("es", "language.md", include_str!("../../../docs/manual/es/language.md")),
+    ("es", "local-ai.md", include_str!("../../../docs/manual/es/local-ai.md")),
+    ("es", "markdown.md", include_str!("../../../docs/manual/es/markdown.md")),
+    ("es", "network.md", include_str!("../../../docs/manual/es/network.md")),
+    ("es", "other-editors.md", include_str!("../../../docs/manual/es/other-editors.md")),
+    ("es", "recipes-systems.md", include_str!("../../../docs/manual/es/recipes-systems.md")),
+    ("es", "rich-text.md", include_str!("../../../docs/manual/es/rich-text.md")),
+    ("es", "secrets.md", include_str!("../../../docs/manual/es/secrets.md")),
+    ("es", "serial-ports.md", include_str!("../../../docs/manual/es/serial-ports.md")),
+    ("es", "showcase.md", include_str!("../../../docs/manual/es/showcase.md")),
     ("es", "studio-editor.md", include_str!("../../../docs/manual/es/studio-editor.md")),
     ("es", "studio-languages.md", include_str!("../../../docs/manual/es/studio-languages.md")),
     ("es", "studio-projects.md", include_str!("../../../docs/manual/es/studio-projects.md")),
+    ("es", "svg-icons.md", include_str!("../../../docs/manual/es/svg-icons.md")),
+    ("es", "translations.md", include_str!("../../../docs/manual/es/translations.md")),
     ("es", "troubleshooting.md", include_str!("../../../docs/manual/es/troubleshooting.md")),
     ("es", "versions.md", include_str!("../../../docs/manual/es/versions.md")),
+    ("es", "web.md", include_str!("../../../docs/manual/es/web.md")),
+    ("es", "why-rapidr.md", include_str!("../../../docs/manual/es/why-rapidr.md")),
 ];
 
 /// The translated pages' sections, as `es/getting-started.md`.
@@ -319,7 +351,10 @@ mod tests {
     fn the_user_s_language_comes_first() {
         let (text, translated) = page_in("getting-started.md", "es-UY").unwrap();
         assert!(translated && text.contains("# Primeros pasos"));
+        // (every guide page is in Spanish now; a language with none reads the English)
         let (text, translated) = page_in("language.md", "es").unwrap();
+        assert!(translated && text.contains("# El lenguaje"));
+        let (text, translated) = page_in("language.md", "pt").unwrap();
         assert!(!translated && text.starts_with("# "));
         assert!(page_in("getting-started.md", "en").is_some_and(|(_, t)| !t));
         let top = search_in("instalar el SDK", 3, "es");

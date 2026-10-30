@@ -1,32 +1,36 @@
-# Differences from RapidQ, and extensions
+# Compatibility notes
 
 RapidR is an original implementation, written from the ground up in pure
-Rust, and it is **compatible** with RapidQ: it is not RapidQ and not a copy of
-it. The rule it follows: what programs written for RapidQ do, they keep
-doing; RapidR's extensions are additive and never change what an existing
-program does.
+Rust.
+
+RapidR includes a compatibility layer to import older programs written for RapidQ ([Importing older programs](importing-rapidq.md)).
+
+The rule the layer follows: what an older program does, it keeps doing;
+RapidR's extensions are additive and never change what an existing program
+does.
 
 ## Names
 
 RapidR's components have their own names — `RForm`, `RButton`,
 `RStringGrid` … — which RapidR Studio, the examples and this manual use.
-**RapidQ's names (`QFORM`, `QBUTTON` …) are accepted everywhere, silently,
-always**: an old program runs unchanged, and both names can be mixed in one
-program. Each RapidQ name is its R name (`QBUTTON` = `RButton`), except
-`QGAUGE` = `RProgressBar`, `QOUTLINE` = `RTreeView` and `COMPORT` =
-`RComPort` ([the full list](reference/classic-names.md)). RapidR's own
-components (`RPlot`, `RSQLite`, `RJson` …) have only an R name. RapidQ's
-other source extensions, `.rqw`, `.rqb` and `.rq`, are read like `.bas`.
+**The classic names (`QFORM`, `QBUTTON` …) are accepted everywhere,
+silently, always**: an older program runs unchanged, and both names can be
+mixed in one program. Each classic name is its R name (`QBUTTON` =
+`RButton`), except `QGAUGE` = `RProgressBar`, `QOUTLINE` = `RTreeView` and
+`COMPORT` = `RComPort` ([the full list](reference/classic-names.md)).
+RapidR's own components (`RPlot`, `RSQLite`, `RJson` …) have only an R name.
+The older source extensions, `.rqw`, `.rqb` and `.rq`, are read like `.bas`.
 To move a program to RapidR's names, [import it](importing-rapidq.md): a
 converted copy, proved to compile exactly as the original, with a report.
 
 ## How compatibility is kept
 
-- **Reference behaviour.** When the manual leaves a question open, a probe
-  program settles it and RapidR follows the recorded result. That settled
-  PRINT's number format, its comma, integer stores, rounding, the bit
-  operators, division by zero, string functions' edge cases, component
-  colours and more ([docs/rapidq-ground-truth.md](../rapidq-ground-truth.md)).
+- **Reference behaviour.** When a question about an older program's
+  behaviour is open, a probe program settles it and RapidR follows the
+  recorded result. That settled PRINT's number format, its comma, integer
+  stores, rounding, the bit operators, division by zero, string functions'
+  edge cases, component colours and more
+  ([the ground-truth record](../rapidq-ground-truth.md)).
 - **The conformance suite** (over 250 programs, each with its expected
   output) runs on all three runtimes: native, interpreted and in the browser.
 - **The example corpus** (428 older example programs): RapidR
@@ -34,11 +38,11 @@ converted copy, proved to compile exactly as the original, with a report.
   OLE (below). On Windows every one is run, interpreted and as a native
   build, and their windows compared with the suite's reference results, and
   where each one stands is listed program by program in
-  [rapidq-corpus-status.md](../rapidq-corpus-status.md). The programs that
-  use only the API the older Windows and Linux versions shared run on macOS,
-  Linux and the web too: 114 of them ran with no problem on each of macOS
-  (interpreted and native) and Linux, and the web matches the desktop
-  ([rapidq-corpus-status-unix.md](../rapidq-corpus-status-unix.md)).
+  [the corpus status on Windows](../rapidq-corpus-status.md). The programs
+  that use only the API the older Windows and Linux versions shared run on
+  macOS, Linux and the web too: 114 of them ran with no problem on each of
+  macOS (interpreted and native) and Linux, and the web matches the desktop
+  ([the corpus status on macOS, Linux and the web](../rapidq-corpus-status-unix.md)).
 - **The GUI** is checked by driving every test program's windows and
   comparing their pixels and accessibility trees: native against
   interpreted, the desktop against the browser, at 1× and 2× scale.
@@ -46,13 +50,13 @@ converted copy, proved to compile exactly as the original, with a report.
 ## What RapidR doesn't do
 
 - **Windows API calls off Windows.** A program that calls Windows' DLLs
-  (`DECLARE … LIB "user32"`, kernel32, gdi32, …, and RapidQ's
+  (`DECLARE … LIB "user32"`, kernel32, gdi32, …, and the classic
   `SENDMESSAGE`, `POSTMESSAGE`, `KILLMESSAGE`) makes those calls **when it
   runs on Windows**, natively and interpreted (see the language guide). On
   macOS, Linux and the web it compiles and runs until the first such call,
   which stops it with an error naming the function and, when there is one,
   RapidR's portable equivalent (`GetTickCount` → `TIMER`). RapidR doesn't
-  emulate Windows. A few Windows calls RapidQ programs commonly make keep
+  emulate Windows. A few Windows calls older programs commonly make keep
   working on every platform because they have a clear meaning:
   `Shell_NotifyIcon` (the tray), the registry (RRegistry), `joyGetPosEx`
   names RDXJoystick.
@@ -66,57 +70,54 @@ converted copy, proved to compile exactly as the original, with a report.
   A control's `Handle` is RapidR's own number (RapidR draws its controls),
   so Windows messages sent to it go nowhere; a form's `Handle` is its real
   window. On a high-DPI screen the coordinates Windows' functions take and
-  give are the screen's pixels, where RapidQ (not DPI-aware) got scaled
-  ones.
+  give are the screen's pixels, where an older program (not DPI-aware) got
+  scaled ones.
 - **OLE / COM** (`QOLECONTAINER`, `QOLEOBJECT`): programs that declare
   them compile; their methods do nothing and print a warning.
-- RapidQ's undocumented `QD3DANIMATION` / `QD3DANIMATIONSET` (in its keyword
-  list only): programs that declare them compile and
-  `QDXSCREEN.CreateAnimation` / `CreateAnimationSet` take them, but as in
-  RapidQ there is nothing to do with them (RapidQ gives them no keys and
-  nothing that plays them).
+- The undocumented `QD3DANIMATION` / `QD3DANIMATIONSET` (named in the classic
+  keyword list only): programs that declare them compile and
+  `QDXSCREEN.CreateAnimation` / `CreateAnimationSet` take them, but there is
+  nothing to do with them (no keys, and nothing that plays them).
 - DOS-era port I/O.
-- `ON ERROR` is accepted and ignored (it's VB's, not RapidQ's): a run-time
-  error still ends the program.
+- `ON ERROR` is accepted and ignored: a run-time error still ends the
+  program.
 
-## Deliberate differences
+## Deliberate choices
 
-Where RapidQ's behaviour was a crash or depended on Windows, RapidR does
-something defined instead, and says so:
+Where an older program's behaviour was a crash or depended on Windows, RapidR
+does something defined instead, and says so:
 
 - Hostile values never crash the runtime: a run-time error with its line
-  instead ("Division by zero" where RapidQ raised an exception).
+  instead (for instance "Division by zero").
 - Memory functions (`VARPTR`, `MEMCPY`, `MEMSET`, `MEMCMP`) are
   memory-safe: addresses are views of the program's own data; a bad one is
   a run-time error.
 - An RDXJoystick with no joystick reads "not connected" rather than
-  raising RapidQ's list-index error.
-- `TextRect(Rect, x, y, S$, fc, bc)` draws: the text clipped to `Rect`,
-  which a background `bc` fills first (as the Windows call under it does).
-  RapidQ's own TextRect stops the program on every object tried (an access
-  violation on a QBITMAP, a list-index error on a QCANVAS).
+  raising a list-index error.
+- `TextRect(Rect, x, y, S$, fc, bc)` draws on every object: the text clipped
+  to `Rect`, which a background `bc` fills first (as the Windows call under
+  it does).
 - Windows on every system are drawn by RapidR itself, in RapidR's own look
-  by default (RapidQ's exact Windows look with `$THEME Classic`; sizes and
-  places are RapidQ's in both), with real system menus, dialogs and
+  by default (the classic Windows look with `$THEME Classic`; sizes and
+  places are the classic ones in both), with real system menus, dialogs and
   clipboard where users expect them.
 - Documents printed with `Printer` / `LPRINT` are PDFs sent to the system's
   printer (see [Components](components.md#the-global-objects)).
-- **A string with a character above 255 is text, not bytes.** RapidQ's
-  strings are bytes, and so are RapidR's whenever every character is up to
-  255: `WriteStr(CHR$(200), 1)` writes the byte 200 and a binary file copied
-  with `ReadStr` / `WriteStr` is exact. RapidQ had no character above 255;
-  RapidR does (`"中文"`, `"😀"`), and a stream writes such a string whole as
-  UTF-8, where a count of bytes would have cut it in the middle of a
-  character. `WriteStr(S, n)` counts characters, so `WriteStr(S, LEN(S))`
+- **A string with a character above 255 is text, not bytes.** A string is
+  bytes whenever every character is up to 255: `WriteStr(CHR$(200), 1)`
+  writes the byte 200 and a binary file copied with `ReadStr` / `WriteStr`
+  is exact. RapidR also has characters above 255 (`"中文"`, `"😀"`), and a
+  stream writes such a string whole as UTF-8, where a count of bytes would
+  have cut it in the middle of a character. `WriteStr(S, n)` counts characters, so `WriteStr(S, LEN(S))`
   writes all of `S`. Text boxes and the code editor never save a `?` in
   place of a character their file's encoding lacks (they save UTF-8
   instead), and `WriteText` / `ReadAllText` are there for text on purpose
   (see [Text and bytes](language.md#text-and-bytes-accents-chinese-emoji)).
 - **The font dialog names a system colour.** A font that never set a colour
-  (a new `RFontDialog`, most components' fonts) has `clWindowText`. RapidQ's
-  dialog lists it as "Custom"; RapidR's shows "Black" (`clWindow` "White"),
-  and pressing OK without picking another colour keeps `clWindowText`, so the
-  text keeps following the theme:
+  (a new `RFontDialog`, most components' fonts) has `clWindowText`. The
+  dialog shows it as "Black" (`clWindow` "White"), and pressing OK without
+  picking another colour keeps `clWindowText`, so the text keeps following
+  the theme:
 
   ```basic
   FontDlg.GetFont(Label1.Font)     ' the list shows Black
@@ -125,8 +126,7 @@ something defined instead, and says so:
 
 ## Extensions
 
-Everything here is RapidR's own; a program that uses it no longer builds
-with RapidQ's compiler.
+Everything here is RapidR's own: only RapidR builds a program that uses it.
 
 **Language**
 
@@ -153,7 +153,7 @@ with RapidQ's compiler.
   `AccessibleDescription`, `Scale` / `OnScaleChanged`; `Application.Theme`
   ([Components](components.md#rapidrs-additions-to-every-component)).
 - SQL parameter binding (`Query sql, values…`, `AddParam`): no SQL injection.
-- SVG images wherever RapidQ takes a bitmap; drawn with `currentColor` or
+- SVG images wherever a component takes a bitmap; drawn with `currentColor` or
   RapidR's colour tokens, they take the theme's colours, and
   `RImageList.AddSVGFile` adds them at the list's size
   ([Your own SVG icons](svg-icons.md)). A `$RESOURCE`'s name goes wherever
@@ -174,9 +174,9 @@ with RapidQ's compiler.
   program, old ones included.
 - Programs are drawn in RapidR's own look by default (RapidR Studio's:
   light, dark or high contrast as the system is set, the default font in
-  Inter); `$THEME Classic` draws RapidQ's exact Windows look. Sizes,
-  places and the colours a program reads back are RapidQ's in every look
-  ([Themes](components.md#themes)).
+  Inter); `$THEME Classic` draws the classic Windows look. Sizes,
+  places and the colours a program reads back are the classic ones in every
+  look ([Themes](components.md#themes)).
 - The RapidR Runtime with file types; standalone executables that need
   no Rust.
 - Every build carries its third-party notices.
@@ -188,4 +188,4 @@ the manual, Studio and the examples in Spanish, Portuguese and Chinese as well
 as English; `$THEME native` (the look of each system); RapidR running on an
 ESP32; local AI models and a drop-in chat component; more data sources (Excel,
 Parquet, PostgreSQL …); `$UNSAFEMEM` and calling native libraries on macOS and
-Linux as RapidQ calls DLLs; mobile. None of these is in 2.119.0.
+Linux as programs call DLLs on Windows; mobile. None of these is in 2.119.0.

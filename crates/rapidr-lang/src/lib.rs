@@ -32,7 +32,7 @@
 //!     expression: `"alNone"`, `"akLeft + akTop"`), `access` (`read` /
 //!     `write`; else both), `design` (shown at design time: default for
 //!     read-write, non-indexed ones), `indexed` (1 or 2: `Item(i)`),
-//!     `category`, `origin`, `from`, `only`, `missing`, `editor` (the
+//!     `category` (what it is for: one of [`PROPERTY_CATEGORIES`], never where it comes from), `origin`, `from`, `only`, `missing`, `editor` (the
 //!     inspector's editor beyond the type's: `strings`, `columns`, `file`,
 //!     `picture`, `multiline`, `sql`, `expression`, `secret` — typed
 //!     masked, never written into the code: the program is told), `doc`;
@@ -100,6 +100,17 @@ pub mod export;
 pub mod truth;
 
 pub use ai::{syntax_param_names, Effect, Risk};
+
+/// The categories a property is in: what it is **for**, the same for every
+/// component. The object inspector groups by them (RapidR Studio's Properties
+/// pane, a program's RPropertyInspector); each has its translation there
+/// (`category_title`). A property that the inspector can show (`design`) is in
+/// exactly one of them — never uncategorised, never in a group named after
+/// where the member comes from (`origin` is its own field, kept for the
+/// importer and for a project kept classic-compatible); `tests/categories.rs`
+/// checks it. `Misc` is not here: it is the group of a program's own
+/// properties that were given no category (`AddProperty`).
+pub const PROPERTY_CATEGORIES: &[&str] = &["Accessibility", "Appearance", "Behavior", "Data", "Drawing", "Font", "Help", "Layout", "Media", "Network", "Window"];
 
 /// Where a name comes from: RapidQ (its manual, its include files or its
 /// compiler RC.EXE have it) or RapidR (an extension: RC.EXE refuses it).

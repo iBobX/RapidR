@@ -1,0 +1,95 @@
+' system_info.rr: what this computer has, with RSystemInfo (RapidR's).
+' The system, the processor, the memory (all of it and what a program can
+' have now), the graphics, the disk and the battery, read on this computer
+' and never sent anywhere by RapidR (if your program sends them, tell its
+' users first) — and a program that adapts: a small computer
+' gets the light settings, a large one the rich ones.
+'
+'   rapidr run system_info.rr
+'
+' Refresh reads everything again (the free memory changes all the time).
+' On a web page the browser tells only a little: the list says what it
+' can't know there (Unknown).
+
+DECLARE SUB ShowFacts
+DECLARE SUB RefreshClick
+
+DIM Info AS RSystemInfo
+
+CREATE Form AS RForm
+    Caption = "This computer"
+    Width = 560: Height = 420
+    Center
+    CREATE Summary AS RLabel
+        AutoSize = 0: WordWrap = 1
+        Left = 16: Top = 14: Width = 520: Height = 40
+    END CREATE
+    CREATE Facts AS RListBox
+        Left = 16: Top = 60: Width = 520: Height = 250
+        AccessibleName = "What this computer has"
+    END CREATE
+    CREATE Advice AS RLabel
+        AutoSize = 0: WordWrap = 1
+        Left = 16: Top = 318: Width = 400: Height = 44
+    END CREATE
+    CREATE RefreshButton AS RButton
+        Caption = "&Refresh"
+        Left = 436: Top = 322: Width = 100
+        OnClick = RefreshClick
+    END CREATE
+END CREATE
+
+' (a size in megabytes, in words a person reads)
+FUNCTION Size(MB AS LONG) AS STRING
+    IF MB >= 10240 THEN
+        Result = FORMAT$("%.0f", MB / 1024) + " GB"
+    ELSEIF MB >= 1024 THEN
+        Result = FORMAT$("%.1f", MB / 1024) + " GB"
+    ELSE
+        Result = STR$(MB) + " MB"
+    END IF
+    Result = LTRIM$(Result)
+END FUNCTION
+
+SUB ShowFacts
+    Summary.Caption = Info.Summary
+    Facts.Clear
+    Facts.AddItems "System: " + Info.OS + " " + Info.OSVersion
+    IF Info.Architecture <> "" THEN Facts.AddItems "Processor kind: " + Info.Architecture
+    IF Info.CPU <> "" THEN Facts.AddItems "Processor: " + Info.CPU
+    Facts.AddItems "Cores: " + LTRIM$(STR$(Info.Cores))
+    IF Info.TotalMemory > 0 THEN Facts.AddItems "Memory: " + Size(Info.TotalMemory)
+    IF Info.FreeMemory > 0 THEN Facts.AddItems "Memory a program can have now: " + Size(Info.FreeMemory)
+    IF Info.GPU <> "" THEN Facts.AddItems "Graphics: " + Info.GPU
+    IF Info.GPUMemory > 0 THEN
+        IF Info.UnifiedMemory THEN
+            Facts.AddItems "Graphics memory: " + Size(Info.GPUMemory) + " (shared with the processor)"
+        ELSE
+            Facts.AddItems "Graphics memory: " + Size(Info.GPUMemory)
+        END IF
+    END IF
+    IF Info.DiskFree > 0 THEN Facts.AddItems "Free on the disk: " + Size(Info.DiskFree) + " of " + Size(Info.DiskTotal)
+    IF Info.HasBattery THEN
+        IF Info.OnBattery THEN
+            Facts.AddItems "On battery: " + LTRIM$(STR$(Info.BatteryLevel)) + "%"
+        ELSE
+            Facts.AddItems "Plugged in (battery " + LTRIM$(STR$(Info.BatteryLevel)) + "%)"
+        END IF
+    END IF
+    Facts.AddItems "Size of this computer: " + Info.Class
+    IF Info.Unknown <> "" THEN Facts.AddItems "Not known here: " + Info.Unknown
+    ' (a program that adapts to the computer it runs on)
+    SELECT CASE Info.Class
+        CASE "small": Advice.Caption = "A small computer: this program would use its light settings."
+        CASE "large": Advice.Caption = "A large computer: this program would use its richest settings."
+        CASE ELSE: Advice.Caption = "A medium computer: this program would use its usual settings."
+    END SELECT
+END SUB
+
+SUB RefreshClick
+    Info.Refresh
+    ShowFacts
+END SUB
+
+ShowFacts
+Form.ShowModal

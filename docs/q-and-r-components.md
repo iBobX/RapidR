@@ -43,8 +43,8 @@ For people who also compile with RapidQ's own compiler (RC.EXE). Off by default;
 
 | Diagnostic | Example | Fix |
 |---|---|---|
-| RapidR's own component | `CREATE Chart1 AS RPlot` — "RPlot is RapidR's own component: RapidQ doesn't have it" | Guard with `$IFDEF RAPIDR` |
-| RapidR's name of a RapidQ component | `DIM b AS RButton` — "RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON" | Write QBUTTON |
+| RapidR's own component | `CREATE Chart1 AS RPlot` — "RPlot is RapidR's own component: a classic compiler doesn't have it" | Guard with `$IFDEF RAPIDR` |
+| RapidR's name of a RapidQ component | `DIM b AS RButton` — "RButton is RapidR's name: a classic compiler knows it as QBUTTON" | Write QBUTTON |
 | A Q name RapidQ doesn't have | `AS QPLOT` — "RapidQ has no QPLOT: RapidR reads it as RPlot" | Write RPlot |
 | RapidR's extension of a RapidQ component | `Button1.Anchors = …` — "QButton.Anchors is a RapidR extension" | Guard; remove |
 | RapidR's builtin, statement, directive, type or constant | `$THEME modern`, `BEEP`, `akLeft` | Guard; remove |

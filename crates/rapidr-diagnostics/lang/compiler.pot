@@ -312,7 +312,7 @@ msgstr ""
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.and-and"
-msgid "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` joins text, so such a test is never what you meant)"
+msgid "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` is `&`: it joins text and adds numbers, so such a test is never what you meant)"
 msgstr ""
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)

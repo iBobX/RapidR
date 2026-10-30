@@ -337,6 +337,8 @@ The consent dialogs, the AI cost and privacy notes, the secret-check warnings an
 | Non-visual objects / Libraries | Objetos no visuales / Bibliotecas | |
 | Web only / AI / IDE | Solo para la web / IA / Studio | The "IDE" group is Studio's own components |
 | Property groups: Appearance / Behavior / Data / Network | Apariencia / Comportamiento / Datos / Red | "Layout" = *Disposición* |
+| Property groups, the rest: Accessibility / Drawing / Font / Help / Layout / Media / Window / Misc | Accesibilidad / Dibujo / Fuente / Ayuda / Disposición / Multimedia / Ventana / Varios | The Properties pane groups by what a property is for (there is no group named after where a member comes from) |
+| "new" (the note after a property classic programs lack) / Not in classic programs | nuevo / No está en los programas clásicos | Only in a project kept classic-compatible; *clásico* as in "Tema: Clásico" |
 
 The Toolbox lists components by their code names (`RButton`, `RLabel`…); those are never translated, only the group names above and each component's description.
 
@@ -402,7 +404,12 @@ The Simple level speaks plain words and shows Git's name in a tooltip: "Git lo l
 | Allow everything | Permitir todo | Status bar: "AI apps: allow everything" = *Apps de IA: permitir todo* |
 | No questions asked (chip) | Sin preguntar | ⚑ |
 | Allow Once / Allow for This Session / Deny | Permitir una vez / Permitir en esta sesión / Denegar | |
-| Build / Pair / Coach / Quiz me (the dial) | Construir / En pareja / Guía / Ponme a prueba | Provisional: Preview 5, not built yet |
+| Build / Pair / Coach / Quiz me (the dial) | Construir / En pareja / Tutor / Ponme a prueba | Build and Coach since Preview 5 (lane COACH-MODE); Pair and Quiz me provisional. *Tutor*, not *Guía*: *guía* is already the manual ("la guía de RapidR Studio") and a line in the code editor; a tutor is exactly what the mode does, and every student knows the word. "Coach mode" = *modo tutor*, "Build mode" = *modo construir* (lower case in a sentence) |
+| hint (Coach mode's ladder) | pista | *Pista 2 de 4*, *Siguiente pista*. Not *sugerencia* (2.x: a tooltip) |
+| Next Hint / Show the Code / I Got It | Siguiente pista / Mostrar el código / Ya lo entendí | "I Got It" is the student's own words, so first person |
+| a nudge / the idea / the shape of the code / the code (the four hints) | un empujoncito / la idea / la forma del código / el código | *Empujoncito*, softer than *empujón* (a shove): the legal review's note N4 |
+| Help With This Error | Ayuda con este error | |
+| Keep RAI in Coach mode (School Lock) | Mantener a RAI en modo tutor | |
 
 ### 2.11 Accessibility
 

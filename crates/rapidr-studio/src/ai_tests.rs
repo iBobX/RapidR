@@ -1173,3 +1173,262 @@ fn an_outside_ai_apps_calls() {
     assert_eq!(call(t, "toolkind", &[s("read_file")]).unwrap().to_string_val(), "read");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The small-model mode (docs/local-ai-plan.md §6): a request for a new
+/// program whose tries keep going wrong is started from the recipe sent
+/// with it, unchanged, after three — said in the chat's card, the model
+/// told to stop; a create_project after it is refused. Without the mode the
+/// old advice stays ("stop here, and tell the user").
+#[test]
+fn the_small_model_mode_falls_back_to_the_recipe_after_three_errors() {
+    let _one = one_at_a_time();
+    let dir = std::env::temp_dir().join(format!("rapidr-ai-fallback-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let broken = |id: &str| {
+        let args = json!({"name": "Stopwatch", "main": "main.rr", "files": [{"path": "main.rr", "text": "CREATE Form AS RForm\nEND CREATE\nNope x y\nForm.ShowModal\n"}]});
+        sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": id, "function": {"name": "create_project", "arguments": args.to_string()}}]}, "finish_reason": "tool_calls"}]})])
+    };
+    let (url, server) = mock(vec![broken("c1"), broken("c2"), broken("c3"), broken("c4"), text_answer("It starts from a working stopwatch.")]);
+    install();
+    let tools = "tools-fallback";
+    set(tools, "projectfolder", &s(""));
+    let n = "rai-fallback";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    rai_set(n, "smallmodel", "1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("Build me a stopwatch")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 5);
+    // (the third try: Studio started it from the recipe, and said so)
+    let third = last_result(&seen, 3);
+    assert!(third.contains("Studio started the new program from RapidR's recipe \"Stopwatch (timer)\", unchanged"), "{third}");
+    // (the fourth: refused, the recipe's program kept)
+    let fourth = last_result(&seen, 4);
+    assert!(fourth.contains("already started the new program from the recipe"), "{fourth}");
+    assert_ne!(get(tools, "fellback").unwrap().to_i64(), 0);
+    assert_eq!(get(tools, "projecterrors").unwrap().to_i64(), 0);
+    let info = call(tools, "proposalinfo", &[Value::Integer(0)]).unwrap().to_string_val();
+    assert!(info.starts_with("project\tmain.rr\t"), "{info}");
+    assert!(call(tools, "proposalnew", &[Value::Integer(0)]).unwrap().to_string_val().contains("OnTimer = Tick"));
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(t.contains("✓ Started from the recipe *Stopwatch (timer)*, unchanged: the model's own 3 tries didn't work"), "{t}");
+    assert!(std::fs::read_to_string(dir.join("audit.jsonl")).unwrap().contains("recipe-fallback"));
+    // (the mode off: three tries say stop, nothing is made in their place)
+    let (url2, server2) = mock(vec![broken("d1"), broken("d2"), broken("d3"), text_answer("It still has an error.")]);
+    let n2 = "rai-nofallback";
+    let tools2 = "tools-nofallback";
+    set(tools2, "projectfolder", &s(""));
+    rai_set(n2, "provider", "compatible");
+    rai_set(n2, "baseurl", &url2);
+    rai_set(n2, "model", "mock-1");
+    rai_set(n2, "smallmodel", "0");
+    assert_eq!(rai_call(n2, "attachcomponent", &[s(tools2), s("project")]).to_i64(), -1);
+    assert_eq!(rai_call(n2, "ask", &[s("Build me a stopwatch")]).to_i64(), -1);
+    wait(n2);
+    let seen2 = server2.join().unwrap();
+    assert!(last_result(&seen2, 3).contains("stop here"), "{}", last_result(&seen2, 3));
+    assert_eq!(get(tools2, "fellback").unwrap().to_i64(), 0);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A tool call as a compatible server streams it.
+fn calls_tool(id: &str, name: &str, args: Json) -> String {
+    sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": id, "function": {"name": name, "arguments": args.to_string()}}]}, "finish_reason": "tool_calls"}]})])
+}
+
+/// Coach mode (crate::coach; the manual's "Coach mode"): the model is
+/// offered no tool that changes a file, and when it calls them anyway —
+/// propose_edit, write_file, create_project, layout — each is refused
+/// before it runs: no proposal, nothing to apply, the file as it was.
+/// Studio says which hint to write, last in the instructions, and climbs
+/// the ladder only when asked.
+#[test]
+fn coach_never_proposes_even_when_the_model_tries() {
+    let _one = one_at_a_time();
+    let dir = project_dir("coach");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let before = std::fs::read_to_string(dir.join("main.rr")).unwrap();
+    let edit = json!({"path": "main.rr", "summary": "x", "edits": [{"old_text": "    Caption = \"Hi\"", "new_text": "    Caption = \"Done\""}]});
+    let write = json!({"path": "main.rr", "summary": "x", "text": "PRINT 1\n"});
+    let project = json!({"name": "Answer", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "PRINT 1\n"}]});
+    let (url, server) = mock(vec![
+        calls_tool("c1", "read_file", json!({"path": "main.rr"})),
+        calls_tool("c2", "propose_edit", edit),
+        calls_tool("c3", "write_file", write),
+        calls_tool("c4", "create_project", project),
+        calls_tool("c5", "layout", json!({"rows": [["1", "2"]]})),
+        text_answer("What should the caption say when the user clicks?"),
+    ]);
+    install();
+    let tools = "tools-coach";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    set(tools, "mode", &s("coach"));
+    assert_eq!(get(tools, "mode").unwrap().to_string_val(), "coach");
+    // (the permission still says what the user allowed: the dial is apart)
+    assert_eq!(get(tools, "permission").unwrap().to_string_val(), "propose");
+    let n = "rai-coach";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    rai_set(n, "replylanguage", "auto");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(call(tools, "coachask", &[]).unwrap().to_i64(), 1);
+    assert_eq!(rai_call(n, "ask", &[s("How do I make the caption change when I click?")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 6);
+    // (offered: the read tools only — never one that changes a file)
+    let first: Json = serde_json::from_str(&seen[0]).unwrap();
+    let offered: Vec<&str> = first["tools"].as_array().unwrap().iter().map(|t| t["function"]["name"].as_str().unwrap()).collect();
+    for never in ["propose_edit", "write_file", "create_project", "layout", "app_click", "app_type"] {
+        assert!(!offered.contains(&never), "{never} offered: {offered:?}");
+    }
+    assert!(offered.contains(&"read_file") && offered.contains(&"check_code") && offered.contains(&"search_manual"), "{offered:?}");
+    // (the coach's instructions, the hint to write last)
+    let system = first["messages"][0]["content"].as_str().unwrap();
+    assert!(system.starts_with("You are RAI in Coach mode"), "{}", &system[..200]);
+    assert!(system.contains("Coach mode: Write hint 1 of 4, a nudge"), "{}", &system[system.len().saturating_sub(600)..]);
+    assert!(!system.contains("Remember: a change happens only through a tool call"));
+    // (each change tool refused, said to the model)
+    for k in 2..=5 {
+        let r = last_result(&seen, k);
+        assert!(r.contains("isn't available in Coach mode"), "{k}: {r}");
+    }
+    // (nothing proposed, nothing to review, the file untouched)
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 0);
+    assert_eq!(std::fs::read_to_string(dir.join("main.rr")).unwrap(), before);
+    let (t, status) = rapidr_ai::rai::peek(n);
+    assert!(!t.contains("Proposed a change") && !t.contains("ai:review"), "{t}");
+    assert!(!status.contains("review"), "{status}");
+    // (no nudge to "make the change": the coach answered with words)
+    assert!(!seen.iter().any(|b| b.contains("your answer says you made or will make a change")));
+    let log = rai_call(n, "auditlog", &[Value::Integer(20)]).to_string_val();
+    assert!(!log.contains("\tproposed"), "{log}");
+    // (Next Hint: the ladder climbs; the request says hint 2)
+    assert_eq!(call(tools, "coachnext", &[]).unwrap().to_i64(), 2);
+    let (url2, server2) = mock(vec![text_answer("A FOR loop repeats: FOR i = 1 TO 3 … NEXT.")]);
+    rai_set(n, "baseurl", &url2);
+    assert_eq!(rai_call(n, "ask", &[s("Next hint, please.")]).to_i64(), -1);
+    wait(n);
+    let req: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
+    assert!(req["messages"][0]["content"].as_str().unwrap().contains("Coach mode: Write hint 2 of 4, the concept"));
+    assert_eq!(get(tools, "coachrung").unwrap().to_i64(), 2);
+    // (Build again: the ladder starts over; the change tools are back)
+    set(tools, "mode", &s("build"));
+    assert_eq!(get(tools, "coachrung").unwrap().to_i64(), 0);
+    assert!(call(tools, "toolnames", &[]).unwrap().to_string_val().contains("propose_edit"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// School Lock's "Keep RAI in Coach mode" (a teacher's, or the computer's
+/// policy coach_only = true): Coach whatever the pane set — the dial reads
+/// coach, the change tools refused — until it is unlocked; AI apps (MCP)
+/// follow only the user's permission.
+#[test]
+fn the_teachers_lock_keeps_coach_on() {
+    let tools = "tools-coach-lock";
+    install();
+    set(tools, "projectfolder", &s(""));
+    set(tools, "mode", &s("build"));
+    crate::school_lock::with_lock(|l| {
+        l.turn_on(crate::school_lock::hash_password("maestra1", b"0123456789abcdef", 100), "coach").unwrap();
+    });
+    assert_eq!(get(tools, "mode").unwrap().to_string_val(), "coach");
+    assert_ne!(get(tools, "coachlocked").unwrap().to_i64(), 0);
+    // (set to Build: still Coach while it locks)
+    set(tools, "mode", &s("build"));
+    assert_eq!(get(tools, "mode").unwrap().to_string_val(), "coach");
+    let mut h = Handle { name: tools.into() };
+    let names: Vec<String> = h.tools().into_iter().map(|t| t.name).collect();
+    assert!(!names.iter().any(|n| n == "propose_edit" || n == "write_file" || n == "create_project"), "{names:?}");
+    let out = h.call("propose_edit", &json!({"path": "main.rr", "edits": [], "summary": "x"}));
+    assert!(out.is_error && out.content.contains("Coach mode"), "{}", out.content);
+    assert!(h.instructions().starts_with("You are RAI in Coach mode"));
+    // (an AI app through Studio's MCP server: the user's permission only)
+    assert!(call(tools, "toolnames", &[]).unwrap().to_string_val().contains("propose_edit"));
+    // (unlocked until Studio closes: Build is back)
+    crate::school_lock::with_lock(|l| assert_eq!(l.unlock("maestra1", 0.0), crate::school_lock::Outcome::Right));
+    assert_eq!(get(tools, "mode").unwrap().to_string_val(), "build");
+    assert!(h.tools().iter().any(|t| t.name == "propose_edit"));
+    crate::school_lock::with_lock(|l| *l = crate::school_lock::SchoolLock::default());
+}
+
+/// The small-model mode (LOCAL-AI): Coach's few lines, the lite tools'
+/// read set, and the hint to write said in a short line.
+#[test]
+fn coach_in_the_small_model_mode_is_short() {
+    let tools = "tools-coach-lite";
+    install();
+    set(tools, "projectfolder", &s(""));
+    set(tools, "mode", &s("coach"));
+    let mut h = Handle { name: tools.into() };
+    h.set_lite(true);
+    let names: Vec<String> = h.tools().into_iter().map(|t| t.name).collect();
+    assert_eq!(names, vec!["list_files", "read_file", "rapidr_describe", "check_code", "search_manual"]);
+    let i = h.instructions();
+    assert!(i.starts_with("You are RAI in Coach mode") && i.len() < instructions_lite(true).len() + 400, "{}", i.len());
+    call(tools, "coachask", &[]);
+    call(tools, "coachnext", &[]);
+    call(tools, "coachnext", &[]);
+    assert!(h.facts().ends_with("Coach mode: Hint 3 of 4, the shape: a skeleton with blanks ___ for the important parts."), "{}", h.facts());
+    // (an error's first hint)
+    assert_eq!(call(tools, "coachforerror", &[]).unwrap().to_i64(), 1);
+    assert_ne!(get(tools, "coacherror").unwrap().to_i64(), 0);
+    assert!(h.facts().contains("Hint 1 of 4 about this error"));
+    call(tools, "coachreset", &[]);
+    assert_eq!(get(tools, "coachrung").unwrap().to_i64(), 0);
+}
+
+/// Coach's first hint is a nudge: a small model that answers it with code
+/// (qwen3.5 2B did, in the lane's walk) is asked once to write it again
+/// without — the code never shows in the chat, a muted line says why; a
+/// later hint may show code, and isn't asked again.
+#[test]
+fn a_nudge_that_shows_code_is_written_again() {
+    let _one = one_at_a_time();
+    let dir = project_dir("coach-redo");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let (url, server) = mock(vec![
+        text_answer("Here you go:\n\n```rapidr\nFOR i = 1 TO 10\n    total = total + i\nNEXT\n```"),
+        text_answer("What should happen to the total each time the loop goes round?"),
+        text_answer("The idea:\n\n```rapidr\nFOR k = 1 TO 3\n    PRINT k\nNEXT\n```"),
+    ]);
+    install();
+    let tools = "tools-coach-redo";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    set(tools, "mode", &s("coach"));
+    let n = "rai-coach-redo";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    call(tools, "coachask", &[]);
+    assert_eq!(rai_call(n, "ask", &[s("How do I add up 1 to 10?")]).to_i64(), -1);
+    wait(n);
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(!t.contains("total = total + i"), "the code never shows: {t}");
+    assert!(t.contains(crate::coach::REDO_LINE) && t.ends_with("What should happen to the total each time the loop goes round?"), "{t}");
+    assert_eq!(rai_get(n, "steps"), crate::coach::REDO_STEP);
+    // (hint 2 may show a tiny example: not asked again)
+    call(tools, "coachnext", &[]);
+    assert_eq!(rai_call(n, "ask", &[s("Give me the next hint.")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 3);
+    let redo: Json = serde_json::from_str(&seen[1]).unwrap();
+    assert!(redo["messages"].as_array().unwrap().iter().any(|m| m["role"] == "user" && m["content"].as_str().unwrap_or("").contains("this was hint 1 of 4, a nudge, and your answer showed code")));
+    let t2 = rapidr_ai::rai::peek(n).0;
+    assert!(t2.contains("    PRINT k") && t2.contains("[Copy](rai:copy/") && !t2.contains("total = total + i"), "{t2}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

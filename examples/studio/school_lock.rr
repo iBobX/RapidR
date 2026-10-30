@@ -1,0 +1,39 @@
+' school_lock.rr: School Lock as RapidR Studio sees it on this computer —
+' for a school's IT, to check the policy file after writing it, and for
+' anyone curious how hard a password is to guess
+' (docs/manual/for-teachers.md).
+'
+'   rapidr run school_lock.rr
+'
+' RProject's SchoolLock members are the ones Studio uses: SchoolLockLoad
+' reads the computer's policy (and a user's own setting, here none),
+' SchoolLock("…") says what is locked, SchoolLockStrength how hard a
+' password is to guess (0 too short … 3 strong). Nothing is changed here:
+' a teacher turns the lock on in Studio (Tools > School Lock…), IT with
+' the policy file.
+
+DIM Studio AS RProject
+DIM Locked AS INTEGER
+DIM Words(4) AS STRING
+DIM Names(3) AS STRING
+DIM k AS INTEGER
+
+PRINT "School Lock as RapidR Studio sees it:"
+Locked = Studio.SchoolLockLoad("")
+IF Studio.SchoolLock("error") <> "" THEN
+  PRINT "  The policy file "; Studio.SchoolLock("file"); " can't be read: "; Studio.SchoolLock("error")
+  PRINT "  Studio keeps every AI feature off, with no password, until it is fixed."
+ELSEIF Studio.SchoolLock("policy") = "1" THEN
+  PRINT "  This computer's policy turns off: "; Studio.SchoolLock("features")
+  PRINT "  (read from "; Studio.SchoolLock("file"); ")"
+ELSE
+  PRINT "  No School Lock policy on this computer."
+END IF
+
+PRINT
+PRINT "How hard these passwords are to guess:"
+Names(0) = "too short": Names(1) = "weak": Names(2) = "fair": Names(3) = "strong"
+Words(0) = "abc12": Words(1) = "123456": Words(2) = "maestra1": Words(3) = "Maestra-2026!"
+FOR k = 0 TO 3
+  PRINT "  "; Words(k); ": "; Names(Studio.SchoolLockStrength(Words(k)))
+NEXT

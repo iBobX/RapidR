@@ -91,7 +91,7 @@ Widths: a compact button at least 72 (Deny), a dialog button at least 96 (84 cla
 
 ## Buttons
 
-- **Primary**: accent-filled, `Default = 1` (Enter presses it). One per surface, the action the surface is for (OK, Create, Send) — except a consent, where the safe answer (Cancel) is the default ([Confirmations and consent](#confirmations-and-consent)).
+- **Primary**: accent-filled, `Default = 1` (Enter presses it). One per surface, the action the surface is for (OK, Create, Send) — except a consent, where the safe answer (Cancel) is the default ([Confirmations and consent](#confirmations-and-consent)). In a **pane** (not a dialog), use `Primary = 1`: the same accent fill, without Enter pressing it from wherever the keyboard is (the Versions pane's Save a Version...).
 - **Secondary**: the theme's plain button. Everything else.
 - **Destructive**: a secondary button whose words say what is lost ("Delete", "Reject All"), confirmed when it can't be undone. Never red-filled, never the default.
 - **Quiet**: a link (`LinkFont`, `page.link`) for "see more", "Get a key".
@@ -107,6 +107,8 @@ A chip says a state that lasts (a mode, a result), never an action.
 - **Never colour alone:** the words say it ("No questions asked"), the icon says it again.
 - **For screen readers:** the chip's container carries `AccessibleName` (the whole warning in a sentence); its parts are `AccessibleHidden`.
 - **How in Studio:** an `RCanvas` with `OnPaint = ChipPaint` (chrome.inc), `Tag` the status (0 info, 1 success, 2 warning, 3 danger), `Color` the ground; an `RImage` for the icon and a `Transparent` `RLabel` on top. The AI Apps pane's `McpBadge` is the reference; [status_colors.rr](../examples/gui/status_colors.rr) does the same in a program.
+- **A note after a name in a list** (the Properties pane in a project kept classic-compatible: "new" after a member classic programs lack): the same chip, small — a 16-px pill in `status.info`, `UIFont` one size down, 6 pixels on each side of the word; framed in the text colour in high contrast, on the window and framed in the classic look. It says a state, never an action; what it means goes in the row's tooltip and, for a screen reader, in its description ("Not in classic programs"). Nothing at all where it does not apply.
+- **In the status bar** (shorter than a header): the chip is as tall as the bar allows and its icon 12 px, in `StatusFont`; it is a child of the bar (never of the window, whose aligned parts it would push), at the right end of the project's panel. School Lock's chip is the reference (schoollock.inc).
 
 ## Pane anatomy
 
@@ -144,6 +146,20 @@ Before something with consequences is turned on (AI apps working in Studio, a lo
 | Do | Don't |
 |---|---|
 | "Let AI apps use RapidR Studio?" + four rows + Turn On / **Cancel** | A 12-line paragraph in a warning message box with OK / Cancel |
+
+## Tabs
+
+- **Every tab has an icon and its name** (16 px icon, 6, the name in Title Case), in pane tab strips, dialogs and documents alike — never a bare word.
+- **Selected tab:** the accent underline (2 px) and the text in the normal colour; the others dim. No box around a tab's text: the keyboard focus ring goes around the whole tab.
+- **When narrow:** a tab strip that can't fit every name shows icons only, each with its name as tooltip and `AccessibleName` — never a cut name ("P…").
+- **More than five pages** (Settings, Project Options): a category list at the left (icon + name, one row each) with a search box, not a row of tabs.
+- Tab order: Ctrl+Tab / Ctrl+Shift+Tab move between tabs; the arrows move along the strip when it has the focus.
+
+## Dialogs and resizing
+
+- **A dialog fits the screen:** at most 85 % of the screen's work area in height and width; its content scrolls, its buttons stay pinned at the bottom. It must work at 1280 × 720 and at 200 % text.
+- **Long lists fold:** a list a person rarely edits (paths, folders) shows a one-line summary ("14 folders · Show") and opens as a small list (about five rows) with its own scroll bar.
+- **Smooth:** scrolling, resizing and dragging never show a half-drawn frame, a fallback rendering or sizes bouncing back and forth; a frame takes about 8 ms (120 Hz).
 
 ## Icons
 
@@ -186,7 +202,7 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 
 - Dialogs set `fh = 28` for fields, but a field's height is its font's (24): the 28 never shows (chrome.inc, settings.inc, build.inc).
 - The Assistant pane's buttons are 28 (classic 23) beside 24-px combo boxes, with 6-px edges (ai.inc, aichats.inc); its banner's buttons 34.
-- The review windows' buttons are 30 (ai.inc, mcp.inc), Set Up RAI's 30 (aisetup.inc), the save prompt's and safety's 23 in classic (prompts.inc, safety.inc).
+- The review windows' buttons are 30 (ai.inc, mcp.inc), the save prompt's and safety's 23 in classic (prompts.inc, safety.inc).
 - Search and Help fields are 26 (search.inc).
 - The status bar's paused colour (`statusbar.debugging`, `#B45309`) is outside the brand palette.
 - Settings > AI: the links block (an `RMarkdownView`) draws a white `window` block across the dialog's face (settings.inc).
@@ -205,3 +221,5 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 9. `python3 tools/check_design.py` passes; `node tests/studio_shell.mjs`, `node tests/studio_flows.mjs` and the goldens pass (approve only the scenes you changed, and say which).
 10. Plain words, no other product's name (`python3 tools/check_words.py`); a consent is a question with rows and verb buttons, the safe one the default.
 11. Text in a list or log can be copied: a right-click menu with "&Copy" (Ctrl+C) and "Copy &All".
+12. Tabs have icons and names (icons only when narrow, never a cut name); a dialog fits 1280 × 720 with scrolling content and pinned buttons.
+13. Scrolled, resized and dragged: smooth, no flicker, no jumping sizes.

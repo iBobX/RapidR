@@ -7,7 +7,7 @@ people. Native builds, the
 interpreter and the web give the same output for every example here.
 
 RapidR also accepts some syntax the classic language doesn't (VB's `#If`, `ON ERROR`,
-`i++`, …): see [Differences and extensions](differences.md).
+`i++`, …): see [Compatibility notes](compatibility.md).
 
 ## Source files
 
@@ -103,7 +103,7 @@ $INCLUDE "RAPIDQ.INC"
 RapidR has that include built in, so the line needs no file: RapidR ships no
 copy of it. Without the line, `clRed` — and `True` and `False` too — is an undeclared
 name and reads as 0, and the code editor warns you
-([the RAPIDQ.INC warning](studio-editor.md#the-rapidqinc-warning)). Old
+([the classic constants warning](studio-editor.md#the-classic-constants-warning)). Old
 programs behave the same. The line in a `.rr` program is harmless: the
 constants are then the include's.
 
@@ -157,6 +157,10 @@ From the loosest: `OR`, `XOR` · `AND` · `NOT` · comparisons (`=`, `<>`,
 - `a INV m` is the modular inverse (`3 INV 26` is 9).
 - Strings: `+` or `&` join; `-` removes every occurrence (`"jello" - "l"`
   is `"jeo"`); `s$[i]` is the i-th character.
+- `&` is `+` (as in classic programs): two numbers add (`5 & 3` is 8, not 53), two
+  strings join, at the same level as `+` and `-`; `&&` is the same operator
+  (not a logical AND), so `IF x = 3 && x = 3` is never true — write `AND`.
+  To join a number to text, turn it into text: `"n = " + STR$(n)`.
 - `i++`, `i--`, `x += y` (and `-=`, `*=`, `/=`, `&=`); `INC x [, n]`,
   `DEC x [, n]`.
 - `@var` passes a variable by reference.
@@ -223,6 +227,23 @@ END
 ```
 
 `DATA`, `READ` and `RESTORE [label]` work as in other BASICs.
+
+### One-line `IF … ELSE`
+
+`IF ok THEN PRINT "yes" ELSE PRINT "no"` is the classic one-line form, and
+it keeps the classic compiler's habits, so older programs print what they
+always printed:
+
+- A `PRINT` right before an `ELSE` **does not end its line**: the next
+  `PRINT` carries on from it. `IF 1 THEN PRINT "a" ELSE PRINT "b"` followed
+  by `PRINT "c"` prints `ac`. The `PRINT` of the ELSE part, and any `PRINT`
+  in a block `IF` (several lines), end their lines as usual. To always end
+  it, write the block form (the example
+  [if_one_line.rr](../../examples/basics/if_one_line.rr)).
+- A **second** `ELSE` on the line is accepted and what follows it never
+  runs (`IF 0 THEN a ELSE b ELSE c` runs `b`); a **third** is an error. An
+  `IF` inside the THEN part takes the ELSE: `IF 0 THEN IF 1 THEN a ELSE b ELSE c`
+  runs nothing (the second `ELSE` is the inner one's spare).
 
 ### `FOR i AS INTEGER`: a counter declared in its loop
 
@@ -690,7 +711,7 @@ be translated like any message.
 | `a && b` (compiles, but joins text: a warning) | `a AND b` | `hint.and-and` |
 | `for i in range(10)`, `for (i = 0; i < 10; i++)`, `FOR EACH x IN list` | `FOR i = 1 TO 10 … NEXT i`; a list: `FOR i = 0 TO List.ItemCount - 1` | `hint.for-foreign` |
 | `END FOR`, `END WHILE`, `END DO` | `NEXT`, `WEND`, `LOOP` | `hint.end-loop` |
-| a FOR, WHILE, DO, IF or SELECT never closed (RC.EXE's *Missing NEXT statement* …, a warning) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
+| a FOR, WHILE, DO, IF or SELECT never closed (the classic compiler's *Missing NEXT statement* …, a warning) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
 | `ELSE IF c THEN` (a second IF that needs its own `END IF`) | `ELSEIF c THEN` | `hint.else-if` |
 | `elif c THEN` | `ELSEIF c THEN` | `hint.elseif` |
 | `ENDIF` | `END IF` | `hint.endif` |

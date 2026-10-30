@@ -8,13 +8,13 @@ objects except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
 The full list, with both names and where each runs:
 [reference/components.md](reference/components.md).
 
-## The older Q names
+## The classic names
 
 RapidR's components are written `RButton`, `RForm`, `RStringGrid`, ….
 Older programs use `QBUTTON`, `QFORM`, `QSTRINGGRID`, …: the
 same components, accepted everywhere ([the full list](reference/classic-names.md)). **Both names are one
 component**: the same properties, methods, events, defaults, look and
-behaviour, on every runtime. A few Q names map to another R name:
+behaviour, on every runtime. A few classic names map to another R name:
 `QGAUGE` is `RProgressBar`, `QOUTLINE` (Windows 3.1's tree) is `RTreeView`,
 and `COMPORT` is `RComPort`.
 
@@ -27,18 +27,18 @@ and `COMPORT` is `RComPort`.
   ([The AI assistant and RAI](ai-assistant.md)), `RMarkdownView`
   ([Markdown](markdown.md)), `RCodeEditor`, the web components
   (`RWebView`, `RDOM`, …) and others.
-- A program written with Q names, using only the classic components and
-  members, stays a plain classic program, which the older compiler still
-  builds. To bring one over to RapidR's names, import it (RapidR Studio's
+- A program written with classic names, using only the classic components
+  and members, stays a plain classic program. To bring one over to
+  RapidR's names, import it (RapidR Studio's
   File ▸ Import RapidQ Project or File…, or `rapidr import-rapidq`): a
   converted copy and a report, the original left alone —
   [Importing older programs](importing-rapidq.md).
 - RapidR Studio shows RapidR's names (the toolbox, the inspector, Help,
-  completion); what it adds to a file written with Q names is written
-  with Q names, so a file never mixes them.
+  completion); what it adds to a file written with classic names is written
+  with classic names, so a file never mixes them.
 - Because a leading Q is read as R whenever the R component exists,
-  `QPLOT` is accepted and means `RPlot`, though there never was a QPLOT. Prefer
-  the R name for RapidR's own components.
+  `QPLOT` is accepted and means `RPlot`, though there never was a classic
+  `QPLOT`. Prefer the R name for RapidR's own components.
 
 More on how the two families coexist (and how RapidR Studio writes them):
 [docs/q-and-r-components.md](../q-and-r-components.md).
@@ -164,7 +164,7 @@ END SUB
 
 [focus_events.rr](../../examples/gui/focus_events.rr) shows both. They are
 RapidR's own: the classic components have OnEnter only on their lists
-(a QFILELISTBOX's never fires; binding a QLISTBOX's stops the program) and no
+(a `QFILELISTBOX`'s never fires; binding a `QLISTBOX`'s stops the program) and no
 OnExit, so no older program changes.
 
 ### Events your own code fires

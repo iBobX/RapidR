@@ -21,6 +21,9 @@
 //! - `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height)
 //!   as a user dragging its border would, before the events.
 //! - `RAPIDR_TEST_SPLIT=splitter:delta`: a QSPLITTER dragged by `delta`.
+//! - `RAPIDR_TEST_FRAMES=file`, `RAPIDR_TEST_FRAMES_OF=a,b`: each turn's
+//!   place and size of those components, a line whenever one changed
+//!   (`Desktop::trace_frame`).
 //! - `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused ([`no_focus`]).
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
@@ -50,6 +53,11 @@
 //!   `__look_contrast`, `__look_darkcontrast`) changes it mid-run, as the
 //!   user switching the system to dark would ([`Action::Look`]). Test-only:
 //!   a normal run never reads it.
+//!
+//! Every hook reads its variable through [`var`]: a release build's hooks
+//! act only with a signed test-mode token (`RAPIDR_TEST_MODE`, SEC-24,
+//! docs/security/test-mode.md); without one each is ignored, said once on
+//! stderr.
 
 use std::cell::RefCell;
 
@@ -67,12 +75,14 @@ pub fn set_vars(vars: Vec<(String, String)>) {
     VARS.with(|v| *v.borrow_mut() = Some(vars));
 }
 
-/// A test hook's variable: the host's when it set them, else the process's.
+/// A test hook's variable: the host's when it set them (the browser's
+/// page), else the process's — only in a development build or with a
+/// signed test-mode token (SEC-24, `rapidr_testmode`; otherwise none).
 pub fn var(name: &str) -> Option<String> {
     if let Some(found) = VARS.with(|v| v.borrow().as_ref().map(|vars| vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))) {
         return found;
     }
-    std::env::var(name).ok()
+    rapidr_testmode::var(name)
 }
 
 /// `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused (no focus

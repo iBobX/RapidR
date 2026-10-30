@@ -1,0 +1,28 @@
+' if_one_line.rr: an IF on one line, with its ELSE.
+'
+'   rapidr run if_one_line.rr
+'
+' IF c THEN a ELSE b on one line is the classic form, and it keeps one of
+' its habits: a PRINT right before the ELSE does not end its line, so the
+' next PRINT carries on from it. The same IF written over several lines
+' (a block IF) always ends it.
+$APPTYPE CONSOLE
+
+DIM i AS INTEGER
+
+PRINT "One line: the THEN part's PRINT stays on its line"
+FOR i = 1 TO 3
+    IF i = 2 THEN PRINT "two" ELSE PRINT "not two"
+    PRINT "  (i = " + STR$(i) + ")"
+NEXT i
+
+PRINT
+PRINT "Several lines: every PRINT ends its line"
+FOR i = 1 TO 3
+    IF i = 2 THEN
+        PRINT "two"
+    ELSE
+        PRINT "not two"
+    END IF
+    PRINT "  (i = " + STR$(i) + ")"
+NEXT i

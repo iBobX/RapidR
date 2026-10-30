@@ -81,6 +81,192 @@ fn find<'a>(n: &'a AccessNode, f: &dyn Fn(&AccessNode) -> bool) -> Option<&'a Ac
     n.children.iter().find_map(|c| find(c, f))
 }
 
+/// The inspector in Studio's font (Inter, 10 pt), whose widths the column's default is made for.
+fn in_studios_font(h: &H) {
+    h.0.borrow_mut().set("insp", "fontname", v_str("Inter")).set("insp", "fontsize", v_int(10));
+}
+
+/// The tooltip a mouse resting at (x, y) of the form shows (the tips' clock
+/// stepped past HintPause).
+fn hover_tip(f: &mut FormUi, h: &H, ts: &mut TextSystem, x: i64, y: i64) -> Option<String> {
+    let s = h.0.borrow();
+    let t0 = crate::tick::now();
+    crate::tick::set_test_now(Some(t0));
+    f.mouse_move(&*s, ts, x as f64 + 0.5, y as f64 + 0.5, Mods::NONE);
+    let later = t0 + std::time::Duration::from_millis(800);
+    crate::tick::set_test_now(Some(later));
+    f.tick(&*s, ts, later);
+    crate::tick::set_test_now(None);
+    f.hint_shown().map(str::to_string)
+}
+
+/// The texts a painting of the form draws.
+fn drawn_words(f: &mut FormUi, ts: &mut TextSystem, h: &H) -> Vec<String> {
+    f.paint(&*h.0.borrow(), ts, 1.0)
+        .items
+        .iter()
+        .filter_map(|i| match i {
+            crate::Item::Op { op: crate::Op::Text { text, .. }, .. } => Some(text.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Where the first row's name column is (the rows by A to Z, the search
+/// narrowed to `filter`): a point inside it, and one in the value column.
+fn first_row(h: &H, filter: &str) -> ((i64, i64), (i64, i64)) {
+    model::with_mut("insp", |m| {
+        m.alphabetic = true;
+        m.filter = filter.into();
+    });
+    model::refresh(h, "insp");
+    let (g, nw) = model::with("insp", |m| (super::geo::geo(m, 300, 470, 0), m.name_width)).unwrap();
+    let y = g.list.1 + 11;
+    ((g.list.0 + 60, y), (g.list.0 + nw + 30, y))
+}
+
+/// (INSPECTOR-CATEGORIES) A property is under the heading of what it is for;
+/// no heading names where it comes from: the three accessibility ones sit
+/// together under Accessibility, Anchors with the layout ones, FontSize with
+/// the font ones.
+#[test]
+fn every_row_is_under_a_heading_of_its_purpose() {
+    let (_h, _f, _ts) = setup("b1");
+    let rows = model::with("insp", |m| m.rows()).unwrap();
+    let under = |name: &str| {
+        let i = rows.iter().position(|r| r.name == name && r.kind == model::RowKind::Prop).unwrap_or_else(|| panic!("{name}'s row"));
+        rows[..i].iter().rev().find(|r| r.kind == model::RowKind::Category).map(|r| r.name.clone()).unwrap()
+    };
+    for (name, heading) in [
+        ("AccessibleName", "Accessibility"),
+        ("AccessibleDescription", "Accessibility"),
+        ("AccessibleHidden", "Accessibility"),
+        ("Anchors", "Layout"),
+        ("MinWidth", "Layout"),
+        ("MaxHeight", "Layout"),
+        ("Width", "Layout"),
+        ("FontColor", "Font"),
+        ("FontSize", "Font"),
+        ("Hint", "Help"),
+        ("Caption", "Appearance"),
+        ("Default", "Behavior"),
+        ("ModalResult", "Window"),
+    ] {
+        assert_eq!(under(name), heading, "{name}");
+    }
+    let headings: Vec<&str> = rows.iter().filter(|r| r.kind == model::RowKind::Category).map(|r| r.name.as_str()).collect();
+    assert!(!headings.iter().any(|n| n.to_lowercase().contains("rapidr") || n.to_lowercase().contains("extension")), "{headings:?}");
+    // (a heading carries no note of where its members come from, marking on or off)
+    model::with_mut("insp", |m| m.mark_non_classic = true);
+    assert!(model::with("insp", |m| m.rows()).unwrap().iter().all(|r| r.kind != model::RowKind::Category || !r.non_classic));
+}
+
+/// (INSPECTOR-CATEGORIES) A member older programs lack is marked only while
+/// the inspector is told to (a project kept classic-compatible): a small
+/// calm "new" after its name, its tooltip and its screen reader's
+/// description saying "Not in classic programs", never the old "R". Unmarked:
+/// nothing at all. In every look, and in Spanish.
+#[test]
+fn a_member_older_programs_lack_is_marked_only_in_a_classic_compatible_project() {
+    let (h, mut f, mut ts) = setup("b1");
+    in_studios_font(&h);
+    let (name_at, _) = first_row(&h, "anchors");
+    // (unmarked: no note drawn, no tip, no description)
+    let drawn = drawn_words(&mut f, &mut ts, &h);
+    assert!(drawn.iter().any(|t| t == "Anchors"), "{drawn:?}");
+    assert!(!drawn.iter().any(|t| t == "new" || t == "R"), "{drawn:?}");
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, name_at.0, name_at.1), None);
+    let tree = f.access_tree(&*h.0.borrow(), &mut ts);
+    assert_eq!(find(&tree, &|n| n.role == Role::Row && n.name == "Anchors").expect("Anchors' row").description, "");
+    // (marked: the note, the tip, the description)
+    model::with_mut("insp", |m| m.mark_non_classic = true);
+    for t in rapidr_value::theme::ALL {
+        rapidr_value::theme::set(t);
+        let drawn = drawn_words(&mut f, &mut ts, &h);
+        assert!(drawn.iter().any(|w| w == "new"), "{}: the note, as the design guide's soft chip: {drawn:?}", t.name);
+        assert!(!drawn.iter().any(|w| w == "R"), "{}: no letter badge", t.name);
+    }
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, name_at.0, name_at.1).as_deref(), Some("Not in classic programs"));
+    let tree = f.access_tree(&*h.0.borrow(), &mut ts);
+    assert_eq!(find(&tree, &|n| n.role == Role::Row && n.name == "Anchors").unwrap().description, "Not in classic programs");
+    // (Caption, which classic programs have, is never marked)
+    let (cap_at, _) = first_row(&h, "caption");
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, cap_at.0, cap_at.1), None);
+    let tree = f.access_tree(&*h.0.borrow(), &mut ts);
+    assert_eq!(find(&tree, &|n| n.role == Role::Row && n.name == "Caption").expect("Caption's row").description, "changed");
+    // (Spanish: "nuevo", and the words in the tip and the description)
+    rapidr_value::i18n::set_language("es");
+    let (name_at, _) = first_row(&h, "anchors");
+    assert!(drawn_words(&mut f, &mut ts, &h).iter().any(|w| w == "nuevo"));
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, name_at.0, name_at.1).as_deref(), Some("No está en los programas clásicos"));
+    rapidr_value::i18n::set_language("");
+}
+
+/// (INSPECTOR-CATEGORIES) A name the column cuts short — `AccessibleDescription`
+/// at the default width — shows whole in its tooltip (a screen reader has it
+/// whole in the row's name); a name that fits, none. A value cut short, likewise.
+#[test]
+fn a_name_the_column_cuts_short_shows_whole_in_its_tooltip() {
+    let (h, mut f, mut ts) = setup("b1");
+    in_studios_font(&h);
+    let (name_at, _) = first_row(&h, "accessibled");
+    let drawn = drawn_words(&mut f, &mut ts, &h);
+    // (drawn in runs, the search's matched letters apart: never whole in one)
+    assert!(!drawn.iter().any(|t| t == "AccessibleDescription"), "cut at the default width: {drawn:?}");
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, name_at.0, name_at.1).as_deref(), Some("AccessibleDescription"));
+    let tree = f.access_tree(&*h.0.borrow(), &mut ts);
+    assert!(find(&tree, &|n| n.role == Role::Row && n.name == "AccessibleDescription").is_some(), "the row's name is whole");
+    // (the rest of the Accessibility trio fits the default width: no tip)
+    for short in ["accessiblename", "accessiblehidden", "showhint"] {
+        let (at, _) = first_row(&h, short);
+        assert_eq!(hover_tip(&mut f, &h, &mut ts, at.0, at.1), None, "{short}");
+    }
+    // (a column dragged wider: the whole name shows, so no tip)
+    model::with_mut("insp", |m| m.name_width = 200);
+    let (at, _) = first_row(&h, "accessibled");
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, at.0, at.1), None);
+    // (a value cut short: whole in its tip)
+    model::with_mut("insp", |m| m.name_width = rapidr_value::panels::inspector::DEFAULT_NAME_WIDTH);
+    h.0.borrow_mut().set("b1", "caption", v_str("A caption longer than the value column is wide"));
+    model::refresh(&h, "insp");
+    let (_, value_at) = first_row(&h, "caption");
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, value_at.0, value_at.1).as_deref(), Some("A caption longer than the value column is wide"));
+    h.0.borrow_mut().set("b1", "caption", v_str("OK"));
+    model::refresh(&h, "insp");
+    let (_, value_at) = first_row(&h, "caption");
+    assert_eq!(hover_tip(&mut f, &h, &mut ts, value_at.0, value_at.1), None);
+}
+
+/// (INSPECTOR-CATEGORIES) The names' column starts wide enough for the common
+/// names — all of them but `AccessibleDescription` — and keeps where the user
+/// dragged it while another component is inspected.
+#[test]
+fn the_default_names_column_fits_the_common_names() {
+    let font = rapidr_value::objects::font::Font { name: "Inter".into(), size: 10, color: 0, styles: 0 };
+    let room = rapidr_value::panels::inspector::DEFAULT_NAME_WIDTH - 20 - 4;
+    let common = ["Caption", "BorderStyle", "KeyPreview", "WindowState", "AutoScroll", "ModalResult", "Alignment", "WordWrap", "ShowHint", "TabOrder", "AccessibleName", "AccessibleHidden", "MinHeight", "MaxWidth", "BrushColor"];
+    for n in common {
+        let w = rapidr_value::objects::text::text_size(n, &font).0;
+        assert!(w <= room, "{n} is {w} pixels, the default column has room for {room}");
+    }
+    // (a pane as wide as Studio's Properties (272): the whole default; a narrower
+    // one — a saved layout of 240 — gives the names 58 % so the values still read,
+    // never under 120; where the user or the program put the divider is never cut)
+    let mut m = model::Inspector::default();
+    assert_eq!(super::geo::name_width(&m, 256), 148);
+    assert_eq!(super::geo::name_width(&m, 224), 129);
+    assert_eq!(super::geo::name_width(&m, 190), 120);
+    m.name_set = true;
+    assert_eq!(super::geo::name_width(&m, 224), 148);
+    // (kept while the selection changes: it's the inspector's, not a row's)
+    let (h, _f, _ts) = setup("b1");
+    model::with_mut("insp", |m| m.name_width = 190);
+    model::with_mut("insp", |m| m.target = "insp".into());
+    model::refresh(&h, "insp");
+    assert_eq!(model::with("insp", |m| m.name_width), Some(190));
+}
+
 #[test]
 fn typing_a_value_and_the_keyboard() {
     let (h, mut f, mut ts) = setup("b1");
