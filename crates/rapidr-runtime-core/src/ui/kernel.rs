@@ -242,6 +242,8 @@ fn pump(timeout: Option<Duration>) {
     crate::object::rp_in_host_callback(|| {
         let Ok(mut k) = k.try_borrow_mut() else { return };
         sync_desk(&mut k.desk);
+        // (a test's frame trace: what a frame drawn in this turn shows)
+        k.desk.trace_frame();
         let Kern { host, desk } = &mut *k;
         // (the system tray's icons, when the program changed them)
         let tray = rapidr_value::tray::revision();
