@@ -5,9 +5,9 @@ Un componente `RRichEdit` (nombre anterior `QRICHEDIT`) es un editor de texto
 cuyo texto tiene formato: cada carácter tiene su fuente, tamaño, color, negrita,
 cursiva, subrayado y tachado, y cada párrafo su alineación, sus sangrías y una
 viñeta. Los programas le dan formato mediante `SelAttributes`, el usuario escribe
-en él, y carga y guarda archivos de texto enriquecido (`.rtf`) que también abren
-WordPad, Word, LibreOffice y TextEdit. Funciona igual en las compilaciones
-nativas, en el RapidR Runtime y en el navegador.
+en él, y el componente carga y guarda archivos de texto enriquecido (`.rtf`) que
+también abren WordPad, Word, LibreOffice y TextEdit. Funciona igual en las
+compilaciones nativas, en el RapidR Runtime y en el navegador.
 
 ![Un editor de texto enriquecido pequeño: una barra de herramientas con “B”, “I”, “U”, “Colour”, “Font”, alineación y viñetas sobre un documento con formato](../images/rich-text/editor.png)
 
