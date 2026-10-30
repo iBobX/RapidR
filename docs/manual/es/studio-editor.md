@@ -76,7 +76,7 @@ instrucciones y constantes de RapidR:
 Constantes como `mbYes`, `mtWarning`, `clRed` o `fmOpenRead` están integradas en
 un programa de RapidR (`.rr`): la lista las ofrece tal cual, y no necesitas
 ninguna línea de inclusión
-([Constantes](../language.md#constants-clred-mbyes-vk_escape)).
+([Constantes](language.md#constantes-clred-mbyes-vk_escape)).
 
 ![Al escribir mby en hello_form.rr se enumeran mbYes, MB_YESNO y otras constantes, todas integradas, con su número](../images/studio-editor/completion-builtin.png)
 
@@ -259,7 +259,7 @@ que te enseñó otro lenguaje (`SET x = 1`, `a % b`, `for i in range(10)`), el
 mensaje va seguido de una breve sugerencia con la forma de RapidR: *RapidR no
 tiene SET: escribe x = 1*. Las mismas sugerencias están en `rapidr check` y
 cuando ejecutas o compilas; la tabla es
-[¿Vienes de otro lenguaje?](../language.md#coming-from-another-language).
+[¿Vienes de otro lenguaje?](language.md#vienes-de-otro-lenguaje).
 
 Studio comprueba todo el proyecto junto, como lo compila una compilación: un
 módulo o el archivo de un formulario que el archivo principal incluye se
@@ -509,5 +509,5 @@ RapidR):
   (Herramientas > Configuración > General > Ayudas del código).
 
 Tus propios programas pueden usar el mismo editor: es el componente RCodeEditor
-(mira [El editor de código en tus programas](../code-editor.md), con su modo SQL,
+(mira [El editor de código en tus programas](code-editor.md), con su modo SQL,
 y la [referencia de miembros](../reference/members.md#rcodeeditor)).

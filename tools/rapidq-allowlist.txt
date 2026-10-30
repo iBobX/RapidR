@@ -57,7 +57,7 @@ docs/manual/reference/members.md :: Imports a RapidQ program
 crates/rapidr-lang/data/components/studio.toml :: \"rapidq\"
 docs/manual/reference/members.md :: "rapidq"
 # The language server's option and the extension's setting (ids in code spans).
-docs/manual/other-editors.md :: rapidqCompatible
+docs/manual/*other-editors.md :: rapidqCompatible
 utilities/vscodeext/rapidr/README.md :: rapidqCompatible
 
 # ---- legal notices: the nominative statement that RapidR is not affiliated ----

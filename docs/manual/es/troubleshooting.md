@@ -154,7 +154,7 @@ positivo*). No le pasa nada a tu programa ni a RapidR.
 más confiable para los antivirus y para SmartScreen. Cuando le das una aplicación
 a otras personas, firmarla con tu propio certificado (`signtool sign …`) es la
 verdadera cura para las advertencias y las falsas alarmas; las descargas propias
-de RapidR todavía no están firmadas ([Compilar aplicaciones](../building-apps.md#windows)).
+de RapidR todavía no están firmadas ([Compilar aplicaciones](building-apps.md#windows)).
 Una aplicación interpretada independiente (`rapidr build prog.bas --interp`) se
 hace con el ejecutor ya preparado de RapidR; en las pruebas de RapidR no fue
 rechazada.
@@ -194,7 +194,7 @@ la detección falla, define `RAPIDR_RENDERER=cpu`.
 dibujan con el aspecto propio de RapidR, a menos que digan `$THEME Classic` (el
 aspecto clásico; los tamaños y las posiciones son los mismos en ambos). Revisa
 también si hay una variable `RAPIDR_THEME` en tu entorno, que da su tema a los
-programas que no nombran ninguno ([Temas](../components.md#themes)).
+programas que no nombran ninguno ([Temas](components.md#temas)).
 
 ## La web
 
@@ -208,7 +208,7 @@ pueden abrir conexiones TCP directas. Llama a un servidor tuyo mediante RHttp.
 **Un archivo que lee el programa no se encuentra en la web** — los archivos junto
 al programa se incluyen en la página solo con las extensiones de la lista
 (`.csv`, `.db`, `.txt`, `.png`, …); los demás nombres se piden al servidor de la
-página. Mira [La web](../web.md#files-and-assets).
+página. Mira [La web](web.md#archivos-y-recursos).
 
 ## Datos y tablas
 
@@ -216,7 +216,7 @@ página. Mira [La web](../web.md#files-and-assets).
 del `RCSV` dice por qué (`there is no file "people.csv"`) y se dispara su
 `OnError(Message)`; el programa continúa. Un `FileName` sin carpeta se busca en la
 carpeta actual y después junto al programa; en un navegador, el archivo tiene que
-ser uno de los de la página ([Ciencia de datos con RapidR](../data-science-with-rapidr.md#good-to-know)).
+ser uno de los de la página ([Ciencia de datos con RapidR](data-science-with-rapidr.md#conviene-saber)).
 
 **El diseñador no muestra datos de un componente vinculado** — el diseñador solo
 lee archivos dentro de tu proyecto (junto al programa), y solo para leerlos.
