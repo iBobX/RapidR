@@ -263,6 +263,13 @@ if (want("all")) {
   r = await tool("run_program", { Action: "start", Wait: 20 });
   check("run_program: run at once, the changed program's output back", !r.error && r.text.includes("Hello from an AI app") && r.text.includes("Line 2"), r.text);
   check("run_program saved the change first (as Run does)", readFileSync(join(WORK, "all", "main.rr"), "utf8").includes("Hello from an AI app"));
+  // (the refused new program is dropped, not kept: kept, the next change — now that the files are saved —
+  // made it, and opened it over that change's own unsaved text, where Studio waited on a Save dialog and
+  // answered nothing: tools/ai_eval's quiz-game run, 2026-10-29, also on the development build)
+  r = await tool("write_file", { path: "notes2.txt", text: "Another note\n", summary: "Another notes file." });
+  check("a change after a refused new program: answered, the new program not made then", !r.error && r.text.includes("notes2.txt") && !r.text.includes("Created and opened") && !r.text.includes("not opened"), r.text);
+  r = await tool("studio_status");
+  check("…and Studio is still on the same project", r.text.includes("Project: Hello") && !r.text.includes("Project: Second"), r.text);
   r = await tool("read_output");
   check("read_output: nothing new", r.text.includes("(no new output)") && r.text.includes("isn't running"), r.text);
   r = await tool("get_problems");

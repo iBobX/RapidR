@@ -1371,6 +1371,10 @@ FUNCTION McpApply(Said AS STRING) AS STRING
           END IF
         END IF
       END IF
+      ' (a new program that wasn't made is dropped, not kept for the next change: kept, whatever
+      ' change came next made it — and opened it over that change's unsaved text, where Studio
+      ' waited on a Save dialog for good: found again by the 2026-10-29 runs, quiz-game)
+      IF made = "!" THEN McpTools.Decide i, "failed"
     ELSE
       full = ProjectPath(path)
       newText = McpTools.ProposalNew(i)
@@ -1415,6 +1419,13 @@ FUNCTION McpApply(Said AS STRING) AS STRING
   McpTools.ClearDecided
   IF made <> "" AND made <> "!" THEN
     McpTools.ClearProposals
+    ' (the files this very call changed are unsaved now: opening over them would ask the user
+    ' to save them, and Studio would answer nothing until they did)
+    dirty = McpDirtyFiles
+    IF dirty <> "" THEN
+      Result = "The new program was written (" + McpShownPath(made) + ") but not opened: Studio has unsaved changes (" + dirty + "), and opening it would ask the user to save them. Open it with open_project once they are saved."
+      EXIT FUNCTION
+    END IF
     IF ProjectOpen THEN before = McpMode ELSE before = ""
     beforeKey = ProjectFile
     OpenProject made
