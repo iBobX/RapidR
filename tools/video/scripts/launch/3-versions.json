@@ -34,7 +34,6 @@
     { "say": [{ "en": "Changed your mind? Undo brings it back.", "es": "¿Cambiaste de idea? Deshacer lo trae de vuelta." }],
       "do": [{ "do": "versions.undo" }, { "wait": 1.5 }] },
     { "say": [{ "en": "Your versions stay in your project folder, on your computer.", "es": "Tus versiones se quedan en la carpeta de tu proyecto, en tu computadora." }],
-      // TODO: the timeline's name
       "do": [{ "highlight": "VerTimeline", "for": 2.5 }] },
     { "card": { "title": "RapidR Studio", "lines": [{ "en": "Try anything. Go back anytime.", "es": "Prueba lo que quieras. Vuelve cuando quieras." }, "rapidr.dev"],
         "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },

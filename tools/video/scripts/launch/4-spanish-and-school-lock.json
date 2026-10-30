@@ -26,8 +26,7 @@
       // TODO: show the Problems page
       "do": [{ "click": "codedoc(0)" }, { "type": "PRINT (" }, { "do": "run.start" }, { "wait": 2 }, { "highlight": "outputbox", "for": 2.5 }] },
     { "say": [{ "en": "For classrooms, there's School Lock.", "es": "Para el aula, está el Bloqueo escolar." }],
-      // TODO: the dialog's name
-      "do": [{ "do": "tools.schoolLock" }, { "waitFor": "window:SchoolLockDialog", "timeout": 10 }] },
+      "do": [{ "do": "tools.schoolLock" }, { "waitFor": "window:LockDialog", "timeout": 10 }] },
     { "say": [{ "en": "The teacher sets a password, and chooses how RAI may help: off, or Coach mode only.", "es": "El docente pone una contraseña y elige cómo puede ayudar RAI: apagado, o solo en modo tutor." }],
       // TODO: a demo password typed shows dots only
       "do": [{ "highlight": "caption:Coach", "for": 2.5 }] },

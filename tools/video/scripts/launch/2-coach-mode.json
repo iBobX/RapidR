@@ -19,12 +19,10 @@
         "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
       "say": [{ "en": "Sometimes you don't want the answer. You want a nudge.", "es": "A veces no quieres la respuesta. Quieres un empujoncito." }] },
     { "say": [{ "en": "In RAI's pane, turn the dial to Coach.", "es": "En el panel de RAI, gira el selector a Tutor." }],
-      // TODO: the dial's name
-      "do": [{ "do": "ai.assistant" }, { "click": "caption:Coach" }] },
+      "do": [{ "do": "ai.assistant" }, { "click": "AIDialCoach" }] },
     { "say": [{ "en": "Ask your question.", "es": "Haz tu pregunta." }],
       "do": [{ "type": { "en": "How do I make the label count up?", "es": "¿Cómo hago que la etiqueta cuente?" }, "into": "AIInput" }, { "key": "Enter" }] },
     { "say": [{ "en": "The first hint is a nudge: where to look.", "es": "La primera pista es un empujón: dónde mirar." }],
-      // TODO: the rung chip's name
       "do": [{ "waitFor": { "shows": "caption:Next Hint" }, "timeout": 120 }, { "highlight": "AICoachChip", "for": 2 }] },
     { "say": [{ "en": "Still stuck? Next hint: an idea.", "es": "¿Sigues atascado? Siguiente pista: una idea." }],
       "do": [{ "click": "caption:Next Hint" }, { "wait": 2 }] },
