@@ -61,6 +61,10 @@ pub mod eyes;
 pub mod hands;
 pub mod link;
 pub mod app_components;
+// (demo mode: a scripted tutorial played and recorded headless — the
+// launch videos; docs/video-pipeline.md. Desktop only: it writes frames)
+#[cfg(not(target_arch = "wasm32"))]
+pub mod demo;
 // (the dialogs lane's: Open / Save dialogs; colour and font dialogs too)
 pub mod choose_dialogs;
 pub mod dialogs;

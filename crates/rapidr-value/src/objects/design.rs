@@ -428,6 +428,19 @@ thread_local! {
     /// A component being dragged in from elsewhere (a toolbox): its type,
     /// until the mouse is let go ([`begin_drop`]).
     static DROP: RefCell<Option<String>> = const { RefCell::new(None) };
+    /// A design surface took the last drop (added the component itself).
+    static TAKEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// A design surface added the component dragged in ([`end_drop`] follows):
+/// what was dragged from (a toolbox) mustn't add it again.
+pub fn mark_taken() {
+    TAKEN.with(|t| t.set(true));
+}
+
+/// Whether a design surface took the last drop (asked once: it's forgotten).
+pub fn take_taken() -> bool {
+    TAKEN.with(|t| t.replace(false))
 }
 
 /// The runtime's source reader (RapidR Studio's runtimes install it).

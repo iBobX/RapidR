@@ -1145,8 +1145,16 @@ pub fn drop_up(ui: &mut FormUi, store: &dyn Store, hit: Option<usize>, x: f64, y
             with_design_mut(&id, |d| {
                 let r = d.new_rect(&ty, cx, cy, free);
                 d.ghost = None;
+                // (the press that started the drag armed the placing tool —
+                // the toolbox's click selects —: spent by the drop, as by a
+                // click, or the next click on the form would place another)
+                d.place_type.clear();
                 d.add_dropped(&ty, (r.left, r.top), Some(r))
             });
+            // (the toolbox it came from adds nothing more: its OnDragDrop
+            // isn't fired — RapidR Studio added the button twice, found by
+            // the demo mode's real drag, docs/video-pipeline.md)
+            rapidr_value::objects::design::mark_taken();
             let nu = &mut ui.nodes[i].ui;
             settle_if_dropped(&id, &mut nu.design, &mut nu.wake);
             for e in rapidr_value::objects::take_design_events(&id) {

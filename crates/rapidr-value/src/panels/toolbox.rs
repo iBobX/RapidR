@@ -652,11 +652,17 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
         User::DragStart(key) => {
             // (drawn over its neighbours while it lasts: the kernel's z-order)
             rt.restructure();
+            crate::objects::design::take_taken();
             rt.fire(name, "OnDragStart", &[Value::String(Toolbox::written(&key).into())]);
         }
         User::Drop(key, x, y) => {
             with_mut(name, |t| t.drag = None);
             rt.restructure();
+            // (let go on a designer that took the drag (DragComponent): it
+            // added the component itself — OnDragDrop would add it twice)
+            if crate::objects::design::take_taken() {
+                return;
+            }
             if let Some((target, tx, ty)) = drop_target(rt, name, (x, y)) {
                 rt.fire(name, "OnDragDrop", &[Value::String(Toolbox::written(&key).into()), Value::String(target.into()), Value::Integer(tx), Value::Integer(ty)]);
             }

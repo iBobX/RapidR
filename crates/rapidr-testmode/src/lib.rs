@@ -46,7 +46,7 @@ pub const TRUSTED_PUB: &str = include_str!("../test-mode.pub");
 
 /// The test hooks' variables (besides every `RAPIDR_TEST_*` but
 /// `RAPIDR_TEST_MODE` itself, and every `RAPIDR_CAPTURE*`): [`is_hook`].
-pub const HOOKS: &[&str] = &["RAPIDR_SCHOOL_POLICY", "RAPIDR_AI_TEST_SERVER", "RAPIDR_AI_TEST_DNS_FAIL_ONCE", "RAPIDR_LOGIN_SHELL", "RAPIDR_DUMP_MENUS"];
+pub const HOOKS: &[&str] = &["RAPIDR_SCHOOL_POLICY", "RAPIDR_AI_TEST_SERVER", "RAPIDR_AI_TEST_DNS_FAIL_ONCE", "RAPIDR_LOGIN_SHELL", "RAPIDR_DUMP_MENUS", "RAPIDR_DEMO", "RAPIDR_DEMO_OUT", "RAPIDR_DEMO_LANG"];
 
 /// An Ed25519 public key.
 pub type Key = [u8; 32];
