@@ -32,6 +32,7 @@ pub const PAGES: &[(&str, &str)] = &[
     ("differences.md", include_str!("../../../docs/manual/differences.md")),
     ("directx-and-media.md", include_str!("../../../docs/manual/directx-and-media.md")),
     ("getting-started.md", include_str!("../../../docs/manual/getting-started.md")),
+    ("graphics.md", include_str!("../../../docs/manual/graphics.md")),
     ("importing-rapidq.md", include_str!("../../../docs/manual/importing-rapidq.md")),
     ("language.md", include_str!("../../../docs/manual/language.md")),
     ("markdown.md", include_str!("../../../docs/manual/markdown.md")),

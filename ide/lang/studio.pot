@@ -3952,6 +3952,10 @@ msgid "Show me: a pointer types and clicks for you"
 msgstr ""
 
 #: ide/panes.inc
+msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
+msgstr ""
+
+#: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr ""
 

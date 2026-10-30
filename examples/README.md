@@ -115,7 +115,7 @@ of our own, so they read as one story ([the manual page](../docs/manual/recipes-
 | [hex_dump.rr](recipes/hex_dump.rr) | A memory viewer: address, 16 bytes, an ASCII column in a monospace list; a page of 16 rows, or all 4,096 in about a tenth of a second | run · interp · native · web | `rapidr run recipes/hex_dump.rr` |
 | [disassembler.rr](recipes/disassembler.rr) | Bytes back to text with an opcode table read from `DATA` (no `SELECT CASE`): mnemonics, operands, unknown bytes as `DB` | run · interp · native · web | `rapidr run recipes/disassembler.rr` |
 | [load_binary.rr](recipes/load_binary.rr) | A binary snapshot file into memory with `RFileStream` (`ReadNum`), its header parsed at fixed offsets; the sample file is written by the program | run · interp · native · web | `rapidr run recipes/load_binary.rr` |
-| [video_memory.rr](recipes/video_memory.rr) | Video memory drawn on an `RCanvas`: a 1-bit bitmap and colour attributes, only the changed cells redrawn, a moving ball drawn with `XOR`, a 50 Hz `RTimer` | run · interp · native · web | `rapidr run recipes/video_memory.rr` |
+| [video_memory.rr](recipes/video_memory.rr) | Video memory drawn on an `RCanvas`: a 1-bit bitmap and colour attributes kept decoded (a colour number a pixel) and drawn with `SetPixels8` + `StretchDraw`, a full repaint in about 0.1 ms; a moving ball drawn with `XOR`, an `RTimer` | run · interp · native · web | `rapidr run recipes/video_memory.rr` |
 | [keyboard_matrix.rr](recipes/keyboard_matrix.rr) | The keyboard as a matrix of 8 rows of 5 bits: `OnKeyDown` / `OnKeyUp` set the bits, an `IN` function reads rows by a port mask | run · interp · native · web | `rapidr run recipes/keyboard_matrix.rr` |
 | [cpu_timing.rr](recipes/cpu_timing.rr) | A CPU run a budget of cycles per timer frame (50 Hz), the overspent cycles carried over, Pause / Frame / Slower / Faster without freezing the window | run · interp · native · web | `rapidr run recipes/cpu_timing.rr` |
 
@@ -124,6 +124,7 @@ of our own, so they read as one story ([the manual page](../docs/manual/recipes-
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [canvas.rr](graphics/canvas.rr) | Drawing on an `RCanvas` in `OnPaint`: a bar chart; clicks add dots; `Pixel` | run · interp · native · web | `rapidr run graphics/canvas.rr` |
+| [pixels_fast.rr](graphics/pixels_fast.rr) | A whole picture from data, 50 frames a second: a plasma (`SetPixels8` and a palette that turns) and the Game of Life (64 x 48 cells worked out every frame), `StretchDraw` to twice and eight times the size, the frames a second and where each frame's time goes written under it; a button switches to a `Pset` for every pixel to see why ([Drawing many pixels fast](../docs/manual/graphics.md#drawing-many-pixels-fast)) | run · interp · native · web | `rapidr run graphics/pixels_fast.rr` |
 
 ### data/ — databases, JSON, data science
 

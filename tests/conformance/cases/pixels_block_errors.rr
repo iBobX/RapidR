@@ -1,0 +1,17 @@
+' SetPixels / SetPixels8 / GetPixels stop the program with a message that
+' says what is wrong, never draw a wrong picture: the block outside the
+' bitmap, an array too short, an index the palette does not have.
+DIM Bm AS RBitmap
+Bm.Width = 4: Bm.Height = 4
+DIM Cols(15) AS LONG
+DIM Idx(3) AS BYTE
+DIM Pal(1) AS LONG
+Pal(0) = 255: Pal(1) = 65280
+Idx(0) = 0: Idx(1) = 1: Idx(2) = 0: Idx(3) = 1
+Bm.SetPixels Cols, 4, 4
+PRINT "a whole bitmap: ok"
+Bm.SetPixels8 Idx, Pal, 2, 2, 2, 2
+PRINT "a palette block: ok"
+Idx(3) = 2
+Bm.SetPixels8 Idx, Pal, 2, 2
+PRINT "not reached"
