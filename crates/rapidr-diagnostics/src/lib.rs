@@ -1,5 +1,9 @@
 use std::fmt;
 
+/// The compiler's messages in the user's language: stable IDs, English
+/// templates, translations compiled in (`lang/<language>.po`).
+pub mod messages;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TextSpan {
     pub start: usize,

@@ -12,6 +12,9 @@ description = "Shared dynamic Value type for RapidR runtimes and bytecode VM"
 # defaults and constants from it, and what a new component starts with
 # (component_defaults.rs).
 rapidr-lang = { workspace = true }
+# TR$'s catalogs: RapidR's own PO reader, plural rules, language tags
+# (i18n.rs; no dependencies, wasm-safe).
+rapidr-i18n = { workspace = true }
 resvg ={ version = "0.48.1", default-features = false }
 # RapidR's own icons (objects/icons.rs: Bitmap.LoadIcon, ImageList.AddIcon;
 # feature `icons`).

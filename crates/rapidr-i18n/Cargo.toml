@@ -1,0 +1,12 @@
+[package]
+name = "rapidr-i18n"
+description = "RapidR in every language: PO catalogs (RapidR's own reader and writer, no gettext code), plural rules, language tags, the pseudo-language xx, translators' tools"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# No dependencies: programs' TR$ (rapidr-value), RapidR Studio's catalogs,
+# the compiler's messages (rapidr-diagnostics) and `rapidr i18n` share it;
+# wasm-safe.
+[dependencies]

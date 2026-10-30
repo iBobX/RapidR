@@ -9,7 +9,7 @@
 use rapidr_ui_kernel::components::form::Container;
 use rapidr_ui_kernel::KernelEvent;
 use rapidr_value::input::{Button, Mouse};
-use rapidr_value::v_int;
+use rapidr_value::{v_int, Value};
 
 use crate::windows::invalidate;
 use crate::{forms, lists, menus, Program, Windows};
@@ -82,11 +82,36 @@ pub fn look_changed<P: Program>(p: P) {
     if rapidr_value::theme::take_change() {
         p.fire("application", "onthemechange");
     }
+    // (a change of language: the catalogs' text the components show,
+    // translated again — before the program's OnLanguageChange, which
+    // makes the rest)
+    if let Some(r) = rapidr_value::i18n::take_retranslation() {
+        retranslate(p, &r);
+    }
     // (RapidR's Application.OnLanguageChange: the program set Language to
     // another language this turn — rapidr_value::i18n)
     if rapidr_value::i18n::take_change() {
         p.fire("application", "onlanguagechange");
     }
+}
+
+/// The properties whose text a change of language translates again.
+const TRANSLATED: [&str; 7] = ["caption", "hint", "accessiblename", "accessibledescription", "emptytext", "placeholder", "texthint"];
+
+/// Every component's [`TRANSLATED`] text that is a catalog's (shown in the
+/// language before), in the language now (`rapidr_value::i18n::
+/// Retranslation`): what TR$ gave stays TR$'s after a change of language.
+pub fn retranslate<P: Program>(p: P, r: &rapidr_value::i18n::Retranslation) {
+    for (id, _) in p.all() {
+        for prop in TRANSLATED {
+            if let Value::String(s) = p.get(&id, prop) {
+                if let Some(new) = r.text(&s) {
+                    p.set(&id, prop, rapidr_value::v_str(&new));
+                }
+            }
+        }
+    }
+    invalidate();
 }
 
 /// The application's hint changed to `long` (the mouse moved onto another

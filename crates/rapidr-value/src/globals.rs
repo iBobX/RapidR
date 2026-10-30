@@ -185,6 +185,7 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         // (RapidR's) the language the program speaks: what it set, else
         // the system's (crate::i18n)
         ("application", "language") => v_str(&crate::i18n::language()),
+        ("application", "languagefolder") => v_str(&crate::i18n::folder()),
         // (RapidR's) The user asked the system for reduced motion
         ("application", "reducedmotion") => v_bool(crate::theme::reduced_motion()),
         // (RapidR's) the keystrokes SendKeys queued, not yet delivered
@@ -217,6 +218,7 @@ pub fn set(p: &dyn Platform, name: &str, prop: &str, value: &Value) -> bool {
         }
         ("application", "theme") => p.set_theme(&value.to_string_val()),
         ("application", "language") => crate::i18n::set_language(&value.to_string_val()),
+        ("application", "languagefolder") => crate::i18n::set_folder(&value.to_string_val()),
         // (read-only: what the platform answers)
         ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors" | "scale" | "pixelsperinch") => {}
         _ => store(object, prop, value.clone()),
