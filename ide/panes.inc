@@ -17,6 +17,16 @@
 '   SearchPane    "Search"      with Project      Find in Files  (search.inc)
 '   HelpPane      "Help"        with Properties   F1             (search.inc)
 
+' The width of the Properties / Assistant column when nobody has set it:
+' 272 in English; a language that runs about a third longer (Spanish, the
+' pseudo-language) gets 380, so the Assistant's greeting, chips and notes
+' are not cut.
+FUNCTION InspectorDefaultWidth AS INTEGER
+  DIM lang AS STRING
+  lang = LCASE$(Application.Language)
+  IF lang = "" OR lang = "en" OR LEFT$(lang, 3) = "en-" THEN Result = 272 ELSE Result = 380
+END FUNCTION
+
 SUB SetUpDock
   Dock.AddPane(ProjectTree, TR$("Project"), "left", "explorer")
   Dock.AddPane(Toolbox, TR$("Toolbox"), "bottom:projecttree", "toolbox")
@@ -27,7 +37,7 @@ SUB SetUpDock
   Dock.AddPane(Welcome, TR$("Welcome"), "documents", "list")
   ' (Properties wide enough for the names' column — 148 — and values that
   ' still read beside it: 272 against the others' 240; a saved layout wins)
-  Dock.PaneExtent("inspector", "width", 272)
+  Dock.PaneExtent("inspector", "width", InspectorDefaultWidth)
   Dock.ShowPane("outputbox")
 END SUB
 
@@ -36,7 +46,11 @@ END SUB
 ' cards' names for a screen reader, the offer to reopen), which a change of
 ' language does not reach by itself.
 SUB PanesLanguageChanged
-  DIM k AS INTEGER
+  DIM k AS INTEGER, w AS INTEGER
+  ' (the Properties / Assistant column follows the language's length, unless
+  ' its width was set by hand)
+  w = Dock.PaneExtent("inspector", "width")
+  IF w = 272 OR w = 380 THEN Dock.PaneExtent("inspector", "width", InspectorDefaultWidth)
   Dock.PaneTitle("projecttree", TR$("Project"))
   Dock.PaneTitle("toolbox", TR$("Toolbox"))
   Dock.PaneTitle("inspector", TR$("Properties"))

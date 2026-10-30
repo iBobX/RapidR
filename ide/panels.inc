@@ -607,6 +607,41 @@ END SUB
 ' (the looks $THEME names, as Studio names them)
 CONST LOOKS = "RapidR|RapidR Light|RapidR Dark|RapidR High Contrast|Classic"
 
+' A look as the Properties pane shows it (Studio's language): the $THEME
+' line, the code, keeps the English name (RapidR Light, Classic …).
+FUNCTION LookShown(Look AS STRING) AS STRING
+  SELECT CASE LCASE$(Look)
+    CASE "rapidr light": Result = TR$("RapidR Light", "a look in the Properties pane's Theme row")
+    CASE "rapidr dark": Result = TR$("RapidR Dark", "a look in the Properties pane's Theme row")
+    CASE "rapidr high contrast": Result = TR$("RapidR High Contrast", "a look in the Properties pane's Theme row")
+    CASE "classic": Result = TR$("Classic")
+    CASE ELSE: Result = Look
+  END SELECT
+END FUNCTION
+
+' The look a name in the Properties pane means (as shown, or as $THEME
+' writes it); a name that is no look's, as it was typed.
+FUNCTION LookOfShown(Shown AS STRING) AS STRING
+  DIM i AS INTEGER, k AS STRING
+  Result = Shown
+  FOR i = 1 TO TALLY(LOOKS, "|") + 1
+    k = FIELD$(LOOKS, "|", i)
+    IF LCASE$(Shown) = LCASE$(k) OR LCASE$(Shown) = LCASE$(LookShown(k)) THEN
+      Result = k
+      EXIT FUNCTION
+    END IF
+  NEXT
+END FUNCTION
+
+' The looks, shown, one to a line (the Theme row's list).
+FUNCTION LooksShown AS STRING
+  DIM i AS INTEGER
+  Result = ""
+  FOR i = 1 TO TALLY(LOOKS, "|") + 1
+    Result = Result + LookShown(FIELD$(LOOKS, "|", i)) + CHR$(10)
+  NEXT
+END FUNCTION
+
 SUB ShowProjectInspector
   IF ProjectOpen = 0 THEN EXIT SUB
   ProjectInspecting = 1
@@ -666,7 +701,8 @@ SUB FillProjectInspector
   ProjectInspSig = sig
   Inspector.ClearProperties
   Inspector.SetHeading Proj.Name, TR$("Project"), "project"
-  Inspector.AddProperty "Theme", LOOKS, look, TR$("Appearance"), TR$("The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too)."), "RapidR"
+  Inspector.AddProperty "Theme", "string", LookShown(look), TR$("Appearance"), TR$("The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too)."), "RapidR"
+  Inspector.SetChoices "Theme", LooksShown
   Inspector.AddProperty "Name", "string", Proj.Name, TR$("General"), TR$("The project's name, as the Project pane and the window's title show it. Its files keep their names."), ""
   Inspector.AddProperty "MainFile", "string", Proj.MainFile, TR$("General"), TR$("The file the program starts from: Run, Build and the checks begin there."), ""
   Inspector.SetChoices "MainFile", files
@@ -685,7 +721,7 @@ SUB ProjectPropChanged(Prop AS STRING, Value AS STRING)
   ok = 1
   SELECT CASE k
     CASE "theme"
-      SetProgramLook v
+      SetProgramLook LookOfShown(v)
     CASE "name"
       IF v = "" THEN
         SetState "error", "A project needs a name"

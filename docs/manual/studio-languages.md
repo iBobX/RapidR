@@ -92,7 +92,9 @@ RapidR has a template and one file per language:
 4. **Mark a draft**: `#, review` above an entry says a person still has to
    check it.
 5. **See it**: Settings > Language, or `rapidr ide --lang es`.
-6. **Count what's left**: `rapidr i18n coverage`.
+6. **Count what's left**: `rapidr i18n coverage`; `rapidr i18n coverage pt
+   --missing` lists the registry's docs that a language still lacks, each
+   with its English, to start from.
 7. **A manual page**: copy it to `docs/manual/es/` and translate it; then
    `rapidr i18n manual-stamp es <page>.md` records which English it
    translates, and `rapidr i18n coverage` says when that English changes.
@@ -115,10 +117,16 @@ RapidR's tests run Studio's main scenes in it (`tests/studio_lang.mjs`).
 ## Not yet
 
 - Studio's text is in Spanish (a first pass that Robert reviews: every
-  menu, pane, dialog and message, the compiler's messages and the hints
-  under them); Portuguese and Chinese follow.
-- The run-time error messages of a running program, and the Help pane's own
-  words around an entry ("Property of RButton"), are in English.
+  menu, context menu, pane, dialog and message, the compiler's messages and
+  the hints under them, the Help pane's own words around an entry, and the
+  dialogs a program shows: the colour and font dialogs and message boxes);
+  Portuguese and Chinese follow.
+- A running program's run-time errors are translated for the common ones
+  (division by zero, a subscript out of range, no more `DATA`, a file that
+  can't be opened or created, a stack overflow, a variable that is not an
+  object …), in the line Studio shows where a debugged program stops, and in
+  the notes Problems gives. The many messages that belong to one component
+  (a database, a socket, a printer) still show in English.
 - The manual is in Spanish: all its guide pages. The reference pages (the
   components, members, built-in functions, statements and constants),
   generated from the language registry, follow in Spanish with the registry's

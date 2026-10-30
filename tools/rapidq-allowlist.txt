@@ -49,12 +49,14 @@ ide/lang/es.po :: de RapidQ
 ide/lang/es.po :: RapidQ programs
 # Studio's own component for the importer (Studio.ImportRapidQ's description).
 crates/rapidr-lang/data/components/studio.toml :: Imports a RapidQ program
+crates/rapidr-lang/data/i18n/es/studio.toml :: Importa un programa RapidQ
 docs/manual/reference/members.md :: Imports a RapidQ program
 
 # ---- values a program writes: ids, not wording ----
 # CompatMode = "rapidq" (a project kept classic-compatible) and the project
 # template "rapidq": the values programs and project files already use.
 crates/rapidr-lang/data/components/studio.toml :: \"rapidq\"
+crates/rapidr-lang/data/i18n/es/studio.toml :: \"rapidq\"
 docs/manual/reference/members.md :: "rapidq"
 # The language server's option and the extension's setting (ids in code spans).
 docs/manual/*other-editors.md :: rapidqCompatible

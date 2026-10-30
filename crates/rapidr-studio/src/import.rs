@@ -58,7 +58,7 @@ fn exists_as_folder(path: &str, exists: &impl Fn(&str) -> bool) -> bool {
 pub fn import<H: Host>(host: H, source: &str, dest: &str) -> Result<Imported, String> {
     let source = slashes(source).trim_end_matches('/').to_string();
     if source.is_empty() {
-        return Err("nothing to import".into());
+        return Err(rapidr_value::i18n::tr_ui("nothing to import"));
     }
     let options = Options { include_dirs: rapidr_import::import::env_include_dirs(), normalize_case: true };
     #[cfg(not(target_arch = "wasm32"))]
@@ -83,7 +83,7 @@ pub fn import<H: Host>(host: H, source: &str, dest: &str) -> Result<Imported, St
             rapidr_value::objects::read_file(&p).ok().map(|b| (std::path::PathBuf::from(p), b))
         }).collect();
         if files.is_empty() {
-            return Err(format!("{source}: nothing there to import"));
+            return Err(rapidr_value::i18n::tr_ui_fill("{source}: nothing there to import", &[("source", &source)]));
         }
         let mem = rapidr_import::Memory::new(files);
         let r = rapidr_import::import_with(&mem, Path::new(&source), Path::new(&dest), &options, true)?;

@@ -13,7 +13,8 @@
 //! rapidr i18n studio [--check]                   Studio's template, xx.po, checks (from the checkout)
 //! rapidr i18n compiler [--check]                 the compiler messages' template
 //! rapidr i18n runtime [--check]                  RapidR's own text's template (every tr_ui in the sources)
-//! rapidr i18n coverage [LANG…]                   how much of RapidR each language has
+//! rapidr i18n coverage [LANG…] [--missing]       how much of RapidR each language has
+//!                         (--missing: the registry docs a language lacks, KEY, a tab, the English)
 //! rapidr i18n manual-stamp <LANG> <page.md>      a translated manual page records the English it translates
 //! ```
 //!
@@ -389,7 +390,21 @@ fn translated_from(text: &str) -> Option<String> {
 
 fn coverage_cmd(args: &[String]) -> Result<ExitCode, String> {
     let root = root()?;
+    let mut args = args.to_vec();
+    // `--missing`: the registry docs a language still lacks, one per line
+    // (KEY, a tab, the English doc) — what a translator starts from
+    let missing = take_flag(&mut args, "--missing");
     let mut langs: Vec<String> = args.iter().map(|a| rapidr_i18n::normalize_tag(a)).collect();
+    if missing {
+        for tag in &langs {
+            for (key, english) in rapidr_lang::docs_i18n::doc_keys() {
+                if rapidr_lang::docs_i18n::translated_doc(&key, tag).is_none() {
+                    println!("{key}\t{}", english.replace('\n', "\\n"));
+                }
+            }
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
     if langs.is_empty() {
         let mut all: Vec<String> = languages_in(&root.join("ide/lang")).into_iter().map(|(t, _)| t).collect();
         all.extend(rapidr_diagnostics::messages::languages().iter().map(|s| s.to_string()));

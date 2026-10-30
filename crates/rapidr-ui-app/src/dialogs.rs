@@ -377,7 +377,7 @@ fn color<R: Program + Windows>(rt: R, name: &str) -> Pending {
     let state = choose_dialogs::color_state(rt, name);
     let custom = state.custom;
     let hooked = testhooks::color_dialog_answer().map(|c| Answer::Color(c, custom));
-    let title = choose_dialogs::title(rt, name, "Color");
+    let title = choose_dialogs::title(rt, name, &rapidr_value::i18n::tr_ui("Color"));
     let name = name.to_string();
     show(rt, || Dialog::color(next_id(), &title, state), hooked, move |a| match a {
         Answer::Color(c, custom) => choose_dialogs::color_answered(rt, &name, c, custom),
@@ -390,7 +390,7 @@ fn color<R: Program + Windows>(rt: R, name: &str) -> Pending {
 fn font<R: Program + Windows>(rt: R, name: &str) -> Pending {
     let req = choose_dialogs::font_request(rt, name);
     let hooked = testhooks::font_dialog_answer().map(Answer::Font);
-    let title = choose_dialogs::title(rt, name, "Font");
+    let title = choose_dialogs::title(rt, name, &rapidr_value::i18n::tr_ui("Font"));
     let (owner, name) = (name.to_string(), name.to_string());
     let make = move || {
         rt.start();

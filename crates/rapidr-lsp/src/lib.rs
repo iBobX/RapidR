@@ -67,6 +67,11 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
         .and_then(|g| g.position_encodings.as_ref())
         .is_some_and(|encs| encs.contains(&PositionEncodingKind::UTF8));
     let options = params.initialization_options.as_ref();
+    // (the language the client's words come in — hovers, help, the compiler's
+    // messages: `initializationOptions.language`, else RAPIDR_LANG as the
+    // command line reads it, else the client's own `locale`, else the system's)
+    let language = client_language(options, params.locale.as_deref());
+    rapidr_langsvc::words::set_language(&language);
     let rapidq_compatible = options.and_then(|o| o.get("rapidqCompatible")).and_then(|v| v.as_bool()).unwrap_or(false);
     let include_dirs = options
         .and_then(|o| o.get("includeDirs"))
@@ -137,6 +142,7 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
         published: HashMap::new(),
         utf8,
         workspace: workspace_roots(&params),
+        language,
     };
     server.confine();
     loop {
@@ -178,6 +184,18 @@ struct Server {
     utf8: bool,
     /// The workspace folders the client opened.
     workspace: Vec<PathBuf>,
+    /// The language the client's words come in (a tag).
+    language: String,
+}
+
+/// The language a client is answered in: its `initializationOptions.language`,
+/// else `RAPIDR_LANG`, else the client's own locale (LSP's `locale`: `es`,
+/// `es-MX`), else the system's (`rapidr_diagnostics::messages::cli_language`).
+fn client_language(options: Option<&serde_json::Value>, locale: Option<&str>) -> String {
+    let asked = options.and_then(|o| o.get("language")).and_then(|v| v.as_str()).map(rapidr_i18n::normalize_tag).filter(|t| !t.is_empty());
+    let env = std::env::var("RAPIDR_LANG").ok().map(|l| rapidr_i18n::normalize_tag(&l)).filter(|t| !t.is_empty());
+    let client = locale.map(rapidr_i18n::normalize_tag).filter(|t| !t.is_empty());
+    asked.or(env).or(client).unwrap_or_else(rapidr_diagnostics::messages::cli_language)
 }
 
 /// The folders a client opened: its workspace folders, else its root.
@@ -708,7 +726,15 @@ impl Server {
             }),
             code: d.code.clone().map(NumberOrString::String),
             source: Some("rapidr".into()),
-            message: d.two_lines(),
+            // (the compiler's words in the client's language; English where
+            // a message has no translation yet)
+            message: {
+                let message = rapidr_diagnostics::messages::localize(&d.message, &self.language);
+                match d.hint {
+                    Some(h) => format!("{message}\n{}: {}", rapidr_diagnostics::messages::hint_label(&self.language), h.text_in(&self.language)),
+                    None => message,
+                }
+            },
             ..Default::default()
         }
     }
@@ -895,6 +921,20 @@ fn _id(n: i32) -> RequestId {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The client's words come in the language it asks for: its own option
+    /// first, else (no `RAPIDR_LANG`) its locale.
+    #[test]
+    fn the_clients_language_is_the_one_it_asks_for() {
+        let options = serde_json::json!({ "language": "es_MX" });
+        assert_eq!(client_language(Some(&options), Some("fr")), "es-MX");
+        // (the option wins over the locale; an empty one doesn't count)
+        let empty = serde_json::json!({ "language": "" });
+        if std::env::var_os("RAPIDR_LANG").is_none() {
+            assert_eq!(client_language(Some(&empty), Some("pt-BR")), "pt-BR");
+            assert_eq!(client_language(None, Some("es")), "es");
+        }
+    }
 
     #[test]
     fn uris_round_trip() {

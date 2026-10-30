@@ -255,7 +255,7 @@ pub(crate) fn actions(diags: &[FileDiagnostic], root: &Path, text_of: impl Fn(&P
                 let Some(inc) = d.message.rsplit_once("$INCLUDE \"").map(|(_, r)| r.trim_end_matches('"').to_string()) else { continue };
                 let file = if d.file == root { root.to_path_buf() } else { d.file.clone() };
                 let Some(text) = text_of(&file) else { continue };
-                let title = format!("Add $INCLUDE \"{inc}\"");
+                let title = crate::words::tr_ui_fill("Add $INCLUDE \"{inc}\"", &[("inc", &inc)]);
                 if out.iter().any(|a| a.title == title) {
                     continue;
                 }
@@ -264,7 +264,7 @@ pub(crate) fn actions(diags: &[FileDiagnostic], root: &Path, text_of: impl Fn(&P
             Some(NOT_ONE) => {
                 let Some(text) = text_of(&d.file) else { continue };
                 let Some(fix) = not_one_fix(&text, d.start, d.end) else { continue };
-                out.push(CodeAction { title: format!("Write {}", fix.text), edit: vec![(d.file.clone(), vec![fix])], fixes: Some(d.clone()), preferred: true });
+                out.push(CodeAction { title: crate::words::tr_ui_fill("Write {name}", &[("name", &fix.text)]), edit: vec![(d.file.clone(), vec![fix])], fixes: Some(d.clone()), preferred: true });
             }
             _ => {}
         }

@@ -90,7 +90,7 @@ pub(crate) fn signature(s: &Snapshot, file: &Path, text: &str, offset: usize) ->
             Some(_) => return None,
             None => {
                 let b = rapidr_lang::builtin(name)?;
-                let doc = crate::complete::with_notes(b.doc, &crate::compat::notes(b.origin, rapidr_lang::Origin::RapidQ, b.missing, b.runtimes, None));
+                let doc = crate::complete::with_notes(crate::hover::tdoc(b.name, b.doc), &crate::compat::notes(b.origin, rapidr_lang::Origin::RapidQ, b.missing, b.runtimes, None));
                 syntax_signature(b.syntax, doc)
             }
         }
@@ -211,7 +211,7 @@ fn member_signature(s: &Snapshot, ty: &Ty, name: &str) -> Option<Signature> {
     match ty {
         Ty::Component(c) => {
             let m = c.method(name)?;
-            let mut sig = params_signature(&format!("{}.{}", c.spelling(), m.name), m.params, m.doc);
+            let mut sig = params_signature(&format!("{}.{}", c.spelling(), m.name), m.params, crate::hover::tdoc(&format!("{}.{}", c.name, m.name), m.doc));
             if let Some(r) = m.returns {
                 sig.label.push_str(" AS ");
                 sig.label.push_str(r);

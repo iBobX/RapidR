@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md ddb2a287daf91dd3 -->
+<!-- translated-from: studio-languages.md 83a1d5f84a1c7542 -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -95,7 +95,9 @@ Cada parte de RapidR tiene una plantilla y un archivo por idioma:
 4. **Marca un borrador**: `#, review` sobre una entrada dice que una persona
    todavía tiene que revisarla.
 5. **Velo**: Configuración > Idioma, o `rapidr ide --lang es`.
-6. **Cuenta lo que falta**: `rapidr i18n coverage`.
+6. **Cuenta lo que falta**: `rapidr i18n coverage`; `rapidr i18n coverage pt
+   --missing` lista las entradas del registro que le faltan a un idioma, cada
+   una con su inglés, para empezar desde ahí.
 7. **Una página del manual**: cópiala a `docs/manual/es/` y tradúcela; luego
    `rapidr i18n manual-stamp es <página>.md` registra qué inglés traduce, y
    `rapidr i18n coverage` avisa cuando ese inglés cambia.
@@ -120,11 +122,18 @@ en él (`tests/studio_lang.mjs`).
 ## Todavía no
 
 - El texto de Studio está en español (una primera versión que revisa Robert: cada
-  menú, panel, cuadro de diálogo y mensaje, los mensajes del compilador y las
-  sugerencias que van debajo); el portugués y el chino van después.
-- Los mensajes de error de ejecución de un programa en marcha, y las palabras
-  propias del panel Ayuda alrededor de una entrada (“Property of RButton”), están
-  en inglés.
+  menú, menú contextual, panel, cuadro de diálogo y mensaje, los mensajes del
+  compilador y las sugerencias que van debajo, las palabras propias del panel
+  Ayuda alrededor de una entrada, y los cuadros de diálogo que muestra un
+  programa: los de color y fuente y los mensajes); el portugués y el chino van
+  después.
+- Los errores de ejecución de un programa en marcha están traducidos los más
+  comunes (división por cero, un subíndice fuera de rango, quedarse sin `DATA`,
+  un archivo que no se puede abrir o crear, un desbordamiento de pila, una
+  variable que no es un objeto…), en la línea que Studio muestra donde se
+  detiene un programa en depuración y en las notas de Problemas. Los muchos
+  mensajes propios de un componente (una base de datos, un socket, una
+  impresora) todavía salen en inglés.
 - El manual está en español: todas sus páginas de guía. Las páginas de
   referencia (los componentes, los miembros, las funciones integradas, las
   instrucciones y las constantes), generadas desde el registro del lenguaje,

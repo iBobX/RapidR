@@ -161,6 +161,70 @@ msgctxt "RR0018"
 msgid "{file}: no errors"
 msgstr ""
 
+msgctxt "RR0019"
+msgid "{key} works on the desktop only: the web runtime doesn't have it ({n} uses)"
+msgstr ""
+
+msgctxt "RR0020"
+msgid "{key} works on the desktop only: the web runtime doesn't have it (1 use)"
+msgstr ""
+
+msgctxt "RR0021"
+msgid "{key} works in the web runtime only: the desktop doesn't have it ({n} uses)"
+msgstr ""
+
+msgctxt "RR0022"
+msgid "{key} works in the web runtime only: the desktop doesn't have it (1 use)"
+msgstr ""
+
+msgctxt "RR0023"
+msgid "{what} works on the desktop only: the web runtime doesn't have it"
+msgstr ""
+
+msgctxt "RR0024"
+msgid "{what} works in the web runtime only: the desktop doesn't have it"
+msgstr ""
+
+msgctxt "RR0025"
+msgid "{what} is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)"
+msgstr ""
+
+msgctxt "RR0026"
+msgid "The classic {what} is not implemented in RapidR yet"
+msgstr ""
+
+msgctxt "RR0027"
+msgid "{written} is not a classic name: RapidR reads it as {name}"
+msgstr ""
+
+msgctxt "RR0028"
+msgid "{shown} is RapidR's name: a classic compiler knows it as {q}"
+msgstr ""
+
+msgctxt "RR0029"
+msgid "{name} is RapidR's own component: a classic compiler doesn't have it (this project is kept classic-compatible)"
+msgstr ""
+
+msgctxt "RR0030"
+msgid "{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"
+msgstr ""
+
+msgctxt "RR0031"
+msgid "Inside FUNCTION {function}, Result is the FUNCTION's own value (RESULT): this variable can't be used there. Give it another name"
+msgstr ""
+
+msgctxt "RR0032"
+msgid "&& is not a logical AND in RapidR (& joins text), so this test is never what was meant"
+msgstr ""
+
+msgctxt "RR0033"
+msgid "{name} is not RapidR: nothing is printed"
+msgstr ""
+
+msgctxt "RR0034"
+msgid "{name} is a {inc} constant — add $INCLUDE \"{inc}\""
+msgstr ""
+
 #. The word that labels a hint under a compiler message
 msgctxt "hint.label"
 msgid "hint"

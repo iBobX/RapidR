@@ -80,6 +80,7 @@ DECLARE SUB MarkdownLanguageChanged
 DECLARE FUNCTION UITextWidth(Text AS STRING) AS INTEGER
 DECLARE SUB SearchLanguageChanged
 DECLARE SUB DebugLanguageChanged
+DECLARE SUB LayOutBpStrip
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
@@ -399,6 +400,10 @@ DIM AIBase AS STRING
 DIM AIWorkspace AS STRING
 DIM AIMaxTokens AS INTEGER
 DIM AIPermission AS STRING
+' ("RAI answers in:" — "studio": Studio's language, unless the person
+' writes clearly in another; "writer": the language they write in; kept
+' as the text, an older settings file has none: Studio's)
+DIM AIReplyIn AS STRING
 ' ("Ask before the assistant creates or changes files": a new program
 ' previewed before it is created; off — the default — it opens at once,
 ' with a Run it / Undo banner: docs/ai-ux-plan.md)
@@ -420,6 +425,8 @@ DECLARE SUB LayOutAIPanel
 DECLARE SUB AIPanelFonts
 DECLARE FUNCTION AIThousands(N AS INTEGER) AS STRING
 DECLARE SUB AIApplySettings
+DECLARE SUB AIApplyReplyLanguage
+DECLARE FUNCTION AIStoreName(Store AS STRING) AS STRING
 DECLARE FUNCTION AIModelOf(Id AS STRING) AS STRING
 DECLARE SUB AISetModelOf(Id AS STRING, Model AS STRING)
 DECLARE SUB ShowWhatWasSent

@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 5b1ae7fac4f39a68 -->
+<!-- translated-from: ai-assistant.md 99eebc4666e8562d -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -128,6 +128,10 @@ después en Configuración.
    quede cortado.
 9. **Puede hacer**: *Leer el proyecto y proponer cambios que revisas* (el valor
    predeterminado), o *Solo leer el proyecto y responder*.
+10. **RAI responde en**: *El idioma de Studio* (el valor predeterminado), o *El
+    idioma en que escribo*, que conserva el idioma de tu último mensaje (y el del
+    anterior, cuando un mensaje es demasiado corto para saberlo). Mira *Tu idioma*,
+    en Preguntar.
 
 El panel del asistente y su botón de la barra de herramientas aparecen cuando está
 activado y tiene un proveedor, una clave (cuando el proveedor la necesita) y un
@@ -165,11 +169,16 @@ cola vuelve al cuadro, sin enviarse, para que lo envíes o lo cambies.
 
 ![Un mensaje escrito mientras el asistente trabaja: en cola encima del cuadro, con × para retirarlo](../images/ai/queued.png)
 
-**Tu idioma.** El asistente responde en el idioma de tu último mensaje: escribe en
-español y la respuesta es en español, incluso cuando tus archivos, tus mensajes
-anteriores o el resumen de un chat largo estén en otro idioma. Cuando un mensaje es
-demasiado corto para saberlo (*ok*, una línea de código), conserva el idioma en el que
-estabas escribiendo; antes de tu primer mensaje, el idioma de Studio.
+**Tu idioma.** El asistente responde en **el idioma de Studio**
+(Herramientas > Configuración > General > Idioma), con las palabras de RapidR en ese
+idioma, y lee las páginas del manual y de la ayuda en ese idioma (una página que aún no
+está traducida se lee en inglés, y lo dice). Si escribes claramente en otro idioma,
+responde en el tuyo: escribe en inglés en un Studio en español y la respuesta es en
+inglés, incluso cuando tus archivos, tus mensajes anteriores o el resumen de un chat
+largo estén en otro idioma. Un mensaje demasiado corto para saberlo (*ok*, una línea de
+código) se responde en el idioma de Studio. Para que conserve el idioma en el que
+escribes, elige **El idioma en que escribo** en **RAI responde en**
+(Herramientas > Configuración > IA).
 
 **Una conexión que se cae.** Cuando una pregunta no puede llegar al proveedor (no se
 encuentra su nombre, no hay conexión por un momento), Studio vuelve a intentarlo una
@@ -824,11 +833,13 @@ PRINT AI.Usage; AI.Error
   no puede usar, demasiadas solicitudes.
 - **ReplyLanguage**: el idioma en el que van las respuestas. `""` (el valor
   predeterminado) no dice nada al respecto: el modelo elige, como necesita un programa
-  que traduce. `"auto"` sigue el idioma del último mensaje del usuario (**UserLanguage**
-  dice cuál leyó), como hace el asistente de Studio: cada solicitud termina diciéndolo, y
-  el resumen de un chat largo se escribe en él, para que el modelo no se desvíe a otro
-  idioma. El nombre de un idioma (`AI.ReplyLanguage = "Spanish"`) siempre responde en
-  ese.
+  que traduce. `"app"` responde en el idioma del programa (`Application.Language`), a
+  menos que el último mensaje de la persona esté claramente en otro: en ese, como hace
+  por omisión el asistente de Studio. `"auto"` sigue el idioma del último mensaje de la
+  persona (**UserLanguage** dice cuál leyó; se conserva mientras un mensaje es demasiado
+  corto para saberlo): cada solicitud termina diciéndolo, y el resumen de un chat largo
+  se escribe en él, para que el modelo no se desvíe a otro idioma. El nombre de un idioma
+  (`AI.ReplyLanguage = "Spanish"`) siempre responde en ese.
 - Una solicitud que nunca llegó al proveedor (sin red por un momento) se vuelve a
   intentar una vez por sí sola, dos segundos después; un rechazo, nunca.
 - **MaxTokens** (la respuesta más larga; 1024 de forma predeterminada), **System** (tus

@@ -9,6 +9,9 @@ license.workspace = true
 # Synchronous: no async runtime (docs/ide-plan.md §6.6).
 [dependencies]
 rapidr-langsvc.workspace = true
+# the compiler's messages in the client's language, and its language's tag
+rapidr-diagnostics.workspace = true
+rapidr-i18n.workspace = true
 lsp-server = "0.10"
 lsp-types = "0.97"
 serde = { version = "1", features = ["derive"] }

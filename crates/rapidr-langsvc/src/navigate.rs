@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use rapidr_ast::Statement;
 use rapidr_diagnostics::TextSpan;
 
+use crate::words::{tr_ui, tr_ui_fill};
 use crate::model::{name_key, Access, SymbolId, SymbolKind};
 use crate::text::{is_name_char, is_suffix_char, LineIndex};
 use crate::{modifiers, Location, Options, OutlineItem, OutlineKind, SemanticToken, Snapshot, TextEdit, TokenKind, WorkspaceEdit};
@@ -55,11 +56,11 @@ pub(crate) fn references(s: &Snapshot, file: &Path, offset: usize, include_decla
 }
 
 pub(crate) fn prepare_rename(s: &Snapshot, file: &Path, offset: usize) -> Result<Location, String> {
-    let id = symbol_at(s, file, offset).ok_or("Nothing to rename here: put the caret on a name of the program")?;
+    let id = symbol_at(s, file, offset).ok_or_else(|| tr_ui("Nothing to rename here: put the caret on a name of the program"))?;
     renamable(s, id)?;
-    let pre = s.pre_offset(file, offset).ok_or("no position")?;
-    let r = s.model.references.iter().find(|r| r.symbol == id && r.span.start <= pre && pre <= r.span.end).ok_or("no reference here")?;
-    let mut loc = s.locate(r.span).ok_or("no position")?;
+    let pre = s.pre_offset(file, offset).ok_or_else(|| tr_ui("no position"))?;
+    let r = s.model.references.iter().find(|r| r.symbol == id && r.span.start <= pre && pre <= r.span.end).ok_or_else(|| tr_ui("no reference here"))?;
+    let mut loc = s.locate(r.span).ok_or_else(|| tr_ui("no position"))?;
     // (the name without its type suffix)
     if let Some(text) = s.parsed.file_text(&loc.file) {
         while loc.end > loc.start && is_suffix_char(text.as_bytes()[loc.end - 1] as char) {
@@ -72,16 +73,16 @@ pub(crate) fn prepare_rename(s: &Snapshot, file: &Path, offset: usize) -> Result
 fn renamable(s: &Snapshot, id: SymbolId) -> Result<(), String> {
     let sym = &s.model.symbols[id];
     for r in s.model.references_to(id) {
-        let loc = s.locate(r.span).ok_or_else(|| format!("{} is used where it can't be renamed", sym.name))?;
+        let loc = s.locate(r.span).ok_or_else(|| tr_ui_fill("{name} is used where it can't be renamed", &[("name", &sym.name)]))?;
         if loc.file.starts_with("<RapidR>") {
-            return Err(format!("{} belongs to a library RapidR supplies", sym.name));
+            return Err(tr_ui_fill("{name} belongs to a library RapidR supplies", &[("name", &sym.name)]));
         }
     }
     Ok(())
 }
 
 pub(crate) fn rename(s: &Snapshot, file: &Path, offset: usize, new_name: &str) -> Result<WorkspaceEdit, String> {
-    let id = symbol_at(s, file, offset).ok_or("Nothing to rename here")?;
+    let id = symbol_at(s, file, offset).ok_or_else(|| tr_ui("Nothing to rename here"))?;
     renamable(s, id)?;
     let sym = &s.model.symbols[id];
     let new_base = rapidr_ast::strip_type_suffix(new_name);
@@ -89,13 +90,13 @@ pub(crate) fn rename(s: &Snapshot, file: &Path, offset: usize, new_name: &str) -
         && new_base.chars().all(is_name_char)
         && new_name[new_base.len()..].chars().all(is_suffix_char);
     if !valid {
-        return Err(format!("'{new_name}' is not a valid name"));
+        return Err(tr_ui_fill("'{name}' is not a valid name", &[("name", new_name)]));
     }
     if rapidr_lang::statement(new_base).is_some() || rapidr_lang::keyword(new_base).is_some() || rapidr_lang::type_name(new_base).is_some() {
-        return Err(format!("'{new_name}' is a reserved word"));
+        return Err(tr_ui_fill("'{name}' is a reserved word", &[("name", new_name)]));
     }
     if rapidr_lang::builtin(new_name).is_some() && !matches!(sym.kind, SymbolKind::Field | SymbolKind::Label) {
-        return Err(format!("'{new_name}' is a builtin's name"));
+        return Err(tr_ui_fill("'{name}' is a builtin's name", &[("name", new_name)]));
     }
     if name_key(new_name) == name_key(&sym.name) {
         // (only the spelling changes)
@@ -112,14 +113,14 @@ pub(crate) fn rename(s: &Snapshot, file: &Path, offset: usize, new_name: &str) -
             };
             if let Some(other) = clash.filter(|&o| o != id) {
                 let o = &s.model.symbols[other];
-                return Err(format!("'{new_name}' is already the name of {} here", describe(o.kind, &o.name)));
+                return Err(tr_ui_fill("'{name}' is already the name of {what} here", &[("name", new_name), ("what", &describe(o.kind, &o.name))]));
             }
         }
         // …nor hide or be hidden by a name in a routine below it.
         if sym.scope == 0 {
             for (i, o) in s.model.symbols.iter().enumerate() {
                 if i != id && o.scope != 0 && name_key(&o.name) == name_key(new_name) && s.model.references_to(id).any(|r| s.model.scope_at(r.span.start) == o.scope) {
-                    return Err(format!("'{new_name}' would be hidden by {} in a SUB that uses it", describe(o.kind, &o.name)));
+                    return Err(tr_ui_fill("'{name}' would be hidden by {what} in a SUB that uses it", &[("name", new_name), ("what", &describe(o.kind, &o.name))]));
                 }
             }
         }
@@ -145,18 +146,18 @@ pub(crate) fn rename(s: &Snapshot, file: &Path, offset: usize, new_name: &str) -
 
 fn describe(kind: SymbolKind, name: &str) -> String {
     let what = match kind {
-        SymbolKind::Global => "the global variable",
-        SymbolKind::Local => "the local variable",
-        SymbolKind::Param => "the parameter",
-        SymbolKind::Static => "the STATIC variable",
-        SymbolKind::Constant => "the constant",
-        SymbolKind::Component => "the component",
-        SymbolKind::Sub => "the SUB",
-        SymbolKind::Function => "the FUNCTION",
-        SymbolKind::External => "the DLL routine",
-        SymbolKind::Type => "the TYPE",
-        SymbolKind::Field => "the field",
-        SymbolKind::Label => "the label",
+        SymbolKind::Global => tr_ui("the global variable"),
+        SymbolKind::Local => tr_ui("the local variable"),
+        SymbolKind::Param => tr_ui("the parameter"),
+        SymbolKind::Static => tr_ui("the STATIC variable"),
+        SymbolKind::Constant => tr_ui("the constant"),
+        SymbolKind::Component => tr_ui("the component"),
+        SymbolKind::Sub => tr_ui("the SUB"),
+        SymbolKind::Function => tr_ui("the FUNCTION"),
+        SymbolKind::External => tr_ui("the DLL routine"),
+        SymbolKind::Type => tr_ui("the TYPE"),
+        SymbolKind::Field => tr_ui("the field"),
+        SymbolKind::Label => tr_ui("the label"),
     };
     format!("{what} {name}")
 }
