@@ -3918,7 +3918,7 @@ msgstr "Una ventana grande: un tablero"
 #: ide/panes.inc
 #, review
 msgid "A data frame and a chart"
-msgstr "Un marco de datos y un gráfico"
+msgstr "Una tabla de datos y un gráfico"
 
 #: ide/panes.inc
 msgid "Debug it: values as trees"

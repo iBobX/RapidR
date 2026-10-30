@@ -63,7 +63,7 @@
 "RMIDI.VOLUME" = "El volumen: de 0 a 100 en objetos multimedia y sonidos de DirectX; de 0 a 1 en audio y video web."
 "RVIDEO" = "Reproduce un video AVI con su sonido (QVideo.inc), en un formulario o en una ventana propia."
 "RVIDEO.AUDIOOFF" = "True silencia la pista de sonido del video."
-"RVIDEO.BORDERSTYLE" = "El borde: una de las constantes `bsXXX`. En un formulario, `bsSizeable` permite al usuario cambiar su tamaño, `bsDialog` no, `bsNone` no tiene barra de título."
+"RVIDEO.BORDERSTYLE" = "El borde: una de las constantes `bsXXX`. En un formulario, `bsSizeable` permite a la persona cambiar su tamaño, `bsDialog` no, `bsNone` no tiene barra de título."
 "RVIDEO.CAPTION" = "El texto que muestra el control, o el título de una ventana o un diálogo; un `&` antes de una letra la subraya como atajo de teclado."
 "RVIDEO.CLOSE" = "Cierra lo que el componente tiene abierto: un formulario, un archivo, un puerto, un dispositivo, una conexión o una base de datos."
 "RVIDEO.CURRENTFRAME" = "El fotograma (video) o la posición (MIDI) que se reproduce ahora; al establecerlo se salta a ese punto."

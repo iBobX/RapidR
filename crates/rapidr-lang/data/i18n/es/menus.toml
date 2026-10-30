@@ -28,7 +28,7 @@
 "RMENUITEM.INSERT" = "Inserta en una posición: un nodo o una cadena de texto antes del índice `Index`, o el elemento de menú `Item` en la posición `I`."
 "RMENUITEM.ITEMCOUNT" = "El número de elementos: cadenas de texto de una lista, nodos de un árbol, filas de una vista de lista o elementos de un menú."
 "RMENUITEM.MENUINDEX" = "La posición del elemento en el menú que lo contiene, desde 0."
-"RMENUITEM.ONCLICK" = "Se produce cuando el usuario hace clic en el control (o presiona su atajo, o Space o Enter en un botón con el foco)."
+"RMENUITEM.ONCLICK" = "Se produce cuando la persona hace clic en el control (o presiona su atajo, o Space o Enter en un botón con el foco)."
 "RMENUITEM.RADIOITEM" = "Muestra un punto en lugar de una marca de verificación cuando el elemento de menú está marcado."
 "RMENUITEM.SHORTCUT" = "La tecla que ejecuta el elemento de menú, como texto (`Ctrl+S`, `F5`)."
 "RMENUITEM.TAG" = "Un número para uso propio del programa; RapidR nunca lo lee."

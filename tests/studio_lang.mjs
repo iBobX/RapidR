@@ -374,7 +374,9 @@ const ES_SCENES = [
       const nameOnly = (t) => { const w = t.match(/[A-Za-z][A-Za-z']+/g) || []; return w.length > 0 && w.every((x) => NAMES.has(x.toLowerCase()) || programWords.has(x.toLowerCase())); };
       // (nor is a path of the machine that runs the test, cut short in the Output pane)
       // (nor is a line number half scrolled out of the editor)
-      const cut = [...new Set(texts.filter((t) => t.cut && /\p{L}/u.test(t.text) && !nameOnly(t.text) && !/[/\\]/.test(t.text)).map((t) => t.text))];
+      // (nor a sliver of a line — under 4 px tall — at the top of a pane that has scrolled: the Output pane's first
+      // line, whose place depends on how long the machine's path is)
+      const cut = [...new Set(texts.filter((t) => t.cut && /\p{L}/u.test(t.text) && !nameOnly(t.text) && !/[/\\]/.test(t.text) && !(t.rect && t.rect[3] < 4)).map((t) => t.text))];
       check(`${name}: ${texts.length} texts in ${w ? w.form : "?"}, none English left`, texts.length > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       if (STRICT_CUT) check(`${name}: nothing cut off`, cut.length === 0, cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       else if (cut.length) left.push(`${name}: ${cut.join(" | ")}`);

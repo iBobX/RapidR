@@ -208,7 +208,7 @@
 "RSOCKET.ACCEPT" = "Toma una conexión de cliente en espera: con el número de un socket que escucha devuelve el número del nuevo socket cliente; en un RSERVERSOCKET atiende a los clientes y mensajes en espera, como el método `Poll`."
 "RSOCKET.BINDADDRESS" = "La dirección en la que escucha Open(Port) cuando no se le da una: 0.0.0.0, todas las interfaces de red (el valor predeterminado), o 127.0.0.1, solo esta computadora — lo que debe usar un servidor con el que solo hablan los programas de esta computadora (nada de la red puede llegar a él, y el sistema no pregunta por las conexiones entrantes)."
 "RSOCKET.CLOSE" = "Cierra lo que el componente tiene abierto: un formulario, un archivo, un puerto, un dispositivo, una conexión o una base de datos."
-"RSOCKET.CONNECT" = "Abre una conexión: a un servidor MySQL a partir de un host, un usuario y una contraseña (true si lo logra), o al puerto TCP `PortNum` de un servidor (el número del nuevo socket, -1 si falla)."
+"RSOCKET.CONNECT" = "Abre una conexión: a un servidor MySQL a partir de un host, un nombre de usuario y una contraseña (true si lo logra), o al puerto TCP `PortNum` de un servidor (el número del nuevo socket, -1 si falla)."
 "RSOCKET.CONNECTED" = "Distinto de cero mientras la conexión (base de datos, puerto serial, socket) está abierta, o mientras el joystick está conectado."
 "RSOCKET.CONNECTIONREADY" = "Devuelve true cuando el socket con el número `Sock` está listo: hay un cliente esperando a ser aceptado en un socket de servidor."
 "RSOCKET.DISCONNECT" = "Cierra la conexión. Igual que `Close`."
