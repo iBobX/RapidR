@@ -653,6 +653,69 @@ uses it to keep your work safe ([Studio keeps your work](studio-projects.md#stud
 Try [examples/gui/on_error.rr](../../examples/gui/on_error.rr): two buttons,
 each with a bug, and a window that keeps working.
 
+## Coming from another language?
+
+If you write RapidR the way you write Python, JavaScript, C or Pascal, the
+compiler stops at what BASIC doesn't have. Its message stays the compiler's
+own, and under it Studio (Problems pane, squiggle tooltip), `rapidr check`,
+`rapidr run` and `rapidr build` add a line with the RapidR form:
+
+```text
+$ rapidr check example.rr
+example.rr:2:1: error: Syntax error in SET statement
+  hint: RapidR has no SET: write x = 1 (the name, =, then the value)
+```
+
+AI apps and RAI get the same line under the error (`check_code`). Every
+hint has a stable id (`hint.set` …) and one place for its words, so they can
+be translated like any message.
+
+| You wrote | In RapidR | Hint id |
+|---|---|---|
+| `SET x = 1` | `x = 1` | `hint.set` |
+| `LET x = 1` | `x = 1` | `hint.let` |
+| `var x = 1`, `let x: number = 1` | `DIM x AS INTEGER`, `CONST X = 1` | `hint.var` |
+| `DIM a AS INTEGER AS INTEGER` | `DIM a AS INTEGER` | `hint.as-as` |
+| `a % b`, `a %= b` | `a MOD b`, `a = a MOD b` | `hint.mod` |
+| `a ^= 2`, `a \= 2` | `a = a ^ 2`, `a = a \ 2` (`+=`, `-=`, `*=`, `/=`, `&=` and `x++` do work) | `hint.compound` |
+| `a ** b` | `a ^ b` | `hint.pow` |
+| `a // b` (whole division) | `a \ b` | `hint.intdiv` |
+| `c ? a : b` | `IF c THEN x = a ELSE x = b`, or `IIF(c, a, b)` | `hint.ternary` |
+| `a != b`, `a !== b` | `a <> b` | `hint.ne` |
+| `!a` | `NOT a`, or `a = 0` | `hint.bang` |
+| `a \|\| b` | `a OR b` | `hint.or` |
+| `a && b` (compiles, but joins text: a warning) | `a AND b` | `hint.and-and` |
+| `for i in range(10)`, `for (i = 0; i < 10; i++)`, `FOR EACH x IN list` | `FOR i = 1 TO 10 … NEXT i`; a list: `FOR i = 0 TO List.ItemCount - 1` | `hint.for-foreign` |
+| `END FOR`, `END WHILE`, `END DO` | `NEXT`, `WEND`, `LOOP` | `hint.end-loop` |
+| a FOR, WHILE, DO, IF or SELECT never closed (RC.EXE's *Missing NEXT statement* …, a warning) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
+| `ELSE IF c THEN` (a second IF that needs its own `END IF`) | `ELSEIF c THEN` | `hint.else-if` |
+| `elif c THEN` | `ELSEIF c THEN` | `hint.elseif` |
+| `ENDIF` | `END IF` | `hint.endif` |
+| `ENDSUB`, `ENDFUNCTION`, `ENDSELECT`, `ENDWITH` | `END SUB`, `END FUNCTION`, `END SELECT`, `END WITH` | `hint.endword` |
+| `IF a = 1` without `THEN` | `IF a = 1 THEN` | `hint.if-then` |
+| `IF a THEN x` on one line, then `ELSE y` on the next | `IF a THEN x ELSE y` on one line, or a block `IF a THEN` … `ELSE` … `END IF` | `hint.else-line` |
+| `if a == 1:`, `def f():` | no `:`; `IF a = 1 THEN … END IF`, `SUB F … END SUB` | `hint.colon` |
+| `IF a { … }`, `SUB Go() { … }` | `IF a THEN … END IF`, `SUB Go … END SUB` | `hint.braces` |
+| `def f(a):`, `function f(a) { … }`, `void f()` | `SUB F(a AS INTEGER)`, `FUNCTION F(a AS INTEGER) AS INTEGER` | `hint.function` |
+| `return a` | `Result = a` in a FUNCTION | `hint.return` |
+| `a = 1;` | `a = 1` | `hint.semicolon` |
+| `switch (a) { case 1: … }` | `SELECT CASE a` / `CASE 1` / `END SELECT` | `hint.switch` |
+| `break`, `continue` | `EXIT FOR`, `EXIT DO`, `EXIT WHILE`; no continue: wrap the rest in `IF` | `hint.break`, `hint.continue` |
+| `#include <x>` | `$INCLUDE "x.rr"` | `hint.include` |
+| `new Button()` | `CREATE B AS RButton … END CREATE` | `hint.new` |
+| `OnClick = ()`, `OnClick = ""` | `OnClick = GoClick` with `DECLARE SUB GoClick` | `hint.event` |
+| `console.log("hi")` (compiles; a warning), `printf("hi")`, `echo "hi"` | `PRINT "hi"` | `hint.console-log`, `hint.print` |
+| `names = ["Ana", "Luis"]`, `names[0]` | `DIM names(1) AS STRING`, `names(0) = "Ana"` | `hint.brackets` |
+| `s = 'hello'` | `s = "hello"` (a single quote starts a comment) | `hint.squote` |
+| `x = 1 // note` | `x = 1 ' note` | `hint.comment` |
+| `null`, `None`, `nil` | `""` or `0` | `hint.null` |
+| `true`, `false` | `1`, `0` in an INTEGER | `hint.bool` |
+| `s.length` | `LEN(s)`; a list's `.ItemCount` | `hint.length` |
+| `str(n)`, `parseInt(s)`, `toUpperCase`, `substring`, `alert`, `random()` … | `STR$(n)`, `VAL(s)`, `UCASE$(s)`, `MID$(s, a, n)`, `ShowMessage`, `RND` | `hint.fn-<name>` (`hint.fn-str` …) |
+
+`==`, `+=`, `++` and `print(x)` are fine in RapidR: they compile and work
+(they are the classic compiler's too), so nothing is said about them.
+
 ## Native code: `RUSTSTART`
 
 In native builds only, `RUSTSTART … RUSTEND` puts Rust code in the

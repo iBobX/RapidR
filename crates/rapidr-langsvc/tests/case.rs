@@ -158,7 +158,7 @@ fn corpus() -> Vec<PathBuf> {
 fn compile(path: &Path, text: &str) -> Result<Vec<u8>, Vec<String>> {
     let base = path.parent().unwrap();
     let tools = rapidr_parser::tools::parse_source_for_tools(text, base, Some(path.to_path_buf()), Default::default());
-    if !tools.diagnostics.is_empty() {
+    if tools.diagnostics.iter().any(|d| d.severity == rapidr_diagnostics::Severity::Error) {
         return Err(tools.diagnostics.iter().map(|d| d.message.to_ascii_lowercase()).collect());
     }
     let library_lines: Vec<bool> = tools.preprocessed.line_map.iter().map(|(f, _)| f.as_deref().is_some_and(|f| f != path)).collect();

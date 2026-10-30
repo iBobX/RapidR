@@ -270,7 +270,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 if severity == "error" {
                     errors += 1;
                 }
-                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&d.message), slashes(&d.file.to_string_lossy())));
+                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&d.one_line()), slashes(&d.file.to_string_lossy())));
             }
             s.errors = errors;
             out

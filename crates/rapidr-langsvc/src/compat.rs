@@ -108,7 +108,7 @@ pub(crate) fn runtime_notes(uses: &[RuntimeUse]) -> Vec<FileDiagnostic> {
                 Runtimes::Desktop => format!("{key} works on the desktop only: the web runtime doesn't have it ({count})"),
                 Runtimes::Web => format!("{key} works in the web runtime only: the desktop doesn't have it ({count})"),
             };
-            Some(FileDiagnostic { file: first.file.clone(), start: first.start, end: first.end, severity: Severity::Note, message, code: Some(ONE_RUNTIME.into()) })
+            Some(FileDiagnostic { file: first.file.clone(), start: first.start, end: first.end, severity: Severity::Note, message, code: Some(ONE_RUNTIME.into()), hint: None })
         })
         .collect()
 }
@@ -168,7 +168,7 @@ struct Checker<'a> {
 
 impl Checker<'_> {
     fn push(&mut self, start: usize, end: usize, severity: Severity, code: &str, message: String) {
-        self.out.push(FileDiagnostic { file: self.file.to_path_buf(), start, end, severity, message, code: Some(code.into()) });
+        self.out.push(FileDiagnostic { file: self.file.to_path_buf(), start, end, severity, message, code: Some(code.into()), hint: None });
     }
 
     fn extension(&mut self, start: usize, end: usize, what: String) {

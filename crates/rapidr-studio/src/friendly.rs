@@ -45,208 +45,19 @@ pub fn comment_of(line: &str) -> &str {
 /// compiler stops at its first syntax error and never reaches the others.
 pub const NEVER_BASIC: &[&str] = &["ne", "or", "as-as", "braces", "brackets", "comment"];
 
-/// A line's code: the comment gone, each string literal's text blanked
-/// (its quotes kept), so a habit inside a string or a comment isn't one.
-pub fn code_of(line: &str) -> String {
-    let mut out = String::new();
-    let mut quoted = false;
-    for c in line.chars() {
-        match c {
-            '"' => {
-                quoted = !quoted;
-                out.push('"');
-            }
-            '\'' if !quoted => break,
-            _ if quoted => out.push(' '),
-            c => out.push(c),
-        }
-    }
-    // (REM starts a comment too)
-    let upper = out.to_ascii_uppercase();
-    if let Some(i) = upper.find("REM ").filter(|&i| i == 0 || upper[..i].ends_with(':') || upper[..i].trim().is_empty()) {
-        out.truncate(i);
-    }
-    out
-}
-
-fn words_upper(code: &str) -> Vec<String> {
-    code.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$')).filter(|w| !w.is_empty()).map(str::to_ascii_uppercase).collect()
-}
+// (the hints themselves — their ids and words — are the language service's:
+// `rapidr_langsvc::foreign`, the one table `rapidr check`, Studio's Problems
+// pane and these tools share)
+pub use rapidr_langsvc::foreign::{closest, code_of, component_for, distance, for_message};
 
 /// The other-language habits on one source line, each with its fix (id,
 /// hint). Meant for a line the compiler reported an error on.
 pub fn for_line(line: &str) -> Vec<(&'static str, String)> {
-    let code = code_of(line);
-    let t = code.trim();
-    let lower = t.to_ascii_lowercase();
-    let w = words_upper(t);
-    let mut out: Vec<(&'static str, String)> = Vec::new();
-    let mut add = |id: &'static str, text: &str| {
-        if !out.iter().any(|(i, _)| *i == id) {
-            out.push((id, text.to_string()));
-        }
-    };
-    // (`==`, `&&`, `+=` and `++` are RapidQ's too: they compile and work,
-    // so they're no habit to correct)
-    if t.contains("!=") {
-        add("ne", "`!=` isn't BASIC: \"not equal\" is `<>` — IF a <> b THEN");
-    }
-    if t.contains("||") {
-        add("or", "`||` isn't BASIC: use OR — IF a > 0 OR b > 0 THEN");
-    }
-    if let Some(k) = w.iter().position(|x| x == "AS") {
-        if w[k + 1..].iter().skip(1).any(|x| x == "AS") && w.first().is_some_and(|f| f == "DIM" || f == "CONST" || f == "STATIC") && !t.contains(',') {
-            add("as-as", "a name takes one `AS type`: DIM ready AS INTEGER (not AS INTEGER AS INTEGER)");
-        }
-    }
-    if t.contains('{') || t.contains('}') {
-        add("braces", "BASIC has no braces: a block ends with its own words — END SUB, END FUNCTION, END IF, NEXT, WEND, LOOP");
-    }
-    if t.ends_with(';') && !w.first().is_some_and(|f| f == "PRINT" || f == "LPRINT" || f == "WRITE") {
-        add("semicolon", "statements end at the end of the line: no `;`");
-    }
-    if t.contains('[') || t.contains(']') {
-        add("brackets", "BASIC has no `[ ]`: an array is DIM names(3) AS STRING, filled one item at a time — names(1) = \"Ana\"; its items are names(i)");
-    }
-    if lower.starts_with("function ") && (t.contains('{') || t.contains("=>")) || lower.starts_with("def ") || lower.starts_with("void ") || lower.starts_with("public ") || lower.starts_with("private sub") {
-        add("function", "a routine is SUB Name(a AS INTEGER) … END SUB, or FUNCTION Name(a AS INTEGER) AS INTEGER … Result = … END FUNCTION");
-    }
-    if w.first().is_some_and(|f| f == "RETURN") && w.len() > 1 {
-        add("return", "a FUNCTION gives its value with `Result = …` (or `FunctionName = …`); RETURN only goes back from a GOSUB");
-    }
-    if lower.starts_with("print(") || lower.starts_with("console.") || lower.starts_with("printf") || lower.starts_with("echo ") {
-        add("print", "to write a line: PRINT \"Total: \"; total (no brackets around the list); in a window, set a label's Caption instead");
-    }
-    if lower.starts_with("var ") || (t.starts_with("const ") && t.contains('=')) {
-        add("var", "a variable is declared with DIM name AS type (DIM total AS DOUBLE); a constant with CONST NAME = value");
-    }
-    if lower.contains("else if") || lower.starts_with("elif") || w.iter().any(|x| x == "ELSIF") {
-        add("elseif", "it's ELSEIF, one word: IF … THEN … ELSEIF … THEN … ELSE … END IF");
-    }
-    if w.iter().any(|x| x == "ENDIF") {
-        add("endif", "it's END IF, two words");
-    }
-    if lower.contains(".length") || lower.contains(".size()") || lower.contains(".count()") {
-        add("length", "a string's length is LEN(s); a list's items are .ItemCount");
-    }
-    if w.iter().any(|x| x == "NULL" || x == "NONE" || x == "NIL" || x == "UNDEFINED") {
-        add("null", "BASIC has no null: use \"\" for an empty string, 0 for a number");
-    }
-    if w.first().is_some_and(|f| f == "NEW") || lower.contains("= new ") {
-        add("new", "components are made with CREATE Name AS RButton … END CREATE (or DIM Name AS RButton), not `new`");
-    }
-    if lower.contains("//") && !lower.contains("://") {
-        add("comment", "a comment starts with ' (an apostrophe), not //");
-    }
-    // (an event bound to nothing: OnChange = (), OnClick = "", OnClick =)
-    let compact: String = t.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_ascii_uppercase();
-    if compact.starts_with("ON") && (compact.ends_with("=()") || compact.ends_with("=\"\"") || compact.ends_with('=') || compact.contains("=SUB") || compact.contains("=FUNCTION")) {
-        add("event", "an event takes a SUB's name: OnChange = ValueChanged — with DECLARE SUB ValueChanged at the top and SUB ValueChanged … END SUB below; leave the line out if nothing should happen");
-    }
-    if w.iter().any(|x| x == "TRUE" || x == "FALSE") {
-        add("bool", "truth values are numbers: 1 is true, 0 is false — DIM done AS INTEGER: done = 1, then IF done THEN (a .rr program's True is -1 while a check box's Checked is 1: don't compare with True)");
-    }
-    out
+    rapidr_langsvc::foreign::habits(line).into_iter().map(|h| (h.id, h.text().to_string())).collect()
 }
 
-/// What a compiler message means, said as a fix (id, hint): data types
-/// from other languages, the type of an event's argument.
-pub fn for_message(message: &str) -> Option<(&'static str, String)> {
-    let after = |prefix: &str| message.strip_prefix(prefix).map(|r| r.trim().trim_matches(['\'', '`', '"']).to_string());
-    // (Robert's evening with DeepSeek, 2026-10-20: "expecting DOUBLE but got
-    // STRING" on lines storing what a socket read — the variable was never
-    // declared, and an undeclared name is a DOUBLE: docs/rai-mistake-ledger.md)
-    if message.starts_with("Type mismatch, expecting type DOUBLE, but got STRING") {
-        return Some(("undeclared", "the variable on the left is a DOUBLE — declared so, or never declared (an undeclared name is a DOUBLE): DIM it AS STRING before its first use, or store a number in it".to_string()));
-    }
-    if let Some(ty) = after("Unknown data type").or_else(|| after("Unknown type")) {
-        let up = ty.to_ascii_uppercase();
-        let fix = match up.as_str() {
-            "BOOLEAN" | "BOOL" => "RapidR has no BOOLEAN: use INTEGER (0 is false, 1 or -1 true) — DIM running AS INTEGER".to_string(),
-            "COLOR" | "COLOUR" | "TCOLOR" => "a colour is an INTEGER: DIM pen AS INTEGER: pen = RGB(255, 0, 0)".to_string(),
-            "INT" | "INT32" | "INT64" | "NUMBER" => "use INTEGER (or LONG) for whole numbers, DOUBLE for decimals".to_string(),
-            "FLOAT" | "REAL" | "DECIMAL" | "FLOAT64" => "use DOUBLE (or SINGLE) for numbers with decimals".to_string(),
-            "STR" | "CHAR" | "TEXT" => "use STRING for text".to_string(),
-            "VOID" => "a routine that returns nothing is a SUB: SUB Name … END SUB".to_string(),
-            "DATE" | "DATETIME" | "TIME" => "dates are strings in RapidR: DATE$ and TIME$ give today's".to_string(),
-            "ARRAY" | "LIST" => "an array is DIM items(10) AS STRING (round brackets, a size)".to_string(),
-            _ if up.contains("EVENT") || up.contains("ARGS") || up.ends_with("SENDER") => format!(
-                "{ty} isn't a RapidR type: an event's handler takes the event's own parameters — rapidr_describe the component; e.g. OnClick: SUB Name (no parameters, or Sender AS RButton), OnMouseDown: SUB Name(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)"
-            ),
-            _ => {
-                let r = component_for(&ty)?;
-                format!("{ty} isn't a RapidR type: the component is {r} (rapidr_describe {r})")
-            }
-        };
-        return Some(("type", fix));
-    }
-    None
-}
-
-/// RapidR's component for another toolkit's name (TextBox → REdit), or for
-/// a RapidR name that isn't spelled quite right.
-pub fn component_for(name: &str) -> Option<String> {
-    let up = name.to_ascii_uppercase();
-    let map = [
-        ("TEXTBOX", "REdit"), ("TEXTFIELD", "REdit"), ("ENTRY", "REdit"), ("INPUT", "REdit"), ("LINEEDIT", "REdit"),
-        ("TEXTAREA", "RRichEdit"), ("MULTILINETEXT", "RRichEdit"),
-        ("BUTTON", "RButton"), ("COMMANDBUTTON", "RButton"),
-        ("LABEL", "RLabel"), ("TEXTBLOCK", "RLabel"), ("STATICTEXT", "RLabel"),
-        ("LISTBOX", "RListBox"), ("LIST", "RListBox"), ("LISTVIEW", "RListView"),
-        ("COMBOBOX", "RComboBox"), ("DROPDOWN", "RComboBox"), ("SELECT", "RComboBox"),
-        ("CHECKBOX", "RCheckBox"), ("RADIOBUTTON", "RRadioButton"), ("OPTIONBUTTON", "RRadioButton"),
-        ("PICTUREBOX", "RCanvas"), ("CANVAS", "RCanvas"), ("PAINTBOX", "RCanvas"), ("DRAWINGAREA", "RCanvas"),
-        ("TIMER", "RTimer"), ("PANEL", "RPanel"), ("FRAME", "RPanel"), ("GROUPBOX", "RGroupBox"),
-        ("WINDOW", "RForm"), ("FORM", "RForm"), ("DIALOG", "RForm"),
-        ("DATAGRID", "RStringGrid"), ("GRID", "RStringGrid"), ("TABLE", "RStringGrid"), ("DATAGRIDVIEW", "RStringGrid"),
-        ("IMAGE", "RImage"), ("PROGRESSBAR", "RGauge"), ("SLIDER", "RTrackBar"), ("TRACKBAR", "RTrackBar"),
-        ("MENU", "RMainMenu"), ("MENUITEM", "RMenuItem"), ("STATUSBAR", "RStatusBar"),
-    ];
-    let bare = up.trim_start_matches(['Q', 'R', 'T']).to_string();
-    for key in [up.as_str(), bare.as_str()] {
-        if let Some((_, r)) = map.iter().find(|(k, _)| *k == key) {
-            if rapidr_lang::resolve_component(r).is_some() {
-                return Some((*r).to_string());
-            }
-        }
-    }
-    let types: Vec<String> = rapidr_lang::COMPONENTS.iter().filter(|c| c.kind == rapidr_lang::Kind::Component).map(|c| c.spelling()).collect();
-    closest(name, types.iter().map(String::as_str))
-}
-
-/// The candidate nearest `name` (any case), when one is close: a few
-/// letters different for its length.
-pub fn closest<'a>(name: &str, candidates: impl IntoIterator<Item = &'a str>) -> Option<String> {
-    let want = name.to_ascii_lowercase();
-    let mut best: Option<(usize, &str)> = None;
-    for c in candidates {
-        let d = distance(&want, &c.to_ascii_lowercase());
-        if d == 0 {
-            continue;
-        }
-        if best.is_none_or(|(b, _)| d < b) {
-            best = Some((d, c));
-        }
-    }
-    let (d, c) = best?;
-    let room = (want.chars().count().max(c.chars().count()) / 3).max(1);
-    (d <= room).then(|| c.to_string())
-}
-
-/// Levenshtein distance (characters).
-pub fn distance(a: &str, b: &str) -> usize {
-    let b: Vec<char> = b.chars().collect();
-    let mut row: Vec<usize> = (0..=b.len()).collect();
-    for (i, ca) in a.chars().enumerate() {
-        let mut prev = row[0];
-        row[0] = i + 1;
-        for j in 0..b.len() {
-            let cur = row[j + 1];
-            row[j + 1] = (prev + usize::from(ca != b[j])).min(row[j] + 1).min(cur + 1);
-            prev = cur;
-        }
-    }
-    row[b.len()]
+fn words_upper(code: &str) -> Vec<String> {
+    code.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$')).filter(|w| !w.is_empty()).map(str::to_ascii_uppercase).collect()
 }
 
 /// A comment that says the code around it isn't the real thing.
@@ -371,7 +182,9 @@ mod tests {
         assert_eq!(ids("print(\"hello\")"), ["print"]);
         assert_eq!(ids("var total = 0"), ["var"]);
         assert_eq!(ids("const total = 0"), ["var"]);
-        assert!(ids("CONST TOTAL = 0").is_empty() && ids("LET total = 0").is_empty());
+        assert!(ids("CONST TOTAL = 0").is_empty());
+        // (RC.EXE has no LET: `let x = 1` is an unknown SUB there too)
+        assert_eq!(ids("LET total = 0"), ["let"]);
         assert_eq!(ids("} else if (x > 1) {"), ["braces", "elseif"]);
         assert_eq!(ids("ENDIF"), ["endif"]);
         assert_eq!(ids("n = name.length"), ["length"]);

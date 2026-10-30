@@ -338,7 +338,14 @@ fn diagnostics_are_the_compilers() {
         let diags = c.diagnostics_for(&file_uri);
         let mut got: Vec<(u64, u64, String)> = diags
             .iter()
-            .map(|d| (d["range"]["start"]["line"].as_u64().unwrap() + 1, d["range"]["start"]["character"].as_u64().unwrap() + 1, d["message"].as_str().unwrap().to_string()))
+            .map(|d| {
+                // (the compiler's message is the first line, as it is; a fix for another language's
+                // habit may follow it as a second line, `hint: …`)
+                let message = d["message"].as_str().unwrap();
+                let (first, rest) = message.split_once('\n').unwrap_or((message, ""));
+                assert!(rest.is_empty() || rest.starts_with("hint: "), "{}: {message}", f.display());
+                (d["range"]["start"]["line"].as_u64().unwrap() + 1, d["range"]["start"]["character"].as_u64().unwrap() + 1, first.to_string())
+            })
             .collect();
         want.sort();
         got.sort();
