@@ -92,7 +92,9 @@ RapidR has a template and one file per language:
 4. **Mark a draft**: `#, review` above an entry says a person still has to
    check it.
 5. **See it**: Settings > Language, or `rapidr ide --lang es`.
-6. **Count what's left**: `rapidr i18n coverage`.
+6. **Count what's left**: `rapidr i18n coverage`; `rapidr i18n coverage pt
+   --missing` lists the registry's docs that a language still lacks, each
+   with its English, to start from.
 7. **A manual page**: copy it to `docs/manual/es/` and translate it; then
    `rapidr i18n manual-stamp es <page>.md` records which English it
    translates, and `rapidr i18n coverage` says when that English changes.

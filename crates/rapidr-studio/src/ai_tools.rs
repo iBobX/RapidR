@@ -2585,8 +2585,10 @@ mod tests {
         let r = run("search_manual", &json!({"query": "instalar el SDK"}), &p, &mut Vec::new(), true);
         assert!(r.content.contains("Manual › ") && !r.is_error, "{}", r.content);
         assert!(r.note.contains("es/getting-started.md"), "{}", r.note);
-        let english = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
-        assert!(english.contains("(this page is in English: it isn't translated yet)"), "{english}");
+        // (every page of the manual has its Spanish: a hit is in Spanish and says nothing about English;
+        // the note stays for a language whose manual is partial)
+        let serial = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
+        assert!(serial.contains("Manual › ") && !serial.contains("isn't translated yet"), "{serial}");
         rapidr_value::i18n::set_language("en");
         let plain = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
         assert!(!plain.contains("isn't translated yet"), "{plain}");

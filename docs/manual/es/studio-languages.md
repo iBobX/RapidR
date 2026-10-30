@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md 8afefc8fc47dcafb -->
+<!-- translated-from: studio-languages.md 83a1d5f84a1c7542 -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -95,7 +95,9 @@ Cada parte de RapidR tiene una plantilla y un archivo por idioma:
 4. **Marca un borrador**: `#, review` sobre una entrada dice que una persona
    todavía tiene que revisarla.
 5. **Velo**: Configuración > Idioma, o `rapidr ide --lang es`.
-6. **Cuenta lo que falta**: `rapidr i18n coverage`.
+6. **Cuenta lo que falta**: `rapidr i18n coverage`; `rapidr i18n coverage pt
+   --missing` lista las entradas del registro que le faltan a un idioma, cada
+   una con su inglés, para empezar desde ahí.
 7. **Una página del manual**: cópiala a `docs/manual/es/` y tradúcela; luego
    `rapidr i18n manual-stamp es <página>.md` registra qué inglés traduce, y
    `rapidr i18n coverage` avisa cuando ese inglés cambia.
