@@ -42,6 +42,14 @@ impl Platform for Desktop {
         let _ = name;
     }
 
+    // (Application.Active) one of the program's windows has the keyboard
+    fn active(&self) -> bool {
+        #[cfg(feature = "gui")]
+        return crate::ui::app_active();
+        #[cfg(not(feature = "gui"))]
+        true
+    }
+
     fn screen_size(&self) -> (i64, i64) {
         #[cfg(feature = "gui")]
         return crate::ui::screen_size();

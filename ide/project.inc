@@ -49,6 +49,8 @@ SUB OpenProject(Path AS STRING)
   IF ProjectMain <> "" THEN ProjectMain = ProjectMain + "/"
   ProjectMain = ProjectMain + Proj.MainFile
   ProjectFile = p
+  ' (the project file watched for changes outside Studio: external.inc)
+  ExtProjectOpened
   Lang.CompatMode = Proj.CompatMode
   ' (S5: a module is checked as part of its project, never alone; what
   ' works on one runtime only is noted when the project runs on the other)
@@ -154,6 +156,7 @@ SUB CloseProject
   CloseAllDocuments
   LeaveProjectInspector
   Proj.Close
+  ExtProjectClosed
   Lang.Project = ""
   ProjectOpen = 0
   RefreshProgramLook 0
@@ -331,6 +334,8 @@ SUB SaveProjectFile
   IF ProjectOpen = 0 THEN EXIT SUB
   IF Proj.Save THEN
     ProjectFile = Proj.FileName
+    ' (Studio's own write: no change from outside — external.inc)
+    ExtOwnWrite ProjectFile
     AddRecent ProjectFile
     OutputLine TR$("Saved {file}", "file", ProjectFile)
   ELSE

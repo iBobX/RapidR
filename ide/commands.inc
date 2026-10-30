@@ -95,7 +95,15 @@ SUB DefineCommands
   AddSep "File/Versions"
   AddCmd "versions.localHistory", TR$("Local &History of This File..."), "File/Versions", "", "", "code", ""
   AddSep "File"
+  ' (a file changed outside Studio while it had unsaved changes here: the
+  ' question above its editor, as commands too — external.inc)
+  AddSubmenu "File", "Outside", "Changed Outside S&tudio"
+  AddCmd "file.compareDisk", "&Compare with the Disk's Version", "File/Outside", "", "", "extask", "compare"
+  AddCmd "file.useDisk", "&Use Disk Version", "File/Outside", "", "", "extask", "-"
+  AddCmd "file.keepMine", "&Keep Mine", "File/Outside", "", "", "extask", "-"
+  AddSep "File"
   AddCmd "file.close", "&Close Document", "File", "Ctrl+F4", "", "document", ""
+  AddCmd "file.reopenProject", "Reo&pen Project", "File", "", "", "project", "-"
   AddCmd "file.closeProject", "Close Pro&ject", "File", "", "", "project", "-"
   AddSep "File"
   AddCmd "file.exit", "E&xit", "File", "", "Alt+F4", "", "-"
@@ -425,6 +433,10 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
     CASE "unversioned": Result = (ProjectOpen <> 0 AND Repo.Versioned = 0 AND Repo.Available <> 0)
     CASE "versioned": Result = (ProjectOpen <> 0 AND Repo.Versioned <> 0)
     CASE "versionedcode": Result = (ProjectOpen <> 0 AND Repo.Versioned <> 0 AND k = "code")
+    ' (the document in front: its file changed outside Studio under unsaved
+    ' changes, the question waiting — external.inc)
+    CASE "extask"
+      IF ActiveCode >= 0 THEN Result = DocExtAsk(ActiveCode) ELSE Result = 0
     CASE ELSE: Result = 1
   END SELECT
 END FUNCTION

@@ -187,6 +187,21 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 }
             }
         }
+        // KeepCopy(Path, Text, Why): Text kept as a copy of the file — what
+        // an editor had (the file changed outside Studio: "before-reload")
+        "keepcopy" => {
+            let why = if s(2).trim().is_empty() { local_history::WHY_BEFORE_RELOAD.to_string() } else { s(2).trim().to_string() };
+            match local_history::snapshot(&r.folder, &abs(r, &s(0)), s(1).as_bytes(), &why) {
+                Ok(snap) => {
+                    ok(r);
+                    text(snap.map(|x| x.n.to_string()).unwrap_or_default())
+                }
+                Err(e) => {
+                    failed(r, "failed", e);
+                    text("")
+                }
+            }
+        }
         "localhistory" => text(
             local_history::list(&r.folder, &abs(r, &s(0)))
                 .iter()
@@ -212,7 +227,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
 fn is_method(m: &str) -> bool {
     matches!(
         m,
-        "refresh" | "start" | "saveversion" | "checksecrets" | "timeline" | "versionfiles" | "fileat" | "hasfile" | "goback" | "gobackfile" | "undo" | "history" | "checkpoint" | "snapshot" | "localhistory" | "localfiles" | "snapshottext"
+        "refresh" | "start" | "saveversion" | "checksecrets" | "timeline" | "versionfiles" | "fileat" | "hasfile" | "goback" | "gobackfile" | "undo" | "history" | "checkpoint" | "snapshot" | "keepcopy" | "localhistory" | "localfiles" | "snapshottext"
     )
 }
 

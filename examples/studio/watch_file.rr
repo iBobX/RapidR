@@ -1,0 +1,80 @@
+' watch_file.rr: a note that follows its file — change note.tmp.txt in another
+' editor (or let an AI agent change it) and the window shows the new text
+' as soon as you come back to it, as RapidR Studio does with your code.
+'
+'   rapidr run watch_file.rr
+'
+' RProject.Watch remembers a file as the program read or wrote it;
+' ExternalChanges() says which watched files changed on disk since the last
+' look ("changed", "deleted" or "back", a tab, the path), each change once.
+' Application.Active is True while this program is the application in
+' front: the look waits until you are back.
+
+DECLARE SUB Look
+DECLARE SUB SaveNote
+
+DIM Files AS RProject
+DIM NotePath AS STRING
+
+CREATE Form AS RForm
+    Caption = "Watched note"
+    Width = 460
+    Height = 300
+    Center
+    CREATE Note AS RMemo
+        Left = 10: Top = 10: Width = 424: Height = 190
+    END CREATE
+    CREATE SaveButton AS RButton
+        Caption = "&Save"
+        Left = 10: Top = 210: Width = 96
+        OnClick = SaveNote
+    END CREATE
+    CREATE Said AS RLabel
+        Left = 116: Top = 214: Width = 320
+        Caption = "Edit note.tmp.txt elsewhere, then come back."
+    END CREATE
+    CREATE Looker AS RTimer
+        Interval = 1000
+        OnTimer = Look
+    END CREATE
+END CREATE
+
+' The note's file beside the program; made the first time.
+NotePath = CURDIR$ + "/note.tmp.txt"
+IF FILEEXISTS(NotePath) = 0 THEN
+    Note.Text = "A note. Change me in another editor."
+    Note.SaveToFile NotePath
+END IF
+Note.LoadFromFile NotePath
+Files.Watch NotePath
+
+' Once a second: nothing while another application is in front; then what
+' changed on disk.
+SUB Look
+    DIM changes AS STRING, what AS STRING
+    IF Application.Active = 0 THEN
+        EXIT SUB
+    END IF
+    changes = Files.ExternalChanges()
+    IF changes = "" THEN EXIT SUB
+    what = FIELD$(changes, CHR$(9), 1)
+    IF what = "deleted" THEN
+        Said.Caption = "note.tmp.txt was deleted. Save makes it again."
+    ELSEIF Note.Modified THEN
+        ' (your typing is never replaced: say so, keep it)
+        Said.Caption = "note.tmp.txt changed outside. Save keeps yours."
+    ELSE
+        Note.LoadFromFile NotePath
+        Files.Watch NotePath
+        Said.Caption = "note.tmp.txt was updated outside this program."
+    END IF
+END SUB
+
+SUB SaveNote
+    Note.SaveToFile NotePath
+    ' (the program's own write: no change from outside)
+    Files.Watch NotePath
+    Said.Caption = "Saved."
+END SUB
+
+Form.ShowModal

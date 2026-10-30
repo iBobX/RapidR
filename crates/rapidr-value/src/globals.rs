@@ -52,6 +52,12 @@ pub trait Platform {
     }
     /// `Application.Theme = name`: draw with that theme from now on.
     fn set_theme(&self, _name: &str) {}
+    /// `Application.Active` (RapidR's): one of the program's windows has
+    /// the keyboard — the program is the application in front. A platform
+    /// that can't tell (the web's page, a program without windows) always is.
+    fn active(&self) -> bool {
+        true
+    }
     /// `Application.Announce` (RapidR's): screen readers told `a`
     /// ([`crate::objects::a11y::announce`] kept it) — the desktop's windows
     /// sent to AccessKit again, the web's page live region given its text.
@@ -192,6 +198,9 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         ("application", "reducedmotion") => v_bool(crate::theme::reduced_motion()),
         // (RapidR's) the keystrokes SendKeys queued, not yet delivered
         ("application", "keyspending") => v_int(crate::send_keys::pending() as i64),
+        // (RapidR's) the program is the application in front (one of its
+        // windows has the keyboard)
+        ("application", "active") => v_bool(p.active()),
         // (RC.EXE: Application.Icon reads as the icon's handle — a number,
         // never 0 — which a QNOTIFYICONDATA's hIcon takes; crate::tray
         // shows the application's icon for it)

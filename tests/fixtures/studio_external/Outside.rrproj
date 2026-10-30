@@ -1,0 +1,53 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Outside"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "module"
+
+[[files]]
+path = "greet.rr"
+kind = "module"
+
+[[files]]
+path = "window.rr"
+kind = "form"
+
+[[files]]
+path = "part1.rr"
+kind = "module"
+
+[[files]]
+path = "part2.rr"
+kind = "module"
+
+[[files]]
+path = "part3.rr"
+kind = "module"
+
+[[files]]
+path = "part4.rr"
+kind = "module"
+
+[[files]]
+path = "part5.rr"
+kind = "module"
+
+[[files]]
+path = "part6.rr"
+kind = "module"
+
+[[files]]
+path = "part7.rr"
+kind = "module"
+
+[[files]]
+path = "part8.rr"
+kind = "module"
+
+[[files]]
+path = "part9.rr"
+kind = "module"

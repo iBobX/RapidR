@@ -237,7 +237,12 @@ SUB DocTitles(d AS INTEGER)
   ' (S-PANELS: the project tree marks a file with changes not saved; its
   ' tab shows a dot)
   ProjectTree.FileModified DocFile(d), DocDirty(d)
-  Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
+  ' (deleted outside Studio: the tab says so — external.inc)
+  IF DocGone(d) THEN
+    Dock.PaneTitle(DocPane(d), TR$("{file} (deleted on disk)", "file", FileTitle(DocFile(d))))
+  ELSE
+    Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
+  END IF
   Dock.DocumentModified(DocPane(d), DocDirty(d))
   ' (Studio's window: the dot in macOS' close button, the browser's
   ' question before the page is left)
@@ -276,6 +281,9 @@ SUB OpenDocument(Path AS STRING)
   DocKind(d) = "code"
   DocOpen(d) = 1
   DocDirty(d) = 0
+  ' (its file as read: changes outside Studio are looked for from here —
+  ' external.inc)
+  ExtOpened d
   DesignDoc(d).OnSourceEdit = DesignSourceEdit
   DesignDoc(d).OnSourceStep = DesignStep
   DesignDoc(d).OnUndo = DesignUndo
@@ -315,11 +323,16 @@ END SUB
 FUNCTION SaveDocument(d AS INTEGER) AS INTEGER
   IF d < 0 THEN EXIT FUNCTION
   IF DocOpen(d) = 0 THEN EXIT FUNCTION
+  ' (the file changed or was deleted outside Studio since it was read:
+  ' asked first, never overwritten silently — external.inc)
+  IF ExtSaveOk(d) = 0 THEN EXIT FUNCTION
   ' (Versions: what the disk had, kept in the local history first — never
   ' lost, versioned or not: versions.inc)
   VerBeforeSave d
   CodeDoc(d).SaveToFile DocFile(d)
   DocDirty(d) = 0
+  ' (Studio's own write: no change from outside)
+  ExtSaved d
   ' (saved: no copy of it needed — safety.inc)
   KeepForget d
   DocTitles d
@@ -353,11 +366,22 @@ SUB ProjectFollowsCode
 END SUB
 
 SUB SaveAll
-  DIM d AS INTEGER
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) AND DocDirty(d) THEN SaveDocument d
-  NEXT
+  DIM ok AS INTEGER
+  ok = SaveAllOk
 END SUB
+
+' Every document with changes saved; 0 when one wasn't (its file changed
+' outside Studio and the question was cancelled): Run, Build and quitting
+' stop there.
+FUNCTION SaveAllOk AS INTEGER
+  DIM d AS INTEGER
+  Result = 1
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocDirty(d) THEN
+      IF SaveDocument(d) = 0 THEN Result = 0
+    END IF
+  NEXT
+END FUNCTION
 
 ' (the documents of file d go; asked first when it has changes)
 SUB CloseDocument(d AS INTEGER)
@@ -367,6 +391,8 @@ SUB CloseDocument(d AS INTEGER)
   IF AskToSave(d) = 0 THEN EXIT SUB
   ' (saved or let go: no copy of it — safety.inc)
   KeepForget d
+  ' (no longer watched for changes outside Studio)
+  ExtClosed d
   DocOpen(d) = 0
   Dock.ClosePane(DocPane(d))
   Lang.Close DocFile(d)
@@ -382,7 +408,8 @@ SUB DirtyFollows(d AS INTEGER)
   DIM now AS INTEGER
   IF d < 0 OR d >= DocCount THEN EXIT SUB
   IF DocOpen(d) = 0 THEN EXIT SUB
-  now = Flag(CodeDoc(d).Modified)
+  ' (a file deleted outside Studio stays changed: its text is only here)
+  now = Flag(CodeDoc(d).Modified OR DocGone(d))
   IF now <> DocDirty(d) THEN
     DocDirty(d) = now
     DocTitles d

@@ -350,6 +350,9 @@ export const cases = [
   // said in words (versions are kept in a project's own folder only),
   // elsewhere it saves, goes back and undoes; the local history either way)
   { file: "studio/versions.rr", runtimes: ["run"], expect: ["Local history of main.rr:"] },
+  // (EXTERNAL-CHANGES: RProject's Watch / ExternalChanges(); the change
+  // from outside is tests/studio_flows.mjs' ext-* walk)
+  { file: "studio/watch_file.rr", runtimes: ["run"], dump: "said.caption,note.text", expect: ["said.caption=Edit note.tmp.txt elsewhere, then come back.", "note.text=A note. Change me in another editor."] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },

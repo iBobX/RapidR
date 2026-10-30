@@ -230,7 +230,9 @@ FUNCTION AskToSave(d AS INTEGER) AS INTEGER
   Dock.ActiveDocument = DocPane(d)
   SELECT CASE AskSave(TR$("Do you want to save the changes you made to {file}?", "file", FileTitle(DocFile(d))), TR$("Your changes will be lost if you don't save them."), 0)
     CASE PROMPT_SAVE
-      SaveDocument d
+      ' (a save declined — its file changed outside Studio, Cancel — keeps
+      ' the document open)
+      IF SaveDocument(d) = 0 THEN Result = 0
     CASE PROMPT_DONT
       DocDirty(d) = 0
       UpdateModified
@@ -259,7 +261,7 @@ FUNCTION AskToSaveAll AS INTEGER
   END IF
   SELECT CASE AskSave(TRN$("You have {n} document with unsaved changes. Do you want to save it before quitting?", "You have {n} documents with unsaved changes. Do you want to save them before quitting?", n), TR$("Review Changes asks about each one. If you discard them, all your changes will be lost."), 1)
     CASE PROMPT_SAVE
-      SaveAll
+      IF SaveAllOk = 0 THEN Result = 0
     CASE PROMPT_DONT
       FOR d = 0 TO DocCount - 1
         DocDirty(d) = 0

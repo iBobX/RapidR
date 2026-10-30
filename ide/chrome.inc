@@ -174,6 +174,7 @@ SUB ApplyChrome
   ApplyDebugColors
   ApplySearchChrome
   ApplyVersionsChrome
+  ApplyExternalChrome
   ApplyState
 END SUB
 

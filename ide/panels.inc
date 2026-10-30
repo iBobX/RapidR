@@ -356,12 +356,15 @@ SUB ProjectRename(OldPath AS STRING, NewPath AS STRING, Cancel AS INTEGER)
   IF d >= 0 THEN
     IF DocDirty(d) THEN SaveDocument d
   END IF
+  ' (the old name no longer watched; the new one Studio's own)
+  Proj.Unwatch o
   IF FILEEXISTS(o) THEN RENAME o, n
   Proj.RemoveFile o
   Proj.AddFile n
   SaveProjectFile
   IF d >= 0 THEN
     DocFile(d) = n
+    ExtOwnWrite n
     DocTitles d
   END IF
   IF LCASE$(o) = LCASE$(ProjectMain) THEN
@@ -428,6 +431,7 @@ END SUB
 SUB ProjectMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)
   IF Proj.Kind <> "project" THEN EXIT SUB
   IF ProjectTree.Save THEN
+    ExtOwnWrite ProjectFile
     IF Proj.Open(ProjectFile) = 0 THEN OutputLine TR$("Can't read the project again: {error}", "error", Proj.Error)
   ELSE
     OutputLine TR$("Can't save the project's order")

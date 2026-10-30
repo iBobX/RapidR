@@ -875,6 +875,24 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
             Value::String(if ok { r.unwrap().into() } else if method == "find" { String::new().into() } else { s(2).into() })
         }
+        // (files changed outside Studio: crate::external) Watch(Path): the
+        // disk's file as Studio's own now (read or written); Unwatch(Path),
+        // UnwatchAll; ExternalChanges: what changed outside since the last
+        // look, a line each ("changed" / "deleted" / "back", a tab, the
+        // path), each once; ChangedOnDisk(Path): the disk differs from what
+        // Studio last read or wrote (Save asks first)
+        "watch" => flag(crate::external::with(|w| w.watch(&s(0)))),
+        "unwatch" => {
+            crate::external::with(|w| w.unwatch(&s(0)));
+            Value::Null
+        }
+        "unwatchall" => {
+            crate::external::with(crate::external::Watcher::clear);
+            Value::Null
+        }
+        "externalchanges" => Value::String(crate::external::changes_text(&crate::external::with(crate::external::Watcher::check)).into()),
+        "changedondisk" => flag(crate::external::with(|w| w.changed_since_base(&s(0)))),
+        "missingondisk" => flag(crate::external::with(|w| w.missing(&s(0)))),
         "filetext" => {
             let r = crate::read_text(&s(0));
             with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());

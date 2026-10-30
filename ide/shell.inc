@@ -44,6 +44,8 @@ SUB SaveDocumentAs
   SaveDlg.FileName = FileTitle(DocFile(d))
   SaveDlg.Filter = TR$("RapidR sources") + " (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|" + TR$("All files") + "|*.*"
   IF SaveDlg.Execute THEN
+    ' (the file it was is no longer this document's: not watched)
+    Proj.Unwatch DocFile(d)
     DocFile(d) = SaveDlg.FileName
     SaveDocument d
     Proj.AddFile SaveDlg.FileName
@@ -84,6 +86,8 @@ SUB RunCommand(Id AS STRING)
   IF McpCommand(Id) THEN EXIT SUB
   ' (Versions': versions.inc)
   IF VersionsCommand(Id) THEN EXIT SUB
+  ' (files changed outside Studio, Reopen Project: external.inc)
+  IF ExternalCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -180,6 +184,9 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 9) = "versions:" THEN
         ' (a test step: versions:<what>=<value> — versions.inc's VersionsStep)
         VersionsStep MID$(Id, 10)
+      ELSEIF LEFT$(Id, 4) = "ext:" THEN
+        ' (a test step: ext:<what>=<value> — external.inc's ExternalStep)
+        ExternalStep MID$(Id, 5)
       ELSEIF LEFT$(Id, 7) = "anchor:" THEN
         ' (a test step: anchor:<a heading's anchor> — the Markdown document
         ' open shows that heading, as its outline row clicked)
@@ -257,6 +264,8 @@ SUB DocumentActivated(Name AS STRING)
     DesignNames ActiveDoc
   END IF
   IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
+  ' (its question about a change outside Studio, if it has one: external.inc)
+  ExtShowBar
   UpdateCommands
 END SUB
 
@@ -271,6 +280,8 @@ SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
         Cancel = 1
         EXIT SUB
       END IF
+      ' (no longer watched for changes outside Studio: external.inc)
+      ExtClosed d
       DocOpen(d) = 0
       Lang.Close DocFile(d)
       IF ActiveDoc = d THEN ActiveDoc = -1
@@ -385,6 +396,7 @@ SUB StartStudio
   SetUpDocuments
   SetUpSearch
   SetUpVersions
+  SetUpExternal
   SetUpMcp
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (the editing layout — or the debugging one, Settings' Always —, at its

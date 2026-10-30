@@ -167,6 +167,72 @@ the arrows and read each file as you go — `lang/es.po`, then
   go; **Not Now** keeps them and asks again next time. Closing Studio the
   usual way (every change saved or let go) removes the copies.
 
+## When files change outside Studio
+
+Your project's files can change while Studio has them open: another AI
+agent works on them, you edit one in another editor, or a `git checkout`
+switches branches. Studio notices — when its window comes to the front
+again, and every two seconds while it is in front — and never loses either
+version.
+
+- **A file you haven't changed in Studio is loaded again, quietly.** The
+  status bar says *main.rr was updated outside Studio* (a screen reader
+  says it too). What the editor had is kept in the file's **local history**
+  (*Before reloading*: File > Versions > Local History of This File...), and
+  one **Undo** (Ctrl+Z) brings it back.
+
+  ![main.rr changed outside Studio: the editor shows the new last line, PRINT "Changed by an agent.", and the status bar says main.rr was updated outside Studio](images/studio-projects/outside-reloaded.png)
+- **A file with unsaved changes in Studio is never replaced.** A strip
+  above its editor (and above its form, in the designer) asks what to do:
+
+  ![main.rr changed outside Studio: the strip above the editor, with Compare, Use Disk Version and Keep Mine](images/studio-projects/outside-question.png)
+
+  - **Compare** shows the disk's version beside yours, the difference in
+    view.
+
+    ![Compare: main.rr, the disk's version at the left (PRINT "Changed by an agent.") and yours at the right (PRINT "Mine."), with Use Disk Version](images/studio-projects/outside-compare.png)
+  - **Use Disk Version** loads the file as it is on disk. Your version is
+    kept in the local history first, and Undo still brings it back.
+  - **Keep Mine** keeps your version. When you save it, Studio asks first —
+    **Cancel** is the default, and nothing is written until you choose
+    **Save Anyway** (the disk's version goes into the local history before
+    it is replaced):
+
+    ![Save main.rr anyway? main.rr changed outside Studio since you opened it, with Save Anyway and Cancel](images/studio-projects/outside-save-anyway.png)
+
+  The same three are in **File > Changed Outside Studio**, for the keyboard
+  (Alt+F, then T). Save never overwrites newer content on disk without
+  asking — not Save, not Save All, not the save before Run or Build.
+- **A file deleted outside Studio keeps its tab**, marked *(deleted on
+  disk)*, with its text. A copy goes into the local history. **Save** makes
+  the file again, after asking.
+
+  ![greet.rr (deleted on disk): its tab still open, with its text](images/studio-projects/outside-deleted.png)
+- **Many files at once** — a branch checked out, an agent rewriting a dozen
+  files — make one note, never a dialog for each: *12 files were updated
+  outside Studio*. **Show** lists them in the Output.
+
+  ![12 files were updated outside Studio, with Show and Close](images/studio-projects/outside-many.png)
+- **The project file** (`.rrproj`) changed outside — an agent added or
+  removed files: the Project pane follows it quietly.
+- **File > Reopen Project** closes the project and opens it again from the
+  disk (asking about unsaved changes first, as closing does).
+- **Studio's own writes don't count**: saving, the assistant's changes you
+  apply, an AI app's changes, Build, Versions' Go Back — Studio knows it
+  wrote them.
+
+Studio compares each open file's time, size and (when the time moved but
+the size didn't) a quick fingerprint of its bytes, so touching a file
+without changing it says nothing. Studio for the web keeps your files in
+the browser's storage, where only Studio changes them: there is nothing to
+notice there.
+
+A program of your own can do the same: RProject's `Watch`,
+`ExternalChanges()` and `ChangedOnDisk`, and `Application.Active` (whether
+your program is the application in front) —
+[examples/studio/watch_file.rr](../../examples/studio/watch_file.rr), a
+note that follows its file.
+
 ## Targets: where your program runs
 
 **Project > Project Options** has a **Targets** choice (the project's
