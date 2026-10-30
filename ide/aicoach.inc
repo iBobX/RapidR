@@ -23,6 +23,14 @@
 ' note, Build can't be chosen — and the tools hold it whatever the pane
 ' shows (AITools.Mode reads "coach").
 '
+' Languages: every text here through TR$ (Studio's language); the hints
+' themselves follow RAI's answer language (AI.ReplyLanguage: "auto" today —
+' the user's latest message, else Studio's). The buttons' own messages
+' (Give me the next hint., Help me with this error: …) are in Studio's
+' language, so a hint asked with them comes in it. HOOK for ES-REFERENCE's
+' "RAI answers in: Studio's language / the language I write in": it sets
+' AI.ReplyLanguage, and Coach follows with nothing to change here.
+'
 ' Test steps (ai:coach:<what>[=<value>]): ai:coach:mode=build|coach (the
 ' dial clicked), ai:coach:next, ai:coach:gotit, ai:coach:error,
 ' ai:coach:state (the state in the Output).
@@ -438,34 +446,47 @@ END SUB
 
 ' The strip's parts for its width: the chip at the left; I Got It at the
 ' right edge, Next Hint before it — compact, on one centre line, 8 apart.
+' A pane too narrow for all three: the buttons on a second row, at the
+' right (the chip never runs under a button).
 SUB LayOutAICoach
-  DIM w AS INTEGER, ch AS INTEGER, y AS INTEGER, x AS INTEGER, bw AS INTEGER, cw AS INTEGER
+  DIM w AS INTEGER, ch AS INTEGER, y AS INTEGER, by AS INTEGER, x AS INTEGER, bw AS INTEGER, cw AS INTEGER
+  DIM gw AS INTEGER, nw AS INTEGER, need AS INTEGER, hh AS INTEGER
   w = AIPanel.ClientWidth
   IF w < 200 THEN w = 200
   ch = UiCompactH
   y = (40 - ch) \ 2
+  ' (the chip: 8, the icon, 6, the words, 12)
+  AICoachChipText.AutoSize = 1
+  cw = 8 + 16 + 6 + AICoachChipText.Width + 12
+  gw = UITextWidth(TR$("I Got It")) + 24
+  IF gw < 72 THEN gw = 72
+  nw = UITextWidth(REPLACESUBSTR$(AICoachNext.Caption, "&", "")) + 24
+  IF nw < 72 THEN nw = 72
+  need = 8 + cw + 8
+  IF AICoachGot.Visible THEN need = need + gw + 8
+  IF AICoachNext.Visible THEN need = need + nw + 8
+  by = y
+  hh = 40
+  IF AICoachChip.Visible AND need > w THEN
+    by = 40 - 4
+    hh = 40 - 4 + ch + 8
+  END IF
+  IF AICoachBar.Height <> hh THEN AICoachBar.Height = hh
   x = w - 8
   IF AICoachGot.Visible THEN
-    bw = UITextWidth(TR$("I Got It")) + 24
-    IF bw < 72 THEN bw = 72
-    x = x - bw
-    AICoachGot.Left = x: AICoachGot.Top = y: AICoachGot.Width = bw: AICoachGot.Height = ch
+    x = x - gw
+    AICoachGot.Left = x: AICoachGot.Top = by: AICoachGot.Width = gw: AICoachGot.Height = ch
     x = x - 8
   END IF
   IF AICoachNext.Visible THEN
-    bw = UITextWidth(REPLACESUBSTR$(AICoachNext.Caption, "&", "")) + 24
-    IF bw < 72 THEN bw = 72
-    x = x - bw
-    AICoachNext.Left = x: AICoachNext.Top = y: AICoachNext.Width = bw: AICoachNext.Height = ch
+    x = x - nw
+    AICoachNext.Left = x: AICoachNext.Top = by: AICoachNext.Width = nw: AICoachNext.Height = ch
   END IF
   IF AICoachErr.Visible THEN
     bw = UITextWidth(REPLACESUBSTR$(AICoachErr.Caption, "&", "")) + 24
     IF bw > w - 16 THEN bw = w - 16
     AICoachErr.Left = 8: AICoachErr.Top = y: AICoachErr.Width = bw: AICoachErr.Height = ch
   END IF
-  ' (the chip: 8, the icon, 6, the words, 12)
-  AICoachChipText.AutoSize = 1
-  cw = 8 + 16 + 6 + AICoachChipText.Width + 12
   AICoachChip.Left = 8: AICoachChip.Top = y: AICoachChip.Width = cw: AICoachChip.Height = ch
   AICoachChipBg.Width = cw: AICoachChipBg.Height = ch
   AICoachChipIcon.Left = 8: AICoachChipIcon.Top = (ch - 16) \ 2
