@@ -27,6 +27,11 @@
 '                        status bar, a confirmation when chosen; still
 '                        listed and logged, Stop still there
 '
+' Remembered per project: a project an AI app creates or opens takes the
+' mode of the project open before (said in the pane and the status bar),
+' unless it has its own — except Allow everything, which is never passed
+' on: that new project starts with Allow edits.
+'
 ' In every mode: never a key or a secret, never a file outside the open
 ' project or hidden in it, and a project opened from outside the Projects
 ' folder, RapidR's examples and the recent list is always asked first.
@@ -540,18 +545,28 @@ END FUNCTION
 ' A project an AI app created or opened (create_project, open_project)
 ' takes Before, the mode of the project open before it, as if the user had
 ' picked it — an AI app working alone isn't stopped by a question the
-' other project didn't ask (Robert, 2026-10-29) —; said in the pane and the
-' status bar. Nothing open before: the default (Ask before changes). A
-' project with a mode of its own keeps it.
+' other project didn't ask (Robert, 2026-10-29) —, except Allow everything,
+' which it never takes (it starts with Allow edits); said in the pane, the
+' status bar and aloud. Nothing open before: the default (Ask before
+' changes). A project with a mode of its own keeps it.
 SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
-  DIM key AS STRING
+  DIM key AS STRING, carried AS STRING
   IF Before = "" OR ProjectOpen = 0 THEN EXIT SUB
   key = ProjectFile
   IF key = BeforeKey OR McpModeIsKept(key) THEN EXIT SUB
+  carried = Before
+  ' (Allow everything was confirmed for one project, while the user
+  ' watched: never passed on — docs/legal/review-2026-10-29-app-eyes.md,
+  ' Addendum 2)
+  IF carried = "all" THEN carried = "edits"
   McpModeOf = key
   McpMode = ""
-  McpSetMode Before
-  McpCarrySaid = "New project: same permission as before (" + McpModeName(Before) + ")"
+  McpSetMode carried
+  IF Before = "all" THEN
+    McpCarrySaid = "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
+  ELSE
+    McpCarrySaid = "New project: same permission as before (" + McpModeName(carried) + ")"
+  END IF
 END SUB
 
 ' The project's mode from now on: kept, said, in the audit log.

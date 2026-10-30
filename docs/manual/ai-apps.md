@@ -93,8 +93,10 @@ opened over unsaved changes.
 A project an AI app creates or opens (`create_project`, `open_project`)
 keeps the permission of the project that was open before — the pane and
 the status bar say "New project: same permission as before (Allow edits)"
-— unless it has a permission of its own; with no project open before, it
-starts with **Ask before changes**.
+— unless it has a permission of its own. **Allow everything** is the one
+exception: it is never passed on, so the new project starts with **Allow
+edits**; choose Allow everything again for it in the pane if you want it.
+With no project open before, it starts with **Ask before changes**.
 
 ![A change waiting in the AI Apps pane: what the AI app wants to change and why, Allow Once, Allow for This Session, Deny and Review](images/ai-apps/ask.png)
 

@@ -176,3 +176,97 @@ RAI uses the user's chosen AI provider and is started by the user in its chat, s
 
 - [ ] RAI asks once per run before it looks at or uses the program (R2), or its input tools are removed.
 - [ ] Recording video of a program's windows (announced as "later" in the manual): its own legal review (CIPA / GDPR; masks; off by default; royalty-free codecs only).
+
+---
+
+# Addendum 2: applied code (re-review of branch head 4d69714f, 2026-10-29)
+
+Scope: the applied `ide/mcp.inc` (§6.1 asked for this), `ide/mcpapp.inc`, `docs/manual/ai-apps.md`, `docs/manual/app-eyes-and-hands.md`, `tests/app_eyes.mjs`, `tests/studio_mcp.mjs`, plus a spot check of the other checklist items. Read from the code; I did not run the test suites. Same caveat as above: a careful risk review, not legal advice.
+
+## Verdict: MERGE AFTER FIXES
+
+One required change (the owner's "carry the permission" rule must not carry **Allow everything**), with a test and one manual sentence. Everything else in the checklist is met.
+
+## A. F1-F6, §3 and R1-R3 against the applied code
+
+| Item | Found | Met? |
+|---|---|---|
+| F1 looking is "drive" | `McpKindOf` (`mcp.inc:439-447`) maps `app_layout`, `app_screenshot`, `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` to `drive`; only `app_wait` is `read`. `McpDecision` (`:491-508`): Read only refuses `drive`, Ask and Allow edits ask (edits allows only `change`), Allow everything allows. The tools are registered with kind `"change"`, not `"read"` (`mcpapp.inc:57-63`), so no `readOnlyHint`. Refusal text says "and not at the running program" (`mcp.inc:1171`). | Yes |
+| F2 Allow Once per run | Question string in `McpShowAsk` (`:1270`) is exactly the required one. `McpDecide` (`:1314`) sets `McpAppRunAllowed = RunStarted` only for `Choice > 0` on `drive` (Deny grants nothing; test at `app_eyes.mjs` Allow edits section). `McpDecision` allows only while `RunStarted <> 0 AND McpAppRunAllowed = RunStarted`; `RunStarted = TIMER` is set at each run start (`debug.inc:799`), so a new run asks again (tested: restart). `McpModeFollow` empties `McpGrants` on a project change (tested in the `session` section). The stale value after a run ends is harmless: there is no program to look at or click. | Yes |
+| F3 consent version | `MCP_CONSENT = 2`, `McpConsentVersion` read and written (`:636`, `:666`, `:696`); `McpConsentOk` (`:655`) is used by `McpSetOnClick`, `McpSettingsTake`, `SetUpMcp` and `McpSyncTools` (`:920`: `IF McpConsentOk THEN McpAppTools`), so the `app_*` tools are not even listed before version 2 is confirmed. Start with `McpConfirmed` but no version: timer `McpReaskTick` shows `McpConsent` once; Turn On sets version 2 and starts the server; Cancel sets `McpOn = 0`, never starts the server and prints "AI apps: off. Confirm again in Settings > AI Apps." (`:671-686`). The upgrade (`McpUpgrade < 2`) turns every stored `\tall` into `\task` once (`:645-652`) and is written at once (`McpKeepConsent`), so a killed Studio before the answer still re-asks (version still 0). Tests: `app_eyes.mjs` "Upgrade" (Cancel, Turn On, next start, `all` -> `ask`, tools present only after). | Yes |
+| §3 strings | Rows 0, 1, 3, footer, `McpConfirmAll` (lead, "Keep in mind", the rest) and the four `McpModeNote`s are character-for-character the strings in §3. | Yes |
+| F4 audit | `mcpapp.inc:155` logs `"ok"` / `"error"` only; `ai_tools.rs` `activity` prints only a character count for `app_type` (never the text) and key names only when every token is longer than one character; the audit target is `""`. Canary test (`canaryCalls`, `checkTrail`) reads the audit file and the pane in all four modes, checks the typed canary, the shown canary, the asked-for caption in the audit, no PNG/`data:image`, and no `rapidr-app-<pid>-*.png` left. | Yes |
+| F5 temp sweep | `sweep_pictures` (`crates/rapidr-studio/src/session.rs:133`, only plain files named `rapidr-app-*.png`, older than 60 s, never links) called at session start (`:361`), with a unit test. | Yes |
+| F6 | `a_program_run_outside_studio_ignores_app_requests` (`crates/rapidr-cli/tests/app_eyes.rs:212`). | Yes |
+| R1 / R3 | `aisetup.inc:506` and `docs/manual/ai-assistant.md:15` carry the sentences; `rai.rs:2568-2577`: `digest` is empty for `ui` risk and the decision reads "ran in your program" / "not done in your program". R2 is implemented (the `rai` section of `app_eyes.mjs` asserts the card and the refusal); it was only a release blocker anyway. | Yes |
+| §6.1 | `tools/patches/` is gone; the old names `RAppDriver` / `RAppCapture` appear nowhere outside this `docs/legal` folder. | Yes |
+| Manuals | `ai-apps.md` has the `app_*` rows, the "A program can show private data ... use test data" sentence, the activity-log sentence ("or a picture, the text an AI app typed, or anything your program showed"), the re-ask and the `all` reset paragraph; the stale "isn't there yet" note is gone. `app-eyes-and-hands.md` has the "Use it responsibly" box ("what it clicks happens for real ... run them on test data") and the "What the AI sees" paragraph. | Yes |
+
+### The AI app's own caption on the pane line (the lane kept it on purpose): acceptable
+
+The pane (and the status bar, and the screen-reader announcement) say `Clicking "<Caption>" in the running program` / `... the box beside "<Label>"` using the words the **AI app itself sent** in its request, never the program's answer; the audit log has none of it (target is `""`, outcome `ok` / `error`), and the test proves the program's sentence ("Buttons now: ...") never reaches the pane. The AI app already has those words, the pane is local and cleared by Clear Activity, and typed text is only a count. Accepted, no change. Optional tidy, not blocking: in the `app_key` arm, a single multi-character token that is not a key name (the program rejects it: `hands.rs:519`) is echoed in the pane as `Pressing <token>`; showing only `Pressing a key` unless the token is a known key name would remove even that.
+
+## B. The new rule: a project an AI app creates or opens takes the permission of the project open before
+
+Code: `McpCarryMode` (`mcp.inc:546-555`), called after `OpenProject` in `McpApply` (create_project) and `McpOpenProject`; a project with a kept mode (`McpModeIsKept`) keeps its own; nothing open before gives the default; the pane line, the status bar and `Application.Announce` say "New project: same permission as before (<mode>)"; `McpSetMode` also writes the audit line `mode` and persists the mode.
+
+**Carrying Read only, Ask before changes and Allow edits without a dialog: acceptable.** None is more permissive than something the user already chose and watched, runs and the running program still ask in the last two, and it is said in three places. The one extra effect (Allow edits applied to an existing project that was opened) is limited to undoable, listed file changes inside a project the AI app could already read.
+
+**Carrying Allow everything without a dialog: NOT acceptable.** Reasons, in the code:
+
+1. The consent for Allow everything is per project and says so: `McpConfirmAll` asks "Allow everything for AI apps **in this project**?" and "Choose this only while you watch an AI app you trust." `McpModeFollow` has always dropped back to Ask before changes on a project change, and that drop is the safety boundary the confirmation relied on. The carry removes it with no question.
+2. `open_project` can open any existing project in the Projects folder, RapidR's examples or the recent list **without asking in Allow everything** (`McpOpenAllowed`), and a project outside them after one Allow Once. That project may hold a user's real data (a shop's customers, a teacher's students, a child's data) and real-action code (send, pay, delete). With the carried mode the AI app then runs it (`run_program`), looks at it (`app_screenshot`: a picture of private data given to a third party), clicks in it (real Send / Pay / Delete) and asks RAI (money), all without one question and without the person having confirmed any of that for that project. This is exactly what F3 reset the old `all` projects for.
+3. `McpSetMode` **persists** it (`McpModes`, last 50 projects): the project stays in Allow everything after Studio restarts and when the user later opens it by hand, long after "while you watch". A mode the user never picked for that project then looks like one they picked, and `McpModeIsKept` protects it as "their own".
+4. The one-line pane message is an after-the-fact notice, not consent, and the badge only appears after the fact.
+
+### Minimal safe rule (required)
+
+Carry everything **except Allow everything**, which becomes **Allow edits**. Allow edits is the closest to the owner's intent (an AI app working alone is not stopped for its file changes, and a new program it creates is writable at once) while a run, looking at or using the running program and RAI still ask, and nothing private is disclosed or acted on without a question. (Ask before changes would be stricter and is also acceptable; this review requires only that **Allow everything is never passed on**.) The user can still choose Allow everything for the new project in the pane, with the confirmation dialog, as now.
+
+Exact code change in `McpCarryMode` (`ide/mcp.inc`):
+
+```basic
+SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
+  DIM key AS STRING, carried AS STRING
+  IF Before = "" OR ProjectOpen = 0 THEN EXIT SUB
+  key = ProjectFile
+  IF key = BeforeKey OR McpModeIsKept(key) THEN EXIT SUB
+  carried = Before
+  ' (Allow everything was confirmed for one project, while the user
+  ' watched: never passed on — docs/legal/review-2026-10-29-app-eyes.md,
+  ' Addendum 2)
+  IF carried = "all" THEN carried = "edits"
+  McpModeOf = key
+  McpMode = ""
+  McpSetMode carried
+  IF Before = "all" THEN
+    McpCarrySaid = "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
+  ELSE
+    McpCarrySaid = "New project: same permission as before (" + McpModeName(carried) + ")"
+  END IF
+END SUB
+```
+
+(Update the comment above the SUB: "... takes Before, the mode of the project open before it, except Allow everything, which it never takes (it starts with Allow edits) ...".)
+
+Manual: in `docs/manual/ai-apps.md` (after "A project an AI app creates or opens ... keeps the permission of the project that was open before"), change the sentence to:
+
+> A project an AI app creates or opens (`create_project`, `open_project`) keeps the permission of the project that was open before — the pane and the status bar say "New project: same permission as before (Allow edits)" — unless it has a permission of its own. **Allow everything** is the one exception: it is never passed on, so the new project starts with **Allow edits**; choose Allow everything again for it in the pane if you want it. With no project open before, it starts with **Ask before changes**.
+
+Also adjust the header comment of `mcp.inc` (the mode list) and any test/manual text that says the permission is always the same.
+
+Tests to add in `tests/studio_mcp.mjs`, section `carry` (today only `edits` and "nothing open" are covered):
+1. `mcp:mode=all` start, `create_project`: the new project reports `Permission: Allow edits` (not Allow everything), the pane has the "Allow everything is not passed on" line, the menu says "Allow edits", the badge is not shown; the registry/`McpModes` has no `?all` for the new project.
+2. `mcp:mode=all`, `open_project` of an existing example: same result (this is the case that matters).
+3. A project with a kept mode (seed `McpModes` with `<project>?read`): opened by `open_project` from an `edits` project it keeps `Read only` and no "same permission" line.
+4. Carry of `read` and `ask` (one assertion each; `read` then refuses `app_screenshot` in the new project).
+
+## C. Anything else blocking merge
+
+Nothing. Reminders that are **not** merge blockers (unchanged from above): TSDR check of `APPHANDS` and `WINDOWCAPTURE` before the first public mention; condition B2 of the MCP addendum (`capture` of Studio's own window with Settings or a token on screen) is a separate lane's; recording video of a program's windows needs its own review before it ships.
+
+## Required changes (checklist)
+
+- [ ] `McpCarryMode`: Allow everything is never carried; the new project gets Allow edits with the pane/status/announcement text above.
+- [ ] `docs/manual/ai-apps.md` (and the `mcp.inc` header comment): the exception sentence above.
+- [ ] `tests/studio_mcp.mjs` `carry`: the four cases above; run `node tests/studio_mcp.mjs carry` and the full file once.

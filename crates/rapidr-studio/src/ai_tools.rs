@@ -284,6 +284,22 @@ pub fn tools_lite(proposals: bool) -> Vec<Tool> {
     out
 }
 
+/// A key as app_key names it, safe to show: a key's name (Enter, F5,
+/// PageDown), or a shortcut — Ctrl, Alt, Shift, Cmd … and a key or a
+/// character (Ctrl+S). A bare character or any other word is not.
+fn known_key(token: &str) -> bool {
+    const NAMES: &[&str] = &["enter", "return", "tab", "escape", "esc", "backspace", "delete", "del", "insert", "ins", "home", "end", "pageup", "pagedown", "pgup", "pgdn", "up", "down", "left", "right", "space", "menu", "apps"];
+    let parts: Vec<&str> = token.split('+').collect();
+    let (mods, key) = parts.split_at(parts.len() - 1);
+    let modifier = |m: &str| ["ctrl", "control", "alt", "option", "shift", "cmd", "command", "meta", "win", "super"].contains(&m.to_ascii_lowercase().as_str());
+    if !mods.iter().all(|m| modifier(m)) {
+        return false;
+    }
+    let k = key[0].to_ascii_lowercase();
+    let function = k.strip_prefix('f').and_then(|n| n.parse::<u8>().ok()).is_some_and(|n| (1..=24).contains(&n));
+    NAMES.contains(&k.as_str()) || function || (!mods.is_empty() && k.chars().count() == 1)
+}
+
 /// A tool call as the live status line says it, while the model writes it
 /// or it runs ("Reading main.rr", "Searching the manual", "Writing
 /// server.rr"); `input` may hold only the fields written so far.
@@ -316,10 +332,11 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
                     let n = ["Text", "text"].iter().find_map(|k| input.get(*k).and_then(Json::as_str)).unwrap_or_default().chars().count();
                     format!("Typing {n} character{}{} in the running program", if n == 1 { "" } else { "s" }, if on.is_empty() { String::new() } else { format!(" into{on}") })
                 }
-                // (keys by name — Enter, Ctrl+S —; single characters are
-                // typing, and only counted)
+                // (keys by name — Enter, Ctrl+S —; anything else, a single
+                // character or a word, may be typing: only counted)
                 "app_key" => match any("Keys") {
-                    Some(k) if k.split_whitespace().all(|t| t.chars().count() > 1) => format!("Pressing {k} in the running program"),
+                    Some(k) if k.split_whitespace().all(known_key) => format!("Pressing {k} in the running program"),
+                    Some(k) if k.split_whitespace().count() == 1 => "Pressing a key in the running program".into(),
                     Some(k) => format!("Pressing {} keys in the running program", k.split_whitespace().count()),
                     None => "Pressing keys in the running program".into(),
                 },
@@ -2652,8 +2669,11 @@ mod tests {
         assert_eq!(rai, "Typing 6 characters into txtPin in the running program");
         assert_eq!(activity("app_type", &json!({"text": "x"})).unwrap(), "Typing 1 character in the running program");
         assert_eq!(activity("app_key", &json!({"keys": "Ctrl+A Backspace"})).unwrap(), "Pressing Ctrl+A Backspace in the running program");
-        // (single characters are typing: counted, not shown)
+        // (single characters are typing: counted, not shown; so is a word
+        // that isn't a key's name)
         assert_eq!(activity("app_key", &json!({"Keys": "h u n t e r 2"})).unwrap(), "Pressing 7 keys in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "hunter2"})).unwrap(), "Pressing a key in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "Shift+Tab F5 PageDown Cmd+Z"})).unwrap(), "Pressing Shift+Tab F5 PageDown Cmd+Z in the running program");
         for line in [ai_app, rai] {
             assert!(!line.contains("hunter2") && !line.contains("1234"), "{line}");
         }

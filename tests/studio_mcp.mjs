@@ -20,9 +20,12 @@
 //                       not asked again)
 //   Allow edits         a change applied without a question; a run asked
 //                       (denied)
-//   Carried mode        a project an AI app creates takes the mode of the
-//                       one open before (Allow edits), said in the pane;
-//                       with nothing open before, Ask before changes
+//   Carried mode        a project an AI app creates or opens takes the mode
+//                       of the one open before (Allow edits, Ask), said in
+//                       the pane — never Allow everything (Allow edits
+//                       instead, said so); a project with its own mode
+//                       keeps it; Read only can't be left; nothing open
+//                       before: Ask before changes
 //   Read only           reading works; a change and a run are refused, said
 //                       in plain words
 //
@@ -350,9 +353,22 @@ if (want("edits")) {
 }
 
 // ---- A new project takes the mode of the one before (Robert, 2026-10-29) -----------------
+// (never Allow everything: it starts with Allow edits — the legal review's Addendum 2)
 if (want("carry")) {
-  const PORT = BASE_PORT + 10;
   const NEW = (name) => ({ name, main: "main.rr", files: [{ path: "main.rr", text: 'PRINT "new"\n' }], summary: "A new program." });
+  const NOT_PASSED = "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it.";
+  const status = async (tool, want, tries = 40) => {
+    let r = { text: "" };
+    for (let i = 0; i < tries; i++) {
+      r = await tool("studio_status");
+      if (r.text.includes(want)) break;
+      await new Promise((res) => setTimeout(res, 250));
+    }
+    return r;
+  };
+
+  // Allow edits -> create_project: Allow edits
+  let PORT = BASE_PORT + 10;
   let run = studio("carry", `mcp:mode=edits,mcp:on=${PORT}`, until("studio_status"), "mcpmodebox.text,mcplog.items", {}, { home: true });
   check("Carried mode: Studio listens", await listening(PORT));
   let { tool } = client(PORT);
@@ -365,11 +381,87 @@ if (want("carry")) {
   check("Carried mode: the menu says it", end.lines["mcpmodebox.text"] === "Allow edits", JSON.stringify(end.lines));
   check("Carried mode: the pane says it", end.out.includes("New project: same permission as before (Allow edits)"), end.out.slice(-1200));
 
+  // Allow everything -> create_project: Allow edits, said; no badge
+  PORT = BASE_PORT + 12;
+  run = studio("carry-all", `mcp:mode=all,mcp:on=${PORT}`, until("studio_status"), "mcpmodebox.text,mcpbadge.visible,mcplog.items", {}, { home: true });
+  check("Allow everything, create_project: Studio listens", await listening(PORT));
+  ({ tool } = client(PORT));
+  r = await tool("create_project", NEW("NotAll"));
+  check("Allow everything, create_project: made and opened at once", !r.error && r.text.includes("Created and opened"), r.text);
+  r = await tool("studio_status");
+  check("Allow everything is never passed on: the new project is in Allow edits", r.text.includes("Project: NotAll") && r.text.includes("Permission: Allow edits") && !r.text.includes("Permission: Allow everything"), r.text);
+  end = await run.ended();
+  check("Allow everything, create_project: the menu says Allow edits, no badge", end.lines["mcpmodebox.text"] === "Allow edits" && !shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
+  check("Allow everything, create_project: the pane says it isn't passed on", end.out.includes(NOT_PASSED), end.out.slice(-1200));
+
+  // Allow everything -> open_project of an example: Allow edits, said
+  PORT = BASE_PORT + 13;
+  // (the example is asked about first, as a project from elsewhere: Allow Once)
+  run = studio("carry-open", `mcp:mode=all,mcp:on=${PORT}`, ["mcpask.__until_Visible_1", "mcponcebtn.onclick", until("studio_status")].join(","), "mcpmodebox.text,mcpbadge.visible,mcplog.items");
+  check("Allow everything, open_project: Studio listens", await listening(PORT));
+  ({ tool } = client(PORT));
+  r = await tool("open_project", { Path: join(ROOT, "examples", "gui", "hello_form.rr") });
+  check("Allow everything, open_project: opened", !r.error && r.text.includes("Opened"), r.text);
+  r = await tool("studio_status");
+  check("Allow everything is never passed on: the project opened is in Allow edits", r.text.includes("Permission: Allow edits") && !r.text.includes("Permission: Allow everything"), r.text);
+  end = await run.ended();
+  check("Allow everything, open_project: the menu says Allow edits, no badge", end.lines["mcpmodebox.text"] === "Allow edits" && !shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
+  check("Allow everything, open_project: the pane says it isn't passed on", end.out.includes(NOT_PASSED), end.out.slice(-1200));
+
+  // A project with its own mode keeps it: Hello in Allow edits (its own);
+  // an AI app makes Kept (carried: Allow edits), the user sets Kept to Ask
+  // before changes, the AI app opens Hello again (asked: outside the
+  // Projects folder; Allow Once): Hello is in Allow edits, its own — not
+  // Ask, Kept's — and nothing is said about a mode carried
+  PORT = BASE_PORT + 14;
+  run = studio("carry-kept", `mcp:mode=edits,mcp:on=${PORT}`, ["mcpsub.__until_Caption_New project: same permission as before (Allow edits)", "mcpmodebox.__item_1", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(","), "mcpmodebox.text,mcplog.items", {}, { home: true });
+  check("Own mode: Studio listens", await listening(PORT));
+  ({ tool } = client(PORT));
+  r = await tool("create_project", NEW("Kept"));
+  check("Own mode: Kept made (carried Allow edits)", !r.error && r.text.includes("Created and opened"), r.text);
+  await new Promise((res) => setTimeout(res, 1500));
+  r = await status(tool, "Permission: Ask before changes");
+  check("Own mode: the user set Kept to Ask before changes", r.text.includes("Project: Kept") && r.text.includes("Permission: Ask before changes"), r.text);
+  r = await tool("open_project", { Path: join(WORK, "carry-kept", "Hello.rrproj") });
+  check("Own mode: Hello opened (asked: outside the Projects folder)", !r.error && r.text.includes("Opened"), r.text);
+  r = await tool("studio_status");
+  check("Own mode: Hello keeps its own Allow edits (not Kept's Ask before changes)", r.text.includes("Project: Hello") && r.text.includes("Permission: Allow edits"), r.text);
+  await tool("get_problems");
+  end = await run.ended();
+  const said = (end.out.match(/same permission as before/g) || []).length;
+  check("Own mode: a mode carried is said once (Kept), never for Hello", said === 1, end.out.slice(-1500));
+
+  // Ask before changes -> create_project (asked: Allow Once): Ask before changes
+  PORT = BASE_PORT + 15;
+  run = studio("carry-ask", `mcp:on=${PORT}`, ["mcpask.__until_Visible_1", "mcponcebtn.onclick", until("studio_status")].join(","), "mcpmodebox.text,mcplog.items", {}, { home: true });
+  check("Ask carried: Studio listens", await listening(PORT));
+  ({ tool } = client(PORT));
+  r = await tool("create_project", NEW("Asked"));
+  check("Ask carried: create_project asked, then made", !r.error && r.text.includes("Created and opened"), r.text);
+  r = await tool("studio_status");
+  check("Ask carried: the new project asks before changes", r.text.includes("Project: Asked") && r.text.includes("Permission: Ask before changes"), r.text);
+  end = await run.ended();
+  check("Ask carried: the pane says it", end.out.includes("New project: same permission as before (Ask before changes)"), end.out.slice(-1200));
+
+  // Read only: an AI app can't create or open a project, so it can't leave it
+  PORT = BASE_PORT + 16;
+  run = studio("carry-read", `mcp:mode=read,mcp:on=${PORT}`, until("studio_status"), "mcpmodebox.text", {}, { home: true });
+  check("Read only carried: Studio listens", await listening(PORT));
+  ({ tool } = client(PORT));
+  r = await tool("create_project", NEW("ReadNew"));
+  check("Read only: create_project refused", r.error && r.text.includes("Read only"), r.text);
+  r = await tool("open_project", { Path: join(ROOT, "examples", "gui", "hello_form.rr") });
+  check("Read only: open_project refused", r.error && r.text.includes("Read only"), r.text);
+  r = await tool("studio_status");
+  check("Read only: still the same project, Read only", r.text.includes("Project: Hello") && r.text.includes("Permission: Read only"), r.text);
+  end = await run.ended();
+  check("Read only: the menu says it", end.lines["mcpmodebox.text"] === "Read only", JSON.stringify(end.lines));
+
   // (nothing open before: the default)
-  const PORT2 = BASE_PORT + 11;
-  run = studio("carry-none", `mcp:mode=edits,mcp:on=${PORT2}`, until("studio_status"), "mcpmodebox.text,mcplog.items", {}, { project: false, home: true });
-  check("Carried mode, nothing open: Studio listens", await listening(PORT2));
-  ({ tool } = client(PORT2));
+  PORT = BASE_PORT + 11;
+  run = studio("carry-none", `mcp:mode=edits,mcp:on=${PORT}`, until("studio_status"), "mcpmodebox.text,mcplog.items", {}, { project: false, home: true });
+  check("Carried mode, nothing open: Studio listens", await listening(PORT));
+  ({ tool } = client(PORT));
   r = await tool("create_project", NEW("Fresh"));
   check("Carried mode, nothing open: create_project made it", !r.error && r.text.includes("Created and opened"), r.text);
   r = await tool("studio_status");
