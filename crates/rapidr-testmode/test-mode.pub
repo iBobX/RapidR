@@ -1,0 +1,11 @@
+# RapidR test-mode public key (Ed25519, hex).
+#
+# PLACEHOLDER: this build trusts no test-mode token, so a release build
+# (no debug assertions, no `dev-hooks` feature) ignores every test hook.
+# To install the real key (docs/security/test-mode.md):
+#
+#   rapidr dev test-mode new-key --out ~/.rapidr/keys
+#   cp ~/.rapidr/keys/test-mode.pub crates/rapidr-testmode/test-mode.pub
+#
+# then rebuild. Only the public half ever goes in the repository.
+public: none

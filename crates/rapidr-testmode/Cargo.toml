@@ -1,0 +1,32 @@
+[package]
+name = "rapidr-testmode"
+description = "RapidR's signed test mode (SEC-24): the GUI test hooks act only in a development build, or with a test-mode token signed by the key this build trusts"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# A leaf crate (no RapidR dependency): every runtime, host and Studio reach
+# it. The public key it trusts is test-mode.pub, compiled in; the
+# placeholder there trusts nothing (docs/security/test-mode.md).
+[dependencies]
+
+[features]
+# Local development builds only: the hooks act without a token, as in a
+# debug build. Never in tools/studio_app.sh's release app nor in
+# tools/release/ (tests/security/test_mode_release.mjs checks the scripts).
+dev-hooks = []
+# `rapidr dev test-mode new-key` / `issue`: a key made from the system's
+# secure random source, tokens signed (the CLI only).
+issue = ["dep:getrandom"]
+
+# Ed25519 (pure Rust, no dependencies; MIT — docs/legal/review-2026-10-30-test-mode.md).
+# The browser has no process environment: no token is read there.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ed25519-compact = { version = "2.2", default-features = false }
+# (the issuing side's seed: already in the tree, MIT OR Apache-2.0)
+getrandom = { version = "0.4.2", optional = true, default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+# (this computer's name, for a token's optional machine hint)
+libc = "0.2"
