@@ -3193,14 +3193,14 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as older programs expect; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
 | `Download` *(RapidR)* *(web)* | Saves the stream's text to the user's computer as a browser download, named by `FileName`. |
 | `PickFile` *(RapidR)* *(web)* | Opens the browser's file picker and reads the chosen file into the stream; an optional filter such as `.txt` limits the choice. |
 | `LoadFromUrl` *(RapidR)* *(web)* | Fetches a URL's text into the stream; an event fires when it has arrived. |
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
-| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
-| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
+| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as older programs expect. |
+| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as older programs expect, and one with any other character as its UTF-8. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
@@ -3445,11 +3445,11 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as older programs expect; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
-| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
-| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
+| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as older programs expect. |
+| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as older programs expect, and one with any other character as its UTF-8. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` | Empties the stream: `Size` and `Position` 0. |
@@ -5346,7 +5346,7 @@ The palette of components a form designer places, under RapidR's names (RButton)
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
-| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "rapidq" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or "titles" (in words: "Button"). |
+| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "classic" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or "titles" (in words: "Button"). |
 | `Selected` | string | `""` | The selected component's type under RapidR's name (RButton), or a template's name. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -5817,7 +5817,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `InstallRust AS INTEGER` | Installs Rust with rapidr setup --yes --no-path (the free toolchain native builds need), in the background like Build: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not. |
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
-| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
+| `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the classic-compatibility setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
 | `StudioFolder AS STRING` | Studio's own folder (never a project's): where the copies of unsaved work and the log of what went wrong in Studio are kept — RapidR's folder of the user's settings (~/Library/Application Support/RapidR on macOS, %APPDATA%\RapidR on Windows, ~/.config/rapidr on Linux; RAPIDR_STUDIO_DATA when set); on the web, the page's store. |
 | `RecoveryKeep(Key AS STRING, Path AS STRING, Caption AS STRING, Text AS STRING) AS INTEGER` | Keeps a copy of a document's unsaved text (Key: what tells the document apart, Path its file — "" for one never saved —, Caption as its tab says it) in Studio's folder, for RecoveryFound after a Studio that ended without closing. True when it was kept; Error says why not. |
 | `RecoveryForget(Key AS STRING)` | Lets go of a document's copy (it was saved, or closed and its changes let go). |

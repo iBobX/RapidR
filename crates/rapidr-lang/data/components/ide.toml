@@ -76,7 +76,7 @@ doc = "The palette of components a form designer places, under RapidR's names (R
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Filter", type = "string", default = "", design = false, doc = "The search box's text: only the components whose names match it are shown." },
-  { name = "ShowNames", type = "string", default = "rapidr", doc = "How components are named: \"rapidr\" (RapidR's names: RButton), \"rapidq\" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or \"titles\" (in words: \"Button\")." },
+  { name = "ShowNames", type = "string", default = "rapidr", doc = "How components are named: \"rapidr\" (RapidR's names: RButton), \"classic\" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or \"titles\" (in words: \"Button\")." },
   { name = "Selected", type = "string", default = "", design = false, doc = "The selected component's type under RapidR's name (RButton), or a template's name." },
   { name = "Count", type = "int", access = "read", design = false, doc = "How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones)." },
   { name = "Height", type = "int" },
