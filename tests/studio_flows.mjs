@@ -1368,7 +1368,8 @@ const CASES = [
     do: "wait,view.designer,pick:AddBtn,wait",
     delay: 6,
     dump: {
-      "inspector.__cursor_120_246": /^col-resize$/,
+      // (INSPECTOR-CATEGORIES: the names' column starts 148 wide)
+      "inspector.__cursor_148_246": /^col-resize$/,
       "inspector.__cursor_60_246": /^default$/,
       "inspector.__cursor_120_80": /^text$/,
       "dock.__cursor_241_200": /^col-resize$/,
@@ -1378,6 +1379,98 @@ const CASES = [
       "designdoc(0).__cursor_355_306": /^move$/,
       "designdoc(0).__cursor_339_306": /^nwse-resize$/,
     },
+  },
+  // (INSPECTOR-CATEGORIES, Robert 2026-10-30: "RapidR extensions … makes no
+  // sense") Every member is under the heading of what it is for, in every
+  // look: the form's Accessible* three under Accessibility, Anchors, AutoSize
+  // and the Min/Max sizes in Layout, BrushColor and PenColor in Drawing,
+  // FontColor / FontName / FontSize in Font, HelpFile in Help — and no heading
+  // that names where a member comes from. A project not kept classic-compatible
+  // marks nothing (no "R", no "new"): MarkNonClassic, and its older name
+  // ShowRapidRExtensions, read False; Anchors' row has no description.
+  {
+    name: "inspector-categories",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:Form,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^Form$/,
+      "inspector.rows": /^\[Accessibility\]\nAccessibleDescription=\nAccessibleHidden=False\nAccessibleName=\n\[Appearance\]\n[\s\S]*^\[Drawing\]\nBrushColor=[^\n]*\nCopyMode=[^\n]*\nPenColor=[^\n]*\n\[Font\]\nFont=[^\n]*\nFontColor=[^\n]*\nFontName=[^\n]*\nFontSize=[^\n]*\n\[Help\]\nHelpFile=[^\n]*\nHint=[^\n]*\nShowHint=[^\n]*\n\[Layout\]\nAnchors=akLeft, akTop\nAutoScroll=[^\n]*\nAutoSize=[^\n]*\nHeight=[^\n]*\nLeft=[^\n]*\nMaxHeight=[^\n]*\nMaxWidth=[^\n]*\nMinHeight=[^\n]*\nMinWidth=[^\n]*\nTop=[^\n]*\nWidth=[^\n]*\n\[Window\]\n/m,
+      "inspector.marknonclassic": /^(0|False)$/i,
+      "inspector.showrapidrextensions": /^(0|False)$/i,
+    },
+    a11y: [
+      ["Accessibility", "row", null, (n) => n.description === "3 properties"],
+      ["Layout", "row", null, (n) => n.description === "11 properties"],
+      ["Anchors", "row", null, (n) => !n.description],
+      ["AccessibleDescription", "row", null, (n) => !n.description],
+    ],
+  },
+  // (INSPECTOR-CATEGORIES) A project kept classic-compatible ([compat]
+  // rapidq_compatible) marks, with a small calm "new" chip, the members a
+  // classic program doesn't have; its tooltip and the row's description (what a
+  // screen reader says) are "Not in classic programs", and Caption — which
+  // classic programs have — says nothing. The inspector reads the project's
+  // setting (MarkNonClassic, ShowRapidRExtensions its older name). The same
+  // pane in Spanish: the headings and the words.
+  {
+    name: "inspector-classic-marks",
+    open: "tests/fixtures/studio_classic/Classic.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_classic/Classic.rrproj", "tests/fixtures/studio_classic/main.rr"],
+    do: "wait,view.designer,pick:GoBtn,wait,row:MinHeight,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^GoBtn$/,
+      "inspector.marknonclassic": /^(1|-1|True)$/i,
+      "inspector.showrapidrextensions": /^(1|-1|True)$/i,
+      "inspector.rows": /^\[Accessibility\]\nAccessibleDescription=\nAccessibleHidden=False\nAccessibleName=\n/,
+    },
+    a11y: [
+      ["Anchors", "row", null, (n) => n.description === "Not in classic programs"],
+      ["MinHeight", "row", null, (n) => n.description === "Not in classic programs"],
+      ["AccessibleName", "row", null, (n) => n.description === "Not in classic programs"],
+      ["Caption", "row", null, (n) => !/classic/.test(n.description)],
+      ["Height", "row", null, (n) => !n.description],
+    ],
+  },
+  {
+    name: "inspector-classic-marks-es",
+    open: "tests/fixtures/studio_classic/Classic.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_classic/Classic.rrproj", "tests/fixtures/studio_classic/main.rr"],
+    do: "wait,view.designer,pick:GoBtn,wait,lang:es,wait,row:MinHeight,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    dump: { "inspector.target": /^GoBtn$/, "inspector.marknonclassic": /^(1|-1|True)$/i },
+    a11y: [
+      ["Anchors", "row", null, (n) => n.description === "No está en los programas clásicos"],
+      ["Accesibilidad", "row", null, (n) => n.description === "3 propiedades"],
+      ["Disposición", "row", null, (n) => n.description === "10 propiedades"],
+      ["Ayuda", "row", null, (n) => n.description === "2 propiedades"],
+      ["Caption", "row", null, (n) => !/clásic/.test(n.description)],
+    ],
+  },
+  // (INSPECTOR-CATEGORIES) The divider between the name and value columns
+  // remembers where the user left it: left at 180 (namewidth:180 — what a
+  // drag does; the real press, move and release on the line is the kernel's
+  // own test — and the settings kept as Studio closing keeps them), Studio
+  // started again on the same settings (not --fresh): the column is 180 wide,
+  // not its default 148.
+  {
+    name: "inspector-divider-remembered",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,namewidth:180,wait",
+    delay: 5,
+    restart: { do: "wait,view.designer,pick:AddBtn,wait", delay: 5 },
+    dump: { "inspector.namewidth": /^180$/ },
   },
   // (the web) A screen reader on the inspector: Chrome's accessibility
   // tree (what VoiceOver, NVDA and JAWS read) has a tree grid of rows, each
@@ -3130,7 +3223,8 @@ const CASES = [
     do: "wait",
     delay: 3,
     dump: { "dock.layout": /tabs \d+ outputbox immediatebox bppanel\n[\s\S]*hidden [^\n]*varstree[^\n]*watchpanel[^\n]*stacktree/, "outputbox.width": /^\d+$/ },
-    checks: [(d) => [+d["outputbox.width"] >= 780, `Output the documents' whole width (${d["outputbox.width"]})`]],
+    // (the documents are 756 wide in a 1280 window: the Properties pane is 272, the others 240)
+    checks: [(d) => [+d["outputbox.width"] >= 750, `Output the documents' whole width (${d["outputbox.width"]})`]],
   },
   {
     // (S9) A run with the debugger: the debugging layout — Variables,

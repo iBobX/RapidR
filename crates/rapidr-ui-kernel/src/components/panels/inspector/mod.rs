@@ -80,12 +80,17 @@ fn classic() -> bool {
 }
 
 fn view(cx: &Cx, classic: bool) -> V {
-    let m = model::with(cx.id, Clone::clone).unwrap_or_default();
+    view_of(cx.id, cx.width(), cx.height(), classic)
+}
+
+/// [`view`] of component `id` `w` × `h` (a tooltip asks without a `Cx`).
+fn view_of(id: &str, w: i64, h: i64, classic: bool) -> V {
+    let m = model::with(id, Clone::clone).unwrap_or_default();
     let rows = m.rows();
-    let g = geo::geo(&m, cx.width(), cx.height(), if classic { 2 } else { 0 });
+    let g = geo::geo(&m, w, h, if classic { 2 } else { 0 });
     // (the scroller told the rows' height now: input may come before the
     // next drawing, and must find what it will show)
-    let (pos, cw, _) = list::vscroll(cx.id, g.list.2, g.list.3, geo::content(&rows), ROW);
+    let (pos, cw, _) = list::vscroll(id, g.list.2, g.list.3, geo::content(&rows), ROW);
     let nw = geo::name_width(&m, cw);
     V { m, rows, g, pos, cw, nw }
 }
@@ -840,6 +845,18 @@ impl ComponentKind for Inspector {
         "RPROPERTYINSPECTOR"
     }
 
+    /// (tooltip.rs) A name or a value the column cuts short: the whole of it;
+    /// a member older programs lack (while the inspector marks them): what
+    /// its small note means, in words.
+    fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let (w, h) = (crate::store::int(store, id, "width", 0), crate::store::int(store, id, "height", 0));
+        let v = view_of(id, w, h, classic());
+        let (xi, yi) = (x.floor() as i64, y.floor() as i64);
+        let (i, rr) = v.row_at(xi, yi)?;
+        let font = rapidr_value::objects::font::Font { color: 0, ..store.font(id) };
+        geo::row_tip(&v.m, &v.rows[i], rr, v.nw, xi, &font)
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let l = look(p.theme());
         let (w, h) = (cx.width(), cx.height());
@@ -963,7 +980,10 @@ impl ComponentKind for Inspector {
             MouseKind::Move => {
                 if let Some((from, width)) = v.m.ui.drag {
                     let nw = (width + x - from).clamp(40, (v.cw - 40).max(40));
-                    ui(cx, |mm| mm.name_width = nw);
+                    ui(cx, |mm| {
+                        mm.name_width = nw;
+                        mm.name_set = true;
+                    });
                     return MouseOut::default();
                 }
                 let hover = if let Some(t) = v.g.tabs.filter(|t| common::inside(*t, x, y)) {
@@ -1147,10 +1167,13 @@ impl ComponentKind for Inspector {
             row.description = match r.kind {
                 RowKind::Category => tr_ui_fill("{count} properties", &[("count", &r.count.to_string())]),
                 _ if r.mixed => tr_ui("values differ"),
-                _ if r.ext => tr_ui("RapidR extension"),
                 _ if !r.is_default && geo::resettable(r) => tr_ui("changed"),
                 _ => String::new(),
             };
+            // (a member older programs lack, while the inspector marks them)
+            if r.non_classic {
+                row.description = if row.description.is_empty() { geo::note_meaning() } else { format!("{}. {}", row.description, geo::note_meaning()) };
+            }
             row.actions = vec![Action::Click, Action::Focus];
             if !row.states.read_only {
                 row.actions.push(Action::SetValue);

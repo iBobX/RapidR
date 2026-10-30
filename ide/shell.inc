@@ -416,6 +416,9 @@ SUB StartStudio
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (a layout saved before Versions was a tab of its own: it is put back)
   VerLayoutLoaded
+  ' (the Properties pane's names column where the user left its divider)
+  InspectorNameWidthDefault = Inspector.NameWidth
+  IF InspectorNameWidth >= 40 THEN Inspector.NameWidth = InspectorNameWidth
   ' (the editing layout — or the debugging one, Settings' Always —, at its
   ' sizes, whatever layout was kept: one saved while a program ran)
   DebugLayoutLoaded

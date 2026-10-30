@@ -258,7 +258,7 @@ fn md(s: &str) -> String {
 fn origin_mark(o: Origin) -> &'static str {
     match o {
         Origin::RapidQ => "",
-        Origin::RapidR => " *(RapidR)*",
+        Origin::RapidR => " *(new)*",
     }
 }
 
@@ -351,7 +351,7 @@ fn members_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Components' members\n\n");
     out.push_str(
-        "Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a member RapidR adds to a classic component; *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.\n\n",
+        "Every property, method and event of every component, from the language registry, under RapidR's names. *(new)* marks a member the classic components don't have; *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.\n\n",
     );
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component).chain(GLOBALS.iter()).chain(ITEMS.iter()) {
         let title = c.spelling();
@@ -367,7 +367,7 @@ fn members_page() -> String {
                 Runtimes::All => {}
             }
             if c.origin == Origin::RapidR {
-                f = f.replace(" *(RapidR)*", "");
+                f = f.replace(" *(new)*", "");
             }
             f
         };
@@ -413,7 +413,7 @@ fn builtins_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Built-in functions and procedures\n\n");
     out.push_str(
-        "The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(RapidR)*: RapidR's own addition to the classic set; *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).\n\n",
+        "The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(new)*: not in the classic set; *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).\n\n",
     );
     let mut gs: Vec<&str> = BUILTINS.iter().map(|b| b.group).collect();
     gs.sort();
@@ -446,7 +446,7 @@ fn builtins_page() -> String {
 
 fn statements_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Statements, directives, keywords and types\n\n*(RapidR)* marks what RapidR adds to the classic language.\n\n");
+    out.push_str("# Statements, directives, keywords and types\n\n*(new)* marks what the classic language doesn't have.\n\n");
     let mut gs: Vec<&str> = STATEMENTS.iter().map(|s| s.group).collect();
     gs.dedup();
     let mut seen = Vec::new();
@@ -549,19 +549,19 @@ fn reach_mark(effects: &[Effect]) -> String {
 pub fn prompt() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (generated from its registry)\n\n");
-    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component that older programs know is also known by its classic name (QBUTTON), the same component: keep the names a file already uses, and write classic names only in a project kept classic-compatible. Members marked [R] are RapidR extensions (a project kept classic-compatible gets them reported); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component that older programs know is also known by its classic name (QBUTTON), the same component: keep the names a file already uses, and write classic names only in a project kept classic-compatible. Anything marked [new] is newer than the classic language and components (a project kept classic-compatible gets it reported); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
     out.push_str("## Statements\n\n");
     for s in STATEMENTS {
-        let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
+        let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [new]" } else { "" });
     }
     out.push_str("\n## Directives\n\n");
     for d in DIRECTIVES {
-        let _ = writeln!(out, "- {}{}", d.syntax, if d.origin == Origin::RapidR { " [R]" } else { "" });
+        let _ = writeln!(out, "- {}{}", d.syntax, if d.origin == Origin::RapidR { " [new]" } else { "" });
     }
     out.push_str("\n## Builtins\n\n");
     for b in BUILTINS.iter().filter(|b| !b.missing) {
         let sig = if b.syntax.is_empty() { b.name } else { b.syntax };
-        let _ = writeln!(out, "- {sig}{}{}: {}", if b.origin == Origin::RapidR { " [R]" } else { "" }, reach_mark(b.effects), b.doc);
+        let _ = writeln!(out, "- {sig}{}{}: {}", if b.origin == Origin::RapidR { " [new]" } else { "" }, reach_mark(b.effects), b.doc);
     }
     out.push_str("\n## Components\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
@@ -570,7 +570,7 @@ pub fn prompt() -> String {
             None => c.spelling(),
         };
         let _ = writeln!(out, "### {names}{}\n{}", if c.runtimes == Runtimes::Web { " (web only)" } else { "" }, c.doc);
-        let tag = |o: Origin| if o == Origin::RapidR && c.origin == Origin::RapidQ { "[R]" } else { "" };
+        let tag = |o: Origin| if o == Origin::RapidR && c.origin == Origin::RapidQ { "[new]" } else { "" };
         let props: Vec<String> = c.properties.iter().filter(|p| !p.missing).map(|p| format!("{}{}", p.name, tag(p.origin))).collect();
         let methods: Vec<String> = c.methods.iter().filter(|m| !m.missing).map(|m| format!("{}{}{}", m.signature(), tag(m.origin), reach_mark(m.effects))).collect();
         let events: Vec<String> = c.events.iter().filter(|e| !e.missing).map(|e| format!("{}{}", e.signature(), tag(e.origin))).collect();
@@ -603,14 +603,14 @@ pub fn prompt() -> String {
 pub fn prompt_compact() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (names only: rapidr_describe gives a component's properties, methods and events, or a builtin's syntax)\n\n");
-    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a classic name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a classic name (QBUTTON) is the same component: keep the names a file already uses. [new] marks what is newer than the classic language and components.\n\n");
     out.push_str("## Statements\n");
     for s in STATEMENTS {
-        let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
+        let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [new]" } else { "" });
     }
     out.push_str("\n## Directives\n");
     for d in DIRECTIVES {
-        let _ = writeln!(out, "- {}{}", d.syntax, if d.origin == Origin::RapidR { " [R]" } else { "" });
+        let _ = writeln!(out, "- {}{}", d.syntax, if d.origin == Origin::RapidR { " [new]" } else { "" });
     }
     // (by group, in the registry's order)
     fn grouped<'a>(items: impl Iterator<Item = (&'a str, String)>) -> Vec<(&'a str, Vec<String>)> {

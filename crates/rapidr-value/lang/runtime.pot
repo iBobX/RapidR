@@ -452,6 +452,14 @@ msgstr ""
 msgid "Nothing to inspect"
 msgstr ""
 
+#: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
+msgid "new"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
+msgid "Not in classic programs"
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Events"
 msgstr ""
@@ -478,10 +486,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "values differ"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-msgid "RapidR extension"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
@@ -1138,10 +1142,6 @@ msgstr ""
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Window"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/inspector/model.rs
-msgid "RapidR extensions"
 msgstr ""
 
 #: crates/rapidr-value/src/panels/inspector/model.rs

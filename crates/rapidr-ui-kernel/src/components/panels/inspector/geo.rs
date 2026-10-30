@@ -11,7 +11,10 @@ use rapidr_value::panels::inspector::values::Kind;
 use rapidr_value::panels::inspector::{model::PINS_H, Inspector, Row, RowKind};
 use rapidr_value::panels::rows::{ROW, SEARCH, TABS};
 
-use super::super::common::inside;
+use rapidr_value::i18n::tr_ui;
+use rapidr_value::objects::font::Font;
+
+use super::super::common::{self, inside};
 
 /// The subject's header (its icon, name and type).
 pub const HEADER: i64 = 30;
@@ -57,9 +60,62 @@ pub fn geo(m: &Inspector, w: i64, h: i64, inset: i64) -> Geo {
     Geo { header, tabs, strip, search, view_button, list: (x, y + 1, iw, list_h), footer }
 }
 
-/// The name column's width in a list `cw` wide.
+/// The name column's width in a list `cw` wide: where the user (or the
+/// program) put the divider; until then the default, which a narrow pane
+/// cuts to 58 % of its width (never under 120) so the values still read.
 pub fn name_width(m: &Inspector, cw: i64) -> i64 {
-    m.name_width.clamp(40.min(cw / 2), (cw - 40).max(40.min(cw / 2)))
+    let w = if m.name_set { m.name_width } else { m.name_width.min((cw * 58 / 100).max(120)) };
+    w.clamp(40.min(cw / 2), (cw - 40).max(40.min(cw / 2)))
+}
+
+/// The word on a row's small note ("new": a member older programs lack).
+pub fn note_text() -> String {
+    tr_ui("new")
+}
+
+/// What the note means, in words: its tooltip, and the row's description
+/// for a screen reader.
+pub fn note_meaning() -> String {
+    tr_ui("Not in classic programs")
+}
+
+/// The width of the note after a name `room` pixels wide, when it fits there
+/// (the name keeps at least 48 pixels); `None`: the name needs the room, and
+/// the tooltip and the description say it.
+pub fn note_room(font: &Font, room: i64) -> Option<i64> {
+    let w = common::note_width(&note_text(), font);
+    (room - w - 5 >= 48).then_some(w)
+}
+
+/// The tooltip at column `x` of row `r` (at `rr`, the name column `nw` wide,
+/// `font` the panel's): in the names' column, the whole name when the
+/// column cuts it short, and what the small note means for a member older
+/// programs lack; in the values' column, the whole value when it is cut
+/// short. `None`: nothing to add to what the row shows.
+pub fn row_tip(m: &Inspector, r: &Row, rr: Rect, nw: i64, x: i64, font: &Font) -> Option<String> {
+    if matches!(r.kind, RowKind::Category | RowKind::Pins) {
+        return None;
+    }
+    let p = parts(m, r, rr, nw);
+    if x < rr.0 + nw {
+        let room = nw - (p.name_x - rr.0) - 4;
+        let note = if r.non_classic { note_room(font, room) } else { None };
+        let cut = common::elide(&r.name, font, (room - note.map_or(0, |w| w + 5)).max(0)) != r.name;
+        return match (cut, r.non_classic) {
+            (true, true) => Some(format!("{}: {}", r.name, note_meaning())),
+            (true, false) => Some(r.name.clone()),
+            (false, true) => Some(note_meaning()),
+            (false, false) => None,
+        };
+    }
+    if r.mixed {
+        return None;
+    }
+    let changed = !(r.is_default || matches!(r.kind, RowKind::Event | RowKind::Line(_) | RowKind::AddLine));
+    let value_font = if changed { super::draw::bold(font) } else { font.clone() };
+    let right = p.button.map_or(rr.0 + rr.2 - 4, |b| b.0 - 4);
+    let room = (right - p.text_x).max(0);
+    (!r.text.is_empty() && common::elide(&r.text, &value_font, room) != r.text).then(|| r.text.clone())
 }
 
 /// What a press lands on in a row.

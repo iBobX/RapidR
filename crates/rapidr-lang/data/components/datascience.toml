@@ -252,7 +252,7 @@ properties = [
   { name = "RecordCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the data set has." },
   { name = "EOF", type = "bool", access = "read", design = false, doc = "True (-1) after Next couldn't move past the last row (or after Last), or when there are no rows: `WHILE NOT DS.EOF … DS.Next WEND` walks every row." },
   { name = "BOF", type = "bool", access = "read", design = false, doc = "True (-1) after First, or after Prior couldn't move before the first row, or when there are no rows." },
-  { name = "Enabled", type = "bool", default = true, category = "Data", doc = "False: the bound controls stop following it." },
+  { name = "Enabled", type = "bool", default = true, category = "Behavior", doc = "False: the bound controls stop following it." },
   { name = "State", type = "string", default = "inactive", access = "read", design = false, doc = "\"inactive\" (no DataSet, or not Enabled) or \"browse\"." },
 ]
 methods = [
@@ -279,7 +279,7 @@ sets = ["layout", "a11y"]
 doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); Ctrl+C copies it. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own."
 properties = [
   { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON", "RSQLITE", "RMYSQL"], category = "Data", doc = "What it shows: an RDataSource (it follows that current row), a data set straight, or a database component's last query (its rows as a background query brings them)." },
-  { name = "ReadOnly", type = "bool", default = true, category = "Data", doc = "True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits)." },
+  { name = "ReadOnly", type = "bool", default = true, category = "Behavior", doc = "True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits)." },
   { name = "Row", type = "int", default = 0, design = false, doc = "The current row (a row of the data, from 0); set it to move there." },
   { name = "TopRow", type = "int", default = 0, design = false, doc = "The first row shown (in the grid's order)." },
   { name = "RowCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the data has." },
@@ -334,7 +334,7 @@ properties = [
   { name = "Height", type = "int" },
   { name = "Dpi", type = "int" },
   { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "The data it charts: a data set (an RDataFrame, an RCSV, an RJSON) or an RDataSource's. Its rows are drawn as Kind says — X along the bottom, a series for each Y column — and drawn again whenever the data change (a filter, a sort, a file read again); RapidR Studio's designer shows them while you design. Empty: the chart is the one its methods (Bar, Plot …) draw." },
-  { name = "Kind", type = "string", values = ["bar", "barh", "line", "scatter", "area", "step", "pie", "hist"], default = "bar", category = "Data", doc = "How DataSource's rows are drawn: \"bar\" (a bar for each row over its X name), \"barh\" (lying down), \"line\", \"scatter\", \"area\", \"step\" (over X's numbers, or its names), \"pie\" (X's names, Y's first column), \"hist\" (Y's values counted in 10 bins)." },
+  { name = "Kind", type = "string", values = ["bar", "barh", "line", "scatter", "area", "step", "pie", "hist"], default = "bar", category = "Appearance", doc = "How DataSource's rows are drawn: \"bar\" (a bar for each row over its X name), \"barh\" (lying down), \"line\", \"scatter\", \"area\", \"step\" (over X's numbers, or its names), \"pie\" (X's names, Y's first column), \"hist\" (Y's values counted in 10 bins)." },
   { name = "X", type = "string", default = "", category = "Data", doc = "DataSource's column along the bottom: the names under bars and a pie's slices, the numbers a line runs over (\"Department\"). Empty: the first column." },
   { name = "Y", type = "string", default = "", category = "Data", doc = "DataSource's column(s) drawn, comma-separated, a series each in its own colour, with a legend when there are several (\"Salary\", \"Sales,Costs\"). Empty: every numeric column but X. At most the first 10,000 rows are drawn." },
   { name = "SeriesCount", type = "int", access = "read", design = false, doc = "How many series the plot has." },

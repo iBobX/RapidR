@@ -229,6 +229,29 @@ The **Properties** page lists what you can set on the selected component
 search box; the box under it says what the selected property does. Values
 in grey are defaults: not written in the code.
 
+Every property is under the heading of **what it is for**, the same headings
+for every component: **Appearance** (how it looks), **Behavior** (how it
+acts), **Layout** (where it is and how big: Left, Top, Width, Anchors, the
+smallest and largest sizes), **Font** (FontName, FontSize, FontColor),
+**Help** (the hint), **Drawing**, **Data**, **Window**, **Media** and
+**Network**, and **Accessibility**, which gathers what a screen reader is
+told: AccessibleName, AccessibleDescription and AccessibleHidden. Look for a
+property by what you want to change, not by where it came from.
+
+![The Properties pane on a form: Layout and Window, each heading with the properties of its purpose](images/inspector/categories-light.png)
+
+A name the column cuts short shows whole in a tooltip. The line between the
+names and the values drags, and Studio remembers where you leave it.
+
+If your project must keep working with classic programs (the project file's
+`[compat]` section, the way a classic form app starts), the pane marks the
+properties a classic program doesn't have with a small **new**; point at
+one and it says "Not in classic programs", and a screen reader says the same.
+Nothing is hidden, and in any other project nothing is marked. See the
+[Compatibility notes](compatibility.md).
+
+![The same pane in a project kept classic-compatible: FontColor, FontSize, Anchors and the sizes carry a small new](images/inspector/classic-marks-light.png)
+
 Each kind of property has its own editor, and each writes what the program
 needs:
 

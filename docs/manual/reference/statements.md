@@ -2,7 +2,7 @@
 
 # Statements, directives, keywords and types
 
-*(RapidR)* marks what RapidR adds to the classic language.
+*(new)* marks what the classic language doesn't have.
 
 ## Declarations
 
@@ -18,12 +18,12 @@
 | `DEFWORD name [= value] [, …]` | Declares WORD variables or arrays, optionally with first values. |
 | `DEFDWORD name [= value] [, …]` | Declares DWORD variables or arrays, optionally with first values. |
 | `DEFLNG name [= value] [, …] (also DEFLONG)` | Declares LONG variables or arrays, optionally with first values. |
-| `DEFLONG name [= value] [, …]` *(RapidR)* | The same as DEFLNG, under the longer name. |
+| `DEFLONG name [= value] [, …]` *(new)* | The same as DEFLNG, under the longer name. |
 | `DEFSHORT name [= value] [, …]` | Declares SHORT variables or arrays, optionally with first values. |
 | `DEFSNG name [= value] [, …]` | Declares SINGLE variables or arrays, optionally with first values. |
 | `DEFDBL name [= value] [, …]` | Declares DOUBLE variables or arrays, optionally with first values. |
-| `DEFCUR name [= value] [, …]` *(RapidR)* | Declares CURRENCY variables or arrays, optionally with first values. |
-| `GLOBAL name AS type (also PUBLIC / PRIVATE before a declaration)` *(RapidR)* | VB's scope words, accepted so such programs compile: `GLOBAL` / `PUBLIC` / `PRIVATE` before a declaration, SUB or FUNCTION declare it as without them. |
+| `DEFCUR name [= value] [, …]` *(new)* | Declares CURRENCY variables or arrays, optionally with first values. |
+| `GLOBAL name AS type (also PUBLIC / PRIVATE before a declaration)` *(new)* | VB's scope words, accepted so such programs compile: `GLOBAL` / `PUBLIC` / `PRIVATE` before a declaration, SUB or FUNCTION declare it as without them. |
 
 ## Types and objects
 
@@ -64,7 +64,7 @@
 | `GOSUB label … RETURN` | Jumps to a label; the `RETURN` there comes back to the statement after the GOSUB. |
 | `RETURN` | Goes back to the statement after the last `GOSUB`. |
 | `END [exit code]` | Ends the program at once; files it wrote are kept. `END n` ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. A bare name must be one the program declared (`END code` after `DIM code AS INTEGER = 5`); `END SUBB`, a typo of a block's ending, and an undeclared name are syntax errors. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks. |
-| `ON ERROR RESUME NEXT \| GOTO label` *(RapidR)* | VB's error trapping, accepted so such programs compile and ignored: a run-time error still ends the program. |
+| `ON ERROR RESUME NEXT \| GOTO label` *(new)* | VB's error trapping, accepted so such programs compile and ignored: a run-time error still ends the program. |
 
 ## Console
 
@@ -78,13 +78,13 @@
 
 | Statement | |
 |---|---|
-| `LINE INPUT #n, variable` *(RapidR)* | Reads a whole line, commas included, from a file opened for INPUT into a string variable. |
-| `OPEN file FOR INPUT\|OUTPUT\|APPEND\|BINARY\|RANDOM AS #n` *(RapidR)* | Opens a file under a number: `INPUT` to read lines, `OUTPUT` to write a new file, `APPEND` to add to one, `BINARY` or `RANDOM` for bytes. |
-| `CLOSE #n` *(RapidR)* | Closes the file opened under that number; what was written to it is kept. |
-| `PRINT #n, expression [; …]` *(RapidR)* | Writes values to a file opened for OUTPUT or APPEND, as PRINT writes them to the console. |
-| `WRITE #n, expression [, …]` *(RapidR)* | Writes values to a file separated by commas, strings in quotes, so `INPUT #` can read them back. |
-| `INPUT #n, variable [, …]` *(RapidR)* | Reads comma-separated values from a file opened for INPUT into variables. |
-| `SEEK #n, position` *(RapidR)* | Moves to a byte of an open file (1 the first): the next read or write is there. |
+| `LINE INPUT #n, variable` *(new)* | Reads a whole line, commas included, from a file opened for INPUT into a string variable. |
+| `OPEN file FOR INPUT\|OUTPUT\|APPEND\|BINARY\|RANDOM AS #n` *(new)* | Opens a file under a number: `INPUT` to read lines, `OUTPUT` to write a new file, `APPEND` to add to one, `BINARY` or `RANDOM` for bytes. |
+| `CLOSE #n` *(new)* | Closes the file opened under that number; what was written to it is kept. |
+| `PRINT #n, expression [; …]` *(new)* | Writes values to a file opened for OUTPUT or APPEND, as PRINT writes them to the console. |
+| `WRITE #n, expression [, …]` *(new)* | Writes values to a file separated by commas, strings in quotes, so `INPUT #` can read them back. |
+| `INPUT #n, variable [, …]` *(new)* | Reads comma-separated values from a file opened for INPUT into variables. |
+| `SEEK #n, position` *(new)* | Moves to a byte of an open file (1 the first): the next read or write is there. |
 
 ## Data
 
@@ -103,8 +103,8 @@
 | Statement | |
 |---|---|
 | `REM comment (also ' comment)` | A comment: the rest of the line is ignored. `'` does the same, also after a statement. |
-| `IMPORT "module" [AS alias]` *(RapidR)* | Names a module; accepted and without effect (RapidR's builtins and components need no import). |
-| `RUSTSTART … RUSTEND (Rust code, native builds)` *(RapidR)* | Puts Rust code in the program, up to `RUSTEND`; only in native builds (the interpreter and the web refuse it). |
+| `IMPORT "module" [AS alias]` *(new)* | Names a module; accepted and without effect (RapidR's builtins and components need no import). |
+| `RUSTSTART … RUSTEND (Rust code, native builds)` *(new)* | Puts Rust code in the program, up to `RUSTEND`; only in native builds (the interpreter and the web refuse it). |
 
 ## Directives
 
@@ -124,7 +124,7 @@
 | `$OPTIMIZE ON \| OFF` | The optimizer switch; accepted, with nothing for RapidR to change. |
 | `$ESCAPECHARS ON \| OFF` | `ON`: strings in this file understand escapes (`\n`, `\t`, `\"`, `\\`, `\x41`); `OFF` (the default) reads them as written. |
 | `$OPTION ICON "file" \| DECIMAL \| BYREF \| INKEY$ TRAPALL \| EXPLICIT …` | Program options: `ICON "file"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; an .ico, .icns, .png or .svg file), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`. |
-| `$THEME name` *(RapidR)* | The look the program's windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR's own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: the classic Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR's light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme's. |
+| `$THEME name` *(new)* | The look the program's windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR's own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: the classic Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR's light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme's. |
 
 ## Keywords and operators
 
@@ -161,7 +161,7 @@
 | `PROTECTED` | In a TYPE, `PROTECTED:` starts a section of members, as PRIVATE: and PUBLIC: do (access isn't enforced). |
 | `THIS` | Inside a TYPE's methods: the instance the method was called on (`This.Count`). |
 | `SUPER` | Inside a TYPE that extends another: the parent type's members, as in `Super.Method`. |
-| `RUSTEND` *(RapidR)* | Ends a `RUSTSTART` block of Rust code. |
+| `RUSTEND` *(new)* | Ends a `RUSTSTART` block of Rust code. |
 
 ## Types
 
@@ -178,6 +178,6 @@
 | `STRING` | Text of any length, counted in characters; `STRING * n` always holds n characters. Suffix `$`. |
 | `VARIANT` | Holds whatever is stored in it: a number, text or object. An undeclared variable is one. |
 | `QOBJECT` | The base type of objects: `TYPE name EXTENDS RObject` makes a TYPE with methods, a constructor and inheritance. |
-| `INT64` *(RapidR)* | 64-bit signed integer, -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807. |
-| `CURRENCY` *(RapidR)* | A number for amounts of money; RapidR keeps it as a 64-bit floating-point number. |
-| `ROBJECT` *(RapidR)* | RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`. |
+| `INT64` *(new)* | 64-bit signed integer, -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807. |
+| `CURRENCY` *(new)* | A number for amounts of money; RapidR keeps it as a 64-bit floating-point number. |
+| `ROBJECT` *(new)* | RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`. |

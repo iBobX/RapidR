@@ -3,10 +3,10 @@
 //! the palette — soft and flat in the modern and dark themes, grey and raised
 //! in the classic one, black, white and the accent in high contrast —
 //! every colour taken from the theme ([`Look`]: the theme's tokens, and the
-//! icon palette's hues for errors, warnings and badges), never chosen here.
+//! icon palette's hues for errors and warnings), never chosen here.
 //!
 //! The pieces: the panel's ground, a search box, a tab strip, a category
-//! heading, a row's hover / selection, a badge, text cut with "…" to fit,
+//! heading, a row's hover / selection, a small note, text cut with "…" to fit,
 //! text with the search's matched letters marked, icons.
 
 use rapidr_value::objects::font::Font;
@@ -54,9 +54,6 @@ pub struct Look {
     pub field: u32,
     pub field_border: u32,
     pub field_focus: u32,
-    /// The "R" badge of RapidR's extensions.
-    pub badge: u32,
-    pub badge_text: u32,
     /// A link (`file:line`).
     pub link: u32,
     /// The search's matched letters.
@@ -119,8 +116,6 @@ pub fn look(t: &Theme) -> Look {
             field: t.window,
             field_border: t.border,
             field_focus: t.focus,
-            badge: t.accent,
-            badge_text: t.accent_text,
             link: t.hot_text,
             mark: t.hot_text,
             found: t.highlight,
@@ -157,8 +152,6 @@ pub fn look(t: &Theme) -> Look {
             field: t.window,
             field_border: t.shadow,
             field_focus: t.highlight,
-            badge: hue(t, "violet"),
-            badge_text: t.highlight_text,
             link: t.hot_text,
             mark: t.hot_text,
             found: mix(hue(t, "amber"), t.window, 0.55),
@@ -194,8 +187,6 @@ pub fn look(t: &Theme) -> Look {
         field: t.control,
         field_border: t.border,
         field_focus: t.accent,
-        badge: hue(t, "violet"),
-        badge_text: t.window,
         link: t.hot_text,
         mark: t.hot_text,
         found: mix(hue(t, "amber"), t.window, if t.dark { 0.55 } else { 0.6 }),
@@ -294,7 +285,7 @@ pub fn section(p: &mut Painter, rect: Rect, l: &Look, title: &str, open: bool, c
     }
 }
 
-/// Text on a coloured `fill` (a badge, a pill): the panel's ground colour
+/// Text on a coloured `fill` (a pill): the panel's ground colour
 /// where it reads (WCAG AA), else its text colour, else black or white —
 /// whichever reads.
 pub fn text_on(l: &Look, fill: u32) -> u32 {
@@ -302,21 +293,39 @@ pub fn text_on(l: &Look, fill: u32) -> u32 {
     [l.body, l.text].into_iter().find(|&c| contrast(c, fill) >= 4.5).unwrap_or(if contrast(0x000000, fill) >= contrast(0xFFFFFF, fill) { 0x000000 } else { 0xFFFFFF })
 }
 
-/// A small pill with `text` (the "R" of RapidR's extensions) whose left
-/// is at `x`, centred on `mid`: its width.
-pub fn badge(p: &mut Painter, x: i64, mid: i64, text: &str, l: &Look, font: &Font) -> i64 {
-    let small = Font { size: (font.size - 2).max(6), styles: 1, ..font.clone() };
-    let (tw, th) = text_size(text, &small);
-    let (w, h) = (tw + 8, th + 2);
+/// A calm note after a name — a row's "new" — as the design guide's soft
+/// chip: the info status's fill, its words and its edge (docs/design-
+/// guidelines.md "Chips"), a pill 16 high whose left is at `x`, centred on
+/// `mid`; high contrast frames it in the text colour, the classic look draws
+/// it on the window, framed. Its width. It says a state; what it means goes
+/// in the row's tooltip and description, in words.
+pub fn note(p: &mut Painter, x: i64, mid: i64, text: &str, l: &Look, font: &Font) -> i64 {
+    let small = Font { size: (font.size - 1).max(6), styles: 0, ..font.clone() };
+    let (tw, _) = text_size(text, &small);
+    let (w, h) = (note_width(text, font), NOTE_H);
     let r = (x, mid - h / 2, w, h);
+    let s = rapidr_value::ide_theme::statuses(rapidr_value::theme::current())[0];
     if l.contrast {
-        p.round(r, h as f64 / 2.0, None, Some(l.badge), 1.0);
-        p.text(r, text, &small, l.badge, Place::Center);
+        p.round(r, h as f64 / 2.0, None, Some(l.text), 1.0);
+        p.text(r, text, &small, l.text, Place::Center);
+    } else if l.classic {
+        p.fill(r, s.back);
+        p.frame(r, s.border);
+        p.text((r.0 + (w - tw) / 2, r.1, tw, r.3), text, &small, s.text, Place::Left);
     } else {
-        p.round(r, h as f64 / 2.0, Some(l.badge), None, 1.0);
-        p.text(r, text, &small, if rapidr_value::theme::contrast(l.badge_text, l.badge) >= 4.5 { l.badge_text } else { text_on(l, l.badge) }, Place::Center);
+        p.round(r, h as f64 / 2.0, Some(s.back), Some(s.border), 1.0);
+        p.text(r, text, &small, s.text, Place::Center);
     }
     w
+}
+
+/// A [`note`]'s height.
+pub const NOTE_H: i64 = 16;
+
+/// A [`note`] with `text` is this wide in `font`.
+pub fn note_width(text: &str, font: &Font) -> i64 {
+    let small = Font { size: (font.size - 1).max(6), styles: 0, ..font.clone() };
+    text_size(text, &small).0 + 12
 }
 
 /// `text` cut with "…" to fit `width` pixels in `font`.
@@ -478,7 +487,6 @@ mod tests {
                     ("a placeholder", l.faint, l.field),
                     ("a link", l.link, l.body),
                     ("the accent's text", l.accent_text, l.accent),
-                    ("a badge", text_on(&l, l.badge), l.badge),
                     ("a warning badge", text_on(&l, l.warning), l.warning),
                     ("an error badge", text_on(&l, l.error), l.error),
                 ] {
