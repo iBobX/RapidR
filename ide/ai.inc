@@ -215,6 +215,9 @@ DIM AIMotionTest AS INTEGER
 ' tests', less)
 DIM AIWaitAfter AS INTEGER
 DIM AIQuietSaid AS INTEGER
+' (RAI asks before it looks at or uses the running program — a card in
+' its chat, once a run —: the pane shown and the question said, once)
+DIM AIProgramAskSaid AS INTEGER
 ' (seconds of silence before it is said: 30; the tests', less)
 DIM AIQuietAfter AS INTEGER
 ' (R5: the context meter and Compact)
@@ -938,7 +941,7 @@ SUB AIApplySettings
   AIFillModels
   AIFillEffort
   AIFilling = 0
-  AINote.Caption = "Send shares your message, this chat and what the assistant reads of this project with " + AIProviderName + ": nothing else, nothing before."
+  AINote.Caption = "Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with " + AIProviderName + ": nothing else, nothing before."
   AIChat.EmptyText = AIEmptyText
   AIEnableSend
 END SUB
@@ -1636,6 +1639,17 @@ SUB AIUpdate
   AIEnableSend
   AIProgressShow
   AILiveRefresh
+  ' (RAI's card asks to use the running program: seen and heard, even
+  ' when an AI app asked RAI — the answer is the user's)
+  IF AITools.ProgramUseAsked THEN
+    IF AIProgramAskSaid = 0 THEN
+      AIProgramAskSaid = 1
+      Dock.ShowPane("aipanel")
+      Application.Announce "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
+    END IF
+  ELSE
+    AIProgramAskSaid = 0
+  END IF
 END SUB
 
 ' The progress checklist while an answer runs, in the one status line (a
@@ -2528,6 +2542,9 @@ SUB AIChatLink(Url AS STRING)
       ELSE
         AIStatus.SimpleText = "Nothing waits for review: those changes were applied or rejected already."
       END IF
+    ' (RAI's card: it may look at and use the running program this run)
+    CASE "ai:app-allow": AITools.AllowProgramUse 1
+    CASE "ai:app-deny": AITools.AllowProgramUse 0
     CASE "ai:open", "ai:undo"
       IF AICreatedFile = "" OR (which <> "" AND LCASE$(RIGHT$(AITools.CreatedFolder, LEN(which) + 1)) <> LCASE$("/" + which)) THEN
         AIStatus.SimpleText = "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
@@ -2858,6 +2875,10 @@ SUB AIStep(Stp AS STRING)
     CASE "copyblock": AIChatLink "rai:copy/" + arg
     CASE "insertblock": AIChatLink "rai:insert/" + arg
     CASE "stepslink": AIChatLink "rai:steps/" + arg
+    CASE "applink"
+      ' (tests: RAI's card about the running program answered — allow or
+      ' deny — once it asks; until then the step waits its turn)
+      IF AITools.ProgramUseAsked THEN AIChatLink "ai:app-" + arg ELSE DoList = "ai:applink=" + arg + "," + DoList
     CASE "word": AICodeClick FIELD$(arg, "@", 1), FIELD$(arg, "@", 2)
     CASE "compact": AICompactClick
     CASE "refresh": AIRefreshClick

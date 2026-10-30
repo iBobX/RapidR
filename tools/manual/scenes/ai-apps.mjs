@@ -38,7 +38,7 @@ export const scenes = [
   {
     name: "settings",
     open: "tests/fixtures/studio_mcp/Hello.rrproj",
-    do: "mcp:on=47393,wait,mcp:settings",
+    do: "mcp:on=47914,wait,mcp:settings",
     delay: 6,
     window: 2,
     env: { RAPIDR_TEST_MCP_TOKEN: TOKEN },

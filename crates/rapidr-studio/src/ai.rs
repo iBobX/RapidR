@@ -98,6 +98,28 @@ struct Tools {
     /// The last CallTool's outcome (an AI app's call through Studio's MCP
     /// server: CallFailed, CallNote, CallTarget, CallRisk).
     last_call: Option<ai_tools::Outcome>,
+    /// RAI's use of the user's running program (it asks once a run, a card
+    /// in the chat): the run the user allowed it for.
+    app_run: Option<u64>,
+    /// This turn's question about it: `None` none asked, `Some(None)` the
+    /// card waits, `Some(Some(allowed))` answered.
+    app_asked: Option<Option<bool>>,
+    /// The calls waiting for that answer: (their ticket, the input).
+    app_held: Vec<(String, Json)>,
+    /// The held calls sent once allowed: their ticket, the program's.
+    app_sent: HashMap<String, String>,
+    /// The last held call's number (its ticket `ask:N`).
+    app_next: u64,
+}
+
+/// Where a call RAI held for the user's answer is.
+enum Held {
+    /// The card still waits.
+    Asking,
+    /// Sent to the program: its ticket there.
+    Sent(String),
+    /// Not done (the user didn't allow it, or it couldn't be sent).
+    Done(ToolOutcome),
 }
 
 /// A new program Studio wrote: its folder, each file it wrote (with the
@@ -176,6 +198,65 @@ fn factory(rai: &str, component: &str, kind: &str) -> Result<Box<dyn ToolProvide
 impl Tools {
     fn may_propose(&self) -> bool {
         !self.permission.eq_ignore_ascii_case("read-only")
+    }
+
+    /// An app tool's call (RAI's: the running program's eyes and hands).
+    /// Looking at it and using it wait for the user once a run — the
+    /// chat's card, "Allow for this run" or "Don't allow" —; letting time
+    /// pass doesn't. Reading only: none of it.
+    fn app_call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        let run = crate::session::run_number();
+        if !self.may_propose() || name == "app_wait" || run.is_none() || run == self.app_run {
+            return ai_tools::app_call(name, input, self.may_propose());
+        }
+        if self.app_asked == Some(Some(false)) {
+            return app_refused(name);
+        }
+        if self.app_asked != Some(None) {
+            self.app_asked = Some(None);
+        }
+        self.app_next += 1;
+        let ticket = format!("ask:{}", self.app_next);
+        self.app_held.push((ticket.clone(), input.clone()));
+        ToolOutcome::later(ticket)
+    }
+
+    /// A held call (`ask:N`): still asking, sent (the program's ticket),
+    /// or done.
+    fn app_held(&mut self, name: &str, ticket: &str) -> Held {
+        if let Some(sent) = self.app_sent.get(ticket) {
+            return Held::Sent(sent.clone());
+        }
+        match self.app_asked {
+            Some(None) => Held::Asking,
+            Some(Some(true)) => {
+                let Some(k) = self.app_held.iter().position(|(t, _)| t == ticket) else { return Held::Done(app_refused(name)) };
+                let (_, input) = self.app_held.remove(k);
+                let out = ai_tools::app_call(name, &input, true);
+                if out.risk == rapidr_ai::rai::LATER {
+                    self.app_sent.insert(ticket.to_string(), out.target.clone());
+                    Held::Sent(out.target)
+                } else {
+                    Held::Done(out)
+                }
+            }
+            _ => {
+                self.app_held.retain(|(t, _)| t != ticket);
+                Held::Done(app_refused(name))
+            }
+        }
+    }
+
+    /// The user's answer to the card ("Allow for this run": the program
+    /// may be looked at and used until this run ends).
+    fn app_answer(&mut self, allowed: bool) {
+        if self.app_asked != Some(None) {
+            return;
+        }
+        self.app_asked = Some(Some(allowed));
+        if allowed {
+            self.app_run = crate::session::run_number();
+        }
     }
 
     fn project(&self) -> Project<'_> {
@@ -322,7 +403,20 @@ struct Handle {
 
 impl ToolProvider for Handle {
     fn tools(&self) -> Vec<Tool> {
-        with(&self.name, |t| if t.lite { ai_tools::tools_lite(t.may_propose()) } else { ai_tools::tools(t.may_propose()) })
+        with(&self.name, |t| {
+            if t.lite {
+                return ai_tools::tools_lite(t.may_propose());
+            }
+            let mut tools = ai_tools::tools(t.may_propose());
+            // (while the user's program runs: its eyes and hands — offered
+            // only then, so the request stays small the rest of the time;
+            // never when RAI only reads: looking at the program shows what
+            // it shows, private data too)
+            if t.may_propose() && crate::session::any_running() {
+                tools.extend(ai_tools::app_tools(true));
+            }
+            tools
+        })
     }
 
     fn instructions(&self) -> String {
@@ -339,6 +433,25 @@ impl ToolProvider for Handle {
 
     fn facts(&self) -> String {
         with(&self.name, |t| facts(t))
+    }
+
+    fn finish_call(&mut self, name: &str, ticket: &str) -> Option<ToolOutcome> {
+        // (a call held for the user's answer: sent once allowed)
+        let ticket = if ticket.starts_with("ask:") {
+            match with(&self.name, |t| t.app_held(name, ticket)) {
+                Held::Asking => return None,
+                Held::Done(out) => return Some(out),
+                Held::Sent(sent) => sent,
+            }
+        } else {
+            ticket.to_string()
+        };
+        let (ok, text) = crate::session::app_take(&ticket)?;
+        Some(ai_tools::app_done(name, ok, text))
+    }
+
+    fn waits_for_user(&self, ticket: &str) -> bool {
+        ticket.starts_with("ask:") && with(&self.name, |t| t.app_asked == Some(None) && !t.app_sent.contains_key(ticket))
     }
 
     fn begin_turn(&mut self) {
@@ -385,10 +498,20 @@ impl ToolProvider for Handle {
             t.asked_again = false;
             t.recipe.clear();
             t.first_errors = 0;
+            // (RAI's question about the running program is this turn's: a
+            // "Don't allow" lasts the answer; "Allow for this run", the run)
+            t.app_asked = None;
+            t.app_held.clear();
+            t.app_sent.clear();
         });
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        // (the running program's eyes and hands: answered later, by the
+        // program — finish_call)
+        if name.starts_with("app_") {
+            return with(&self.name, |t| t.app_call(name, input));
+        }
         with(&self.name, |t| {
             let may = t.may_propose();
             // (the same file read again in the same answer, unchanged: not
@@ -673,6 +796,17 @@ impl Tools {
         if self.first_errors > 0 && self.touched && !self.broken {
             out.push(("fixed".to_string(), format!("✓ Fixed {}", plural(self.first_errors, "error"))));
         }
+        // (RAI asks before it looks at or uses the running program: once a
+        // run — Studio's own links, marked)
+        match self.app_asked {
+            Some(None) => {
+                let (allow, deny) = (rapidr_ai::rai::own_link("ai:app-allow"), rapidr_ai::rai::own_link("ai:app-deny"));
+                out.push(("app".to_string(), format!("✋ RAI wants to click and type in your running program. It sees whatever the program shows, including private data.\u{2003}\u{2003}[Allow for this run]({allow})\u{2003}\u{2003}[Don't allow]({deny})")));
+            }
+            Some(Some(true)) => out.push(("app".to_string(), "✓ You allowed RAI to use your running program for this run".to_string())),
+            Some(Some(false)) => out.push(("app".to_string(), "× You didn't allow RAI to use your running program".to_string())),
+            None => {}
+        }
         out
     }
 
@@ -847,6 +981,19 @@ fn one_line(t: &str) -> String {
 }
 
 /// `n` and a noun, its plural with s.
+/// A call on the running program the user didn't allow (the chat's card).
+fn app_refused(name: &str) -> ToolOutcome {
+    let note = ai_tools::activity(name, &Json::Null).unwrap_or_else(|| name.to_string());
+    ToolOutcome {
+        content: "The user didn't allow you to look at or use their running program (they answered \"Don't allow\" in RapidR Studio's chat). Don't try again in this answer: say what you would have looked at or done instead.".into(),
+        is_error: true,
+        note: format!("{note}: you didn't allow it"),
+        read: None,
+        risk: "ui",
+        target: String::new(),
+    }
+}
+
 fn plural(n: usize, noun: &str) -> String {
     if n == 1 {
         format!("1 {noun}")
@@ -971,6 +1118,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "createdtitle" => s(t.created.as_ref().map(|c| c.title.clone()).unwrap_or_default()),
             "chatsfolder" => s(rapidr_ai::chats::location()),
             "lite" => crate::flag(t.lite),
+            "programuseasked" => crate::flag(t.app_asked == Some(None)),
             _ => return None,
         })
     })
@@ -986,7 +1134,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "compatmode" => x.compat = t.trim().to_string(),
             "projectname" => x.project_name = t.trim().to_string(),
             "permission" => x.permission = if t.eq_ignore_ascii_case("read-only") { "read-only".into() } else { "propose".into() },
-            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "callfailed" | "callnote" | "calltarget" | "callrisk" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "programuseasked" | "callfailed" | "callnote" | "calltarget" | "callrisk" => {}
             "reviewfirst" => x.review_first = matches!(t.trim().to_ascii_lowercase().as_str(), "1" | "-1" | "true" | "yes"),
             "runoutput" => {
                 x.run_output.clear();
@@ -1038,6 +1186,13 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         }
         "cleardecided" => {
             with(name, Tools::clear_decided);
+            Value::Null
+        }
+        // (the chat's card: RAI may look at and use the running program
+        // until this run ends, or not in this answer)
+        "allowprogramuse" => {
+            let allowed = int_arg(args, 0, 0) != 0;
+            with(name, |t| t.app_answer(allowed));
             Value::Null
         }
         "createproject" => {

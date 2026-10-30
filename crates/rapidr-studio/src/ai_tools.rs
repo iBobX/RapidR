@@ -188,6 +188,73 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
     out
 }
 
+/// The running program's eyes and hands for RAI (RapidR Studio's AI apps
+/// have the same through ide/mcpapp.inc): its layout in words and a wait
+/// always; clicks, typing, keys, drags and the wheel when `input` (the
+/// user allows changes). A picture isn't one of RAI's: its models get the
+/// layout in words.
+pub fn app_tools(input: bool) -> Vec<Tool> {
+    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
+    let target = || json!({
+        "caption": {"type": "string", "description": "the text on it (a button's caption)"},
+        "name": {"type": "string", "description": "its name (app_layout lists them)"},
+        "label": {"type": "string", "description": "the label beside it (an edit's)"},
+        "window": {"type": "string", "description": "the window (a form's name or title)"},
+        "x": {"type": "integer"}, "y": {"type": "integer"}
+    });
+    let with = |extra: Json| {
+        let mut p = target();
+        if let (Some(p), Some(e)) = (p.as_object_mut(), extra.as_object()) {
+            p.extend(e.clone());
+        }
+        p
+    };
+    let mut out = vec![
+        t("app_layout", "What the program the user runs shows now, in words: its windows, each control's name, type, caption or text and place (x,y size w×h), and what looks wrong (text cut off, controls on top of each other). Example: {}.", schema(json!({"window": {"type": "string"}}), &[])),
+        t("app_wait", "Lets the running program work on its own for ms milliseconds (its timers). Example: {\"ms\": 500}.", schema(json!({"ms": {"type": "integer"}, "idle": {"type": "boolean", "description": "until it has nothing left to run (at most ms)"}}), &[])),
+    ];
+    if input {
+        out.push(t("app_click", "Clicks in the program the user runs, as a person would (a pointer shows it). Example: {\"caption\": \"7\"}; or {\"name\": \"btnSave\"}, {\"label\": \"Name\"}, {\"window\": \"Form1\", \"x\": 30, \"y\": 55}. Says what it clicked, or what is there.", schema(with(json!({"double": {"type": "boolean"}, "button": {"type": "string", "enum": ["left", "right"]}})), &[])));
+        out.push(t("app_type", "Types text into the running program (clicks the control first). Example: {\"label\": \"Name\", \"text\": \"Ada\"}.", schema(with(json!({"text": {"type": "string"}})), &["text"])));
+        out.push(t("app_key", "Presses keys in the running program: Enter, Tab, Escape, Ctrl+S, Shift+Tab … separated by spaces. Example: {\"keys\": \"Ctrl+A Backspace\", \"name\": \"txtName\"}.", schema(with(json!({"keys": {"type": "string"}})), &["keys"])));
+        out.push(t("app_drag", "Drags in the running program from a control to (to_x, to_y) of its window. Example: {\"name\": \"Slider1\", \"to_x\": 180, \"to_y\": 20}.", schema(with(json!({"to_x": {"type": "integer"}, "to_y": {"type": "integer"}})), &["to_x", "to_y"])));
+        out.push(t("app_scroll", "Turns the mouse wheel over a control of the running program (notches down; negative: up). Example: {\"name\": \"List1\", \"notches\": 5}.", schema(with(json!({"notches": {"type": "integer"}})), &[])));
+    }
+    out
+}
+
+/// An app tool's call (RAI's): the request sent to the program Studio
+/// runs ([`crate::session::app_send`]), answered later; refused when the
+/// user allows reading only (looking at the program shows what it shows,
+/// private data too: it counts as using it).
+pub fn app_call(name: &str, input: &Json, may_use: bool) -> Outcome {
+    if name != "app_wait" && !may_use {
+        return err("the user allowed reading only (Tools > Settings > AI > Permission): you can't look at or use their running program; say what you would look at, click or type instead", format!("{name}: not allowed (read-only)"), "");
+    }
+    let mut req = serde_json::Map::new();
+    req.insert("do".into(), json!(name.trim_start_matches("app_")));
+    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("to_y", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy")] {
+        if let Some(v) = input.get(from).filter(|v| !v.is_null()) {
+            req.insert(to.into(), v.clone());
+        }
+    }
+    match crate::session::app_send(Json::Object(req)) {
+        Ok(ticket) => Outcome::later(ticket),
+        Err(e) => err(e, format!("{name}: the program isn't running"), ""),
+    }
+}
+
+/// An app tool's answer (RAI's), as the turn takes it.
+pub fn app_done(name: &str, ok: bool, text: String) -> Outcome {
+    let note = activity(name, &Json::Null).unwrap_or_else(|| name.to_string());
+    let risk = if matches!(name, "app_layout" | "app_wait") { "read" } else { "ui" };
+    if ok {
+        Outcome { content: text, is_error: false, note, read: None, risk, target: String::new() }
+    } else {
+        Outcome { content: text, is_error: true, note: format!("{note}: not done"), read: None, risk, target: String::new() }
+    }
+}
+
 /// The lite set for a small context window (under 16K tokens; K8): the
 /// tools a small model needs to read, check and change a program, each
 /// said in a line — no form introspection, examples, outline or layout.
@@ -217,6 +284,22 @@ pub fn tools_lite(proposals: bool) -> Vec<Tool> {
     out
 }
 
+/// A key as app_key names it, safe to show: a key's name (Enter, F5,
+/// PageDown), or a shortcut — Ctrl, Alt, Shift, Cmd … and a key or a
+/// character (Ctrl+S). A bare character or any other word is not.
+fn known_key(token: &str) -> bool {
+    const NAMES: &[&str] = &["enter", "return", "tab", "escape", "esc", "backspace", "delete", "del", "insert", "ins", "home", "end", "pageup", "pagedown", "pgup", "pgdn", "up", "down", "left", "right", "space", "menu", "apps"];
+    let parts: Vec<&str> = token.split('+').collect();
+    let (mods, key) = parts.split_at(parts.len() - 1);
+    let modifier = |m: &str| ["ctrl", "control", "alt", "option", "shift", "cmd", "command", "meta", "win", "super"].contains(&m.to_ascii_lowercase().as_str());
+    if !mods.iter().all(|m| modifier(m)) {
+        return false;
+    }
+    let k = key[0].to_ascii_lowercase();
+    let function = k.strip_prefix('f').and_then(|n| n.parse::<u8>().ok()).is_some_and(|n| (1..=24).contains(&n));
+    NAMES.contains(&k.as_str()) || function || (!mods.is_empty() && k.chars().count() == 1)
+}
+
 /// A tool call as the live status line says it, while the model writes it
 /// or it runs ("Reading main.rr", "Searching the manual", "Writing
 /// server.rr"); `input` may hold only the fields written so far.
@@ -232,6 +315,35 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
         "check_code" => "Checking (compiling)".into(),
         "layout" => "Laying out the buttons".into(),
+        // (the running program's eyes and hands: an AI app's arguments are
+        // capitalised, RAI's not)
+        "app_layout" => "Reading the running program's layout".into(),
+        "app_screenshot" => "Looking at the running program".into(),
+        "app_wait" => "Letting the running program work".into(),
+        "app_click" | "app_type" | "app_key" | "app_drag" | "app_scroll" => {
+            let any = |k: &str| field(k).or_else(|| field(&k.to_ascii_lowercase()));
+            let on = any("Caption").map(|c| format!(" \"{c}\"")).or_else(|| any("Name").map(|n| format!(" {n}"))).or_else(|| any("Label").map(|l| format!(" the box beside \"{l}\""))).unwrap_or_default();
+            match name {
+                "app_click" => format!("Clicking{on} in the running program"),
+                // (never what is typed: a password typed into the program
+                // would show in the pane, the status line, read aloud and
+                // in the question — only how many characters)
+                "app_type" => {
+                    let n = ["Text", "text"].iter().find_map(|k| input.get(*k).and_then(Json::as_str)).unwrap_or_default().chars().count();
+                    format!("Typing {n} character{}{} in the running program", if n == 1 { "" } else { "s" }, if on.is_empty() { String::new() } else { format!(" into{on}") })
+                }
+                // (keys by name — Enter, Ctrl+S —; anything else, a single
+                // character or a word, may be typing: only counted)
+                "app_key" => match any("Keys") {
+                    Some(k) if k.split_whitespace().all(known_key) => format!("Pressing {k} in the running program"),
+                    Some(k) if k.split_whitespace().count() == 1 => "Pressing a key in the running program".into(),
+                    Some(k) => format!("Pressing {} keys in the running program", k.split_whitespace().count()),
+                    None => "Pressing keys in the running program".into(),
+                },
+                "app_drag" => format!("Dragging{on} in the running program"),
+                _ => format!("Scrolling{on} in the running program"),
+            }
+        }
         // ("lines": how many the model has written so far, counted as they
         // stream in — a file's or a program's, not an edit's)
         "propose_edit" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
@@ -2544,5 +2656,26 @@ mod tests {
         assert!(!run("write_file", &json!({"path": "new.rr", "summary": "x", "text": long}), &p, &mut Vec::new(), true).is_error);
         // (the lines that change, not the span between the first and the last)
         assert_eq!(line_delta(&long, &long.replace("PRINT 1\n", "PRINT 0\n").replace("PRINT 120\n", "PRINT 121\n")), (2, 2));
+    }
+
+    #[test]
+    fn typing_in_the_program_never_shows_the_text() {
+        // (an AI app's arguments capitalised, RAI's not; a password typed
+        // into the program must never reach the pane, the status line, a
+        // screen reader or the question — only how many characters)
+        let ai_app = activity("app_type", &json!({"Label": "Password", "Text": "hunter2"})).unwrap();
+        assert_eq!(ai_app, "Typing 7 characters into the box beside \"Password\" in the running program");
+        let rai = activity("app_type", &json!({"name": "txtPin", "text": " 1234 "})).unwrap();
+        assert_eq!(rai, "Typing 6 characters into txtPin in the running program");
+        assert_eq!(activity("app_type", &json!({"text": "x"})).unwrap(), "Typing 1 character in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "Ctrl+A Backspace"})).unwrap(), "Pressing Ctrl+A Backspace in the running program");
+        // (single characters are typing: counted, not shown; so is a word
+        // that isn't a key's name)
+        assert_eq!(activity("app_key", &json!({"Keys": "h u n t e r 2"})).unwrap(), "Pressing 7 keys in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "hunter2"})).unwrap(), "Pressing a key in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "Shift+Tab F5 PageDown Cmd+Z"})).unwrap(), "Pressing Shift+Tab F5 PageDown Cmd+Z in the running program");
+        for line in [ai_app, rai] {
+            assert!(!line.contains("hunter2") && !line.contains("1234"), "{line}");
+        }
     }
 }

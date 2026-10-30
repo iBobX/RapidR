@@ -5175,6 +5175,7 @@ dependencies = [
  "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
+ "rapidr-value",
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
@@ -5459,6 +5460,7 @@ dependencies = [
  "rapidr-ui-render",
  "rapidr-value",
  "rapidr-webbundle",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -5512,8 +5514,11 @@ dependencies = [
 name = "rapidr-ui-app"
 version = "2.121.3"
 dependencies = [
+ "rapidr-lang",
  "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
+ "serde_json",
 ]
 
 [[package]]
@@ -5637,6 +5642,7 @@ dependencies = [
  "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
+ "serde_json",
 ]
 
 [[package]]
@@ -5653,6 +5659,7 @@ dependencies = [
  "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
+ "serde_json",
  "wasm-bindgen",
  "web-sys",
 ]

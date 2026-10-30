@@ -701,6 +701,11 @@ impl FormUi {
         let mut list = DisplayList { size: (w, h + self.menu_offset), scale, ..Default::default() };
         let mut p = Painter::new(&mut list);
         self.paint_into(store, ts, &mut p, &mut |_| {});
+        // (the virtual cursor of a driven program, over everything — the
+        // pop-ups' layer has it when they're drawn apart)
+        if !self.popups_apart {
+            crate::virtual_cursor::paint(&self.form, &mut p);
+        }
         list
     }
 
@@ -758,6 +763,7 @@ impl FormUi {
         crate::value_edit::paint_all(self, &mut p);
         self.paint_menus(store, &mut p);
         self.paint_tip(&mut p);
+        crate::virtual_cursor::paint(&self.form, &mut p);
         list
     }
 

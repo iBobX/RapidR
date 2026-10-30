@@ -33,6 +33,9 @@ const HTTP_SERVER: &[&str] = &["start", "newtoken"];
 /// RMCPSERVER (`IF Mcp.Start THEN`, `PRINT Mcp.ToolCount`).
 const MCP_SERVER: &[&str] = &["start", "newtoken", "toolcount"];
 
+/// RAPPHANDS (`n = Hands.Cancel`).
+const APP_HANDS: &[&str] = &["cancel"];
+
 /// QFILESTREAM, QMEMORYSTREAM (and the web's file bridge).
 const STREAM: &[&str] = &["open", "readall", "readalltext", "eof", "readline", "readln", "readbyte", "pickfile", "download", "loadfromurl"];
 
@@ -139,6 +142,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RSOCKET" | "RSERVERSOCKET" | "RHTTP" => &[NETWORK],
         "RHTTPSERVER" => &[HTTP_SERVER],
         "RMCPSERVER" => &[MCP_SERVER],
+        "RAPPHANDS" => &[APP_HANDS],
         "RFILESTREAM" | "RMEMORYSTREAM" => &[STREAM],
         "RJSON" => &[JSON],
         "RSTRINGLIST" => &[STRING_LIST],
@@ -170,7 +174,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
+    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, APP_HANDS, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
         .iter()
         .any(|list| list.contains(&member))
 }

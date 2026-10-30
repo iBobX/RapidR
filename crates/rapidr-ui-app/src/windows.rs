@@ -209,6 +209,20 @@ pub trait Windows: Copy + 'static {
     /// `None` while it's open.
     fn files_answer(self, id: u64) -> Option<Vec<String>>;
 
+    // ---- the eyes and hands (`crate::eyes`, `crate::hands`) ----
+
+    /// Runs `f` on the host's forms and the program's store, now: false
+    /// when they can't be had (the host is pumping, or hasn't started).
+    fn with_desk(self, _f: &mut dyn FnMut(&mut crate::desktop::Desktop, &dyn rapidr_ui_kernel::Store)) -> bool {
+        false
+    }
+    /// The program has handlers queued that haven't run yet (the
+    /// interpreter's VM runs them after the host's turn): what a driven
+    /// click started isn't over until they have.
+    fn handlers_pending(self) -> bool {
+        false
+    }
+
     // ---- a GUI test (`script.rs`) ----
 
     /// The script's input, through the kernel's routing.

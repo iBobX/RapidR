@@ -202,6 +202,8 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | | Component | Where |
 |---|---|---|
 | <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAI`](members.md#rai) | everywhere |
+| <img src="../icons/light/components/windowcapture.svg" width="20" height="20" alt=""> | [`RWindowCapture`](members.md#rwindowcapture) | everywhere |
+| <img src="../icons/light/components/apphands.svg" width="20" height="20" alt=""> | [`RAppHands`](members.md#rapphands) | everywhere |
 
 ## Libraries built in
 
@@ -219,4 +221,4 @@ These objects aren't in RapidR yet. Variables of the OLE types compile as generi
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-119 components.
+121 components.

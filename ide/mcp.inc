@@ -12,16 +12,25 @@
 '
 '   Read only            the AI app looks (reads, checks, describes,
 '                        searches, the outline, problems, the output, a
-'                        picture of Studio, the layout); a change or a run
-'                        is refused, said in plain words
-'   Ask before changes   (the default) looking is free; each change, run or
+'                        picture of Studio, the layout); a change, a run or
+'                        looking at or using the running program is
+'                        refused, said in plain words
+'   Ask before changes   (the default) looking at the project is free; each
+'                        change, run, look at the running program or
 '                        question to RAI waits in the pane: Allow Once,
-'                        Allow for This Session, Deny (Review for a change)
+'                        Allow for This Session, Deny (Review for a change);
+'                        the running program is asked about once a run
 '   Allow edits          changes to files are made at once (each one undo
-'                        step, listed, in the audit log); a run or RAI asks
+'                        step, listed, in the audit log); a run, the running
+'                        program or RAI asks
 '   Allow everything     nothing asks: a warning badge in the pane and the
 '                        status bar, a confirmation when chosen; still
 '                        listed and logged, Stop still there
+'
+' Remembered per project: a project an AI app creates or opens takes the
+' mode of the project open before (said in the pane and the status bar),
+' unless it has its own — except Allow everything, which is never passed
+' on: that new project starts with Allow edits.
 '
 ' In every mode: never a key or a secret, never a file outside the open
 ' project or hidden in it, and a project opened from outside the Projects
@@ -68,6 +77,11 @@ DECLARE SUB McpModeFollow
 DECLARE FUNCTION McpModeKept(Key AS STRING) AS STRING
 DECLARE SUB McpSetMode(Mode AS STRING)
 DECLARE FUNCTION McpConfirmAll AS INTEGER
+DECLARE FUNCTION McpConsentOk AS INTEGER
+DECLARE FUNCTION McpModeIsKept(Key AS STRING) AS INTEGER
+DECLARE SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
+DECLARE SUB McpKeepConsent
+DECLARE SUB McpReaskTick
 DECLARE SUB McpShowMode
 DECLARE SUB McpModePicked
 DECLARE SUB McpPageModePicked
@@ -131,6 +145,10 @@ DECLARE SUB McpLogEnd
 DECLARE FUNCTION McpSetProperty(Component AS STRING, Prop AS STRING, Value AS STRING) AS STRING
 
 CONST MCP_DEFAULT_PORT = 47330
+' (what the first-time question says: 2 since AI apps look at and use the
+' running program — docs/legal/review-2026-10-29-app-eyes.md, F3 —; who
+' confirmed an earlier one is asked once more)
+CONST MCP_CONSENT = 2
 CONST MCPWAITS = 16
 ' (the program's output kept for read_output: its last this many characters)
 CONST MCP_OUTPUT_KEPT = 65536
@@ -151,6 +169,15 @@ DIM McpModeOf AS STRING
 DIM McpModes AS STRING
 DIM McpModeFilling AS INTEGER
 DIM McpConfirmed AS INTEGER
+' (the first-time question's version the user confirmed — MCP_CONSENT —,
+' and the settings' upgrades done: 2, "Allow everything" set back to Ask
+' before changes once)
+DIM McpConsentVersion AS INTEGER
+DIM McpUpgrade AS INTEGER
+DIM McpReaskTimer AS RTimer
+' (a project an AI app created or opened took the mode of the one open
+' before: said after that call's line — the pane, the status bar)
+DIM McpCarrySaid AS STRING
 ' (the kinds allowed for this session from the pane: "|change|run|")
 DIM McpGrants AS STRING
 DIM McpToken AS STRING
@@ -193,6 +220,11 @@ DIM McpRevIndex(32) AS INTEGER
 DIM McpRevCount AS INTEGER
 DIM McpRevAt AS INTEGER
 DIM McpRevDecided AS INTEGER
+
+' (mcpapp.inc: the eyes and hands on the program Studio runs — app_layout,
+' app_screenshot, app_click, app_type, app_key, app_drag, app_scroll,
+' app_wait)
+$INCLUDE "mcpapp.inc"
 
 ' ---- the AI Apps pane: who is connected, what they do, what waits for you -------
 CREATE McpPanel AS RPanel
@@ -412,6 +444,9 @@ FUNCTION McpKindOf(Tool AS STRING) AS STRING
   SELECT CASE Tool
     CASE "propose_edit", "write_file", "create_project", "open_project", "set_property": Result = "change"
     CASE "run_program", "debug": Result = "run"
+    ' (mcpapp.inc: looking at or using the running program — it shows what
+    ' the program shows: asked once a run)
+    CASE "app_layout", "app_screenshot", "app_click", "app_type", "app_key", "app_drag", "app_scroll": Result = "drive"
     CASE "ask_rai": Result = "rai"
     CASE ELSE: Result = "read"
   END SELECT
@@ -450,10 +485,10 @@ END FUNCTION
 ' What a mode means, in a sentence or two (Settings shows it under the menu).
 FUNCTION McpModeNote(Mode AS STRING) AS STRING
   SELECT CASE Mode
-    CASE "read": Result = "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change or run anything."
-    CASE "edits": Result = "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program and asking RAI still wait for you."
-    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
-    CASE ELSE: Result = "AI apps can look freely; each change, run or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
+    CASE "read": Result = "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program."
+    CASE "edits": Result = "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
+    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
+    CASE ELSE: Result = "AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
   END SELECT
 END FUNCTION
 
@@ -473,6 +508,8 @@ FUNCTION McpDecision(Kind AS STRING) AS STRING
   ' (Allow for This Session: that kind until Studio closes, the server
   ' stops or another project opens)
   IF Result = "ask" AND INSTR(McpGrants, "|" + Kind + "|") > 0 THEN Result = "allow"
+  ' (mcpapp.inc: the running program, allowed once — until this run ends)
+  IF Result = "ask" AND Kind = "drive" AND RunStarted <> 0 AND McpAppRunAllowed = RunStarted THEN Result = "allow"
 END FUNCTION
 
 ' (the mode of the project open now: its own, kept, else Ask before changes)
@@ -495,6 +532,42 @@ FUNCTION McpModeKept(Key AS STRING) AS STRING
   NEXT
   IF Result <> "read" AND Result <> "edits" AND Result <> "all" THEN Result = "ask"
 END FUNCTION
+
+' Whether project Key has a mode of its own, kept.
+FUNCTION McpModeIsKept(Key AS STRING) AS INTEGER
+  DIM k AS INTEGER, line AS STRING
+  FOR k = 1 TO TALLY(McpModes, CHR$(10)) + 1
+    line = FIELD$(McpModes, CHR$(10), k)
+    IF line <> "" AND FIELD$(line, CHR$(9), 1) = Key THEN Result = 1
+  NEXT
+END FUNCTION
+
+' A project an AI app created or opened (create_project, open_project)
+' takes Before, the mode of the project open before it, as if the user had
+' picked it — an AI app working alone isn't stopped by a question the
+' other project didn't ask (Robert, 2026-10-29) —, except Allow everything,
+' which it never takes (it starts with Allow edits); said in the pane, the
+' status bar and aloud. Nothing open before: the default (Ask before
+' changes). A project with a mode of its own keeps it.
+SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
+  DIM key AS STRING, carried AS STRING
+  IF Before = "" OR ProjectOpen = 0 THEN EXIT SUB
+  key = ProjectFile
+  IF key = BeforeKey OR McpModeIsKept(key) THEN EXIT SUB
+  carried = Before
+  ' (Allow everything was confirmed for one project, while the user
+  ' watched: never passed on — docs/legal/review-2026-10-29-app-eyes.md,
+  ' Addendum 2)
+  IF carried = "all" THEN carried = "edits"
+  McpModeOf = key
+  McpMode = ""
+  McpSetMode carried
+  IF Before = "all" THEN
+    McpCarrySaid = "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
+  ELSE
+    McpCarrySaid = "New project: same permission as before (" + McpModeName(carried) + ")"
+  END IF
+END SUB
 
 ' The project's mode from now on: kept, said, in the audit log.
 SUB McpSetMode(Mode AS STRING)
@@ -526,8 +599,8 @@ END SUB
 ' (Allow everything chosen: what it means said in rows — consent.inc —,
 ' Cancel the default)
 FUNCTION McpConfirmAll AS INTEGER
-  ConsentBegin "Allow everything for AI apps in this project?", "Nothing waits for you: AI apps change files, run the program and ask RAI (which may cost money) on their own."
-  ConsentRow "warning", "Keep in mind", "A program they run can do anything you can on this computer. Choose this only while you watch an AI app you trust."
+  ConsentBegin "Allow everything for AI apps in this project?", "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
+  ConsentRow "warning", "Keep in mind", "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
   ConsentRow "visible", "You still see", "Everything they do, listed in the AI Apps pane; Stop ends it."
   ConsentRow "lock", "Never", "Studio's own tools never hand over your keys, or files outside the project."
   ConsentYes.AccessibleDescription = "AI apps change and run anything in this project without asking"
@@ -564,6 +637,9 @@ SUB McpLoadSettings
   McpPort = MCP_DEFAULT_PORT
   McpMode = "ask"
   McpOn = 0
+  ' (new settings need no upgrade; settings kept before upgrades were
+  ' counted, McpModes without McpUpgrade, do)
+  McpUpgrade = MCP_CONSENT
   IF SettingsRead = 0 THEN EXIT SUB
   Reg.RootKey = HKCU
   IF Reg.KeyExists(STUDIO_KEY) = 0 THEN EXIT SUB
@@ -572,7 +648,57 @@ SUB McpLoadSettings
   IF Reg.ValueExists("McpPort") THEN McpPort = VAL(Reg.ReadString("McpPort"))
   IF McpPort < 1024 OR McpPort > 65535 THEN McpPort = MCP_DEFAULT_PORT
   IF Reg.ValueExists("McpConfirmed") THEN McpConfirmed = Flag(Reg.ReadString("McpConfirmed") = "1")
+  IF Reg.ValueExists("McpConsentVersion") THEN McpConsentVersion = VAL(Reg.ReadString("McpConsentVersion"))
+  IF Reg.ValueExists("McpUpgrade") THEN
+    McpUpgrade = VAL(Reg.ReadString("McpUpgrade"))
+  ELSEIF Reg.ValueExists("McpModes") OR Reg.ValueExists("McpConfirmed") THEN
+    McpUpgrade = 0
+  END IF
   IF Reg.ValueExists("McpModes") THEN McpModes = REPLACESUBSTR$(REPLACESUBSTR$(Reg.ReadString("McpModes"), "|", CHR$(10)), "?", CHR$(9))
+  ' (once: a project's "Allow everything" was confirmed before it covered
+  ' looking at and using the running program — set back to Ask before
+  ' changes; the user chooses it again, with what it means said)
+  IF McpUpgrade < MCP_CONSENT THEN
+    McpModes = REPLACESUBSTR$(McpModes + CHR$(10), CHR$(9) + "all" + CHR$(10), CHR$(9) + "ask" + CHR$(10))
+    McpModes = LEFT$(McpModes, LEN(McpModes) - 1)
+    McpUpgrade = MCP_CONSENT
+    McpKeepConsent
+  END IF
+END SUB
+
+' Whether the user confirmed the first-time question as it is now.
+FUNCTION McpConsentOk AS INTEGER
+  Result = Flag(McpConfirmed <> 0 AND McpConsentVersion >= MCP_CONSENT)
+END FUNCTION
+
+' (the confirmation and the upgrade kept — at once, tests too: the
+' question is asked once, never again)
+SUB McpKeepConsent
+  Reg.RootKey = HKCU
+  Reg.OpenKey(STUDIO_KEY, 1)
+  Reg.WriteString("McpOn", Num(McpOn))
+  Reg.WriteString("McpConfirmed", Num(McpConfirmed))
+  Reg.WriteString("McpConsentVersion", Num(McpConsentVersion))
+  Reg.WriteString("McpUpgrade", Num(McpUpgrade))
+  Reg.WriteString("McpModes", REPLACESUBSTR$(REPLACESUBSTR$(McpModes, CHR$(10), "|"), CHR$(9), "?"))
+END SUB
+
+' AI apps on, confirmed before the question said they look at and use the
+' running program: asked once more as Studio starts — Turn On starts the
+' server; Cancel turns AI apps off (the server never started).
+SUB McpReaskTick
+  McpReaskTimer.Enabled = 0
+  IF McpConsent THEN
+    McpConfirmed = 1
+    McpConsentVersion = MCP_CONSENT
+    McpKeepConsent
+    McpStart
+  ELSE
+    McpOn = 0
+    McpKeepConsent
+    OutputLine "AI apps: off. Confirm again in Settings > AI Apps."
+  END IF
+  McpShowState
 END SUB
 
 SUB McpSaveSettings
@@ -582,6 +708,8 @@ SUB McpSaveSettings
   Reg.WriteString("McpOn", Num(McpOn))
   Reg.WriteString("McpPort", Num(McpPort))
   Reg.WriteString("McpConfirmed", Num(McpConfirmed))
+  Reg.WriteString("McpConsentVersion", Num(McpConsentVersion))
+  Reg.WriteString("McpUpgrade", Num(McpUpgrade))
   ' (a project's file and its mode, a line each: | and ? stand for them)
   Reg.WriteString("McpModes", REPLACESUBSTR$(REPLACESUBSTR$(McpModes, CHR$(10), "|"), CHR$(9), "?"))
 END SUB
@@ -616,10 +744,12 @@ SUB SetUpMcp
   Mcp.OnToolCall = McpToolCalled
   Mcp.OnConnect = McpClientIn
   Mcp.OnDisconnect = McpClientOut
+  ' (mcpapp.inc: the running program's answers)
+  McpAppSetUp
   Mcp.ServerName = "rapidr-studio"
   Mcp.ServerTitle = "RapidR Studio"
   Mcp.ServerVersion = Lang.Version
-  Mcp.Instructions = "RapidR Studio, the IDE of RapidR (a modern BASIC), with the user watching every call. Start with studio_status. Read the project with list_files and read_file; check code with check_code before proposing a change; change files only with propose_edit (small edits) or write_file (new files) — the user may be asked to allow each change; run the program with run_program and read what it printed with read_output. rapidr_describe and search_manual answer questions about RapidR. ask_rai asks RapidR's own assistant. Paths are relative to the project's folder."
+  Mcp.Instructions = "RapidR Studio, the IDE of RapidR (a modern BASIC), with the user watching every call. Start with studio_status. Read the project with list_files and read_file; check code with check_code before proposing a change; change files only with propose_edit (small edits) or write_file (new files) — the user may be asked to allow each change; run the program with run_program and read what it printed with read_output; see the running program with app_layout and app_screenshot and use it with app_click, app_type and app_key (the user sees a pointer do it; the first look or click of a run may wait for the user). rapidr_describe and search_manual answer questions about RapidR. ask_rai asks RapidR's own assistant. Paths are relative to the project's folder."
   McpTimer.Interval = 250
   McpTimer.Enabled = 0
   McpTimer.OnTimer = McpTickTimer
@@ -663,8 +793,20 @@ SUB SetUpMcp
   NEXT
   McpLogMenu.OnPopup = McpLogMenuOpening
   McpLog.PopupMenu = McpLogMenu
+  McpReaskTimer.Interval = 400
+  McpReaskTimer.Enabled = 0
+  McpReaskTimer.OnTimer = McpReaskTick
   McpShowState
-  IF McpOn THEN McpStart
+  IF McpOn THEN
+    IF McpConsentOk THEN
+      McpStart
+    ELSEIF McpConfirmed THEN
+      ' (confirmed an earlier question: asked once more, once Studio shows)
+      McpReaskTimer.Enabled = 1
+    ELSE
+      McpOn = 0
+    END IF
+  END IF
 END SUB
 
 ' What AI apps can see and do (docs/legal/review-2026-10-29-mcp.md, 4b):
@@ -690,15 +832,15 @@ END FUNCTION
 
 FUNCTION McpRowBody(K AS INTEGER) AS STRING
   SELECT CASE K
-    CASE 0: Result = "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets a picture of Studio's window, as you see it."
-    CASE 1: Result = "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run and debug your program and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
+    CASE 0: Result = "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them."
+    CASE 1: Result = "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
     CASE 2: Result = "Your AI provider keys or passwords: your keychain keeps them."
-    CASE ELSE: Result = "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
+    CASE ELSE: Result = "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
   END SELECT
 END FUNCTION
 
 FUNCTION McpFootText AS STRING
-  Result = "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app."
+  Result = "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
 END FUNCTION
 
 ' (the manual's page, in the browser)
@@ -787,6 +929,10 @@ SUB McpSyncTools
   Mcp.AddTool "get_rai_steps", "What RAI, Studio's own assistant, is doing or did in its last answer: busy or not, its status, and its steps (each tool it used).", "", "read"
   Mcp.AddTool "get_rai_transcript", "RAI's chat as the user sees it, as Markdown: its last Chars characters (8000 by default).", "[Chars AS INTEGER]", "read"
   Mcp.AddTool "get_rai_audit", "RAI's audit log: its last Count lines (30 by default) — each request to its provider, each tool, each change it proposed and what the user decided.", "[Count AS INTEGER]", "read"
+  ' (mcpapp.inc: the running program's eyes and hands — only once the user
+  ' confirmed the question that says so; an AI app can't even see them
+  ' before)
+  IF McpConsentOk THEN McpAppTools
   Mcp.AddTool "layout_report", "The program's forms as the source makes them: each form's client area, each component's place and size (Left, Top, Width, Height, or aligned), then what looks wrong — a control cut off by its form, two on top of each other, a caption too long for its button.", "", "read"
   Mcp.AddTool "capture", "A picture (PNG) of RapidR Studio's window as the user sees it now: the code, the form designer, the panes. Use it to see a form you changed in the designer.", "", "read"
   Mcp.AddTool "open_project", "Opens a project (.rrproj) or a program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes.", "Path AS STRING", "change"
@@ -982,6 +1128,15 @@ SUB McpLogLine(Client AS STRING, Tool AS STRING, What AS STRING, Target AS STRIN
   McpLogEnd
   McpTools.AuditCall Client, Tool, Target, Outcome
   McpLastWhat = Client + ": " + What
+  ' (a new project took the mode of the one before: said now, after the
+  ' call that opened it — the pane's line and the status bar)
+  IF McpCarrySaid <> "" THEN
+    McpLog.AddItems LEFT$(TIME$, 8) + "  " + McpCarrySaid
+    McpLogEnd
+    McpLastWhat = McpCarrySaid
+    Application.Announce McpCarrySaid
+    McpCarrySaid = ""
+  END IF
   McpShowState
 END SUB
 
@@ -1028,7 +1183,7 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
   McpSyncProject
   what = McpTools.ToolActivity(Tool, Arguments)
   IF perm = "refuse" THEN
-    Mcp.Reply CallId, "Not allowed: RapidR Studio lets AI apps only look at this project now (its user chose Read only in the AI Apps pane), so nothing can be changed or run. Tell the user what you would do instead; they can choose another mode there.", 1
+    Mcp.Reply CallId, "Not allowed: RapidR Studio lets AI apps only look at this project now, and not at the running program (its user chose Read only in the AI Apps pane), so nothing can be changed, run, looked at in the program or used. Tell the user what you would do instead; they can choose another mode there.", 1
     McpLogLine client, Tool, what, "", "refused: Read only"
     EXIT SUB
   END IF
@@ -1126,6 +1281,8 @@ SUB McpShowAsk
         t = McpWaitClient(0) + " wants to change " + files + ": " + FIELD$(McpTools.ProposalInfo(0), CHR$(9), 3)
       END IF
     CASE "run": t = McpWaitClient(0) + " wants to run your program (" + McpWaitWhat(0) + ")."
+    ' (mcpapp.inc: what Allow Once covers, and what it may see)
+    CASE "drive": t = McpWaitClient(0) + " wants to look at or use your running program: " + McpWaitWhat(0) + ". Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
     CASE "rai": t = McpWaitClient(0) + " wants to ask RAI: " + LEFT$(Mcp.Argument("Prompt", McpWaitCall(0)), 160)
     CASE ELSE: t = McpWaitClient(0) + ": " + McpWaitWhat(0)
   END SELECT
@@ -1168,6 +1325,8 @@ SUB McpDecide(Choice AS INTEGER)
   NEXT
   McpWaitCount = McpWaitCount - 1
   IF Choice = 2 AND INSTR(McpGrants, "|" + kind + "|") = 0 THEN McpGrants = McpGrants + "|" + kind + "|"
+  ' (mcpapp.inc: the running program allowed — until this run ends)
+  IF Choice > 0 AND kind = "drive" THEN McpAppRunAllowed = RunStarted
   IF Choice = 0 THEN
     IF kind = "change" AND tool <> "open_project" THEN McpRejectAll
     Mcp.Reply callId, "The user didn't allow this in RapidR Studio. Ask them what they want instead.", 1
@@ -1187,7 +1346,7 @@ END SUB
 ' new program created and opened. What the AI app is told.
 FUNCTION McpApply(Said AS STRING) AS STRING
   DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING, d AS INTEGER
-  DIM newText AS STRING, patch AS STRING, done AS STRING, f AS RFileStream, made AS STRING, problems AS STRING, dirty AS STRING
+  DIM newText AS STRING, patch AS STRING, done AS STRING, f AS RFileStream, made AS STRING, problems AS STRING, dirty AS STRING, before AS STRING, beforeKey AS STRING
   FOR i = 0 TO McpTools.ProposalCount - 1
     info = McpTools.ProposalInfo(i)
     kind = FIELD$(info, CHR$(9), 1)
@@ -1254,7 +1413,10 @@ FUNCTION McpApply(Said AS STRING) AS STRING
   McpTools.ClearDecided
   IF made <> "" AND made <> "!" THEN
     McpTools.ClearProposals
+    IF ProjectOpen THEN before = McpMode ELSE before = ""
+    beforeKey = ProjectFile
     OpenProject made
+    McpCarryMode before, beforeKey
     Result = "Created and opened the new program " + McpTools.CreatedTitle + " (" + FileTitle(made) + "). " + Said
     EXIT FUNCTION
   END IF
@@ -1358,6 +1520,10 @@ SUB McpRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STR
       answer = McpTools.LayoutReport
     CASE "capture"
       McpCapture CallId, Client
+      EXIT SUB
+    ' (mcpapp.inc: the program answers through Session's OnApp)
+    CASE "app_layout", "app_screenshot", "app_click", "app_type", "app_key", "app_drag", "app_scroll", "app_wait"
+      McpAppRun Tool, CallId, Client, What
       EXIT SUB
     CASE "set_property"
       answer = McpSetProperty(Mcp.Argument("Component", CallId), Mcp.Argument("Property", CallId), Mcp.Argument("Value", CallId))
@@ -1508,7 +1674,7 @@ FUNCTION McpDirtyFiles AS STRING
 END FUNCTION
 
 FUNCTION McpOpenProject(Path AS STRING) AS STRING
-  DIM p AS STRING, dirty AS STRING
+  DIM p AS STRING, dirty AS STRING, before AS STRING, beforeKey AS STRING
   p = McpFullPath(Path)
   Result = McpOpenCheck(Path)
   IF Result <> "" THEN EXIT FUNCTION
@@ -1517,11 +1683,14 @@ FUNCTION McpOpenProject(Path AS STRING) AS STRING
     Result = "Can't open " + Path + ": Studio has unsaved changes (" + dirty + "). Ask the user to save or close them first: open_project never discards them."
     EXIT FUNCTION
   END IF
+  IF ProjectOpen THEN before = McpMode ELSE before = ""
+  beforeKey = ProjectFile
   OpenProject p
   IF ProjectOpen = 0 THEN
     Result = "Can't open " + Path + ": " + StateText
     EXIT FUNCTION
   END IF
+  McpCarryMode before, beforeKey
   McpSyncProject
   Result = "Opened. " + McpStatusText
 END FUNCTION
@@ -2008,12 +2177,13 @@ END SUB
 
 ' Turned on: the first time, what it means is said, Cancel the default.
 SUB McpSetOnClick
-  IF McpOnBox.Checked = 0 OR McpConfirmed THEN EXIT SUB
+  IF McpOnBox.Checked = 0 OR McpConsentOk THEN EXIT SUB
   IF McpConsent = 0 THEN
     McpOnBox.Checked = 0
     EXIT SUB
   END IF
   McpConfirmed = 1
+  McpConsentVersion = MCP_CONSENT
 END SUB
 
 ' The first-time question (consent.inc): what AI apps can see and do, in
@@ -2042,7 +2212,7 @@ SUB McpSettingsTake
     McpSetMode McpModeAt(McpPageModeBox.ItemIndex)
   END IF
   McpOn = Flag(McpOnBox.Checked)
-  IF McpOn AND McpConfirmed = 0 THEN McpOn = 0
+  IF McpOn AND McpConsentOk = 0 THEN McpOn = 0
   IF port <> McpPort AND Mcp.Listening THEN McpStopServer
   McpPort = port
   IF McpOn THEN
@@ -2171,7 +2341,7 @@ SUB McpStep(Stp AS STRING)
   SELECT CASE what
     CASE "on"
       IF arg <> "" THEN McpPort = VAL(arg)
-      McpOn = 1: McpConfirmed = 1
+      McpOn = 1: McpConfirmed = 1: McpConsentVersion = MCP_CONSENT
       McpStart
     CASE "off"
       McpOn = 0
@@ -2181,6 +2351,7 @@ SUB McpStep(Stp AS STRING)
       ' answer in the switch: mcponbox.checked)
       k = McpConsent
       McpConfirmed = k
+      IF k THEN McpConsentVersion = MCP_CONSENT
       McpOnBox.Checked = k
     CASE "allow"
       FOR k = 1 TO TALLY(arg, "|") + 1

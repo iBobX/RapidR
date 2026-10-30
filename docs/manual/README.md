@@ -42,6 +42,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es` |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the older Q names; the global objects; themes, high-DPI and accessibility |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events, encrypted MySQL connections (`SSLMode`) |
+| [A program's eyes and hands](app-eyes-and-hands.md) | `RWindowCapture`: pictures of the program's own windows and a report of what looks wrong (text cut off, controls on top of each other); `RAppHands`: clicks, typing and keys played into them with a pointer you see — tours, demos, self-tests; how AI apps and RAI look at and use your running program in Studio |
 | [Keeping secrets](secrets.md) | `RSecrets`: passwords and keys in the OS keychain, each program its own, never shown by the debugger or to an AI; none in a browser |
 | [Archives: zip, 7z, tar and gzip files](archives.md) | `RArchive`: opening zip, 7z, tar.gz, .gz, .xz and .zst files by their first bytes, listing and unpacking them, making zip and tar.gz files; zip bombs, paths outside the folder, links and encrypted entries refused; `COMPRESS$` / `DECOMPRESS$` |
 | [Your own SVG icons](svg-icons.md) | `RImageList.AddSVGFile`, SVGs that take the theme's colours (`currentColor`, RapidR's colour tokens), SVGs built in with `$RESOURCE` |

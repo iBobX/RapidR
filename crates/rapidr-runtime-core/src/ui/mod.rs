@@ -14,6 +14,9 @@ pub use rapidr_ui_app::{choose_dialogs, file_dialog, testhooks};
 pub mod program;
 pub mod kernel;
 pub mod kernel_store;
+// (the eyes and hands: RapidR Studio's link to the program it runs, and
+// RWindowCapture / RAppHands — rapidr_ui_app::{eyes, hands, link})
+pub mod drive;
 
 use crate::value::Value;
 

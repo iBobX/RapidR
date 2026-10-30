@@ -555,6 +555,20 @@ thread_local! {
 
 /// Queues an event for the IDE (sent by [`flush_events`]).
 fn emit(event: Message) {
+    // (where the debugger holds the program, for the eyes and hands: input
+    // is refused with it while it's paused)
+    match &event.body {
+        EventBody::Stopped { file, line, .. } => {
+            let at = match (line, file) {
+                (Some(l), Some(f)) => format!("at line {l} of {f}"),
+                (Some(l), None) => format!("at line {l}"),
+                _ => "where it stopped".to_string(),
+            };
+            rapidr_runtime_web::kernel_web::app_paused(Some(at));
+        }
+        EventBody::Continued | EventBody::Exited { .. } => rapidr_runtime_web::kernel_web::app_paused(None),
+        _ => {}
+    }
     if SINK.with(|s| s.borrow().is_some()) {
         OUTBOX.with(|o| o.borrow_mut().push(event));
     }
@@ -1306,6 +1320,12 @@ pub fn session_open(bytes: &[u8], program: &str, sink: js_sys::Function) -> Resu
     start_session(session);
     SINK.with(|s| *s.borrow_mut() = Some(sink));
     OUTBOX.with(|o| o.borrow_mut().clear());
+    // (the eyes and hands' replies: from the runtime's turn)
+    rapidr_runtime_web::kernel_web::app_paused(None);
+    rapidr_runtime_web::kernel_web::app_link(std::rc::Rc::new(|seq, result| {
+        emit(Message::reply(seq, EventBody::App { result }));
+        flush_events();
+    }));
     emit(Message::new(EventBody::Ready { protocol: PROTOCOL_VERSION, runtime: format!("RapidR {}", env!("CARGO_PKG_VERSION")), program: program.to_string() }));
     flush_events();
     Ok(())
@@ -1315,6 +1335,9 @@ pub fn session_open(bytes: &[u8], program: &str, sink: js_sys::Function) -> Resu
 #[wasm_bindgen]
 pub fn session_request(json: &str) {
     match Request::from_json(json) {
+        // (the eyes and hands: the runtime's, beside the VM — served whether
+        // the program runs, waits or is paused: kernel_web)
+        Ok(Request { seq, command: Command::App { request } }) => rapidr_runtime_web::kernel_web::app_request(seq, &request),
         Ok(request) => serve_request(request),
         Err(e) => emit(Message::error(0, e)),
     }

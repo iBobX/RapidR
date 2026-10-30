@@ -546,6 +546,24 @@ def secrets(g):
     g.frect(11, 13.5, 2, 4.5, fill="amber")
 
 
+@icon("windowcapture", C, "Window capture (the program's own windows as pictures)")
+def windowcapture(g):
+    # (a window inside a viewfinder's corners: a picture of the program's
+    # own window — media's violet for the picture taken)
+    window(g, x=6, y=7, w=12, h=10, c="ink", fill="paper", bar=3.5)
+    for (x, y, dx, dy) in ((3, 3, 1, 1), (21, 3, -1, 1), (3, 21, 1, -1), (21, 21, -1, -1)):
+        g.path(f"M{x} {y + 4 * dy} V{y} H{x + 4 * dx}", c="violet")
+
+
+@icon("apphands", C, "App hands (clicks and keys played into the program's own windows)")
+def apphands(g):
+    # (a window, and the pointer that clicks in it with its ring — RapidR's
+    # own drawing of a driven pointer)
+    window(g, x=2.5, y=3, w=16, h=13, c="ink", fill="paper", bar=3.5)
+    g.circle(12, 12, 3.5, c="blue")
+    g.fpath("M12 12 V22 L14.6 19.4 L16.6 23.4 L18.6 22.4 L16.6 18.4 H20 Z", fill="ink")
+
+
 @icon("printer", C, "Printer")
 def printer(g):
     g.path("M7 8 V3 H17 V8", c="ink", fill="paper")

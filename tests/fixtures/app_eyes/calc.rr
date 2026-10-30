@@ -1,0 +1,99 @@
+' A small calculator for the eyes-and-hands tests (tests/app_eyes.mjs):
+' digits, +, =, C, a name box with a Hello button, and a button whose
+' caption is a canary (it must never reach Studio's activity list or log).
+$THEME rapidr
+DECLARE SUB Digit(Sender AS RButton)
+DECLARE SUB Plus
+DECLARE SUB Equals
+DECLARE SUB Clear
+DECLARE SUB Greet
+DIM Total AS DOUBLE
+
+CREATE Form1 AS RForm
+    Caption = "Calculator"
+    ClientWidth = 240: ClientHeight = 236
+    Center
+    CREATE Display AS RLabel
+        Caption = "0"
+        Left = 10: Top = 10: Width = 220
+    END CREATE
+    CREATE B7 AS RButton
+        Caption = "7"
+        Left = 10: Top = 40: Width = 50: Height = 30
+        OnClick = Digit
+    END CREATE
+    CREATE B8 AS RButton
+        Caption = "8"
+        Left = 65: Top = 40: Width = 50: Height = 30
+        OnClick = Digit
+    END CREATE
+    CREATE B9 AS RButton
+        Caption = "9"
+        Left = 120: Top = 40: Width = 50: Height = 30
+        OnClick = Digit
+    END CREATE
+    CREATE BPlus AS RButton
+        Caption = "+"
+        Left = 175: Top = 40: Width = 55: Height = 30
+        OnClick = Plus
+    END CREATE
+    CREATE BEquals AS RButton
+        Caption = "="
+        Left = 10: Top = 75: Width = 105: Height = 30
+        OnClick = Equals
+    END CREATE
+    CREATE BClear AS RButton
+        Caption = "C"
+        Left = 120: Top = 75: Width = 110: Height = 30
+        OnClick = Clear
+    END CREATE
+    CREATE NameLabel AS RLabel
+        Caption = "Name:"
+        Left = 10: Top = 124: Width = 50
+    END CREATE
+    CREATE NameEdit AS REdit
+        Left = 65: Top = 120: Width = 110
+    END CREATE
+    CREATE BHello AS RButton
+        Caption = "Hello"
+        Left = 180: Top = 118: Width = 50: Height = 26
+        OnClick = Greet
+    END CREATE
+    CREATE Greeting AS RLabel
+        Caption = ""
+        Left = 10: Top = 160: Width = 220
+    END CREATE
+    CREATE BCanary AS RButton
+        Caption = "CANARY-BUTTON"
+        Left = 10: Top = 196: Width = 220: Height = 30
+    END CREATE
+END CREATE
+
+SUB Digit(Sender AS RButton)
+    IF Display.Caption = "0" THEN Display.Caption = Sender.Caption ELSE Display.Caption = Display.Caption + Sender.Caption
+    PRINT "display "; Display.Caption
+END SUB
+
+SUB Plus
+    Total = Total + VAL(Display.Caption)
+    Display.Caption = "0"
+END SUB
+
+SUB Equals
+    Total = Total + VAL(Display.Caption)
+    Display.Caption = LTRIM$(STR$(Total))
+    Total = 0
+    PRINT "result "; Display.Caption
+END SUB
+
+SUB Clear
+    Display.Caption = "0"
+    Total = 0
+END SUB
+
+SUB Greet
+    Greeting.Caption = "Hello, " + NameEdit.Text + "!"
+    PRINT Greeting.Caption
+END SUB
+
+Form1.ShowModal

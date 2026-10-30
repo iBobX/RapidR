@@ -1022,6 +1022,22 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
+    // RWindowCapture and RAppHands: the program's own eyes and hands
+    // (ui/drive.rs, rapidr_ui_app::{eyes, hands}).
+    #[cfg(feature = "gui")]
+    match rp_comp_type(name).as_str() {
+        "RWINDOWCAPTURE" => {
+            if let Some(v) = crate::ui::drive::capture_get(name, &prop_lower) {
+                return v;
+            }
+        }
+        "RAPPHANDS" => {
+            if let Some(v) = crate::ui::drive::hands_get(name, &prop_lower) {
+                return v;
+            }
+        }
+        _ => {}
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
@@ -1557,6 +1573,23 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             #[cfg(not(feature = "network"))]
             {
                 eprintln!("[WARN] Network support not compiled. Method {}.{}() ignored.", name, method);
+                v_null()
+            }
+        }
+        // (the program's own eyes and hands: ui/drive.rs)
+        "RWINDOWCAPTURE" | "RAPPHANDS" => {
+            #[cfg(feature = "gui")]
+            {
+                let v = if comp_type == "RWINDOWCAPTURE" { crate::ui::drive::capture_method(name, &method_lower, args) } else { crate::ui::drive::hands_method(name, &method_lower, args) };
+                v.unwrap_or_else(|| {
+                    eprintln!("[WARN] {comp_type}.{method}() isn't one of its methods");
+                    v_null()
+                })
+            }
+            #[cfg(not(feature = "gui"))]
+            {
+                let _ = args;
+                eprintln!("[WARN] {comp_type}.{method}(): no windows in this build");
                 v_null()
             }
         }
