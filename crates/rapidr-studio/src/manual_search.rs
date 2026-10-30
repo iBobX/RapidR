@@ -341,7 +341,10 @@ mod tests {
     fn the_user_s_language_comes_first() {
         let (text, translated) = page_in("getting-started.md", "es-UY").unwrap();
         assert!(translated && text.contains("# Primeros pasos"));
+        // (every guide page is in Spanish now; a language with none reads the English)
         let (text, translated) = page_in("language.md", "es").unwrap();
+        assert!(translated && text.contains("# El lenguaje"));
+        let (text, translated) = page_in("language.md", "pt").unwrap();
         assert!(!translated && text.starts_with("# "));
         assert!(page_in("getting-started.md", "en").is_some_and(|(_, t)| !t));
         let top = search_in("instalar el SDK", 3, "es");
