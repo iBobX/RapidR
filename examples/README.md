@@ -97,6 +97,7 @@ assistant starts from the closest one when you ask it for a new program
 | [password_generator.rr](recipes/password_generator.rr) | Random passwords (`RANDOMIZE`, `RND`) of a length you choose, with or without digits and symbols | run · interp · native · web | `rapidr run recipes/password_generator.rr` |
 | [csv_viewer.rr](recipes/csv_viewer.rr) | Open a CSV file (`ROpenDialog`) and show it in an `RStringGrid` (people.csv beside it) | run · interp · native · web | `rapidr run recipes/csv_viewer.rr` |
 | [server_manager.rr](recipes/server_manager.rr) | A list of sites with their status and Start / Stop / Restart buttons | run · interp · native · web | `rapidr run recipes/server_manager.rr` |
+| [frame_audio.rr](recipes/frame_audio.rr) | Emulator sound: a speaker bit's flips by cycle turned into each frame's samples (`RAudioOut`, an `RTimer`) | run · interp · native · web | `rapidr run recipes/frame_audio.rr` |
 
 #### Systems recipes: one tiny computer, ten small programs
 
@@ -157,6 +158,9 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | [midi_compose.rr](media/midi_compose.rr) | Music made by the program: a song written byte by byte as a `.mid` file (chords, a bass line, drums on channel 10) and played with `RMIDI`; `RAPIDR_MIDI_OUT` picks the output ([the manual](../docs/manual/directx-and-media.md#sound-and-music)) | run · interp · native · web | `rapidr run media/midi_compose.rr` |
 | [wave.rr](media/wave.rr) | `RWave`: play a WAV ([chime.wav](media/chime.wav)); record a second from the microphone, save, play back | run · interp · native · web | `rapidr run media/wave.rr` |
 | [video.rr](media/video.rr) | `RVideo`: an AVI ([clip.avi](media/clip.avi)) on a form, enlarged, with a frame counter | run · interp · native · web | `rapidr run media/video.rr` |
+| [tone_generator.rr](media/tone_generator.rr) | `RAudioOut`: a sine, square, sawtooth or noise made sample by sample in `OnNeedData`, its frequency in musical steps, an oscilloscope of the samples played | run · interp · native · web | `rapidr run media/tone_generator.rr` |
+| [beeper.rr](media/beeper.rr) | `RAudioOut` as an emulator uses it: a one-bit speaker flipped at exact cycle times, 882 samples a frame from an `RTimer`, the bit and the sound drawn | run · interp · native · web | `rapidr run media/beeper.rr` |
+| [chiptune.rr](media/chiptune.rr) | `RAudioOut`: a three-voice square-wave music player (RapidR's own tune) with a piano roll | run · interp · native · web | `rapidr run media/chiptune.rr` |
 
 ### directx/ — DirectX 2D and Direct3D
 

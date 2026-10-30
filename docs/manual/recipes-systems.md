@@ -78,6 +78,11 @@ that uses every instruction.
 | [keyboard_matrix.rr](../../examples/recipes/keyboard_matrix.rr) | **A keyboard matrix.** `OnKeyDown` and `OnKeyUp` clear and set a bit in 8 rows of 5; `IN` selects rows with a mask and gives their AND | Press `Q`, then `Enter` |
 | [cpu_timing.rr](../../examples/recipes/cpu_timing.rr) | **Timing.** A budget of cycles for each tick of an `RTimer` (a frame, 20 ms), the overspent cycles carried to the next frame, so the speed is exact; Pause and Frame without freezing the window | Faster, then Frame |
 
+And the machine's sound: [frame_audio.rr](../../examples/recipes/frame_audio.rr)
+notes the cycle of each flip of a one-bit speaker during a frame and turns
+the flips into the frame's 882 samples for an `RAudioOut`
+([Emulators: sound from a level timeline](directx-and-media.md#emulators-sound-from-a-level-timeline)).
+
 ![The tiny CPU after three Steps: PC 0005, A 08, B 03, 5 cycles](images/systems/cpu-step.png)
 
 ![The hex dump: a text and the tiny CPU's program, with the ASCII column](images/systems/hex-dump.png)

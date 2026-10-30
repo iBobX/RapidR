@@ -60,8 +60,8 @@ DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
 ' More examples than the page has room for: only in "Open an Example" (the
 ' command palette), not cards on this page
-DIM MoreFile(48) AS STRING
-DIM MoreWhat(48) AS STRING
+DIM MoreFile(63) AS STRING
+DIM MoreWhat(63) AS STRING
 DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
@@ -115,7 +115,7 @@ SUB AddExample(File AS STRING, What AS STRING)
 END SUB
 
 SUB AddMoreExample(File AS STRING, What AS STRING)
-  IF MoreCount > 48 THEN EXIT SUB
+  IF MoreCount > 63 THEN EXIT SUB
   MoreFile(MoreCount) = File
   MoreWhat(MoreCount) = What
   MoreCount = MoreCount + 1
@@ -167,6 +167,9 @@ SUB FillExamples
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
+  AddMoreExample "media/tone_generator.rr", "A tone made sample by sample, with an oscilloscope"
+  AddMoreExample "media/beeper.rr", "A one-bit speaker played the way an emulator plays it"
+  AddMoreExample "media/chiptune.rr", "A three-voice square-wave music player"
   AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
   AddMoreExample "studio/versions.rr", TR$("Versions from a program: save, go back, undo, the local history")
   AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"
@@ -193,6 +196,7 @@ SUB FillExamples
   AddMoreExample "recipes/video_memory.rr", "Systems recipe: video memory drawn on a canvas"
   AddMoreExample "recipes/keyboard_matrix.rr", "Systems recipe: a keyboard matrix and an IN port"
   AddMoreExample "recipes/cpu_timing.rr", "Systems recipe: a CPU run in cycles per frame"
+  AddMoreExample "recipes/frame_audio.rr", "Recipe: emulator sound from a speaker bit's flips"
   LayOutWelcome
 END SUB
 

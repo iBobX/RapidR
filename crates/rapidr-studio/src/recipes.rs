@@ -48,6 +48,7 @@ const SOURCES: &[(&str, &str)] = &[
     ("video_memory.rr", include_str!("../../../examples/recipes/video_memory.rr")),
     ("keyboard_matrix.rr", include_str!("../../../examples/recipes/keyboard_matrix.rr")),
     ("cpu_timing.rr", include_str!("../../../examples/recipes/cpu_timing.rr")),
+    ("frame_audio.rr", include_str!("../../../examples/recipes/frame_audio.rr")),
 ];
 
 impl Recipe {
@@ -250,6 +251,9 @@ mod tests {
         assert_eq!(top("Build me a password generator with a length setting"), "password_generator.rr");
         assert_eq!(top("Build me a CSV viewer: open a CSV file and show it in a grid"), "csv_viewer.rr");
         assert_eq!(top("Let's build a web server manager with a GUI. It needs Start, Restart, Stop, Settings and Sites buttons"), "server_manager.rr");
+        assert_eq!(top("Build me an emulator's beeper sound: a speaker bit toggled at cycle times, played every frame"), "frame_audio.rr");
+        assert_eq!(top("Haz el sonido de un emulador"), "frame_audio.rr");
+        assert_eq!(top("Crie o som de um emulador com alto-falante de um bit"), "frame_audio.rr");
         // (Spanish, Portuguese)
         assert_eq!(top("Hazme una calculadora científica"), "calculator.rr");
         assert_eq!(top("Crie um cronômetro"), "stopwatch.rr");

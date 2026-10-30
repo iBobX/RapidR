@@ -211,6 +211,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if type_name.eq_ignore_ascii_case("RDXSOUND") {
         crate::sound::install_dx_device();
     }
+    // (RAudioOut: its sound device and OnNeedData — audio_out.rs)
+    if rapidr_value::objects::audioout::is_type(type_name) {
+        crate::audio_out::install();
+    }
     // (QDXJOYSTICK: its gamepads' source)
     if type_name.eq_ignore_ascii_case("RDXJOYSTICK") {
         crate::joystick::install();

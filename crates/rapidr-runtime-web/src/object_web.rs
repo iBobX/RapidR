@@ -110,6 +110,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "RARCHIVE" | "ROPENDIALOG"
         | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
         | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
+        // (RAudioOut: its model's properties; its sound device — audio_web.rs)
+        "RAUDIOOUT" => crate::audio_web::install(),
         // (QDXSCREEN's Direct3D: Render draws on the browser's WebGL 2,
         // through wgpu — made at the first Render)
         "RDXSCREEN" => rapidr_d3d_gpu::install(),

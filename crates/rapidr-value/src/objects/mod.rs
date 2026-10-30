@@ -9,6 +9,7 @@
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
 pub mod a11y;
+pub mod audioout;
 // RARCHIVE (RapidR's): zip, 7z, tar … (the engine: rapidr-archive, feature `archive`)
 pub mod archive;
 pub mod avi;
@@ -300,6 +301,10 @@ pub fn create(id: &str, type_name: &str) -> bool {
     }
     // (the I/O and media lane's: QCGI … — their own store, rqlib.rs)
     if rqlib::create(id, type_name) {
+        return true;
+    }
+    // (RAudioOut: sound made sample by sample — audioout.rs)
+    if audioout::create(id, type_name) {
         return true;
     }
     // (RARCHIVE: its own store, archive.rs)
@@ -1213,6 +1218,9 @@ pub fn exists(id: &str) -> bool {
 /// Forgets object `id` (a kernel-drawn dialog's components once it
 /// closes; a test's store starting again); whether there was one.
 pub fn remove(id: &str) -> bool {
+    if audioout::remove(id) {
+        return true;
+    }
     OBJECTS.with(|o| o.borrow_mut().remove(&id.to_lowercase()).is_some())
 }
 
@@ -1265,6 +1273,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     }
     if rqlib::exists(id) {
         return rqlib::get(id, &prop);
+    }
+    if audioout::exists(id) {
+        return audioout::get(id, &prop);
     }
     if archive::exists(id) {
         return archive::get(id, &prop);
@@ -1329,6 +1340,9 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     }
     if rqlib::exists(id) {
         return rqlib::set(id, &prop, val);
+    }
+    if audioout::exists(id) {
+        return audioout::set(id, &prop, val).map(Ok);
     }
     if archive::exists(id) {
         return archive::set(id, &prop, val);
@@ -1497,6 +1511,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     if rqlib::exists(id) {
         return rqlib::call(id, &method, args);
+    }
+    if audioout::exists(id) {
+        return audioout::call(id, &method, args).map(Ok);
     }
     if archive::exists(id) {
         return archive::call(id, &method, args);

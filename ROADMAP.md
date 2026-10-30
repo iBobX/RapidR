@@ -630,7 +630,9 @@ In order of how many showcase ideas each unlocks:
 - [ ] RDataFrame pivot table (sales pivot, survival by class).
 - [ ] RPlot bubble size on scatter (bubble charts over time).
 - [ ] RPlot treemap (disk-usage map).
-- [ ] Live sound generated from memory (synthesizer, drum machine).
+- [x] Live sound generated from memory (synthesizer, drum machine). *(RAUDIOOUT, 2026-10-29: **RAudioOut** — samples written as the program makes them (INTEGER / BYTE arrays, binary strings, RMemoryStream, floats, one at a time), a lock-free queue the sound device reads on its own thread, OnNeedData on the program's thread, Queued / Underruns, 2 ms fades around gaps and Stop, gliding Volume; desktop through rodio (interpreted and native), the web through Web Audio after a click; a clocked test sink that checks exact samples on every runtime. Examples tone_generator, beeper (a one-bit speaker played as an emulator plays it, 50 frames a second from an RTimer), chiptune, and the recipe frame_audio. [Manual](docs/manual/directx-and-media.md#sound-made-sample-by-sample-raudioout).)*
+  - [ ] An RAudioOut scope helper (the last N samples played, for an oscilloscope without keeping a copy), and a sound-chip helper component (square / noise voices with envelopes, the emulator's registers) — ideas from the lane, not started.
+  - [ ] The web on an AudioWorklet (the audio thread, not the page's) when the page is cross-origin isolated; today a script processor between the page's tasks.
 - [ ] k-means and a scatter-matrix grid.
 - [ ] System information (CPU, memory, OS version).
 - [ ] Saving a canvas as PNG.

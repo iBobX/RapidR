@@ -168,3 +168,47 @@ methods = [
 events = [
   { name = "OnChange", params = "track AS INTEGER, time AS STRING" },
 ]
+
+[[component]]
+name = "RAUDIOOUT"
+display = "AudioOut"
+visual = false
+default_event = "OnNeedData"
+doc = "Plays sound the program makes sample by sample, as it comes: an emulator's beeper or sound chip, a synthesizer, a tone for a science lesson. Write puts samples in its queue (16-bit numbers, -32768 to 32767, from an INTEGER array, a binary string or an RMemoryStream; WriteFloat takes -1 to 1); the sound device plays them on a thread of its own and never waits for the program. Keep about BufferMs of sound queued: write in OnNeedData (raised on the program's thread when the queue drops under BufferMs, with how many samples fill it again) or check Queued from a timer, one frame at a time. When the queue runs dry it plays silence after a 2 ms fade (no click) and Underruns counts it. Stereo samples are interleaved, left then right. In a browser sound starts only after a click or a key on the page: call Start from a button's OnClick (Error says so otherwise). Without a sound device it plays silently, in time (Error says why). RapidR's own."
+example = """
+DIM Sound AS RAudioOut
+DIM phase AS DOUBLE
+SUB Feed (Count AS INTEGER)
+    DIM buf(Count - 1) AS INTEGER, i AS INTEGER
+    FOR i = 0 TO Count - 1
+        buf(i) = SIN(phase) * 6000              ' a quiet 440 Hz tone
+        phase = phase + 2 * 3.14159265 * 440 / Sound.SampleRate
+    NEXT
+    Sound.Write buf, Count
+END SUB
+Sound.OnNeedData = Feed
+Sound.Start
+"""
+properties = [
+  { name = "SampleRate", type = "int", default = 44100, range = "8000..96000", unit = "hz", doc = "Samples a second (a frame of each channel). 44100 is a CD's; 22050, 11025 and 8000 are lighter for small machines. The sound device converts it to its own. Changing it while playing starts the stream again, what waited dropped." },
+  { name = "Channels", type = "int", default = 1, range = "1..2", doc = "1, mono; 2, stereo — then samples are interleaved: left, right, left … (Count and Queued count both). Changing it while playing starts the stream again." },
+  { name = "Bits", type = "int", default = 16, range = "8..16", doc = "How Write and WriteSample read numbers and bytes: 16, signed 16-bit samples (-32768 to 32767; a binary string's bytes in little-endian pairs); 8, unsigned bytes (0 to 255, 128 the silent middle) as 8-bit WAV files have them. WriteFloat always takes -1 to 1." },
+  { name = "BufferMs", type = "int", default = 60, range = "20..1000", unit = "ms", doc = "How much sound to keep queued: OnNeedData asks when the queue drops under it. Smaller answers sooner (an instrument you play) and needs the program on time; larger survives a busy moment. The sound you hear is about this late." },
+  { name = "Volume", type = "int", default = 100, range = "0..100", unit = "percent", doc = "Loudness: 100 plays the samples as written, 50 about half as loud (by the ear: a gain of 0.25), 0 silent. A change glides over 10 ms, so a slider never clicks." },
+  { name = "Enabled", type = "bool", default = true, doc = "False pauses it: quiet (a 2 ms fade), what waits kept, no OnNeedData; True goes on where it was, fading in." },
+  { name = "Playing", type = "bool", access = "read", design = false, doc = "True between Start and Stop while Enabled." },
+  { name = "Queued", type = "int", access = "read", design = false, unit = "ms", doc = "How much written sound waits to be played, in ms. A frame-driven program writes until it is about BufferMs. The queue holds 2 seconds." },
+  { name = "Underruns", type = "int", access = "read", design = false, unit = "count", doc = "How many times the queue ran dry while playing — each a gap you hear, because the program didn't write in time (a sound that simply ends counts once too). 0 is the goal; Start begins again at 0." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why it can't be heard (\"\" when it can): no sound device, a program built without sound, a browser waiting for a click or key, a property set out of its range (the nearest value is used)." },
+]
+methods = [
+  { name = "Start", effects = ["device"], doc = "Starts playing: what is queued first, then what the program writes (the sound device gets 40 ms of silence before them, so a headset that takes a burst as it begins never cuts the start). In a browser, call it from a click or key handler (the browser's rule)." },
+  { name = "Stop", effects = ["device"], doc = "Stops the sound with a 2 ms fade (no click) and drops what was waiting; Start begins again with what is written next." },
+  { name = "Clear", value = true, effects = ["state"], doc = "Drops what is waiting and keeps playing (an emulator's reset): silence until the next Write." },
+  { name = "Write", params = "Samples AS VARIANT, [Count AS INTEGER], [Offset AS INTEGER]", returns = "INTEGER", effects = ["device"], test = "args: 0", doc = "Queues samples as Bits says, from an INTEGER (or BYTE, LONG …) array, a binary string (16-bit: two bytes a sample, low byte first), an RMemoryStream (from its Position, which moves past what was taken) or one number. Count: how many samples (default: all); Offset: how many to skip first. Stereo is interleaved. Returns how many it took: fewer when the queue (2 seconds) is full." },
+  { name = "WriteFloat", params = "Samples AS VARIANT, [Count AS INTEGER], [Offset AS INTEGER]", returns = "INTEGER", effects = ["device"], test = "args: 0", doc = "Queues samples from -1 to 1 (louder ones clipped), from a SINGLE or DOUBLE array or one number; Count and Offset as Write's. Returns how many it took." },
+  { name = "WriteSample", params = "Value AS INTEGER", returns = "INTEGER", effects = ["device"], test = "args: 0", doc = "Queues one sample as Bits says (16-bit: -32768 to 32767) — the simplest way to learn, a sample at a time; Write with an array is much faster. Returns 1, or 0 when the queue is full." },
+]
+events = [
+  { name = "OnNeedData", params = "Count AS INTEGER", doc = "The queue dropped under BufferMs: write about Count samples now (for stereo, both channels counted) to fill it again. Raised on the program's thread, never the sound device's, while it plays; asked again after a Write or half of BufferMs." },
+]

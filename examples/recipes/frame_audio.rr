@@ -1,0 +1,103 @@
+' Recipe: Emulator sound from a level timeline (one-bit beeper, frame audio)
+' Keywords: sound, audio, beeper, speaker, emulator, emulation, frame, timeline, cycles, samples, synthesizer, RAudioOut, sonido, pitido, altavoz, emulador, muestras, ciclos, som, alto-falante, amostras, ciclos
+' A machine that only flips a speaker bit, at exact cycle times, played
+' the way an emulator plays it: run a frame (here 70560 cycles), note the
+' cycle of every flip, then turn the flips into the frame's 882 samples
+' (44100 / 50): each sample is the share of its 80 cycles the bit was
+' high. An RTimer checks every 10 ms (its ticks come on the system
+' timer's 15.6 ms steps) and runs frames until about 60 ms is queued.
+'
+'   rapidr run frame_audio.rr
+$THEME rapidr
+
+CONST SPF = 882                  ' samples a frame: 44100 / 50
+CONST CPF = 70560                ' cycles a frame
+CONST CPS = 80                   ' cycles a sample: CPF / SPF
+CONST AMP = 8000
+
+DECLARE SUB Tick
+DECLARE SUB StartStop
+
+DIM flips(4095) AS LONG          ' the frame's flips, by cycle
+DIM nFlips AS INTEGER, bit AS INTEGER, startBit AS INTEGER
+DIM samples(SPF - 1) AS INTEGER
+DIM nextFlip AS LONG, half AS LONG, frames AS LONG
+DIM dcIn AS DOUBLE, dcOut AS DOUBLE
+
+DIM Speaker AS RAudioOut
+
+CREATE Form AS RForm
+    Caption = "Frame audio"
+    ClientWidth = 320: ClientHeight = 110
+    Center
+    CREATE StartBtn AS RButton
+        Caption = "&Start": Left = 16: Top = 16: Width = 110: Height = 32
+        OnClick = StartStop
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 16: Top = 62: Width = 290: Height = 36
+        Caption = "A rising tone, made by one bit."
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 10: Enabled = 0
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+' 1. The machine runs one frame: its bit flips every `half` cycles.
+SUB RunMachine
+    nFlips = 0: startBit = bit
+    DO WHILE nextFlip < CPF
+        bit = 1 - bit
+        flips(nFlips) = nextFlip: nFlips = nFlips + 1
+        nextFlip = nextFlip + half
+    LOOP
+    nextFlip = nextFlip - CPF
+    ' (the pitch climbs an octave, then starts again)
+    half = half * 0.995
+    IF half < 2000 THEN half = 4000
+END SUB
+
+' 2. The timeline becomes samples: the share of each sample's cycles the
+' bit was high; a DC blocker brings a held bit back to the middle.
+SUB RenderFrame
+    DIM i AS INTEGER, t AS INTEGER, lv AS INTEGER, s1 AS LONG, edge AS LONG, high AS LONG, x AS DOUBLE
+    lv = startBit
+    FOR i = 0 TO SPF - 1
+        s1 = (i + 1) * CPS: edge = i * CPS: high = 0
+        DO WHILE t < nFlips
+            IF flips(t) >= s1 THEN EXIT DO
+            IF lv THEN high = high + flips(t) - edge
+            edge = flips(t): lv = 1 - lv: t = t + 1
+        LOOP
+        IF lv THEN high = high + s1 - edge
+        x = (high * 2 - CPS) * AMP / CPS
+        dcOut = x - dcIn + 0.995 * dcOut: dcIn = x
+        samples(i) = dcOut
+    NEXT
+END SUB
+
+' 3. Frames until about 60 ms is queued (a late tick catches up).
+SUB Tick
+    DO WHILE Speaker.Queued < 60
+        RunMachine
+        RenderFrame
+        Speaker.Write samples, SPF
+        frames = frames + 1
+    LOOP
+    Status.Caption = FORMAT$("%d", frames) + " frames, " + FORMAT$("%d", Speaker.Queued) + " ms queued, " + FORMAT$("%d", Speaker.Underruns) + " gaps"
+END SUB
+
+SUB StartStop
+    IF Speaker.Playing THEN
+        Speaker.Stop: Clock.Enabled = 0
+        StartBtn.Caption = "&Start"
+    ELSE
+        Speaker.Start: Clock.Enabled = 1
+        StartBtn.Caption = "&Stop"
+        Tick
+    END IF
+END SUB
+
+half = 4000                      ' 3528000 / (2 * 4000) = 441 Hz
+Form.ShowModal
