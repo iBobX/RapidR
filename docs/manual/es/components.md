@@ -34,7 +34,7 @@ Unos pocos nombres Q se asignan a otro nombre R: `QGAUGE` es `RProgressBar`,
 - Un programa escrito con nombres Q, que usa solo los componentes y miembros
   clásicos, sigue siendo un programa clásico simple, que el compilador anterior
   todavía compila. Para pasar uno a los nombres de RapidR, impórtalo
-  (**Archivo ▸ Importar proyecto o archivo de RapidQ…** de RapidR Studio, o
+  (el comando de importación del menú **Archivo** de RapidR Studio, o
   `rapidr import-rapidq`): una copia convertida y un informe, con el original
   intacto — [Importar programas anteriores](importing-rapidq.md).
 - RapidR Studio muestra los nombres de RapidR (la caja de herramientas, el

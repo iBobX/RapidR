@@ -15,7 +15,7 @@ se abre en **Vista previa**: encabezados, listas, tablas y código como están
 hechos para leerse. Ábrelo desde el panel Proyecto (doble clic), con **Archivo >
 Abrir proyecto o archivo…** (Ctrl+O; un archivo `.md` se abre solo, con o sin un
 proyecto), o haciendo clic en un enlace a él en otro archivo Markdown. El
-informe que RapidR escribe cuando importa un programa de RapidQ
+informe que RapidR escribe cuando importa un programa anterior
 (`rapidr-import-report.md`) se abre de la misma manera.
 
 ![Un informe de importación en Vista previa: su resumen, una tabla y sus encabezados en Estructura](../images/markdown/import-report.png)

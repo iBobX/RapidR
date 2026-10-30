@@ -3,7 +3,7 @@
 
 RapidR Studio es el editor hecho para RapidR, pero un programa es un archivo de texto, y dos programas que vienen con RapidR permiten que cualquier editor que hable los protocolos estándar lo entienda como lo entiende Studio:
 
-- **`rapidr lsp`** es el servidor de lenguaje (el Language Server Protocol, por entrada y salida estándar). Es el motor del editor de código de Studio, así que otro editor obtiene el mismo autocompletado, la misma información flotante, la información de parámetros, Ir a la definición, referencias, renombrar, estructura, formato, correcciones rápidas y los mismos problemas, redactados como los redacta el compilador de RapidQ.
+- **`rapidr lsp`** es el servidor de lenguaje (el Language Server Protocol, por entrada y salida estándar). Es el motor del editor de código de Studio, así que otro editor obtiene el mismo autocompletado, la misma información flotante, la información de parámetros, Ir a la definición, referencias, renombrar, estructura, formato, correcciones rápidas y los mismos problemas, redactados como los redacta el compilador.
 - **`rapidr dap`** es el adaptador de depuración (el Debug Adapter Protocol), el motor detrás del depurador de Studio: puntos de interrupción, ejecución paso a paso, la pila de llamadas, variables, expresiones observadas.
 
 Hay una extensión de RapidR ya preparada para Visual Studio Code. Este capítulo dice qué hace y cómo encuentra RapidR, y luego qué le puede pedir otro editor al servidor.
@@ -43,7 +43,7 @@ La página propia de la extensión, con su configuración (`rapidr.path`, `rapid
 
 ## Cualquier editor que hable LSP
 
-`rapidr lsp` acepta estas **opciones de inicialización** (todas opcionales): `rapidqCompatible` (true: informa lo que RapidQ no tiene), `keywordCase` (`upper`, `lower`, `proper`, `preserve`), `identifierCase` (`declaration`, `preserve`) e `includeDirs` (más carpetas para `$INCLUDE`). Lee archivos solo dentro de las carpetas del espacio de trabajo que el editor abrió y de las carpetas de los documentos que abrió.
+`rapidr lsp` acepta estas **opciones de inicialización** (todas opcionales): `rapidqCompatible` (true: advierte de lo que un programa clásico no admite), `keywordCase` (`upper`, `lower`, `proper`, `preserve`), `identifierCase` (`declaration`, `preserve`) e `includeDirs` (más carpetas para `$INCLUDE`). Lee archivos solo dentro de las carpetas del espacio de trabajo que el editor abrió y de las carpetas de los documentos que abrió.
 
 | Qué | Solicitud |
 |---|---|
