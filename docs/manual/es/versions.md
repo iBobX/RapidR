@@ -53,7 +53,7 @@ disco.
 líneas que añadiste. Una línea que parece una clave privada, una clave de API,
 un token de acceso o una contraseña escrita en el código detiene el guardado: el
 cuadro de diálogo dice en qué archivo y en qué línea está, con el secreto
-oculto. Quítalo (guarda los secretos de verdad con [RSecrets](../secrets.md)) o
+oculto. Quítalo (guarda los secretos de verdad con [RSecrets](secrets.md)) o
 marca **Estas no son claves ni contraseñas reales: guardarlas de todos modos**:
 solo entonces **Guardar de todos modos** guarda.
 

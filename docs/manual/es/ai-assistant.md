@@ -504,7 +504,7 @@ lista con botones Iniciar / Detener ([examples/recipes](../../../examples/recipe
 para los programas que manejan las entrañas de una máquina, diez recetas de sistemas: la
 memoria, bits e indicadores, una CPU diminuta, la pila, un volcado hexadecimal, un
 desensamblador, un archivo binario, la memoria de video, un teclado, ciclos por cuadro
-([Recetas para programas de sistemas](../recipes-systems.md)). Envía esa receta con tu
+([Recetas para programas de sistemas](recipes-systems.md)). Envía esa receta con tu
 petición, para que el asistente adapte un programa que ya funciona en lugar de inventar
 uno. La búsqueda se ejecuta en tu computadora, en inglés, español y portugués; *Qué se
 envió* muestra la receta que se envió.
@@ -582,7 +582,7 @@ siguiente solicitud.
   mismas para cada proyecto), lo que el asistente lee del proyecto abierto y, mientras
   tu programa se ejecuta y lo permitiste (una tarjeta en el chat lo pregunta una vez por
   ejecución), lo que muestran las ventanas del programa: nada fuera de eso, nada antes
-  de que presiones Enviar. Mira [Los ojos y las manos de un programa](../app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program).
+  de que presiones Enviar. Mira [Los ojos y las manos de un programa](app-eyes-and-hands.md#en-rapidr-studio-las-aplicaciones-de-ia-y-rai-miran-tu-programa-en-ejecución).
 <!-- legal -->
 - **El texto de tus archivos son datos.** Un comentario o un archivo de datos que dice
   “ignora tus instrucciones y …” es algo que el asistente informa, no algo que obedece;

@@ -111,7 +111,7 @@ RapidR's tests run Studio's main scenes in it (`tests/studio_lang.mjs`).
   under them); Portuguese and Chinese follow.
 - The run-time error messages of a running program, and the Help pane's own
   words around an entry ("Property of RButton"), are in English.
-- The manual in Spanish starts with its most-read pages: the index,
-  *Getting started*, the code editor, projects, Studio in your language,
-  Debugging, the AI assistant, Versions and Troubleshooting; the other
-  pages follow.
+- The manual is in Spanish: all its guide pages. The reference pages (the
+  components, members, built-in functions, statements and constants),
+  generated from the language registry, follow in Spanish with the registry's
+  text.

@@ -304,7 +304,7 @@ controlador sea de una sola línea.
   depurador: ese controlador termina allí (y los controladores que lo dispararon),
   el programa sigue ejecutándose y el siguiente evento se detiene otra vez en el
   error; el error está en Salida. Detener (Shift+F5) termina el programa.
-- **El foco** ([OnEnter y OnExit](../components.md#the-focus-onenter-and-onexit)):
+- **El foco** ([OnEnter y OnExit](components.md#el-foco-onenter-y-onexit)):
   Tab de un control al siguiente se detiene en el OnExit del primero y luego, con
   F5, en el OnEnter del segundo, cada vez. Un clic que mueve el foco también se
   detiene allí, antes del OnClick del propio clic; el clic ya terminó (el botón se
@@ -650,7 +650,7 @@ expresión observada que cambió desde la última detención aparece resaltada.
 
 <!-- legal -->
 Un valor que es una credencial nunca se muestra. Eso es lo que devuelve
-`RSecrets.Read`, lo que se le da a `RSecrets.Save` ([Guardar secretos](../secrets.md))
+`RSecrets.Read`, lo que se le da a `RSecrets.Save` ([Guardar secretos](secrets.md))
 y una propiedad secreta como `RMySQL.Password` o `RAI.APIKey`. Variables, Observar,
 las sugerencias de datos, las propiedades de un componente y los mensajes de registro
 muestran `••••` en su lugar, también dentro de un texto más largo que lo contiene
@@ -702,7 +702,7 @@ línea: haz clic en él para ir allí. Presiona Shift+F5 para terminar el progra
 para dejar que el error haga lo que hace sin el depurador: en el programa principal
 termina el programa; en un controlador de eventos termina ese controlador y el
 programa sigue ejecutándose (mira
-[Un error de ejecución en un controlador](../components.md#a-run-time-error-in-a-handler)).
+[Un error de ejecución en un controlador](components.md#un-error-de-ejecución-en-un-controlador)).
 
 Este programa (`tools/manual/scenes/debugger/share.rr`) divide por una variable que
 todavía vale 0:
@@ -794,7 +794,7 @@ navegador.
   programa se desplaza hasta el resto: una barra de desplazamiento delgada aparece a
   lo largo del borde de la página mientras hace falta (arrástrala, o gira la rueda
   sobre ella o sobre la barra de título de la ventana). Maximiza la ventana y cabe en
-  la página. Mira [Ventanas más grandes que la página](../web.md#windows-bigger-than-the-page).
+  la página. Mira [Ventanas más grandes que la página](web.md#ventanas-más-grandes-que-la-página).
 
   ![En el navegador en una página de 1280 × 720: el tablero de 1200 × 800 desplazado hasta abajo, la barra de desplazamiento en el borde derecho de la página](../images/debugging/web-big-window.png)
 

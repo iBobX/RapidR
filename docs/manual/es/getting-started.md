@@ -324,7 +324,7 @@ La regla es sencillamente Q → R (`QBUTTON` es `RButton`); unos pocos difieren:
 `QGAUGE` es `RProgressBar`, `QOUTLINE` es `RTreeView`, `COMPORT` es `RComPort`.
 La lista completa: [reference/components.md](../reference/components.md). Para
 convertir un programa así en uno con los nombres de RapidR, mira
-[Importar programas anteriores](../importing-rapidq.md). Un programa `.bas` que
+[Importar programas anteriores](importing-rapidq.md). Un programa `.bas` que
 usa las constantes clásicas (`clRed`, `MB_OK` …) conserva la línea
 `$INCLUDE "RAPIDQ.INC"`: RapidR las proporciona mediante esa línea sin necesitar
 el archivo. Un programa de RapidR (`.rr`) las trae incorporadas, sin ninguna
@@ -358,7 +358,7 @@ licencias de los componentes que lleva dentro ([LEGAL.md](../../../LEGAL.md)).
 - Las compilaciones nativas e interpretadas se comportan igual: la suite de
   conformidad ejecuta cada caso de las dos maneras, y en la web.
 
-Detalles: [La CLI y el RapidR Runtime](../cli-and-runtime.md).
+Detalles: [La CLI y el RapidR Runtime](cli-and-runtime.md).
 
 ## La web
 
@@ -369,22 +369,22 @@ python3 -m http.server -d form-web 8080      # cualquier servidor web estático
 ```
 
 Abre `http://localhost:8080`: la misma ventana, dibujada por el mismo núcleo de
-interfaz en un lienzo. Mira [La web](../web.md).
+interfaz en un lienzo. Mira [La web](web.md).
 
 ## RapidR Studio
 
 - **El IDE de escritorio** (SDK: menú Inicio > RapidR Studio, *RapidR Studio* en
   Aplicaciones en macOS, *RapidR Studio* en el menú de aplicaciones en Linux, o
   `rapidr ide [file]`) está escrito en el propio RapidR. Tiene un **diseñador de
-  formularios** ([Diseñar formularios](../designing-forms.md)), un **editor de
+  formularios** ([Diseñar formularios](designing-forms.md)), un **editor de
   código** que completa, explica y comprueba mientras escribes
   ([El editor de código](studio-editor.md)), un **depurador** con puntos de
   interrupción, ejecución paso a paso, valores que puedes abrir como un árbol y
   Establecer la siguiente instrucción ([Depuración](debugging.md)), un
   **asistente de IA** que se queda desactivado hasta que lo actives
   ([El asistente de IA y RAI](ai-assistant.md)), archivos Markdown con formato
-  ([Markdown](../markdown.md)), datos vinculados que se muestran en vivo en el
-  diseñador ([Ciencia de datos con RapidR](../data-science-with-rapidr.md)), y
+  ([Markdown](markdown.md)), datos vinculados que se muestran en vivo en el
+  diseñador ([Ciencia de datos con RapidR](data-science-with-rapidr.md)), y
   Ejecutar, Compilar y Compilar aplicación web.
 - **El IDE web** (`rapidr-web-2.119.0.zip`, cualquier servidor estático): el
   mismo RapidR Studio en el navegador (el diseñador, el editor de código, el
@@ -397,7 +397,7 @@ baja para todos ellos se desplaza (con la rueda o con la barra); con el teclado,
 Tab y Shift+Tab van de una tarjeta a otra y a cada proyecto de **Recientes** (la
 página se desplaza hasta el que alcanzas, y un anillo lo rodea) y Enter lo abre.
 Studio se abre con el aspecto claro, oscuro o de contraste alto de tu sistema y
-lo sigue cuando lo cambias ([Temas](../components.md#when-the-look-changes)).
+lo sigue cuando lo cambias ([Temas](components.md#cuando-cambia-el-aspecto)).
 
 Los ejemplos que están donde se instaló RapidR no se pueden cambiar (la
 aplicación de macOS, `/usr/lib/rapidr`, Program Files), así que la primera vez
@@ -469,16 +469,16 @@ ancho ([Depuración: dos disposiciones](debugging.md#dos-disposiciones-edición-
 
 ## Adónde ir después
 
-- [Por qué RapidR](../why-rapidr.md): en qué destaca, con números medidos.
-- [El lenguaje](../language.md), con las reglas que sorprenden a quien viene de
+- [Por qué RapidR](why-rapidr.md): en qué destaca, con números medidos.
+- [El lenguaje](language.md), con las reglas que sorprenden a quien viene de
   otros BASIC (la coma de `PRINT`, los números, las asignaciones a enteros).
-- [Diseñar formularios en RapidR Studio](../designing-forms.md): una aplicación de
+- [Diseñar formularios en RapidR Studio](designing-forms.md): una aplicación de
   dos formularios, paso a paso.
 - [Los ejemplos](../../../examples/README.md), en el orden en que conviene
   leerlos.
 - [La referencia de componentes](../reference/components.md), con los miembros de
   cada componente.
 - ¿Tienes programas anteriores con nombres Q?
-  [Importar programas anteriores](../importing-rapidq.md); también se ejecutan
+  [Importar programas anteriores](importing-rapidq.md); también se ejecutan
   tal cual.
 - ¿Un mensaje que no entiendes? [Solución de problemas](troubleshooting.md).
