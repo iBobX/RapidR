@@ -173,6 +173,12 @@ fn outline_lines(items: &[OutlineItem], text: &str, depth: usize, out: &mut Stri
 
 pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     let file = PathBuf::from(slashes(&text_arg(args, 0)));
+    // (the program's language — RapidR Studio's —: the registry's docs in
+    // hovers and help, the compiler's messages in Problems)
+    let lang = rapidr_value::i18n::language();
+    if rapidr_lang::docs_i18n::doc_language() != lang {
+        rapidr_lang::docs_i18n::set_doc_language(&lang);
+    }
     Some(match method {
         "update" => {
             let text = text_arg(args, 1);
@@ -247,6 +253,21 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             outline_lines(&a.outline(&file), &text, 0, &mut out);
             out
         }).into()),
+        // ManualPage(Page): a page of the manual in Studio's language
+        // (docs/manual/<language>/<page>.md), else in English with a note
+        // that says so; "" for no such page
+        "manualpage" => {
+            let page = text_arg(args, 0);
+            Value::String(match crate::manual_search::page_in(&page, &lang) {
+                Some((text, true)) => text.to_string().into(),
+                Some((text, false)) if !lang.starts_with("en") => {
+                    let note = rapidr_value::i18n::tr_ui("Not translated yet: this page is in English.");
+                    format!("> *{note}*\n\n{text}").into()
+                }
+                Some((text, false)) => text.to_string().into(),
+                None => String::new().into(),
+            })
+        }
         "diagnostics" | "projectdiagnostics" => Value::String(with(name, |s| {
             let project = (method == "projectdiagnostics").then(|| PathBuf::from(&s.project)).filter(|p| !p.as_os_str().is_empty());
             let a = s.analysis();
@@ -270,7 +291,12 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 if severity == "error" {
                     errors += 1;
                 }
-                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&d.one_line()), slashes(&d.file.to_string_lossy())));
+                // (the compiler's words in Studio's language: RQ… / RR… messages
+                // a catalog translates; the rest as the compiler says them —
+                // and the hint for a habit from another language after it)
+                let message = rapidr_diagnostics::messages::localize(&d.message, &lang);
+                let message = match d.hint { Some(h) => format!("{message} — hint: {}", h.text()), None => message };
+                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&message), slashes(&d.file.to_string_lossy())));
             }
             s.errors = errors;
             out

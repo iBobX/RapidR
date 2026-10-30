@@ -6,6 +6,7 @@
 use std::ops::Range;
 
 use rapidr_editor::{SearchQuery, Searcher, Selection, Selections};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::text::text_size;
@@ -180,7 +181,7 @@ pub fn open(x: &mut Ctx, mode: Mode) {
             if lang::served(x) {
                 Field::with(&picked)
             } else {
-                f.message = "No language service for this file".into();
+                f.message = tr_ui("No language service for this file");
                 Field::with(&picked)
             }
         }
@@ -302,7 +303,7 @@ pub fn key(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
                         let t = super::input::now_ms();
                         if cmd && m.alt {
                             let n = x.c.doc.replace_all(&q, &f.replace.text, f.in_selection, t).unwrap_or(0);
-                            f.message = format!("Replaced {n}");
+                            f.message = tr_ui_fill("Replaced {count}", &[("count", &n.to_string())]);
                         } else {
                             let _ = x.c.doc.replace_next(&q, &f.replace.text, t);
                         }
@@ -488,13 +489,13 @@ pub fn paint(x: &mut Ctx, p: &mut Painter) {
         });
     };
     let hint = match f.mode {
-        Mode::Find | Mode::Replace => "Find".to_string(),
-        Mode::Goto => format!("Go to line (1–{}), :column", x.c.doc.line_count()),
-        Mode::Rename => "New name".to_string(),
+        Mode::Find | Mode::Replace => tr_ui("Find"),
+        Mode::Goto => tr_ui_fill("Go to line (1–{count}), :column", &[("count", &x.c.doc.line_count().to_string())]),
+        Mode::Rename => tr_ui("New name"),
     };
     field(p, parts.query, &f.query, f.field == 0, &hint);
     if let Some(r) = parts.replace {
-        field(p, r, &f.replace, f.field == 1, "Replace");
+        field(p, r, &f.replace, f.field == 1, &tr_ui("Replace"));
     }
     let th = text_size("Ag", &font).1;
     if matches!(f.mode, Mode::Find | Mode::Replace) {
@@ -513,11 +514,11 @@ pub fn paint(x: &mut Ctx, p: &mut Painter) {
         let count = if f.query.text.is_empty() {
             String::new()
         } else if total == 0 {
-            "No results".into()
+            tr_ui("No results")
         } else {
             match current {
-                Some(i) => format!("{} of {total}", i + 1),
-                None => format!("? of {total}"),
+                Some(i) => tr_ui_fill("{current} of {total}", &[("current", &(i + 1).to_string()), ("total", &total.to_string())]),
+                None => tr_ui_fill("? of {total}", &[("total", &total.to_string())]),
             }
         };
         let cc = if total == 0 && !f.query.text.is_empty() { sc.error } else { sc.popup_detail };
@@ -525,9 +526,9 @@ pub fn paint(x: &mut Ctx, p: &mut Painter) {
         p.icon("glyphs/arrow-up", parts.prev, Some(sc.popup_text), total == 0);
         p.icon("glyphs/arrow-down", parts.next, Some(sc.popup_text), total == 0);
         if let (Some(a), Some(b)) = (parts.replace_one, parts.replace_all) {
-            for (r, label) in [(a, "Replace"), (b, "All")] {
+            for (r, label) in [(a, tr_ui("Replace")), (b, tr_ui("All"))] {
                 p.op(Op::Round { rect: r, radius: 3.0, fill: Some(sc.fold_box), stroke: None, width: 1.0 });
-                p.text((r.0, r.1 + (r.3 - th) / 2, r.2, th), label, &font, sc.popup_text, Place::TopCenter);
+                p.text((r.0, r.1 + (r.3 - th) / 2, r.2, th), &label, &font, sc.popup_text, Place::TopCenter);
             }
         }
     }

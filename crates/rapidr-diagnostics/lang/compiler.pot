@@ -1,0 +1,162 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: RapidR compiler messages\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0001"
+msgid "Member {member} not part of class {class}"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0002"
+msgid "{name} is a read-only value."
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0003"
+msgid "Property {property} of {class} is read-only."
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0004"
+msgid "Undeclared identifier {name}"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0005"
+msgid "Expected end-of-line but got {got}"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0006"
+msgid "Expected {expected} but got \"{got}\""
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0007"
+msgid "Identifier {name} already used, try another name"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0008"
+msgid "Unknown type {name}"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0009"
+msgid "ICON file {file} does not exist."
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0010"
+msgid "Array of {type} is not supported!"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0011"
+msgid "Create Method only works for QObjects, not {name}"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0012"
+msgid "Datatype {type} not supported in STRUCT"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0013"
+msgid "{name} is not a valid data type for your FUNCTION"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0014"
+msgid "Component assignment is not yet supported."
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0015"
+msgid "Too many actual parameters for {name}"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0016"
+msgid "Expected end-of-line"
+msgstr ""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0017"
+msgid "Expected {expected}"
+msgstr ""
+
+msgctxt "RR0001"
+msgid "Syntax error in {word} statement (did you mean {fix}?)"
+msgstr ""
+
+msgctxt "RR0002"
+msgid "Syntax error in {word} statement"
+msgstr ""
+
+msgctxt "RR0003"
+msgid "Syntax error near '{text}'"
+msgstr ""
+
+msgctxt "RR0004"
+msgid "Syntax error: unexpected '{text}'"
+msgstr ""
+
+msgctxt "RR0005"
+msgid "Syntax error: unexpected end of file"
+msgstr ""
+
+msgctxt "RR0006"
+msgid "Unknown SUB or FUNCTION '{name}'"
+msgstr ""
+
+msgctxt "RR0007"
+msgid "Label '{label}' not found in {routine}"
+msgstr ""
+
+msgctxt "RR0008"
+msgid "Label '{label}' is defined more than once"
+msgstr ""
+
+msgctxt "RR0009"
+msgid "EXIT {kind} is not inside a {kind} loop"
+msgstr ""
+
+msgctxt "RR0010"
+msgid "EXIT {kind} is not inside a {kind}"
+msgstr ""
+
+msgctxt "RR0011"
+msgid "'{word}' is a reserved word and can't be used as a name"
+msgstr ""
+
+msgctxt "RR0012"
+msgid "EVENT {name} is missing END EVENT"
+msgstr ""
+
+msgctxt "RR0013"
+msgid "PROPERTY SET {name} is missing END PROPERTY"
+msgstr ""
+
+msgctxt "RR0014"
+msgid "Field {field} in TYPE {type} needs a type: `{field} AS INTEGER`"
+msgstr ""
+
+msgctxt "RR0015"
+msgid "Unexpected '{text}' after field declaration"
+msgstr ""
+
+msgctxt "RR0016"
+msgid "GOSUB needs a label"
+msgstr ""
+
+msgctxt "RR0017"
+msgid "FOR {name} AS {type}: {name} is already declared AS {declared}"
+msgstr ""
+
+msgctxt "RR0018"
+msgid "{file}: no errors"
+msgstr ""

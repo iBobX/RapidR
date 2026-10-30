@@ -83,3 +83,6 @@ examples/recipes/sample.tsn
 # (RapidR Studio's own folder in a project — the local history of saves,
 # previews: Versions G3 — wherever a project is opened in the checkout)
 .rapidr/
+
+# The pseudo-language xx: generated from ide/lang/studio.pot (rapidr i18n studio), never committed
+ide/lang/xx.po

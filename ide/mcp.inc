@@ -72,6 +72,12 @@ DECLARE FUNCTION McpModeName(Mode AS STRING) AS STRING
 DECLARE FUNCTION McpModeIndex(Mode AS STRING) AS INTEGER
 DECLARE FUNCTION McpModeAt(Index AS INTEGER) AS STRING
 DECLARE FUNCTION McpModeNote(Mode AS STRING) AS STRING
+DECLARE FUNCTION McpModeNameEn(Mode AS STRING) AS STRING
+DECLARE FUNCTION McpModeNoteEn(Mode AS STRING) AS STRING
+DECLARE SUB McpFillModes(Box AS RComboBox)
+DECLARE FUNCTION McpOutcomeShown(Outcome AS STRING) AS STRING
+DECLARE FUNCTION McpDialogShown(Dialog AS STRING) AS STRING
+DECLARE SUB McpLanguageChanged
 DECLARE FUNCTION McpDecision(Kind AS STRING) AS STRING
 DECLARE SUB McpModeFollow
 DECLARE FUNCTION McpModeKept(Key AS STRING) AS STRING
@@ -96,6 +102,7 @@ DECLARE FUNCTION McpFootText AS STRING
 DECLARE FUNCTION McpManualUrl AS STRING
 DECLARE SUB McpLearnClick
 DECLARE FUNCTION McpRowsHigh(W AS INTEGER) AS INTEGER
+DECLARE FUNCTION McpHeadW AS INTEGER
 DECLARE FUNCTION McpConsent AS INTEGER
 DECLARE SUB McpLogMenuOpening
 DECLARE SUB McpLogMenuPicked(Sender AS RMenuItem)
@@ -229,7 +236,7 @@ $INCLUDE "mcpapp.inc"
 ' ---- the AI Apps pane: who is connected, what they do, what waits for you -------
 CREATE McpPanel AS RPanel
   BevelOuter = 0
-  AccessibleName = "AI Apps"
+  AccessibleName = TR$("AI Apps")
   ' (the pane's header, docs/design-guidelines.md "Pane anatomy": the title
   ' and a line under it at the left; at the right, on one centre line and
   ' all compact, Allow everything's warning chip, the mode's menu and Stop:
@@ -240,16 +247,16 @@ CREATE McpPanel AS RPanel
     BevelOuter = 0
     CREATE McpHead AS RLabel
       Left = 12: Top = 9: Width = 300
-      AccessibleName = "AI apps"
+      AccessibleName = TR$("AI apps")
     END CREATE
     CREATE McpSub AS RLabel
       Left = 12: Top = 27: Width = 300
-      AccessibleName = "What the AI app does now"
+      AccessibleName = TR$("What the AI app does now")
     END CREATE
     CREATE McpModeBox AS RComboBox
       Style = 2
-      AccessibleName = "What AI apps may do"
-      AccessibleDescription = "Read only, Ask before changes, Allow edits or Allow everything: for this project"
+      AccessibleName = TR$("What AI apps may do")
+      AccessibleDescription = TR$("Read only, Ask before changes, Allow edits or Allow everything: for this project")
       OnChange = McpModePicked
     END CREATE
     ' (the warning chip: a soft amber pill, its icon and its words — read
@@ -257,7 +264,7 @@ CREATE McpPanel AS RPanel
     CREATE McpBadge AS RPanel
       BevelOuter = 0
       Visible = 0
-      AccessibleName = "Warning: AI apps may change and run anything in this project without asking"
+      AccessibleName = TR$("Warning: AI apps may change and run anything in this project without asking")
       CREATE McpChip AS RCanvas
         Left = 0: Top = 0
         Tag = 2
@@ -267,13 +274,13 @@ CREATE McpPanel AS RPanel
         Width = 16: Height = 16
       END CREATE
       CREATE McpBadgeText AS RLabel
-        Caption = "No questions asked"
+        Caption = TR$("No questions asked")
         Transparent = 1
       END CREATE
     END CREATE
     CREATE McpStopBtn AS RButton
-      Caption = "&Stop"
-      AccessibleName = "Stop the server: every AI app is disconnected"
+      Caption = TR$("&Stop")
+      AccessibleName = TR$("Stop the server: every AI app is disconnected")
       OnClick = McpStopClick
     END CREATE
   END CREATE
@@ -290,98 +297,98 @@ CREATE McpPanel AS RPanel
     END CREATE
     CREATE McpAskText AS RLabel
       Left = 16: Top = 10: WordWrap = 1: AutoSize = 0: Height = 36
-      AccessibleName = "What an AI app asks to do"
+      AccessibleName = TR$("What an AI app asks to do")
     END CREATE
     CREATE McpOnceBtn AS RButton
-      Caption = "Allow &Once"
+      Caption = TR$("Allow &Once")
       OnClick = McpOnceClick
     END CREATE
     CREATE McpSessionBtn AS RButton
-      Caption = "Allow for This Se&ssion"
-      AccessibleDescription = "Calls of this kind are allowed until Studio closes or the server stops"
+      Caption = TR$("Allow for This Se&ssion")
+      AccessibleDescription = TR$("Calls of this kind are allowed until Studio closes or the server stops")
       OnClick = McpSessionClick
     END CREATE
     CREATE McpDenyBtn AS RButton
-      Caption = "&Deny"
+      Caption = TR$("&Deny")
       OnClick = McpDenyClick
     END CREATE
     CREATE McpReviewBtn AS RButton
-      Caption = "&Review..."
-      AccessibleName = "Review the change before deciding"
+      Caption = TR$("&Review...")
+      AccessibleName = TR$("Review the change before deciding")
       OnClick = McpReviewClick
     END CREATE
   END CREATE
   ' (placed by McpLayOutPane: a whole number of rows tall)
   CREATE McpLog AS RListBox
-    AccessibleName = "What AI apps did"
+    AccessibleName = TR$("What AI apps did")
   END CREATE
 END CREATE
 
 ' ---- Tools > Settings > AI Apps (settings.inc shows it as its third tab) ------
 CREATE McpPage AS RPanel
   BevelOuter = 0
-  AccessibleName = "AI Apps"
+  AccessibleName = TR$("AI Apps")
   Visible = 0
   CREATE McpOnBox AS RCheckBox
-    Caption = "&Let AI apps use RapidR Studio"
-    AccessibleDescription = "Off by default. On: an AI app on this computer that has the address and token below can work with your open project"
+    Caption = TR$("&Let AI apps use RapidR Studio")
+    AccessibleDescription = TR$("Off by default. On: an AI app on this computer that has the address and token below can work with your open project")
     OnClick = McpSetOnClick
   END CREATE
   CREATE McpOnNote AS RLabel
     WordWrap = 1: AutoSize = 0
-    Caption = "When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings."
+    Caption = TR$("When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings.")
   END CREATE
   CREATE McpPortLabel AS RLabel
-    Caption = "P&ort:"
+    Caption = TR$("P&ort:")
   END CREATE
   CREATE McpPortEdit AS REdit
-    AccessibleName = "Port"
-    AccessibleDescription = "The port AI apps connect to on 127.0.0.1 (this computer only)"
+    AccessibleName = TR$("Port")
+    AccessibleDescription = TR$("The port AI apps connect to on 127.0.0.1 (this computer only)")
   END CREATE
   CREATE McpAddrLabel AS RLabel
-    Caption = "Address:"
+    Caption = TR$("Address:")
   END CREATE
   CREATE McpAddrEdit AS REdit
     ReadOnly = 1
-    AccessibleName = "The address AI apps connect to"
+    AccessibleName = TR$("The address AI apps connect to")
   END CREATE
   CREATE McpCopyAddrBtn AS RButton
-    Caption = "Copy &Address"
+    Caption = TR$("Copy &Address")
     OnClick = McpCopyAddressClick
   END CREATE
   CREATE McpHeaderLabel AS RLabel
-    Caption = "Header:"
+    Caption = TR$("Header:")
   END CREATE
   CREATE McpHeaderEdit AS REdit
     ReadOnly = 1
     PasswordChar = "*"
-    AccessibleName = "The header AI apps send: Authorization, Bearer and the token"
+    AccessibleName = TR$("The header AI apps send: Authorization, Bearer and the token")
   END CREATE
   CREATE McpCopyHeaderBtn AS RButton
-    Caption = "Copy &Header"
+    Caption = TR$("Copy &Header")
     OnClick = McpCopyHeaderClick
   END CREATE
   CREATE McpShowTokenBtn AS RButton
-    Caption = "Sho&w"
-    AccessibleName = "Show or hide the token"
+    Caption = TR$("Sho&w")
+    AccessibleName = TR$("Show or hide the token")
     OnClick = McpShowTokenClick
   END CREATE
   CREATE McpResetBtn AS RButton
-    Caption = "&Reset Token"
-    AccessibleDescription = "A new token: every AI app that had the old one is disconnected"
+    Caption = TR$("&Reset Token")
+    AccessibleDescription = TR$("A new token: every AI app that had the old one is disconnected")
     OnClick = McpResetTokenClick
   END CREATE
   CREATE McpPermHead AS RLabel
-    Caption = "What AI apps may &do:"
+    Caption = TR$("What AI apps may &do:")
   END CREATE
   CREATE McpPageModeBox AS RComboBox
     Style = 2
-    AccessibleName = "What AI apps may do in this project"
+    AccessibleName = TR$("What AI apps may do in this project")
     OnChange = McpPageModePicked
   END CREATE
   CREATE McpModeNoteLabel AS RLabel
     WordWrap = 1: AutoSize = 0
-    AccessibleName = "What the choice means"
+    AccessibleName = TR$("What the choice means")
   END CREATE
   ' (what AI apps can see and do: the rows McpRow… — the consent's own,
   ' SetUpMcp makes them —, a footer, Learn more)
@@ -389,33 +396,33 @@ CREATE McpPage AS RPanel
     WordWrap = 1: AutoSize = 0
   END CREATE
   CREATE McpLearnLink AS RLabel
-    Caption = "Learn more about AI apps"
+    Caption = TR$("Learn more about AI apps")
     TabStop = 1
-    AccessibleDescription = "Opens the manual's page in your browser"
+    AccessibleDescription = TR$("Opens the manual's page in your browser")
     OnClick = McpLearnClick
   END CREATE
   CREATE McpClearBtn AS RButton
-    Caption = "C&lear Activity..."
-    AccessibleDescription = "Removes the list of what AI apps did from this computer"
+    Caption = TR$("C&lear Activity...")
+    AccessibleDescription = TR$("Removes the list of what AI apps did from this computer")
     OnClick = McpClearLogClick
   END CREATE
 END CREATE
 
 ' ---- reviewing an AI app's change before allowing it ---------------------------
 CREATE McpReview AS RForm
-  Caption = "Review the AI App's Change"
+  Caption = TR$("Review the AI App's Change")
   Width = 980: Height = 640
   CREATE McpRevFoot AS RPanel
     Align = 2
     Height = 56
     BevelOuter = 0
     CREATE McpRevApplyBtn AS RButton
-      Caption = "A&pply"
+      Caption = TR$("A&pply")
       Default = 1
       OnClick = McpRevApply
     END CREATE
     CREATE McpRevRejectBtn AS RButton
-      Caption = "&Reject"
+      Caption = TR$("&Reject")
       Cancel = 1
       OnClick = McpRevReject
     END CREATE
@@ -423,18 +430,18 @@ CREATE McpReview AS RForm
   CREATE McpRevHead AS RLabel
     Align = 1
     Height = 36
-    AccessibleName = "What the change does"
+    AccessibleName = TR$("What the change does")
   END CREATE
   CREATE McpRevList AS RListBox
     Align = 3
     Width = 220
-    AccessibleName = "Files the AI app changes"
+    AccessibleName = TR$("Files the AI app changes")
     OnClick = McpRevPicked
   END CREATE
   CREATE McpRevDiff AS RDiffView
     Align = 5
     Mode = "split"
-    AccessibleName = "The change: the file as it is on the left, as proposed on the right"
+    AccessibleName = TR$("The change: the file as it is on the left, as proposed on the right")
   END CREATE
 END CREATE
 
@@ -457,12 +464,29 @@ END FUNCTION
 ' A mode as the menus say it.
 FUNCTION McpModeName(Mode AS STRING) AS STRING
   SELECT CASE Mode
+    CASE "read": Result = TR$("Read only")
+    CASE "edits": Result = TR$("Allow edits")
+    CASE "all": Result = TR$("Allow everything")
+    CASE ELSE: Result = TR$("Ask before changes")
+  END SELECT
+END FUNCTION
+
+' (the same in English: what an AI app reads — studio_status — and the audit log
+' say, never translated)
+FUNCTION McpModeNameEn(Mode AS STRING) AS STRING
+  SELECT CASE Mode
     CASE "read": Result = "Read only"
     CASE "edits": Result = "Allow edits"
     CASE "all": Result = "Allow everything"
     CASE ELSE: Result = "Ask before changes"
   END SELECT
 END FUNCTION
+
+' (the menus' mode lists: filled again when Studio's language changes)
+SUB McpFillModes(Box AS RComboBox)
+  Box.Clear
+  Box.AddItems McpModeName("read"), McpModeName("ask"), McpModeName("edits"), McpModeName("all")
+END SUB
 
 FUNCTION McpModeIndex(Mode AS STRING) AS INTEGER
   SELECT CASE Mode
@@ -484,6 +508,16 @@ END FUNCTION
 
 ' What a mode means, in a sentence or two (Settings shows it under the menu).
 FUNCTION McpModeNote(Mode AS STRING) AS STRING
+  SELECT CASE Mode
+    CASE "read": Result = TR$("AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program.")
+    CASE "edits": Result = TR$("Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you.")
+    CASE "all": Result = TR$("Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project.")
+    CASE ELSE: Result = TR$("AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny.")
+  END SELECT
+END FUNCTION
+
+' (the same in English, for studio_status: keep it in step with McpModeNote)
+FUNCTION McpModeNoteEn(Mode AS STRING) AS STRING
   SELECT CASE Mode
     CASE "read": Result = "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program."
     CASE "edits": Result = "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
@@ -563,9 +597,9 @@ SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
   McpMode = ""
   McpSetMode carried
   IF Before = "all" THEN
-    McpCarrySaid = "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
+    McpCarrySaid = TR$("New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it.")
   ELSE
-    McpCarrySaid = "New project: same permission as before (" + McpModeName(carried) + ")"
+    McpCarrySaid = TR$("New project: same permission as before ({mode})", "mode", McpModeName(carried))
   END IF
 END SUB
 
@@ -590,22 +624,22 @@ SUB McpSetMode(Mode AS STRING)
   McpGrants = ""
   McpSaveSettings
   McpShowMode
-  McpLog.AddItems LEFT$(TIME$, 8) + "  AI apps may now: " + McpModeName(Mode)
+  McpLog.AddItems LEFT$(TIME$, 8) + "  " + TR$("AI apps may now: {mode}", "mode", McpModeName(Mode))
   McpLogEnd
-  McpTools.AuditCall "Studio", "mode", "", McpModeName(Mode)
-  Application.Announce "AI apps: " + McpModeName(Mode)
+  McpTools.AuditCall "Studio", "mode", "", McpModeNameEn(Mode)
+  Application.Announce TR$("AI apps: {mode}", "mode", McpModeName(Mode))
 END SUB
 
 ' (Allow everything chosen: what it means said in rows — consent.inc —,
 ' Cancel the default)
 FUNCTION McpConfirmAll AS INTEGER
-  ConsentBegin "Allow everything for AI apps in this project?", "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
-  ConsentRow "warning", "Keep in mind", "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
-  ConsentRow "visible", "You still see", "Everything they do, listed in the AI Apps pane; Stop ends it."
-  ConsentRow "lock", "Never", "Studio's own tools never hand over your keys, or files outside the project."
-  ConsentYes.AccessibleDescription = "AI apps change and run anything in this project without asking"
-  ConsentNo.AccessibleDescription = "The permission stays as it was"
-  Result = ConsentAsk("", McpManualUrl, "&Allow Everything", "Cancel")
+  ConsentBegin TR$("Allow everything for AI apps in this project?"), TR$("Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own.")
+  ConsentRow "warning", TR$("Keep in mind"), TR$("A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust.")
+  ConsentRow "visible", TR$("You still see"), TR$("Everything they do, listed in the AI Apps pane; Stop ends it.")
+  ConsentRow "lock", TR$("Never"), TR$("Studio's own tools never hand over your keys, or files outside the project.")
+  ConsentYes.AccessibleDescription = TR$("AI apps change and run anything in this project without asking")
+  ConsentNo.AccessibleDescription = TR$("The permission stays as it was")
+  Result = ConsentAsk("", McpManualUrl, TR$("&Allow Everything"), TR$("Cancel"))
 END FUNCTION
 
 ' The pane's menu: the user's choice (Allow everything confirmed first).
@@ -625,7 +659,7 @@ END SUB
 ' (the menu, the badge and the status bar as the mode is)
 SUB McpShowMode
   McpModeFilling = 1
-  IF McpModeBox.ItemCount = 0 THEN McpModeBox.AddItems "Read only", "Ask before changes", "Allow edits", "Allow everything"
+  IF McpModeBox.ItemCount = 0 THEN McpFillModes McpModeBox
   McpModeBox.ItemIndex = McpModeIndex(McpMode)
   McpModeFilling = 0
   McpBadge.Visible = Flag(McpMode = "all")
@@ -696,7 +730,7 @@ SUB McpReaskTick
   ELSE
     McpOn = 0
     McpKeepConsent
-    OutputLine "AI apps: off. Confirm again in Settings > AI Apps."
+    OutputLine TR$("AI apps: off. Confirm again in Settings > AI Apps.")
   END IF
   McpShowState
 END SUB
@@ -725,7 +759,7 @@ FUNCTION McpTokenNow AS STRING
   t = McpSecrets.Read("AI apps", "token")
   IF t = "" THEN
     t = Mcp.NewToken
-    IF McpSecrets.Save("AI apps", "token", t) = 0 THEN OutputLine "AI apps: the token couldn't be kept in the keychain (" + McpSecrets.Error + "): it is new each time Studio starts."
+    IF McpSecrets.Save("AI apps", "token", t) = 0 THEN OutputLine TR$("AI apps: the token couldn't be kept in the keychain ({error}): it is new each time Studio starts.", "error", McpSecrets.Error)
   END IF
   Result = t
 END FUNCTION
@@ -761,14 +795,14 @@ SUB SetUpMcp
     McpOn = 0
     EXIT SUB
   END IF
-  Dock.AddPane(McpPanel, "AI Apps", "tab:outputbox", "plug")
+  Dock.AddPane(McpPanel, TR$("AI Apps"), "tab:outputbox", "plug")
   McpPanel.OnResize = McpLayOutPane
   Dock.HidePane("mcppanel")
   ' (Output stays the group's front tab, as SetUpDock left it)
   Dock.ShowPane("outputbox")
   McpPage.Parent = SettingsDialog
-  SettingsTabs.AddTabs "AI Apps"
-  McpPageModeBox.AddItems "Read only", "Ask before changes", "Allow edits", "Allow everything"
+  SettingsTabs.AddTabs TR$("AI Apps")
+  McpFillModes McpPageModeBox
   McpModeFollow
   FOR k = 0 TO 3
     McpRowImg(k).Parent = McpPage
@@ -785,9 +819,9 @@ SUB SetUpMcp
   NEXT
   McpSeeFoot.Caption = McpFootText
   ' (the activity list's menu: the Output pane's words)
-  McpLogItem(0).Caption = "&Copy" + CHR$(9) + "Ctrl+C"
-  McpLogItem(1).Caption = "Copy &All"
-  McpLogItem(2).Caption = "C&lear Activity..."
+  McpLogItem(0).Caption = TR$("&Copy") + CHR$(9) + "Ctrl+C"
+  McpLogItem(1).Caption = TR$("Copy &All")
+  McpLogItem(2).Caption = TR$("C&lear Activity...")
   FOR k = 0 TO 2
     McpLogItem(k).Tag = k
     McpLogItem(k).OnClick = McpLogMenuPicked
@@ -825,24 +859,24 @@ END FUNCTION
 
 FUNCTION McpRowHead(K AS INTEGER) AS STRING
   SELECT CASE K
-    CASE 0: Result = "It can see"
-    CASE 1: Result = "It can"
-    CASE 2: Result = "It never sees"
-    CASE ELSE: Result = "Keep in mind"
+    CASE 0: Result = TR$("It can see")
+    CASE 1: Result = TR$("It can")
+    CASE 2: Result = TR$("It never sees")
+    CASE ELSE: Result = TR$("Keep in mind")
   END SELECT
 END FUNCTION
 
 FUNCTION McpRowBody(K AS INTEGER) AS STRING
   SELECT CASE K
-    CASE 0: Result = "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them."
-    CASE 1: Result = "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
-    CASE 2: Result = "Your AI provider keys or passwords: your keychain keeps them."
-    CASE ELSE: Result = "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
+    CASE 0: Result = TR$("The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them.")
+    CASE 1: Result = TR$("Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first.")
+    CASE 2: Result = TR$("Your AI provider keys or passwords: your keychain keeps them.")
+    CASE ELSE: Result = TR$("RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust.")
   END SELECT
 END FUNCTION
 
 FUNCTION McpFootText AS STRING
-  Result = "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
+  Result = TR$("Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it.")
 END FUNCTION
 
 ' (the manual's page, in the browser)
@@ -864,10 +898,10 @@ SUB McpStart
   McpGrants = ""
   McpSyncTools
   IF Mcp.Start = 0 THEN
-    OutputLine "AI apps can't connect: " + Mcp.Error + ". Pick another port in Tools > Settings > AI Apps."
-    SetState RunState, "AI apps: port " + Num(McpPort) + " is taken"
+    OutputLine TR$("AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps.", "error", Mcp.Error)
+    SetState RunState, TR$("AI apps: port {port} is taken", "port", McpPort)
   ELSE
-    OutputLine "AI apps can connect at " + McpUrl + " (this computer only; the header is in Tools > Settings > AI Apps)."
+    OutputLine TR$("AI apps can connect at {url} (this computer only; the header is in Tools > Settings > AI Apps).", "url", McpUrl)
     McpTimer.Enabled = 1
   END IF
   McpShowState
@@ -907,7 +941,7 @@ SUB McpStopClick
   McpOn = 0
   McpStopServer
   McpSaveSettings
-  OutputLine "AI apps: stopped. Every AI app was disconnected."
+  OutputLine TR$("AI apps: stopped. Every AI app was disconnected.")
 END SUB
 
 ' (the tools: the assistant's — those that change files only when changes
@@ -1076,17 +1110,17 @@ SUB McpShowState
       names = names + FIELD$(line, CHR$(9), 1)
     NEXT
     IF n = 0 THEN
-      head = "AI apps: on, none connected"
-      McpSub.Caption = "Waiting at " + McpUrl + " (this computer only)"
+      head = TR$("AI apps: on, none connected")
+      McpSub.Caption = TR$("Waiting at {url} (this computer only)", "url", McpUrl)
     ELSE
-      head = "AI apps: " + names
-      IF McpLastWhat <> "" THEN McpSub.Caption = McpLastWhat ELSE McpSub.Caption = Num(McpCalls) + " calls"
+      head = TR$("AI apps: {names}", "names", names)
+      IF McpLastWhat <> "" THEN McpSub.Caption = McpLastWhat ELSE McpSub.Caption = TRN$("{n} call", "{n} calls", McpCalls)
     END IF
-    McpStopBtn.Caption = "&Stop"
+    McpStopBtn.Caption = TR$("&Stop")
   ELSE
-    head = "AI apps: off"
-    McpSub.Caption = "Tools > Settings > AI Apps turns them on."
-    McpStopBtn.Caption = "&Turn On..."
+    head = TR$("AI apps: off")
+    McpSub.Caption = TR$("Tools > Settings > AI Apps turns them on.")
+    McpStopBtn.Caption = TR$("&Turn On...")
   END IF
   McpHead.Caption = head
   McpStatusShow
@@ -1101,16 +1135,16 @@ SUB McpStatusShow
     LayOutStatus
   END IF
   IF Mcp.Listening = 0 THEN
-    t = "AI apps: off"
+    t = TR$("AI apps: off")
   ELSEIF McpMode = "all" THEN
-    t = "AI apps: allow everything"
+    t = TR$("AI apps: allow everything")
   ELSEIF McpWaitCount > 0 THEN
-    t = "AI apps: waiting for you"
+    t = TR$("AI apps: waiting for you")
   ELSEIF Mcp.ClientCount = 0 THEN
-    t = "AI apps: on"
+    t = TR$("AI apps: on")
   ELSE
-    t = "AI apps: " + McpLastWhat
-    IF McpLastWhat = "" THEN t = "AI apps: connected"
+    t = TR$("AI apps: {what}", "what", McpLastWhat)
+    IF McpLastWhat = "" THEN t = TR$("AI apps: connected")
   END IF
   Status.Panel(6).Caption = FitMiddle(t, 196)
 END SUB
@@ -1124,7 +1158,7 @@ END FUNCTION
 SUB McpLogLine(Client AS STRING, Tool AS STRING, What AS STRING, Target AS STRING, Outcome AS STRING)
   DIM line AS STRING
   line = LEFT$(TIME$, 8) + "  " + Client + "  " + What
-  IF Outcome <> "" THEN line = line + "  — " + Outcome
+  IF Outcome <> "" THEN line = line + "  — " + McpOutcomeShown(Outcome)
   McpLog.AddItems line
   IF McpLog.ItemCount > 500 THEN McpLog.DelItems 0
   McpLogEnd
@@ -1142,6 +1176,48 @@ SUB McpLogLine(Client AS STRING, Tool AS STRING, What AS STRING, Target AS STRIN
   McpShowState
 END SUB
 
+' How the pane says an outcome. McpLogLine's Outcome stays English — it goes to
+' the audit log as it is — and the pane shows these words in Studio's language.
+FUNCTION McpOutcomeShown(Outcome AS STRING) AS STRING
+  DIM why AS STRING
+  SELECT CASE Outcome
+    CASE "ok": Result = TR$("ok")
+    CASE "error": Result = TR$("error")
+    CASE "applied": Result = TR$("applied")
+    CASE "applied (you allowed it)": Result = TR$("applied (you allowed it)")
+    CASE "denied by you": Result = TR$("denied by you")
+    CASE "refused": Result = TR$("refused")
+    CASE "couldn't run": Result = TR$("couldn't run")
+    CASE "started": Result = TR$("started")
+    CASE "sent": Result = TR$("sent")
+    CASE "RAI didn't start": Result = TR$("RAI didn't start")
+    CASE ELSE
+      IF LEFT$(Outcome, 9) = "refused: " THEN
+        ' (Read only, or the reason the tool gave)
+        why = MID$(Outcome, 10)
+        IF why = "Read only" THEN why = McpModeName("read")
+        Result = TR$("refused: {why}", "why", why)
+      ELSEIF LEFT$(Outcome, 9) = "refused (" AND RIGHT$(Outcome, 6) = " open)" THEN
+        Result = TR$("refused ({dialog} open)", "dialog", McpDialogShown(MID$(Outcome, 10, LEN(Outcome) - 15)))
+      ELSE
+        Result = Outcome
+      END IF
+  END SELECT
+END FUNCTION
+
+' (McpDialogOpen's name of the window that is open, in Studio's language, for the pane)
+FUNCTION McpDialogShown(Dialog AS STRING) AS STRING
+  SELECT CASE Dialog
+    CASE "Settings": Result = TR$("Settings")
+    CASE "Set Up RAI": Result = TR$("Set Up RAI")
+    CASE "a question": Result = TR$("a question")
+    CASE "a review window": Result = TR$("a review window")
+    CASE "a dialog": Result = TR$("a dialog")
+    CASE "a value's window": Result = TR$("a value's window")
+    CASE ELSE: Result = Dialog
+  END SELECT
+END FUNCTION
+
 ' (shown the first time an AI app works, as the Output's neighbour — never
 ' taking the keyboard from the user)
 SUB McpPaneShow
@@ -1158,14 +1234,14 @@ END SUB
 
 SUB McpClientIn(Client AS STRING)
   McpPaneShow
-  McpLog.AddItems LEFT$(TIME$, 8) + "  " + Client + " connected"
+  McpLog.AddItems LEFT$(TIME$, 8) + "  " + TR$("{client} connected", "client", Client)
   McpTools.AuditCall Client, "connect", "", "ok"
-  Application.Announce Client + " connected to Studio"
+  Application.Announce TR$("{client} connected to Studio", "client", Client)
   McpShowState
 END SUB
 
 SUB McpClientOut(Client AS STRING)
-  McpLog.AddItems LEFT$(TIME$, 8) + "  " + Client + " left"
+  McpLog.AddItems LEFT$(TIME$, 8) + "  " + TR$("{client} left", "client", Client)
   McpTools.AuditCall Client, "disconnect", "", "ok"
   McpShowState
 END SUB
@@ -1201,10 +1277,10 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
     what = McpOpenCheck(Mcp.Argument("Path"))
     IF what <> "" THEN
       Mcp.Reply CallId, what, 1
-      McpLogLine client, Tool, "Opening a project", "", "refused"
+      McpLogLine client, Tool, TR$("Opening a project"), "", "refused"
       EXIT SUB
     END IF
-    what = "Opening " + McpShownPath(McpFullPath(Mcp.Argument("Path")))
+    what = TR$("Opening {path}", "path", McpShownPath(McpFullPath(Mcp.Argument("Path"))))
     ' (outside the Projects folder, the examples and the recent list: asked
     ' in every mode)
     IF McpOpenAllowed(Mcp.Argument("Path")) = 0 THEN perm = "ask"
@@ -1250,13 +1326,13 @@ SUB McpWait(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS ST
   McpWaitWhat(n) = What
   McpWaitCount = n + 1
   Mcp.Progress CallId, "Waiting for the user to allow it in RapidR Studio."
-  McpLog.AddItems LEFT$(TIME$, 8) + "  " + Client + "  " + What + "  — waiting for you"
+  McpLog.AddItems LEFT$(TIME$, 8) + "  " + Client + "  " + What + "  — " + TR$("waiting for you")
   McpLogEnd
-  McpLastWhat = Client + ": " + What + " (waiting for you)"
+  McpLastWhat = TR$("{client}: {what} (waiting for you)", "client", Client, "what", What)
   McpShowAsk
   ' (in front, where the user sees it — the keyboard stays where it is)
   Dock.ShowPane("mcppanel")
-  Application.Announce Client + " asks: " + What + ". Allow it in the AI Apps pane.", 1
+  Application.Announce TR$("{client} asks: {what}. Allow it in the AI Apps pane.", "client", Client, "what", What), 1
 END SUB
 
 ' (the first call waiting, in the pane, with its buttons)
@@ -1271,7 +1347,7 @@ SUB McpShowAsk
   SELECT CASE McpWaitKind(0)
     CASE "change"
       IF McpWaitTool(0) = "open_project" THEN
-        t = McpWaitClient(0) + " wants to open " + McpWaitWhat(0) + "."
+        t = TR$("{client} wants to open {what}.", "client", McpWaitClient(0), "what", McpWaitWhat(0))
       ELSE
         FOR k = 0 TO McpTools.ProposalCount - 1
           info = McpTools.ProposalInfo(k)
@@ -1280,15 +1356,15 @@ SUB McpShowAsk
             files = files + FIELD$(info, CHR$(9), 2)
           END IF
         NEXT
-        t = McpWaitClient(0) + " wants to change " + files + ": " + FIELD$(McpTools.ProposalInfo(0), CHR$(9), 3)
+        t = TR$("{client} wants to change {files}: {summary}", "client", McpWaitClient(0), "files", files, "summary", FIELD$(McpTools.ProposalInfo(0), CHR$(9), 3))
       END IF
-    CASE "run": t = McpWaitClient(0) + " wants to run your program (" + McpWaitWhat(0) + ")."
+    CASE "run": t = TR$("{client} wants to run your program ({what}).", "client", McpWaitClient(0), "what", McpWaitWhat(0))
     ' (mcpapp.inc: what Allow Once covers, and what it may see)
-    CASE "drive": t = McpWaitClient(0) + " wants to look at or use your running program: " + McpWaitWhat(0) + ". Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
-    CASE "rai": t = McpWaitClient(0) + " wants to ask RAI: " + LEFT$(Mcp.Argument("Prompt", McpWaitCall(0)), 160)
+    CASE "drive": t = TR$("{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data.", "client", McpWaitClient(0), "what", McpWaitWhat(0))
+    CASE "rai": t = TR$("{client} wants to ask RAI: {prompt}", "client", McpWaitClient(0), "prompt", LEFT$(Mcp.Argument("Prompt", McpWaitCall(0)), 160))
     CASE ELSE: t = McpWaitClient(0) + ": " + McpWaitWhat(0)
   END SELECT
-  IF McpWaitCount > 1 THEN t = t + " (" + Num(McpWaitCount - 1) + " more waiting)"
+  IF McpWaitCount > 1 THEN t = TR$("{question} ({n} more waiting)", "question", t, "n", McpWaitCount - 1)
   McpAskText.Caption = t
   McpReviewBtn.Visible = Flag(McpWaitKind(0) = "change" AND McpWaitTool(0) <> "open_project")
   ' (under the pane's first line: placed there before it shows)
@@ -1601,7 +1677,7 @@ FUNCTION McpStatusText AS STRING
   IF n > 0 THEN t = t + "Your changes waiting for the user: " + Num(n) + nl
   ' (why capture says no for now)
   IF McpDialogOpen <> "" THEN t = t + "Open in Studio: " + McpDialogOpen + " (no picture of Studio until it closes)" + nl
-  t = t + "Permission: " + McpModeName(McpMode) + " — " + McpModeNote(McpMode)
+  t = t + "Permission: " + McpModeNameEn(McpMode) + " — " + McpModeNoteEn(McpMode)
   IF McpGrants <> "" AND McpMode = "ask" THEN t = t + " Allowed for this session: " + REPLACESUBSTR$(MID$(McpGrants, 2, LEN(McpGrants) - 2), "||", ", ") + "."
   ' (what to do next: an empty project says "call find_example first")
   t = t + nl + McpTools.StatusNext
@@ -1759,12 +1835,12 @@ SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
   SELECT CASE action
     CASE "status"
       Mcp.Reply CallId, McpReadOutput(0)
-      McpLogLine Client, "run_program", "Program status", "", "ok"
+      McpLogLine Client, "run_program", TR$("Program status"), "", "ok"
       EXIT SUB
     CASE "stop"
       IF RunState = "running" OR RunState = "paused" THEN RunCommand "run.stop"
       Mcp.Reply CallId, "Stopped. " + McpReadOutput(0)
-      McpLogLine Client, "run_program", "Stopped the program", "", "ok"
+      McpLogLine Client, "run_program", TR$("Stopped the program"), "", "ok"
       EXIT SUB
     CASE "start", "restart"
       IF ProjectOpen = 0 THEN
@@ -1786,7 +1862,7 @@ SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
       McpRunCall = CallId
       McpRunUntil = TIMER + w
       McpRunAction = action
-      McpLogLine Client, "run_program", "Running the program", "", "started"
+      McpLogLine Client, "run_program", TR$("Running the program"), "", "started"
     CASE ELSE
       Mcp.Reply CallId, "Action is start, stop, restart or status.", 1
   END SELECT
@@ -1823,11 +1899,11 @@ SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
       i = FindBreakpoint(DocFile(d), ln)
       IF (LCASE$(Mcp.Argument("Remove", CallId)) = "true") = (i >= 0) THEN ToggleBreakpointAt d, ln
       Mcp.Reply CallId, StateText + ". " + McpDebugState
-      McpLogLine Client, "debug", StateText, McpRel(full), "ok"
+      McpLogLine Client, "debug", TR$(StateText), McpRel(full), "ok"
       EXIT SUB
     CASE "state"
       Mcp.Reply CallId, McpDebugState
-      McpLogLine Client, "debug", "Debugger state", "", "ok"
+      McpLogLine Client, "debug", TR$("Debugger state"), "", "ok"
       EXIT SUB
     CASE "continue": IF RunState = "paused" THEN RunCommand "run.continue"
     CASE "step_over": RunCommand "debug.stepOver"
@@ -1838,7 +1914,7 @@ SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
       Mcp.Reply CallId, "Action is breakpoint, continue, step_over, step_into, step_out, pause or state.", 1
       EXIT SUB
   END SELECT
-  McpLogLine Client, "debug", "Debugger: " + action, "", "ok"
+  McpLogLine Client, "debug", TR$("Debugger: {action}", "action", action), "", "ok"
   McpDebugCall = CallId
   McpDebugUntil = TIMER + w
   McpDebugStops = LEN(StopLog)
@@ -1894,7 +1970,7 @@ SUB McpCapture(CallId AS INTEGER, Client AS STRING)
   ' the screen around it)
   IF McpDialogOpen <> "" THEN
     Mcp.Reply CallId, "No picture now: " + McpDialogOpen + " is open in Studio, and it may show a key or the token. Ask again after the user closes it.", 1
-    McpLogLine Client, "capture", "A picture of Studio", "", "refused (" + McpDialogOpen + " open)"
+    McpLogLine Client, "capture", TR$("A picture of Studio"), "", "refused (" + McpDialogOpen + " open)"
     EXIT SUB
   END IF
   f = ENVIRON$("TMPDIR")
@@ -1904,12 +1980,12 @@ SUB McpCapture(CallId AS INTEGER, Client AS STRING)
   f = f + "/rapidr-studio-capture-" + Num(CallId) + ".png"
   IF Studio.SaveImage(f) = 0 THEN
     Mcp.Reply CallId, "Studio's window couldn't be captured.", 1
-    McpLogLine Client, "capture", "A picture of Studio", "", "error"
+    McpLogLine Client, "capture", TR$("A picture of Studio"), "", "error"
     EXIT SUB
   END IF
   Mcp.ReplyImage CallId, f, "RapidR Studio now (" + StateText + ")."
   KILL f
-  McpLogLine Client, "capture", "A picture of Studio", "", "ok"
+  McpLogLine Client, "capture", TR$("A picture of Studio"), "", "ok"
 END SUB
 
 ' A component's property set in its form's designer (opened when it isn't),
@@ -1979,7 +2055,7 @@ SUB McpAskRai(CallId AS INTEGER, Client AS STRING, What AS STRING)
     McpLogLine Client, "ask_rai", What, "", "RAI didn't start"
     EXIT SUB
   END IF
-  McpLogLine Client, "ask_rai", "Asking RAI: " + LEFT$(prompt, 60), "", "sent"
+  McpLogLine Client, "ask_rai", TR$("Asking RAI: {prompt}", "prompt", LEFT$(prompt, 60)), "", "sent"
   IF LCASE$(Mcp.Argument("Wait", CallId)) = "false" THEN
     Mcp.Reply CallId, "Asked: RAI is answering. get_rai_steps says how it goes; get_rai_transcript has its answer."
     EXIT SUB
@@ -2064,7 +2140,7 @@ END SUB
 ' ---- Settings > AI Apps ---------------------------------------------------------------
 
 SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Row AS INTEGER, Fh AS INTEGER, Bh AS INTEGER)
-  DIM y AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, nh AS INTEGER, k AS INTEGER
+  DIM y AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, nh AS INTEGER, k AS INTEGER, pw AS INTEGER
   McpPage.Left = 0: McpPage.Top = Top: McpPage.Width = W + 2 * Pad: McpPage.Height = H
   lx = Pad: fx = Pad + 112: fw = W - 112
   y = Pad - 4
@@ -2090,9 +2166,14 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
   McpResetBtn.Left = fx + 88: McpResetBtn.Top = y: McpResetBtn.Width = 132: McpResetBtn.Height = Bh
   y = y + Bh + 16
   ' (the permission mode: a label, its menu beside it, what it means under)
-  McpPermHead.Left = lx: McpPermHead.Top = y + 5: McpPermHead.Width = 160
+  ' (160 wide, wider when its words in Studio's language are: bold, a tenth more)
+  pw = AISetMeasure.TextWidth(REPLACESUBSTR$(McpPermHead.Caption, "&", "")) * 11 \ 10 + 8
+  IF pw < 160 THEN pw = 160
+  IF pw > W - 148 THEN pw = W - 148
+  McpPermHead.Left = lx: McpPermHead.Top = y + 5: McpPermHead.Width = pw
   McpPermHead.Font.Bold = 1
-  McpPageModeBox.Left = lx + 168: McpPageModeBox.Top = y: McpPageModeBox.Width = 220
+  McpPageModeBox.Left = lx + pw + 8: McpPageModeBox.Top = y: McpPageModeBox.Width = 220
+  IF McpPageModeBox.Left + 220 > lx + W THEN McpPageModeBox.Width = lx + W - McpPageModeBox.Left
   y = y + Row
   ' (as tall as the longest mode's words, so nothing moves — or is cut —
   ' when another mode is picked)
@@ -2108,7 +2189,7 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
     McpRowBodyL(k).Font.Color = TC("page.dim")
     McpRowBmp(k).LoadIcon McpRowIcon(k), 16
     McpRowImg(k).BMPHandle = McpRowBmp(k)
-    y = y + InfoRowLayOut(McpRowImg(k), McpRowHeadL(k), McpRowBodyL(k), lx, y, 104, W) + 4
+    y = y + InfoRowLayOut(McpRowImg(k), McpRowHeadL(k), McpRowBodyL(k), lx, y, McpHeadW, W) + 4
   NEXT
   nh = AISetLinesHigh(McpSeeFoot.Caption, W)
   McpSeeFoot.Left = lx: McpSeeFoot.Top = y: McpSeeFoot.Width = W: McpSeeFoot.Height = nh
@@ -2130,13 +2211,24 @@ FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
   Result = 26 + AISetLinesHigh(McpOnNote.Caption, W) + 10 + 3 * Row + Bh + 16 + Row + McpModeNoteHigh(W) + 10 + McpRowsHigh(W) + Bh + 20
 END FUNCTION
 
+' (the rows' column of heads: 104 wide, wider when a head in Studio's language
+' needs it — bold, a tenth more than the plain font measures)
+FUNCTION McpHeadW AS INTEGER
+  DIM k AS INTEGER, w AS INTEGER
+  Result = 104
+  FOR k = 0 TO 3
+    w = AISetMeasure.TextWidth(McpRowHead(k)) * 11 \ 10 + 16
+    IF w > Result THEN Result = w
+  NEXT
+END FUNCTION
+
 ' (what AI apps can see and do, as the page lays it out: the rows, the
 ' footer)
 FUNCTION McpRowsHigh(W AS INTEGER) AS INTEGER
   DIM k AS INTEGER, h AS INTEGER, bh AS INTEGER
   h = 0
   FOR k = 0 TO 3
-    bh = AISetLinesHigh(McpRowBody(k), W - 24 - 104)
+    bh = AISetLinesHigh(McpRowBody(k), W - 24 - McpHeadW)
     IF bh < 18 THEN bh = 18
     h = h + bh + 4
   NEXT
@@ -2170,13 +2262,13 @@ SUB McpSettingsFill
   McpPortEdit.Text = Num(McpPort)
   McpAddrEdit.Text = McpUrl
   McpHeaderEdit.PasswordChar = "*"
-  McpShowTokenBtn.Caption = "Sho&w"
+  McpShowTokenBtn.Caption = TR$("Sho&w")
   IF McpToken = "" AND (McpOn OR McpTestToken <> "") THEN McpToken = McpTokenNow
-  IF McpToken <> "" THEN McpHeaderEdit.Text = "Authorization: Bearer " + McpToken ELSE McpHeaderEdit.Text = "(turn AI apps on: a token is made)"
+  IF McpToken <> "" THEN McpHeaderEdit.Text = "Authorization: Bearer " + McpToken ELSE McpHeaderEdit.Text = TR$("(turn AI apps on: a token is made)")
   ' (the open project's mode)
   McpModeFollow
   McpPageModeBox.ItemIndex = McpModeIndex(McpMode)
-  IF ProjectOpen THEN McpPermHead.Caption = "In " + ProjectName + ", AI apps may &do:" ELSE McpPermHead.Caption = "What AI apps may &do:"
+  IF ProjectOpen THEN McpPermHead.Caption = TR$("In {project}, AI apps may &do:", "project", ProjectName) ELSE McpPermHead.Caption = TR$("What AI apps may &do:")
   McpModeNoteLabel.Caption = McpModeNote(McpMode)
   McpModeNoteColour
 END SUB
@@ -2207,13 +2299,13 @@ END SUB
 ' rows; Turn On or Cancel — Cancel the default, Escape too. 1: Turn On.
 FUNCTION McpConsent AS INTEGER
   DIM k AS INTEGER
-  ConsentBegin "Let AI apps use RapidR Studio?", "With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane."
+  ConsentBegin TR$("Let AI apps use RapidR Studio?"), TR$("With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane.")
   FOR k = 0 TO 3
     ConsentRow McpRowIcon(k), McpRowHead(k), McpRowBody(k)
   NEXT
-  ConsentYes.AccessibleDescription = "AI apps that have the token can connect to RapidR Studio"
-  ConsentNo.AccessibleDescription = "AI apps stay off"
-  Result = ConsentAsk(McpFootText, McpManualUrl, "&Turn On", "Cancel")
+  ConsentYes.AccessibleDescription = TR$("AI apps that have the token can connect to RapidR Studio")
+  ConsentNo.AccessibleDescription = TR$("AI apps stay off")
+  Result = ConsentAsk(McpFootText, McpManualUrl, TR$("&Turn On"), TR$("Cancel"))
 END FUNCTION
 
 ' (OK in Settings: the choices taken; the server started or stopped)
@@ -2236,7 +2328,7 @@ SUB McpSettingsTake
     IF Mcp.Listening THEN McpSyncTools ELSE McpStart
   ELSEIF Mcp.Listening THEN
     McpStopServer
-    OutputLine "AI apps: off. Every AI app was disconnected."
+    OutputLine TR$("AI apps: off. Every AI app was disconnected.")
   END IF
   McpSaveSettings
   McpShowState
@@ -2244,22 +2336,22 @@ END SUB
 
 SUB McpCopyAddressClick
   Clipboard.Text = McpAddrEdit.Text
-  Application.Announce "Address copied"
+  Application.Announce TR$("Address copied")
 END SUB
 
 SUB McpCopyHeaderClick
   IF McpToken = "" THEN EXIT SUB
   Clipboard.Text = "Authorization: Bearer " + McpToken
-  Application.Announce "Header copied"
+  Application.Announce TR$("Header copied")
 END SUB
 
 SUB McpShowTokenClick
   IF McpHeaderEdit.PasswordChar = "" THEN
     McpHeaderEdit.PasswordChar = "*"
-    McpShowTokenBtn.Caption = "Sho&w"
+    McpShowTokenBtn.Caption = TR$("Sho&w")
   ELSE
     McpHeaderEdit.PasswordChar = ""
-    McpShowTokenBtn.Caption = "&Hide"
+    McpShowTokenBtn.Caption = TR$("&Hide")
   END IF
 END SUB
 
@@ -2269,7 +2361,7 @@ SUB McpResetTokenClick
   IF McpTestToken <> "" THEN EXIT SUB
   t = Mcp.NewToken
   IF t = "" THEN EXIT SUB
-  IF McpSecrets.Save("AI apps", "token", t) = 0 THEN OutputLine "AI apps: the new token couldn't be kept in the keychain (" + McpSecrets.Error + ")."
+  IF McpSecrets.Save("AI apps", "token", t) = 0 THEN OutputLine TR$("AI apps: the new token couldn't be kept in the keychain ({error}).", "error", McpSecrets.Error)
   McpToken = t
   McpHeaderEdit.Text = "Authorization: Bearer " + t
   IF Mcp.Listening THEN
@@ -2277,7 +2369,7 @@ SUB McpResetTokenClick
     McpStart
   END IF
   McpTools.AuditCall "Studio", "reset token", "", "every AI app disconnected"
-  Application.Announce "A new token: AI apps need the new header"
+  Application.Announce TR$("A new token: AI apps need the new header")
 END SUB
 
 ' (the activity list's menu: Copy when a line is picked, Copy All when
@@ -2323,11 +2415,48 @@ END FUNCTION
 SUB McpClearLogClick
   ' (a small confirmation: the question, one sentence, Clear or Cancel —
   ' consent.inc, no rows)
-  ConsentBegin "Clear the AI apps' activity?", "The list of what AI apps did is removed from this computer (" + McpTools.AuditLocation + ")."
-  ConsentNo.AccessibleDescription = "The list stays"
-  ConsentYes.AccessibleDescription = "Removes the list of what AI apps did"
-  IF ConsentAsk("", "", "C&lear", "Cancel") = 0 THEN EXIT SUB
+  ConsentBegin TR$("Clear the AI apps' activity?"), TR$("The list of what AI apps did is removed from this computer ({location}).", "location", McpTools.AuditLocation)
+  ConsentNo.AccessibleDescription = TR$("The list stays")
+  ConsentYes.AccessibleDescription = TR$("Removes the list of what AI apps did")
+  IF ConsentAsk("", "", TR$("C&lear"), TR$("Cancel")) = 0 THEN EXIT SUB
   IF McpTools.ClearAudit THEN McpLog.Clear
+END SUB
+
+' (Studio's language changed) What was made once, in the language before: the
+' pane's title, Settings' tab, the mode menus, the page's rows (their words and
+' the names read aloud), the activity list's menu, and the lines that say a
+' state. The captions and names written as TR$ texts are translated again by
+' Studio itself. Settings is laid out again after this.
+SUB McpLanguageChanged
+  DIM k AS INTEGER, was AS INTEGER
+  ' (the desktop's only: the web has no AI Apps pane)
+  IF Proj.FileManager = "" THEN EXIT SUB
+  Dock.PaneTitle("mcppanel", TR$("AI Apps"))
+  SettingsTabs.Tab(2) = TR$("AI Apps")
+  ' (the pane's menu: McpModeFilling keeps the refill from being a choice)
+  McpModeFilling = 1
+  McpFillModes McpModeBox
+  McpModeBox.ItemIndex = McpModeIndex(McpMode)
+  McpModeFilling = 0
+  ' (Settings' menu: what is picked in it kept)
+  was = McpPageModeBox.ItemIndex
+  McpFillModes McpPageModeBox
+  IF was >= 0 THEN McpPageModeBox.ItemIndex = was
+  FOR k = 0 TO 3
+    McpRowHeadL(k).Caption = McpRowHead(k)
+    McpRowBodyL(k).Caption = McpRowBody(k)
+    McpRowBodyL(k).AccessibleName = McpRowHead(k) + ": " + McpRowBody(k)
+  NEXT
+  McpSeeFoot.Caption = McpFootText
+  McpLogItem(0).Caption = TR$("&Copy") + CHR$(9) + "Ctrl+C"
+  McpLogItem(1).Caption = TR$("Copy &All")
+  McpLogItem(2).Caption = TR$("C&lear Activity...")
+  IF ProjectOpen THEN McpPermHead.Caption = TR$("In {project}, AI apps may &do:", "project", ProjectName) ELSE McpPermHead.Caption = TR$("What AI apps may &do:")
+  IF McpPageModeBox.ItemIndex >= 0 THEN McpModeNoteLabel.Caption = McpModeNote(McpModeAt(McpPageModeBox.ItemIndex))
+  IF McpToken = "" THEN McpHeaderEdit.Text = TR$("(turn AI apps on: a token is made)")
+  IF McpWaitCount > 0 THEN McpShowAsk
+  McpShowState
+  McpLayOutPane
 END SUB
 
 ' ---- commands and test steps ------------------------------------------------------------

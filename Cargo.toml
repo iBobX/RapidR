@@ -3,6 +3,8 @@ resolver = "2"
 members = [
     "crates/rapidr-cli",
     "crates/rapidr-diagnostics",
+    # RapidR in every language: PO catalogs, the pseudo-language, the tools
+    "crates/rapidr-i18n",
     "crates/rapidr-ast",
     "crates/rapidr-lang",
     "crates/rapidr-lexer",
@@ -63,6 +65,7 @@ license = "MIT"
 rapidr-ast = { path = "crates/rapidr-ast" }
 rapidr-lang = { path = "crates/rapidr-lang" }
 rapidr-diagnostics = { path = "crates/rapidr-diagnostics" }
+rapidr-i18n = { path = "crates/rapidr-i18n" }
 rapidr-lexer = { path = "crates/rapidr-lexer" }
 rapidr-parser = { path = "crates/rapidr-parser" }
 rapidr-preprocessor = { path = "crates/rapidr-preprocessor" }

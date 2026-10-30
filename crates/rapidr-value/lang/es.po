@@ -1,0 +1,39 @@
+# RapidR's own text (what its components and dialogs show themselves) in
+# Spanish (español neutro, docs/i18n/glossary-es.md). A SAMPLE that proves
+# the pipeline (lane I18N-STUDIO), each entry marked `review`; the
+# translation lanes complete it from runtime.pot (`rapidr i18n update`).
+msgid ""
+msgstr ""
+"Project-Id-Version: RapidR runtime\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, review
+msgid "OK"
+msgstr "Aceptar"
+
+#, review
+msgid "Cancel"
+msgstr "Cancelar"
+
+#, review
+msgid "Search components"
+msgstr "Buscar componentes"
+
+#, review
+msgid "No selection"
+msgstr "Nada seleccionado"
+
+#, review
+msgid "Properties"
+msgstr "Propiedades"
+
+#, review
+msgid "Events"
+msgstr "Eventos"
+
+#, review
+msgid "Not translated yet: this page is in English."
+msgstr "No traducido aún: esta página está en inglés."

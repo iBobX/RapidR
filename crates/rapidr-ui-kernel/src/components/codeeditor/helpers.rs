@@ -21,6 +21,7 @@ use std::sync::Arc;
 use rapidr_editor::service::{self, HelperKind, HelperSite};
 use rapidr_editor::{Buffer, EditKind, Selections};
 use rapidr_lang::kinds::FileKind;
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::codehelp::{self, Helpers, Level};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -412,16 +413,16 @@ pub fn open(x: &mut Ctx, i: usize) {
             let mut create = None;
             if site.kind == HelperKind::Handler {
                 let name = unique_name(&site.hint, &site.choices);
-                let mut it = Item::new(format!("Create handler “{name}”"));
+                let mut it = Item::new(tr_ui_fill("Create handler “{name}”", &[("name", &name)]));
                 it.action = true;
-                it.said = format!("Create handler {name}");
+                it.said = tr_ui_fill("Create handler {name}", &[("name", &name)]);
                 items.push(it);
                 create = Some(name);
             }
             items.extend(site.choices.iter().map(|c| Item::new(c.clone())));
             let sel = items.iter().position(|it| !it.action && it.label.eq_ignore_ascii_case(&site.value)).or(Some(0));
             let mut pop = Popover::list(owner, ListKind::Link, items, sel, anchor);
-            pop.title = if site.kind == HelperKind::Handler { "Handler".into() } else { "Link".into() };
+            pop.title = if site.kind == HelperKind::Handler { tr_ui("Handler") } else { tr_ui("Link") };
             if let value_edit::Editor::List { create: c, .. } = &mut pop.editor {
                 *c = create;
             }
@@ -465,7 +466,7 @@ pub fn open(x: &mut Ctx, i: usize) {
             }).collect();
             if !names.iter().any(|n| n.eq_ignore_ascii_case(&site.value)) && !site.value.is_empty() {
                 let mut it = Item::new(site.value.clone());
-                it.detail = "not on this computer".into();
+                it.detail = tr_ui("not on this computer");
                 items.insert(0, it);
             }
             let sel = items.iter().position(|it| it.label.eq_ignore_ascii_case(&site.value));
@@ -623,7 +624,7 @@ pub fn apply(cx: &mut Cx, site: &HelperSite, picked: &Picked) {
             (HelperKind::File | HelperKind::Font, Picked::Text(s)) => match codehelp::string_text(s) {
                 Some(t) => Some(t),
                 None => {
-                    x.ui.announce = "That name can't be written in the code (it has a quote)".into();
+                    x.ui.announce = tr_ui("That name can't be written in the code (it has a quote)");
                     None
                 }
             },
@@ -657,7 +658,7 @@ pub fn apply(cx: &mut Cx, site: &HelperSite, picked: &Picked) {
             // (no typing on this line to wait for: the new sites come whole)
             x.c.helpers.typing_at = None;
             super::input::report_moves(x);
-            x.ui.announce = "Changed".into();
+            x.ui.announce = tr_ui("Changed");
         }
     });
 }

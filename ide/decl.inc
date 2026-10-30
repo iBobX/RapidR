@@ -1,6 +1,16 @@
 ' decl.inc: RapidR Studio's shared state — the command table, the open
 ' documents, the run state — and the SUBs the window's components call
 ' (declared before the window is made, as RapidQ wants).
+'
+' Studio in your language (docs/manual/studio-languages.md): every text a
+' person reads goes through TR$ — TR$("&Save"), TR$("Can't open {file}",
+' "file", f) — and its catalog is ide/lang/<language>.po, made from
+' ide/lang/studio.pot (`rapidr i18n studio` writes the template from these
+' files). The command table keeps its titles in English and shows
+' TR$(title): the routines below take text to translate in these
+' arguments, for the template —
+' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2@menubar SetState:2 AddStart:3 AddExample:2 AddMoreExample:2 AddTemplate:4 AddTemplate:5
+' Ids, keys, file names, code and what the user wrote are never translated.
 
 ' ---- the command table (docs/ide-plan.md I1) -------------------------------
 ' One row per command: what the menus, the tool bar, the keyboard and the
@@ -54,8 +64,22 @@ DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
 DIM DocDirty(MAXDOCS) AS INTEGER
 DIM DocHasForm(MAXDOCS) AS INTEGER
-' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc)
+' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc.
+' These are ids, English whatever language Studio speaks; the switch shows
+' ViewCaption(id), and ViewId(caption) reads what the dock manager says back)
 DIM DocViewNow(MAXDOCS) AS STRING
+DECLARE FUNCTION ViewCaption(Id AS STRING) AS STRING
+DECLARE FUNCTION ViewId(Caption AS STRING) AS STRING
+' (Studio's language changed: the texts these made in the language before,
+' made again — chrome.inc's StudioLanguageChanged calls them)
+DECLARE SUB PanesLanguageChanged
+DECLARE SUB PanelsLanguageChanged
+DECLARE SUB EditorLanguageChanged
+DECLARE SUB WorkspaceLanguageChanged
+DECLARE SUB MarkdownLanguageChanged
+DECLARE FUNCTION UITextWidth(Text AS STRING) AS INTEGER
+DECLARE SUB SearchLanguageChanged
+DECLARE SUB DebugLanguageChanged
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
@@ -97,6 +121,9 @@ DIM ThemeName AS STRING
 ' dark or high contrast; the default — "rapidr light", "rapidr dark",
 ' "rapidr high contrast", "classic"; ThemeName is the theme drawn)
 DIM ThemeChoice AS STRING
+' (the language Studio speaks, as chosen: "" the system's, "en", "es" …
+' — Tools > Settings > General > Language; --lang for a test)
+DIM LanguageChoice AS STRING
 DIM StateText AS STRING
 ' (the status bar's text measured: a long file name shortened in its middle)
 DIM StatusMeasure AS RBitmap

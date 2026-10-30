@@ -32,6 +32,9 @@ impl Program for Rt {
     fn children(self, id: &str) -> Vec<(String, String)> {
         get_children_of(id)
     }
+    fn all(self) -> Vec<(String, String)> {
+        crate::object::all_components()
+    }
     fn form_of(self, id: &str) -> Option<String> {
         form_of(id)
     }

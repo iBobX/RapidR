@@ -20,6 +20,7 @@
 //! per button (named by its hint, disabled, checked for a toggle) that
 //! they can click.
 
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place, Rect};
@@ -206,7 +207,7 @@ impl ComponentKind for ToolBar {
         let lay = layout(store, id, w, h);
         let (x, y) = (x.floor() as i64, y.floor() as i64);
         if lay.on_chevron(x, y) {
-            return Some("More buttons".into());
+            return Some(tr_ui("More buttons"));
         }
         let i = lay.item_at(x, y)?;
         model::with(id, |t| t.items.get(i).filter(|it| it.kind != Kind::Separator).map(|it| it.hint.clone())).flatten().filter(|s| !s.is_empty())
@@ -284,7 +285,7 @@ impl ComponentKind for ToolBar {
         let mut n = crate::components::shared_describe(cx, self.name());
         n.role = Role::Group;
         if n.name.is_empty() {
-            n.name = "Toolbar".into();
+            n.name = tr_ui("Toolbar");
         }
         let lay = layout(cx.store, cx.id, cx.width(), cx.height());
         let (x0, y0) = (cx.rect.0, cx.rect.1);
@@ -311,7 +312,7 @@ impl ComponentKind for ToolBar {
         }
         if let Some(r) = lay.chevron {
             let mut b = AccessNode::new(part_id(cx.id, PART_ITEM, A11Y_CHEVRON), Role::Button);
-            b.name = if t.customizable { "More buttons and customize".into() } else { "More buttons".into() };
+            b.name = if t.customizable { tr_ui("More buttons and customize") } else { tr_ui("More buttons") };
             b.states.expanded = Some(false);
             b.actions = vec![Action::Click];
             b.bounds = at(r);

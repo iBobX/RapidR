@@ -741,7 +741,7 @@ impl ComponentKind for Tree {
             let Some(&i) = ids.get(&item.id) else { continue };
             if let Some(vr) = value_row(cx.id, i) {
                 item.name = vr.accessible_name().to_string();
-                item.description = vr.description().to_string();
+                item.description = vr.description();
             }
         }
         n

@@ -32,6 +32,7 @@ pub use values::Kind;
 
 use super::runtime::{basic_bool, component_arg, truth, Runtime};
 use super::subject::{default_value, designer_subject, Host, Live, Subject};
+use crate::i18n::{tr_ui, tr_ui_fill};
 use crate::objects::ops::Rect;
 use crate::{v_int, v_str, Value};
 
@@ -690,14 +691,14 @@ pub fn reveal(m: &mut Inspector, key: &str) {
 pub fn row_doc(m: &Inspector, row: &Row) -> String {
     match row.kind {
         RowKind::Event => m.snap.events.get(row.prop).map(|e| {
-            let params = if e.params.is_empty() { "no parameters".to_string() } else { e.params.join(", ") };
+            let params = if e.params.is_empty() { tr_ui("no parameters") } else { e.params.join(", ") };
             if e.doc.is_empty() {
-                format!("Runs a SUB with {params}.")
+                tr_ui_fill("Runs a SUB with {params}.", &[("params", &params)])
             } else {
                 format!("{} ({params})", e.doc)
             }
         }),
-        RowKind::Category => Some(format!("{} properties", row.count)),
+        RowKind::Category => Some(tr_ui_fill("{count} properties", &[("count", &row.count.to_string())])),
         _ => m.snap.props.get(row.prop).map(|p| p.doc.clone()),
     }
     .unwrap_or_default()

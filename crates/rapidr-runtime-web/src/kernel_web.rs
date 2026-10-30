@@ -170,6 +170,9 @@ impl Program for Web {
     fn children(self, id: &str) -> Vec<(String, String)> {
         children(id)
     }
+    fn all(self) -> Vec<(String, String)> {
+        crate::object_web::all_components()
+    }
     fn form_of(self, id: &str) -> Option<String> {
         form_of(id).map(|f| lower(&f))
     }

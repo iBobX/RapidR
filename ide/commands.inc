@@ -40,10 +40,11 @@ FUNCTION CmdIndex(Id AS STRING) AS INTEGER
   NEXT
 END FUNCTION
 
-' A title as text: no "&", no "...".
+' A title as text, in Studio's language: no "&", no "..." (a translation
+' keeps the three dots: docs/i18n/glossary-es.md).
 FUNCTION PlainTitle(Title AS STRING) AS STRING
   DIM t AS STRING
-  t = REPLACESUBSTR$(Title, "&", "")
+  t = REPLACESUBSTR$(TR$(Title), "&", "")
   IF RIGHT$(t, 3) = "..." THEN t = LEFT$(t, LEN(t) - 3)
   Result = t
 END FUNCTION
@@ -321,7 +322,9 @@ END FUNCTION
 
 ' A top menu on the bar.
 SUB AddTopMenu(Name AS STRING, Title AS STRING)
-  MI(MICount).Caption = Title
+  ' (the menu bar's words have a context of their own: View > Project is
+  ' an item, the bar's Project a menu — two translations may differ)
+  MI(MICount).Caption = TR$(Title, "menubar")
   MainMenu.AddItems MI(MICount)
   MenuName(MenuCount) = Name
   MenuItemOf(MenuCount) = MICount
@@ -345,7 +348,8 @@ SUB BuildMenus
   FOR i = 0 TO CmdCount - 1
     parent = MenuIndex(Cmd(i).Category)
     IF parent >= 0 AND MICount < MAXMENUS THEN
-      caption = Cmd(i).Title
+      ' (the table keeps the English; the menu shows Studio's language)
+      caption = TR$(Cmd(i).Title)
       IF Cmd(i).Shown <> "" THEN caption = caption + CHR$(9) + Cmd(i).Shown
       MI(MICount).Caption = caption
       IF Cmd(i).Shortcut <> "" THEN MI(MICount).ShortCut = Cmd(i).Shortcut
@@ -459,10 +463,10 @@ SUB UpdateCommands
   i = CmdIndex("run.start")
   IF i >= 0 THEN
     IF RunState = "paused" THEN
-      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = "&Continue"
-      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", "Continue (F5)"
+      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = TR$("&Continue")
+      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", PlainTitle("&Continue") + " (F5)"
     ELSE
-      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = Cmd(i).Title
+      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = TR$(Cmd(i).Title)
       IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", PlainTitle(Cmd(i).Title) + " (" + CmdKeys(i) + ")"
     END IF
   END IF

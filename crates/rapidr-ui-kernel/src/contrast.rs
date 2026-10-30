@@ -12,6 +12,12 @@
 //! nothing of inactive controls, RapidR's themes keep them at 3:1 to be
 //! seen). Text over a picture (an image op) has no known ground and isn't
 //! judged; nor are the form designer's ghosts (a fade).
+//!
+//! The same pass says which text doesn't fit ([`Run::cut`]): a run wider or
+//! taller than the box it is laid out in, or cut by a clip — what a longer
+//! language (the pseudo-language `xx`, Spanish) shows first. The reports
+//! list every run's text (`texts`), so a test can also tell text that came
+//! from a catalog from text that didn't.
 
 use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::text::text_size;
@@ -32,6 +38,11 @@ pub struct Run {
     pub ratio: f64,
     /// The least it needs ([`need`]).
     pub need: f64,
+    /// It doesn't fit: wider or taller than the box it is laid out in, or
+    /// cut by a clip (a text op's; a code editor's runs are never).
+    pub cut: bool,
+    /// A code editor's glyph run (the program's own text), not a caption.
+    pub editor: bool,
 }
 
 impl Run {
@@ -223,13 +234,20 @@ pub fn runs(list: &DisplayList, form: &FormUi, t: &Theme) -> Vec<Run> {
                     if text.trim().is_empty() {
                         continue;
                     }
-                    let shown = meet(clip(&clips), place.rect(*origin, text_box(*rect, text, font, *angle, *at)));
+                    let full = place.rect(*origin, text_box(*rect, text, font, *angle, *at));
+                    let shown = meet(clip(&clips), full);
                     if shown.2 < 1.0 || shown.3 < 1.0 {
                         continue;
                     }
                     let Some(bg) = ground_under(&grounds, shown) else { continue };
                     let px = font.pixel_size() as f64 * place.scale;
-                    out.push(Run { text: text.clone(), rect: shown, color: *color, background: bg, ratio: contrast(*color, bg), need: need(t, *color, px, font.styles & 1 != 0) });
+                    // (cut off: a clip takes part of it, or it spills out of
+                    // the box it was laid out in — two pixels of slack for
+                    // the fonts' side bearings)
+                    let boxed = place.rect(*origin, f4(*rect));
+                    let spills = *angle == 0 && (full.0 < boxed.0 - 2.0 || full.0 + full.2 > boxed.0 + boxed.2 + 2.0);
+                    let clipped = shown.2 + 2.0 < full.2 || shown.3 + 2.0 < full.3 * 0.75;
+                    out.push(Run { text: text.clone(), rect: shown, color: *color, background: bg, ratio: contrast(*color, bg), need: need(t, *color, px, font.styles & 1 != 0), cut: spills || clipped, editor: false });
                 }
                 _ => {}
             },
@@ -255,7 +273,7 @@ pub fn runs(list: &DisplayList, form: &FormUi, t: &Theme) -> Vec<Run> {
                         let mid = (shown.0 + shown.2 / 2.0, shown.1 + shown.3 / 2.0);
                         let color = if selection.iter().any(|s| inside(*s, mid)) { ti.highlight_text } else { g.style().brush.0 };
                         let px = f64::from(run.font_size()) / list.scale;
-                        out.push(Run { text: format!("{}#{} run", ti.node, ti.para), rect: shown, color, background: bg, ratio: contrast(color, bg), need: need(t, color, px, false) });
+                        out.push(Run { text: format!("{}#{} run", ti.node, ti.para), rect: shown, color, background: bg, ratio: contrast(color, bg), need: need(t, color, px, false), cut: false, editor: true });
                     }
                 }
             }
@@ -299,7 +317,13 @@ pub fn report_json(form_id: &str, runs: &[Run]) -> String {
             )
         })
         .collect();
-    format!("{{\"form\":{},\"checked\":{},\"failures\":[{}]}}", q(form_id), runs.len(), failures.join(","))
+    // (every caption's text and box, and whether it fits: the language tests')
+    let texts: Vec<String> = runs
+        .iter()
+        .filter(|r| !r.editor)
+        .map(|r| format!("{{\"text\":{},\"rect\":[{:.0},{:.0},{:.0},{:.0}],\"cut\":{}}}", q(&r.text.chars().take(200).collect::<String>()), r.rect.0, r.rect.1, r.rect.2, r.rect.3, r.cut))
+        .collect();
+    format!("{{\"form\":{},\"checked\":{},\"failures\":[{}],\"texts\":[{}]}}", q(form_id), runs.len(), failures.join(","), texts.join(","))
 }
 
 #[cfg(test)]

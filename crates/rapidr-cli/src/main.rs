@@ -13,6 +13,7 @@ mod cache;
 mod examples;
 mod home;
 mod import;
+mod i18n;
 mod lang;
 mod lang_truth;
 // (AI-ARCH phase 0: the introspection interface, behind a cargo feature)
@@ -37,7 +38,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "check", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -201,6 +202,7 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        (Some("i18n"), _) => i18n::command(&args[1..]),
         (Some("ai"), _) => ai::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
@@ -213,7 +215,12 @@ fn main() -> ExitCode {
         (Some("upgrade-names"), _) => import::upgrade_names(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("install-app"), Some(dir)) => package::install_app(Path::new(&dir)),
-        (Some("lsp"), _) => rapidr_lsp::run_stdio(),
+        (Some("lsp"), _) => {
+            // (hovers and help in the user's language: RAPIDR_LANG, else the
+            // system's — the registry's translated docs, English without)
+            rapidr_lang::docs_i18n::set_doc_language(&rapidr_diagnostics::messages::cli_language());
+            rapidr_lsp::run_stdio()
+        }
         (Some("dap"), _) => rapidr_dap::run_stdio(),
         (Some("serve"), _) => serve::run(&args[1..]),
         (Some("parse"), Some(path)) => parse_source_file(&path),
@@ -357,6 +364,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
+            eprintln!("  rapidr check <file.rr>                           Its errors, in your language (RAPIDR_LANG, else the system's)");
+            eprintln!("  rapidr i18n extract|pseudo|update|check|studio|compiler|coverage …  Translators' tools");
             eprintln!("  rapidr parse <file.rr>");
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
@@ -1151,6 +1160,9 @@ fn check_files(args: &[String]) -> ExitCode {
         eprintln!("Usage: rapidr check <file.rr|.bas>…");
         return ExitCode::from(2);
     }
+    // (the messages in the user's language — RAPIDR_LANG, else the system's —
+    // RC.EXE's own words beside a translated one: rapidr_diagnostics::messages)
+    let lang = rapidr_diagnostics::messages::cli_language();
     let mut errors = 0;
     for path in files {
         let text = match fs::read_to_string(path) {
@@ -1167,7 +1179,7 @@ fn check_files(args: &[String]) -> ExitCode {
         let mut found = analysis.diagnostics(&file);
         rapidr_langsvc::sort_problems(&mut found, &file);
         if found.is_empty() {
-            println!("{path}: no problems");
+            println!("{}", rapidr_diagnostics::messages::localize(&format!("{path}: no problems"), &lang));
         }
         for d in &found {
             let shown = analysis.text(&d.file).unwrap_or_default();
@@ -1178,9 +1190,9 @@ fn check_files(args: &[String]) -> ExitCode {
                 errors += 1;
             }
             let place = if d.file == file { path.clone() } else { d.file.display().to_string() };
-            println!("{place}:{line}:{col}: {}: {}", d.severity, d.message);
+            eprintln!("{}", rapidr_diagnostics::messages::localize_report(&format!("{place}:{line}:{col}: {}: {}", d.severity, d.message), &lang));
             if let Some(h) = d.hint {
-                println!("  hint: {}", h.text());
+                eprintln!("  hint: {}", h.text());
             }
         }
     }

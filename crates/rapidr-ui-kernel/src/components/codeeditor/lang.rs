@@ -18,6 +18,7 @@ use std::time::Duration;
 use rapidr_editor::service::{self, Completion, CompletionKind};
 use rapidr_editor::transaction::Change as TextChange;
 use rapidr_editor::{Buffer, EditKind, Selection, Selections};
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::codeedit::{DiagSource, Diagnostic, HoverInfo, SignatureInfo};
 use rapidr_value::{v_int, v_str};
 
@@ -342,7 +343,7 @@ pub fn quick_fix(x: &mut Ctx) {
         fixes = service::with(|s| s.code_actions(&file, ls, le)).unwrap_or_default();
     }
     if fixes.is_empty() {
-        x.ui.announce = "No quick fixes here".into();
+        x.ui.announce = tr_ui("No quick fixes here");
         return;
     }
     x.c.show_fixes(fixes);
@@ -414,10 +415,10 @@ pub fn json_str(s: &str) -> String {
 /// refuses.
 pub fn rename(x: &mut Ctx, at: usize, new_name: &str) -> Result<(), String> {
     if !sync(x) {
-        return Err("No language service for this file".into());
+        return Err(tr_ui("No language service for this file"));
     }
     let file = x.file();
-    let edits = service::with(|s| s.rename(&file, at, new_name)).unwrap_or_else(|| Err("The language service is busy".into()))?;
+    let edits = service::with(|s| s.rename(&file, at, new_name)).unwrap_or_else(|| Err(tr_ui("The language service is busy")))?;
     for (f, list) in edits {
         if f == file {
             apply_service_edits(x, list, EditKind::Command);

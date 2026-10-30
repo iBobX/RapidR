@@ -41,6 +41,10 @@ export RAPIDR_AI_KEYSTORE=memory
 # …nor the user's build cache (`rapidr build`'s generated Rust and cargo's
 # target folder): one in here, gone with the rest.
 export RAPIDR_BUILD_CACHE="$PWD/$W/build-cache"
+# …nor the machine's language: the tests read RapidR Studio, the runtime's
+# own words and the compiler's messages in English (the language tests ask
+# for theirs: tests/studio_lang.mjs).
+export LANGUAGE=en_US.UTF-8 RAPIDR_LANG=en
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
 [ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web studio security perf legal); CLEAN=1; }
@@ -152,9 +156,11 @@ if want studio || want studio-goldens; then echo "== studio goldens"
 # Call Stack, Immediate, a run-time error, the program's windows floating
 # over the page), the look switched while it runs (THEME-LIVE: identical to
 # Studio started in that look), and Run in Browser (the web build served on
-# 127.0.0.1).
+# 127.0.0.1), and Studio in other languages (the pseudo-language xx in its
+# main scenes: no English left, nothing cut off; Spanish switched live; a
+# compiler error in Spanish — tests/studio_lang.mjs).
 if want studio; then echo "== studio"
-  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/studio_run_panic.mjs tests/run_in_browser.mjs; do
+  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/studio_run_panic.mjs tests/run_in_browser.mjs tests/studio_lang.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m8 -E "✗|≠|Error"; }
     echo "$out" | tail -1
   done

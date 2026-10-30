@@ -95,6 +95,7 @@ pub mod ai;
 pub mod card;
 pub mod kinds;
 pub mod conformance;
+pub mod docs_i18n;
 pub mod export;
 pub mod truth;
 

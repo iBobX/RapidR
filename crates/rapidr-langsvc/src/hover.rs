@@ -33,7 +33,7 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
     // `$INCLUDE`, `$APPTYPE` …
     if start > line_start && text.as_bytes()[start - 1] == b'$' && line_text.trim_start().starts_with('$') {
         if let Some(d) = rapidr_lang::directive(word) {
-            return hover(format!("```rapidr\n{}\n```\n{}", d.syntax, with_notes(d.doc, &compat::notes(d.origin, Origin::RapidQ, false, Runtimes::All, None))));
+            return hover(format!("```rapidr\n{}\n```\n{}", d.syntax, with_notes(tdoc(d.name, d.doc), &compat::notes(d.origin, Origin::RapidQ, false, Runtimes::All, None))));
         }
     }
 
@@ -66,26 +66,26 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
     // After AS the word is a type: `DIM s AS STRING` is the type, not STRING$.
     if before.split_whitespace().last().is_some_and(|w| w.eq_ignore_ascii_case("as")) {
         if let Some(t) = rapidr_lang::type_name(word) {
-            return lang(t.name, t.doc, t.origin);
+            return lang(t.name, tdoc(t.name, t.doc), t.origin);
         }
     }
     if let Some(g) = rapidr_lang::global(word) {
         let notes = compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from);
-        return hover(format!("```rapidr\n{}\n```\n*global object*\n\n{}", g.name, with_notes(g.doc, &notes)));
+        return hover(format!("```rapidr\n{}\n```\n*global object*\n\n{}", g.name, with_notes(tdoc(g.name, g.doc), &notes)));
     }
     if let Some(b) = rapidr_lang::builtin(word) {
         let mut md = format!("```rapidr\n{}\n```\n", b.syntax);
-        md.push_str(&with_notes(b.doc, &compat::notes(b.origin, Origin::RapidQ, b.missing, b.runtimes, None)));
+        md.push_str(&with_notes(tdoc(b.name, b.doc), &compat::notes(b.origin, Origin::RapidQ, b.missing, b.runtimes, None)));
         return hover(md);
     }
     if let Some(t) = rapidr_lang::type_name(word) {
-        return lang(t.name, t.doc, t.origin);
+        return lang(t.name, tdoc(t.name, t.doc), t.origin);
     }
     if let Some(k) = rapidr_lang::keyword(word) {
-        return lang(k.name, k.doc, k.origin);
+        return lang(k.name, tdoc(k.name, k.doc), k.origin);
     }
     if let Some(st) = rapidr_lang::statement_starting(word) {
-        return lang(st.syntax, st.doc, st.origin);
+        return lang(st.syntax, tdoc(st.name, st.doc), st.origin);
     }
     if let Some((value, group)) = rapidr_lang::constant(word) {
         let from = if group.origin == Origin::RapidR && rapidr_ast::builtin_constants::is_rapidr_only(word) {
@@ -99,7 +99,7 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
         } else {
             format!("from {}", group.source)
         };
-        return hover(format!("```rapidr\nCONST {word} = {value}\n```\n*{}: {from}*\n\n{}", group.name, group.doc));
+        return hover(format!("```rapidr\nCONST {word} = {value}\n```\n*{}: {from}*\n\n{}", group.name, tdoc(group.name, group.doc)));
     }
     None
 }
@@ -404,4 +404,10 @@ fn default_text(d: rapidr_lang::DefaultValue) -> String {
 fn declares(line: &str) -> bool {
     let first = line.split(|c: char| !c.is_ascii_alphanumeric()).next().unwrap_or("").to_ascii_uppercase();
     matches!(first.as_str(), "DIM" | "REDIM" | "STATIC" | "GLOBAL" | "CONST" | "PUBLIC" | "PRIVATE" | "SHARED" | "COMMON") || first.starts_with("DEF")
+}
+
+/// A registry entry's doc in the language docs are shown in
+/// (`rapidr_lang::docs_i18n`: Studio's, `rapidr lsp`'s), else the English.
+pub(crate) fn tdoc(key: &str, english: &'static str) -> &'static str {
+    rapidr_lang::docs_i18n::doc(key, english)
 }

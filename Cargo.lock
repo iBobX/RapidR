@@ -5164,6 +5164,8 @@ dependencies = [
  "rapidr-bytecode",
  "rapidr-codegen-rust",
  "rapidr-dap",
+ "rapidr-diagnostics",
+ "rapidr-i18n",
  "rapidr-import",
  "rapidr-introspect",
  "rapidr-lang",
@@ -5258,6 +5260,9 @@ dependencies = [
 [[package]]
 name = "rapidr-diagnostics"
 version = "2.121.3"
+dependencies = [
+ "rapidr-i18n",
+]
 
 [[package]]
 name = "rapidr-diff"
@@ -5278,6 +5283,10 @@ dependencies = [
  "serde",
  "toml 1.1.6+spec-1.1.0",
 ]
+
+[[package]]
+name = "rapidr-i18n"
+version = "2.121.3"
 
 [[package]]
 name = "rapidr-icons"
@@ -5603,6 +5612,7 @@ dependencies = [
  "rapidr-archive",
  "rapidr-diff",
  "rapidr-editor",
+ "rapidr-i18n",
  "rapidr-icons",
  "rapidr-lang",
  "rapidr-project",

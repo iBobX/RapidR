@@ -42,7 +42,7 @@ CREATE ConsentDialog AS RForm
   BorderStyle = 3
   ' (Cancel first: the safe answer has the keyboard when the question shows)
   CREATE ConsentNo AS RButton
-    Caption = "Cancel": Tag = 0
+    Caption = TR$("Cancel"): Tag = 0
     Default = 1
     Cancel = 1
     OnClick = ConsentPick
@@ -52,9 +52,9 @@ CREATE ConsentDialog AS RForm
     OnClick = ConsentPick
   END CREATE
   CREATE ConsentLink AS RLabel
-    Caption = "Learn more"
+    Caption = TR$("Learn more")
     TabStop = 1
-    AccessibleDescription = "Opens the manual's page in your browser"
+    AccessibleDescription = TR$("Opens the manual's page in your browser")
     OnClick = ConsentLinkClick
   END CREATE
   CREATE ConsentLogo AS RImage
@@ -173,6 +173,12 @@ SUB LayOutConsent
   END IF
   ConsentDialog.Font.Name = UIFont.Name: ConsentDialog.Font.Size = UIFont.Size
   AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
+  ' (the heads' column as wide as the widest head in Studio's language —
+  ' they're bold: a tenth more — English's width at least)
+  FOR k = 0 TO ConsentCount - 1
+    h = AISetMeasure.TextWidth(ConsentRowHead(k).Caption) * 11 \ 10 + 16
+    IF h > hw THEN hw = h
+  NEXT
   ConsentTitle.Font = SubFont
   ConsentTitle.Font.Color = TC("page.text")
   ConsentLead.Font.Color = TC("page.text")

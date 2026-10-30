@@ -898,7 +898,8 @@ fn search_manual(input: &Json) -> Outcome {
     if query.is_empty() {
         return err("give `query`: the question, or a few words of it", "search_manual: no question".into(), "");
     }
-    let found = crate::manual_search::search(query, 3);
+    // (the user's language first — RAI answers in it —, English too)
+    let found = crate::manual_search::search_in(query, 3, &rapidr_value::i18n::language());
     if found.is_empty() {
         return ok(format!("The manual has nothing on \"{query}\". Try other words, or rapidr_describe for a component or builtin."), format!("Searched the manual for {query}: nothing"), "read", query);
     }

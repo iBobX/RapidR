@@ -30,6 +30,7 @@
 use std::cell::RefCell;
 
 
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::{AccessNode, Action, TextFormat, TextInfo, TextPos, TextRun};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Rect;
@@ -1090,7 +1091,20 @@ thread_local! {
 /// The kernel's edit menu (a pop-up in the shared menu model, under an id
 /// no program can name).
 pub const EDIT_MENU: &str = "rr$editmenu";
-const ITEMS: [(&str, &str); 8] = [("undo", "&Undo"), ("sep1", "-"), ("cut", "Cu&t"), ("copy", "&Copy"), ("paste", "&Paste"), ("delete", "&Delete"), ("sep2", "-"), ("selectall", "Select &All")];
+const ITEMS: [&str; 8] = ["undo", "sep1", "cut", "copy", "paste", "delete", "sep2", "selectall"];
+
+/// An item's caption in the program's language (its `&` marks the key).
+fn item_caption(name: &str) -> String {
+    match name {
+        "undo" => tr_ui("&Undo"),
+        "cut" => tr_ui("Cu&t"),
+        "copy" => tr_ui("&Copy"),
+        "paste" => tr_ui("&Paste"),
+        "delete" => tr_ui("&Delete"),
+        "selectall" => tr_ui("Select &All"),
+        _ => "-".to_string(),
+    }
+}
 
 /// Whether `id` is an item of the kernel's edit menu.
 pub fn is_menu_item(id: &str) -> bool {
@@ -1109,11 +1123,19 @@ fn edit_menu(state: MenuState) {
     use rapidr_value::{v_int, v_str};
     if !menu::is_menu(EDIT_MENU) {
         menu::create(EDIT_MENU, "RPOPUPMENU");
-        for (name, caption) in ITEMS {
+        for name in ITEMS {
             let item = format!("{EDIT_MENU}.{name}");
             menu::create(&item, "RMENUITEM");
-            menu::set(&item, "caption", &v_str(caption));
+            menu::set(&item, "caption", &v_str(&item_caption(name)));
             menu::set(&item, "parent", &v_str(EDIT_MENU));
+        }
+    }
+    // (the language may have changed since the menu was made)
+    for name in ITEMS {
+        let item = format!("{EDIT_MENU}.{name}");
+        let caption = item_caption(name);
+        if menu::with(&item, |n| n.caption == caption) != Some(true) {
+            menu::set(&item, "caption", &v_str(&caption));
         }
     }
     for (name, on) in [("undo", state.undo), ("cut", state.cut), ("copy", state.copy), ("paste", state.paste), ("delete", state.delete), ("selectall", state.select_all)] {

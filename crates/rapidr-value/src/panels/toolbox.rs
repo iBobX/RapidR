@@ -18,6 +18,7 @@ use std::collections::BTreeSet;
 
 use super::fuzzy;
 use super::runtime::Runtime;
+use crate::i18n::tr_ui;
 use crate::Value;
 
 /// How the components are named ([`Toolbox::names`], the ShowNames
@@ -187,6 +188,29 @@ fn title_of(type_name: &str) -> String {
     spelling(type_name)
 }
 
+/// A group's title in the program's language (the groups' names are
+/// `rapidr_icons::TOOLBOX_GROUPS`' English; `Toolbox::group_named` still
+/// takes those). Each is a literal, for `rapidr i18n runtime`.
+pub fn group_title(title: &str) -> String {
+    match title {
+        "Standard" => tr_ui("Standard"),
+        "Additional" => tr_ui("Additional"),
+        "Dialogs" => tr_ui("Dialogs"),
+        "System" => tr_ui("System"),
+        "Network" => tr_ui("Network"),
+        "Data" => tr_ui("Data"),
+        "Data Science" => tr_ui("Data Science"),
+        "Media" => tr_ui("Media"),
+        "DirectX" => tr_ui("DirectX"),
+        "Direct3D" => tr_ui("Direct3D"),
+        "Web" => tr_ui("Web"),
+        "AI" => tr_ui("AI"),
+        "IDE" => tr_ui("IDE"),
+        "Templates" => tr_ui("Templates"),
+        other => other.to_string(),
+    }
+}
+
 /// The components a group shows: its members the compilers create, in the
 /// table's order.
 pub fn members(group: &str) -> Vec<&'static str> {
@@ -249,15 +273,15 @@ pub fn card(key: &Key) -> String {
     let Key::Component(t) = key else { return String::new() };
     let Some(c) = rapidr_lang::component(t) else { return String::new() };
     let runs = match c.runtimes {
-        rapidr_lang::Runtimes::Desktop => " (desktop only)",
-        rapidr_lang::Runtimes::Web => " (web only)",
-        _ => "",
+        rapidr_lang::Runtimes::Desktop => format!(" {}", tr_ui("(desktop only)")),
+        rapidr_lang::Runtimes::Web => format!(" {}", tr_ui("(web only)")),
+        _ => String::new(),
     };
     // (a form is a document: the toolbox adds a form file for it)
     let does = match c.name {
-        "RFORM" => " Click or double-click: Project > Add Form, a new form file of the program; dragged onto an RFormMDI: one of its child windows.",
-        "RFORMMDI" => " Click or double-click: a new MDI main window file of the program.",
-        _ => "",
+        "RFORM" => format!(" {}", tr_ui("Click or double-click: Project > Add Form, a new form file of the program; dragged onto an RFormMDI: one of its child windows.")),
+        "RFORMMDI" => format!(" {}", tr_ui("Click or double-click: a new MDI main window file of the program.")),
+        _ => String::new(),
     };
     format!("{} - {}{runs}{does}", c.spelling(), description(t))
 }
@@ -342,7 +366,7 @@ impl Toolbox {
         match key {
             Key::Component(t) => self.name_of(t),
             Key::Template(n) => n.clone(),
-            Key::Group(g) => groups_static().iter().find(|x| x.id == g).map(|x| x.title.to_string()).unwrap_or_default(),
+            Key::Group(g) => groups_static().iter().find(|x| x.id == g).map(|x| group_title(x.title)).unwrap_or_default(),
         }
     }
 
@@ -371,7 +395,7 @@ impl Toolbox {
             let mut found: Vec<(i32, usize, Row)> = Vec::new();
             for (n, (key, g)) in self.catalog().into_iter().enumerate() {
                 if let Some((s, marks)) = self.score(&key) {
-                    let row = Row { text: self.text_of(&key), icon: self.icon_of(&key), key, level: 1, open: None, count: 0, group: g.title.to_string(), marks };
+                    let row = Row { text: self.text_of(&key), icon: self.icon_of(&key), key, level: 1, open: None, count: 0, group: group_title(g.title), marks };
                     found.push((s, n, row));
                 }
             }
@@ -385,7 +409,7 @@ impl Toolbox {
                 continue;
             }
             let open = !self.closed.contains(top.id);
-            out.push(Row { key: Key::Group(top.id.to_string()), level: 1, text: top.title.to_string(), icon: top.icon.to_string(), open: Some(open), count: all.len(), group: String::new(), marks: Vec::new() });
+            out.push(Row { key: Key::Group(top.id.to_string()), level: 1, text: group_title(top.title), icon: top.icon.to_string(), open: Some(open), count: all.len(), group: String::new(), marks: Vec::new() });
             if !open {
                 continue;
             }
@@ -398,7 +422,7 @@ impl Toolbox {
                     continue;
                 }
                 let gopen = !self.closed.contains(g.id);
-                out.push(Row { key: Key::Group(g.id.to_string()), level: 2, text: g.title.to_string(), icon: g.icon.to_string(), open: Some(gopen), count: items.len(), group: String::new(), marks: Vec::new() });
+                out.push(Row { key: Key::Group(g.id.to_string()), level: 2, text: group_title(g.title), icon: g.icon.to_string(), open: Some(gopen), count: items.len(), group: String::new(), marks: Vec::new() });
                 if !gopen {
                     continue;
                 }

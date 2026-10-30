@@ -1,0 +1,65 @@
+# RapidR's compiler messages in Spanish (español neutro).
+# A SAMPLE that proves the pipeline (lane I18N-STUDIO): a few messages
+# only, each marked `review` until a person checks it against
+# docs/i18n/glossary-es.md. The translation lanes complete it from
+# compiler.pot (`rapidr i18n update`).
+#
+# msgctxt is the message's ID (never translated), msgid its English
+# template, msgstr the translation: keep every {name} and the code as written.
+msgid ""
+msgstr ""
+"Project-Id-Version: RapidR compiler messages\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, review
+msgctxt "RQ0001"
+msgid "Member {member} not part of class {class}"
+msgstr "El miembro {member} no es parte de la clase {class}"
+
+#, review
+msgctxt "RQ0002"
+msgid "{name} is a read-only value."
+msgstr "{name} es un valor de solo lectura."
+
+#, review
+msgctxt "RQ0004"
+msgid "Undeclared identifier {name}"
+msgstr "Identificador no declarado: {name}"
+
+#, review
+msgctxt "RQ0005"
+msgid "Expected end-of-line but got {got}"
+msgstr "Se esperaba el fin de la línea, pero se encontró {got}"
+
+#, review
+msgctxt "RQ0016"
+msgid "Expected end-of-line"
+msgstr "Se esperaba el fin de la línea"
+
+#, review
+msgctxt "RR0002"
+msgid "Syntax error in {word} statement"
+msgstr "Error de sintaxis en la instrucción {word}"
+
+#, review
+msgctxt "RR0004"
+msgid "Syntax error: unexpected '{text}'"
+msgstr "Error de sintaxis: no se esperaba '{text}'"
+
+#, review
+msgctxt "RR0005"
+msgid "Syntax error: unexpected end of file"
+msgstr "Error de sintaxis: fin de archivo inesperado"
+
+#, review
+msgctxt "RR0006"
+msgid "Unknown SUB or FUNCTION '{name}'"
+msgstr "SUB o FUNCTION desconocida: '{name}'"
+
+#, review
+msgctxt "RR0018"
+msgid "{file}: no errors"
+msgstr "{file}: sin errores"

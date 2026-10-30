@@ -10,6 +10,7 @@
 //! by character, word and line and follow the caret.
 
 use rapidr_editor::{Buffer, CharClass};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::a11y::{node_id, AccessNode, Action, Role, TextInfo, TextPos, TextRun};
 use rapidr_value::objects::codeedit::CodeEditor as Model;
 
@@ -27,12 +28,14 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
         let head = x.c.doc.selections().primary().head;
         let (line, col) = x.c.line_col(head);
         let (errors, warnings, here) = x.c.line_severity_summary();
-        let mut d = format!("Line {line}, column {col}");
+        let mut d = tr_ui_fill("Line {line}, column {column}", &[("line", &line.to_string()), ("column", &col.to_string())]);
         if x.c.doc.selections().len() > 1 {
-            d.push_str(&format!(", {} cursors", x.c.doc.selections().len()));
+            d.push_str(", ");
+            d.push_str(&tr_ui_fill("{count} cursors", &[("count", &x.c.doc.selections().len().to_string())]));
         }
         if errors + warnings > 0 {
-            d.push_str(&format!("; {errors} errors, {warnings} warnings"));
+            d.push_str("; ");
+            d.push_str(&tr_ui_fill("{errors} errors, {warnings} warnings", &[("errors", &errors.to_string()), ("warnings", &warnings.to_string())]));
         }
         for h in &here {
             d.push_str("; ");
@@ -40,7 +43,8 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
         }
         // (helpers on this line: said on demand, never announced)
         if super::helpers::line_has_helpers(x) {
-            d.push_str("; helpers on this line: Ctrl+K H reads them, Ctrl+. edits");
+            d.push_str("; ");
+            d.push_str(&tr_ui("helpers on this line: Ctrl+K H reads them, Ctrl+. edits"));
         }
         let mut kids = Vec::new();
         // (an open value editor: a dialog inside the editor)
@@ -57,7 +61,7 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
             let items = popup::filtered(x);
             if !items.is_empty() {
                 let mut lb = AccessNode::new(node_id(&format!("{}$completion", x.id)), Role::ListBox);
-                lb.name = "Suggestions".into();
+                lb.name = tr_ui("Suggestions");
                 lb.bounds = (x0, y0, 0, 0);
                 let sel = list.selected.min(items.len() - 1);
                 for (k, &i) in items.iter().enumerate().take(200) {
@@ -83,7 +87,7 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
         n.children.extend(kids);
     }
     if n.name.is_empty() {
-        n.name = "Code editor".into();
+        n.name = tr_ui("Code editor");
     }
     n
 }
@@ -263,14 +267,14 @@ pub fn caret_moved(x: &mut Ctx, line_changed: bool) {
     let (line, col) = x.ui.last_caret;
     x.ui.announce = if line_changed {
         let (_, _, here) = x.c.line_severity_summary();
-        let mut a = format!("Line {line}");
+        let mut a = tr_ui_fill("Line {line}", &[("line", &line.to_string())]);
         for h in here {
             a.push_str(", ");
             a.push_str(&h);
         }
         a
     } else {
-        format!("Column {col}")
+        tr_ui_fill("Column {column}", &[("column", &col.to_string())])
     };
 }
 
@@ -280,7 +284,7 @@ pub fn completion_moved(x: &mut Ctx) {
     if let Some(list) = &x.c.completion {
         if let Some(&i) = items.get(list.selected.min(items.len().saturating_sub(1))) {
             let it = &list.items[i];
-            x.ui.announce = format!("{} ({}), {} of {}", it.label, it.kind.name(), list.selected + 1, items.len());
+            x.ui.announce = tr_ui_fill("{label} ({kind}), {current} of {total}", &[("label", &it.label), ("kind", it.kind.name()), ("current", &(list.selected + 1).to_string()), ("total", &items.len().to_string())]);
         }
     }
 }
@@ -288,5 +292,5 @@ pub fn completion_moved(x: &mut Ctx) {
 /// The problems changed: the counts and the caret line's announced.
 pub fn announce_line_problems(x: &mut Ctx) {
     let (errors, warnings, here) = x.c.line_severity_summary();
-    x.ui.announce = if here.is_empty() { format!("{errors} errors, {warnings} warnings") } else { here.join("; ") };
+    x.ui.announce = if here.is_empty() { tr_ui_fill("{errors} errors, {warnings} warnings", &[("errors", &errors.to_string()), ("warnings", &warnings.to_string())]) } else { here.join("; ") };
 }

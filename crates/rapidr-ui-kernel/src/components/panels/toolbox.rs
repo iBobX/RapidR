@@ -16,6 +16,7 @@
 //! follows the mouse, and its release over the form fires OnDragDrop on
 //! what is under it.
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::font::Font;
@@ -429,7 +430,7 @@ impl ComponentKind for Toolbox {
         let shown_text = if typing { String::new() } else { filter.clone() };
         let empty = if typing { editing(cx.id).is_none_or(|e| e.text.is_empty()) } else { filter.is_empty() };
         let font = cx.font.clone();
-        common::search_box(p, g.sbox, &l, &shown_text, if empty { "Search components" } else { "" }, typing && cx.state.focused, &font);
+        common::search_box(p, g.sbox, &l, &shown_text, &if empty { tr_ui("Search components") } else { String::new() }, typing && cx.state.focused, &font);
         if !filter.is_empty() || typing && !empty {
             let c = clear_rect(g.sbox);
             common::icon(p, "close", c.0 + (c.2 - 12) / 2, c.1 + (c.3 - 12) / 2, 12, Some(l.dim), false);
@@ -450,8 +451,8 @@ impl ComponentKind for Toolbox {
         let enabled = cx.state.enabled;
         p.clipped((g.list.0, g.list.1, cw, g.list.3), |p| {
             if rows.is_empty() {
-                let msg = if filter.trim().is_empty() { "No components" } else { "No components match" };
-                p.text((g.list.0, g.list.1 + 8, cw, ROW), msg, &font, l.dim, Place::Center);
+                let msg = if filter.trim().is_empty() { tr_ui("No components") } else { tr_ui("No components match") };
+                p.text((g.list.0, g.list.1 + 8, cw, ROW), &msg, &font, l.dim, Place::Center);
             }
             let first = (pos / ROW) as usize;
             let last = ((pos + g.list.3) / ROW + 1) as usize;
@@ -670,7 +671,7 @@ impl ComponentKind for Toolbox {
         let mut n = crate::components::shared_describe(cx, self.name());
         n.role = Role::Tree;
         if n.name.is_empty() {
-            n.name = "Toolbox".into();
+            n.name = tr_ui("Toolbox");
         }
         let l = look(rapidr_value::theme::current());
         let g = geo(cx.width(), cx.height(), &l);
@@ -678,7 +679,7 @@ impl ComponentKind for Toolbox {
         let typing = searching(cx.id);
         // (the search box)
         let mut s = AccessNode::new(part_id(cx.id, PART_ITEM, PART_SEARCH), Role::TextInput);
-        s.name = "Search components".into();
+        s.name = tr_ui("Search components");
         s.value = Some(editing(cx.id).map(|e| e.text).unwrap_or_else(|| model(cx.id, |m| m.filter.clone())));
         s.bounds = (x0 + g.sbox.0, y0 + g.sbox.1, g.sbox.2, g.sbox.3);
         s.states.focused = typing && cx.state.focused;
@@ -710,14 +711,14 @@ impl ComponentKind for Toolbox {
             match &r.key {
                 Key::Group(_) => {
                     item.name = r.text.clone();
-                    item.description = format!("{} components", r.count);
+                    item.description = tr_ui_fill("{count} components", &[("count", &r.count.to_string())]);
                     item.states.expanded = r.open;
                     item.actions = vec![Action::Click, Action::Focus, if r.open == Some(true) { Action::Collapse } else { Action::Expand }];
                 }
                 key => {
                     let title = match key {
                         Key::Component(t) => model(cx.id, |m| m.name_of(t)) + " — " + &title_words(t),
-                        _ => format!("{} — template", r.text),
+                        _ => tr_ui_fill("{name} — template", &[("name", &r.text)]),
                     };
                     item.name = title;
                     if let Key::Component(t) = key {

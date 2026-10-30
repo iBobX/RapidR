@@ -58,6 +58,51 @@ SUB SetUpDocuments
   Dock.OnLayoutChange = LayoutChanged
 END SUB
 
+' A view's caption on the Design | Code switch, in Studio's language. Everywhere
+' else a view goes by its id (DocViewNow, the view: steps, ShowView): "Design",
+' "Code", "Split" (the dock manager's own word for side by side), and a
+' Markdown file's "Preview" and "Source" (markdown.inc).
+FUNCTION ViewCaption(Id AS STRING) AS STRING
+  SELECT CASE Id
+    CASE "Design": Result = TR$("Design")
+    CASE "Code": Result = TR$("Code")
+    CASE "Preview": Result = TR$("Preview")
+    CASE "Source": Result = TR$("Source")
+    CASE ELSE: Result = Id
+  END SELECT
+END FUNCTION
+
+' The id of the view the dock manager names Caption (what its
+' OnDocumentView and DocumentView say): a caption nobody here made is its own id.
+FUNCTION ViewId(Caption AS STRING) AS STRING
+  Result = Caption
+  IF Caption = TR$("Design") THEN
+    Result = "Design"
+  ELSEIF Caption = TR$("Code") THEN
+    Result = "Code"
+  ELSEIF Caption = TR$("Preview") THEN
+    Result = "Preview"
+  ELSEIF Caption = TR$("Source") THEN
+    Result = "Source"
+  END IF
+END FUNCTION
+
+' (Studio's language changed) The Design | Code switches' captions, made in
+' the language before, made again; the New Project cards' names for a
+' screen reader (made with a title and a text).
+SUB WorkspaceLanguageChanged
+  DIM d AS INTEGER, k AS INTEGER
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocHasForm(d) THEN
+      Dock.AddView(DocPane(d), DesignDoc(d), ViewCaption("Design"))
+      Dock.AddView(DocPane(d), CodeDoc(d), ViewCaption("Code"))
+    END IF
+  NEXT
+  FOR k = 0 TO TPLS - 1
+    TplCard(k).AccessibleName = TR$("{title}: {what}", "title", TplTitle(k).Caption, "what", TplText(k).Caption)
+  NEXT
+END SUB
+
 ' Document d's tab: its code; a form's file gets its designer as a view and
 ' opens on it, the switch saying Design | Code.
 SUB AddDocumentTab(d AS INTEGER)
@@ -65,8 +110,8 @@ SUB AddDocumentTab(d AS INTEGER)
   title = FileTitle(DocFile(d))
   IF DocHasForm(d) THEN
     Dock.AddPane(CodeDoc(d), title, "documents", "form")
-    Dock.AddView(DocPane(d), DesignDoc(d), "Design")
-    Dock.AddView(DocPane(d), CodeDoc(d), "Code")
+    Dock.AddView(DocPane(d), DesignDoc(d), ViewCaption("Design"))
+    Dock.AddView(DocPane(d), CodeDoc(d), ViewCaption("Code"))
     DesignDoc(d).OnSelect = DesignPicked
     DocViewNow(d) = "Design"
     DocKind(d) = "design"
@@ -82,14 +127,16 @@ END SUB
 
 ' (the switch, F7, Shift+F7: what document d shows now)
 SUB DocumentViewChanged(Name AS STRING, View AS STRING)
-  DIM d AS INTEGER
+  DIM d AS INTEGER, v AS STRING
   d = DocOfPane(Name)
   IF d < 0 THEN EXIT SUB
-  DocViewNow(d) = View
-  IF View = "Code" THEN DocKind(d) = "code" ELSE DocKind(d) = "design"
+  ' (the caption the switch says, as the view's id)
+  v = ViewId(View)
+  DocViewNow(d) = v
+  IF v = "Code" THEN DocKind(d) = "code" ELSE DocKind(d) = "design"
   ' (the designer reads what was typed before it changes anything)
-  IF View <> "Code" AND DocHasForm(d) <> 0 THEN DesignRead d
-  IF DocIsMd(d) THEN MarkdownViewShown d, View
+  IF v <> "Code" AND DocHasForm(d) <> 0 THEN DesignRead d
+  IF DocIsMd(d) THEN MarkdownViewShown d, v
   ActiveDoc = d
   UpdateCommands
 END SUB
@@ -125,7 +172,7 @@ SUB ShowView(View AS STRING)
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
   IF DocHasForm(d) = 0 THEN EXIT SUB
-  Dock.DocumentView(DocPane(d), View)
+  Dock.DocumentView(DocPane(d), ViewCaption(View))
   IF View = "Code" THEN Dock.FocusPane(DocPane(d))
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
@@ -181,7 +228,7 @@ FUNCTION AskToSave(d AS INTEGER) AS INTEGER
   IF d < 0 THEN EXIT FUNCTION
   IF DocOpen(d) = 0 OR DocDirty(d) = 0 THEN EXIT FUNCTION
   Dock.ActiveDocument = DocPane(d)
-  SELECT CASE AskSave("Do you want to save the changes you made to " + FileTitle(DocFile(d)) + "?", "Your changes will be lost if you don't save them.", 0)
+  SELECT CASE AskSave(TR$("Do you want to save the changes you made to {file}?", "file", FileTitle(DocFile(d))), TR$("Your changes will be lost if you don't save them."), 0)
     CASE PROMPT_SAVE
       SaveDocument d
     CASE PROMPT_DONT
@@ -210,7 +257,7 @@ FUNCTION AskToSaveAll AS INTEGER
     Result = AskToSave(one)
     EXIT FUNCTION
   END IF
-  SELECT CASE AskSave("You have " + LTRIM$(STR$(n)) + " documents with unsaved changes. Do you want to save them before quitting?", "Review Changes asks about each one. If you discard them, all your changes will be lost.", 1)
+  SELECT CASE AskSave(TRN$("You have {n} document with unsaved changes. Do you want to save it before quitting?", "You have {n} documents with unsaved changes. Do you want to save them before quitting?", n), TR$("Review Changes asks about each one. If you discard them, all your changes will be lost."), 1)
     CASE PROMPT_SAVE
       SaveAll
     CASE PROMPT_DONT
@@ -271,21 +318,21 @@ SUB AddTemplate(i AS INTEGER, Id AS STRING, Icon AS STRING, Title AS STRING, Wha
   TplCard(i).BevelOuter = 0
   TplCard(i).Tag = i
   TplCard(i).Cursor = -21
-  TplCard(i).AccessibleName = Title + ": " + What
+  TplCard(i).AccessibleName = TR$("{title}: {what}", "title", TR$(Title), "what", TR$(What))
   TplCard(i).OnClick = TemplateClicked
   TplCard(i).OnDblClick = NewCreate
   TplIcon(i).Parent = TplCard(i)
   TplIcon(i).Left = 12: TplIcon(i).Top = 12: TplIcon(i).Width = 24: TplIcon(i).Height = 24
   TplTitle(i).Parent = TplCard(i)
   TplTitle(i).Left = 12: TplTitle(i).Top = 42: TplTitle(i).Width = TPL_W - 20: TplTitle(i).Height = 18
-  TplTitle(i).Caption = Title
+  TplTitle(i).Caption = TR$(Title)
   TplTitle(i).Tag = i
   TplTitle(i).OnClick = TemplateLabelClicked
   TplTitle(i).OnDblClick = TemplateChosen
   TplText(i).Parent = TplCard(i)
   TplText(i).AutoSize = 0
   TplText(i).WordWrap = 1
-  TplText(i).Caption = What
+  TplText(i).Caption = TR$(What)
   TplText(i).Left = 12: TplText(i).Top = 62: TplText(i).Width = TPL_W - 20: TplText(i).Height = TPL_H - 66
   TplText(i).Tag = i
   TplText(i).OnClick = TemplateLabelClicked
@@ -347,7 +394,7 @@ END SUB
 
 ' The start page as a document again (closed when a project opened).
 SUB ShowWelcome
-  IF Dock.PaneState("welcome") = "" THEN Dock.AddPane(Welcome, "Welcome", "documents", "list")
+  IF Dock.PaneState("welcome") = "" THEN Dock.AddPane(Welcome, TR$("Welcome"), "documents", "list")
   Dock.FocusPane("welcome")
 END SUB
 

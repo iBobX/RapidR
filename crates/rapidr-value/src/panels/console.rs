@@ -10,6 +10,7 @@ pub mod links;
 pub mod screen;
 
 use super::runtime::{basic_bool, truth, Runtime};
+use crate::i18n::{tr_ui, tr_ui_fill};
 use crate::Value;
 use screen::Screen;
 
@@ -35,11 +36,11 @@ impl Page {
     }
 
     /// Its tab's title.
-    pub fn title(self) -> &'static str {
+    pub fn title(self) -> String {
         match self {
-            Page::Output => "Output",
-            Page::Build => "Build",
-            Page::Problems => "Problems",
+            Page::Output => tr_ui("Output"),
+            Page::Build => tr_ui("Build"),
+            Page::Problems => tr_ui("Problems"),
         }
     }
 
@@ -82,11 +83,11 @@ impl Severity {
     }
 
     /// What a screen reader says before the message.
-    pub fn title(self) -> &'static str {
+    pub fn title(self) -> String {
         match self {
-            Severity::Error => "Error",
-            Severity::Warning => "Warning",
-            Severity::Info => "Information",
+            Severity::Error => tr_ui("Error"),
+            Severity::Warning => tr_ui("Warning"),
+            Severity::Info => tr_ui("Information"),
         }
     }
 }
@@ -141,9 +142,10 @@ impl Problem {
         }
         let mut s = format!("{}: {}", self.severity.title(), self.message);
         if !self.file.is_empty() {
-            s.push_str(&format!(", {}", self.file));
             if self.line > 0 {
-                s.push_str(&format!(" line {}", self.line));
+                s.push_str(&format!(", {}", tr_ui_fill("{file} line {line}", &[("file", &self.file), ("line", &self.line.to_string())])));
+            } else {
+                s.push_str(&format!(", {}", self.file));
             }
         }
         s
@@ -505,9 +507,9 @@ impl Console {
         }
         let n = self.matches().len();
         match (n, self.current) {
-            (0, _) => "No results".into(),
-            (n, Some(c)) => format!("{} of {n}", c + 1),
-            (n, None) => format!("{n} found"),
+            (0, _) => tr_ui("No results"),
+            (n, Some(c)) => tr_ui_fill("{current} of {total}", &[("current", &(c + 1).to_string()), ("total", &n.to_string())]),
+            (n, None) => tr_ui_fill("{total} found", &[("total", &n.to_string())]),
         }
     }
 

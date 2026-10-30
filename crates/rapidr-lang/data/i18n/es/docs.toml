@@ -1,0 +1,13 @@
+# The registry's docs in Spanish (español neutro, docs/i18n/glossary-es.md).
+# A SAMPLE that proves the pipeline (lane I18N-STUDIO), to be reviewed: the
+# translation lanes fill it in (`rapidr i18n coverage` lists what's left).
+#
+# KEY = the entry's RapidR name in capitals: a component (RBUTTON), its
+# member (RBUTTON.CAPTION), a built-in (MID$), a statement (PRINT), a
+# directive ($INCLUDE). Code stays as written: names, `code`, examples.
+
+[docs]
+"RBUTTON" = "Un botón: al hacer clic en él se ejecuta su controlador de eventos OnClick. Puede mostrar una imagen y ser el botón Default o Cancel del formulario."
+"RBUTTON.CAPTION" = "El texto que muestra el control, o el título de una ventana o un diálogo; un `&` antes de una letra la subraya como atajo de teclado."
+"PRINT" = "Escribe valores en la consola y termina la línea, salvo que el último vaya seguido de `;` o `,` (sin zonas de impresión). `?` es la forma corta de PRINT."
+"MID$" = "`Num` caracteres de una cadena de texto desde `Position` (1 es el primero); sin `Num`, el resto de la cadena."

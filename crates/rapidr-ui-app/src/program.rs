@@ -36,6 +36,11 @@ pub trait Program: Copy + 'static {
     fn type_of(self, id: &str) -> String;
     /// Its children (id, type name), in creation order.
     fn children(self, id: &str) -> Vec<(String, String)>;
+    /// Every component of the program (id, type name), in creation order
+    /// (a change of language translates their text again).
+    fn all(self) -> Vec<(String, String)> {
+        Vec::new()
+    }
     /// The form it is on (itself for a form).
     fn form_of(self, id: &str) -> Option<String>;
     /// A true / false property as the kernel reads it (its `Store`'s rules),
