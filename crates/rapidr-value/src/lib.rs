@@ -60,6 +60,8 @@ pub mod command_line;
 // (RapidR's) The credentials a program holds (RSecrets, secret properties):
 // the debugger and RapidR's messages mask them.
 pub mod secrets;
+// (RapidR's) RSystemInfo: what this computer has, read here, never sent.
+pub mod sysinfo;
 // (RapidR's) Programs in every language: TR$, TRN$, Application.Language.
 pub mod i18n;
 // RNUM, RDATAFRAME, RPLOT: one implementation for every runtime.

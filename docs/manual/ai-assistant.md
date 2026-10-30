@@ -11,8 +11,8 @@ In a classroom, a teacher can keep the assistant off behind a password:
 
 It works with the AI provider you choose: **Anthropic** (Claude),
 **OpenAI**, **DeepSeek**, or any **OpenAI-compatible** server — including a
-model server on your own computer (Ollama, LM Studio), which needs no key
-and sends nothing out.
+local AI app on your own computer, which needs no key: Studio sends what you
+ask only to that app ([AI on this computer](local-ai.md)).
 
 **Off by default.** Nothing is sent anywhere until you turn the assistant
 on, set it up and press Send. RapidR has no telemetry. While your program runs, RAI can read what its windows show and click and type in them; that goes to your provider like the rest of the chat.
@@ -31,18 +31,19 @@ provider's prices (Settings has a **See prices** link to them).
 and **Ctrl+I** before the assistant is set up) asks one thing at a time:
 
 1. **Where should RAI's answers come from?**
-   - **Free, on this computer.** A model runs on your own computer with
-     Ollama, LM Studio or MLX Serve (free programs you install). Nothing you
-     ask leaves the computer, and it costs nothing; it needs a fast computer
-     with plenty of memory, and answers are slower and simpler than a cloud
-     model's. Studio looks for each of them at once and says what it found —
-     *✓ Found on this computer: Ollama (3 models)* — or that none is
-     running. It never starts one for you: start yours, then **Look Again**.
+   - **Free, on this computer.** A model runs on your own computer, in a
+     local AI app (a free program you install that keeps AI models on your
+     computer). It costs nothing, needs a fast computer with plenty of
+     memory, and answers are slower and simpler than a cloud model's. Studio
+     asks this computer which models it already has and says what it found
+     — *✓ Found 3 models in a local AI app on this computer* — or that none
+     is running. It never starts one for you. [AI on this computer](local-ai.md)
+     has the rest: which models fit, Check My Models, the best match.
    - **A cloud service, with your own key**: Anthropic (Claude), OpenAI or
      DeepSeek — usually the best answers. You pay the provider for what you
      use; the page says what a question costs and what is sent.
 
-   ![Set up RAI: free on this computer (Ollama found), or a cloud service with your key](images/ai/setup.png)
+   ![Set up RAI: free on this computer (3 models found in a local AI app), or a cloud service with your key](images/ai/setup.png)
 
 2. **On this computer**: the server (the ones running first) and one of its
    models. **In the cloud**: the provider, your key (**Get a key** opens the
@@ -584,7 +585,7 @@ RapidR starts a new one with the next request.
   or a screenshot of RapidR's. A key someone wrote into a file of the
   project is replaced by *(an API key, not shown)* before the assistant
   reads the file.
-- **A model on your own computer** (Ollama, LM Studio): nothing leaves it.
+- **A model on your own computer**, in a local AI app: Studio sends what you ask only to that app, so it stays on the computer unless the app is set up to pass it on.
 - **Your chats stay on your computer**, in Studio's folder, never in the
   project (see [Your chats are kept](#your-chats-are-kept)); keys and tokens
   in them are removed before they are written, and **Delete** removes a

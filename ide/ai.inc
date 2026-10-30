@@ -978,6 +978,7 @@ SUB AIApplySettings
   ' environment variable — never in the settings)
   AI.APIKeySource = AIKeySourceOf(AIProvider)
   AI.Model = AIModelOf(AIProvider)
+  AILocalApply
   AI.Effort = AIEffort
   AIFilling = 1
   AIFillModels
@@ -1258,6 +1259,7 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIPermission") THEN AIPermission = Reg.ReadString("AIPermission")
   IF Reg.ValueExists("AIReviewFirst") THEN AIReviewFirst = VAL(Reg.ReadString("AIReviewFirst"))
   IF Reg.ValueExists("AIEffort") THEN AIEffort = Reg.ReadString("AIEffort")
+  IF Reg.ValueExists("AILocalPick") THEN AILocalPick = Reg.ReadString("AILocalPick")
   IF Reg.ValueExists("AIPrices") THEN
     AIPriceIn = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 1))
     AIPriceOut = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 2))
@@ -1278,6 +1280,7 @@ SUB SaveAISettings
   Reg.WriteString("AIPermission", AIPermission)
   Reg.WriteString("AIReviewFirst", LTRIM$(STR$(AIReviewFirst)))
   Reg.WriteString("AIEffort", AIEffort)
+  Reg.WriteString("AILocalPick", AILocalPick)
   Reg.WriteString("AIPrices", LTRIM$(STR$(AIPriceIn)) + "/" + LTRIM$(STR$(AIPriceOut)))
 END SUB
 
@@ -1852,9 +1855,21 @@ SUB AIModelsIn(Count AS INTEGER)
   AISendQueued "ok"
 END SUB
 
+' (a model on this computer Set Up RAI picked: its context and RAI's mode
+' from its check, while it is the model used; any other: RAI's own choice)
+SUB AILocalApply
+  AI.SmallModel = -1
+  AI.ContextSize = 0
+  IF AIProvider <> "compatible" OR AILocalPick = "" THEN EXIT SUB
+  IF FIELD$(AILocalPick, "|", 1) <> AIBase OR FIELD$(AILocalPick, "|", 2) <> AI.Model THEN EXIT SUB
+  AI.ContextSize = VAL(FIELD$(AILocalPick, "|", 3))
+  IF FIELD$(AILocalPick, "|", 4) = "small" THEN AI.SmallModel = 1 ELSE AI.SmallModel = 0
+END SUB
+
 SUB AIModelPicked
   IF AIFilling THEN EXIT SUB
   AI.Model = AIModelId(AIModelBox.Text)
+  AILocalApply
   AISetModelOf AI.Provider, AI.Model
   ' (the model chosen is kept, as Settings keeps it)
   SaveSettings

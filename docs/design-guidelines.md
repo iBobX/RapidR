@@ -201,7 +201,7 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 
 - Dialogs set `fh = 28` for fields, but a field's height is its font's (24): the 28 never shows (chrome.inc, settings.inc, build.inc).
 - The Assistant pane's buttons are 28 (classic 23) beside 24-px combo boxes, with 6-px edges (ai.inc, aichats.inc); its banner's buttons 34.
-- The review windows' buttons are 30 (ai.inc, mcp.inc), Set Up RAI's 30 (aisetup.inc), the save prompt's and safety's 23 in classic (prompts.inc, safety.inc).
+- The review windows' buttons are 30 (ai.inc, mcp.inc), the save prompt's and safety's 23 in classic (prompts.inc, safety.inc).
 - Search and Help fields are 26 (search.inc).
 - The status bar's paused colour (`statusbar.debugging`, `#B45309`) is outside the brand palette.
 - Settings > AI: the links block (an `RMarkdownView`) draws a white `window` block across the dialog's face (settings.inc).

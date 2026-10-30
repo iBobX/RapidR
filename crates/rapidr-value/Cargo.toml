@@ -58,7 +58,12 @@ rapidr-archive = { workspace = true, optional = true }
 windows-registry = "0.6.1"
 # Real pages at a block's address around a DLL call (memory.rs): Microsoft's
 # windows-sys (MIT OR Apache-2.0), already in the tree through winit.
-windows-sys = { version = "0.52", features = ["Win32_System_Memory", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+windows-sys = { version = "0.52", features = ["Win32_System_Memory", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_SystemInformation", "Win32_System_Power", "Win32_Storage_FileSystem"] }
+
+# RSystemInfo on macOS and Linux (sysinfo.rs): sysctl, the Mach host's
+# memory statistics, statvfs — libc (MIT OR Apache-2.0), already in the tree.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [features]
 # Bitmap.LoadIcon and ImageList.AddIcon: RapidR's icon set in programs (the

@@ -768,9 +768,10 @@ impl Turn {
 /// project tools).
 pub type ToolFactory = fn(rai: &str, component: &str, kind: &str) -> Result<Box<dyn ToolProvider>, String>;
 
+static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 thread_local! {
     static AIS: RefCell<HashMap<String, Ai>> = RefCell::new(HashMap::new());
-    static NEXT_ID: Cell<u64> = const { Cell::new(1) };
     static FACTORY: Cell<Option<ToolFactory>> = const { Cell::new(None) };
 }
 
@@ -927,8 +928,16 @@ struct Ai {
     /// A summary asked for by Compact; the status before an automatic one.
     compacting: bool,
     status_before_summary: String,
-    /// The tools' lite set was sent (a small window).
+    /// The tools' lite set was sent (a small window, or SmallModel).
     lite: bool,
+    /// SmallModel: `Some(true)` the small-model mode whatever the window
+    /// (RapidR Studio chose it from the model's check on this computer),
+    /// `Some(false)` never, `None` by the window (below [`LITE_BELOW`]).
+    small_model: Option<bool>,
+    /// ContextSize: the context the model runs with on this computer, as
+    /// RapidR Studio chose it from the memory free (0: the model's own) —
+    /// the conversation is kept within it.
+    context_size: u64,
     changed: bool,
     tokens: String,
     events: Vec<(&'static str, Vec<Value>)>,
@@ -939,11 +948,9 @@ fn with<R>(name: &str, f: impl FnOnce(&mut Ai) -> R) -> R {
 }
 
 fn next_id() -> u64 {
-    NEXT_ID.with(|n| {
-        let id = n.get();
-        n.set(id + 1);
-        id
-    })
+    // (one count for every thread: a request's news go to the thread that
+    // started it — http::take —, so two threads' RAIs never share an id)
+    NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 fn s(v: impl Into<String>) -> Value {
@@ -1041,7 +1048,19 @@ impl Ai {
     /// (or less, when its largest is less); a cloud model's that doesn't
     /// say: none (they take far more than a conversation needs).
     fn budget_window(&self) -> Option<u64> {
-        self.window().or_else(|| self.local().then(|| self.windows.get(&self.model).map_or(ASSUMED_LOCAL_WINDOW, |(w, _)| (*w).min(ASSUMED_LOCAL_WINDOW))))
+        let w = self.window().or_else(|| self.local().then(|| self.windows.get(&self.model).map_or(ASSUMED_LOCAL_WINDOW, |(w, _)| (*w).min(ASSUMED_LOCAL_WINDOW))));
+        // (the context Studio chose for this computer: never more)
+        match (w, self.context_size) {
+            (_, 0) => w,
+            (Some(w), c) => Some(w.min(c)),
+            (None, c) => Some(c),
+        }
+    }
+
+    /// Whether the small-model mode is used: SmallModel's choice, else a
+    /// window below [`LITE_BELOW`].
+    fn wants_lite(&self) -> bool {
+        self.small_model.unwrap_or_else(|| self.budget_window().is_some_and(|w| w < LITE_BELOW))
     }
 
     /// The characters a token takes, from the last request's size and the
@@ -1743,12 +1762,13 @@ impl Ai {
             self.status = "Answering…".into();
             return Ok(());
         }
-        // (a small window: the tools' lite set — K8)
-        let lite = self.budget_window().is_some_and(|w| w < LITE_BELOW);
+        // (a small window, or the small-model mode Studio chose: the
+        // tools' lite set — K8, docs/local-ai-plan.md §6)
+        let lite = self.wants_lite();
         if lite != self.lite {
             self.lite = lite;
             self.last_fixed = 0;
-            self.audit_log("lite", json!({"lite": lite, "window": self.budget_window()}));
+            self.audit_log("lite", json!({"lite": lite, "window": self.budget_window(), "chosen": self.small_model}));
         }
         for (_, _, t) in &mut self.tools {
             t.set_lite(lite);
@@ -2702,6 +2722,12 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "contextwindow" => Value::Integer(a.window().unwrap_or(0) as i64),
             "questioncount" => Value::Integer(a.marks.len() as i64),
             "lite" => flag(a.lite),
+            "smallmodel" => Value::Integer(match a.small_model {
+                Some(true) => 1,
+                Some(false) => 0,
+                None => -1,
+            }),
+            "contextsize" => Value::Integer(a.context_size as i64),
             _ => return None,
         })
     })
@@ -2784,6 +2810,14 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 }
             }
             "audit" => a.audit = truth(v),
+            "smallmodel" => {
+                a.small_model = match v.to_i64() {
+                    1 => Some(true),
+                    0 => Some(false),
+                    _ => None,
+                }
+            }
+            "contextsize" => a.context_size = v.to_i64().max(0) as u64,
             "pricein" => a.price_in = v.to_f64().max(0.0),
             "priceout" => a.price_out = v.to_f64().max(0.0),
             "busy" | "error" | "status" | "answer" | "transcript" | "steps" | "userlanguage" | "models" | "modelcount" | "haskey" | "keyhint" | "keysource" | "keyenv" | "keystore" | "needskey" | "pricingurl" | "keysurl" | "providers" | "presets" | "inputtokens" | "outputtokens" | "cachedtokens" | "usage" | "cost" | "lastrequest" | "toolcalls" | "auditlocation" | "effortsupported" | "activity" | "elapsed" | "quiet" | "contexttokens" | "contextlimit" | "contextwindow" | "questioncount" | "lite" => {}

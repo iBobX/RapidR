@@ -171,6 +171,7 @@ SUB FillExamples
   MoreCount = 0
   AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"
   AddMoreExample "gui/on_error.rr", "A bug in a handler: the program goes on and says so"
+  AddMoreExample "system_info.rr", "What this computer has: memory, processor, disk"
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
   AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"

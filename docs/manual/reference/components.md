@@ -94,6 +94,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/printer.svg" width="20" height="20" alt=""> | [`RPrinter`](members.md#rprinter) | everywhere |
 | <img src="../icons/light/components/registry.svg" width="20" height="20" alt=""> | [`RRegistry`](members.md#rregistry) | everywhere |
 | <img src="../icons/light/components/secrets.svg" width="20" height="20" alt=""> | [`RSecrets`](members.md#rsecrets) | everywhere |
+| <img src="../icons/light/components/systeminfo.svg" width="20" height="20" alt=""> | [`RSystemInfo`](members.md#rsysteminfo) | everywhere |
 | <img src="../icons/light/components/json.svg" width="20" height="20" alt=""> | [`RJson`](members.md#rjson) | everywhere |
 | <img src="../icons/light/components/font.svg" width="20" height="20" alt=""> | [`RFont`](members.md#rfont) | everywhere |
 | <img src="../icons/light/components/memorystream.svg" width="20" height="20" alt=""> | [`RMemoryStream`](members.md#rmemorystream) | everywhere |
@@ -223,4 +224,4 @@ These objects aren't in RapidR yet. Variables of the OLE types compile as generi
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-123 components.
+124 components.

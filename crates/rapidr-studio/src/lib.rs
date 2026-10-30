@@ -37,6 +37,7 @@ pub mod guide;
 pub mod help;
 pub mod import;
 pub mod langsvc;
+pub mod local_ai;
 pub mod local_history;
 pub mod login_path;
 pub mod manual_search;

@@ -246,6 +246,44 @@ methods = [
 events = []
 
 [[component]]
+name = "RSYSTEMINFO"
+display = "SystemInfo"
+visual = false
+doc = "What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer. RapidR never sends them anywhere. If your program does (to a server, in a log, in a report), tell its users first and send only what you need (`Class`, not every fact): together they can single out one computer, and a program for children shouldn't send them at all. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or \"\". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own."
+example = """
+DIM Info AS RSystemInfo
+PRINT Info.Summary
+PRINT "This computer is "; Info.Class; ": "; Info.Cores; " cores, "; Info.TotalMemory \\ 1024; " GB of memory"
+IF Info.FreeMemory < 2048 THEN PRINT "Less than 2 GB free: close some apps first."
+IF Info.Unknown <> "" THEN PRINT "Not known here: "; Info.Unknown
+"""
+properties = [
+  { name = "OS", type = "string", access = "read", design = false, doc = "The operating system: \"macOS\", \"Windows\", \"Linux\" (a web page: the system the browser says it runs on)." },
+  { name = "OSVersion", type = "string", access = "read", design = false, doc = "The system's version, as it says it: \"27.2\", \"11 24H2 (26100)\", \"Ubuntu 24.04 LTS\"; \"\" on the web." },
+  { name = "Architecture", type = "string", access = "read", design = false, doc = "The processor's kind: \"arm64\", \"x86_64\" or \"x86\"; \"\" on the web." },
+  { name = "CPU", type = "string", access = "read", design = false, doc = "The processor's name (\"Apple M4 Max\", \"Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz\"); \"\" when the system doesn't say, and on the web." },
+  { name = "Cores", type = "int", access = "read", design = false, unit = "count", doc = "How many things the processor does at once (logical cores)." },
+  { name = "TotalMemory", type = "int", access = "read", design = false, unit = "mb", doc = "All the memory, in megabytes (`\\ 1024` gives gigabytes). On the web, where the browser says it, rounded and at most 8 GB; else 0." },
+  { name = "FreeMemory", type = "int", access = "read", design = false, unit = "mb", doc = "The memory a program can have now, in megabytes: what is free and what the system gives back at once (caches). Read again each time. 0 on the web." },
+  { name = "GPU", type = "string", access = "read", design = false, doc = "The graphics processor's name (on Apple silicon the chip's: \"Apple M4 Max\"); \"\" when not known, and on the web." },
+  { name = "GPUMemory", type = "int", access = "read", design = false, unit = "mb", doc = "The memory the graphics processor can use, in megabytes: its own, or where the memory is shared (UnifiedMemory) the part it may take, about three quarters of it. 0 when not known." },
+  { name = "UnifiedMemory", type = "bool", access = "read", design = false, doc = "True when the processor and the graphics share one memory (Apple silicon): a large AI model can use most of it." },
+  { name = "DiskTotal", type = "int", access = "read", design = false, unit = "mb", doc = "The size of the disk your files are on (the home folder's), in megabytes; 0 on the web." },
+  { name = "DiskFree", type = "int", access = "read", design = false, unit = "mb", doc = "What is free on that disk, in megabytes; 0 on the web." },
+  { name = "HasBattery", type = "bool", access = "read", design = false, doc = "True when the computer has a battery (a laptop). False on the web, where it isn't known." },
+  { name = "OnBattery", type = "bool", access = "read", design = false, doc = "True when it runs on its battery now (unplugged): a program may do less to save it." },
+  { name = "BatteryLevel", type = "int", access = "read", design = false, range = "-1..100", doc = "The battery's charge, 0 to 100; -1 with no battery or when not known." },
+  { name = "Class", type = "string", access = "read", design = false, doc = "The computer's size in plain words: \"small\" (under 8 GB of memory, or fewer than 4 cores), \"large\" (32 GB or more and 8 cores or more), else \"medium\"." },
+  { name = "Summary", type = "string", access = "read", design = false, doc = "One sentence for people: \"macOS 27.2 on Apple M4 Max (16 cores), 48 GB of memory (31 GB free), 410 GB free on the disk, plugged in.\"" },
+  { name = "Unknown", type = "string", access = "read", design = false, doc = "The properties this computer or browser can't tell, by name, separated by \", \" (\"FreeMemory, GPU, DiskFree, …\" on the web); \"\" when everything is known." },
+  { name = "Browser", type = "bool", access = "read", design = false, doc = "True on a web page: the facts are the browser's, and fewer." },
+]
+methods = [
+  { name = "Refresh", value = true, effects = ["state"], doc = "Reads everything again (the battery, a disk that filled up). FreeMemory is always read now; the rest is read once, the first time it is asked for." },
+]
+events = []
+
+[[component]]
 name = "RJSON"
 display = "Json"
 visual = false

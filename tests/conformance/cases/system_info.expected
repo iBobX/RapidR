@@ -1,0 +1,14 @@
+os: known
+cores: yes
+memory: yes
+free memory: within the total
+disk: free within the size
+battery: in range
+battery: consistent
+class: plain words
+summary: a sentence
+summary: says the cores
+unknown: nothing here
+browser: no
+refreshed
+after refresh: cores again

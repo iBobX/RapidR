@@ -13,6 +13,22 @@ msgstr ""
 msgid "Not translated yet: this page is in English."
 msgstr "No traducido aún: esta página está en inglés."
 
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "{address} isn't an address on this computer (only 127.0.0.1, [::1] or localhost)."
+msgstr "{address} no es una dirección de esta computadora (solo 127.0.0.1, [::1] o localhost)."
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "A web page can't look for AI apps on this computer by itself: type the address of yours."
+msgstr "Una página web no puede buscar apps de IA en esta computadora por sí sola: escribe la dirección de la tuya."
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "Checking models runs in RapidR Studio on the desktop."
+msgstr "La comprobación de modelos se ejecuta en RapidR Studio de escritorio."
+
+#: crates/rapidr-studio/src/local_ai.rs
+msgid "A check is running: wait for it, or stop it."
+msgstr "Hay una comprobación en curso: espera a que termine o deténla."
+
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}, column {column}"
 msgstr "Línea {line}, columna {column}"

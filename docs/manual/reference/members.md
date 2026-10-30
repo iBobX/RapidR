@@ -3359,6 +3359,37 @@ Keeps passwords, tokens and keys in the operating system's keychain (the macOS K
 | `Delete(Service AS STRING, Name AS STRING) AS INTEGER` | Removes `Name` of `Service` from the keychain. True when there was one; False when there wasn't or it couldn't (Error says why). |
 | `Exists(Service AS STRING, Name AS STRING) AS INTEGER` | True when something is kept as `Name` of `Service`. |
 
+<a id="rsysteminfo"></a>
+## RSystemInfo
+
+What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer. RapidR never sends them anywhere. If your program does (to a server, in a log, in a report), tell its users first and send only what you need (`Class`, not every fact): together they can single out one computer, and a program for children shouldn't send them at all. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or "". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `OS` (read-only) | string |  | The operating system: "macOS", "Windows", "Linux" (a web page: the system the browser says it runs on). |
+| `OSVersion` (read-only) | string |  | The system's version, as it says it: "27.2", "11 24H2 (26100)", "Ubuntu 24.04 LTS"; "" on the web. |
+| `Architecture` (read-only) | string |  | The processor's kind: "arm64", "x86_64" or "x86"; "" on the web. |
+| `CPU` (read-only) | string |  | The processor's name ("Apple M4 Max", "Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz"); "" when the system doesn't say, and on the web. |
+| `Cores` (read-only) | int |  | How many things the processor does at once (logical cores). |
+| `TotalMemory` (read-only) | int |  | All the memory, in megabytes (`\ 1024` gives gigabytes). On the web, where the browser says it, rounded and at most 8 GB; else 0. |
+| `FreeMemory` (read-only) | int |  | The memory a program can have now, in megabytes: what is free and what the system gives back at once (caches). Read again each time. 0 on the web. |
+| `GPU` (read-only) | string |  | The graphics processor's name (on Apple silicon the chip's: "Apple M4 Max"); "" when not known, and on the web. |
+| `GPUMemory` (read-only) | int |  | The memory the graphics processor can use, in megabytes: its own, or where the memory is shared (UnifiedMemory) the part it may take, about three quarters of it. 0 when not known. |
+| `UnifiedMemory` (read-only) | bool |  | True when the processor and the graphics share one memory (Apple silicon): a large AI model can use most of it. |
+| `DiskTotal` (read-only) | int |  | The size of the disk your files are on (the home folder's), in megabytes; 0 on the web. |
+| `DiskFree` (read-only) | int |  | What is free on that disk, in megabytes; 0 on the web. |
+| `HasBattery` (read-only) | bool |  | True when the computer has a battery (a laptop). False on the web, where it isn't known. |
+| `OnBattery` (read-only) | bool |  | True when it runs on its battery now (unplugged): a program may do less to save it. |
+| `BatteryLevel` (read-only) | int |  | The battery's charge, 0 to 100; -1 with no battery or when not known. |
+| `Class` (read-only) | string |  | The computer's size in plain words: "small" (under 8 GB of memory, or fewer than 4 cores), "large" (32 GB or more and 8 cores or more), else "medium". |
+| `Summary` (read-only) | string |  | One sentence for people: "macOS 27.2 on Apple M4 Max (16 cores), 48 GB of memory (31 GB free), 410 GB free on the disk, plugged in." |
+| `Unknown` (read-only) | string |  | The properties this computer or browser can't tell, by name, separated by ", " ("FreeMemory, GPU, DiskFree, …" on the web); "" when everything is known. |
+| `Browser` (read-only) | bool |  | True on a web page: the facts are the browser's, and fewer. |
+
+| Method | |
+|---|---|
+| `Refresh` | Reads everything again (the battery, a disk that filled up). FreeMemory is always read now; the rest is read once, the first time it is asked for. |
+
 <a id="rjson"></a>
 ## RJson
 
@@ -5652,7 +5683,9 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `ContextTokens` (read-only) | int |  | The conversation's size in tokens as the next question would send it (the instructions, tools, messages and the last reply): the last request's as the provider counted it, else estimated. With ContextLimit, a context meter. |
 | `ContextLimit` (read-only) | int |  | Where the conversation is compacted by itself: SummaryAt, or 70% of the model's context window when that is less. |
 | `ContextWindow` (read-only) | int |  | The model's context window in tokens, when the provider's models list says it (0 when not). |
-| `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens): the attached tools sent their lite instructions and tools, so a small local model can start. |
+| `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens), or SmallModel is 1: the attached tools sent their lite instructions and tools, so a small local model can start. |
+| `SmallModel` | int | -1 | The small-model mode: shorter instructions, fewer tools, a recipe first, and RapidR Studio's tools start from a recipe after repeated errors. -1 (the default): used when the model's window is under 16,384 tokens; 1: always; 0: never. RapidR Studio sets it from its check of a model on this computer (Set Up RAI), never from the model's name. RapidR's own. |
+| `ContextSize` | int | 0 | The context the model runs with, in tokens, when it is smaller than its window: the conversation is kept within it (0, the default: the model's own window). RapidR Studio sets it for a model on this computer from the memory free (8,192 by default, 16,384 when there is room, never below 4,096). RapidR's own. |
 | `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it, a muted "Answer was long: continuing (part 2 of up to 5)" where an answer reached its length limit and RAI went on by itself (a "Continue in smaller steps" link, rai:continue, if it finally stopped), a "✓ 6 steps · show" link under a finished answer (rai:steps/N), and under each closed code block "Copy · Insert" links (rai:copy/N, rai:insert/N; Insert for RapidR code, which is coloured as the code editor colours it, a block with no language that looks like RapidR's included). |
 | `Steps` (read-only) | string |  | What the attached tools did in the current (or last) answer, a line each ("Read main.rr (40 lines)"): a progress checklist while it works. |
 | `TurnInputTokens` (read-only) | int |  | The tokens sent so far in the current (or last) answer, all its requests: the provider's count, updated while the answer streams in. |
@@ -5864,6 +5897,15 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `SchoolLockUnlock(Password AS STRING) AS INTEGER` | Unlocks School Lock until the program ends (RapidR Studio: until it closes) when Password is right: 1. 0: wrong. After 5 wrong tries in a row the next one waits a minute: -1, not checked (SchoolLock("wait") says how long; the count is kept in Studio's folder, so closing doesn't reset it). -3: no password can unlock it (a policy without one, or one that can't be read). |
 | `SchoolLockTurnOff(Password AS STRING) AS INTEGER` | Turns the user's School Lock off when Password is right: 1. 0 wrong, -1 wait (as SchoolLockUnlock), -2 the computer's policy keeps it on (only the computer's IT can turn it off), -3 no password can. |
 | `SchoolLockRelock` | Locks School Lock again after SchoolLockUnlock. |
+| `LocalAIFind(Address AS STRING) AS INTEGER` | Set Up RAI › On this computer: looks for the AI models already on this computer, in the background — the servers on 127.0.0.1 that speak the OpenAI-compatible API, at their usual ports and at Address (one the user typed; "" none). True when it started; False for an address that isn't this computer (Error says why: only 127.0.0.1, [::1] or localhost) and on a web page, which can't look by itself (LocalAIAddModels). Nothing is sent anywhere: a server is asked for its models and how it describes them. LocalAI("busy") says when it is done. |
+| `LocalAI(What AS STRING) AS STRING` | The models found, in words a page shows: "busy" ("1" looking or checking), "looking", "news" ("1" once after anything changed), "count", "chatcount", "servers", "serverlist" ("127.0.0.1:11434"), "best" (the best match's place, -1 none), "checking" (the place of the model being checked, -1 none), "step" (load, speed, tools, task), "queue", "done", "unchecked", "estimate" (seconds to check every one that fits), "totalwords", "freewords" (the memory a model can have now), "mostwords" (with other apps closed), "unified", "error", "web". |
+| `LocalAIModel(Index AS INTEGER, Field AS STRING) AS STRING` | A field of the model at place Index, the best match first: "id", "base", "server", "sizewords", "params", "quant", "maxcontext", "context" (the context RAI gets: 16384 when there is room, 8192, never below 4096), "needwords", "spare", "fit" (fits, close, toobig, unknown), "tools", "chat", "licence" and "licencetext" (as its server reports them), "loaded", "checked", "kept", "first" (seconds before an answer starts), "words" (words a second), "toolsok", "toolswhy" (as-text, no-call, bad-arguments, wrong-tool), "task", "taskwhy" (errors, no-button, no-program, recipe, too-slow), "fast", "mode" (small or full: RAI's small-model mode, from the check), "best", "checking", "queued", "step", "estimate", "error". |
+| `LocalAICheck(Index AS INTEGER) AS INTEGER` | Checks the model at place Index (-1: every one that fits and isn't checked) in the background, one at a time: how fast RAI's first answer starts, whether a tool call arrives as a call, and a tiny RapidR task through RAI's real loop (a window with a button that says Hello: it compiles and the button is there; nothing the model writes is run or saved). A model it loaded is let go after. The results are kept per model and Studio version. How many it checks; 0 with none (Error says why when a check is running already). |
+| `LocalAICancel` | Stops the check now: the model being checked is left unchecked. |
+| `LocalAIAddModels(Address AS STRING, Models AS STRING) AS INTEGER` | (a web page) The models a server at Address (this computer's) listed to an RAI — its Models text — as rows with what is known. How many. |
+| `LocalAIClear` | Forgets the models found (the checks kept stay kept). |
+| `LocalAIAddress(Address AS STRING) AS STRING` | Address as Studio asks it — this computer's only (127.0.0.1 for localhost, /v1 added) — or "" for another computer's (Error says why): a web page checks an address typed before anything is sent. |
+| `LocalAITest(What AS STRING, Value AS STRING) AS INTEGER` | (tests) "addresses": the servers asked instead of the usual ports ("url\|url", this computer's only; "" the usual ones again); "facts": the computer's memory instead of this one's ("total=16384,free=8192,unified=0", megabytes; "" this one's). |
 | `SchoolLockStrength(Password AS STRING) AS INTEGER` | How hard Password is to guess, for a hint beside the field: 0 too short (under 6 characters), 1 weak (common, a run like 123456, one letter repeated), 2 fair, 3 strong. |
 | `FilesIn(Folder AS STRING) AS STRING` | The text files under Folder, at any depth, a line each (full paths, sorted): hidden folders, build and target folders, and pictures, sounds, videos, fonts, archives and programs left out; at most 2,000. Search's "A folder" scope reads them (the disk on the desktop, the page's store on the web). |
 | `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as older programs wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |

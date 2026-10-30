@@ -909,6 +909,13 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             with(name, |m| m.error = error);
             v
         }
+        // (Set Up RAI › On this computer: crate::local_ai — the models
+        // already here, their fit, their check, the best match)
+        m if m.starts_with("localai") => {
+            let (v, error) = crate::local_ai::call(m, args)?;
+            with(name, |m| m.error = error);
+            v
+        }
         // (Search's "A folder" scope) FilesIn(Folder): its text files
         "filesin" => Value::String(files_in(host, &s(0)).iter().map(|p| format!("{p}\n")).collect()),
         // (Find in Files) Find(Pattern, Options, Text): the matches of one

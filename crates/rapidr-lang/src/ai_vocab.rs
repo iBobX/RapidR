@@ -15,7 +15,7 @@ pub const EFFECT_RISK: &[u8] = &[0, 1, 1, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5]
 pub const RISK_NAMES: &[&str] = &["read", "ui", "state", "external", "irreversible", "system"];
 
 /// The units a numeric property may give (`unit = "px"`).
-pub const UNITS: &[&str] = &["px", "pt", "ms", "s", "deg", "percent", "bgr", "chars", "bytes", "index", "count", "hz", "bps"];
+pub const UNITS: &[&str] = &["px", "pt", "ms", "s", "deg", "percent", "bgr", "chars", "bytes", "mb", "index", "count", "hz", "bps"];
 
 /// The kinds a value may have (`kind = "color"`, docs/code-helpers-plan.md
 /// §2): what it *is* beyond its type, so the code editor's helpers show and

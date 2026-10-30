@@ -428,6 +428,12 @@ export const cases = [
     expect: ["status.caption=There was nothing to delete.", "valueedit.text="] },
   { file: "data/secrets.rr", runtimes: ["web"], events: `${typeKeys("valueedit", "s3c")},savebtn.onclick`, dump: "status.caption,keptin.caption",
     expect: ["status.caption=Not saved: RSecrets isn't available in the browser: a web page has no keychain", "keptin.caption=Nowhere to keep it: no keychain (a web page has none)"] },
+  // (RSystemInfo: this computer's facts — what they say differs from one
+  // computer to the next: their shape is checked, and the program adapts)
+  { file: "system_info.rr", runtimes: ["run", "interp", "native", "web"], dump: "summary.caption,advice.caption,refreshbutton.caption",
+    expect: ["summary.caption=", " computer: this program would use its ", "refreshbutton.caption=&Refresh"] },
+  { file: "system_info.rr", runtimes: ["run", "interp", "native"], events: "refreshbutton.onclick", dump: "summary.caption",
+    expect: [" cores), ", " of memory ("] },
   // (RArchive: a .z80 found in a zip, a 7z, a .gz — or taken as it is —
   // its first bytes; a zip made and opened)
   { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption,loaded.caption,hexview.caption,entries.itemcount",

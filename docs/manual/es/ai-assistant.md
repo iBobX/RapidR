@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 2b1084f75845f2aa -->
+<!-- translated-from: ai-assistant.md 72eae1fb7c3b627a -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -11,9 +11,9 @@ En una clase, cada docente puede mantener el asistente desactivado con una
 contraseña: [Para docentes: bloqueo escolar](for-teachers.md).
 
 Funciona con el proveedor de IA que elijas: **Anthropic** (Claude), **OpenAI**,
-**DeepSeek**, o cualquier servidor **compatible con OpenAI**, incluido un servidor
-de modelos en tu propia computadora (Ollama, LM Studio), que no necesita clave y no
-envía nada fuera.
+**DeepSeek**, o cualquier servidor **compatible con OpenAI**, incluida una app de IA
+local en tu propia computadora, que no necesita clave: Studio envía lo que preguntas
+solo a esa app ([IA en esta computadora](local-ai.md)).
 
 <!-- legal -->
 **Desactivado de forma predeterminada.** No se envía nada a ninguna parte hasta que
@@ -37,19 +37,20 @@ Configuración, y **Ctrl+I** antes de que el asistente esté configurado) pregun
 sola cosa a la vez:
 
 1. **¿De dónde deben venir las respuestas de RAI?**
-   - **Gratis, en esta computadora.** Un modelo se ejecuta en tu propia computadora
-     con Ollama, LM Studio o MLX Serve (programas gratuitos que tú instalas). Nada de
-     lo que preguntas sale de la computadora, y no cuesta nada; necesita una
-     computadora rápida con mucha memoria, y las respuestas son más lentas y más
-     simples que las de un modelo en la nube. Studio busca cada uno de ellos al
-     instante y dice qué encontró (*✓ Encontrados en esta computadora: Ollama
-     (3 modelos)*) o que no se está ejecutando ninguno. Nunca inicia uno por ti:
-     inicia el tuyo y luego usa **Buscar de nuevo**.
+   - **Gratis, en esta computadora.** Un modelo se ejecuta en tu propia computadora,
+     en una app de IA local (un programa gratuito que instalas y que guarda modelos
+     de IA en tu computadora). No cuesta nada, necesita una computadora rápida con
+     mucha memoria, y las respuestas son más lentas y más simples que las de un
+     modelo en la nube. Studio le pregunta a esta computadora qué modelos ya tiene y
+     dice qué encontró —*✓ Se encontraron 3 modelos en una app de IA local en esta
+     computadora*— o que no se está ejecutando ninguna. Nunca inicia una por ti.
+     [IA en esta computadora](local-ai.md) tiene el resto: qué modelos caben,
+     Comprobar mis modelos, la mejor opción.
    - **Un servicio en la nube, con tu propia clave**: Anthropic (Claude), OpenAI o
      DeepSeek, por lo general las mejores respuestas. Le pagas al proveedor por lo que
      uses; la página dice cuánto cuesta una pregunta y qué se envía.
 
-   ![Configurar RAI: gratis en esta computadora (Ollama encontrado), o un servicio en la nube con tu clave](../images/ai/setup.png)
+   ![Configurar RAI: gratis en esta computadora (3 modelos encontrados en una app de IA local), o un servicio en la nube con tu clave](../images/ai/setup.png)
 
 2. **En esta computadora**: el servidor (los que se están ejecutando van primero) y
    uno de sus modelos. **En la nube**: el proveedor, tu clave (**Obtener una clave**
@@ -601,7 +602,9 @@ siguiente solicitud.
   escribió en un archivo del proyecto se reemplaza por *(una clave de API, no se
   muestra)* antes de que el asistente lea el archivo.
 <!-- legal -->
-- **Un modelo en tu propia computadora** (Ollama, LM Studio): nada sale de ella.
+- **Un modelo en tu propia computadora**, en una app de IA local: Studio envía lo que
+  preguntas solo a esa app, así que se queda en la computadora a menos que la app esté
+  configurada para pasarlo a otro servicio.
 <!-- legal -->
 - **Tus chats se quedan en tu computadora**, en la carpeta de Studio, nunca en el
   proyecto (mira [Tus chats se conservan](#tus-chats-se-conservan)); las claves y los

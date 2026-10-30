@@ -1,0 +1,23 @@
+' RSystemInfo (RapidR's): what this computer has, read here and never
+' sent by RapidR. What it says differs from one computer to the next, so
+' the case checks its shape: every fact there and in range, Class in plain
+' words, Summary a sentence, FreeMemory read again each time, Refresh.
+' The same on every runtime.
+DIM Info AS RSystemInfo
+DIM c AS STRING
+
+IF Info.OS <> "" THEN PRINT "os: known"
+IF Info.Cores > 0 THEN PRINT "cores: yes"
+IF Info.TotalMemory > 0 THEN PRINT "memory: yes"
+IF Info.FreeMemory > 0 AND Info.FreeMemory <= Info.TotalMemory THEN PRINT "free memory: within the total"
+IF Info.DiskFree <= Info.DiskTotal THEN PRINT "disk: free within the size"
+IF Info.BatteryLevel >= -1 AND Info.BatteryLevel <= 100 THEN PRINT "battery: in range"
+IF Info.HasBattery <> 0 OR Info.OnBattery = 0 THEN PRINT "battery: consistent"
+c = Info.Class
+IF c = "small" OR c = "medium" OR c = "large" THEN PRINT "class: plain words"
+IF RIGHT$(Info.Summary, 1) = "." THEN PRINT "summary: a sentence"
+IF INSTR(Info.Summary, "cores") > 0 THEN PRINT "summary: says the cores"
+IF Info.Unknown = "" THEN PRINT "unknown: nothing here"
+IF Info.Browser = 0 THEN PRINT "browser: no"
+IF Info.Refresh THEN PRINT "refreshed"
+IF Info.Cores > 0 THEN PRINT "after refresh: cores again"

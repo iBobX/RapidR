@@ -61,6 +61,9 @@ SITES = {
     ("crates/rapidr-value/src/datascience/plot.rs", "*"): "RPLOT",
     # (RARCHIVE: its own store, every runtime)
     ("crates/rapidr-value/src/objects/archive.rs", "*"): "RARCHIVE",
+    # (RSYSTEMINFO: this computer's facts, every runtime; the web gives its own)
+    ("crates/rapidr-value/src/sysinfo.rs", "get_with"): "RSYSTEMINFO",
+    ("crates/rapidr-value/src/sysinfo.rs", "call"): "RSYSTEMINFO",
     ("crates/rapidr-runtime-core/src/layout.rs", "after_set"): "*",
     ("crates/rapidr-runtime-core/src/network.rs", "socket_method"): "RSOCKET",
     ("crates/rapidr-runtime-core/src/network.rs", "method"): "RSOCKET RSERVERSOCKET",
