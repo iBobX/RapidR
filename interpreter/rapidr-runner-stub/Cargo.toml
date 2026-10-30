@@ -16,5 +16,14 @@ name = "rapidrintr-runnerw"
 path = "src/windowed.rs"
 
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
 # (the desktop host: the UI kernel)
 rapidr-vm-host-native = { workspace = true, features = ["gui"] }
+
+[features]
+# Local development builds only: the GUI test hooks act without a test-mode
+# token (SEC-24). Never in a release build (tools/release/, tools/studio_app.sh
+# release; tests/security/test_mode_release.mjs checks).
+dev-hooks = ["rapidr-testmode/dev-hooks"]

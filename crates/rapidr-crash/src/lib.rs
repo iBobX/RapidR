@@ -402,7 +402,7 @@ fn deeper(n: u64, sink: &mut u64) -> u64 {
 /// Whether the GUI test hooks are on (a test never sees a dialog or a
 /// browser).
 pub fn testing() -> bool {
-    ["RAPIDR_TEST_DUMP", "RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS"].iter().any(|k| std::env::var_os(k).is_some())
+    ["RAPIDR_TEST_DUMP", "RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS"].iter().any(|k| rapidr_testmode::var_os(k).is_some())
 }
 
 // ---- what Studio asks -----------------------------------------------------------------------

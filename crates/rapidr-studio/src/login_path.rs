@@ -118,7 +118,7 @@ mod reader {
     /// The user's login shell: `$SHELL`, else the account's (`/etc/passwd`),
     /// else the system's default.
     pub fn user_shell() -> String {
-        if let Some(s) = std::env::var("RAPIDR_LOGIN_SHELL").ok().filter(|s| !s.is_empty()) {
+        if let Some(s) = rapidr_testmode::env_var("RAPIDR_LOGIN_SHELL").ok().filter(|s| !s.is_empty()) {
             return s;
         }
         if let Some(s) = std::env::var("SHELL").ok().filter(|s| s.starts_with('/')) {
@@ -277,7 +277,7 @@ pub use reader::read_login_path;
 /// test's run (`RAPIDR_CAPTURE`) that names no stand-in shell
 /// (`RAPIDR_LOGIN_SHELL`) — the tests never read the user's own shell.
 fn off() -> bool {
-    std::env::var("RAPIDR_LOGIN_PATH").is_ok_and(|v| v == "off") || (std::env::var_os("RAPIDR_LOGIN_SHELL").is_none() && std::env::var_os("RAPIDR_CAPTURE").is_some())
+    std::env::var("RAPIDR_LOGIN_PATH").is_ok_and(|v| v == "off") || (rapidr_testmode::var_os("RAPIDR_LOGIN_SHELL").is_none() && rapidr_testmode::var_os("RAPIDR_CAPTURE").is_some())
 }
 
 /// Starts reading the login shell's PATH in the background (Studio's

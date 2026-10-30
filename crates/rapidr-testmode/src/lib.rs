@@ -104,6 +104,16 @@ pub fn var_os(name: &str) -> Option<OsString> {
     allowed(name).then(|| std::env::var_os(name)).flatten()
 }
 
+/// [`var`] as `std::env::var` answers it (`NotPresent` while the hooks are
+/// off): a drop-in for a hook's `std::env::var`.
+pub fn env_var(name: &str) -> Result<String, std::env::VarError> {
+    if allowed(name) {
+        std::env::var(name)
+    } else {
+        Err(std::env::VarError::NotPresent)
+    }
+}
+
 /// Whether a test hook's variable is set (and the hooks act).
 pub fn is_set(name: &str) -> bool {
     var_os(name).is_some()

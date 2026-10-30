@@ -27,7 +27,7 @@ pub fn install() {
         return;
     }
     comport::set_sleeper(|ms| std::thread::sleep(Duration::from_millis(ms)));
-    match std::env::var("RAPIDR_TEST_COMPORT") {
+    match rapidr_testmode::env_var("RAPIDR_TEST_COMPORT") {
         Ok(script) => comport::set_ports(Rc::new(comport::TestPorts::parse(&script))),
         Err(_) => comport::set_ports(Rc::new(SystemPorts)),
     }
