@@ -1026,6 +1026,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
+    // RSystemInfo: what this computer has (rapidr_value::sysinfo).
+    if rapidr_value::sysinfo::component::is_sysinfo(&rp_comp_type(name)) {
+        if let Some(v) = rapidr_value::sysinfo::component::get(name, &prop_lower) {
+            return v;
+        }
+    }
     // RWindowCapture and RAppHands: the program's own eyes and hands
     // (ui/drive.rs, rapidr_ui_app::{eyes, hands}).
     #[cfg(feature = "gui")]
@@ -1352,6 +1358,12 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     #[cfg(feature = "network")]
     if rapidr_ai::secrets::component::is_secrets(&comp_type) {
         if let Some(v) = rapidr_ai::secrets::component::call(name, &method_lower, args) {
+            return v;
+        }
+    }
+    // RSystemInfo: Refresh (rapidr_value::sysinfo).
+    if rapidr_value::sysinfo::component::is_sysinfo(&comp_type) {
+        if let Some(v) = rapidr_value::sysinfo::component::call(name, &method_lower, args) {
             return v;
         }
     }

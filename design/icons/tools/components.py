@@ -546,6 +546,20 @@ def secrets(g):
     g.frect(11, 13.5, 2, 4.5, fill="amber")
 
 
+@icon("systeminfo", C, "System info (what this computer has)")
+def systeminfo(g):
+    # a processor chip: its body and pins neutral, its core blue — what the
+    # computer has, read here
+    g.rect(6, 6, 12, 12, r=1.5, c="ink", fill="paper")
+    pins = (9, 15) if g.size == 16 else (9, 12, 15)
+    for p in pins:
+        g.line(p, 3, p, 6, c="ink")
+        g.line(p, 18, p, 21, c="ink")
+        g.line(3, p, 6, p, c="ink")
+        g.line(18, p, 21, p, c="ink")
+    g.rect(9.5, 9.5, 5, 5, r=1, c="blue", fill="blue-tint")
+
+
 @icon("windowcapture", C, "Window capture (the program's own windows as pictures)")
 def windowcapture(g):
     # (a window inside a viewfinder's corners: a picture of the program's

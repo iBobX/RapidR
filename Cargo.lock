@@ -5623,6 +5623,7 @@ name = "rapidr-value"
 version = "2.121.3"
 dependencies = [
  "jpeg-decoder",
+ "libc",
  "proptest",
  "pulldown-cmark",
  "rapidr-archive",

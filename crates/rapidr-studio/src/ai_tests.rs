@@ -1017,3 +1017,65 @@ fn an_outside_ai_apps_calls() {
     assert_eq!(call(t, "toolkind", &[s("read_file")]).unwrap().to_string_val(), "read");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The small-model mode (docs/local-ai-plan.md §6): a request for a new
+/// program whose tries keep going wrong is started from the recipe sent
+/// with it, unchanged, after three — said in the chat's card, the model
+/// told to stop; a create_project after it is refused. Without the mode the
+/// old advice stays ("stop here, and tell the user").
+#[test]
+fn the_small_model_mode_falls_back_to_the_recipe_after_three_errors() {
+    let _one = one_at_a_time();
+    let dir = std::env::temp_dir().join(format!("rapidr-ai-fallback-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let broken = |id: &str| {
+        let args = json!({"name": "Stopwatch", "main": "main.rr", "files": [{"path": "main.rr", "text": "CREATE Form AS RForm\nEND CREATE\nNope x y\nForm.ShowModal\n"}]});
+        sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": id, "function": {"name": "create_project", "arguments": args.to_string()}}]}, "finish_reason": "tool_calls"}]})])
+    };
+    let (url, server) = mock(vec![broken("c1"), broken("c2"), broken("c3"), broken("c4"), text_answer("It starts from a working stopwatch.")]);
+    install();
+    let tools = "tools-fallback";
+    set(tools, "projectfolder", &s(""));
+    let n = "rai-fallback";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    rai_set(n, "smallmodel", "1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("Build me a stopwatch")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 5);
+    // (the third try: Studio started it from the recipe, and said so)
+    let third = last_result(&seen, 3);
+    assert!(third.contains("Studio started the new program from RapidR's recipe \"Stopwatch (timer)\", unchanged"), "{third}");
+    // (the fourth: refused, the recipe's program kept)
+    let fourth = last_result(&seen, 4);
+    assert!(fourth.contains("already started the new program from the recipe"), "{fourth}");
+    assert_ne!(get(tools, "fellback").unwrap().to_i64(), 0);
+    assert_eq!(get(tools, "projecterrors").unwrap().to_i64(), 0);
+    let info = call(tools, "proposalinfo", &[Value::Integer(0)]).unwrap().to_string_val();
+    assert!(info.starts_with("project\tmain.rr\t"), "{info}");
+    assert!(call(tools, "proposalnew", &[Value::Integer(0)]).unwrap().to_string_val().contains("OnTimer = Tick"));
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(t.contains("✓ Started from the recipe *Stopwatch (timer)*, unchanged: the model's own 3 tries didn't work"), "{t}");
+    assert!(std::fs::read_to_string(dir.join("audit.jsonl")).unwrap().contains("recipe-fallback"));
+    // (the mode off: three tries say stop, nothing is made in their place)
+    let (url2, server2) = mock(vec![broken("d1"), broken("d2"), broken("d3"), text_answer("It still has an error.")]);
+    let n2 = "rai-nofallback";
+    let tools2 = "tools-nofallback";
+    set(tools2, "projectfolder", &s(""));
+    rai_set(n2, "provider", "compatible");
+    rai_set(n2, "baseurl", &url2);
+    rai_set(n2, "model", "mock-1");
+    rai_set(n2, "smallmodel", "0");
+    assert_eq!(rai_call(n2, "attachcomponent", &[s(tools2), s("project")]).to_i64(), -1);
+    assert_eq!(rai_call(n2, "ask", &[s("Build me a stopwatch")]).to_i64(), -1);
+    wait(n2);
+    let seen2 = server2.join().unwrap();
+    assert!(last_result(&seen2, 3).contains("stop here"), "{}", last_result(&seen2, 3));
+    assert_eq!(get(tools2, "fellback").unwrap().to_i64(), 0);
+    let _ = std::fs::remove_dir_all(&dir);
+}

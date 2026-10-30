@@ -53,10 +53,37 @@ static INBOX: Mutex<Vec<(u64, Incoming)>> = Mutex::new(Vec::new());
 static CANCELLED: Mutex<Option<HashSet<u64>>> = Mutex::new(None);
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
 static NOTIFY: Mutex<Option<fn()>> = Mutex::new(None);
+/// (the desktop) The thread that started each request: its news are that
+/// thread's alone — RapidR Studio checks a model on this computer with an
+/// RAI of its own on another thread while the assistant's RAI answers on
+/// the window's (docs/local-ai-plan.md §4).
+#[cfg(not(target_arch = "wasm32"))]
+type Owners = std::collections::HashMap<u64, std::thread::ThreadId>;
+#[cfg(not(target_arch = "wasm32"))]
+static OWNERS: Mutex<Option<Owners>> = Mutex::new(None);
 
-/// What came back since the last call, every request's, in order.
+/// What came back since the last call for the requests this thread
+/// started, in order (on a web page, every request's: it has one thread).
 pub fn take() -> Vec<(u64, Incoming)> {
-    std::mem::take(&mut *INBOX.lock().unwrap_or_else(|e| e.into_inner()))
+    let mut inbox = INBOX.lock().unwrap_or_else(|e| e.into_inner());
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let me = std::thread::current().id();
+        let mut owners = OWNERS.lock().unwrap_or_else(|e| e.into_inner());
+        let owners = owners.get_or_insert_with(Default::default);
+        let (mine, others): (Vec<_>, Vec<_>) = std::mem::take(&mut *inbox).into_iter().partition(|(id, _)| owners.get(id).is_none_or(|t| *t == me));
+        *inbox = others;
+        for (id, what) in &mine {
+            if matches!(what, Incoming::Done(_)) {
+                owners.remove(id);
+            }
+        }
+        mine
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::mem::take(&mut *inbox)
+    }
 }
 
 /// How many requests are running.
@@ -119,6 +146,7 @@ pub fn start(id: u64, req: HttpRequest, opts: Options) -> Result<(), String> {
     ACTIVE.fetch_add(1, Ordering::SeqCst);
     #[cfg(not(target_arch = "wasm32"))]
     {
+        OWNERS.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(Default::default).insert(id, std::thread::current().id());
         let spawned = std::thread::Builder::new().name(format!("rapidr-ai-{id}")).spawn(move || {
             native::send(id, &req, opts, &mut |what| push(id, what));
             finished(id);
