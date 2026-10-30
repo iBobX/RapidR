@@ -12,14 +12,22 @@ save is ever lost.
 
 ## Versions in RapidR Studio
 
-### Start versioning
+### Start keeping versions
 
-Open your project, then **View > Versions** (or **File > Versions > Start
-Versioning This Project**). The Versions pane opens beside Project and
-says what a version is. **Start Versioning This Project** makes the
-project's folder keep versions from now on.
+The **Versions** tab is always there, beside **Project** and **Search** in
+the left column (click it, or **View > Versions**). With no project open it
+says so; with a project that doesn't keep versions yet, it says what a
+version is and has one button: **Start Keeping Versions of This Project**
+(also **File > Versions > Start Versioning This Project**). From then on
+the project's folder keeps versions.
 
-![A project without versions: what they are, Start Versioning This Project, and the local history that already keeps your saves](images/versions/studio-start.png)
+![A project without versions: what they are, Start Keeping Versions of This Project, and the local history that already keeps your saves](images/versions/studio-start.png)
+
+Closed the tab? It stays closed, even after Studio starts again, until
+**View > Versions** brings it back (**View > Reset Layout** too). When the
+left column is narrow, its tabs show their icons only — each one's name is
+in its tooltip and said by a screen reader —, the tab in front keeping its
+name when it fits.
 
 Studio starts versions in a project's **own folder** only. It says why, and
 starts nothing, for a whole drive, your home folder or its Desktop,
@@ -53,15 +61,43 @@ passwords: save them anyway** — only then does **Save Anyway** save.
 
 ![A key written in the code: the line said, masked; Save Anyway only once ticked](images/versions/studio-secret.png)
 
-### The timeline
+### The Versions pane
 
-The pane lists the files **not saved as a version** — each with a letter
-(**M** changed, **N** new, **D** removed) — then the **Timeline**: every
-version, newest first, with its words, who saved it and when. An AI's
-checkpoints (what the assistant keeps before it changes your files) are
-smaller and lighter.
+At the top: **Versions**, your project's name, and two chips — the
+experiment you're on (**main**: Git calls it a branch) and how many files
+have changes not saved as a version (**All saved** when none).
+
+**Changes** lists those files, with **Save a Version...** — the pane's main
+button — at its right:
+
+- the project's own files first, then **one row per folder** with how many
+  of its files changed; a folder of more than five files starts **closed**
+  when the list is long. Click its arrow (or pick it and press **Right**)
+  to open it, **Left** to close it;
+- each file shows its **name** first — a long one is cut in the middle, so
+  its end and extension stay —, and its change in words on a soft chip:
+  **New**, **Changed** or **Deleted**;
+- past 20 changed files, a **filter** box shows only the files whose name
+  or folder has the letters you type;
+- your system's own files (`.DS_Store`, `._` copies, `Thumbs.db`,
+  `desktop.ini`) are never listed and never saved in a version.
+
+![The Versions pane with 29 changes: the project's files, the art and docs folders open, screenshots closed with its 24 files, the filter](images/versions/studio-changes.png)
+
+The **Timeline** is every version, newest first: a line through a dot for
+each, its words (on two lines when they need them), who saved it and when.
+The newest — the **current** version, the one your files are based on —
+has a ring in the accent colour. An AI's checkpoints (what the assistant
+keeps before it changes your files) have a smaller, lighter dot. Pick a
+version and **What Changed?** and **Go Back...** act on it; **Undo** is
+beside them, and under them what it would take back, in words.
 
 ![The Versions pane: one change not saved as a version, two versions on the timeline, What Changed?, Go Back..., Undo](images/versions/studio-timeline.png)
+
+The pane fits any width: at its narrowest the chips go under the title and
+the buttons wrap onto another row — nothing is cut off.
+
+![The same pane in a narrow column, in RapidR's dark look](images/versions/studio-narrow.png)
 
 ### What changed?
 
@@ -136,20 +172,24 @@ works there too, in the browser's own storage.
 |---|---|
 | Save a Version... | Ctrl+Shift+V (Cmd+Shift+V) |
 | Pick a version | Up and Down in the timeline, then Tab to What Changed? or Go Back... |
-| Open a changed file | a double click in the changes list |
+| Open a changed file | a double click (or Enter) in the changes list |
+| Open or close a folder of changes | Right / Left (or Space), or a click on its arrow |
+| Show only some changed files | type in the filter box (more than 20 changes) |
 | Close a change shown under its line | Escape |
 | Every Versions command | File > Versions, or the command palette (Ctrl+Shift+P, "Versions") |
 
 Every control has a name for screen readers: a changed file's row says
-"main.rr, changed since the last version", a version's "first, saved by
-Ana, 2 minutes ago", and the Project pane's rows say their change in words
-too.
+"logo.svg in art: new, not in a version yet", a folder's "Folder
+screenshots, 24 changes, closed", a version's "first, saved by Ana, 2
+minutes ago" (the newest adds "the current version"), the chips "Experiment:
+main" and "3 changes not saved as a version", and the Project pane's rows
+say their change in words too.
 
 ## The ideas, in plain words
 
 | You say | What it means | Git calls it |
 |---|---|---|
-| **Start versioning** | The project's folder starts keeping versions. | `git init` |
+| **Start keeping versions** | The project's folder starts keeping versions. | `git init` |
 | **Save a version** | A snapshot of your files, with a few words about what changed. You choose all changed files or some. | commit (with staging) |
 | **Timeline** | Every version, newest first: its words, who saved it, when. | log |
 | **What changed?** | The differences: since the last version, or what a version changed. | diff |
@@ -256,7 +296,10 @@ executable built on its own shows a note there instead.
 - The repositories are ordinary Git repositories (gitoxide, a Git engine
   written in Rust): other Git tools open them, and RapidR opens theirs.
   Starting versions writes a `.gitignore` that keeps RapidR's own folder
-  (`.rapidr/`) and what Build writes beside the program out of them.
+  (`.rapidr/`), what Build writes beside the program and your system's own
+  files (`.DS_Store`, `._*`, `Thumbs.db`, `ehthumbs.db`, `desktop.ini`) out
+  of them — edit it to keep out more. Those system files are left out even
+  in a project whose `.gitignore` doesn't name them.
 - Safety points and checkpoints are commits under `refs/rapidr/`; the
   history of actions is `.git/rapidr/history.jsonl`; the local history is
   `.rapidr/history/index.jsonl` and its `blobs/` (each named by its

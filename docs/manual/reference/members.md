@@ -763,6 +763,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Primary` *(RapidR)* | bool | False | Draws the button as the main action of its pane or strip, filled with the accent colour, without making Enter press it (`Default` does both: use it in a dialog). |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -2458,6 +2459,8 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` *(RapidR)* | A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows. |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` *(RapidR)* | A mouse button let go over the list (X, Y in the list): after OnClick, the item under the mouse picked — a click the program tells from the keyboard's picks. |
 
 <a id="rfilelistbox"></a>
 ## RFileListBox

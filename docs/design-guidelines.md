@@ -91,7 +91,7 @@ Widths: a compact button at least 72 (Deny), a dialog button at least 96 (84 cla
 
 ## Buttons
 
-- **Primary**: accent-filled, `Default = 1` (Enter presses it). One per surface, the action the surface is for (OK, Create, Send) — except a consent, where the safe answer (Cancel) is the default ([Confirmations and consent](#confirmations-and-consent)).
+- **Primary**: accent-filled, `Default = 1` (Enter presses it). One per surface, the action the surface is for (OK, Create, Send) — except a consent, where the safe answer (Cancel) is the default ([Confirmations and consent](#confirmations-and-consent)). In a **pane** (not a dialog), use `Primary = 1`: the same accent fill, without Enter pressing it from wherever the keyboard is (the Versions pane's Save a Version...).
 - **Secondary**: the theme's plain button. Everything else.
 - **Destructive**: a secondary button whose words say what is lost ("Delete", "Reject All"), confirmed when it can't be undone. Never red-filled, never the default.
 - **Quiet**: a link (`LinkFont`, `page.link`) for "see more", "Get a key".

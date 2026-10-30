@@ -370,6 +370,7 @@ Position = { category = "Data", doc = "Where it is now: a progress, scroll or tr
 Poster = { category = "Media", doc = "The picture a video shows before it plays." }
 Pov = { category = "Data", doc = "The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred." }
 Present = { category = "Media", doc = "True when there's a disc in the drive; read-only." }
+Primary = { category = "Appearance", doc = "Draws the button as the main action of its pane or strip, filled with the accent colour, without making Enter press it (`Default` does both: use it in a dialog)." }
 PrinterIndex = { category = "Misc", doc = "Which printer prints, an index into `Printers`; -1 the default one." }
 Printers = { category = "Misc", doc = "An installed printer's name, `Printers(i)` from 0; read-only." }
 PrintersCount = { category = "Misc", doc = "The number of installed printers; read-only." }

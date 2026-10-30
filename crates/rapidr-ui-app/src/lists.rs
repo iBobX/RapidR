@@ -350,7 +350,18 @@ fn list_owner_draw<P: Program>(p: P, name: &str) {
         for (prop, v) in [("left", left), ("top", top), ("right", right), ("bottom", bottom)] {
             p.set(&rect, prop, v_int(v));
         }
-        p.fire_args(name, "ondrawitem", &[v_int(i as i64), v_int(state), v_str(&rect)]);
+        // (once its handler has run, the item shows this drawing — until
+        // then the last one: the list never flashes between two)
+        let list = name.to_string();
+        p.fire_then(
+            name,
+            "ondrawitem",
+            &[v_int(i as i64), v_int(state), v_str(&rect)],
+            Box::new(move |_| {
+                rapidr_value::objects::with_list_mut(&list, |l| l.drawn(i));
+                invalidate();
+            }),
+        );
     }
     invalidate();
 }

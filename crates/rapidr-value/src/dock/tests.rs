@@ -1272,3 +1272,46 @@ fn every_studio_pane_has_an_icon() {
         assert!(!ops.is_empty(), "the pane icon \"{n}\" draws nothing");
     }
 }
+
+/// (VERSIONS-POLISH) A narrow group's tabs show their icons rather than
+/// cut names ("P…  S…  V…"): first every tab but the shown one, which keeps
+/// its name, then all of them; each keeps its name for the tooltip and a
+/// screen reader (the titles), and none runs past the header's buttons.
+#[test]
+fn a_narrow_group_shows_icons_not_cut_names() {
+    use geometry::Titles;
+    struct T;
+    impl Titles for T {
+        fn title(&self, pane: &str) -> String {
+            pane.to_string()
+        }
+        fn icon(&self, _pane: &str) -> String {
+            "x".into()
+        }
+    }
+    let font = Font::default();
+    let panes: Vec<String> = ["Project", "Search", "Versions"].iter().map(|s| s.to_string()).collect();
+    let bold = Font { styles: font.styles | 1, ..font.clone() };
+    let name = |p: &str| crate::objects::text::text_size(p, &bold).0;
+    let whole = |gr: &geometry::Group| gr.tabs.iter().zip(&panes).all(|(t, p)| t.text.1 - t.text.0 >= name(p));
+    let ends = |gr: &geometry::Group| gr.tabs.last().map(|t| t.rect.0 + t.rect.2).unwrap() <= gr.buttons.iter().map(|b| b.1 .0).min().unwrap();
+    // (room for every name: as before)
+    let wide = geometry::group(Slot::Docked(0), &panes, 2, (0, 0, 400, 300), vec![], &T, &font);
+    assert!(whole(&wide) && ends(&wide));
+    // (no room for all three names: Project and Search as icons, Versions — shown — whole)
+    let mid = geometry::group(Slot::Docked(0), &panes, 2, (0, 0, 200, 300), vec![], &T, &font);
+    assert_eq!(mid.tabs.iter().map(|t| t.rect.2).take(2).collect::<Vec<_>>(), vec![geometry::ICON_TAB; 2]);
+    assert!(mid.tabs[2].text.1 - mid.tabs[2].text.0 >= name("Versions"), "the shown tab keeps its name");
+    assert!(mid.tabs[..2].iter().all(|t| t.text.0 == t.text.1), "an icon-only tab draws no name");
+    assert!(ends(&mid));
+    // (narrower still: every tab an icon, never a cut name)
+    let narrow = geometry::group(Slot::Docked(0), &panes, 2, (0, 0, 150, 300), vec![], &T, &font);
+    assert!(narrow.tabs.iter().all(|t| t.rect.2 == geometry::ICON_TAB && t.text.0 == t.text.1));
+    assert!(ends(&narrow));
+    // (narrower than three icons' tabs: the icons' padding gives way)
+    let tight = geometry::group(Slot::Docked(0), &panes, 2, (0, 0, 120, 300), vec![], &T, &font);
+    assert!(tight.tabs.iter().all(|t| t.rect.2 < geometry::ICON_TAB && t.rect.2 >= geometry::ICON + 4 && t.text.0 == t.text.1));
+    assert!(ends(&tight));
+    // (the tooltip and the screen reader still say each tab's name)
+    assert_eq!(panes.iter().map(|p| T.title(p)).collect::<Vec<_>>(), vec!["Project", "Search", "Versions"]);
+}

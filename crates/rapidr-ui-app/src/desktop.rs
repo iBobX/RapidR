@@ -567,6 +567,44 @@ impl Desktop {
         }
     }
 
+    /// `RAPIDR_TEST_FRAMES=file` with `RAPIDR_TEST_FRAMES_OF=a,b,…` (a
+    /// test): each named component's place and size in its window as the
+    /// kernel has them now — what a frame drawn now shows —, a line
+    /// appended to the file whenever one changed (`a=x,y,w,h b=… `; a
+    /// component not shown: `a=-`; an owner-drawn list that would show an
+    /// item's plain text rather than a drawing: `a=x,y,w,h,plain`). Called at each turn of the host, after
+    /// the program's changes reached the kernel: a splitter dragged step by
+    /// step must move each component one way only, never back and forth
+    /// between frames (the resize stability test, tests/studio_flows.mjs).
+    pub fn trace_frame(&self) {
+        let Some(file) = crate::testhooks::var("RAPIDR_TEST_FRAMES") else { return };
+        let names = crate::testhooks::var("RAPIDR_TEST_FRAMES_OF").unwrap_or_default();
+        let mut line = String::new();
+        for name in names.split(',').map(|n| n.trim().to_lowercase()).filter(|n| !n.is_empty()) {
+            let node = self.forms.values().find_map(|f| f.ui.nodes.iter().find(|n| n.id == name));
+            match node {
+                Some(n) if n.shown => {
+                    // (an owner-drawn list showing an item's plain text, not
+                    // a drawing: ",plain" — a flash between two drawings)
+                    let plain = n.type_name == "RLISTBOX" && rapidr_value::objects::with_list(&n.id, |l| l.shows_plain()).unwrap_or(false);
+                    line.push_str(&format!("{name}={},{},{},{}{} ", n.abs.0, n.abs.1, n.abs.2, n.abs.3, if plain { ",plain" } else { "" }));
+                }
+                _ => line.push_str(&format!("{name}=- ")),
+            }
+        }
+        thread_local! {
+            static LAST: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+        }
+        if LAST.with(|l| *l.borrow() == line) {
+            return;
+        }
+        LAST.with(|l| *l.borrow_mut() = line.clone());
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(file) {
+            let _ = writeln!(f, "{}", line.trim_end());
+        }
+    }
+
     /// Form `id`'s accessibility tree as `RAPIDR_TEST_A11Y` writes it (what
     /// AccessKit gets on the desktop, the web host's mirror shows).
     pub fn access_json(&mut self, store: &dyn Store, id: &str) -> Option<String> {
