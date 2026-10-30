@@ -1110,7 +1110,11 @@ mod tests {
         assert_eq!(t.to_string_val(), "n=7");
         let mut c = v_int(1);
         rp_append_assign(c.clone(), v_int(2), &mut c, false);
-        assert_eq!(c.to_string_val(), "12");
+        // (`&` is RapidQ's `+`: two numbers add)
+        assert_eq!(c, v_int(3));
+        let mut s = v_str("1");
+        rp_append_assign(s.clone(), v_str("2"), &mut s, false);
+        assert_eq!(s.to_string_val(), "12");
     }
 
     #[test]
