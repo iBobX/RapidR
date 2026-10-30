@@ -1,0 +1,21 @@
+' vm_bench: a 64 KB binary string read a byte at a time —
+' ASC(MID$(b, i, 1)) for i = 1 to 65,536 — as a program parsing a file's
+' bytes does (RFileStream.ReadStr gives one character per byte, half of
+' them two bytes in UTF-8). Before STRING-SPEED (2026-10-29) every MID$
+' copied the whole string: 11.8 s; now it costs what it returns.
+$APPTYPE CONSOLE
+DIM b AS STRING, i AS INTEGER, s AS INTEGER, t AS DOUBLE
+' (every byte value, shuffled, then doubled to 65,536)
+FOR i = 0 TO 255
+  b = b + CHR$((i * 167) MOD 256)
+NEXT
+FOR i = 1 TO 8
+  b = b + b
+NEXT
+t = TIMER
+s = 0
+FOR i = 1 TO LEN(b)
+  s = s + ASC(MID$(b, i, 1))
+NEXT
+PRINT "mid_scan "; LEN(b); " "; s
+PRINT "ms "; INT((TIMER - t) * 1000)

@@ -45,8 +45,27 @@ follows Direct3D's documentation where those are silent.
 - `PLAYWAV file [, options]` and `PLAYSOUND` play WAV, Ogg Vorbis, FLAC and
   MP3 files (or `$RESOURCE`s); `BEEP` and `SOUND freq, duration`.
 - **RMIDI** (older name `QMIDI`, from `QMidi.inc`) plays standard MIDI files with MCI's timing on
-  the system's MIDI output; where there is none (macOS, Linux, browsers
-  without Web MIDI) RapidR's own General MIDI synthesizer plays them.
+  a system MIDI output that makes sound; where there is none (macOS, Linux,
+  browsers without Web MIDI) RapidR's own General MIDI synthesizer plays them.
+  An output counts when its name says it is a synthesizer (Windows' *GS
+  Wavetable Synth*, FluidSynth, TiMidity …) or, on Windows, when it is the
+  first one that isn't a loop or a bus. A Mac's own MIDI outputs (an IAC bus,
+  a network session, a virtual port another program made) and Linux's *Midi
+  Through* only pass messages on to other programs and make no sound, so a
+  song is never sent to one of them by itself: RapidR's synthesizer plays it.
+  To play on a keyboard or a sound module you have plugged in, name it before
+  the program starts (a part of its name, in any case); `builtin` always
+  plays on RapidR's synthesizer. A name no output has is reported on the
+  error output and RapidR's synthesizer plays.
+
+  ```
+  RAPIDR_MIDI_OUT="Roland" rapidr run song.rr     (macOS, Linux)
+  set RAPIDR_MIDI_OUT=builtin & rapidr run song.rr  (Windows)
+  ```
+
+  Example: [`examples/media/midi_compose.rr`](../../examples/media/midi_compose.rr)
+  writes a song in code (chords, a bass line, drums on channel 10) and plays
+  it. In a browser the page variable `RAPIDR_MIDI_OUT` does the same.
 - **RWave** (`QWAVE`, from `QWave.inc`) plays WAV files, records from the default input
   (`New`, `Record`), saves and deletes.
 - **RVideo** (`QVIDEO`, from `QVideo.inc`) plays AVI files with RapidR's own decoders:

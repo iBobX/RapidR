@@ -61,6 +61,16 @@ pub struct NativeMenus {
     imp: imp::Menus,
 }
 
+/// (macOS) The y to give muda for a context menu at `y` of a window's
+/// inside (logical, from its top): muda measures a position given in a
+/// view from the view's bottom (`height - y`) and AppKit then reads it in
+/// winit's view, which is flipped (from its top) — so it is given flipped
+/// once more, and the menu opens where it was asked for.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub(crate) fn muda_y(y: i64, view_height: f64) -> i64 {
+    (view_height - y as f64).round() as i64
+}
+
 impl NativeMenus {
     pub fn new(proxy: EventLoopProxy<UserEvent>) -> Self {
         #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -242,6 +252,12 @@ mod imp {
             fill(form, menu_id, &|item| {
                 m.append(item).ok();
             });
+            // (macOS: muda places the menu as if the view's y went up from
+            // its bottom; winit's view is flipped — y down from the top —, so
+            // it is given as muda will turn it back: a click near the top
+            // showed its menu near the bottom, Robert 2026-10-28)
+            #[cfg(target_os = "macos")]
+            let y = super::muda_y(y, window.inner_size().to_logical::<f64>(window.scale_factor()).height);
             let at = Some(muda::dpi::Position::Logical(muda::dpi::LogicalPosition::new(x as f64, y as f64)));
             let Ok(handle) = window.window_handle() else { return };
             match handle.as_raw() {
@@ -265,5 +281,25 @@ mod imp {
             #[cfg(target_os = "macos")]
             let _ = &self.bar;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// A context menu asked for at (x, y) of the window's inside opens
+    /// there on macOS: muda's own flip (from the view's bottom) undone for
+    /// winit's flipped view — a menu asked near the top went near the bottom
+    /// (Robert, 2026-10-28: the code editor's menu far from the click).
+    #[test]
+    fn a_context_menu_opens_where_it_was_asked_for() {
+        let h = 900.0;
+        for y in [0, 40, 450, 899] {
+            let given = super::muda_y(y, h);
+            // (muda: height - y in the view; AppKit's flipped view: from its top)
+            let shown_from_top = (h - given as f64) as i64;
+            assert_eq!(shown_from_top, y, "asked at {y}");
+        }
+        // (a window's inside at 2×, a fraction of a point: rounded)
+        assert_eq!(super::muda_y(100, 812.5), 713);
     }
 }

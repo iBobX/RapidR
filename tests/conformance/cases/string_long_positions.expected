@@ -1,0 +1,13 @@
+len 3000 3000 same -1
+hash 447320
+scan 732387
+back 472459
+pieces 822122
+edges 0 3000 0 3000 3 2 0
+asc 233 8364 128512 37 233
+instr 987744 0 2998 2999 3000
+edit 130069 99943 3468
+shared 302 300 xyz xx
+doubled 604 yzxx
+order abc!
+order abc?

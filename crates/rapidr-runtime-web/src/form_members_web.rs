@@ -16,7 +16,7 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
     match method {
         "hidetitlebar" | "showtitlebar" if form => crate::kernel_web::title_bar(name, method == "showtitlebar"),
         "shapeform" if form => {
-            let source = args.first().cloned().unwrap_or(Value::String(String::new()));
+            let source = args.first().cloned().unwrap_or(Value::String(String::new().into()));
             let transparent = args.get(1).map_or(0xFF_FFFF, Value::to_i64);
             match rapidr_value::shape::shape_form(name, &source, transparent) {
                 Ok(_) => crate::kernel_web::shape_changed(name),

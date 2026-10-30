@@ -60,8 +60,8 @@ DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
 ' More examples than the page has room for: only in "Open an Example" (the
 ' command palette), not cards on this page
-DIM MoreFile(40) AS STRING
-DIM MoreWhat(40) AS STRING
+DIM MoreFile(63) AS STRING
+DIM MoreWhat(63) AS STRING
 DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
@@ -115,7 +115,7 @@ SUB AddExample(File AS STRING, What AS STRING)
 END SUB
 
 SUB AddMoreExample(File AS STRING, What AS STRING)
-  IF MoreCount > 40 THEN EXIT SUB
+  IF MoreCount > 63 THEN EXIT SUB
   MoreFile(MoreCount) = File
   MoreWhat(MoreCount) = What
   MoreCount = MoreCount + 1
@@ -151,6 +151,7 @@ SUB FillExamples
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
   AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"
+  AddMoreExample "gui/on_error.rr", "A bug in a handler: the program goes on and says so"
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
   AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"
@@ -169,6 +170,9 @@ SUB FillExamples
   AddMoreExample "media/tone_generator.rr", "A tone made sample by sample, with an oscilloscope"
   AddMoreExample "media/beeper.rr", "A one-bit speaker played the way an emulator plays it"
   AddMoreExample "media/chiptune.rr", "A three-voice square-wave music player"
+  AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
+  AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"
+  AddMoreExample "gui/guided_tour.rr", "Show me: a pointer types and clicks for you"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"
@@ -180,6 +184,17 @@ SUB FillExamples
   AddMoreExample "recipes/password_generator.rr", "Recipe: a password generator"
   AddMoreExample "recipes/csv_viewer.rr", "Recipe: a CSV file in a grid"
   AddMoreExample "recipes/server_manager.rr", "Recipe: a list with Start, Stop and Restart"
+  ' (the systems recipes: one tiny computer in ten programs — docs/manual/recipes-systems.md)
+  AddMoreExample "recipes/memory_bytes.rr", "Systems recipe: memory as a byte array, words, wrapping addresses"
+  AddMoreExample "recipes/flags_bits.rr", "Systems recipe: bits and flags, an 8-bit ALU"
+  AddMoreExample "recipes/cpu_step.rr", "Systems recipe: a tiny CPU, fetch, decode, execute"
+  AddMoreExample "recipes/cpu_stack.rr", "Systems recipe: the stack, PUSH, POP, CALL, RET"
+  AddMoreExample "recipes/hex_dump.rr", "Systems recipe: a hex dump, a memory viewer"
+  AddMoreExample "recipes/disassembler.rr", "Systems recipe: a disassembler, an opcode table"
+  AddMoreExample "recipes/load_binary.rr", "Systems recipe: a binary file into memory, its header"
+  AddMoreExample "recipes/video_memory.rr", "Systems recipe: video memory drawn on a canvas"
+  AddMoreExample "recipes/keyboard_matrix.rr", "Systems recipe: a keyboard matrix and an IN port"
+  AddMoreExample "recipes/cpu_timing.rr", "Systems recipe: a CPU run in cycles per frame"
   AddMoreExample "recipes/frame_audio.rr", "Recipe: emulator sound from a speaker bit's flips"
   LayOutWelcome
 END SUB

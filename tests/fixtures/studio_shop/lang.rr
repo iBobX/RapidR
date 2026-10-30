@@ -1,0 +1,3 @@
+' lang.rr: the texts, in the shop's language.
+DIM ShopTitle AS STRING
+ShopTitle = "Shop"

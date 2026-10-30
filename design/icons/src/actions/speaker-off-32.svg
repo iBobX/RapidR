@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Speaker off</title>
+  <path d="M4 12H10L17 7V25L10 20H4L4 12Z" stroke="currentColor"/>
+  <path d="M22 12L29 20" stroke="currentColor"/>
+  <path d="M29 12L22 20" stroke="currentColor"/>
+</svg>

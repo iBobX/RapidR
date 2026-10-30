@@ -65,7 +65,7 @@
   "FOR...STEP...NEXT": {
     "prefix": "fors",
     "body": [
-      "FOR ${1:i} = ${2:start} TO ${3:end} STEP ${4:step}",
+      "FOR ${1:i} = ${2:10} TO ${3:1} STEP ${4:-1}",
       "\t${5:' code here}",
       "NEXT ${1:i}"
     ],

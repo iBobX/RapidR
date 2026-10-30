@@ -127,6 +127,46 @@ instead.
 Each change but Theme is saved to the project file (`.rrproj`) at once; the
 Output says so.
 
+**The main file is where the program starts.** When the project's main file
+is a module that another of its files `$INCLUDE`s, Studio says so as the
+project opens — *The main file lang.rr is included by main.rr: the program
+probably starts in main.rr* —; choose **MainFile** here to change it. And
+**Run** always says why it didn't start, or what to look at: nothing open,
+a main file that isn't there, the program's errors (in **Problems**), or a
+main file that ran and ended at once with no window and nothing printed.
+
+## Selecting a file shows it
+
+Select a file in the Project pane and, a moment later, the editor shows it:
+its tab comes to the front, or — when it isn't open — it opens in a
+**preview tab**, which the next file you select takes over while you
+haven't changed it. Open it (Enter, or a double click) or type in it and it
+stays. The keys stay in the Project pane, so you can go down the list with
+the arrows and read each file as you go — `lang/es.po`, then
+`lang/pt-BR.po` — never one file's text under another file's name.
+
+## Studio keeps your work
+
+- **A mistake in Studio itself never closes it.** If something goes wrong
+  in Studio's own code, Studio stops what it was doing, and a dialog says
+  *Something went wrong in Studio* with what happened. Your work is safe:
+  your documents, saved or not, and the assistant's chat stay as they were,
+  and Studio goes on. **Copy Details** copies what happened (for a bug
+  report); Studio's log keeps it too (`studio-errors.log` in RapidR's
+  settings folder: `~/Library/Application Support/RapidR` on macOS,
+  `%APPDATA%\RapidR` on Windows, `~/.config/rapidr` on Linux).
+
+  ![Something went wrong in Studio: what happened, where in Studio's code, and that your work is safe; Copy Details and OK](images/studio-projects/studio-error.png)
+- **Unsaved work survives a crash.** While a document has changes you
+  haven't saved, Studio keeps a copy of it in that same folder (never in
+  your project), every 20 seconds and the moment something goes wrong. If
+  Studio is ended without closing — a crash, a forced quit, the computer
+  switched off — it asks at the next start: **Restore your unsaved work?**
+  **Restore** puts each change back in its document, not saved yet (one
+  Undo goes back to the file as it is on disk); **Discard** lets the copies
+  go; **Not Now** keeps them and asks again next time. Closing Studio the
+  usual way (every change saved or let go) removes the copies.
+
 ## Targets: where your program runs
 
 **Project > Project Options** has a **Targets** choice (the project's

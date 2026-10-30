@@ -221,7 +221,14 @@ pub fn start() {
         ONCE.call_once(imp::start);
     }
     #[cfg(feature = "gui")]
-    crate::ui::start_theme();
+    {
+        crate::ui::start_theme();
+        // (a canvas's TextOut asks the text engine for the characters the
+        // built-in faces lack — Chinese, Japanese, Korean — from the
+        // program's first line: it may draw before any window exists, and
+        // what is drawn stays drawn)
+        rapidr_ui_kernel::text::install_canvas_fallback();
+    }
 }
 
 /// Reads the keys pressed so far into INKEY$'s queue.

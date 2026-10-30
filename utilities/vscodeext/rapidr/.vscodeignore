@@ -7,6 +7,7 @@
 !syntaxes/**
 !snippets/**
 !language-configuration.json
+!project-configuration.json
 !images/**
 !README.md
 !CHANGELOG.md

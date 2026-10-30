@@ -11,3 +11,7 @@
 # Every component now starts with the registry's defaults (rapidr_value::component_defaults::
 # creation), on every runtime: no gaps (2026-10-06, docs/rapidq-ground-truth.md "Values at
 # creation").
+
+# RArchive.MaxSize: 1 GB on the desktop, 256 MB in a browser (a page has less memory;
+# rapidr_archive::Limits::default_here) — by design, documented in the registry and archives.md.
+web: RARCHIVE.MaxSize = 268435456

@@ -107,7 +107,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         // Nothing more (and not the generic place and size below): what the
         // registry and the shared models give them.
         "RFORM" | "RBUTTON" | "RLABEL" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
+        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "RARCHIVE" | "ROPENDIALOG"
         | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
         | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
         // (RAudioOut: its model's properties; its sound device — audio_web.rs)
@@ -193,6 +193,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     }
     if rapidr_value::objects::create(name, type_name) {
         install_file_hooks();
+        // (RARCHIVE: the clock and the local time zone a zip's times are in)
+        if rapidr_value::objects::archive::is_type(type_name) {
+            // (the browser's Date: its offset is minutes west, so negated)
+            rapidr_value::objects::archive::set_clock(
+                || (js_sys::Date::now() / 1000.0) as i64,
+                |t| -(js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(t as f64 * 1000.0)).get_timezone_offset() * 60.0) as i64,
+            );
+        }
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
@@ -218,6 +226,10 @@ pub fn install_object_hooks() {
     // translations among the page's files (`lang/es.po`: the project's, or
     // beside the page, fetched as the program's other files are).
     rapidr_value::i18n::set_platform(browser_language, read_page_file);
+    // A canvas's TextOut draws the characters the built-in faces lack
+    // (Chinese, Japanese, Korean) with the fallback fonts the page loads,
+    // as its labels do.
+    rapidr_ui_kernel::text::install_canvas_fallback();
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
@@ -334,6 +346,10 @@ thread_local! {
 /// A path as RapidQ on Windows compares them: `\\` and `/` alike, no
 /// leading `./`, any case.
 pub(crate) fn file_key(path: &str) -> String {
+    // (every use of a file by its name goes through here: what file streams
+    // still keep is in the page's files first, as on the desktop's
+    // paths::host — rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     let p = path.trim().replace('\\', "/");
     p.trim_start_matches("./").to_lowercase()
 }
@@ -571,8 +587,26 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     comp_set(name, prop, val);
+    updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links_web::apply();
+}
+
+/// An RUPDOWN whose Position (or Associate) was set: its Associate, an edit
+/// or a label, shows the number (`rapidr_value::objects::updown`); an edit
+/// that took a new text fires its OnChange, as RapidQ's does for a Text set.
+/// What the user's arrows set comes here too (the kernel's Set). The
+/// desktop's `updown_buddy`.
+fn updown_buddy(name: &str, prop: &str) {
+    if !(prop.eq_ignore_ascii_case("position") || prop.eq_ignore_ascii_case("associate")) || rp_comp_type(name) != "RUPDOWN" {
+        return;
+    }
+    if let Some((buddy, buddy_prop, text)) = rapidr_value::objects::updown::buddy_text(&|i, p| rp_comp_get(i, p), &rp_comp_type, &name.to_lowercase()) {
+        rp_comp_set(&buddy, buddy_prop, v_str(&text));
+        if buddy_prop == "text" {
+            rp_fire_event(&buddy, "onchange");
+        }
+    }
 }
 
 /// A property the program sets (an assignment in its code): the events
@@ -1231,6 +1265,21 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             }
         }
     }
+    // RWindowCapture and RAppHands: the program's own eyes and hands
+    // (kernel_web.rs, rapidr_ui_app::app_components).
+    match rp_comp_type(name).as_str() {
+        "RWINDOWCAPTURE" => {
+            if let Some(v) = crate::kernel_web::app_capture_get(name, &lprop) {
+                return v;
+            }
+        }
+        "RAPPHANDS" => {
+            if let Some(v) = rapidr_ui_app::app_components::hands_get(name, &lprop) {
+                return v;
+            }
+        }
+        _ => {}
+    }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
@@ -1646,6 +1695,16 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if comp_type == "RHTTPSERVER" {
         return http_server_web_method(&uname, &lmethod);
     }
+    if comp_type == "RMCPSERVER" {
+        return mcp_server_web_method(&uname, &lmethod);
+    }
+    // (the program's own eyes and hands: kernel_web.rs)
+    if comp_type == "RWINDOWCAPTURE" {
+        return crate::kernel_web::app_capture_method(&uname, &lmethod, args);
+    }
+    if comp_type == "RAPPHANDS" {
+        return crate::kernel_web::app_hands_method(&uname, &lmethod, args);
+    }
 
     // WebSocket special handling
     if comp_type == "RSOCKET" || comp_type == "RSERVERSOCKET" {
@@ -2009,6 +2068,23 @@ fn http_server_web_method(name: &str, method: &str) -> Value {
         "header" | "newtoken" => v_str(""),
         "stop" => v_null(),
         "respond" | "beginstream" | "sendevent" | "endstream" | "close" => v_int(0),
+        _ => v_null(),
+    }
+}
+
+/// RMcpServer on the web: desktop only, as RHttpServer (a page can't
+/// listen for connections). Start fails and Error says why; tools can
+/// still be added (a program that serves them on the desktop runs here).
+fn mcp_server_web_method(name: &str, method: &str) -> Value {
+    match method {
+        "start" => {
+            rp_comp_set(name, "error", v_str("RMcpServer runs on the desktop only: a web page can't listen for connections"));
+            rp_comp_set(name, "listening", v_int(0));
+            v_int(0)
+        }
+        "newtoken" | "argument" => v_str(""),
+        "addtool" | "addresource" | "removetool" => v_int(1),
+        "toolcount" | "reply" | "replyimage" | "replyjson" | "progress" | "isopen" | "disconnect" => v_int(0),
         _ => v_null(),
     }
 }

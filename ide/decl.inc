@@ -106,6 +106,11 @@ DECLARE SUB ShowStatusHint
 
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs
+DECLARE FUNCTION UiCompactH AS INTEGER
+DECLARE FUNCTION UiButtonH AS INTEGER
+DECLARE FUNCTION UiPaneHeadH AS INTEGER
+DECLARE FUNCTION ChipStatus(Tag AS INTEGER) AS STRING
+DECLARE SUB ChipPaint(Sender AS RCanvas)
 DECLARE SUB MenuPicked(Sender AS RMenuItem)
 DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
@@ -177,6 +182,20 @@ DECLARE SUB PaletteCommand(Id AS STRING)
 DECLARE SUB CodeChanged(Sender AS RCodeEditor)
 DECLARE SUB AnalyzerTick
 DECLARE SUB ProgramOutput(Text AS STRING)
+' (mcp.inc: AI apps working in Studio, its MCP server)
+DECLARE SUB SetUpMcp
+DECLARE FUNCTION McpCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION McpPaneCommand(Id AS STRING) AS INTEGER
+DECLARE SUB McpStep(Stp AS STRING)
+DECLARE SUB McpShutdown
+DECLARE SUB McpSettingsTab(Index AS INTEGER)
+DECLARE SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Row AS INTEGER, Fh AS INTEGER, Bh AS INTEGER)
+DECLARE FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
+DECLARE SUB McpSettingsFill
+DECLARE SUB McpSettingsTake
+DECLARE FUNCTION McpStatusWidth AS INTEGER
+DECLARE SUB McpFonts
+DECLARE SUB McpProgramOutput(Text AS STRING)
 DECLARE SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB ProgramContinued
 DECLARE SUB ProgramExited(Code AS INTEGER)
@@ -277,6 +296,19 @@ DECLARE FUNCTION AskToSave(d AS INTEGER) AS INTEGER
 DECLARE FUNCTION AskToSaveAll AS INTEGER
 ' (prompts.inc)
 DECLARE FUNCTION AskSave(Question AS STRING, Detail AS STRING, Many AS INTEGER) AS INTEGER
+' (panels.inc: the file the project tree's selection rests on, shown — its
+' tab, or the preview tab the next file takes over while unchanged)
+DIM PreviewWanted AS STRING
+DIM PreviewDoc AS INTEGER
+DIM OpenQuietly AS INTEGER
+DECLARE SUB PreviewTick
+DECLARE SUB PreviewKept(d AS INTEGER)
+' (safety.inc: Studio keeps your work)
+DECLARE SUB SetUpSafety
+DECLARE SUB KeepNoted(d AS INTEGER)
+DECLARE SUB KeepForget(d AS INTEGER)
+DECLARE SUB KeepEnd
+DECLARE SUB OfferRestoreSoon
 DECLARE SUB UpdateModified
 DECLARE SUB SaveSession
 DECLARE SUB LayoutChanged

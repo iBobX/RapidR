@@ -23,4 +23,16 @@ export const scenes = [
       return {};
     },
   },
+  {
+    // (RMcpServer: examples/network/mcp_tools.rr after the tests' MCP client —
+    // both protocol eras, the refusals, a wrong call — has worked with it)
+    name: "mcp-tools",
+    program: "examples/network/mcp_tools.rr",
+    args: ["47191", "manual-mcp-token-0123456789"],
+    delay: 6,
+    setup(work, root) {
+      spawn(process.execPath, [join(root, "tests/http_client_probe.mjs"), "mcp", "47191", join(work, "client.txt"), "manual-mcp-token-0123456789"], { stdio: "ignore", detached: true }).unref();
+      return {};
+    },
+  },
 ];

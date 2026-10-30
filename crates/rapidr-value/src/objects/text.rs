@@ -55,6 +55,90 @@ impl Target for HiRes {
     }
 }
 
+/// A font file a host found for a character the built-in faces lack.
+#[derive(Clone, Copy)]
+pub struct FallbackFont {
+    /// The file's bytes, kept for the rest of the run.
+    pub data: &'static [u8],
+    /// Which font of a collection file (`.ttc`) draws the character.
+    pub index: u32,
+}
+
+/// The host's lookup of the font that draws a character the built-in faces
+/// lack — Chinese, Japanese, Korean, symbols: RapidR's UI kernel asks the
+/// text engine its labels use, which knows the system's fonts (the desktop)
+/// or the fallback fonts a page loaded (the web). No font is bundled for it
+/// here, and the canvas draws what the labels draw.
+pub type FallbackResolver = fn(char) -> Option<FallbackFont>;
+
+static RESOLVER: std::sync::OnceLock<FallbackResolver> = std::sync::OnceLock::new();
+
+/// The host tells how to find a fallback font (the first host to say so
+/// keeps it).
+pub fn set_fallback_resolver(resolver: FallbackResolver) {
+    let _ = RESOLVER.set(resolver);
+}
+
+/// What was found for the characters asked about: the font faces (each file
+/// once) and, per character, the face that has it.
+#[derive(Default)]
+struct Fallbacks {
+    faces: Vec<(usize, u32, &'static ttf_parser::Face<'static>)>,
+    found: std::collections::HashMap<char, Option<&'static ttf_parser::Face<'static>>>,
+}
+
+static FALLBACKS: std::sync::Mutex<Option<Fallbacks>> = std::sync::Mutex::new(None);
+
+/// A font that has `c`, when the built-in faces don't: the host's pick, asked
+/// once per character (a character no font has is remembered too, until
+/// [`fallbacks_changed`]).
+fn fallback_face(c: char) -> Option<&'static ttf_parser::Face<'static>> {
+    let resolver = RESOLVER.get()?;
+    if let Some(known) = FALLBACKS.lock().ok()?.get_or_insert_with(Fallbacks::default).found.get(&c) {
+        return *known;
+    }
+    // (asked outside the lock: the host's text engine may be slow, and it
+    // may draw text itself)
+    let font = resolver(c);
+    let mut guard = FALLBACKS.lock().ok()?;
+    let fb = guard.get_or_insert_with(Fallbacks::default);
+    let face = font.and_then(|f| {
+        let key = (f.data.as_ptr() as usize, f.index);
+        if let Some(&(_, _, face)) = fb.faces.iter().find(|(p, i, _)| (*p, *i) == key) {
+            return face.glyph_index(c).map(|_| face);
+        }
+        let face: &'static ttf_parser::Face<'static> = Box::leak(Box::new(ttf_parser::Face::parse(f.data, f.index).ok()?));
+        fb.faces.push((key.0, key.1, face));
+        face.glyph_index(c).map(|_| face)
+    });
+    fb.found.insert(c, face);
+    if face.is_none() && !c.is_whitespace() && !c.is_control() {
+        MISSED.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    face
+}
+
+/// Set when a character was drawn as a `?` for want of a font: on the web
+/// the font may still be on its way (its chunk is fetched when a label or a
+/// canvas first needs it), and the canvases it was drawn on are painted
+/// again when it comes ([`take_missed_fallbacks`]).
+static MISSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether text was drawn with a `?` for want of a font since the last call.
+pub fn take_missed_fallbacks() -> bool {
+    MISSED.swap(false, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The host's fonts changed (the web loaded a fallback font): characters
+/// that had no font are looked for again.
+pub fn fallbacks_changed() {
+    if let Ok(mut g) = FALLBACKS.lock() {
+        if let Some(fb) = g.as_mut() {
+            fb.found.retain(|_, v| v.is_some());
+        }
+    }
+}
+
 static SANS: &[u8] = include_bytes!("../../fonts/LiberationSans-Regular.ttf");
 static RSANS: &[u8] = include_bytes!("../../fonts/RapidRSans-Regular.ttf");
 static SERIF: &[u8] = include_bytes!("../../fonts/LiberationSerif-Regular.ttf");
@@ -266,6 +350,17 @@ impl Scaled {
                     return Some(Glyph { face: reg, id, scale, bold: self.bold, slant: self.italic });
                 }
             }
+            // (a character no built-in face has — Chinese, Japanese, Korean,
+            // symbols — is drawn by the font the host finds for it, as the
+            // labels' text is; the `?` only when there is none)
+            if c != '?' {
+                if let Some(fb) = fallback_face(c) {
+                    if let Some(id) = fb.glyph_index(c) {
+                        let scale = self.scale * f32::from(self.face.units_per_em()) / f32::from(fb.units_per_em());
+                        return Some(Glyph { face: fb, id, scale, bold: self.bold, slant: self.italic });
+                    }
+                }
+            }
         }
         None
     }
@@ -276,7 +371,7 @@ impl Scaled {
         // system's CJK font, an em wide: measured as that, not as the `?`
         // drawn in its place here, which is half as wide — a tab named
         // "查询 1" ran into the next)
-        if wide(c) && !self.has(c) {
+        if wide(c) && !self.has(c) && fallback_face(c).is_none() {
             return self.scale * f32::from(self.face.units_per_em());
         }
         self.glyph(c).and_then(|g| g.face.glyph_hor_advance(g.id).map(|a| f32::from(a) * g.scale)).unwrap_or(0.0)

@@ -232,7 +232,7 @@ impl FormUi {
                     let entered: Vec<KernelEvent> = self.events.drain(before..).collect();
                     self.events.splice(mark..mark, entered);
                 }
-            } else if button == Button::Right && self.nodes[i].type_name == "RCODEEDITOR" {
+            } else if button == Button::Right && matches!(self.nodes[i].type_name.as_str(), "RCODEEDITOR" | "ROUTPUTCONSOLE") {
                 // (a code editor's right press: the caret where it is, for
                 // the context menu — components/codeeditor/input.rs)
                 self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true, clicks });
@@ -554,6 +554,14 @@ impl FormUi {
             handled = self.mnemonic(store, ts, letter) || self.menu_mnemonic(store, letter);
         } else if let Some(f) = self.focus {
             handled = self.with_cx(store, ts, f, |k, cx| k.key(cx, &KeyIn { vk, text, mods }, clip)).unwrap_or(false);
+        }
+        // (COPY-ANYWHERE: Ctrl+C — ⌘C, Ctrl+Insert — on a message box the
+        // kernel draws copies it, as Windows' do: dialogs.rs)
+        if !handled && shortcut && !mods.alt && matches!(vk, 67 | 45) {
+            if let Some(t) = crate::dialogs::copy_text(store, &self.form) {
+                clip.set_text(&t);
+                handled = true;
+            }
         }
         if !handled && !shortcut && !mods.alt {
             let button = match vk {

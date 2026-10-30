@@ -38,7 +38,7 @@ const r = await openRunner(browser, { deviceScaleFactor: Number(process.env.RAPI
 
 // The cases' `$RESOURCE` files are the program's assets, as a project has
 // them (found by their last path part).
-const assets = ["resource_files", "picture_files", "video_files"].map((d) => join(CASES, d)).filter((d) => existsSync(d)).flatMap((RES) => readdirSync(RES).filter((f) => statSync(join(RES, f)).isFile()).map((f) => ({
+const assets = ["resource_files", "archive_files", "picture_files", "video_files"].map((d) => join(CASES, d)).filter((d) => existsSync(d)).flatMap((RES) => readdirSync(RES).filter((f) => statSync(join(RES, f)).isFile()).map((f) => ({
   name: f, mime: "application/octet-stream", dataUrl: "data:application/octet-stream;base64," + readFileSync(join(RES, f)).toString("base64"),
 })));
 

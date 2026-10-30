@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Ask a question</title>
+  <path d="M7 4H25A3 3 0 0 1 28 7V18A3 3 0 0 1 25 21H15L8 27V21H7A3 3 0 0 1 4 18V7A3 3 0 0 1 7 4Z" stroke="currentColor"/>
+  <path d="M13 11A3 3 0 1 1 17 14C16 14 16 15 16 15" stroke="currentColor"/>
+  <circle cx="16.5" cy="17.5" r="1.5" fill="currentColor"/>
+</svg>

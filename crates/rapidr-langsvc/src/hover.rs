@@ -60,6 +60,15 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
     if let Some(c) = rapidr_lang::resolve_component(word) {
         return hover(format!("```rapidr\n{}\n```\n{}", c.spelling(), component_doc(c).unwrap_or_default()));
     }
+    let lang = |syntax: &str, doc: &str, origin: Origin| {
+        hover(format!("```rapidr\n{syntax}\n```\n{}", with_notes(doc, &compat::notes(origin, Origin::RapidQ, false, Runtimes::All, None))))
+    };
+    // After AS the word is a type: `DIM s AS STRING` is the type, not STRING$.
+    if before.split_whitespace().last().is_some_and(|w| w.eq_ignore_ascii_case("as")) {
+        if let Some(t) = rapidr_lang::type_name(word) {
+            return lang(t.name, t.doc, t.origin);
+        }
+    }
     if let Some(g) = rapidr_lang::global(word) {
         let notes = compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from);
         return hover(format!("```rapidr\n{}\n```\n*global object*\n\n{}", g.name, with_notes(g.doc, &notes)));
@@ -69,9 +78,6 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
         md.push_str(&with_notes(b.doc, &compat::notes(b.origin, Origin::RapidQ, b.missing, b.runtimes, None)));
         return hover(md);
     }
-    let lang = |syntax: &str, doc: &str, origin: Origin| {
-        hover(format!("```rapidr\n{syntax}\n```\n{}", with_notes(doc, &compat::notes(origin, Origin::RapidQ, false, Runtimes::All, None))))
-    };
     if let Some(t) = rapidr_lang::type_name(word) {
         return lang(t.name, t.doc, t.origin);
     }
@@ -266,9 +272,20 @@ pub(crate) fn help_at(s: &Snapshot, file: &Path, text: &str, offset: usize) -> O
 /// of (`Hello.Font.Color`: the font's: `RFONT`), when it follows a dot and
 /// the chain before it can be told; its registry name.
 pub(crate) fn owner_at(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Option<String> {
-    let (start, _) = word_at(text, offset)?;
+    let (start, end) = word_at(text, offset)?;
     if start == 0 || text.as_bytes()[start - 1] != b'.' {
-        return None;
+        // (a property or event set in a CREATE body, `Caption = "Hi"`: a
+        // member of the component the body creates — when the word is one)
+        // (the left side: first on its line, not a value like `OnClick = Show`)
+        let line_start = text[..start].rfind('\n').map_or(0, |i| i + 1);
+        if !text[line_start..start].trim().is_empty() {
+            return None;
+        }
+        let pre = s.pre_offset(file, start)?;
+        let word = &text[start..end];
+        let c = context::create_at(s, pre)?;
+        let is_member = c.property(word).is_some() || c.method(word).is_some() || c.event(word).is_some();
+        return is_member.then(|| c.name.to_string());
     }
     let index = LineIndex::new(text);
     let (line, _) = index.line_col(start);

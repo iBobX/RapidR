@@ -489,7 +489,7 @@ pub fn key_waiting() -> bool {
 
 /// `INKEY$`: the next key pressed, or "" (it doesn't wait).
 pub fn inkey() -> Value {
-    Value::String(KEYS.with(|k| k.borrow_mut().pop_front()).unwrap_or_default())
+    Value::String(KEYS.with(|k| k.borrow_mut().pop_front()).unwrap_or_default().into())
 }
 
 /// What INKEY$ returns for a key (`vk` its virtual key code, `text` what it

@@ -30,8 +30,14 @@ const NETWORK: &[&str] = &[
 /// RHTTPSERVER (`IF Web.Start THEN`).
 const HTTP_SERVER: &[&str] = &["start", "newtoken"];
 
+/// RMCPSERVER (`IF Mcp.Start THEN`, `PRINT Mcp.ToolCount`).
+const MCP_SERVER: &[&str] = &["start", "newtoken", "toolcount"];
+
+/// RAPPHANDS (`n = Hands.Cancel`).
+const APP_HANDS: &[&str] = &["cancel"];
+
 /// QFILESTREAM, QMEMORYSTREAM (and the web's file bridge).
-const STREAM: &[&str] = &["open", "readall", "eof", "readline", "readln", "readbyte", "pickfile", "download", "loadfromurl"];
+const STREAM: &[&str] = &["open", "readall", "readalltext", "eof", "readline", "readln", "readbyte", "pickfile", "download", "loadfromurl"];
 
 const JSON: &[&str] = &["parse", "stringify", "prettify", "has", "remove", "keys", "loadfile", "savefile"];
 
@@ -96,20 +102,20 @@ const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal"
 const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
 /// (I1 / L-PANELS) RapidR Studio's panels' (crate::panels): `Insp.ExpandAll`,
 /// `OK = Tree.Save`, `Console.FindNext`.
-const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall"];
+const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall", "copyselection", "copyall", "copyline"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
 const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser", "readshellpath", "refreshshellpath"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
-const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode", "mackeys"];
+const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode", "mackeys", "studiofolder", "recoveryend", "recoveryfound", "recoverydiscard", "logfile", "applybegin", "applyundo", "mainincludedby"];
 
 /// (S5) RLANGUAGESERVICE's: `T$ = Lang.ProjectDiagnostics`.
 const LANGSVC: &[&str] = &["projectdiagnostics"];
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
 const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey", "compact"];
-const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided"];
+const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided", "toolnames", "clearaudit", "auditlocation", "layoutreport"];
 
 /// The web's own components.
 const WEB: &[&str] = &[
@@ -135,6 +141,8 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RSQLITE" | "RMYSQL" => &[DATABASE],
         "RSOCKET" | "RSERVERSOCKET" | "RHTTP" => &[NETWORK],
         "RHTTPSERVER" => &[HTTP_SERVER],
+        "RMCPSERVER" => &[MCP_SERVER],
+        "RAPPHANDS" => &[APP_HANDS],
         "RFILESTREAM" | "RMEMORYSTREAM" => &[STREAM],
         "RJSON" => &[JSON],
         "RSTRINGLIST" => &[STRING_LIST],
@@ -166,7 +174,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, HTTP_SERVER, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
+    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, APP_HANDS, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
         .iter()
         .any(|list| list.contains(&member))
 }

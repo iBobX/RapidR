@@ -1,0 +1,3 @@
+' A program in two languages besides its own (lang/es.po, lang/pt-BR.po):
+' the project tree's assets, each shown when it is selected.
+PRINT TR$("Speed")

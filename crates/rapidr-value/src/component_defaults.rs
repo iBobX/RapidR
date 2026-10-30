@@ -158,6 +158,7 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("min", v_int(0));
             put("max", v_int(100));
             put("position", v_int(0));
+            put("associate", v_str(""));
         }
         "RPRINTER" => put("title", v_str("")),
         // (database.rs / database_web.rs keep the rest)
@@ -199,6 +200,33 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
         // (RapidR's local HTTP server, runtime-core's httpserver on the
         // desktop: what it reads back; Host, Port, Token … are the
         // registry's defaults)
+        // (the program's own eyes and hands: what they read back before
+        // they did anything — the runtimes answer them after)
+        "RWINDOWCAPTURE" => {
+            put("width", v_int(0));
+            put("height", v_int(0));
+            put("windows", v_str(""));
+            put("error", v_str(""));
+        }
+        "RAPPHANDS" => {
+            put("busy", v_int(0));
+            put("pending", v_int(0));
+            put("lastresult", v_str(""));
+            put("error", v_str(""));
+        }
+        // (RMcpServer: what it reads back once started, and the call in hand)
+        "RMCPSERVER" => {
+            put("listening", v_int(0));
+            put("url", v_str(""));
+            put("error", v_str(""));
+            put("call", v_int(0));
+            put("tool", v_str(""));
+            put("clientname", v_str(""));
+            put("arguments", v_str(""));
+            put("clients", v_str(""));
+            put("clientcount", v_int(0));
+            put("pendingcount", v_int(0));
+        }
         "RHTTPSERVER" => {
             put("listening", v_int(0));
             put("url", v_str(""));

@@ -24,6 +24,10 @@ use std::path::PathBuf;
 /// past the first that doesn't exist yet (a file to create) stay as
 /// written. On Windows (and in the browser) the name is taken as it is.
 pub fn host(path: &str) -> PathBuf {
+    // (a file stream's writes it still keeps go to their file first: what
+    // uses the file by its name sees them, as when every write went
+    // straight through — crate::objects::flush_streams)
+    crate::objects::flush_streams();
     if cfg!(any(windows, target_arch = "wasm32")) || path.is_empty() {
         return PathBuf::from(path);
     }

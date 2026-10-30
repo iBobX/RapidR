@@ -1,0 +1,137 @@
+' Recipe: A tiny CPU (fetch, decode, execute)
+' Keywords: CPU, processor, emulator, emulate, emulation, 8-bit computer, computer, virtual machine, fetch decode execute, instruction decoder, registers, program counter, PC, opcode, instruction set, SELECT CASE, step, run, halt, cycles, machine code, emulador, emular, computadora, ordenador, procesador, registros, contador de programa, instruccion, ciclos, maquina virtual, emulador de CPU, computador, processador, registradores, instrução, máquina virtual
+' The heart of an emulator: an 8-bit CPU of our own with registers A and B, a
+' program counter PC, a stack pointer SP, three flags (Zero, Carry, Sign) and
+' 12 instructions. A program
+' is bytes in the memory array. One Step is the whole cycle: FETCH the opcode
+' at PC (PC moves on), DECODE it with SELECT CASE, EXECUTE it, add what it
+' cost to the cycle count. Run steps until HALT. An address operand is two
+' bytes, the low one first.
+'
+'   00 NOP         01 n LDA n      02 n LDB n      03 nn LDA [nn]    04 nn STA [nn]
+'   05 ADD (A+B)   06 SUB (A-B)    07 INC A        08 DEC A
+'   09 nn JMP nn   0A nn JNZ nn (jump if Zero is 0)                  FF HALT
+'
+'   rapidr run cpu_step.rr
+$THEME rapidr
+
+CONST OP_NOP = &H00: CONST OP_LDA = &H01: CONST OP_LDB = &H02: CONST OP_LDM = &H03: CONST OP_STM = &H04
+CONST OP_ADD = &H05: CONST OP_SUB = &H06: CONST OP_INC = &H07: CONST OP_DEC = &H08
+CONST OP_JMP = &H09: CONST OP_JNZ = &H0A: CONST OP_HLT = &HFF
+
+DECLARE SUB StepClick
+DECLARE SUB RunClick
+DECLARE SUB ResetClick
+
+DIM mem(0 TO 65535) AS BYTE
+DIM a AS INTEGER, b AS INTEGER, pc AS INTEGER, sp AS INTEGER
+DIM fz AS INTEGER, fc AS INTEGER, fs AS INTEGER       ' Zero, Carry, Sign
+DIM cycles AS INTEGER, halted AS INTEGER
+
+' LDA 5, LDB 3, ADD, STA [0200], LDB 1, then count A down to 0: SUB, JNZ back
+DIM program AS STRING
+program = "01 05  02 03  05  04 00 02  02 01  06  0A 0A 00  FF"
+
+CREATE Form AS RForm
+    Caption = "Tiny CPU": ClientWidth = 420: ClientHeight = 170
+    Center
+    CREATE Regs AS RLabel: Caption = "": Left = 16: Top = 16: Width = 388: Font.Name = "Courier New": END CREATE
+    CREATE Info AS RLabel: Caption = "": Left = 16: Top = 44: Width = 388: Font.Name = "Courier New": END CREATE
+    CREATE Status AS RLabel: Caption = "": Left = 16: Top = 72: Width = 388: END CREATE
+    CREATE StepBtn AS RButton: Caption = "&Step": Left = 16: Top = 112: Width = 120: Height = 32: OnClick = StepClick: END CREATE
+    CREATE RunBtn AS RButton: Caption = "&Run": Left = 150: Top = 112: Width = 120: Height = 32: OnClick = RunClick: END CREATE
+    CREATE ResetBtn AS RButton: Caption = "R&eset": Left = 284: Top = 112: Width = 120: Height = 32: OnClick = ResetClick: END CREATE
+END CREATE
+
+FUNCTION Hex2 (v AS INTEGER) AS STRING
+    Result = RIGHT$(HEX$(v), 2)
+END FUNCTION
+
+FUNCTION Hex4 (v AS INTEGER) AS STRING
+    Result = RIGHT$(HEX$(v), 4)
+END FUNCTION
+
+' Memory goes in as bytes: "01 05 ..." from the program text
+SUB LoadProgram
+    DIM i AS INTEGER, n AS INTEGER, piece AS STRING
+    FOR i = 0 TO 65535: mem(i) = 0: NEXT
+    FOR i = 1 TO TALLY(program, " ") + 1
+        piece = FIELD$(program, " ", i)
+        IF LEN(piece) > 0 THEN mem(n) = VAL(CONVBASE$(piece, 16, 10)): n = n + 1
+    NEXT
+END SUB
+
+' FETCH: the byte at PC, and PC moves on (an address wraps at FFFF)
+FUNCTION Fetch8 AS INTEGER
+    Result = mem(pc)
+    pc = (pc + 1) AND &HFFFF
+END FUNCTION
+
+FUNCTION Fetch16 AS INTEGER
+    DIM lo AS INTEGER, hi AS INTEGER
+    lo = Fetch8
+    hi = Fetch8
+    Result = lo + hi * 256
+END FUNCTION
+
+' Zero and Sign come from A after most instructions
+SUB SetZS
+    fz = IIF(a = 0, 1, 0)
+    fs = IIF(a >= 128, 1, 0)
+END SUB
+
+' One whole cycle: fetch, decode, execute
+SUB OneStep
+    DIM op AS INTEGER, t AS INTEGER, target AS INTEGER
+    IF halted THEN EXIT SUB
+    op = Fetch8
+    SELECT CASE op
+        CASE OP_NOP: cycles = cycles + 1
+        CASE OP_LDA: a = Fetch8: cycles = cycles + 2
+        CASE OP_LDB: b = Fetch8: cycles = cycles + 2
+        CASE OP_LDM: a = mem(Fetch16): cycles = cycles + 4
+        CASE OP_STM: mem(Fetch16) = a: cycles = cycles + 4
+        CASE OP_ADD: t = a + b: fc = IIF(t > 255, 1, 0): a = t AND 255: SetZS: cycles = cycles + 1
+        CASE OP_SUB: t = a - b: fc = IIF(t < 0, 1, 0): a = t AND 255: SetZS: cycles = cycles + 1
+        CASE OP_INC: a = (a + 1) AND 255: SetZS: cycles = cycles + 1
+        CASE OP_DEC: a = (a - 1) AND 255: SetZS: cycles = cycles + 1
+        CASE OP_JMP: pc = Fetch16: cycles = cycles + 3
+        CASE OP_JNZ
+            target = Fetch16
+            IF fz = 0 THEN pc = target: cycles = cycles + 3 ELSE cycles = cycles + 2
+        CASE OP_HLT: halted = 1: cycles = cycles + 1
+        CASE ELSE: halted = 1                  ' not an instruction: stop
+    END SELECT
+END SUB
+
+SUB ShowState
+    Regs.Caption = "PC=" + Hex4(pc) + "  A=" + Hex2(a) + "  B=" + Hex2(b) + "  SP=" + Hex4(sp)
+    Info.Caption = "Z=" + STR$(fz) + " C=" + STR$(fc) + " S=" + STR$(fs) + "  cycles=" + STR$(cycles) + "  [0200]=" + Hex2(mem(&H200))
+    Status.Caption = IIF(halted, "Halted.", "Next opcode: " + Hex2(mem(pc)))
+END SUB
+
+SUB ResetClick
+    LoadProgram
+    a = 0: b = 0: pc = 0: sp = &H200
+    fz = 0: fc = 0: fs = 0: cycles = 0: halted = 0
+    ShowState
+END SUB
+
+SUB StepClick
+    OneStep
+    ShowState
+END SUB
+
+' Run until HALT (at most 100,000 steps: a program that loops forever would
+' freeze the window; cpu_timing.rr runs a CPU a frame at a time)
+SUB RunClick
+    DIM n AS INTEGER
+    DO WHILE halted = 0 AND n < 100000
+        OneStep
+        n = n + 1
+    LOOP
+    ShowState
+END SUB
+
+ResetClick
+Form.ShowModal

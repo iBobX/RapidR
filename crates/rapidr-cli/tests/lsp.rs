@@ -241,7 +241,7 @@ fn an_editor_session() {
     assert!(diags.is_empty(), "{diags:?}");
 
     // Unknown requests are errors, not crashes.
-    let r = c.request("textDocument/inlayHint", json!({ "textDocument": doc, "range": { "start": pos(0, 0), "end": pos(1, 0) } }));
+    let r = c.request("textDocument/noSuchRequest", json!({ "textDocument": doc, "range": { "start": pos(0, 0), "end": pos(1, 0) } }));
     assert!(r.get("error").is_some());
     c.shutdown();
     let _ = std::fs::remove_dir_all(&dir);

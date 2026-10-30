@@ -1,0 +1,177 @@
+' status_colors.rr: the theme's four status colours — status.info,
+' status.success, status.warning and status.danger, each a soft fill, a
+' strong text colour and a border — as chips, in a pane's header and on a
+' question's strip, sized as RapidR Studio's own design guide says
+' (docs/design-guidelines.md): everything in a header or a strip is 24
+' pixels tall on one centre line, a dialog's buttons 32.
+'
+'   rapidr run status_colors.rr
+'
+' Pick a look in the header's menu: Application.OnThemeChange takes every
+' colour again (Application.ThemeColor), so the chips stay readable in
+' light, dark and high contrast (framed in white there: the words and the
+' icons say which is which, never the colour alone).
+
+DECLARE SUB ChipPaint (Sender AS RCanvas)
+DECLARE SUB LookPicked
+DECLARE SUB TakeColors
+DECLARE SUB Answered (Sender AS RButton)
+DECLARE SUB CloseClicked
+
+' (the chips: the soft pill, its icon and its words)
+DIM ChipBack(3) AS RCanvas
+DIM ChipIcon(3) AS RImage
+DIM ChipText(3) AS RLabel
+DIM ChipBmp(3) AS RBitmap
+DIM StatusName(3) AS STRING
+DIM IconName(3) AS STRING
+DIM UiFont AS RFont
+
+CREATE Form AS RForm
+    Caption = "Status Colours"
+    ClientWidth = 600: ClientHeight = 300
+    Center
+    ' (a pane's header: a title and a line under it at the left; at the
+    ' right a chip, a menu and a button, all 24 tall)
+    CREATE Head AS RPanel
+        Align = 1: Height = 52: BevelOuter = 0
+        CREATE Title AS RLabel
+            Caption = "Backups": Left = 12: Top = 9
+        END CREATE
+        CREATE Subtitle AS RLabel
+            Caption = "The last copy: today at 10:42": Left = 12: Top = 27
+        END CREATE
+        CREATE LookBox AS RComboBox
+            Style = 2
+            Left = 316: Top = 14: Width = 160: Height = 24
+            AccessibleName = "The look"
+            AddItems "Light", "Dark", "High contrast"
+            OnChange = LookPicked
+        END CREATE
+        CREATE NowBtn AS RButton
+            Caption = "Back &Up": Left = 484: Top = 14: Width = 104: Height = 24
+            AccessibleName = "Back up now"
+        END CREATE
+    END CREATE
+    CREATE Says AS RLabel
+        Caption = "Four statuses, each a soft fill, a strong text and a border:"
+        Left = 12: Top = 68
+    END CREATE
+    ' (a question waiting: a card, its 4-pixel mark in the warning colour,
+    ' compact buttons under it)
+    CREATE Ask AS RPanel
+        Left = 0: Top = 140: Width = 600: Height = 82: BevelOuter = 0
+        CREATE AskMark AS RPanel
+            Left = 0: Top = 0: Width = 4: Height = 82: BevelOuter = 0
+        END CREATE
+        CREATE AskText AS RLabel
+            Caption = "Delete the copies older than a year? 14 files, 2.1 GB."
+            Left = 16: Top = 12
+        END CREATE
+        CREATE DeleteBtn AS RButton
+            Caption = "&Delete": Left = 16: Top = 44: Width = 88: Height = 24
+            OnClick = Answered
+        END CREATE
+        CREATE KeepBtn AS RButton
+            Caption = "&Keep Them": Left = 112: Top = 44: Width = 104: Height = 24
+            OnClick = Answered
+        END CREATE
+    END CREATE
+    CREATE Said AS RLabel
+        Left = 12: Top = 236: Width = 360
+    END CREATE
+    ' (a dialog's buttons: 32 tall, one primary)
+    CREATE OkBtn AS RButton
+        Caption = "OK": Left = 384: Top = 256: Width = 96: Height = 32
+        Default = 1
+        OnClick = CloseClicked
+    END CREATE
+    CREATE CancelBtn AS RButton
+        Caption = "Cancel": Left = 492: Top = 256: Width = 96: Height = 32
+        Cancel = 1
+        OnClick = CloseClicked
+    END CREATE
+END CREATE
+
+' A chip's pill: its Tag is the status (0 info … 3 danger), its Color the
+' ground under it. A soft fill and a 1-pixel border with round ends —
+' never a solid block of colour.
+SUB ChipPaint (Sender AS RCanvas)
+    DIM k AS STRING
+    k = "status." + StatusName(Sender.Tag)
+    Sender.FillRect 0, 0, Sender.Width, Sender.Height, Sender.Color
+    Sender.RoundRect 0, 0, Sender.Width, Sender.Height, Sender.Height, Sender.Height, Application.ThemeColor(k + ".border")
+    Sender.RoundRect 1, 1, Sender.Width - 1, Sender.Height - 1, Sender.Height - 2, Sender.Height - 2, Application.ThemeColor(k)
+END SUB
+
+' The theme's colours (again after each change of look): the chips' words
+' in their status's text colour, the icons in the look's palette.
+SUB TakeColors
+    DIM i AS INTEGER
+    Title.Font.Color = Application.ThemeColor("page.text")
+    Subtitle.Font.Color = Application.ThemeColor("page.dim")
+    Ask.Color = Application.ThemeColor("card")
+    AskMark.Color = Application.ThemeColor("status.warning.border")
+    FOR i = 0 TO 3
+        ChipBack(i).Color = Application.ThemeColor("face")
+        ChipText(i).Font.Color = Application.ThemeColor("status." + StatusName(i) + ".text")
+        ChipBmp(i).LoadIcon IconName(i), 16
+        ChipIcon(i).BMPHandle = ChipBmp(i)
+        ChipBack(i).Repaint
+    NEXT
+END SUB
+
+SUB LookPicked
+    SELECT CASE LookBox.ItemIndex
+        CASE 1
+            Application.Theme = "rapidr dark"
+        CASE 2
+            Application.Theme = "rapidr high contrast"
+        CASE ELSE
+            Application.Theme = "rapidr light"
+    END SELECT
+END SUB
+
+SUB CloseClicked
+    Form.Close
+END SUB
+
+SUB Answered (Sender AS RButton)
+    Said.Caption = "You chose " + REPLACESUBSTR$(Sender.Caption, "&", "") + "."
+END SUB
+
+' (the chrome's font, Inter 10 pt: 13 pixels — what Studio's sizes are for)
+UiFont.Name = "Inter": UiFont.Size = 10
+Form.Font = UiFont
+Title.Font.Bold = 1
+Subtitle.Font.Size = 9
+AskText.Font.Bold = 1
+
+' The four chips in a row: 8, the icon, 6, the words, 12.
+DIM i AS INTEGER, x AS INTEGER, w AS INTEGER, words(3) AS STRING
+StatusName(0) = "info": StatusName(1) = "success": StatusName(2) = "warning": StatusName(3) = "danger"
+' (RapidR's icons for them: the problems list's markers)
+IconName(0) = "info": IconName(1) = "success": IconName(2) = "warning": IconName(3) = "error"
+words(0) = "3 new files": words(1) = "Up to date": words(2) = "Disk almost full": words(3) = "Copy failed"
+x = 12
+FOR i = 0 TO 3
+    ChipBack(i).Parent = Form
+    ChipIcon(i).Parent = Form
+    ChipText(i).Parent = Form
+    ChipText(i).Transparent = 1
+    ChipText(i).Caption = words(i)
+    w = 8 + 16 + 6 + ChipText(i).Width + 12
+    ChipBack(i).Tag = i
+    ChipBack(i).Left = x: ChipBack(i).Top = 96: ChipBack(i).Width = w: ChipBack(i).Height = 24
+    ChipBack(i).OnPaint = ChipPaint
+    ChipIcon(i).Left = x + 8: ChipIcon(i).Top = 100: ChipIcon(i).Width = 16: ChipIcon(i).Height = 16
+    ChipText(i).Left = x + 30: ChipText(i).Top = 96 + (24 - ChipText(i).Height) \ 2
+    x = x + w + 8
+NEXT
+
+LookBox.ItemIndex = 0
+IF INSTR(Application.Theme, "dark") THEN LookBox.ItemIndex = 1
+IF INSTR(Application.Theme, "contrast") THEN LookBox.ItemIndex = 2
+TakeColors
+Application.OnThemeChange = TakeColors
+Form.ShowModal

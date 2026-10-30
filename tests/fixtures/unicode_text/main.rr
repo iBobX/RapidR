@@ -1,0 +1,89 @@
+' Text that is not Latin-1 survives end to end (Robert's Solar System 3D,
+' 2.121.3: its Chinese showed as `??`). Run by tests/native_gui_unicode.mjs:
+' the captions come from TR$ (lang/zh-Hans.po is UTF-8, lang/es.po is the
+' Windows-1252 an earlier Studio wrote), a file written with
+' WriteStr(s, LEN(s)) reads back as it was, and a canvas's TextOut draws
+' Chinese with the font a label uses, not as `?`.
+$APPTYPE GUI
+
+DIM f AS RFileStream
+DIM s AS STRING
+DIM t AS STRING
+DIM verdict AS STRING
+
+IF COMMAND$(1) <> "" THEN Application.Language = COMMAND$(1)
+
+CREATE Form AS RForm
+    Width = 340: Height = 290
+    Caption = TR$("Date")
+    CREATE Literal AS RLabel
+        Left = 10: Top = 8: Width = 300: AutoSize = 0
+        Caption = "中文(简体) 日本語 한국어"
+    END CREATE
+    CREATE Translated AS RLabel
+        Left = 10: Top = 32: Width = 300: AutoSize = 0
+    END CREATE
+    CREATE Pause AS RButton
+        Left = 10: Top = 56: Width = 150
+    END CREATE
+    CREATE Roundtrip AS RLabel
+        Left = 10: Top = 90: Width = 300: AutoSize = 0
+    END CREATE
+    CREATE Sky AS RCanvas
+        Left = 10: Top = 116: Width = 300: Height = 70
+    END CREATE
+    CREATE Report AS RLabel
+        Left = 10: Top = 194: Width = 300: AutoSize = 0
+    END CREATE
+    CREATE Early AS RLabel
+        Left = 10: Top = 218: Width = 300: AutoSize = 0
+    END CREATE
+END CREATE
+
+Translated.Caption = TR$("Date") + ": 2027-02-24"
+Pause.Caption = TR$("&Pause")
+
+' A file written the way Studio's Apply wrote one, read back as text.
+s = "Fecha: 日期 · café · 😀 ¿qué?"
+f.Open("unicode_roundtrip.tmp", fmCreate)
+f.WriteStr(s, LEN(s))
+f.Position = 0
+t = f.ReadAllText
+f.Close
+KILL "unicode_roundtrip.tmp"
+Roundtrip.Caption = IIF(t = s, "same", "DIFFERENT") + " " + STR$(LEN(t))
+
+' The same words drawn on a canvas, and the first character drawn as a `?`
+' where the ideograph stands: before the fix both were `?` (the canvas had no
+' CJK font), so nothing differed.
+' (Drawn in OnPaint, as a canvas should be: on the web the font arrives
+' after the first draw and the canvas is painted again.)
+SUB DrawSky
+    DIM x AS INTEGER, y AS INTEGER
+    DIM inkA AS INTEGER, differs AS INTEGER
+    Sky.FontSize = 14
+    Sky.TextOut 4, 4, "查询库 Ag", &H000000, &HFFFFFF
+    Sky.TextOut 4, 36, "?询库 Ag", &H000000, &HFFFFFF
+    FOR y = 4 TO 29
+        FOR x = 4 TO 120
+            IF Sky.Pixel(x, y) <> &HFFFFFF THEN inkA = inkA + 1
+            ' (the first character's cell only: where the ideograph and the `?`
+            ' both start; before the fix the very same `?` glyph was in both)
+            IF x < 12 THEN
+                IF Sky.Pixel(x, y) <> Sky.Pixel(x, y + 32) THEN differs = differs + 1
+            END IF
+        NEXT
+    NEXT
+    verdict = "width " + STR$(Sky.TextWidth("查询库")) + " ink " + IIF(inkA > 100, "yes", "no") + " differs " + IIF(differs > 10, "yes", "no")
+END SUB
+SUB Painted
+    DrawSky
+    Report.Caption = verdict
+END SUB
+Sky.OnPaint = Painted
+' (drawn at once, before any window exists: the first draw of a program
+' that draws as it starts)
+DrawSky
+Early.Caption = verdict
+
+Form.ShowModal

@@ -129,6 +129,25 @@ pub fn append(line: &str) {
     }
 }
 
+/// The log made of `lines` alone (a part of it cleared): true when it was
+/// written. The desktop's file only.
+pub fn replace(lines: &[String]) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let Some(p) = path() else { return false };
+        if !p.exists() {
+            return true;
+        }
+        let text = if lines.is_empty() { String::new() } else { lines.join("\n") + "\n" };
+        std::fs::write(&p, text).is_ok()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = lines;
+        false
+    }
+}
+
 /// The log's last `n` lines, oldest first.
 pub fn last(n: usize) -> Vec<String> {
     #[cfg(not(target_arch = "wasm32"))]

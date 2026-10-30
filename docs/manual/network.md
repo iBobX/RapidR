@@ -7,9 +7,10 @@ A program talks to the network in two directions:
   connection; on the web a WebSocket). They're described with the other
   objects in [DirectX and media](directx-and-media.md).
 - **as a server**, answering others: `RServerSocket` (TCP, by lines, bytes
-  or whole HTTP requests) and `RHttpServer` (a web server: a local API, a
-  dashboard, an MCP server). Both are RapidR's own, and desktop only: a
-  web page can't listen for connections.
+  or whole HTTP requests), `RHttpServer` (a web server: a local API, a
+  dashboard) and `RMcpServer` (your program's own tools for AI apps). All
+  three are RapidR's own, and desktop only: a web page can't listen for
+  connections.
 
 ## This computer only, or the whole network
 
@@ -222,18 +223,91 @@ speaks HTTPS, and list the names it's reached by in `AllowedHosts`.
 
 ### An MCP server
 
-AI apps that speak MCP's *Streamable HTTP* send JSON-RPC messages as POSTs
-to one path (`/mcp`) and read the answer either as JSON or as a stream of
-events: `Respond 200, "Content-Type: application/json", reply` or
-`BeginStream "Content-Type: text/event-stream"` and `SendEvent reply,
-"message"`. Give the session's id in a header (`Mcp-Session-Id: …`), check
-the token, and keep `Host` at `127.0.0.1`.
+Use [`RMcpServer`](#rmcpserver-your-programs-tools-for-ai-apps): it speaks
+the protocol itself, on the same connections and checks as `RHttpServer`.
 
 ### On the web
 
-A web page can't listen for connections, so `RHttpServer` and
+A web page can't listen for connections, so `RHttpServer`, `RMcpServer` and
 `RServerSocket` run on the desktop only (interpreted and native). On the
 web `Start` gives False and `Error` says why.
+
+## RMcpServer: your program's tools for AI apps
+
+`RMcpServer` lets an AI app that supports MCP — the protocol AI apps use to
+call tools — call tools your program offers: read its data, add to it,
+press its buttons, whatever you choose to offer. RapidR Studio's own AI
+apps feature is one ([Let AI apps work in Studio](ai-apps.md)). Model
+Context Protocol® and MCP™ are marks of LF Projects, LLC; RapidR uses them
+only to say which protocol it speaks.
+
+You add each tool — a name, a sentence that tells the AI what it does, its
+arguments written as a SUB's parameters, and whether it only reads — and
+answer each call in `OnToolCall`, on your program's own thread:
+
+```basic
+DIM Mcp AS RMcpServer
+
+SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
+    SELECT CASE Tool
+        CASE "list_notes": Mcp.Reply CallId, NotesText
+        CASE "add_note"
+            Notes.AddItems Mcp.Argument("Text")
+            Mcp.Reply CallId, "Added."
+    END SELECT
+END SUB
+
+Mcp.OnToolCall = ToolCalled
+Mcp.AddTool "list_notes", "The user's notes, one a line.", "", "read"
+Mcp.AddTool "add_note", "Adds a note at the end of the list.", "Text AS STRING", "change"
+Mcp.Port = 47120
+Token$ = Mcp.NewToken           ' every request must carry it
+IF Mcp.Start THEN PRINT "AI apps connect to "; Mcp.Url
+```
+
+![examples/network/mcp_tools.rr after an AI app has worked with it: the notes, and what the AI app did, call by call](images/network/mcp-tools.png)
+
+The example is [examples/network/mcp_tools.rr](../../examples/network/mcp_tools.rr):
+a notes list an AI app can read and add to, every call shown in the window,
+and a box that stops it adding.
+
+- **Arguments.** Write them as a SUB's parameters — `Text AS STRING,
+  [Count AS INTEGER]`, the optional ones in `[ ]` (STRING, INTEGER, DOUBLE,
+  BOOLEAN, LIST, OBJECT) — or as a JSON Schema for anything more.
+  `Mcp.Argument("Text")` reads one (`options.size` reaches inside an
+  object); `Arguments` has them all as JSON. A call with a missing or wrong
+  argument never reaches your program: the AI app is told at once what the
+  tool needs, so it can call again right.
+- **Answers.** `Reply CallId, Text` (with `True` after it for a failure:
+  say what went wrong and what to do instead — the AI acts on it),
+  `ReplyImage CallId, File` (a PNG, JPEG, GIF or WebP; a BMP goes as PNG),
+  `ReplyJson CallId, Result` for anything else.
+- **Later.** Keep `CallId` and answer when you're ready — after asking your
+  user, say. `Progress CallId, "Asking the user…"` tells the AI app
+  meanwhile (when it listens). Calls come one at a time: the next waits
+  until your handler is over, not until you answer.
+- **Who.** `ClientName` is the AI app making the call; `Clients` lists them
+  (`OnConnect`, `OnDisconnect` say when they come and go); `Disconnect`
+  keeps one out until the next `Start`.
+- **What it says it is.** `ServerName`, `ServerTitle`, `ServerVersion` and
+  `Instructions` (a few sentences for the AI on how to use your tools).
+- **Resources.** `AddResource Uri, Name` offers something to read;
+  `OnReadResource` asks for it, and `Reply` gives its text.
+
+What the server does by itself: it listens on `127.0.0.1` only (another
+`Host` opens your tools to the network: don't, unless you know every
+computer that can reach it); `Start` refuses to run without a `Token`
+(`NewToken` makes one: 64 random hex digits; keep it with
+[RSecrets](secrets.md)); a request without the token, from a web page or
+for another host name is refused before your program sees it. It speaks the
+current revision (2026-07-28) and the earlier ones that start with
+`initialize`.
+
+What your program offers, and the privacy of its users' data, are yours to
+decide: offer only what an AI app may see and do, describe your program as
+"working with MCP clients" rather than putting MCP in its name, and tell
+your users that an AI app may send what it reads to the company that makes
+it.
 
 ## Members
 

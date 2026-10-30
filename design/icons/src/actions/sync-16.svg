@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Sync (push and pull)</title>
+  <path d="M5.5 13.5L5.5 3.5" stroke="currentColor"/>
+  <path d="M2.5 4.5L5.5 2.5L7.5 4.5" stroke="currentColor"/>
+  <path d="M10.5 2.5L10.5 12.5" stroke="currentColor"/>
+  <path d="M13.5 11.5L10.5 13.5L8.5 11.5" stroke="currentColor"/>
+</svg>

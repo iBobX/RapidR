@@ -63,7 +63,7 @@ pub fn flush() -> Result<(), String> {
         let feed = l.contains('\x0c');
         let l = l.replace('\t', "        ").replace('\x0c', "");
         if !l.trim().is_empty() {
-            p.call("textout", &[Value::Integer(margin), Value::Integer(y), Value::String(l)]);
+            p.call("textout", &[Value::Integer(margin), Value::Integer(y), Value::String(l.into())]);
         }
         if feed {
             // (a form feed: the next page)

@@ -48,13 +48,18 @@ pub fn decode_source(bytes: &[u8]) -> (String, SourceEncoding) {
 }
 
 /// The bytes [`decode_source`] read `text` from: `encode_source(decode(b)) == b`
-/// for every file.
+/// for every file. A Windows-1252 file whose text has gained a character
+/// Windows-1252 lacks (a Chinese caption typed into an older program's form,
+/// emoji) is written as UTF-8 — the whole file, so every character
+/// survives — never with a `?` in the character's place.
 pub fn encode_source(text: &str, encoding: SourceEncoding) -> Vec<u8> {
+    const BOM: &[u8] = b"\xEF\xBB\xBF";
+    let ansi = text.chars().map(crate::windows_1252_byte).collect::<Option<Vec<u8>>>();
     match encoding {
         SourceEncoding::Utf8 => text.as_bytes().to_vec(),
-        SourceEncoding::Utf8Bom => [b"\xEF\xBB\xBF".as_slice(), text.as_bytes()].concat(),
-        SourceEncoding::Windows1252 => text.chars().map(crate::windows_1252_byte).collect(),
-        SourceEncoding::Windows1252Bom => b"\xEF\xBB\xBF".iter().copied().chain(text.chars().map(crate::windows_1252_byte)).collect(),
+        SourceEncoding::Utf8Bom => [BOM, text.as_bytes()].concat(),
+        SourceEncoding::Windows1252 => ansi.unwrap_or_else(|| text.as_bytes().to_vec()),
+        SourceEncoding::Windows1252Bom => [BOM, ansi.as_deref().unwrap_or(text.as_bytes())].concat(),
     }
 }
 

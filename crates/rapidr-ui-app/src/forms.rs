@@ -728,7 +728,7 @@ pub fn form_moved<P: Program>(p: P, form: &str, x: i64, y: i64) {
 pub fn files_dropped<P: Program>(p: P, form: &str, files: &[String]) {
     let files: Vec<&str> = files.iter().map(|f| f.trim_end_matches(['\r', '\n'])).filter(|f| !f.is_empty()).collect();
     if !files.is_empty() {
-        p.fire_args(&lower(form), "ondropfiles", &[Value::String(files.join("\n"))]);
+        p.fire_args(&lower(form), "ondropfiles", &[Value::String(files.join("\n").into())]);
     }
 }
 

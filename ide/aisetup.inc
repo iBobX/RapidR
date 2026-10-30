@@ -119,7 +119,7 @@ CREATE AISetup AS RForm
     END CREATE
     CREATE AISuCloudText AS RLabel
       AutoSize = 0: WordWrap = 1
-      Caption = "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat and the parts of your project RAI reads — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
+      Caption = "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
     END CREATE
   END CREATE
   ' ---- 2: on this computer ----
@@ -497,13 +497,13 @@ SUB AISuProvPicked
   AISuTestNote.AccessibleDescription = AISuTestNote.Caption
   SELECT CASE id
     CASE "anthropic"
-      AISuCostText.Caption = "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat and the parts of your project RAI reads — goes to Anthropic, under its privacy terms."
+      AISuCostText.Caption = "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms."
     CASE "openai"
-      AISuCostText.Caption = "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat and the parts of your project RAI reads — goes to OpenAI, under its privacy terms."
+      AISuCostText.Caption = "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms."
     CASE "deepseek"
-      AISuCostText.Caption = "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat and the parts of your project RAI reads — goes to DeepSeek, in China, under its privacy terms."
+      AISuCostText.Caption = "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms."
     CASE ELSE
-      AISuCostText.Caption = "You pay the provider for what you use. What you send goes to it, under its privacy terms."
+      AISuCostText.Caption = "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms."
   END SELECT
   AISuCostText.Caption = AISuCostText.Caption + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
   AISuCostText.AccessibleDescription = AISuCostText.Caption

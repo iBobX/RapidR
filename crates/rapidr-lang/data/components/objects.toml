@@ -72,6 +72,8 @@ methods = [
   { name = "PickFile", value = true, origin = "rapidr", only = "web" },
   { name = "LoadFromUrl", value = true, origin = "rapidr", only = "web" },
   { name = "ReadAll", value = true, origin = "rapidr" },
+  { name = "ReadAllText", value = true, origin = "rapidr" },
+  { name = "WriteText", params = "S AS STRING", origin = "rapidr" },
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
   { name = "LoadUdtArray", params = "ArrayField", doc = "Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all." },
@@ -332,11 +334,64 @@ methods = [
   { name = "WriteStr", params = "string, bytes AS INTEGER" },
   { name = "WriteUDT", params = "MyType" },
   { name = "ReadAll", value = true, origin = "rapidr" },
+  { name = "ReadAllText", value = true, origin = "rapidr" },
+  { name = "WriteText", params = "S AS STRING", origin = "rapidr" },
   { name = "Writeln", origin = "rapidr" },
   { name = "Readln", value = true, origin = "rapidr" },
   { name = "Clear", value = true, doc = "Empties the stream: `Size` and `Position` 0." },
   { name = "LoadUdtArray", params = "ArrayField", doc = "Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all." },
   { name = "SaveUdtArray", params = "ArrayField", doc = "Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory." },
+]
+events = []
+
+[[component]]
+name = "RARCHIVE"
+display = "Archive"
+visual = false
+doc = "Opens zip, 7z, tar, tar.gz, .gz, .xz and .zst files — the format found from their first bytes, not their name — lists what they hold and unpacks it: one file's bytes into a string or a stream, to a file, or everything into a folder. Makes zip, tar, tar.gz and .gz files. An archive is untrusted: MaxSize and MaxRatio stop a zip bomb, ExtractAll never writes outside its folder (a name with `..`, an absolute path or a drive stops it before anything is written; links are never extracted), encrypted entries are refused. RAR files are refused: it's a closed, proprietary format. Every call leaves Error \"\" when it worked, else says why. The same on the desktop, native builds and the web (where files are the page's). RapidR's own."
+example = """
+DIM Mem AS RMemoryStream
+DIM Zip AS RArchive
+Zip.CreateStream Mem, "zip"
+Zip.AddText "hello.txt", "Hello from RapidR"
+Zip.Close
+IF Zip.OpenStream(Mem) THEN PRINT Zip.Format; " "; Zip.Count; " "; Zip.Name(0); ": "; Zip.ExtractText(0)
+"""
+properties = [
+  { name = "Count", type = "int", access = "read", design = false, doc = "How many entries (files and folders) the open archive holds, or the archive being made; 0 with none." },
+  { name = "Format", type = "string", access = "read", design = false, doc = "The open archive's format, from its first bytes: \"zip\", \"7z\", \"tar\", \"tar.gz\", \"gzip\" (one file), \"tar.xz\", \"xz\", \"tar.zst\", \"zstd\"; or the one being made; \"\" with none." },
+  { name = "FileName", type = "string", access = "read", design = false, kind = "file:any", doc = "The file Open opened or Create makes; \"\" for a stream, data or a resource." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last call failed, in plain words (not an archive, a zip bomb, a name outside the folder, encrypted, damaged); \"\" when it worked." },
+  { name = "MaxSize", type = "int", default = 1073741824, range = "0..", unit = "bytes", doc = "The most an archive may unpack to: one entry, all of ExtractAll, a whole .tar.gz at Open; also the most an archive being made may hold. 1 GB by default (256 MB in a browser). More is an error, not a full memory: a zip bomb stops here." },
+  { name = "MaxRatio", type = "int", default = 1000, range = "0..1000000", doc = "The most an entry larger than 1 MB may grow when unpacked (unpacked size ÷ packed size): real files rarely pass 100, a zip bomb passes thousands. 0: no ratio check (MaxSize still holds)." },
+  { name = "Level", type = "int", default = 6, range = "0..9", doc = "How hard Create packs: 0 stores (fastest), 9 is the smallest; 6 by default." },
+  { name = "CaseSensitive", type = "bool", default = false, doc = "Whether Find and an entry named in Extract tell \"Game.Z80\" from \"game.z80\" (False by default: either finds it)." },
+]
+methods = [
+  { name = "Open", params = "FileName AS STRING", returns = "INTEGER", effects = ["file-read", "state"], arg_kinds = { FileName = "file:any" }, doc = "Opens an archive file (or a `$RESOURCE` built into the program: its handle), whatever its extension says. True when it opened; False when it isn't an archive RapidR reads, is damaged or encrypted (Error says which). A .gz, .xz or .zst holding one file is an archive of one entry." },
+  { name = "OpenStream", params = "Stream AS RMemoryStream", returns = "INTEGER", effects = ["state"], arg_kinds = { Stream = "component:RMEMORYSTREAM|RFILESTREAM" }, doc = "Opens the archive a stream holds (all of it, wherever its Position is): one downloaded into a memory stream, or a file stream's." },
+  { name = "OpenData", params = "Bytes AS STRING", returns = "INTEGER", effects = ["state"], doc = "Opens the archive in a string of bytes (one character a byte: what a download or ReadBinStr gives)." },
+  { name = "FormatOf", params = "FileName AS STRING", returns = "STRING", effects = ["file-read"], arg_kinds = { FileName = "file:any" }, doc = "What a file is, from its first bytes, without opening it: \"zip\", \"7z\", \"tar\", \"gzip\", \"xz\", \"zstd\", \"rar\", \"bzip2\" …, or \"\" when it's no archive (a .z80 snapshot, a picture, a text). So a program takes a .z80 or an archive holding one alike." },
+  { name = "Close", returns = "INTEGER", value = true, effects = ["file-write"], doc = "Writes the archive Create or CreateStream began (to its file or stream) and lets go of an open one. True when it worked." },
+  { name = "Find", params = "Name AS STRING", returns = "INTEGER", value = true, effects = ["none"], doc = "The index (0 the first) of the entry with this name (folders with `/` or `\\`; \"Roms/Game.z80\" finds \"roms/game.z80\" unless CaseSensitive); -1 when there's none." },
+  { name = "Name", params = "Entry AS VARIANT", returns = "STRING", effects = ["none"], doc = "An entry's name, its folders before it with `/` (\"roms/game.z80\"); \"\" for an index outside 0 … Count - 1. An entry is its index or its name, here and in the other entry methods." },
+  { name = "Size", params = "Entry AS VARIANT", returns = "LONG", effects = ["none"], doc = "An entry's size unpacked, in bytes, as the archive says (Extract checks the real one)." },
+  { name = "CompressedSize", params = "Entry AS VARIANT", returns = "LONG", effects = ["none"], doc = "An entry's size packed, in bytes (a .tar.gz's entries share one stream: their size)." },
+  { name = "IsFolder", params = "Entry AS VARIANT", returns = "INTEGER", effects = ["none"], doc = "True when the entry is a folder." },
+  { name = "IsEncrypted", params = "Entry AS VARIANT", returns = "INTEGER", effects = ["none"], doc = "True when the entry is protected by a password: RArchive lists it but doesn't unpack it." },
+  { name = "DateTime", params = "Entry AS VARIANT", returns = "STRING", effects = ["none"], doc = "When the entry was last changed, local time, as \"2026-10-29 14:05:00\" (it sorts as text); \"\" when the archive doesn't say." },
+  { name = "Extract", params = "Entry AS VARIANT", returns = "STRING", effects = ["state"], doc = "An entry's bytes as a string, one character a byte (LEN is its size; ASC(MID$(…)) a byte; a stream's WriteBinStr writes it back). \"\" with Error set when it can't: a folder gives \"\" and no error." },
+  { name = "ExtractText", params = "Entry AS VARIANT", returns = "STRING", effects = ["state"], doc = "An entry as text: UTF-8 (a byte-order mark dropped) when it is, else one character a byte." },
+  { name = "ExtractToStream", params = "Entry AS VARIANT, Stream AS RMemoryStream", returns = "INTEGER", effects = ["state"], arg_kinds = { Stream = "component:RMEMORYSTREAM|RFILESTREAM" }, doc = "Writes an entry's bytes into a stream at its Position (as WriteBinStr does), Position after them. True when it worked." },
+  { name = "ExtractToFile", params = "Entry AS VARIANT, FileName AS STRING", returns = "INTEGER", effects = ["file-write"], risk = "irreversible", arg_kinds = { FileName = "file:any" }, test = "args: 0, \"rapidr-conformance-extract.tmp\"", doc = "Writes an entry to the file you name (replacing one already there); the file is written only once the whole entry is unpacked and checked. True when it worked." },
+  { name = "ExtractAll", params = "Folder AS STRING", returns = "INTEGER", effects = ["file-write"], risk = "irreversible", arg_kinds = { Folder = "file:any" }, test = "args: \"rapidr-conformance-extract\"", doc = "Unpacks everything into a folder (made if needed; files already there are replaced). Every name is checked and everything unpacked first, so a name that would leave the folder (`..`, an absolute path, a drive, a device), an encrypted entry or a zip bomb writes nothing; links and devices are never extracted, and nothing is written through a link already in the folder. True when it worked." },
+  { name = "Create", params = "FileName AS STRING, [Format AS STRING]", returns = "INTEGER", effects = ["state"], arg_kinds = { FileName = "file:any" }, test = "args: \"rapidr-conformance.zip\"", doc = "Begins a new archive, written to the file on Close: its format the file's extension (.zip, .tar, .tar.gz or .tgz, .gz) or `Format` (\"zip\", \"tar\", \"tar.gz\", \"gzip\"). Entries are added with AddFile, AddText, AddData, AddStream and AddFolder; a .gz holds one file." },
+  { name = "CreateStream", params = "Stream AS RMemoryStream, [Format AS STRING]", returns = "INTEGER", effects = ["state"], arg_kinds = { Stream = "component:RMEMORYSTREAM|RFILESTREAM" }, doc = "Begins a new archive (a zip unless `Format` says) written into a stream on Close, at its Position." },
+  { name = "AddFile", params = "FileName AS STRING, [NameInArchive AS STRING]", returns = "INTEGER", effects = ["file-read", "state"], arg_kinds = { FileName = "file:any" }, doc = "Adds a file (or a `$RESOURCE`'s handle) under its own name, no folders, or `NameInArchive` (\"roms/game.z80\": folders with `/`). An entry already of that name is replaced." },
+  { name = "AddText", params = "NameInArchive AS STRING, Text AS STRING", returns = "INTEGER", effects = ["state"], doc = "Adds text as a file, in UTF-8 (every language's letters kept)." },
+  { name = "AddData", params = "NameInArchive AS STRING, Bytes AS STRING", returns = "INTEGER", effects = ["state"], doc = "Adds a string of bytes as a file, one character a byte (what Extract gives back)." },
+  { name = "AddStream", params = "NameInArchive AS STRING, Stream AS RMemoryStream", returns = "INTEGER", effects = ["state"], arg_kinds = { Stream = "component:RMEMORYSTREAM|RFILESTREAM" }, doc = "Adds all of a stream's bytes as a file (wherever its Position is)." },
+  { name = "AddFolder", params = "Folder AS STRING, [NameInArchive AS STRING]", returns = "INTEGER", effects = ["file-read", "state"], arg_kinds = { Folder = "file:any" }, doc = "Adds a folder on disk and everything in it, under its own name or `NameInArchive` (\"\" or \".\": its contents at the top). Links aren't followed. Not in a browser (no folders there): add each file." },
 ]
 events = []
 

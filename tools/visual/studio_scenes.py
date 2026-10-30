@@ -209,6 +209,13 @@ SCENES = [
         "why": "Find in Files: its results in the pane, grouped by file",
     },
     {
+        "name": "project-translations",
+        "open": "tests/fixtures/studio_lang/Bookshop.rrproj",
+        "do": "wait,wait",
+        "delay": 5,
+        "why": "the Project pane of a program that translates: lang/ holds its .po catalogs and a .pot template, each with the translation icon, beside the other kinds of file (a vector image, XML, data, MIDI)",
+    },
+    {
         "name": "palette",
         "open": "",
         "do": "palette:view",

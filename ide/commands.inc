@@ -262,6 +262,12 @@ SUB DefineCommands
   AddCmd "ai.compact", "Co&mpact the AI Chat", "Tools", "", "", "ai", "-"
   AddCmd "ai.review", "&Review the AI's Changes...", "Tools", "", "", "ai", "-"
   AddCmd "ai.whatWasSent", "&What Was Sent to the AI...", "Tools", "", "", "ai", "-"
+  ' (AI apps: the desktop's — a web page can't listen for them: mcp.inc)
+  IF Proj.FileManager <> "" THEN
+    AddSep "Tools"
+    AddCmd "mcp.settings", "AI A&pps Settings...", "Tools", "", "", "", "-"
+    AddCmd "view.aiApps", "AI Apps Acti&vity", "Tools", "", "", "", "-"
+  END IF
 
   ' ---- Window (documents are tabs, split into groups) ----
   AddCmd "view.splitVertically", "Split &Right", "Window", "", "", "document", ""
@@ -356,6 +362,14 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   w = Cmd(i).EnabledWhen
   k = ""
   IF ActiveDoc >= 0 THEN k = DocKind(ActiveDoc)
+  ' (Edit's Copy and Select All are the Output pane's while it has the
+  ' keyboard, a document open or not: panels.inc)
+  IF Cmd(i).Id = "edit.copy" OR Cmd(i).Id = "edit.selectAll" THEN
+    IF OutputHasKeys THEN
+      Result = 1
+      EXIT FUNCTION
+    END IF
+  END IF
   SELECT CASE w
     CASE "": Result = 1
     ' (Open Recent's "No Recent Projects or Files": a note, never a command)

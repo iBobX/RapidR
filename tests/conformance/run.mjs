@@ -113,9 +113,9 @@ function runCodegen(name, src, input, progArgs) {
   const rr = join(dir, `${name}${extname(src)}`);
   copyFileSync(src, rr);
   // Files cases build in with $RESOURCE, next to the copy as next to the case.
-  // (resource_files: files a case lists; picture_files: pictures it loads;
+  // (resource_files: files a case lists; archive_files: RArchive's samples; picture_files: pictures it loads;
   // video_files: QVIDEO's clips; lang: TR$'s catalogs, beside the program)
-  for (const folder of ["resource_files", "picture_files", "video_files", "lang"]) {
+  for (const folder of ["resource_files", "archive_files", "picture_files", "video_files", "lang"]) {
     const resources = join(CASES, folder);
     if (existsSync(resources)) cpSync(resources, join(dir, folder), { recursive: true });
   }

@@ -511,12 +511,26 @@ pub fn decode(bytes: &[u8]) -> (String, Encoding) {
     }
 }
 
-/// Encodes text as `enc` (Latin-1: characters beyond it as `?`).
+/// The encoding `text` is saved in when its file was stored as `enc`:
+/// `enc`, except that a Latin-1 file whose text has a character Latin-1
+/// lacks (Chinese typed into an older file, `€`, emoji) becomes UTF-8 —
+/// never a `?` in place of the character (that was how a Chinese
+/// translation file written by an earlier Studio lost its text).
+pub fn encoding_for(text: &str, enc: Encoding) -> Encoding {
+    if enc == Encoding::Latin1 && text.chars().any(|c| u32::from(c) > 0xFF) {
+        Encoding::Utf8
+    } else {
+        enc
+    }
+}
+
+/// Encodes text as `enc` ([`encoding_for`]: a Latin-1 file that can't hold
+/// the text is written as UTF-8, not with `?`).
 pub fn encode(text: &str, enc: Encoding) -> Vec<u8> {
-    match enc {
+    match encoding_for(text, enc) {
         Encoding::Utf8 => text.as_bytes().to_vec(),
         Encoding::Utf8Bom => [&[0xEF, 0xBB, 0xBF][..], text.as_bytes()].concat(),
-        Encoding::Latin1 => text.chars().map(|c| u8::try_from(u32::from(c)).unwrap_or(b'?')).collect(),
+        Encoding::Latin1 => text.chars().map(|c| c as u32 as u8).collect(),
     }
 }
 
@@ -1976,8 +1990,12 @@ impl CodeEditor {
         encode(&text, self.encoding)
     }
 
-    /// The text was saved to `path`.
+    /// The text was saved to `path` (a Latin-1 file that had to become
+    /// UTF-8 to keep its text is one now: `Encoding` says so).
     pub fn saved(&mut self, path: &str) {
+        if self.encoding == Encoding::Latin1 {
+            self.encoding = encoding_for(self.doc.text().as_ref(), self.encoding);
+        }
         self.file_name = path.to_string();
         self.doc.mark_saved();
         self.modified = false;
@@ -2217,5 +2235,34 @@ mod tests {
         c.load("y.sql", "SELECT 1\n".as_bytes());
         assert_eq!(s(c.get("language")), "sql");
         assert_eq!(c.encoding, Encoding::Utf8);
+    }
+
+    /// Robert's zh-Hans.po (2.121.3): a file that wasn't valid UTF-8 (a
+    /// single-byte `é`, a lone `·`) was opened as Latin-1, and Chinese typed
+    /// into it was saved as `?` for every character. A file is never saved
+    /// with a character lost: Latin-1 that can't hold the text is UTF-8.
+    #[test]
+    fn a_latin1_file_with_chinese_is_saved_as_utf8_never_with_question_marks() {
+        let mut c = CodeEditor::new();
+        c.load("zh-Hans.po", b"msgid \"Playing \xB7 {pos}\"\nmsgstr \"\"\n");
+        assert_eq!(c.encoding, Encoding::Latin1);
+        // (still Latin-1 while it fits)
+        assert_eq!(c.saved_bytes(), b"msgid \"Playing \xB7 {pos}\"\nmsgstr \"\"\n");
+        let text = "msgid \"Playing \u{b7} {pos}\"\nmsgstr \"\u{64ad}\u{653e}\u{4e2d} \u{b7} {pos}\"\n";
+        c.replace_document(text);
+        let bytes = c.saved_bytes();
+        assert_eq!(bytes, text.as_bytes(), "UTF-8, the Chinese and the dot as they are");
+        assert!(!bytes.contains(&b'?'));
+        c.saved("zh-Hans.po");
+        assert_eq!(c.encoding, Encoding::Utf8);
+        assert_eq!(s(c.get("encoding")), "UTF-8");
+        // (and a file opened again is the UTF-8 it was saved as)
+        let (back, enc) = decode(&bytes);
+        assert_eq!((back.as_str(), enc), (text, Encoding::Utf8));
+        // (a BOM file keeps its BOM; Latin-1 text that fits stays Latin-1)
+        assert_eq!(encode("中", Encoding::Utf8Bom), b"\xEF\xBB\xBF\xE4\xB8\xAD");
+        assert_eq!(encode("caf\u{e9}", Encoding::Latin1), b"caf\xE9");
+        assert_eq!(encode("\u{20ac}", Encoding::Latin1), "€".as_bytes());
+        assert_eq!(encoding_for("abc", Encoding::Latin1), Encoding::Latin1);
     }
 }

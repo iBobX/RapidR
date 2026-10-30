@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>MCP server</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="7.6" y1="16" x2="24.4" y2="0.6"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient></defs>
+  <path d="M6 19H26A3 3 0 0 1 29 22V26A3 3 0 0 1 26 29H6A3 3 0 0 1 3 26V22A3 3 0 0 1 6 19Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <circle cx="9" cy="24" r="2" fill="#007F9C"/>
+  <path d="M15 24L23 24" stroke="#007F9C"/>
+  <path d="M16 0.6Q17.449 7.201 24.05 8.65Q17.449 10.099 16 16.7Q14.551 10.099 7.95 8.65Q14.551 7.201 16 0.6Z" fill="url(#g1)"/>
+</svg>

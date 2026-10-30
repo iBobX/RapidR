@@ -551,11 +551,37 @@ name = "RUPDOWN"
 display = "UpDown"
 visual = true
 default_event = "OnChange"
-doc = "Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR's own."
+doc = "Two arrow buttons that step Position up or down between Min and Max, often beside an edit. Set Associate to that edit (or a label) and it shows the number and follows it; OnChange fires when an arrow changes Position. RapidR's own."
+example = """
+SUB DoseChanged
+    Plan.Caption = STR$(DoseSpin.Position) + " tablets a day"
+END SUB
+
+CREATE Form1 AS RForm
+    Caption = "Medicine reminder"
+    Width = 300: Height = 120
+    CREATE Dose AS REdit
+        Left = 12: Top = 12: Width = 56: Text = "2"
+    END CREATE
+    CREATE DoseSpin AS RUpDown
+        Left = 70: Top = 12: Width = 18: Height = 24
+        Min = 0: Max = 8: Position = 2
+        Associate = Dose
+        OnChange = DoseChanged
+    END CREATE
+    CREATE Plan AS RLabel
+        Left = 12: Top = 52: Width = 260
+    END CREATE
+END CREATE
+DoseChanged
+"""
 properties = [
-  { name = "Min", type = "int" },
-  { name = "Max", type = "int" },
-  { name = "Position", type = "int" },
+  { name = "Min", type = "int", range = "any" },
+  { name = "Max", type = "int", range = "any" },
+  { name = "Position", type = "int", range = "Min..Max" },
+  { name = "Associate", type = "component", kinds = ["REDIT", "RLABEL"], origin = "rapidr", category = "Data", doc = "The edit (or label) beside the arrows that shows their number: it takes Position whenever the arrows or the program change it, and the arrows count from the whole number it shows, so a value typed there is stepped from. `Spin.Associate = DoseEdit`. Empty: the arrows only change Position (use OnChange to show it)." },
+  { name = "Increment", type = "int", default = 1, range = "1..", origin = "rapidr", category = "Behavior", doc = "How much one click on an arrow changes Position (at least 1)." },
+  { name = "Wrap", type = "bool", default = false, origin = "rapidr", category = "Behavior", doc = "Whether stepping past Max goes round to Min, and past Min to Max, instead of stopping at the end." },
   { name = "Width", type = "int" },
   { name = "Height", type = "int" },
   { name = "Top", type = "int" },

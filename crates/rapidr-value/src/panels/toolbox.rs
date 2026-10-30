@@ -544,7 +544,7 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
         "item" => {
             let i = args.first().map(Value::to_i64).unwrap_or(-1);
             let items = with_mut(name, |t| t.items().into_iter().map(|k| Toolbox::written(&k)).collect::<Vec<_>>());
-            Some(Value::String(usize::try_from(i).ok().and_then(|i| items.get(i).cloned()).unwrap_or_default()))
+            Some(Value::String(usize::try_from(i).ok().and_then(|i| items.get(i).cloned()).unwrap_or_default().into()))
         }
         "expand" | "collapse" => {
             if let Some(g) = Toolbox::group_named(&s(0)) {
@@ -566,7 +566,7 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
             with_mut(name, |t| t.remove_template(&s(0)));
             Some(Value::Null)
         }
-        "template" => Some(Value::String(with(name, |t| t.templates.iter().find(|x| x.name.eq_ignore_ascii_case(&s(0))).map(|x| x.source.clone())).flatten().unwrap_or_default())),
+        "template" => Some(Value::String(with(name, |t| t.templates.iter().find(|x| x.name.eq_ignore_ascii_case(&s(0))).map(|x| x.source.clone())).flatten().unwrap_or_default().into())),
         _ => None,
     }
 }
@@ -574,9 +574,9 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
 /// Its properties its model answers.
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     match prop {
-        "filter" => Some(Value::String(with(name, |t| t.filter.clone()).unwrap_or_default())),
-        "shownames" => Some(Value::String(with(name, |t| t.names.as_str()).unwrap_or("rapidr").to_string())),
-        "selected" => Some(Value::String(with(name, |t| t.selected.as_ref().map(Toolbox::written)).flatten().unwrap_or_default())),
+        "filter" => Some(Value::String(with(name, |t| t.filter.clone()).unwrap_or_default().into())),
+        "shownames" => Some(Value::String(with(name, |t| t.names.as_str()).unwrap_or("rapidr").to_string().into())),
+        "selected" => Some(Value::String(with(name, |t| t.selected.as_ref().map(Toolbox::written)).flatten().unwrap_or_default().into())),
         "count" => Some(Value::Integer(with_mut(name, |t| t.items().len()) as i64)),
         _ => None,
     }
@@ -615,7 +615,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
                 changed
             });
             if changed {
-                rt.fire(name, "OnSelect", &[Value::String(Toolbox::written(&key))]);
+                rt.fire(name, "OnSelect", &[Value::String(Toolbox::written(&key).into())]);
             }
         }
         User::Pick(key) => {
@@ -623,18 +623,18 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
                 t.selected = Some(key.clone());
                 t.cursor = Some(key.clone());
             });
-            rt.fire(name, "OnPick", &[Value::String(Toolbox::written(&key))]);
+            rt.fire(name, "OnPick", &[Value::String(Toolbox::written(&key).into())]);
         }
         User::DragStart(key) => {
             // (drawn over its neighbours while it lasts: the kernel's z-order)
             rt.restructure();
-            rt.fire(name, "OnDragStart", &[Value::String(Toolbox::written(&key))]);
+            rt.fire(name, "OnDragStart", &[Value::String(Toolbox::written(&key).into())]);
         }
         User::Drop(key, x, y) => {
             with_mut(name, |t| t.drag = None);
             rt.restructure();
             if let Some((target, tx, ty)) = drop_target(rt, name, (x, y)) {
-                rt.fire(name, "OnDragDrop", &[Value::String(Toolbox::written(&key)), Value::String(target), Value::Integer(tx), Value::Integer(ty)]);
+                rt.fire(name, "OnDragDrop", &[Value::String(Toolbox::written(&key).into()), Value::String(target.into()), Value::Integer(tx), Value::Integer(ty)]);
             }
         }
         User::Redraw => {}

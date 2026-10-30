@@ -3090,6 +3090,27 @@ mod tests {
         assert_eq!(dimmed.module.app_type, AppType::Gui);
     }
 
+    /// rapidr_ast::stream_arrays: plain indices make one `__ArrayIO` call; an index that calls a FUNCTION,
+    /// or an array of strings: the element-by-element loop.
+    #[test]
+    fn plain_indices_are_one_call() {
+        let member = |p: &Program| -> Vec<String> {
+            p.statements
+                .iter()
+                .filter_map(|s| match s {
+                    Statement::Call(CallStatement { callee: Expression::MemberAccess(m), .. }) => Some(m.member.clone()),
+                    Statement::For(_) => Some("FOR".into()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let p = rapidr_ast::stream_arrays::lower(&parse(
+            "FUNCTION F(x AS INTEGER) AS INTEGER\n  F = x\nEND FUNCTION\nDIM A(9) AS BYTE, T(3) AS STRING, i AS INTEGER\nDIM S AS QMEMORYSTREAM\n\
+             S.SaveArray(A(0), 10)\nS.LoadArray(A(i * 2 + 1), 3)\nS.SaveArray(A(F(1)), 2)\nS.SaveArray(T(0), 4)\nS.LoadArray(A(k), 2)\n",
+        ));
+        assert_eq!(member(&p), ["__ArrayIO", "__ArrayIO", "FOR", "FOR", "FOR"]);
+    }
+
     fn run(src: &str) -> StubHost {
         let prog = parse(src);
         let compiled = compile_program(&prog).unwrap();

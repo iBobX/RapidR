@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>App hands (clicks and keys played into the program's own windows)</title>
+  <path d="M6 3H22A3 3 0 0 1 25 6V19A3 3 0 0 1 22 22H6A3 3 0 0 1 3 19V6A3 3 0 0 1 6 3Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M3 8L25 8" stroke="#5B6478"/>
+  <circle cx="16" cy="16" r="5" stroke="#2F5BFF"/>
+  <path d="M16 16V30L20 26L22 32L25 31L22 25H27L16 16Z" fill="#5B6478"/>
+</svg>

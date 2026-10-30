@@ -346,6 +346,52 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// Set Next Statement moved the program while it was stopped at a
     /// run-time error: it goes on from there instead of failing.
     error_moved: bool,
+    /// The event handler (its function) a run-time error last ended, the
+    /// outermost one the error went through ([`Self::run_events`]): the
+    /// host is told which ([`HandlerFailure::handler`]).
+    failed_handler: Option<u32>,
+}
+
+/// A handler's run-time error that a wait went on after
+/// ([`Host::handler_failed`]): as the program's errors are worded, and in
+/// parts — for a host that hands it to the program (RapidR's
+/// Application.OnError).
+#[derive(Clone, Debug, PartialEq)]
+pub struct HandlerFailure {
+    /// "run-time error: Division by zero (at calc.rr line 12)".
+    pub text: String,
+    /// The error alone: "Division by zero".
+    pub message: String,
+    /// The file it happened in ("" when the program has one file only and
+    /// the line is the compiled one, or it isn't known).
+    pub file: String,
+    /// The line it happened on (0: not known).
+    pub line: u32,
+    /// The event handler it ended (the outermost one, when one handler
+    /// fired another): its function's index.
+    pub handler: Option<u32>,
+}
+
+impl HandlerFailure {
+    pub fn new(error: &VmError, handler: Option<u32>) -> Self {
+        fn bare(e: &VmError) -> String {
+            match e {
+                VmError::At { error, .. } => bare(error),
+                VmError::Runtime(s) | VmError::HostError(s) => s.clone(),
+                other => other.to_string(),
+            }
+        }
+        let (file, line) = match error {
+            VmError::At { file, line, .. } => (file.clone().unwrap_or_default(), *line),
+            _ => (String::new(), 0),
+        };
+        HandlerFailure { text: error.to_string(), message: bare(error), file, line, handler }
+    }
+
+    /// Application.OnError's arguments: (Message, File, Line).
+    pub fn event_args(&self) -> Vec<Value> {
+        vec![v_str(&self.message), v_str(&self.file), Value::Integer(i64::from(self.line))]
+    }
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -380,6 +426,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             line_span: None,
             quiet: (0, 0),
             error_moved: false,
+            failed_handler: None,
         }
     }
 
@@ -811,10 +858,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Add => {
                     let b = self.pop()?;
                     let a = self.top_mut()?;
-                    *a = match (&*a, &b) {
-                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_add(*y)),
-                        _ => &*a + &b,
-                    };
+                    if let (Value::Integer(x), Value::Integer(y)) = (&*a, &b) {
+                        *a = Value::Integer(x.wrapping_add(*y));
+                        continue;
+                    }
+                    // (two strings: `x = x + y` appended in place)
+                    if matches!((&*a, &b), (Value::String(_), Value::String(_)))
+                        && (a.append_in_place_if_unique(&b, true) || self.append_to_variable(code, &mut ip, &b, true))
+                    {
+                        continue;
+                    }
+                    let a = self.top_mut()?;
+                    *a = &*a + &b;
                 }
                 Op::Sub => {
                     let b = self.pop()?;
@@ -837,7 +892,17 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Mod => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_mod(&b).map_err(|e| VmError::Runtime(e.into()))?); }
                 Op::Pow => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.power(&b)); }
                 Op::Neg => { let a = self.pop()?; self.stack.push(-&a); }
-                Op::Concat => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.concat(&b)); }
+                Op::Concat => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    if matches!((&*a, &b), (Value::String(_), Value::String(_)))
+                        && (a.append_in_place_if_unique(&b, false) || self.append_to_variable(code, &mut ip, &b, false))
+                    {
+                        continue;
+                    }
+                    let a = self.top_mut()?;
+                    *a = a.concat(&b);
+                }
 
                 // ----- comparison -----
                 Op::Eq => self.compare(|o| o.is_eq(), Value::rp_eq)?,
@@ -1257,7 +1322,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     fn handler_failed(&mut self, error: VmError) {
         self.error_line = None;
         self.stop_error = None;
-        self.host.handler_failed(&error.to_string());
+        let failure = HandlerFailure::new(&error, self.failed_handler.take());
+        self.host.handler_failed(&failure);
     }
 
     /// Runs `events` one after the other, each to completion, on top of the
@@ -1272,7 +1338,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 top.ip = ip;
             }
             let depth = self.frames.len();
+            let handler = event.handler;
             if let Err(e) = self.invoke(module, event, true) {
+                // (the handler it ended: the outermost one the error goes
+                // through is the last to say so — HandlerFailure::handler)
+                if is_program_error(&e) {
+                    self.failed_handler = Some(handler);
+                }
                 let rest: Vec<_> = events.collect();
                 if matches!(e, VmError::Yielded) {
                     if !rest.is_empty() {
@@ -1340,7 +1412,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Pops an object reference (a component or TYPE instance id).
     fn pop_object_id(&mut self) -> Result<String, VmError> {
         match self.pop()? {
-            Value::String(id) if !id.is_empty() => Ok(id),
+            Value::String(id) if !id.is_empty() => Ok(id.into_string()),
             _ => Err(VmError::Runtime(
                 "this variable does not refer to an object (component or TYPE instance)".into(),
             )),
@@ -1360,6 +1432,51 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             *i = self.pop()?.to_i64();
         }
         Ok((indices, n))
+    }
+
+    /// `x = x + y` / `x = x & y` for a string variable `x` (a global or a
+    /// local): the Add / Concat being run has popped `right` (y, a string)
+    /// and has `x`'s value on top of the stack, and the next instruction
+    /// stores into `x`. When `x` still holds the very text the left operand
+    /// was read from, `right` is appended to it there, in place, and the
+    /// store is done with it — the same result, but a string built a piece
+    /// at a time costs what each piece adds, not a copy of all of it (a
+    /// 64 KB string built a character at a time was 65,536 copies).
+    /// `false`, and nothing done, for anything else.
+    fn append_to_variable(&mut self, code: &[u8], ip: &mut usize, right: &Value, plus: bool) -> bool {
+        let Some(Value::String(left)) = self.stack.last() else { return false };
+        let at = *ip;
+        let (slot, store_len) = match code.get(at).copied().and_then(Op::from_u8) {
+            Some(Op::StoreGlobal) if at + 5 <= code.len() => {
+                let i = u32::from_le_bytes([code[at + 1], code[at + 2], code[at + 3], code[at + 4]]) as usize;
+                match self.globals.get_mut(i) {
+                    Some(Some(v)) => (v, 5),
+                    _ => return false,
+                }
+            }
+            Some(Op::StoreLocal) if at + 3 <= code.len() => {
+                let s = u16::from_le_bytes([code[at + 1], code[at + 2]]) as usize;
+                match self.frames.last_mut().and_then(|f| f.locals.get_mut(s)) {
+                    Some(v) => (v, 3),
+                    None => return false,
+                }
+            }
+            _ => return false,
+        };
+        let Value::String(held) = &*slot else { return false };
+        // (`+` past the longest string: the general path stops the program
+        // with its message)
+        let Value::String(r) = right else { return false };
+        if !rapidr_value::BasicString::ptr_eq(held, left) || (plus && held.len() + r.len() > rapidr_value::strings::MAX_STRING_LEN * 4) {
+            return false;
+        }
+        // (the left operand dropped first: then the variable is the text's
+        // only holder, unless something else shares it — then it is copied,
+        // as `x + y` would)
+        self.stack.pop();
+        slot.append_in_place(right, plus);
+        *ip = at + store_len;
+        true
     }
 
     /// The value on the stack's top, to replace in place.
@@ -2267,6 +2384,19 @@ mod tests {
         assert!(vm.frames.is_empty() && vm.stack.is_empty());
         assert!(vm.invoke_function(&m, 99, vec![v_int(1)]).is_err());
         assert!(vm.stack.is_empty());
+    }
+
+    /// A handler's run-time error in parts, for Application.OnError: the
+    /// message alone, the file and line it happened at, the handler.
+    #[test]
+    fn a_handler_failure_is_told_in_parts() {
+        let at = VmError::At { error: Box::new(VmError::Runtime("Cannot create file a/b.svg.".into())), file: Some("ai.inc".into()), line: 1931 };
+        let f = HandlerFailure::new(&at, Some(7));
+        assert_eq!(f.text, "run-time error: Cannot create file a/b.svg. (at ai.inc line 1931)");
+        assert_eq!((f.message.as_str(), f.file.as_str(), f.line, f.handler), ("Cannot create file a/b.svg.", "ai.inc", 1931, Some(7)));
+        assert_eq!(f.event_args(), vec![v_str("Cannot create file a/b.svg."), v_str("ai.inc"), v_int(1931)]);
+        let bare = HandlerFailure::new(&VmError::HostError("Division by zero".into()), None);
+        assert_eq!((bare.message.as_str(), bare.file.as_str(), bare.line), ("Division by zero", "", 0));
     }
 
     /// [`QueueHost`] that yields at every question (each

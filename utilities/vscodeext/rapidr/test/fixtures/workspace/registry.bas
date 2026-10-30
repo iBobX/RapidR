@@ -4,5 +4,5 @@ DIM n AS RNUM
 CREATE Form AS QFORM
     Caption = "Registry"
 END CREATE
-Form.ShapeForm "shape.bmp", 0
+t = MICROTIMER()
 w = Screen.Width

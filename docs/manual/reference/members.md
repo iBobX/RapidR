@@ -84,6 +84,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SaveImage(FileName AS STRING) AS INTEGER` *(RapidR)* *(desktop)* | Saves what the form shows now — its controls as drawn, at the screen's scale — as a picture: a PNG file (a BMP when the name ends in .bmp). True when it was saved; False when the form isn't shown or the file can't be written. Only the program's own windows: never the screen or another program's. Desktop only for now. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -1279,13 +1280,16 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 <a id="rupdown"></a>
 ## RUpDown
 
-Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR's own.
+Two arrow buttons that step Position up or down between Min and Max, often beside an edit. Set Associate to that edit (or a label) and it shows the number and follows it; OnChange fires when an arrow changes Position. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Min` | int |  | The lowest value of the progress bar, scroll bar, up-down or track bar. |
 | `Max` | int |  | The highest value of the progress bar, scroll bar, up-down or track bar. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Associate` | component |  | The edit (or label) beside the arrows that shows their number: it takes Position whenever the arrows or the program change it, and the arrows count from the whole number it shows, so a value typed there is stepped from. `Spin.Associate = DoseEdit`. Empty: the arrows only change Position (use OnChange to show it). |
+| `Increment` | int | 1 | How much one click on an arrow changes Position (at least 1). |
+| `Wrap` | bool | False | Whether stepping past Max goes round to Min, and past Min to Max, instead of stopping at the end. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
@@ -3165,15 +3169,17 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `SaveArray(Array, NumElements AS LONG)` | Writes an array's elements to the stream. |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
-| `WriteLine(S AS STRING)` | Writes text followed by a line end. |
+| `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
 | `Download` *(RapidR)* *(web)* | Saves the stream's text to the user's computer as a browser download, named by `FileName`. |
 | `PickFile` *(RapidR)* *(web)* | Opens the browser's file picker and reads the chosen file into the stream; an optional filter such as `.txt` limits the choice. |
 | `LoadFromUrl` *(RapidR)* *(web)* | Fetches a URL's text into the stream; an event fires when it has arrived. |
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
+| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
+| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
@@ -3415,17 +3421,62 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `SaveArray(Array, NumElements AS LONG)` | Writes an array's elements to the stream. |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
-| `WriteLine(S AS STRING)` | Writes text followed by a line end. |
+| `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
+| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
+| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` | Empties the stream: `Size` and `Position` 0. |
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
 | `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory. |
+
+<a id="rarchive"></a>
+## RArchive
+
+Opens zip, 7z, tar, tar.gz, .gz, .xz and .zst files — the format found from their first bytes, not their name — lists what they hold and unpacks it: one file's bytes into a string or a stream, to a file, or everything into a folder. Makes zip, tar, tar.gz and .gz files. An archive is untrusted: MaxSize and MaxRatio stop a zip bomb, ExtractAll never writes outside its folder (a name with `..`, an absolute path or a drive stops it before anything is written; links are never extracted), encrypted entries are refused. RAR files are refused: it's a closed, proprietary format. Every call leaves Error "" when it worked, else says why. The same on the desktop, native builds and the web (where files are the page's). RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Count` (read-only) | int |  | How many entries (files and folders) the open archive holds, or the archive being made; 0 with none. |
+| `Format` (read-only) | string |  | The open archive's format, from its first bytes: "zip", "7z", "tar", "tar.gz", "gzip" (one file), "tar.xz", "xz", "tar.zst", "zstd"; or the one being made; "" with none. |
+| `FileName` (read-only) | string |  | The file Open opened or Create makes; "" for a stream, data or a resource. |
+| `Error` (read-only) | string |  | Why the last call failed, in plain words (not an archive, a zip bomb, a name outside the folder, encrypted, damaged); "" when it worked. |
+| `MaxSize` | int | 1073741824 | The most an archive may unpack to: one entry, all of ExtractAll, a whole .tar.gz at Open; also the most an archive being made may hold. 1 GB by default (256 MB in a browser). More is an error, not a full memory: a zip bomb stops here. |
+| `MaxRatio` | int | 1000 | The most an entry larger than 1 MB may grow when unpacked (unpacked size ÷ packed size): real files rarely pass 100, a zip bomb passes thousands. 0: no ratio check (MaxSize still holds). |
+| `Level` | int | 6 | How hard Create packs: 0 stores (fastest), 9 is the smallest; 6 by default. |
+| `CaseSensitive` | bool | False | Whether Find and an entry named in Extract tell "Game.Z80" from "game.z80" (False by default: either finds it). |
+
+| Method | |
+|---|---|
+| `Open(FileName AS STRING) AS INTEGER` | Opens an archive file (or a `$RESOURCE` built into the program: its handle), whatever its extension says. True when it opened; False when it isn't an archive RapidR reads, is damaged or encrypted (Error says which). A .gz, .xz or .zst holding one file is an archive of one entry. |
+| `OpenStream(Stream AS RMEMORYSTREAM) AS INTEGER` | Opens the archive a stream holds (all of it, wherever its Position is): one downloaded into a memory stream, or a file stream's. |
+| `OpenData(Bytes AS STRING) AS INTEGER` | Opens the archive in a string of bytes (one character a byte: what a download or ReadBinStr gives). |
+| `FormatOf(FileName AS STRING) AS STRING` | What a file is, from its first bytes, without opening it: "zip", "7z", "tar", "gzip", "xz", "zstd", "rar", "bzip2" …, or "" when it's no archive (a .z80 snapshot, a picture, a text). So a program takes a .z80 or an archive holding one alike. |
+| `Close AS INTEGER` | Writes the archive Create or CreateStream began (to its file or stream) and lets go of an open one. True when it worked. |
+| `Find(Name AS STRING) AS INTEGER` | The index (0 the first) of the entry with this name (folders with `/` or `\`; "Roms/Game.z80" finds "roms/game.z80" unless CaseSensitive); -1 when there's none. |
+| `Name(Entry AS VARIANT) AS STRING` | An entry's name, its folders before it with `/` ("roms/game.z80"); "" for an index outside 0 … Count - 1. An entry is its index or its name, here and in the other entry methods. |
+| `Size(Entry AS VARIANT) AS LONG` | An entry's size unpacked, in bytes, as the archive says (Extract checks the real one). |
+| `CompressedSize(Entry AS VARIANT) AS LONG` | An entry's size packed, in bytes (a .tar.gz's entries share one stream: their size). |
+| `IsFolder(Entry AS VARIANT) AS INTEGER` | True when the entry is a folder. |
+| `IsEncrypted(Entry AS VARIANT) AS INTEGER` | True when the entry is protected by a password: RArchive lists it but doesn't unpack it. |
+| `DateTime(Entry AS VARIANT) AS STRING` | When the entry was last changed, local time, as "2026-10-29 14:05:00" (it sorts as text); "" when the archive doesn't say. |
+| `Extract(Entry AS VARIANT) AS STRING` | An entry's bytes as a string, one character a byte (LEN is its size; ASC(MID$(…)) a byte; a stream's WriteBinStr writes it back). "" with Error set when it can't: a folder gives "" and no error. |
+| `ExtractText(Entry AS VARIANT) AS STRING` | An entry as text: UTF-8 (a byte-order mark dropped) when it is, else one character a byte. |
+| `ExtractToStream(Entry AS VARIANT, Stream AS RMEMORYSTREAM) AS INTEGER` | Writes an entry's bytes into a stream at its Position (as WriteBinStr does), Position after them. True when it worked. |
+| `ExtractToFile(Entry AS VARIANT, FileName AS STRING) AS INTEGER` | Writes an entry to the file you name (replacing one already there); the file is written only once the whole entry is unpacked and checked. True when it worked. |
+| `ExtractAll(Folder AS STRING) AS INTEGER` | Unpacks everything into a folder (made if needed; files already there are replaced). Every name is checked and everything unpacked first, so a name that would leave the folder (`..`, an absolute path, a drive, a device), an encrypted entry or a zip bomb writes nothing; links and devices are never extracted, and nothing is written through a link already in the folder. True when it worked. |
+| `Create(FileName AS STRING, [Format AS STRING]) AS INTEGER` | Begins a new archive, written to the file on Close: its format the file's extension (.zip, .tar, .tar.gz or .tgz, .gz) or `Format` ("zip", "tar", "tar.gz", "gzip"). Entries are added with AddFile, AddText, AddData, AddStream and AddFolder; a .gz holds one file. |
+| `CreateStream(Stream AS RMEMORYSTREAM, [Format AS STRING]) AS INTEGER` | Begins a new archive (a zip unless `Format` says) written into a stream on Close, at its Position. |
+| `AddFile(FileName AS STRING, [NameInArchive AS STRING]) AS INTEGER` | Adds a file (or a `$RESOURCE`'s handle) under its own name, no folders, or `NameInArchive` ("roms/game.z80": folders with `/`). An entry already of that name is replaced. |
+| `AddText(NameInArchive AS STRING, Text AS STRING) AS INTEGER` | Adds text as a file, in UTF-8 (every language's letters kept). |
+| `AddData(NameInArchive AS STRING, Bytes AS STRING) AS INTEGER` | Adds a string of bytes as a file, one character a byte (what Extract gives back). |
+| `AddStream(NameInArchive AS STRING, Stream AS RMEMORYSTREAM) AS INTEGER` | Adds all of a stream's bytes as a file (wherever its Position is). |
+| `AddFolder(Folder AS STRING, [NameInArchive AS STRING]) AS INTEGER` | Adds a folder on disk and everything in it, under its own name or `NameInArchive` ("" or ".": its contents at the top). Links aren't followed. Not in a browser (no folders there): add each file. |
 
 <a id="rbitmap"></a>
 ## RBitmap
@@ -3679,7 +3730,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `ReadLine(Socket AS INTEGER) AS VARIANT` | Reads one line of text, without its line end. |
 | `Write(Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteByte(Socket AS INTEGER, B AS BYTE)` | Writes one byte to the socket or stream. |
-| `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. |
+| `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `Disconnect` *(RapidR)* | Closes the connection. Same as `Close`. |
 | `Send` *(RapidR)* *(web)* | Sends text over the WebSocket. Same as `Write`. |
 | `Receive` *(RapidR)* *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |
@@ -3760,6 +3811,64 @@ A local web server for the program: a web API, a dashboard, an MCP server. It li
 | Event | |
 |---|---|
 | `OnRequest(Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING)` | A request arrived: its method, its path (without the query: Query has it), its headers (`Name: value` lines, CR LF between) and its body, as text. One at a time: the next waits until this handler is over. Answer with Respond (or BeginStream), now or later with the Request number; a request no handler answers stays open until its client gives up. |
+
+<a id="rmcpserver"></a>
+## RMcpServer
+
+Serves the program's own tools to AI apps that support MCP, the protocol AI apps use for tools: an AI app on this computer that has the address and the token can call them, and the program sees each call in OnToolCall, on its own thread, one at a time, and answers it then or later with Reply (text), ReplyImage (a picture) or ReplyJson. Add each tool with AddTool: its name, what it does in a sentence the AI reads, the JSON Schema of its arguments and how it acts ("read", "change" …). The component speaks the protocol itself — the current revision (2026-07-28, no session) and the earlier initialize-based ones — and checks each call's arguments against the tool's schema before the program sees them: a wrong call is answered at once with a sentence saying what the tool needs. It listens on 127.0.0.1 (this computer only) and refuses to start without a Token (NewToken makes one): every request must carry it as `Authorization: Bearer <token>`. It also refuses a request for another host name and any request from a web page. Clients shows who is connected; Disconnect keeps an AI app out until the next Start. What the program exposes, and the privacy of its users' data, are the program's author's responsibility: offer only what an AI app may see, and describe the program as working with MCP clients rather than putting MCP in its name. RapidR's own; desktop only (a web page can't listen for connections).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Host` | string | `"127.0.0.1"` | The address it listens on: 127.0.0.1, this computer only (the default and the safe choice). Another address opens the program's tools to the network: don't, unless you know every computer that can reach it. Set it before Start. |
+| `Port` | int | 0 | The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start. AI apps keep the address, so a program that is started again should keep its port. Set it before Start. |
+| `Path` | string | `"/mcp"` | The address's path AI apps send their messages to. Set it before Start. |
+| `Token` | string | `""` | What every request must carry as `Authorization: Bearer <token>` (else 401). Start refuses to run without one. Make it with NewToken, keep it with RSecrets, and show it only to the person who sets up the AI app. Set it before Start. |
+| `ServerName` | string | `""` | The program's name as AI apps see it (a short id: my-notes); "" says rapidr-app. Set it before Start. |
+| `ServerTitle` | string | `""` | The program's name as AI apps show it to their user (My Notes). Set it before Start. |
+| `ServerVersion` | string | `"1.0"` | The program's version, as AI apps see it. Set it before Start. |
+| `Instructions` | string | `""` | A few sentences for the AI: what the tools are for and how to use them well. Set it before Start. |
+| `AllowedOrigins` | string | `""` | Web pages that may call the server, by origin, separated by commas: leave it empty — AI apps aren't web pages, and a page's request is refused. Set it before Start. |
+| `AllowedHosts` | string | `""` | More host names the server answers to, separated by commas; 127.0.0.1, localhost and [::1] with the Port are always allowed. Set it before Start. |
+| `MaxRequestSize` | int | 4194304 | The largest message an AI app may send; a larger one is refused with 413. Set it before Start. |
+| `MaxConnections` | int | 32 | How many connections may be open at once. Set it before Start. |
+| `Timeout` | int | 30000 | How long a message may take to arrive whole, and how long an idle connection stays open. Set it before Start. |
+| `IdleSeconds` | int | 900 | An AI app silent this long (15 minutes by default) counts as gone: OnDisconnect. Set it before Start. |
+| `Listening` (read-only) | bool |  | True while it listens. |
+| `Url` (read-only) | string |  | Its address once started, what AI apps connect to: `http://127.0.0.1:47120/mcp`. |
+| `Error` (read-only) | string |  | Why the last Start, AddTool or ReplyJson failed; "" when it worked. |
+| `Call` (read-only) | int |  | The number of the call OnToolCall is handling: keep it to answer later (Reply's first argument). |
+| `Tool` (read-only) | string |  | The tool of the call OnToolCall is handling. |
+| `ClientName` (read-only) | string |  | The AI app making the call OnToolCall is handling, as it names itself (its title, else its name). |
+| `Arguments` (read-only) | string |  | The call's arguments, as JSON (OnToolCall's Arguments). |
+| `Clients` (read-only) | string |  | The AI apps connected, one a line: name, version, seconds since its last message and how many tools it called, a TAB between. |
+| `ClientCount` (read-only) | int |  | How many AI apps are connected. |
+| `PendingCount` (read-only) | int |  | How many calls wait for an answer. |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Starts listening on Host:Port: True when it does, False when it can't — no Token, the port taken — and Error says why. |
+| `Stop` | Stops listening: the calls still waiting are told the server stopped, the connections close. |
+| `NewToken AS STRING` | Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it. A new token keeps out every AI app that had the old one (after the next Start). |
+| `AddTool(Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]) AS INTEGER` | Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments — as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`, the optional ones in [ ]; STRING, INTEGER, DOUBLE, BOOLEAN, LIST, OBJECT) or as a JSON Schema ({"type": "object", "properties": {…}}); "" for none — and how it acts: "read" (it only reads), "change", "delete", "network", or the annotations as JSON. Added again: replaced. False when the name or the schema is wrong (Error says why). |
+| `RemoveTool(Name AS STRING) AS INTEGER` | Takes a tool away: True when there was one by that name. |
+| `ClearTools` | Takes every tool away. |
+| `ToolCount AS INTEGER` | How many tools it offers. |
+| `AddResource(Uri AS STRING, Name AS STRING, [Description AS STRING], [MimeType AS STRING]) AS INTEGER` | Offers something AI apps can read (app://notes/today): OnReadResource asks the program for it, and Reply gives its text. |
+| `ClearResources` | Takes every resource away. |
+| `Reply(CallId AS INTEGER, Text AS STRING, [IsError AS INTEGER]) AS INTEGER` | Answers a call with text — what the AI reads — marked as a failure when IsError is True (say what went wrong and what to do instead: the AI acts on it). False when that call was answered already or its AI app left. |
+| `ReplyImage(CallId AS INTEGER, File AS STRING, [Text AS STRING]) AS INTEGER` | Answers a call with a picture — a PNG, JPEG, GIF or WebP file (a BMP goes as PNG) — and, when given, a text before it. |
+| `ReplyJson(CallId AS INTEGER, Result AS STRING) AS INTEGER` | Answers a call with a whole result object as JSON, for what Reply can't say ({"content": […], "structuredContent": {…}}). |
+| `Progress(CallId AS INTEGER, Message AS STRING, [Done AS DOUBLE], [Total AS DOUBLE]) AS INTEGER` | Says how a call that waits is going ("Asking the user…", 3 of 10), to an AI app that listens for it. False when it doesn't. |
+| `Argument(Name AS STRING, [CallId AS INTEGER]) AS STRING` | One of the call's arguments as text: a string as it is, a number or true / false as written, a list or an object as JSON; "" when it wasn't given. `options.size` reaches inside an object. |
+| `IsOpen(CallId AS INTEGER) AS INTEGER` | True while the call waits for an answer. |
+| `Disconnect([Client AS STRING]) AS INTEGER` | Keeps an AI app out — the one named, every one when none is — until the next Start: its calls waiting are told, its requests refused. Only a new token keeps out an AI app that names itself again: NewToken, then Start. |
+
+| Event | |
+|---|---|
+| `OnToolCall(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)` | An AI app calls a tool: its name, its arguments as JSON (Argument reads one) and the call's number. One at a time: the next waits until this handler is over. Answer with Reply now, or later with the number (after asking the user, say) — Progress meanwhile. |
+| `OnReadResource(Uri AS STRING, CallId AS INTEGER)` | An AI app reads a resource AddResource offers: answer with Reply (its text). |
+| `OnConnect(Client AS STRING)` | An AI app is heard from the first time. |
+| `OnDisconnect(Client AS STRING)` | An AI app ended its session, was disconnected, or has been silent for IdleSeconds. |
 
 <a id="rhttp"></a>
 ## RHttp
@@ -3919,7 +4028,7 @@ Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownloa
 <a id="rmidi"></a>
 ## RMIDI
 
-Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none.
+Plays a standard MIDI file (QMidi.inc) on a system MIDI output that makes sound (Windows' GS Wavetable Synth, FluidSynth, TiMidity, an output named in the RAPIDR_MIDI_OUT environment variable), or on RapidR's own synthesizer where there is none: a Mac's MIDI outputs and Linux's Midi Through only pass messages on to other programs, so a song is never sent to one by itself. RAPIDR_MIDI_OUT=builtin always uses RapidR's synthesizer.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4089,7 +4198,7 @@ Plays sound the program makes sample by sample, as it comes: an emulator's beepe
 
 | Method | |
 |---|---|
-| `Start` | Starts playing: what is queued first, then what the program writes. In a browser, call it from a click or key handler (the browser's rule). |
+| `Start` | Starts playing: what is queued first, then what the program writes (the sound device gets 40 ms of silence before them, so a headset that takes a burst as it begins never cuts the start). In a browser, call it from a click or key handler (the browser's rule). |
 | `Stop` | Stops the sound with a 2 ms fade (no click) and drops what was waiting; Start begins again with what is written next. |
 | `Clear` | Drops what is waiting and keeps playing (an emulator's reset): silence until the next Write. |
 | `Write(Samples AS VARIANT, [Count AS INTEGER], [Offset AS INTEGER]) AS INTEGER` | Queues samples as Bits says, from an INTEGER (or BYTE, LONG …) array, a binary string (16-bit: two bytes a sample, low byte first), an RMemoryStream (from its Position, which moves past what was taken) or one number. Count: how many samples (default: all); Offset: how many to skip first. Stereo is interleaved. Returns how many it took: fewer when the queue (2 seconds) is full. |
@@ -5339,6 +5448,9 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
 | `TopLine` (read-only) | int |  | The first line the page shows now, from 0 (on the Problems page, its first row in view: a heading counts as a row). The Problems page shows its top when it is filled — errors come first — and keeps the place the reader scrolled to when it is filled again. |
 | `Text` (read-only) | string |  | The shown page's text, without colours. |
+| `SelText` (read-only) | string |  | What the user selected on the shown page, as plain text (no colours): the characters dragged over or double-clicked, else the whole lines clicked (Shift extends), a line to a line — a wrapped line is one line; on the Problems page each selected row as `file:line:col: severity: message`. Empty when nothing is selected. |
+| `HasSelection` (read-only) | bool |  | True when something is selected on the shown page (SelText isn't empty): a context menu's Copy is enabled by it. |
+| `ClickedLine` (read-only) | int |  | The line (from 0, on the shown page) the mouse last pressed on — either button, so a context menu knows the line it was opened on; -1 when the press wasn't on a line or the page changed since. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
@@ -5359,6 +5471,10 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 
 | Method | |
 |---|---|
+| `SelectAll` | Selects every line of the shown page (every problem on the Problems page), as Ctrl+A (⌘A on a Mac) does. |
+| `CopySelection AS INTEGER` | Puts SelText on the clipboard, as Ctrl+C (⌘C) does: True when something was selected (else the clipboard is left as it was). |
+| `CopyAll AS INTEGER` | Puts the shown page's whole text on the clipboard (Text: no colours; on the Problems page a row to a line): True unless the page is empty. |
+| `CopyLine([Index AS INTEGER]) AS INTEGER` | Puts line Index (from 0) of the shown page on the clipboard — without Index, the line the mouse last pressed on (ClickedLine: a context menu's Copy Line), else the selected one: True when there was such a line. |
 | `Write(Text AS STRING)` | Adds output to the Output page, ANSI sequences understood (colours, CLS, LOCATE). |
 | `WriteLine(Text AS STRING)` | Write, then a new line. |
 | `Clear([Page AS STRING])` | Empties a page (the shown one when Page is left out). |
@@ -5566,6 +5682,59 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `OnError(Message AS STRING)` | A request failed: Message says why and what to do. |
 | `OnKeyNeeded` | There is no key yet (APIKeySource found none, or says "ask"): ask the user for one and set APIKey, then ask again. |
 
+<a id="rwindowcapture"></a>
+## RWindowCapture
+
+The program's own eyes: a picture of its windows as they show now — one window, or all of them side by side — saved as a PNG (a BMP when the name ends in .bmp), with each window's title bar drawn or without, at the screen's scale (sharp on a high-DPI screen) or at 1× (one picture pixel per program pixel); and a layout report of its forms as they are laid out now — each component's name, type, caption, text, place and size, whether it shows, is enabled and has the keyboard — with what a person would see wrong: a caption cut off, two controls on top of each other, a control past its window's edge. Only the program's own windows, ever: never the screen, the desktop or another program, so it needs no Screen Recording permission. Use it for a "save as picture" command, a bug report with a picture, help pages made from the program itself, or a self-check (Problems) after a layout change. RapidR Studio's AI tools look at a running program the same way (app_screenshot, app_layout). Recording a video of the windows comes later. Pictures and clicks of a program show and do what its users' data and buttons are: tell users what is captured, and never record or automate without their knowledge. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Scale` | float | 0 | How big the pictures are: 0 (the default) at the screen's scale — sharp on a high-DPI screen, twice the program's pixels on a Retina one —, 1 one picture pixel per program pixel, 2 twice … |
+| `Frame` | bool | True | Each window drawn with its frame and title bar (as RapidR draws a window's on the web and in the form designer): its title shows which window it is. False: its inside only (what Form.SaveImage saves). |
+| `Width` (read-only) | int |  | The last picture's width in pixels. |
+| `Height` (read-only) | int |  | The last picture's height in pixels. |
+| `Windows` (read-only) | string |  | The program's windows that show now, back to front, one a line: the form's name and its title, a TAB between. |
+| `Error` (read-only) | string |  | Why the last call failed ("" when it worked): no such window (the message lists the program's windows), nothing shown, a file that can't be written. |
+
+| Method | |
+|---|---|
+| `SaveToFile(FileName AS STRING, [Window AS STRING]) AS INTEGER` | Saves a picture of Window — a form's name or its title — or, when none is given (or "all"), of every window that shows, side by side from the back one to the front one: a PNG file, a BMP when FileName ends in .bmp. True when it was saved; False when not (Error says why). The program's own windows only. |
+| `LayoutReport([Window AS STRING]) AS STRING` | The forms that show (or Window only) in words, a line a component: `b7 (RButton) "7" at 8,60 size 56×36`, places in the window's inside; then the problems a person would see, or that there are none. |
+| `LayoutJson([Window AS STRING]) AS STRING` | The same report as JSON: {"windows": [{name, type, title, x, y, width, height, front, modal, components: [{name, type, caption, text, x, y, width, height, visible, enabled, focused, parent}], problems: […]}]} — for a program that reads it (RJson). |
+| `Problems([Window AS STRING]) AS STRING` | Only what looks wrong, one problem a line ("" when nothing does): a caption cut off, controls on top of each other, a control past its window's edge or outside it — each with its numbers and what to do. |
+
+<a id="rapphands"></a>
+## RAppHands
+
+The program's own hands: clicks, typing, keys, drags and the wheel played into its own windows as a person's would be — through the same routing, so its handlers run as for the user — with a visible pointer that glides to what it clicks (a ring shows each click; with the system's reduced motion it jumps). Components are named as a person finds them: their name, what they show ("OK", "7": a button's caption), or the label beside an edit ("label:Name"); force one with `name:`, `caption:` or `label:`. Each call queues the action and returns its number at once; OnDone(Id, Ok, Text) says how it went in a sentence — or what is there instead ("No button shows \"Go\". Buttons now: Start, Reset."). Only the program's own windows: the system's mouse and keyboard are never touched, nothing outside the program can be, and no Accessibility permission is needed. Use it for guided tours and demos, a "show me" button in help, self-tests, or macros. A program that drives itself acts as its user: everything its buttons do can happen. Pictures and clicks of a program show and do what its users' data and buttons are: tell users what is captured, and never record or automate without their knowledge. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `ShowCursor` | bool | True | The pointer that shows what it does is drawn over the window (an arrow with a dot in the theme's accent; a ring at each click). False: the actions happen at once, unseen. |
+| `Speed` | float | 1 | How fast the pointer glides and the text is typed: 1 a person's pace, 2 twice as fast, 0 at once. |
+| `Busy` (read-only) | bool |  | True while actions wait or run. |
+| `Pending` (read-only) | int |  | How many actions wait or run. |
+| `LastResult` (read-only) | string |  | The last action's sentence (what OnDone said last). |
+| `Error` (read-only) | string |  | Why the last action failed ("" when it worked): what it looked for and what is there instead. |
+
+| Method | |
+|---|---|
+| `Click(Target AS STRING) AS INTEGER` | Clicks Target — a component's name, what it shows (a button's caption), or the label beside it — as the user would: the pointer glides there, presses, lets go. Returns the action's number (OnDone tells how it went). |
+| `DoubleClick(Target AS STRING) AS INTEGER` | Double-clicks Target (a list's item, a file's name). |
+| `RightClick(Target AS STRING) AS INTEGER` | Right-clicks Target: its pop-up menu opens, as the user's would. |
+| `ClickAt(Window AS STRING, X AS INTEGER, Y AS INTEGER) AS INTEGER` | Clicks at (X, Y) of Window's inside (a form's name or title; "" the front window), in the program's pixels: what a canvas or a picture shows. |
+| `Hover(Target AS STRING) AS INTEGER` | Moves the pointer onto Target and stays a moment (its hint, its hover look). |
+| `TypeText(Target AS STRING, Text AS STRING) AS INTEGER` | Clicks Target ("": what has the keyboard) and types Text into it, a key at a time (a line break is Enter); characters no key types (é, 中) arrive as the system's input method gives them. |
+| `PressKeys(Keys AS STRING, [Target AS STRING]) AS INTEGER` | Presses keys — "Enter", "Ctrl+S", "Shift+Tab", "Alt+F4", "Escape", "F5", several separated by spaces ("Tab Tab Enter") — in Target (it gets the keyboard) or in what has the keyboard. Ctrl is the shortcut key on every system (Command's shortcuts on a Mac). |
+| `Drag(Target AS STRING, ToX AS INTEGER, ToY AS INTEGER) AS INTEGER` | Presses on Target, moves to (ToX, ToY) of the same window's inside, lets go there (a track bar's thumb, a splitter, something StartDrag moves). |
+| `Scroll(Target AS STRING, [Notches AS INTEGER]) AS INTEGER` | Turns the mouse wheel over Target: Notches down (3 when none is given), up when negative. |
+| `Wait(Milliseconds AS INTEGER) AS INTEGER` | Lets the program run on its own that long before the next action (its timers, its work). |
+| `Cancel AS INTEGER` | Drops the actions still waiting (the one running finishes): how many were dropped. |
+
+| Event | |
+|---|---|
+| `OnDone(Id AS INTEGER, Ok AS INTEGER, Text AS STRING)` | Action Id is over: Ok True when it was done, Text says what was done in a sentence — or, when Ok is False, what it looked for and what is there instead, or why it couldn't (a disabled button, a window waiting for an answer in front). |
+
 <a id="rproject"></a>
 ## RProject
 
@@ -5622,6 +5791,20 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
+| `StudioFolder AS STRING` | Studio's own folder (never a project's): where the copies of unsaved work and the log of what went wrong in Studio are kept — RapidR's folder of the user's settings (~/Library/Application Support/RapidR on macOS, %APPDATA%\RapidR on Windows, ~/.config/rapidr on Linux; RAPIDR_STUDIO_DATA when set); on the web, the page's store. |
+| `RecoveryKeep(Key AS STRING, Path AS STRING, Caption AS STRING, Text AS STRING) AS INTEGER` | Keeps a copy of a document's unsaved text (Key: what tells the document apart, Path its file — "" for one never saved —, Caption as its tab says it) in Studio's folder, for RecoveryFound after a Studio that ended without closing. True when it was kept; Error says why not. |
+| `RecoveryForget(Key AS STRING)` | Lets go of a document's copy (it was saved, or closed and its changes let go). |
+| `RecoveryEnd` | Studio closed as it should: this Studio's copies go. |
+| `RecoveryFound AS STRING` | The copies a Studio that ended without closing kept (a crash, a kill, the computer switched off) — not this Studio's, not one still running —, a line each: Run, Key, Path and Caption, separated by tabs. "" when there are none. |
+| `RecoveryText(Run AS STRING, Key AS STRING) AS STRING` | A copy's text (Run and Key as RecoveryFound gives them). |
+| `RecoveryDiscard([Run AS STRING])` | Lets go of the copies of Run (none given: every copy RecoveryFound gives). |
+| `LogError(Line AS STRING) AS INTEGER` | Adds Line to the log of what went wrong in Studio (LogFile; the last 256 KB are kept). True when it was written. |
+| `LogFile AS STRING` | The log of what went wrong in Studio's own code: studio-errors.log in StudioFolder. |
+| `MainIncludedBy AS STRING` | The project's file whose code `$INCLUDE`s its main file ("" when none does): the program likely starts there, not in MainFile — a project whose main file became one of its modules. |
+| `ApplyBegin` | An Apply of changes starts (RAI's: all or nothing): nothing written yet for ApplyUndo to take away. |
+| `CanWriteNewFile(Path AS STRING) AS INTEGER` | Whether a new file can be written at Path: nothing is there yet, and its folder is one or can be made (the nearest folder above it that is there is a folder, not a file, and can be written). Error says why not. Nothing is written. |
+| `WriteNewFile(Path AS STRING, Text AS STRING) AS INTEGER` | Writes a new file, the folders it needs made first — never over a file that is there. True when it was written; Error says why not (no run-time error). What it made is noted for ApplyUndo. |
+| `ApplyUndo AS STRING` | Takes away the files and folders WriteNewFile made since ApplyBegin (folders that were there stay): an Apply that couldn't finish leaves the project as it was. The paths taken away, a line each. |
 | `ProjectsFolder(Home AS STRING) AS STRING` | Where New Project puts projects by default: Home's projects folder while Studio runs from a folder of the user's, Documents/RapidR/Projects when Studio is installed (Home has its release.toml) or Home can't be written — never inside RapidR itself. |
 | `ExampleToOpen(Path AS STRING, Examples AS STRING) AS STRING` | The file to open for Path: when it is one of RapidR's examples (in folder Examples) where RapidR is installed (the macOS app, /usr/lib/rapidr, Program Files: a home with its release.toml) or where it can't be changed, the user's copy of it in Documents/RapidR/Examples/<its name>/ — made now with its include and data files (the files `rapidr examples copy` takes), or the copy already there, never overwritten (ExampleCopy says which); else Path itself. "" when the copy can't be made (Error says why). On the web, Path itself: the page's store keeps what the user saves. |
 | `ExampleOf(Path AS STRING, Examples AS STRING) AS STRING` | The example (in folder Examples) that Path is the user's copy of (Documents/RapidR/Examples/<name>/<file>); "" for any other file. |
@@ -5723,6 +5906,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `StepInTargets` | Step Into Specific's choices: the SUBs and FUNCTIONs the paused line still calls, in the order it calls them — OnStepInTargets(Targets). |
 | `StepInTarget(Id AS INTEGER) AS INTEGER` | Step Into Specific: into the call of that SUB or FUNCTION (an id from OnStepInTargets) the paused line makes; a line that doesn't make it is stepped over. |
 | `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
+| `App(Request AS STRING) AS INTEGER` | The eyes and hands on the running program, as JSON: a look — {"do":"screenshot"} ("window", "scale": "screen" or "1x", "frame"), {"do":"layout"} — or input played into its own windows as a person's — {"do":"click","caption":"7"} (or "name", "label", "window" with "x" and "y"; "double", "button"), "type" ("text"), "key" ("keys": "Ctrl+S"), "drag" ("to_x", "to_y"), "scroll" ("dy"), "wait" ("ms", "idle") — with the virtual cursor showing it. Returns the request's Id at once; OnApp(Id, Ok, Text, Picture) answers it — a look at once, paused or not; input once the handlers it started have run, refused while the program is paused. The program's own windows only: never the system's mouse, keyboard or screen. |
 | `RunInBrowser AS INTEGER` | Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is. |
 | `StopBrowser` | Ends what RunInBrowser serves. |
 | `ReadShellPath` | Starts reading your login shell's PATH in the background (RapidR Studio does at start-up): ShellPath waits for it. Nothing on Windows and the web. |
@@ -5733,6 +5917,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `OnOutput(Text AS STRING)` | The program printed Text (PRINT, errors, logpoints). |
 | `OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)` | The program paused: at a breakpoint, a step's end, a pause, a run-time error. The call stack, the locals, the globals and the watches are in. |
 | `OnContinue` | A paused program goes on. |
+| `OnApp(Id AS INTEGER, Ok AS INTEGER, Text AS STRING, Picture AS STRING)` | App(Id)'s answer: Ok True when it was done, Text what was seen or done in a sentence (the layout report in words for a layout) — or what is there instead, or why not (paused, a window waiting for an answer in front, the program busy or ended). Picture: a screenshot's PNG, a file in the temporary folder that only you can read (remove it once used), a data: URL on the web; "" when there is none. |
 | `OnExit(Code AS INTEGER)` | The program ended, with its exit code. |
 | `OnFormShown(Id AS STRING)` | The program showed a form. |
 | `OnVariables(Ref AS INTEGER)` | Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated). |
@@ -5760,6 +5945,11 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
 | `ChatsFolder` (read-only) | string |  | Where the project's chats are kept, in words: Studio's data folder (never the project's), chats/ beside its settings — ~/Library/Application Support/RapidR/chats on macOS, %APPDATA%\RapidR\chats on Windows, ~/.config/rapidr/chats on Linux; this browser's storage for the page on the web. |
 | `Lite` (read-only) | bool |  | True while the model's window is small (under 16,384 tokens): the lite instructions and tools are sent. |
+| `ProgramUseAsked` (read-only) | bool |  | True while RAI waits for the user's answer to its card in the chat — it wants to look at or use the running program (once a run: "Allow for this run" or "Don't allow"); AllowProgramUse answers it. |
+| `CallFailed` (read-only) | bool |  | True when the last CallTool failed (its text says why: the AI app reads it and can try again). |
+| `CallNote` (read-only) | string |  | What the last CallTool did, in one line ("Read main.rr (40 lines)", "Proposed a change to main.rr"): for an activity log. |
+| `CallTarget` (read-only) | string |  | The project's file (relative) or the name the last CallTool touched; "" for none. |
+| `CallRisk` (read-only) | string |  | What the last CallTool's kind of action is: "read", "proposal" … |
 | `RunOutput` | string |  | The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it ("": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model. |
 
 | Method | |
@@ -5774,6 +5964,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `Decide(Index AS INTEGER, Decision AS STRING)` | Records the user's decision on proposal Index in the RAI's conversation and audit log, once: "applied", "partly", "rejected", "stale" (not applied: the file changed after the assistant read it) or "failed" (not applied: its editor refused the change). A proposal decided already is left as it was: nothing is said twice. |
 | `ClearDecided` | Forgets the proposals the user decided on (after a review is applied): what is left waits for a decision. |
 | `ClearProposals` | Forgets the proposals. |
+| `AllowProgramUse(Allowed AS INTEGER)` | The user's answer to RAI's card (ProgramUseAsked): True — RAI may look at, click and type in the running program until this run ends, and the calls that waited go on; False — not in this answer (RAI is told, and asks again in a later one). Without a question waiting it does nothing. |
 | `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder named from its title ("Scientific Calculator" → ScientificCalculator; never over one that is there: then ScientificCalculator2, 3 …), with a project file naming it by its title: that file's path, to open; "error: " and why when it couldn't. What it wrote is kept for Undo. |
 | `ChatList(Project AS STRING) AS STRING` | The kept chats of the project in folder Project ("": no project), the newest first, a line each, tab-separated: its id, its title, when it was last changed (ISO 8601, UTC) and how many questions it has. |
 | `SearchChats(Project AS STRING, Text AS STRING) AS STRING` | The project's chats whose title or text has Text in it (any case), as ChatList gives them, with a fifth field: the first line that has it ("" when the title does). |
@@ -5783,6 +5974,17 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `RestoreChat(Project AS STRING, Kept AS STRING) AS STRING` | Puts back a chat DeleteChat removed (Undo): its id. |
 | `RenameChat(Project AS STRING, Id AS STRING, Title AS STRING) AS INTEGER` | Gives a kept chat the title the user typed (kept from then on). True when it was renamed. |
 | `ChatTitle(Question AS STRING) AS STRING` | A chat's title made from its first question: its first line, at most 48 characters. |
+| `ToolNames AS STRING` | The tools an AI app may call through a program's MCP server (RMcpServer) — the ones an attached RAI gets, a name a line: with Permission "read-only" the reading ones only. |
+| `ToolDescription(Name AS STRING) AS STRING` | A tool's description, as the model reads it (RMcpServer.AddTool's Description). |
+| `ToolSchema(Name AS STRING) AS STRING` | The JSON Schema of a tool's arguments (RMcpServer.AddTool's Schema). |
+| `LayoutReport AS STRING` | The project's forms as its source makes them, in words: each form's client area, each component's place and size (or that Align places it), then what looks wrong — a control cut off by its form, two on top of each other, a caption longer than its button. |
+| `ToolKind(Name AS STRING) AS STRING` | How a tool acts: "read", or "change" for the ones that propose changes (RMcpServer.AddTool's Kind). |
+| `ToolActivity(Name AS STRING, Arguments AS STRING) AS STRING` | A call in words, for an activity log: "Reading main.rr", "Checking (compiling)", "Writing a change" (Arguments: the call's, as JSON). |
+| `CallTool(Name AS STRING, Arguments AS STRING) AS STRING` | Runs a tool for an AI app — an outside one, through a program's RMcpServer — on the project and the changes waiting for the user (no conversation around it): its text, for the AI app. What the proposing tools propose waits for the user like the assistant's (ProposalCount …): nothing is written. A path is never a hidden file or folder, and in a project whose folder is a home folder or a disk's root only the project's listed files are reached. CallFailed, CallNote, CallTarget and CallRisk say how it went. |
+| `AuditCall(Client AS STRING, Tool AS STRING, Target AS STRING, Decision AS STRING)` | Writes an AI app's call to the audit log the assistant uses (beside Studio's settings, never in the project): when, which AI app, which tool, the project's file it touched (never its text) and how it went. |
+| `AuditCalls([Count AS INTEGER]) AS STRING` | The audit log's last Count AI-app calls (50 by default), oldest first, a line each, tab-separated: the time, the AI app, the tool, its target and how it went. |
+| `ClearAudit AS INTEGER` | Removes the AI apps' calls from the audit log (the assistant's own lines stay): True when it was written. |
+| `AuditLocation AS STRING` | Where the audit log is, in words (~/Library/Application Support/RapidR/ai-audit.jsonl on macOS). |
 | `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
 | `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
 | `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |
@@ -5846,7 +6048,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
-| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a colour value (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
+| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a colour value (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …; the status colours "status.info", "status.success", "status.warning", "status.danger" — a soft fill — each with its ".text" and ".border"); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
 | `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). The classic SendKeys notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
 | `Announce(Text AS STRING, [Assertive AS INTEGER])` *(RapidR)* | Has the system's screen reader say Text without moving the focus: politely, when they have finished what they are saying — or at once, interrupting, when Assertive is True (keep that for what can't wait: an error, a lost connection). For news the person didn't ask for: a search's result, a new card in a feed, a finished download. The same text said again is said again. On the desktop through the focused window's live regions (AccessKit), on the web through the page's aria-live region; with no screen reader on, nothing happens. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
@@ -5854,6 +6056,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 
 | Event | |
 |---|---|
+| `OnError(Message AS STRING, File AS STRING, Line AS INTEGER)` *(RapidR)* | A run-time error ended one of the program's event handlers (a click's, a timer's …) and the program goes on, as it does after such an error: the error's message ("Division by zero", "Cannot create file icons/a.svg."), the file and the line it happened on ("" and 0 when not known). For a program that keeps its user's work safe: say what happened, write it to a log, save what's unsaved. Fires after the error, at the next turn of the event loop, once per error — not for an error in this handler itself. Without a handler the error is only written to the program's error output. An error in the main program's own code (not a handler) still ends the program. `SUB Failed(Message AS STRING, File AS STRING, Line AS INTEGER)` … `Application.OnError = Failed`. A native build says no file or line ("" and 0). |
 | `OnLanguageChange` *(RapidR)* | The program's language changed (it set Language to another one): fires once per change, at the next turn of the event loop, from the moment the handler is bound. Text the program made with TR$ or TRN$ is a value, not a link: make it again here (`Label1.Caption = TR$("Save file")`). Language says the language now. |
 | `OnThemeChange` *(RapidR)* | The look the program is drawn in changed: the program set Theme to another look, or the system switched between light, dark and high contrast while the program follows it (RapidR's look, `$THEME rapidr`, the default). Fires once per change, after it, from the moment the handler is bound. Colours the program read with ThemeColor are values, not links: read them again here and assign them (`Label1.Font.Color = Application.ThemeColor("page.text")`); Windows' system colours (clBtnFace, clWindowText …) and components' own colours follow the look by themselves. Theme says the look now. |
 

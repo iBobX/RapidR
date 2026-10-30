@@ -242,6 +242,8 @@ DIM BreakOnErrors AS INTEGER
 ' (the budgets' measures, ms: F5 to the program's first form, a step to its
 ' line shown with its values; -1 not measured)
 DIM PerfForm AS INTEGER
+' (the program printed something this run)
+DIM RunOutputSeen AS INTEGER
 DIM PerfStep AS INTEGER
 DIM StepStarted AS DOUBLE
 DIM PerfReady AS RTimer
@@ -760,8 +762,39 @@ FUNCTION ProgramErrors AS INTEGER
   IF Result = 0 THEN FillProblems ActiveCode
 END FUNCTION
 
+' (the project's main file isn't there: none set, gone from the disk — on
+' the web a file of the site's isn't in the page's store, so its editor or
+' a read says whether it is there)
+FUNCTION MainMissing AS INTEGER
+  DIM t AS STRING
+  IF ProjectMain = "" THEN
+    Result = 1
+  ELSEIF FILEEXISTS(ProjectMain) = 0 AND DocOf(ProjectMain) < 0 THEN
+    t = Proj.FileText(ProjectMain)
+    Result = Flag(Proj.Error <> "")
+  END IF
+END FUNCTION
+
 SUB StartProgram(WithDebugger AS INTEGER)
-  IF ProjectOpen = 0 OR RunState = "running" OR RunState = "paused" THEN EXIT SUB
+  ' (Run always says why it didn't start: Robert 2026-10-28, a Run that
+  ' did nothing and said nothing)
+  IF ProjectOpen = 0 THEN
+    OutputLine "Nothing to run: open a project or a program first (File > Open, or an example)."
+    SetState "error", "Nothing to run: no project is open"
+    EXIT SUB
+  END IF
+  IF RunState = "running" OR RunState = "paused" THEN
+    SetState RunState, FileTitle(ProjectMain) + " is " + RunState + " already: Stop it first (Shift+F5)"
+    EXIT SUB
+  END IF
+  IF MainMissing THEN
+    OutputLine "Can't run: the project's main file " + IIF(ProjectMain = "", "isn't set", ProjectMain + " isn't there") + ". Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
+    SetState "error", "Can't run: no main file"
+    OutputBox.Page = "output"
+    Dock.ShowPane("outputbox")
+    EXIT SUB
+  END IF
+  RunOutputSeen = 0
   ' (F5 to the first form: docs/studio-wow.md PERF-8)
   RunStarted = TIMER
   PerfForm = -1
@@ -1070,8 +1103,11 @@ END SUB
 DIM OutLineOpen AS INTEGER
 
 SUB ProgramOutput(Text AS STRING)
+  IF Text <> "" THEN RunOutputSeen = 1
   OutputBox.Write Text
   AITools.AddRunOutput Text
+  ' (AI apps' read_output: mcp.inc)
+  McpProgramOutput Text
   IF Text <> "" THEN OutLineOpen = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 
@@ -1196,6 +1232,11 @@ SUB ProgramExited(Code AS INTEGER)
   StaleTimer.Enabled = 0
   DebugStale = 0
   OutputAfterProgram "[" + FileTitle(ProjectMain) + " ended, exit code " + Num(Code) + "]"
+  ' (it ended at once, showed no window and printed nothing: maybe it isn't
+  ' the program's start — a project whose main file became a module)
+  IF Code = 0 AND PerfForm < 0 AND RunOutputSeen = 0 AND TIMER - RunStarted < 3 THEN
+    OutputLine FileTitle(ProjectMain) + " ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties."
+  END IF
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
   ClearPausedMarks
   ClearDebugPanes
@@ -2755,6 +2796,13 @@ END SUB
 ' set while paused — Ctrl+Z, the tree's OnUndo; True when Id was one)
 FUNCTION DebugPaneCommand(Id AS STRING) AS INTEGER
   DIM w AS INTEGER
+  ' (Call Stack's and Breakpoints' Copy: the selected row)
+  IF Id = "edit.copy" THEN
+    SELECT CASE LCASE$(Dock.ActivePane)
+      CASE "stacktree": StackCopy: Result = 1: EXIT FUNCTION
+      CASE "bppanel": BpCopy: Result = 1: EXIT FUNCTION
+    END SELECT
+  END IF
   SELECT CASE LCASE$(Dock.ActivePane)
     CASE "varstree": w = 0
     CASE "watchpanel": w = 1
@@ -2781,6 +2829,93 @@ END SUB
 
 SUB WatchCopy
   ValueAction "copy", PickedExpr(1), PickedShown(1)
+END SUB
+
+' ---- Call Stack and Breakpoints: Copy, Copy All (COPY-ANYWHERE) ----------------------
+DIM StackMenu AS RPopupMenu
+DIM StackMenuItem(1) AS RMenuItem
+DIM BpMenu AS RPopupMenu
+DIM BpMenuItem(1) AS RMenuItem
+
+' (Ctrl+C — ⌘C — in Call Stack, the tree's OnCopy, and its menu's Copy:
+' the selected call as shown, "Main   main.rr:12")
+SUB StackCopy
+  DIM i AS INTEGER
+  i = StackTree.ItemIndex
+  IF i < 0 OR i >= StackTree.ItemCount THEN EXIT SUB
+  Clipboard.Text = StackTree.Item(i).Text
+  SetState RunState, "Copied the call"
+END SUB
+
+' (…and in Breakpoints: the selected breakpoint as listed, "main.rr:12  when x > 1")
+SUB BpCopy
+  DIM i AS INTEGER
+  i = BpTree.ItemIndex
+  IF i < 0 OR i >= BpCount THEN EXIT SUB
+  Clipboard.Text = BreakpointText(i)
+  SetState RunState, "Copied the breakpoint"
+END SUB
+
+' (Copy All: every call, every breakpoint, a line each)
+SUB ListCopyAll(Which AS INTEGER)
+  DIM i AS INTEGER, t AS STRING, n AS INTEGER
+  t = ""
+  IF Which = 0 THEN
+    n = StackTree.ItemCount
+    FOR i = 0 TO n - 1
+      IF i > 0 THEN t = t + CHR$(10)
+      t = t + StackTree.Item(i).Text
+    NEXT
+  ELSE
+    n = BpCount
+    FOR i = 0 TO n - 1
+      IF i > 0 THEN t = t + CHR$(10)
+      t = t + BreakpointText(i)
+    NEXT
+  END IF
+  IF n = 0 THEN EXIT SUB
+  Clipboard.Text = t
+  IF Which = 0 THEN
+    SetState RunState, "Copied " + IIF(n = 1, "1 call", Num(n) + " calls")
+  ELSE
+    SetState RunState, "Copied " + IIF(n = 1, "1 breakpoint", Num(n) + " breakpoints")
+  END IF
+END SUB
+
+SUB ListMenusOpening
+  StackMenuItem(0).Enabled = Flag(StackTree.ItemIndex >= 0)
+  StackMenuItem(1).Enabled = Flag(StackTree.ItemCount > 0)
+  BpMenuItem(0).Enabled = Flag(BpTree.ItemIndex >= 0 AND BpCount > 0)
+  BpMenuItem(1).Enabled = Flag(BpCount > 0)
+END SUB
+
+SUB ListMenuPicked(Sender AS RMenuItem)
+  SELECT CASE Sender.Tag
+    CASE 0: StackCopy
+    CASE 1: ListCopyAll 0
+    CASE 10: BpCopy
+    CASE 11: ListCopyAll 1
+  END SELECT
+END SUB
+
+SUB SetUpListMenus
+  DIM k AS INTEGER
+  FOR k = 0 TO 1
+    StackMenuItem(k).Caption = IIF(k = 0, "&Copy", "Copy &All")
+    StackMenuItem(k).Tag = k
+    StackMenuItem(k).OnClick = ListMenuPicked
+    StackMenu.AddItems StackMenuItem(k)
+    BpMenuItem(k).Caption = IIF(k = 0, "&Copy", "Copy &All")
+    BpMenuItem(k).Tag = 10 + k
+    BpMenuItem(k).OnClick = ListMenuPicked
+    BpMenu.AddItems BpMenuItem(k)
+  NEXT
+  StackMenuItem(0).ShortCut = "Ctrl+C"
+  BpMenuItem(0).ShortCut = "Ctrl+C"
+  StackMenu.OnPopup = ListMenusOpening
+  BpMenu.OnPopup = ListMenusOpening
+  StackTree.PopupMenu = StackMenu
+  BpTree.PopupMenu = BpMenu
 END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
@@ -3208,6 +3343,11 @@ SUB SetUpDebug
   BpTree.OnClick = BpTreeClick
   BpTree.OnDblClick = BpTreeOpen
   BpTree.OnKeyDown = BpTreeKey
+  ' (COPY-ANYWHERE: Ctrl+C — ⌘C — and a right-click's Copy / Copy All in
+  ' Call Stack and Breakpoints)
+  StackTree.OnCopy = StackCopy
+  BpTree.OnCopy = BpCopy
+  SetUpListMenus
 
   ' (the debugging layout's group beside Output — Variables, Watch, Call
   ' Stack, Breakpoints —; Breakpoints is a tab beside Output while editing:

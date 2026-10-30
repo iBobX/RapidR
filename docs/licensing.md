@@ -92,7 +92,7 @@ same and one file covers both.
 | Crates | 340 | 338 | 407 |
 | Used under MIT | ~290 | ~285 | ~348 |
 | Unicode-3.0 (ICU4X data, `unicode-ident`) | 23 | 23 | 23 |
-| Apache-2.0 (no MIT option shipped) | 12 (`winit`, `accesskit_winit`, `cpal`, `hound`, `claxon`, `ab_glyph`, …) | 14 | 15 (+ `openssl`, the binding to the system's OpenSSL) |
+| Apache-2.0 (no MIT option shipped) | 12 (`winit`, `accesskit_winit`, `cpal`, `hound`, `claxon`, `ab_glyph`, …; RArchive's `lzma-rust2` and `sevenz-rust2`, in interpreted programs and native builds that use it) | 14 | 15 (+ `openssl`, the binding to the system's OpenSSL) |
 | BSD-3-Clause | `ogg`, `tiny-skia`, `tiny-skia-path` | same | same |
 | BSD-2-Clause | `arrayref`, `serial2` | same | same |
 | ISC | `libloading` | same | same |
@@ -126,20 +126,24 @@ The bundle's files: `index.html`, `loader.js`, `bundle_console.js`,
 compiler and the crates below), the program's `.rrbc`, assets, and
 `THIRD-PARTY-NOTICES.txt`.
 
-| | Web (`wasm32-unknown-unknown`) |
+| | Web (`wasm32-unknown-unknown`; as `rapidr notices web` listed it on 2026-10-29) |
 |---|---|
-| Crates | 109 |
-| Used under MIT | 81 |
-| Unicode-3.0 | 23 (ICU4X data for text layout) |
+| Crates | 176 |
+| Used under MIT | 143 |
+| Unicode-3.0 | 22 (ICU4X data for text layout) |
 | BSD-3-Clause | `tiny-skia`, `tiny-skia-path` |
-| BSD-2-Clause | `arrayref` |
-| Zlib | `foldhash` |
-| Apache-2.0 | `siphasher` |
+| BSD-2-Clause | `arrayref`, `editpe` |
+| Zlib | `foldhash`, `slotmap`, `zlib-rs` |
+| Apache-2.0 | `codespan-reporting`, `lzma-rust2`, `sevenz-rust2`, `siphasher` |
+| Of these, RArchive's (§5) | `zip`, `flate2`, `zlib-rs`, `crc32fast`, `indexmap`, `memchr`, `typed-path`; `lzma-rust2` with `sha2` 0.11, `digest`, `block-buffer`, `crypto-common`, `const-oid` (the .xz check, §2.5); `sevenz-rust2`; `ruzstd`. A web build of a program that doesn't use RArchive or `COMPRESS$` / `DECOMPRESS$` is made without them; the interpreter's wasm always has them |
 | Not crates | Rust std (MIT); Liberation fonts (OFL-1.1); SQLite (public domain), musl libc functions and `printf` (MIT) compiled in by `sqlite-wasm-rs`; the Adobe Glyph List (BSD-3-Clause, in `read-fonts`) |
 | Not shipped | the browser; audio and video files are decoded by the browser (`<audio>`, `<video>`), not by RapidR |
 
-No GPL, LGPL, AGPL or MPL code, and no cryptography, is in the web runtime
-(HTTPS is the browser's). The runtime itself
+No GPL, LGPL, AGPL or MPL code is in the web runtime, and no encryption:
+HTTPS is the browser's. Its only cryptographic code is RArchive's (§2.5):
+SHA-256, which checks the integrity of .xz files, and the zip library's old
+ZipCrypto cipher, compiled in but never called (RArchive refuses encrypted
+entries); no AES. The runtime itself
 loads nothing from third-party servers (a program can, of course, with
 `RHttp` and the like).
 
@@ -157,7 +161,7 @@ platforms compile are cut down to their `Cargo.toml` and licence files).
 
 What cryptographic code is compiled into a program, from `cargo tree -e
 normal` for the runners (`rapidr-runner-stub`) of each desktop target and the
-web runtime (checked 2026-10-22). The earlier text of this document said no
+web runtime (checked 2026-10-22; RArchive's rows 2026-10-29). The earlier text of this document said no
 program contained any; that was wrong, and the legal review of 2026-10-22
 found it.
 
@@ -168,7 +172,9 @@ found it.
 | Linux and the BSDs | **Not compiled in:** AES-128-CBC and HKDF-SHA256 | the system's OpenSSL 3, through the `openssl` crate's bindings (the ones HTTPS already loads), because `rapidr-ai` asks for `crypto-openssl` | the same session |
 | macOS | **Not compiled in:** Security.framework | the system | HTTPS; the Keychain that holds the AI keys |
 | Windows | **Not compiled in:** SChannel; Credential Manager | the system | HTTPS; the AI keys |
-| Web | nothing (the browser does HTTPS; `crc32fast` is a checksum) | | |
+| Every desktop target where RArchive is (interpreted programs; a native build only when the program uses `RArchive`, `COMPRESS$` or `DECOMPRESS$`), and the web runtime | SHA-256 (`sha2` 0.11, with `digest` 0.11, `block-buffer`, `crypto-common`, `const-oid`, `cpufeatures`); the legacy ZipCrypto stream cipher (`zipcrypto.rs`) | `sha2`: `lzma-rust2` 0.23's `xz` feature; ZipCrypto: the `zip` crate 9, which compiles it in whatever its features — both through `rapidr-archive` (RArchive) | SHA-256 checks the integrity of .xz files (a hash: it hides nothing). ZipCrypto is never called: RArchive refuses encrypted entries before reading them, and never decrypts |
+| Everywhere | **Not compiled in:** AES | the AES features of `zip` (`aes-crypto`) and `sevenz-rust2` (`aes256`) are off, and `aes`, `cbc` and `hkdf` are banned (`deny.toml`, `notices.rs`, `tools/check_notices.py`); `tools/check_archive_features.py` fails if either feature is turned on | encrypted zip and 7z files are refused, never decrypted |
+| Web | otherwise nothing (the browser does HTTPS; `crc32fast` is a checksum) | | |
 
 Hash functions (SHA-1, SHA-256, CRC-32) only fingerprint data; they hide
 nothing. SQLite is built without SQLCipher, so it encrypts nothing.
@@ -234,6 +240,7 @@ Export: see LEGAL.md, "Export", and §8 below.
 | Wayland protocol descriptions: `wayland.xml`; wayland-protocols' (xdg-shell, viewporter, fractional-scale, text-input, pointer-gestures, …); wlr-protocols' | `wayland-client`, `wayland-protocols`, `wayland-protocols-wlr` (Linux, through winit and smithay-client-toolkit): their Rust code is generated from these XML files | each file's own notice: MIT (most), HPND-sell-variant (text-input-v3, pointer-gestures, ext-data-control, ext-foreign-toplevel-list, ext-workspace; six of wlr's) — both permissive: a notice, and no endorsement | every file's notice, read from the crates (generation fails on any other licence) |
 | xcb-proto (the X11 protocol descriptions) | `x11rb-protocol` (Linux), generated from them | X11 (MIT with a no-advertising clause), © Bart Massey, Jamey Sharp, Josh Triplett | yes (the crate doesn't ship the text: the generator carries it) |
 | AT-SPI's D-Bus interfaces | `atspi-proxies` (Linux screen readers, through AccessKit), generated from at-spi2-core's introspection files (LGPL-2.1-or-later) | the crates: MIT OR Apache-2.0. What is compiled in is the interfaces' names and signatures — what any program talking to the accessibility bus over D-Bus must send; the XML files themselves are only read by the crate's tests | §8, question 1 |
+| The Model Context Protocol (RMcpServer, RapidR Studio's AI apps) | none: implemented from the public specification (Apache-2.0, older parts MIT, documentation CC-BY-4.0); no specification text, schema or SDK code is included (docs/legal/review-2026-10-29-mcp.md) | — | — |
 | KDE's Wayland protocols | **none**: crates.io's `wayland-protocols-plasma` (generated from KDE's protocol files, `blur.xml` and others LGPL-2.1-or-later) is replaced in every build by RapidR's stand-in, `crates/patches/wayland-protocols-plasma` (MIT): the Rust names winit uses, generated from RapidR's own protocol file whose interfaces no compositor announces, so winit finds no blur manager and never blurs (RapidR never asks for blur) | — | — (the workspace's `[patch.crates-io]`, every generated program's `Cargo.toml` — codegen's `PATCHES` — and an install's home, `tools/release/home.py`, carry it) |
 
 ### 3.3 The toolchain's and the system's code
@@ -361,6 +368,15 @@ and CC0-1.0; plus OFL-1.1 for fonts. All any of them asks of a user is that
   public-domain minimp3; `PLAYSOUND`/`PLAYWAV` can play `.mp3` files on the
   desktop). MP3's patents have expired (the last in 2017) and the licensing
   programme ended.
+- **Archives (RArchive), from open formats and public-domain code:** zip
+  from PKWARE's APPNOTE (stored and Deflate entries only, read and written —
+  what the APPNOTE allows; no strong encryption, Deflate64 or patching),
+  gzip, zlib and Deflate from RFC 1950-1952 (`flate2` on `zlib-rs`), tar
+  from POSIX (RapidR's own code), xz and LZMA from XZ for Java (public
+  domain) through `lzma-rust2`, 7z through `sevenz-rust2` (its LZMA and BCJ
+  code the same public-domain lineage), Zstandard from RFC 8878 through
+  `ruzstd`; all read-only but zip, tar and gzip. No 7-Zip or unRAR source;
+  RAR is refused (legal review 2026-10-29).
 - **Not present**, decoding or encoding: H.264/AVC, HEVC, MPEG-2/4 video,
   AAC, AC-3, WMA/WMV, any MP3 *encoder*. On the web, audio and video are
   played by the browser's own decoders.
@@ -446,6 +462,11 @@ and trademarks, in [legal/rapidq-review.md](legal/rapidq-review.md)
   `[patch.crates-io]` equal to the workspace's.
 - `python3 tools/third_party_notices.py --check`: the repository-wide list
   (`THIRD_PARTY_NOTICES.md`) is current.
+- `python3 tools/check_archive_features.py`: RArchive's libraries keep only
+  the features the legal review of 2026-10-29 cleared (from `cargo metadata`,
+  desktop and web, default and all features): no AES in `zip` or
+  `sevenz-rust2`, no Deflate64, no PPMd, no `ruzstd` dictionary builder, no
+  C codec (bzip2, zstd, brotli, lz4); turning one on needs a new review.
 - `tools/regress.sh legal` runs all of them and exits 1 if any fails (it is
   part of a full run).
 

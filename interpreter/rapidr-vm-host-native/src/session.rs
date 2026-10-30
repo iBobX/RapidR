@@ -98,6 +98,13 @@ pub fn run_session(bytes: &[u8], program: &str) -> Result<i32, String> {
     spawn_reader(tx, interrupt, input);
 
     send(&Event::new(EventBody::Ready { protocol: PROTOCOL_VERSION, runtime: format!("RapidR {}", env!("CARGO_PKG_VERSION")), program: program.to_string() }));
+    // (RapidR Studio's eyes and hands: their replies, from the program's
+    // thread — rapidr_runtime_core::ui::drive)
+    #[cfg(feature = "gui")]
+    rapidr_runtime_core::ui::drive::set_link(Box::new(|seq, json| {
+        let result = serde_json::from_str(&json).unwrap_or(serde_json::Value::Null);
+        send(&Event::reply(seq, EventBody::App { result }));
+    }));
     let mut debugger = BlockingDebugger::new(
         rx,
         Box::new(|event: &Event| {
@@ -106,6 +113,21 @@ pub fn run_session(bytes: &[u8], program: &str) -> Result<i32, String> {
             // IDE, which shows where — rapidr-runtime-core's kernel)
             if matches!(event.body, EventBody::Stopped { .. }) {
                 obj::rp_debugger_stopped();
+            }
+            // (where it is held, for the eyes and hands: input is refused
+            // with it while it's paused)
+            #[cfg(feature = "gui")]
+            match &event.body {
+                EventBody::Stopped { file, line, .. } => {
+                    let at = match (line, file) {
+                        (Some(l), Some(f)) => format!("at line {l} of {f}"),
+                        (Some(l), None) => format!("at line {l}"),
+                        _ => "where it stopped".to_string(),
+                    };
+                    rapidr_runtime_core::ui::drive::set_paused(Some(at));
+                }
+                EventBody::Continued | EventBody::Exited { .. } => rapidr_runtime_core::ui::drive::set_paused(None),
+                _ => {}
             }
         }),
     );
@@ -158,6 +180,11 @@ fn spawn_reader(tx: mpsc::Sender<Request>, interrupt: Arc<AtomicBool>, input: Ar
                         send(&Event::reply(request.seq, EventBody::Ok));
                     }
                 }
+                // (the eyes and hands: served by the runtime on the program's
+                // thread, running or paused, under the debugger or not —
+                // rapidr_runtime_core::ui::drive)
+                #[cfg(feature = "gui")]
+                Command::App { request: app } => rapidr_runtime_core::ui::drive::push(request.seq, app.to_string()),
                 _ => {
                     if tx.send(request).is_err() {
                         break;

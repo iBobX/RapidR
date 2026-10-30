@@ -29,7 +29,12 @@
 '                  a new program's preview, what was sent
 '   aichats.inc    its chats, kept per project: the list, edit and retry
 '   aisetup.inc    Set up RAI: free on this computer, or a cloud key
+'   mcp.inc        AI apps working in Studio: its MCP server, the AI Apps
+'                  pane and settings page
 '   prompts.inc    Save / Don't Save / Cancel before changes would be lost
+'   safety.inc     Studio keeps your work: an error in Studio's own code
+'                  said (never the end of Studio), copies of unsaved work,
+'                  Restore at the next start
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
@@ -54,7 +59,10 @@ $INCLUDE "settings.inc"
 $INCLUDE "ai.inc"
 $INCLUDE "aichats.inc"
 $INCLUDE "aisetup.inc"
+$INCLUDE "mcp.inc"
 $INCLUDE "prompts.inc"
+$INCLUDE "safety.inc"
+$INCLUDE "consent.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "workspace.inc"

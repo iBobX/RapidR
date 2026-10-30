@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RapidR Project",
+  "scopeName": "source.rapidr-project",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#table" },
+    { "include": "#pair" },
+    { "include": "#value" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.rapidr-project",
+      "match": "#.*$"
+    },
+    "table": {
+      "patterns": [
+        {
+          "name": "entity.name.section.array.rapidr-project",
+          "match": "^\\s*\\[\\[\\s*[\\w.-]+\\s*\\]\\]"
+        },
+        {
+          "name": "entity.name.section.rapidr-project",
+          "match": "^\\s*\\[\\s*[\\w.-]+\\s*\\]"
+        }
+      ]
+    },
+    "pair": {
+      "begin": "^\\s*([\\w.-]+)\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "variable.other.key.rapidr-project" },
+        "2": { "name": "keyword.operator.assignment.rapidr-project" }
+      },
+      "end": "$",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#value" }
+      ]
+    },
+    "value": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rapidr-project",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.rapidr-project", "match": "\\\\." }]
+        },
+        { "name": "string.quoted.single.rapidr-project", "match": "'[^']*'" },
+        { "name": "constant.language.boolean.rapidr-project", "match": "\\b(true|false)\\b" },
+        { "name": "constant.numeric.rapidr-project", "match": "[+-]?\\d+(\\.\\d+)?" },
+        { "name": "punctuation.definition.array.rapidr-project", "match": "[\\[\\],]" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,75 @@
+' updown.rr: RUpDown, the two arrows that step a number, beside an edit.
+' A medicine reminder: how many tablets a day, and how often to be
+' reminded.
+'
+'   rapidr run updown.rr
+'
+' Associate = Dose makes the edit show the arrows' number and follow it:
+' click an arrow, or press Up and Down while the arrows have the focus,
+' and Dose.Text changes. Type a number in the edit and the arrows count
+' on from it. Increment is the size of a step; Wrap goes round from the
+' top to the bottom; OnChange fires whenever an arrow changes Position
+' (the program here shows the plan in a label).
+'
+' Without Associate the arrows only change Position: show it yourself in
+' OnChange (the second pair of arrows, beside a label).
+DECLARE SUB PlanChanged
+DECLARE SUB PagesChanged
+
+CREATE Form AS RForm
+    Caption = "Medicine reminder"
+    Width = 350
+    Height = 200
+    Center
+    CREATE DoseLabel AS RLabel
+        Caption = "Tablets a day": Left = 12: Top = 16: Width = 142
+    END CREATE
+    CREATE Dose AS REdit
+        Left = 160: Top = 12: Width = 56: Height = 24: Text = "2"
+    END CREATE
+    CREATE DoseSpin AS RUpDown
+        Left = 218: Top = 12: Width = 18: Height = 24
+        Min = 0: Max = 8: Position = 2
+        Associate = Dose
+        OnChange = PlanChanged
+    END CREATE
+    CREATE EveryLabel AS RLabel
+        Caption = "Remind me every (min)": Left = 12: Top = 52: Width = 142
+    END CREATE
+    CREATE Every AS REdit
+        Left = 160: Top = 48: Width = 56: Height = 24
+    END CREATE
+    CREATE EverySpin AS RUpDown
+        Left = 218: Top = 48: Width = 18: Height = 24
+        Min = 15: Max = 120: Position = 60: Increment = 15
+        Associate = Every
+        OnChange = PlanChanged
+    END CREATE
+    CREATE PagesLabel AS RLabel
+        Caption = "Leaflet page": Left = 12: Top = 88: Width = 142
+    END CREATE
+    CREATE PageNo AS RLabel
+        Caption = "1": Left = 160: Top = 90: Width = 56
+    END CREATE
+    CREATE PageSpin AS RUpDown
+        Left = 218: Top = 84: Width = 18: Height = 24
+        Min = 1: Max = 5: Position = 1: Wrap = -1
+        OnChange = PagesChanged
+    END CREATE
+    CREATE Plan AS RLabel
+        Left = 12: Top = 128: Width = 300
+    END CREATE
+END CREATE
+
+' The plan, from what the arrows show.
+SUB PlanChanged
+    Plan.Caption = STR$(DoseSpin.Position) + " tablets a day, a reminder every " + STR$(EverySpin.Position) + " minutes"
+END SUB
+
+' No Associate here: the program writes the number itself.
+SUB PagesChanged
+    PageNo.Caption = STR$(PageSpin.Position)
+END SUB
+
+PlanChanged
+Form.ShowModal

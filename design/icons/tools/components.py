@@ -499,6 +499,35 @@ def memorystream(g):
         g.line(x, 15, x, 18, c="ink")
 
 
+@icon("archive", C, "Archive (zip, 7z, tar)")
+def archive(g):
+    # a folder closed with a zipper (the sign of a compressed file): the folder
+    # neutral, the zipper in the files' and streams' blue: its slider at the top
+    # edge, the teeth alternating down the middle
+    g.path("M3 6.5 A1.5 1.5 0 0 1 4.5 5 H7.5 L9.5 7.5 H19.5 A1.5 1.5 0 0 1 21 9 V18.5 A1.5 1.5 0 0 1 19.5 20 H4.5 A1.5 1.5 0 0 1 3 18.5 Z",
+           c="ink", fill="paper")
+
+    # (the zipper is laid out in whole pixels, per size, so every edge is crisp
+    # and it is centred: `u` turns a pixel edge into a master coordinate, `d` a
+    # length in pixels into a master length)
+    def u(px):
+        return 2 + (px - g.off) / g.k
+
+    def d(px):
+        return px / g.k
+
+    # size: (middle x, slider half width, first row, slider height,
+    #        tooth width, tooth height, teeth)
+    cx, sw, y, sh, tw, th, n = {
+        16: (8, 2, 5, 2, 1, 1, 5),
+        24: (12, 3, 9, 2, 2, 1, 7),
+        32: (16, 4, 11, 3, 3, 2, 5),
+    }[g.size]
+    g.frect(u(cx - sw), u(y), d(2 * sw), d(sh), fill="blue")
+    for i in range(n):
+        g.frect(u(cx - tw if i % 2 == 0 else cx), u(y + sh + i * th), d(tw), d(th), fill="blue")
+
+
 @icon("registry", C, "Registry")
 def registry(g):
     g.circle(8, 9, 5, c="amber", fill="amber-tint")
@@ -515,6 +544,24 @@ def secrets(g):
     g.rect(5, 10.5, 14, 10.5, r=2, c="amber", fill="amber-tint")
     # (the keyhole a solid bar: its edges on whole pixels, centred at every size)
     g.frect(11, 13.5, 2, 4.5, fill="amber")
+
+
+@icon("windowcapture", C, "Window capture (the program's own windows as pictures)")
+def windowcapture(g):
+    # (a window inside a viewfinder's corners: a picture of the program's
+    # own window — media's violet for the picture taken)
+    window(g, x=6, y=7, w=12, h=10, c="ink", fill="paper", bar=3.5)
+    for (x, y, dx, dy) in ((3, 3, 1, 1), (21, 3, -1, 1), (3, 21, 1, -1), (21, 21, -1, -1)):
+        g.path(f"M{x} {y + 4 * dy} V{y} H{x + 4 * dx}", c="violet")
+
+
+@icon("apphands", C, "App hands (clicks and keys played into the program's own windows)")
+def apphands(g):
+    # (a window, and the pointer that clicks in it with its ring — RapidR's
+    # own drawing of a driven pointer)
+    window(g, x=2.5, y=3, w=16, h=13, c="ink", fill="paper", bar=3.5)
+    g.circle(12, 12, 3.5, c="blue")
+    g.fpath("M12 12 V22 L14.6 19.4 L16.6 23.4 L18.6 22.4 L16.6 18.4 H20 Z", fill="ink")
 
 
 @icon("printer", C, "Printer")
@@ -594,6 +641,18 @@ def httpserver(g):
     if g.size != 16:
         g.line(11.5, 17.5, 17, 17.5, c="cyan")
     globe(g, cx=12, cy=7, r=5)
+
+
+@icon("mcpserver", C, "MCP server", mono=False)
+def mcpserver(g):
+    # (a server's rack, an AI's spark above it: RMcpServer serves the
+    # program's tools to AI apps — RapidR's own drawing, no protocol logo)
+    g.rect(3, 14, 18, 7, r=2, c="cyan", fill="cyan-tint")
+    g.dot(7, 17.5, 1.25, fill="cyan")
+    if g.size != 16:
+        g.line(11.5, 17.5, 17, 17.5, c="cyan")
+    grad = g.gradient(6, 12, 18, 1, [(0, "blue"), (1, "spark")])
+    star4(g, 12, 6.75, 5.75, fill=grad)
 
 
 @icon("download", C, "Download")

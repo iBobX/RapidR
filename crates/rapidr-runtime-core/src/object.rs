@@ -188,6 +188,16 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         c.borrow_mut().insert(name_lower, comp);
     });
     rapidr_value::objects::create(name, type_name);
+    // (RARCHIVE: the clock and the local time zone a zip's times are in)
+    if rapidr_value::objects::archive::is_type(type_name) {
+        rapidr_value::objects::archive::set_clock(
+            || chrono::Utc::now().timestamp(),
+            |t| {
+                use chrono::TimeZone;
+                chrono::Local.timestamp_opt(t, 0).single().map_or(0, |d| i64::from(d.offset().local_minus_utc()))
+            },
+        );
+    }
     // (I7: an RJSON's document can be a data source)
     if type_name.eq_ignore_ascii_case("RJSON") {
         crate::links::install();
@@ -248,8 +258,25 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     comp_set(name, prop, val);
+    updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();
+}
+
+/// An RUPDOWN whose Position (or Associate) was set: its Associate, an edit
+/// or a label, shows the number (`rapidr_value::objects::updown`); an edit
+/// that took a new text fires its OnChange, as RapidQ's does for a Text set.
+/// What the user's arrows set comes here too (the kernel's Set).
+fn updown_buddy(name: &str, prop: &str) {
+    if !(prop.eq_ignore_ascii_case("position") || prop.eq_ignore_ascii_case("associate")) || rp_comp_type(name) != "RUPDOWN" {
+        return;
+    }
+    if let Some((buddy, buddy_prop, text)) = rapidr_value::objects::updown::buddy_text(&|i, p| rp_comp_get(i, p), &rp_comp_type, &name.to_lowercase()) {
+        rp_comp_set(&buddy, buddy_prop, v_str(&text));
+        if buddy_prop == "text" {
+            rp_fire_event(&buddy, "onchange");
+        }
+    }
 }
 
 /// A property the program sets (an assignment in its code: the VM's, a
@@ -999,6 +1026,22 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
+    // RWindowCapture and RAppHands: the program's own eyes and hands
+    // (ui/drive.rs, rapidr_ui_app::{eyes, hands}).
+    #[cfg(feature = "gui")]
+    match rp_comp_type(name).as_str() {
+        "RWINDOWCAPTURE" => {
+            if let Some(v) = crate::ui::drive::capture_get(name, &prop_lower) {
+                return v;
+            }
+        }
+        "RAPPHANDS" => {
+            if let Some(v) = crate::ui::drive::hands_get(name, &prop_lower) {
+                return v;
+            }
+        }
+        _ => {}
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
@@ -1537,6 +1580,34 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_null()
             }
         }
+        // (the program's own eyes and hands: ui/drive.rs)
+        "RWINDOWCAPTURE" | "RAPPHANDS" => {
+            #[cfg(feature = "gui")]
+            {
+                let v = if comp_type == "RWINDOWCAPTURE" { crate::ui::drive::capture_method(name, &method_lower, args) } else { crate::ui::drive::hands_method(name, &method_lower, args) };
+                v.unwrap_or_else(|| {
+                    eprintln!("[WARN] {comp_type}.{method}() isn't one of its methods");
+                    v_null()
+                })
+            }
+            #[cfg(not(feature = "gui"))]
+            {
+                let _ = args;
+                eprintln!("[WARN] {comp_type}.{method}(): no windows in this build");
+                v_null()
+            }
+        }
+        "RMCPSERVER" => {
+            #[cfg(feature = "network")]
+            {
+                crate::mcpserver::method(name, &method_lower, args)
+            }
+            #[cfg(not(feature = "network"))]
+            {
+                eprintln!("[WARN] Network support not compiled. Method {}.{}() ignored.", name, method);
+                v_null()
+            }
+        }
         "RHTTP" => {
             #[cfg(feature = "network")]
             {
@@ -1908,6 +1979,12 @@ fn bind_handler(name: &str, event: &str, handler: EventHandler) {
     EVENT_HANDLERS.with(|h| {
         h.borrow_mut().insert((name.to_lowercase(), event.to_lowercase()), handler);
     });
+    // (RapidR's Application.OnError in a native build: a handler's run-time
+    // error a wait went on after — rapidr_value::catching; the
+    // interpreter's hosts fire it themselves)
+    if name.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror") {
+        rapidr_value::on_handler_failed(|message| rp_fire_event_args("application", "onerror", &[v_str(message), v_str(""), v_int(0)]));
+    }
     // (OnStartDrag makes a drag source, OnHint the hints' receiver)
     rapidr_value::events::bound(name, event);
 }
