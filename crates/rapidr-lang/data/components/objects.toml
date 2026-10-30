@@ -249,7 +249,7 @@ events = []
 name = "RSYSTEMINFO"
 display = "SystemInfo"
 visual = false
-doc = "What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer and never sent anywhere. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or \"\". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own."
+doc = "What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer. RapidR never sends them anywhere. If your program does (to a server, in a log, in a report), tell its users first and send only what you need (`Class`, not every fact): together they can single out one computer, and a program for children shouldn't send them at all. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or \"\". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own."
 example = """
 DIM Info AS RSystemInfo
 PRINT Info.Summary

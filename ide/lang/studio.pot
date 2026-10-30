@@ -92,7 +92,7 @@ msgstr ""
 msgid "What Was Sent"
 msgstr ""
 
-#: ide/ai.inc ide/debug.inc
+#: ide/ai.inc ide/aisetup.inc ide/debug.inc
 msgid "Close"
 msgstr ""
 
@@ -1080,11 +1080,11 @@ msgid "Free, on &this computer"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's."
+msgid "It costs nothing, and Studio sends what you ask only to a local AI app on this computer — a free program you install that keeps AI models on your computer — so what you ask stays here, unless that app is set up to pass it on to a service elsewhere. Studio finds the models it already has and checks which ones fit this computer. Answers are slower and simpler than a cloud model's."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "The servers found on this computer"
+msgid "The AI models found on this computer"
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1092,7 +1092,7 @@ msgid "&Look Again"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Look again for a server on this computer"
+msgid "Look again for AI models on this computer"
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1104,31 +1104,67 @@ msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You mak
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "A server on this computer"
+msgid "The AI models on this computer"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "&Server:"
+msgid "This computer's memory"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "The server on this computer"
+msgid "The AI models on this computer, the best match first"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "&Address:"
+msgid "Each says whether it fits this computer and how it does with RAI. Choose one, then Finish."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "The server's address"
-msgstr ""
-
-#: ide/aisetup.inc ide/settings.inc
-msgid "&Model:"
+msgid "How to add a local AI app"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "About this server"
+msgid "How to add a local AI app: the manual's page, in Help"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "About the model chosen"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Check My Models"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Read the L&icence..."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Read the chosen model's licence, as its local AI app reports it"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Check My Models"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Another &address:"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Another address on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A local AI app's address on this computer, for example 127.0.0.1:8080. Studio only asks this computer."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Loo&k"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Look for models at this address"
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1175,8 +1211,28 @@ msgstr ""
 msgid "The key's test"
 msgstr ""
 
+#: ide/aisetup.inc ide/settings.inc
+msgid "&Model:"
+msgstr ""
+
 #: ide/aisetup.inc
 msgid "What it costs, and what is sent"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Licence"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The licence's text"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Stop Checking"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Read the Licence..."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1200,49 +1256,235 @@ msgid "Set Up RAI — {title}"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} (no model yet: download one in it first)"
+msgid "Looking for AI apps on this computer…"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} ({n} model)"
-msgid_plural "{name} ({n} models)"
+msgid "✓ Found {n} model in {k} local AI apps on this computer."
+msgid_plural "✓ Found {n} models in {k} local AI apps on this computer."
 msgstr[0] ""
 msgstr[1] ""
 
 #: ide/aisetup.inc
-msgid "✓ Found on this computer: {servers}. Not running: {others}."
+msgid "✓ Found {n} model in a local AI app on this computer."
+msgid_plural "✓ Found {n} models in a local AI app on this computer."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "In a browser Studio can't look around this computer: Next asks for your local AI app's address."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "✓ Found on this computer: {servers}."
+msgid "A local AI app answers on this computer, but it has no model yet: add one in it, then Look Again."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Looking for a server on this computer…"
+msgid "No local AI app found running on this computer: Next says what one is and how to add one."
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again."
+msgid "timing an answer"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} (running)"
+msgid "trying a tool call"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} (not running)"
+msgid "building a tiny app"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} is running here, but has no model yet: download one in {name} (Studio never downloads or starts one for you), then go Back and Look Again."
+msgid "loading it"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help."
+msgid "Runs elsewhere"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "{name} isn't running at {url}. Start it (Studio never starts it for you), then go Back and Look Again; or type another address."
+msgid "Fits"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Fits if you close other apps"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Too big for this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Size not known"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Checking it now: {step}…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Waiting for its check…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Can't chat: it only turns text into numbers for searching."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its local AI app runs this model on a service elsewhere: what you ask is sent there."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Too big for this computer: it needs {need}; a model can have {most} here at most."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its check couldn't finish: {why}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Can chat, but can't build apps with RAI: its tool calls didn't work here."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Best match for this computer: it built Studio's test app, answers in about {s} s."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "It built Studio's test app, answers in about {s} s."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Works, but slowly here (about {s} s per answer)."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Uses RAI's tools, but couldn't build the test app here: RAI starts its programs from RapidR's recipes."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its local AI app says it takes no tools, so RAI can't build apps with it."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its size isn't known: Check My Models to see how it does here."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Best match for this computer by its size: Check My Models to see how it does."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Needs {need}: close other apps, Look Again, then Check My Models."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Needs {need} with a {k}K context. Not checked yet."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A browser can't tell how much memory this computer has free, so a model's fit can't be checked here: Studio on the desktop can."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Type your local AI app's address on this computer (for example http://127.0.0.1:11434), then Look. It must allow this page to ask it: the manual says how."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "This computer: {total} of memory; {free} free for a model now ({most} with other apps closed)."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "No AI model answered on this computer. A local AI app is a free program you install: it keeps AI models on your computer and answers RAI here, so what you ask stays on this computer, unless the app is set up to pass it on. Install one, add a model in it, start it, then go Back and Look Again — or type its address below if it uses another one."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{n} parameters"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "takes tools"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "no tools"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "RAI gets a {k} context"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "and its small-model mode (shorter instructions, a recipe first)"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Licence, as its local AI app reports it (Studio doesn't check it; it can be wrong or out of date): {licence}."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Its local AI app doesn't say its licence: check it where you got the model."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Stopping the check…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Every model that fits is checked already."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Checking models runs in RapidR Studio on the desktop."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Stop Checking"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Checking {model} ({k} of {n}): {step}…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The check stopped. {n} model isn't checked yet: Check My Models goes on with it."
+msgid_plural "The check stopped. {n} models aren't checked yet: Check My Models goes on with them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "Optional, about {n} minute: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
+msgid_plural "Optional, about {n} minutes: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "Every model that fits is checked. Choose one, then Finish."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Studio only asks this computer: {why}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Asking {url}…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Nothing answered at {url}: {why}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Licence of {model}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "As its local AI app reports it (Studio doesn't check it). Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1288,7 +1530,19 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/aisetup.inc
-msgid "Choose a model first (the server lists its own): start the server and Look Again if the list is empty."
+msgid "Choose a model first: Studio lists the ones on this computer. Start your local AI app and Look Again if the list is empty."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{model} runs on a service elsewhere, not on this computer: choose a model that runs here, or set that service up as a cloud service."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{model} can't chat: choose another model."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{model} is too big for this computer: choose another model."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -4045,6 +4299,10 @@ msgstr ""
 
 #: ide/panes.inc
 msgid "A bug in a handler: the program goes on and says so"
+msgstr ""
+
+#: ide/panes.inc
+msgid "What this computer has: memory, processor, disk"
 msgstr ""
 
 #: ide/panes.inc

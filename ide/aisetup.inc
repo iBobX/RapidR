@@ -128,7 +128,7 @@ CREATE AISetup AS RForm
     END CREATE
     CREATE AISuLocalText AS RLabel
       AutoSize = 0: WordWrap = 1
-      Caption = TR$("Nothing you ask leaves this computer, and it costs nothing. A model runs here in a local AI app — a free program you install that keeps AI models on your computer. Studio finds the models it already has and checks which ones fit this computer. Answers are slower and simpler than a cloud model's.")
+      Caption = TR$("It costs nothing, and Studio sends what you ask only to a local AI app on this computer — a free program you install that keeps AI models on your computer — so what you ask stays here, unless that app is set up to pass it on to a service elsewhere. Studio finds the models it already has and checks which ones fit this computer. Answers are slower and simpler than a cloud model's.")
     END CREATE
     CREATE AISuFoundText AS RLabel
       AutoSize = 0: WordWrap = 1
@@ -442,6 +442,12 @@ SUB LayOutAISetup
   AISuAddrLabel.Left = 24: AISuAddrLabel.Top = y + 3: AISuAddrLabel.Width = 132: AISuAddrLabel.Height = 20
   AISuAddrEdit.Left = 160: AISuAddrEdit.Top = y: AISuAddrEdit.Width = w - 160 - 24 - 104
   AISuAddrBtn.Left = w - 24 - 96: AISuAddrBtn.Top = y + (AISuAddrEdit.Height - ch) \ 2: AISuAddrBtn.Width = 96: AISuAddrBtn.Height = ch
+  ' (the page as tall as its texts need in Studio's language: the dialog
+  ' grows, never shrinks while it shows — nothing is cut off)
+  IF AISuPage = 2 THEN
+    h = y + AISuAddrEdit.Height + 16 + AISuHead.Height + AISuFoot.Height
+    IF AISetup.ClientHeight < h THEN AISetup.Height = AISetup.Height + h - AISetup.ClientHeight
+  END IF
   ' (3: a label column, the fields, notes under them)
   fw = w - 130 - 24 - 160
   AISuProvBox.Width = fw: AISuKeyEdit.Width = fw: AISuCloudModel.Width = fw
@@ -553,6 +559,10 @@ END FUNCTION
 
 ' A model's chip: whether it fits this computer.
 FUNCTION AISuChip(I AS INTEGER) AS STRING
+  IF AISuLM(I, "remote") = "1" THEN
+    Result = TR$("Runs elsewhere")
+    EXIT FUNCTION
+  END IF
   SELECT CASE AISuLM(I, "fit")
     CASE "fits": Result = TR$("Fits")
     CASE "close": Result = TR$("Fits if you close other apps")
@@ -573,6 +583,8 @@ FUNCTION AISuLine(I AS INTEGER) AS STRING
     Result = TR$("Waiting for its check…")
   ELSEIF AISuLM(I, "chat") = "0" THEN
     Result = TR$("Can't chat: it only turns text into numbers for searching.")
+  ELSEIF AISuLM(I, "remote") = "1" THEN
+    Result = TR$("Its local AI app runs this model on a service elsewhere: what you ask is sent there.")
   ELSEIF f = "toobig" THEN
     Result = TR$("Too big for this computer: it needs {need}; a model can have {most} here at most.", "need", AISuLM(I, "needwords"), "most", Proj.LocalAI("mostwords"))
   ELSEIF AISuLM(I, "error") <> "" THEN
@@ -582,9 +594,9 @@ FUNCTION AISuLine(I AS INTEGER) AS STRING
       Result = TR$("Can chat, but can't build apps with RAI: its tool calls didn't work here.")
     ELSEIF AISuLM(I, "task") = "1" THEN
       IF AISuLM(I, "fast") = "1" AND AISuLM(I, "best") = "1" THEN
-        Result = TR$("Best match for this computer: builds apps, answers in about {s} s.", "s", s)
+        Result = TR$("Best match for this computer: it built Studio's test app, answers in about {s} s.", "s", s)
       ELSEIF AISuLM(I, "fast") = "1" THEN
-        Result = TR$("Builds apps, answers in about {s} s.", "s", s)
+        Result = TR$("It built Studio's test app, answers in about {s} s.", "s", s)
       ELSE
         Result = TR$("Works, but slowly here (about {s} s per answer).", "s", s)
       END IF
@@ -592,13 +604,13 @@ FUNCTION AISuLine(I AS INTEGER) AS STRING
       Result = TR$("Uses RAI's tools, but couldn't build the test app here: RAI starts its programs from RapidR's recipes.")
     END IF
   ELSEIF AISuLM(I, "tools") = "0" THEN
-    Result = TR$("Can chat, but can't build apps with RAI.")
+    Result = TR$("Its local AI app says it takes no tools, so RAI can't build apps with it.")
   ELSEIF f = "unknown" THEN
     Result = TR$("Its size isn't known: Check My Models to see how it does here.")
   ELSEIF AISuLM(I, "best") = "1" THEN
-    Result = TR$("Best match for this computer by its size: Check My Models to be sure.")
+    Result = TR$("Best match for this computer by its size: Check My Models to see how it does.")
   ELSE
-    Result = TR$("Needs {need} with a {k}K context. Not checked yet.", "need", AISuLM(I, "needwords"), "k", k)
+    IF f = "close" THEN Result = TR$("Needs {need}: close other apps, Look Again, then Check My Models.", "need", AISuLM(I, "needwords")) ELSE Result = TR$("Needs {need} with a {k}K context. Not checked yet.", "need", AISuLM(I, "needwords"), "k", k)
   END IF
 END FUNCTION
 
@@ -635,7 +647,7 @@ SUB AISuFillList
     IF Proj.LocalAI("looking") = "1" THEN
       AISuNone.Caption = TR$("Looking for AI apps on this computer…")
     ELSE
-      AISuNone.Caption = TR$("No AI model answered on this computer. A local AI app is a free program you install: it keeps AI models on your computer and answers RAI here, so nothing you ask is sent anywhere. Install one, add a model in it, start it, then go Back and Look Again — or type its address below if it uses another one.")
+      AISuNone.Caption = TR$("No AI model answered on this computer. A local AI app is a free program you install: it keeps AI models on your computer and answers RAI here, so what you ask stays on this computer, unless the app is set up to pass it on. Install one, add a model in it, start it, then go Back and Look Again — or type its address below if it uses another one.")
     END IF
   END IF
   AISuMemText.AccessibleDescription = AISuMemText.Caption
@@ -673,6 +685,7 @@ SUB AISuDrawModel(Index AS INTEGER, State AS INTEGER, R AS RRect)
   ' (the chip, at the right of the first line)
   fit = AISuLM(Index, "fit")
   chip = AISuChip(Index)
+  IF AISuLM(Index, "remote") = "1" THEN fit = "remote"
   SELECT CASE fit
     CASE "fits": k = "status.success"
     CASE "close": k = "status.warning"
@@ -721,7 +734,8 @@ SUB AISuShowDetail
     AISuDetail.AccessibleDescription = ""
     EXIT SUB
   END IF
-  t = AISuLM(k, "id")
+  ' (the row's line whole — the list may cut it — then what its app reports)
+  t = AISuLine(k) + CHR$(10) + AISuLM(k, "id")
   part = AISuLM(k, "sizewords")
   IF part <> "" THEN t = t + " · " + part
   part = AISuLM(k, "params")
@@ -738,11 +752,11 @@ SUB AISuShowDetail
   t = t + "." + CHR$(10)
   lic = AISuLM(k, "licence")
   IF lic <> "" THEN
-    t = t + TR$("Licence, as its local AI app reports it: {licence}.", "licence", lic) + " "
+    t = t + TR$("Licence, as its local AI app reports it (Studio doesn't check it; it can be wrong or out of date): {licence}.", "licence", lic) + " "
   ELSE
-    t = t + TR$("Its local AI app doesn't say its licence.") + " "
+    t = t + TR$("Its local AI app doesn't say its licence: check it where you got the model.") + " "
   END IF
-  t = t + TR$("Building apps to sell? Check this model's licence.")
+  t = t + TR$("Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes.")
   AISuDetail.Caption = t
   AISuDetail.AccessibleDescription = t
   AISuLicBtn.Enabled = Flag(AISuLM(k, "licencetext") <> "")
@@ -789,9 +803,9 @@ SUB AISuCheckState
     AISuCheckBtn.Enabled = Flag(n > 0)
     m = (VAL(Proj.LocalAI("estimate")) + 59) \ 60
     IF n > 0 AND Proj.LocalAI("stopped") = "1" THEN
-      AISuCheckNote.Caption = TRN$("The check stopped. {n} model isn't checked yet: Check My Models goes on with it (about {m} minutes).", "The check stopped. {n} models aren't checked yet: Check My Models goes on with them (about {m} minutes).", n, "m", LTRIM$(STR$(m)))
+      AISuCheckNote.Caption = TRN$("The check stopped. {n} model isn't checked yet: Check My Models goes on with it.", "The check stopped. {n} models aren't checked yet: Check My Models goes on with them.", n)
     ELSEIF n > 0 THEN
-      AISuCheckNote.Caption = TRN$("Optional, about {n} minute: Studio tries each model that fits here — how fast it answers, whether it can use RAI's tools, and a tiny app. You can stop at any time; nothing leaves this computer.", "Optional, about {n} minutes: Studio tries each model that fits here — how fast it answers, whether it can use RAI's tools, and a tiny app. You can stop at any time; nothing leaves this computer.", m)
+      AISuCheckNote.Caption = TRN$("Optional, about {n} minute: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer.", "Optional, about {n} minutes: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer.", m)
     ELSEIF VAL(Proj.LocalAI("count")) > 0 THEN
       AISuCheckNote.Caption = TR$("Every model that fits is checked. Choose one, then Finish.")
     ELSE
@@ -812,8 +826,15 @@ SUB AISuAddrLook
       AISuFillList
       EXIT SUB
     END IF
-    IF LEFT$(LCASE$(a), 4) <> "http" THEN a = "http://" + a
-    IF RIGHT$(a, 3) <> "/v1" THEN a = a + "/v1"
+    ' (this computer's only: checked before anything is sent)
+    a = Proj.LocalAIAddress(a)
+    IF a = "" THEN
+      AISuCheckNote.Caption = TR$("Studio only asks this computer: {why}", "why", Proj.Error)
+      AISuCheckNote.AccessibleDescription = AISuCheckNote.Caption
+      Application.Announce AISuCheckNote.Caption
+      AISuAddrEdit.SetFocus
+      EXIT SUB
+    END IF
     AISuWebUrl = a
     AISuProbe1.Provider = "compatible"
     AISuProbe1.BaseURL = a
@@ -849,7 +870,7 @@ SUB AISuLicClick
   IF k < 0 OR k >= AISuRows THEN EXIT SUB
   AISuLicForm.Caption = TR$("Licence of {model}", "model", AISuLM(k, "id"))
   AISuLicText.Text = AISuLM(k, "licencetext")
-  AISuLicNote.Caption = TR$("As its local AI app reports it. Building apps to sell? Check this model's licence.")
+  AISuLicNote.Caption = TR$("As its local AI app reports it (Studio doesn't check it). Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes.")
   AISuLicNote.Left = 24: AISuLicNote.Top = 10: AISuLicNote.Width = AISuLicForm.ClientWidth - 24 - 24 - 96 - 16: AISuLicNote.Height = 40
   AISuLicCloseBtn.Left = AISuLicForm.ClientWidth - 24 - 96: AISuLicCloseBtn.Top = 12: AISuLicCloseBtn.Width = 96: AISuLicCloseBtn.Height = UiButtonH
   AISuLicForm.Center
@@ -1004,6 +1025,12 @@ SUB AISuFinish
       EXIT SUB
     END IF
     model = AISuLM(k, "id")
+    IF AISuLM(k, "remote") = "1" THEN
+      AISuCheckNote.Caption = TR$("{model} runs on a service elsewhere, not on this computer: choose a model that runs here, or set that service up as a cloud service.", "model", model)
+      Application.Announce AISuCheckNote.Caption
+      AISuModels.SetFocus
+      EXIT SUB
+    END IF
     IF AISuLM(k, "fit") = "toobig" OR AISuLM(k, "chat") = "0" THEN
       IF AISuLM(k, "chat") = "0" THEN AISuCheckNote.Caption = TR$("{model} can't chat: choose another model.", "model", model) ELSE AISuCheckNote.Caption = TR$("{model} is too big for this computer: choose another model.", "model", model)
       Application.Announce AISuCheckNote.Caption

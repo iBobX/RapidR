@@ -27,7 +27,7 @@ function installed(work, root) {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const mock = spawn(process.execPath, [join(ROOT, "tests", "ai_mock_server.mjs"), "0"], {
   stdio: ["ignore", "pipe", "inherit"],
-  env: { ...process.env, AI_MOCK_MODELS: "example-mini:Example Mini,example-pro:Example Pro" },
+  env: { ...process.env, AI_MOCK_MODELS: "example-mini:Example Mini,example-pro:Example Pro", AI_MOCK_LOCAL_NAMES: "example-small,example-chat,example-huge,example-embed" },
 });
 const MOCK = await new Promise((resolve) => mock.stdout.once("data", (d) => resolve(String(d).trim())));
 process.on("exit", () => mock.kill());
@@ -166,11 +166,12 @@ export const scenes = [
     crop: [640, 30, 640, 720],
   },
   {
-    // (Preview 4 R6) Set up RAI: free on this computer — the scene's mock
-    // playing Ollama, nothing at the others' addresses — or a cloud key
+    // (Preview 4 R6, LOCAL-AI) Set up RAI: free on this computer — the
+    // scene's mock playing a local AI app with made-up models, a made-up
+    // computer of 16 GB — or a cloud key
     name: "setup",
     open: "examples/gui/hello_form.rr",
-    do: `ai:setupprobes=${MOCK}|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup,wait,wait`,
+    do: `ai:setupprobes=${MOCK_ROOT}/s/local/v1|http://127.0.0.1:9/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait,wait`,
     delay: 5,
     window: 2,
     env: ENV,

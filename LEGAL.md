@@ -80,6 +80,12 @@ each one comes from.
 
 ## What stays your responsibility
 
+- **AI models and what they write.** RapidR doesn't provide, bundle or
+  download any AI model. A model's licence, or an AI service's terms, apply
+  to the model and to what it writes; whether AI-written code can be
+  protected by copyright, and who owns it, depends on your country. RapidR
+  makes no promise about either, nor about the accuracy of a model's licence
+  as a local AI app reports it (RapidR Studio shows it as reported, unchecked).
 - **Your own content.** Images, sounds, fonts, data and code you add to your
   program (`$RESOURCE` files, files next to a web build, `$INCLUDE` files
   from elsewhere) come with their own terms. What RapidR provides for
@@ -196,6 +202,13 @@ is called Versions, and it is built on Git). Their owners' notices:
   and Zstandard are names or marks of their owners. RapidR uses these names
   only to say which file formats it reads and writes (the `RArchive`
   component), and is independent of all of them.
+
+- OpenAI is a trademark of OpenAI, Inc.; Anthropic and Claude are trademarks
+  of Anthropic, PBC; DeepSeek, Ollama, LM Studio, xAI, OpenRouter and Llama
+  are names or marks of their owners. RapidR names them only to say which
+  providers and servers its AI component can talk to, and which interface a
+  local AI app offers ("OpenAI-compatible"); it is independent of all of
+  them.
 
 RapidR is not affiliated with or endorsed by these owners. Names are used
 only to say what RapidR works with.

@@ -576,6 +576,8 @@ const LOCAL_MODELS = [
   { name: "mock-huge", size: 240_000_000_000, digest: "sha256:mockhuge", params: "405B", quant: "Q4_K_M", caps: ["completion", "tools"], licence: "Mock Huge Licence\n\nFor tests only.", shape: [126, 8, 128, 16384, 131072] },
   { name: "mock-embed", size: 300_000_000, digest: "sha256:mockembed", params: "137M", quant: "F16", caps: ["embedding"], licence: "", shape: [12, 12, 12, 768, 8192] },
 ];
+// (AI_MOCK_LOCAL_NAMES: the manual's pictures' made-up names, in that order)
+for (const [i, n] of (process.env.AI_MOCK_LOCAL_NAMES || "").split(",").filter(Boolean).entries()) if (LOCAL_MODELS[i]) LOCAL_MODELS[i].name = n;
 const LOCAL_HELLO = `' A window with a button that says Hello.
 CREATE Form AS RForm
     Caption = "Hello"
@@ -608,7 +610,7 @@ function localApi(path, json) {
 // tool and builds the Hello app; mock-chat writes its call as text)
 function localAnswer(model, first, results) {
   const q = first.toLowerCase();
-  if (model === "mock-chat") return { text: q.startsWith("read the file") ? "I would call read_file with {\"path\": \"main.rr\"} to read it." : "Hello! I can chat about programs." };
+  if (model === LOCAL_MODELS[1].name) return { text: q.startsWith("read the file") ? "I would call read_file with {\"path\": \"main.rr\"} to read it." : "Hello! I can chat about programs." };
   if (q.startsWith("read the file")) {
     if (results.length === 0) return { tools: [{ name: "read_file", input: { path: "main.rr" } }] };
     return { text: "Its first line is a comment." };

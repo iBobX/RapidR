@@ -5402,10 +5402,10 @@ const CASES = [
     dump: {
       "aisumodels.itemcount": /^4$/,
       "aisumodels.itemindex": /^0$/,
-      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to be sure\.\r?\n/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to see how it does\.\r?\n/,
       "aisumemtext.caption": /^This computer: 16 GB of memory; 1[01](\.\d)? GB free for a model now \(13 GB with other apps closed\)\.$/,
-      "aisudetail.caption": /^mock-small · 1\.9 GB · 3\.2B parameters · Q4_K_M · takes tools · RAI gets a 16K context\.\nLicence, as its local AI app reports it: Mock Model Licence 1\.0\. Building apps to sell\? Check this model's licence\.$/,
-      "aisuchecknote.caption": /^Optional, about \d+ minutes?: Studio tries each model that fits here/,
+      "aisudetail.caption": /^Best match for this computer by its size: Check My Models to see how it does\.\nmock-small · 1\.9 GB · 3\.2B parameters · Q4_K_M · takes tools · RAI gets a 16K context\.\nLicence, as its local AI app reports it \(Studio doesn't check it; it can be wrong or out of date\): Mock Model Licence 1\.0\. Building apps to sell\? Check this model's licence: it may limit commercial use, or what you may do with what the model writes\.$/,
+      "aisuchecknote.caption": /^Optional, about \d+ minutes?: Studio loads each model that fits here, one at a time/,
       "aisucheckbtn.enabled": /^(-1|1|True)$/i,
       "aisulicbtn.enabled": /^(-1|1|True)$/i,
     },
@@ -5420,8 +5420,8 @@ const CASES = [
     events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), "aisumodels.__item_1", idle(2)].join(","),
     delay: 5,
     dump: {
-      "aisumodels.text": /\nmock-chat\. Fits\. Can chat, but can't build apps with RAI\.\r?\n/,
-      "aisudetail.caption": /no tools[\s\S]*Its local AI app doesn't say its licence\. Building apps to sell\? Check this model's licence\.$/,
+      "aisumodels.text": /\nmock-chat\. Fits\. Its local AI app says it takes no tools, so RAI can't build apps with it\.\r?\n/,
+      "aisudetail.caption": /no tools[\s\S]*Its local AI app doesn't say its licence: check it where you got the model\. Building apps to sell\? Check this model's licence: it may limit commercial use, or what you may do with what the model writes\.$/,
       "aisulicbtn.enabled": /^(0|False)$/i,
     },
   },
@@ -5462,7 +5462,7 @@ const CASES = [
       "aisunone.visible": /^(-1|1|True)$/i,
       "aisunone.caption": /^No AI model answered on this computer\. A local AI app is a free program you install/,
       "aisunonelink.visible": /^(-1|1|True)$/i,
-      "aisuchecknote.caption": /^Studio only asks this computer: 192\.168\.1\.20 isn't this computer/,
+      "aisuchecknote.caption": /^Studio only asks this computer: 192\.168\.1\.20:11434 isn't an address on this computer/,
     },
   },
   {
@@ -5481,7 +5481,7 @@ const CASES = [
     contrast: true,
     window: 2,
     dump: {
-      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer: builds apps, answers in about \d+ s\.\r?\nmock-chat\. Fits\. Can chat, but can't build apps with RAI: its tool calls didn't work here\.\r?\n/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer: it built Studio's test app, answers in about \d+ s\.\r?\nmock-chat\. Fits\. Can chat, but can't build apps with RAI: its tool calls didn't work here\.\r?\n/,
       "aisuchecknote.caption": /^Every model that fits is checked\. Choose one, then Finish\.$/,
       "aisucheckbtn.caption": /^&Check My Models$/,
     },
@@ -5517,8 +5517,8 @@ const CASES = [
     events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(2)].join(","),
     delay: 6,
     dump: {
-      "aisuchecknote.caption": /^The check stopped\. 2 models aren't checked yet: Check My Models goes on with them/,
-      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to be sure\.\r?\n/,
+      "aisuchecknote.caption": /^The check stopped\. 2 models aren't checked yet: Check My Models goes on with them\.$/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to see how it does\.\r?\n/,
       "aisucheckbtn.caption": /^&Check My Models$/,
     },
   },

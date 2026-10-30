@@ -98,6 +98,9 @@ pub struct Model {
     /// The server answers more than the OpenAI-compatible list (sizes,
     /// details, unloading).
     pub rich: bool,
+    /// Its app runs it on a service elsewhere (it says so): what is asked
+    /// goes there — never the best match, never checked, never picked.
+    pub remote: bool,
 }
 
 impl Model {
@@ -316,7 +319,12 @@ impl Row {
         self.check.as_ref().map_or(self.model.tools.unwrap_or(true), |c| c.tools)
     }
     fn usable(&self) -> bool {
-        self.model.chat && !matches!(self.fit.verdict, Verdict::TooBig)
+        self.model.chat && !self.model.remote && !matches!(self.fit.verdict, Verdict::TooBig)
+    }
+    /// Checked by Check My Models: usable, it fits now or its size isn't
+    /// known (a model that would need other apps closed waits), unchecked.
+    fn to_check(&self) -> bool {
+        self.usable() && matches!(self.fit.verdict, Verdict::Fits | Verdict::Unknown) && self.check.is_none()
     }
 }
 
@@ -380,23 +388,15 @@ pub fn cache_key(m: &Model) -> String {
     format!("{who}|{}|{}", env!("CARGO_PKG_VERSION"), prompts_mark())
 }
 
-/// (unit tests) The folder the checks are kept in, in place of Studio's.
-#[cfg(test)]
+/// (unit tests) The folder the checks are kept in, in place of Studio's
+/// (Studio's own folder is RAPIDR_STUDIO_DATA's in its tests).
 static TEST_CACHE_DIR: Mutex<Option<String>> = Mutex::new(None);
-/// (unit tests) One test at a time uses the kept checks.
-#[cfg(test)]
+/// (unit tests) One test at a time uses the page's state and the kept checks.
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 fn cache_file() -> String {
-    #[cfg(test)]
-    {
-        let dir = TEST_CACHE_DIR.lock().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_else(|| std::env::temp_dir().join("rapidr-local-ai-unit").to_string_lossy().to_string());
-        format!("{dir}/local-ai-checks.json")
-    }
-    #[cfg(not(test))]
-    {
-        format!("{}/local-ai-checks.json", crate::recovery::studio_folder())
-    }
+    let dir = TEST_CACHE_DIR.lock().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_else(crate::recovery::studio_folder);
+    format!("{dir}/local-ai-checks.json")
 }
 
 fn cache_read() -> serde_json::Map<String, Json> {
@@ -427,7 +427,7 @@ fn cache_write(key: &str, c: &Check) {
 pub fn local_url(url: &str) -> Result<String, String> {
     let t = url.trim().trim_end_matches('/');
     let t = if t.contains("://") { t.to_string() } else { format!("http://{t}") };
-    let ok = rapidr_ai::provider::loopback_url(&t)?;
+    let ok = rapidr_ai::provider::loopback_url(&t).map_err(|_| rapidr_value::i18n::tr_ui_fill("{address} isn't an address on this computer (only 127.0.0.1, [::1] or localhost).", &[("address", url.trim())]))?;
     let (scheme, rest) = ok.split_once("://").unwrap_or(("http", ok.as_str()));
     let (auth, path) = rest.split_once('/').map_or((rest, ""), |(a, p)| (a, p));
     let auth = if auth.eq_ignore_ascii_case("localhost") || auth.to_ascii_lowercase().starts_with("localhost:") { format!("127.0.0.1{}", &auth[9..]) } else { auth.to_string() };
@@ -460,7 +460,12 @@ mod net {
         local_url(base)?;
         let req = HttpRequest { method, url: url.to_string(), headers: vec![("content-type".into(), "application/json".into())], body: body.map(|b| b.to_string()) };
         let mut out = Vec::new();
-        let (status, _) = run_blocking(&req, Options { connect_timeout: 2, read_timeout, retries: 0 }, |d| out.extend_from_slice(d))?;
+        let (status, _) = run_blocking(&req, Options { connect_timeout: 2, read_timeout, retries: 0 }, |d| {
+            // (a local server that sends too much: kept to 16 MB)
+            if out.len() < 16 * 1024 * 1024 {
+                out.extend_from_slice(d)
+            }
+        })?;
         Ok((status, out))
     }
 
@@ -518,6 +523,7 @@ pub fn server_models(base: &str) -> Option<Vec<Model>> {
             m.family = det["family"].as_str().unwrap_or("").to_string();
             m.max_context = det["context_length"].as_u64().or(m.max_context);
             m.loaded = loaded.iter().any(|l| l == name);
+            m.remote = ["remote_host", "remote_model"].iter().any(|k| t[*k].as_str().is_some_and(|v| !v.trim().is_empty()));
         }
         for m in models.iter_mut().filter(|m| m.rich) {
             if let Some(show) = net::json("POST", &format!("{root}/api/show"), Some(json!({"model": m.id})), 10) {
@@ -569,6 +575,10 @@ pub fn describe(m: &mut Model, show: &Json) {
     let first = text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("").chars().take(80).collect::<String>();
     m.licence = info["general.license"].as_str().map(str::to_string).filter(|l| !l.is_empty()).unwrap_or(first);
     m.licence_text = text.chars().take(200_000).collect();
+    if text.chars().count() > 200_000 {
+        m.licence_text.push_str("\n\n[The licence text is longer: Studio shows its first 200,000 characters.]");
+    }
+    m.remote = m.remote || ["remote_host", "remote_model"].iter().any(|k| show[*k].as_str().is_some_and(|v| !v.trim().is_empty()));
 }
 
 // ---- the page's state ------------------------------------------------------------------
@@ -674,7 +684,7 @@ pub fn find(extra: &str) -> Result<(), String> {
     #[cfg(target_arch = "wasm32")]
     {
         let _ = extra;
-        Err("A web page can't look for AI apps on this computer by itself: type the address of yours.".into())
+        Err(rapidr_value::i18n::tr_ui("A web page can't look for AI apps on this computer by itself: type the address of yours."))
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -760,15 +770,15 @@ pub fn check(i: i64) -> Result<usize, String> {
     #[cfg(target_arch = "wasm32")]
     {
         let _ = i;
-        Err("Checking models runs in RapidR Studio on the desktop.".into())
+        Err(rapidr_value::i18n::tr_ui("Checking models runs in RapidR Studio on the desktop."))
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
         let (queue, cancel) = with(|s| {
             let queue: Vec<usize> = if i < 0 {
-                s.order.iter().copied().filter(|&k| s.rows[k].usable() && s.rows[k].check.is_none()).collect()
+                s.order.iter().copied().filter(|&k| s.rows[k].to_check()).collect()
             } else {
-                s.at(i).map(|(k, _)| vec![k]).unwrap_or_default()
+                s.at(i).filter(|(_, r)| r.usable()).map(|(k, _)| vec![k]).unwrap_or_default()
             };
             if queue.is_empty() || s.checking.is_some() {
                 return (Vec::new(), None);
@@ -783,7 +793,7 @@ pub fn check(i: i64) -> Result<usize, String> {
             (queue, Some(cancel))
         });
         let Some(cancel) = cancel else {
-            return if with(|s| s.checking.is_some()) { Err("A check is running: wait for it, or cancel it.".into()) } else { Ok(0) };
+            return if with(|s| s.checking.is_some()) { Err(rapidr_value::i18n::tr_ui("A check is running: wait for it, or stop it.")) } else { Ok(0) };
         };
         let n = queue.len();
         with(|s| s.checking = queue.first().copied());
@@ -823,9 +833,12 @@ fn run_checks(queue: Vec<usize>, cancel: Arc<AtomicBool>) {
             s.step = what.to_string();
             s.news = true;
         });
+        // (in memory already — another app, or a person, uses it: it stays
+        // after the check; asked now, not when the list was made)
+        let was_loaded = m.rich && loaded_now(&m);
         let result = check_one(&m, &f, &cancel, &step);
         // (a model this check loaded is let go, as it was before)
-        if m.rich && !m.loaded {
+        if m.rich && !was_loaded {
             let _ = net::ask("POST", &format!("{}/api/generate", m.root()), Some(json!({"model": m.id, "keep_alive": 0})), 10);
         }
         with(|s| {
@@ -854,6 +867,16 @@ fn run_checks(queue: Vec<usize>, cancel: Arc<AtomicBool>) {
         s.cancel = None;
         s.news = true;
     });
+}
+
+/// Whether the model is in its app's memory now (its app says which are).
+#[cfg(not(target_arch = "wasm32"))]
+fn loaded_now(m: &Model) -> bool {
+    net::json("GET", &format!("{}/api/ps", m.root()), None, 5)
+        .and_then(|v| v["models"].as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .any(|x| x["name"].as_str() == Some(m.id.as_str()) || x["model"].as_str() == Some(m.id.as_str()))
 }
 
 /// A model's answer: seconds to its first word, its text, its tool calls,
@@ -1113,6 +1136,7 @@ fn field(i: i64, what: &str) -> String {
             "licence" => m.licence.clone(),
             "licencetext" => m.licence_text.clone(),
             "loaded" => flag(m.loaded),
+            "remote" => flag(m.remote),
             "digest" => m.digest.clone(),
             "checked" => flag(c.is_some()),
             "kept" => flag(r.kept),
@@ -1166,8 +1190,8 @@ fn state(what: &str) -> String {
             "done" => st.checked_now.to_string(),
             "stopping" => (if st.checking.is_some() && st.cancel.as_ref().is_some_and(|c| c.load(Ordering::SeqCst)) { "1" } else { "0" }).into(),
             "stopped" => (if st.stopped { "1" } else { "0" }).into(),
-            "estimate" => st.order.iter().filter(|&&k| st.rows[k].usable() && st.rows[k].check.is_none()).map(|&k| estimate_s(&st.rows[k].model)).sum::<u64>().to_string(),
-            "unchecked" => st.order.iter().filter(|&&k| st.rows[k].usable() && st.rows[k].check.is_none()).count().to_string(),
+            "estimate" => st.order.iter().filter(|&&k| st.rows[k].to_check()).map(|&k| estimate_s(&st.rows[k].model)).sum::<u64>().to_string(),
+            "unchecked" => st.order.iter().filter(|&&k| st.rows[k].to_check()).count().to_string(),
             "web" => (if cfg!(target_arch = "wasm32") { "1" } else { "0" }).into(),
             _ => String::new(),
         }
@@ -1204,6 +1228,13 @@ pub fn call(method: &str, args: &[Value]) -> Option<(Value, String)> {
         "localaiaddmodels" => match add_models(&a(0), &a(1)) {
             Ok(k) => (Value::Integer(k as i64), String::new()),
             Err(e) => (Value::Integer(0), e),
+        },
+        // LocalAIAddress(Address): the address as it is asked (this
+        // computer's only: "" and Error for another computer's) — a web
+        // page checks the address typed before anything is sent
+        "localaiaddress" => match local_url(&a(0)) {
+            Ok(u) => (s(u), String::new()),
+            Err(e) => (s(""), e),
         },
         // LocalAIClear: the page forgets what it found (not the checks kept)
         "localaiclear" => {
@@ -1558,7 +1589,7 @@ mod mock_tests {
         // (an address that isn't this computer: refused, nothing asked)
         let (v, e) = call("localaifind", &[s("http://192.168.0.9:11434")]).unwrap();
         assert_eq!(v.to_i64(), 0);
-        assert!(e.contains("isn't this computer"), "{e}");
+        assert!(e.contains("isn't an address on this computer"), "{e}");
         // (Check every model that fits: one at a time; the one that calls
         // tools builds the app, the other writes its call as text)
         let n = call("localaicheck", &[Value::Integer(-1)]).unwrap().0.to_i64();
@@ -1600,6 +1631,7 @@ mod mock_tests {
 #[test]
 fn a_check_stopped_while_a_model_answers_ends_unchecked() {
     let _one = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    *TEST_CACHE_DIR.lock().unwrap() = Some(std::env::temp_dir().join(format!("rapidr-local-ai-cancel-{}", std::process::id())).to_string_lossy().to_string());
     std::env::set_var("RAPIDR_AI_KEYSTORE", "memory");
     let slow = mock_tests::serve_slow(true, 1500);
     call("localaitest", &[s("addresses"), s(slow)]);
@@ -1624,4 +1656,43 @@ fn a_check_stopped_while_a_model_answers_ends_unchecked() {
     assert_eq!((state("stopped"), field(0, "checked"), field(0, "error")), ("1".into(), "0".into(), String::new()));
     call("localaitest", &[s("addresses"), s("")]);
     call("localaitest", &[s("facts"), s("")]);
+    *TEST_CACHE_DIR.lock().unwrap() = None;
+}
+
+/// (tests) RapidR names no local AI app or model anywhere in the page, its
+/// code or its manual: it says "local AI app" (docs/local-ai-plan.md §5).
+#[cfg(test)]
+#[test]
+fn no_local_ai_app_or_model_is_named() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let names = ["ollama", "lm studio", "lmstudio", "mlx serve", "mlx-serve", "llama.cpp", "llamafile", "gpt4all", "koboldcpp", "vllm", "jan.ai", "qwen", "gemma", "llama3", "mistral", "phi-3", "deepseek-r1"];
+    for f in ["ide/aisetup.inc", "docs/manual/local-ai.md", "docs/manual/es/local-ai.md", "crates/rapidr-studio/src/local_ai.rs", "tools/manual/scenes/local-ai.mjs"] {
+        let text = std::fs::read_to_string(root.join(f)).unwrap_or_default().to_ascii_lowercase();
+        // (this test's own list isn't a mention)
+        let text = text.split("fn no_local_ai_app_or_model_is_named").next().unwrap_or("").to_string();
+        for n in names {
+            assert!(!text.contains(n), "{f} names {n}");
+        }
+    }
+}
+
+/// (tests) A model its app runs on a service elsewhere: marked, never the
+/// best match, never checked; a licence text cut says so.
+#[cfg(test)]
+#[test]
+fn a_model_run_elsewhere_is_marked_and_never_picked() {
+    let mut m = Model::new("far:big", "http://127.0.0.1:1/v1");
+    m.size = Some(1_000_000_000);
+    describe(&mut m, &json!({"remote_host": "https://service.example", "capabilities": ["completion", "tools"], "license": "x".repeat(200_010)}));
+    assert!(m.remote && m.chat);
+    assert!(m.licence_text.ends_with("Studio shows its first 200,000 characters.]"));
+    let mem = Memory::of(&Facts { total_memory: Some(16 * GB), free_memory: Some(12 * GB), ..Facts::default() });
+    let mut near = Model::new("near:small", "http://127.0.0.1:1/v1");
+    near.size = Some(2_000_000_000);
+    near.chat = true;
+    let rows = vec![Row { fit: fit(&m, mem), model: m, check: None, kept: false, error: String::new() }, Row { fit: fit(&near, mem), model: near, check: None, kept: false, error: String::new() }];
+    let order = rank(&rows, mem);
+    assert_eq!(rows[order[0]].model.id, "near:small");
+    assert_eq!(best(&rows, &order).map(|k| rows[k].model.id.as_str()), Some("near:small"));
+    assert!(!rows[0].to_check() && rows[1].to_check());
 }

@@ -3362,7 +3362,7 @@ Keeps passwords, tokens and keys in the operating system's keychain (the macOS K
 <a id="rsysteminfo"></a>
 ## RSystemInfo
 
-What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer and never sent anywhere. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or "". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own.
+What this computer has — its system, processor, memory, graphics, disk and battery — read on this computer. RapidR never sends them anywhere. If your program does (to a server, in a log, in a report), tell its users first and send only what you need (`Class`, not every fact): together they can single out one computer, and a program for children shouldn't send them at all. A program adapts to it: `Class` says the computer's size in plain words (small, medium, large), `FreeMemory` how much memory a program can have now. Memory and disk sizes are in megabytes. On a web page the browser tells only a little (its cores, roughly its memory, the system): `Unknown` names what can't be known there, and those properties read 0 or "". RapidR Studio's check of the AI models on this computer reads the same facts. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5904,6 +5904,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `LocalAICancel` | Stops the check now: the model being checked is left unchecked. |
 | `LocalAIAddModels(Address AS STRING, Models AS STRING) AS INTEGER` | (a web page) The models a server at Address (this computer's) listed to an RAI — its Models text — as rows with what is known. How many. |
 | `LocalAIClear` | Forgets the models found (the checks kept stay kept). |
+| `LocalAIAddress(Address AS STRING) AS STRING` | Address as Studio asks it — this computer's only (127.0.0.1 for localhost, /v1 added) — or "" for another computer's (Error says why): a web page checks an address typed before anything is sent. |
 | `LocalAITest(What AS STRING, Value AS STRING) AS INTEGER` | (tests) "addresses": the servers asked instead of the usual ports ("url\|url", this computer's only; "" the usual ones again); "facts": the computer's memory instead of this one's ("total=16384,free=8192,unified=0", megabytes; "" this one's). |
 | `SchoolLockStrength(Password AS STRING) AS INTEGER` | How hard Password is to guess, for a hint beside the field: 0 too short (under 6 characters), 1 weak (common, a run like 123456, one letter repeated), 2 fair, 3 strong. |
 | `FilesIn(Folder AS STRING) AS STRING` | The text files under Folder, at any depth, a line each (full paths, sorted): hidden folders, build and target folders, and pictures, sounds, videos, fonts, archives and programs left out; at most 2,000. Search's "A folder" scope reads them (the disk on the desktop, the page's store on the web). |
