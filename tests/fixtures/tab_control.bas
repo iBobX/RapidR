@@ -7,7 +7,6 @@
 $INCLUDE "RAPIDQ.INC"
 DECLARE SUB TabChange
 DECLARE SUB Report
-CONST alBottom = 2
 DIM Log AS STRING
 CREATE Form AS QFORM
   Caption = "tabs"

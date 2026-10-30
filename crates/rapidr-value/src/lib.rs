@@ -764,8 +764,16 @@ impl Value {
         }
     }
 
-    /// BASIC string concatenation (&)
+    /// `&`, which in RapidQ is its `+` (RC.EXE: `5 & 3` is 8, `"5" & "3"` is
+    /// 53, `&&` the same as `&`, at `+`'s precedence): two numbers add; with
+    /// a string on either side the text joins. (RapidQ's `+` on a string and
+    /// a number returns the right-hand operand, a quirk RapidR doesn't keep:
+    /// `"n = " & 5` is `n = 5`.)
     pub fn concat(&self, rhs: &Value) -> Value {
+        let number = |v: &Value| matches!(v, Value::Integer(_) | Value::Double(_) | Value::Boolean(_));
+        if number(self) && number(rhs) {
+            return self + rhs;
+        }
         let (a, b) = (self.text(), rhs.text());
         let mut out = String::with_capacity(a.len() + b.len());
         out.push_str(&a);
@@ -1102,7 +1110,11 @@ mod tests {
         assert_eq!(t.to_string_val(), "n=7");
         let mut c = v_int(1);
         rp_append_assign(c.clone(), v_int(2), &mut c, false);
-        assert_eq!(c.to_string_val(), "12");
+        // (`&` is RapidQ's `+`: two numbers add)
+        assert_eq!(c, v_int(3));
+        let mut s = v_str("1");
+        rp_append_assign(s.clone(), v_str("2"), &mut s, false);
+        assert_eq!(s.to_string_val(), "12");
     }
 
     #[test]
@@ -1348,6 +1360,9 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
             }));
         }
         "__null" => return Some(Ok(Value::Null)),
+        // FORMAT$: a specifier RapidQ's Format refuses is a run-time error
+        // (the program's own, with its line).
+        "format" => return Some(format::try_format(&arg(0).to_string_val(), args.get(1..).unwrap_or(&[])).map(|s| Value::String(s.into()))),
         "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
         "__lone_equals" => return Some(Ok(rp_lone_equals(&arg(0)))),
         "__environ_set" => return Some(Ok(builtins::rp_environ_set(&arg(0)))),

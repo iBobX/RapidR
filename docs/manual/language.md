@@ -157,6 +157,10 @@ From the loosest: `OR`, `XOR` · `AND` · `NOT` · comparisons (`=`, `<>`,
 - `a INV m` is the modular inverse (`3 INV 26` is 9).
 - Strings: `+` or `&` join; `-` removes every occurrence (`"jello" - "l"`
   is `"jeo"`); `s$[i]` is the i-th character.
+- `&` is `+` (as in classic programs): two numbers add (`5 & 3` is 8, not 53), two
+  strings join, at the same level as `+` and `-`; `&&` is the same operator
+  (not a logical AND), so `IF x = 3 && x = 3` is never true — write `AND`.
+  To join a number to text, turn it into text: `"n = " + STR$(n)`.
 - `i++`, `i--`, `x += y` (and `-=`, `*=`, `/=`, `&=`); `INC x [, n]`,
   `DEC x [, n]`.
 - `@var` passes a variable by reference.

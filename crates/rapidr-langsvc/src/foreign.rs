@@ -84,7 +84,7 @@ pub const HINTS: &[Hint] = &[
     h("missing-end-if", "every block IF needs its END IF: IF a THEN, the lines, END IF (a one-line IF needs none)"),
     h("else-if", "ELSE IF starts a second IF that needs an END IF of its own: write ELSEIF, one word — IF … THEN … ELSEIF … THEN … ELSE … END IF"),
     h("missing-end-select", "every SELECT CASE needs its END SELECT"),
-    h("and-and", "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` joins text, so such a test is never what you meant)"),
+    h("and-and", "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` is `&`: it joins text and adds numbers, so such a test is never what you meant)"),
     h("else-line","a one-line IF takes its ELSE on the same line (IF a THEN x ELSE y); for several lines write IF a THEN, the lines, ELSE, the lines, END IF"),
     h("colon", "no `:` after IF, ELSE, FOR, WHILE or SUB: write IF a = 1 THEN, the statements on the lines below, then END IF"),
     h("braces", "BASIC has no braces: a block ends with its own words — END SUB, END FUNCTION, END IF, NEXT, WEND, LOOP"),
