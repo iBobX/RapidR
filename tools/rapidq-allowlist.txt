@@ -1,0 +1,73 @@
+# Where "RapidQ" may stay in text a user reads (tools/check_rapidq_mentions.py).
+#
+# Robert (2026-10-24, 2026-10-30): "We don't care about RapidQ, we care about
+# RapidR." RapidQ is named in the importer's own texts and, as the compatibility
+# page's one line, nowhere else. Anything new that needs the name has to say why
+# here; most of it should be rewritten around the behaviour instead ("classic
+# names", "a classic compiler").
+#
+# One entry per line:  path :: text
+#   path  a file, a directory prefix ending in "/", a glob (docs/*.md), or *
+#   text  what is allowed on the line (matched without regard to case; it is
+#         taken out of the line before the check). Nothing after "::" allows
+#         the whole file or directory.
+# An entry that matches nothing is an error: remove it.
+#
+# Never needing an entry (tools/check_rapidq_mentions.py's NAMES): the importer's
+# command and component (`rapidr import-rapidq`, ImportRapidQ), its menu items
+# (Import RapidQ Project or File…, Import RapidQ Folder…, Import a RapidQ
+# Program…), the folder examples/rapidq/, links to docs/rapidq-*.md, the include
+# file RAPIDQ.INC / RAPIDQ2.INC (an older program writes it in its $INCLUDE line)
+# and the ids of file types (RapidR.RapidQSource, text/x-rapidq-basic).
+#
+# Not scanned at all: source comments, test modules and fixtures, build scripts,
+# the legal record (docs/legal/), published history (CHANGELOG.md's versions,
+# docs/release-notes/, the extension's CHANGELOG), plans and engineering notes
+# (docs/*.md outside docs/manual/), and the guides for contributors
+# (CONTRIBUTING.md, COMPILER_MANUAL.md, VSCODE_EXTENSION.md) and the drafts for
+# RapidQ's own user groups (ANNOUNCEMENT.md).
+
+# ---- (b) the compatibility page's one line ----
+docs/manual/compatibility.md :: written for RapidQ (
+# One compatibility line in the project's front page (Robert's rule: a short
+# "older programs keep working" line in the README).
+README.md :: import programs written for RapidQ, include files and all.
+
+# ---- (a) the importer's own texts ----
+# The importer's page, its code (the report it writes, what it says it left alone).
+docs/manual/importing-rapidq.md ::
+crates/rapidr-import/src/ ::
+# The command's line in the command-line guide and in `rapidr help`.
+docs/manual/cli-and-runtime.md :: Write a converted copy of a RapidQ program
+crates/rapidr-cli/src/main.rs :: A copy of a RapidQ program and every file it includes
+# Studio's import dialog (the filter's name) and its Spanish translation.
+ide/project.inc :: RapidQ programs
+ide/lang/studio.pot :: RapidQ programs
+ide/lang/es.po :: de RapidQ
+ide/lang/es.po :: RapidQ programs
+# Studio's own component for the importer (Studio.ImportRapidQ's description).
+crates/rapidr-lang/data/components/studio.toml :: Imports a RapidQ program
+docs/manual/reference/members.md :: Imports a RapidQ program
+
+# ---- values a program writes: ids, not wording ----
+# CompatMode = "rapidq" (a project kept classic-compatible) and the project
+# template "rapidq": the values programs and project files already use.
+crates/rapidr-lang/data/components/studio.toml :: \"rapidq\"
+docs/manual/reference/members.md :: "rapidq"
+# The language server's option and the extension's setting (ids in code spans).
+docs/manual/other-editors.md :: rapidqCompatible
+utilities/vscodeext/rapidr/README.md :: rapidqCompatible
+
+# ---- legal notices: the nominative statement that RapidR is not affiliated ----
+# (docs/legal/ and LEGAL.md hold the analysis; the README, the About boxes and
+# `rapidr --version` carry the notice itself.)
+README.md :: RapidQ was created by William Yu.
+README.md :: that is compatible with RapidQ: it contains nothing of RapidQ's
+README.md :: endorsed or sponsored by RapidQ's author, anyone holding rights in RapidQ, or
+README.md :: trademarks (RapidR is compatible with RapidQ and not affiliated
+crates/rapidr-cli/src/launch.rs :: RapidR is compatible with RapidQ; it is not affiliated with RapidQ's author
+crates/rapidr-cli/src/notices.rs :: RapidR is not affiliated with RapidQ, its author, or any vendor named in its documentation
+examples/ide.rr :: RapidR is compatible with RapidQ; it is not affiliated with its author
+
+# ---- a translators' note in the compiler messages' template (never shown) ----
+crates/rapidr-diagnostics/src/messages.rs :: RapidQ's own message (RC.EXE): the English stays beside the translation

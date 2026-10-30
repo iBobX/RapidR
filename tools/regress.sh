@@ -19,7 +19,9 @@
 #                                     examples, gui, visual, web, studio,
 #                                     studio-goldens, security, perf, legal,
 #                                     words (the quick one: no other
-#                                     products named in RapidR's text;
+#                                     products named in RapidR's text, and
+#                                     the older BASIC's name only where the
+#                                     allow-list says;
 #                                     Studio's design guard)),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
@@ -78,6 +80,9 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (RapidR's own words: no other products as models or comparisons in the
   # code, docs or UI text; tools/words-allowlist.txt lists what stays)
   python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  # (the older BASIC's name only in the importer's texts and the compatibility
+  # page's one line; tools/rapidq-allowlist.txt lists where else it stays)
+  python3 tools/check_rapidq_mentions.py || echo "tools/check_rapidq_mentions.py: FAILED"
   # (RapidR Studio's design guide, docs/design-guidelines.md: no colour
   # written as a number, no unknown token, no control height off the
   # guide's scale — new ones only; tools/check_design_baseline.txt lists
@@ -88,6 +93,7 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (no private key, certificate, signing key or token in a tracked file)
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; echo "(unit done)"; fi
 if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  python3 tools/check_rapidq_mentions.py || echo "tools/check_rapidq_mentions.py: FAILED"
   python3 tools/check_design.py || echo "tools/check_design.py: FAILED"
   python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; fi
