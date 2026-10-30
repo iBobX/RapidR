@@ -52,6 +52,9 @@ SUB OpenProject(Path AS STRING)
   ' (the project file watched for changes outside Studio: external.inc)
   ExtProjectOpened
   Lang.CompatMode = Proj.CompatMode
+  ' (a project kept classic-compatible: the Properties pane marks, with a
+  ' small calm note, the members a classic program doesn't have)
+  Inspector.MarkNonClassic = Flag(Proj.CompatMode = "rapidq")
   ' (S5: a module is checked as part of its project, never alone; what
   ' works on one runtime only is noted when the project runs on the other)
   Lang.Project = ProjectMain
@@ -158,6 +161,7 @@ SUB CloseProject
   Proj.Close
   ExtProjectClosed
   Lang.Project = ""
+  Inspector.MarkNonClassic = 0
   ProjectOpen = 0
   RefreshProgramLook 0
   ProjectName = ""
@@ -377,6 +381,8 @@ SUB LoadSettings
     IF Reg.ValueExists("EditBottom") THEN EditBottom = VAL(Reg.ReadString("EditBottom"))
     IF Reg.ValueExists("DebugBottom") THEN DebugBottom = VAL(Reg.ReadString("DebugBottom"))
     IF Reg.ValueExists("DebugWidth") THEN DebugWidth = VAL(Reg.ReadString("DebugWidth"))
+    ' (the Properties pane's names column, as the user dragged its divider)
+    IF Reg.ValueExists("InspectorNameWidth") THEN InspectorNameWidth = VAL(Reg.ReadString("InspectorNameWidth"))
     LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
     ' (S2: on unless turned off)
@@ -407,6 +413,12 @@ SUB SaveSettings
   Reg.WriteString("EditBottom", LTRIM$(STR$(EditBottom)))
   Reg.WriteString("DebugBottom", LTRIM$(STR$(DebugBottom)))
   Reg.WriteString("DebugWidth", LTRIM$(STR$(DebugWidth)))
+  ' (kept only when the user moved the divider off the component's default)
+  IF Inspector.NameWidth = InspectorNameWidthDefault THEN
+    Reg.WriteString("InspectorNameWidth", "0")
+  ELSE
+    Reg.WriteString("InspectorNameWidth", LTRIM$(STR$(Inspector.NameWidth)))
+  END IF
   SaveSession
   SaveDebugState
   Reg.WriteString("Recent", RecentList)

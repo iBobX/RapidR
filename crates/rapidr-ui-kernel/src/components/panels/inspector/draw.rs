@@ -264,11 +264,6 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
     if r.kind == RowKind::Category {
         let title = category_title(&r.name);
         common::section(p, rr, l, &title, r.expanded, Some(r.count), c.font);
-        if r.ext {
-            let (tw, _) = text_size(&title, &bold(c.font));
-            let cw = text_size(&r.count.to_string(), c.font).0;
-            common::badge(p, x + 22 + tw + 6 + cw + 8, y + h / 2, "R", l, c.font);
-        }
         if selected && c.focused && c.editing.is_none() && !c.searching {
             common::row_focus(p, rr, l);
         }
@@ -292,7 +287,8 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
         ink = common::row(p, rr, l, selected, focused, hover && !selected);
     }
     let parts = geo::parts(m, r, rr, nw);
-    // (the name: its expander, the search's marks, an extension's badge)
+    // (the name: its expander, the search's marks, a member older programs
+    // lack: the small note)
     if let Some((cx, mid)) = parts.expander {
         if l.classic {
             expander(p, cx, mid, 9, r.expanded);
@@ -306,11 +302,12 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
     if r.kind == RowKind::AddLine {
         common::icon(p, "add", parts.name_x - 16, y + (h - 12) / 2, 12, Some(l.dim), false);
     }
-    let badge_room = if r.ext && m.alphabetic { 22 } else { 0 };
-    common::marked_text(p, (parts.name_x, y, (name_room - badge_room).max(0), h), &r.name, &r.marks, &name_font, name_ink, if selected && l.classic { ink } else { l.mark });
-    if badge_room > 0 {
-        let (tw, _) = text_size(&common::elide(&r.name, &name_font, name_room - badge_room), &name_font);
-        common::badge(p, parts.name_x + tw + 5, y + h / 2, "R", l, c.font);
+    let note = if r.non_classic { geo::note_room(&name_font, name_room) } else { None };
+    let note_room = note.map_or(0, |w| w + 5);
+    common::marked_text(p, (parts.name_x, y, (name_room - note_room).max(0), h), &r.name, &r.marks, &name_font, name_ink, if selected && l.classic { ink } else { l.mark });
+    if note.is_some() {
+        let (tw, _) = text_size(&common::elide(&r.name, &name_font, name_room - note_room), &name_font);
+        common::note(p, parts.name_x + tw + 5, y + h / 2, &geo::note_text(), l, c.font);
     }
     // (the reset glyph: on a changed row under the mouse or selected)
     let shows_reset = (hover || selected) && !r.is_default && !r.mixed && geo::resettable(r) && !m.read_only;

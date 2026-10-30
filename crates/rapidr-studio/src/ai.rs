@@ -370,7 +370,7 @@ fn facts(t: &Tools) -> String {
         f.push_str(&format!(" Changes you proposed earlier wait for the user's review: {}. Until they decide, read_file, check_code and the compiler see those files as you proposed them, and a new change to one builds on it.", waiting.join(", ")));
     }
     if t.compat.eq_ignore_ascii_case("rapidq") {
-        f.push_str(" It is kept classic-compatible: write only what a classic compiler takes (no [R] extensions), with the classic names.");
+        f.push_str(" It is kept classic-compatible: write only what a classic compiler takes (nothing marked [new]), with the classic names.");
     }
     if !t.run_output.trim().is_empty() {
         // (marked as the tools mark what they read: the program's text is

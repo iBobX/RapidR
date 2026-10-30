@@ -11,9 +11,9 @@ use crate::panels::fuzzy;
 use crate::panels::rows::ROW;
 use crate::Value;
 
-/// The category of RapidR's own members of a RapidQ component.
-pub const EXTENSIONS: &str = "RapidR extensions";
-/// The category of members without one.
+/// The category of a program's own properties given none (`AddProperty`):
+/// the registry's own are all in a category of their purpose
+/// (`rapidr_lang::PROPERTY_CATEGORIES`), never of where they come from.
 pub const MISC: &str = "Misc";
 
 /// A category's name in the program's language (the rows and the registry
@@ -33,7 +33,6 @@ pub fn category_title(category: &str) -> String {
         "Misc" => tr_ui("Misc"),
         "Network" => tr_ui("Network"),
         "Window" => tr_ui("Window"),
-        "RapidR extensions" => tr_ui("RapidR extensions"),
         other => other.to_string(),
     }
 }
@@ -48,8 +47,9 @@ pub struct Prop {
     pub name: String,
     pub kind: Kind,
     pub category: String,
-    /// RapidR's own member of a RapidQ component (the "R" badge).
-    pub ext: bool,
+    /// A member older programs don't have (RapidR's own on a component they
+    /// know): a project kept classic-compatible marks its row.
+    pub non_classic: bool,
     /// Its value as a runtime keeps it; `None` when the inspected
     /// components' values differ.
     pub value: Option<Value>,
@@ -171,8 +171,9 @@ pub struct Row {
     pub mixed: bool,
     /// How many rows a heading holds.
     pub count: usize,
-    /// RapidR's own member of a RapidQ component (A–Z: its badge).
-    pub ext: bool,
+    /// A member older programs don't have, and the inspector is marking
+    /// them (`MarkNonClassic`): its row carries the small note.
+    pub non_classic: bool,
 }
 
 impl Row {
@@ -203,7 +204,8 @@ pub struct View<'a> {
     pub alphabetic: bool,
     pub events: bool,
     pub filter: &'a str,
-    pub show_ext: bool,
+    /// `MarkNonClassic`: the rows of members older programs lack are marked.
+    pub mark_non_classic: bool,
     pub collapsed: Option<&'a BTreeSet<String>>,
     pub expanded: Option<&'a BTreeSet<String>>,
 }
@@ -235,12 +237,12 @@ pub fn rows(props: &[Prop], events: &[Ev], view: &View) -> Vec<Row> {
                     is_default: e.handler.as_deref() == Some(""),
                     mixed: e.handler.is_none(),
                     count: 0,
-                    ext: false,
+                    non_classic: false,
                 })
             })
             .collect();
     }
-    let shown: Vec<(usize, Vec<usize>)> = props.iter().enumerate().filter(|(_, p)| view.show_ext || !p.ext).filter_map(|(i, p)| Some((i, found(&p.name)?))).collect();
+    let shown: Vec<(usize, Vec<usize>)> = props.iter().enumerate().filter_map(|(i, p)| Some((i, found(&p.name)?))).collect();
     let mut out = Vec::new();
     let push_prop = |out: &mut Vec<Row>, i: usize, marks: Vec<usize>, level: usize| {
         let p = &props[i];
@@ -260,7 +262,7 @@ pub fn rows(props: &[Prop], events: &[Ev], view: &View) -> Vec<Row> {
             is_default: p.is_default,
             mixed: if p.kind == Kind::Font { p.parts.iter().any(|q| q.value.is_none()) } else { p.value.is_none() },
             count: 0,
-            ext: p.ext,
+            non_classic: view.mark_non_classic && p.non_classic,
         });
         if open {
             parts(out, p, i, level + 1);
@@ -274,9 +276,9 @@ pub fn rows(props: &[Prop], events: &[Ev], view: &View) -> Vec<Row> {
         }
         return out;
     }
-    // (categories A–Z, RapidR's extensions last; each one's rows A–Z)
+    // (categories A–Z, each one's rows A–Z)
     let mut cats: Vec<&str> = shown.iter().map(|(i, _)| props[*i].category.as_str()).collect();
-    cats.sort_by_key(|c| (*c == EXTENSIONS, c.to_ascii_lowercase()));
+    cats.sort_by_key(|c| c.to_ascii_lowercase());
     cats.dedup();
     for cat in cats {
         let mut members: Vec<&(usize, Vec<usize>)> = shown.iter().filter(|(i, _)| props[*i].category == cat).collect();
@@ -298,7 +300,7 @@ pub fn rows(props: &[Prop], events: &[Ev], view: &View) -> Vec<Row> {
             is_default: true,
             mixed: false,
             count: members.len(),
-            ext: cat == EXTENSIONS,
+            non_classic: false,
         });
         if open {
             for (i, marks) in members {
@@ -326,7 +328,7 @@ fn parts(out: &mut Vec<Row>, p: &Prop, i: usize, level: usize) {
         is_default,
         mixed: false,
         count: 0,
-        ext: false,
+        non_classic: false,
     };
     match &p.kind {
         Kind::Set(values) if key == "anchors" && *values == ["akLeft", "akTop", "akRight", "akBottom"] => {

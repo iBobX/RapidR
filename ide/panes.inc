@@ -25,6 +25,9 @@ SUB SetUpDock
   Dock.AddPane(OutputBox, TR$("Output"), "bottom:documents", "output")
   Dock.AddPane(ImmediateBox, TR$("Immediate"), "tab:outputbox", "immediate")
   Dock.AddPane(Welcome, TR$("Welcome"), "documents", "list")
+  ' (Properties wide enough for the names' column — 148 — and values that
+  ' still read beside it: 272 against the others' 240; a saved layout wins)
+  Dock.PaneExtent("inspector", "width", 272)
   Dock.ShowPane("outputbox")
 END SUB
 

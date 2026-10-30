@@ -36,6 +36,12 @@ use crate::i18n::{tr_ui, tr_ui_fill};
 use crate::objects::ops::Rect;
 use crate::{v_int, v_str, Value};
 
+/// The names' column's width until the user drags the divider: room for a
+/// name of 124 pixels at the panel's font (all the common ones but
+/// `AccessibleDescription`, whose tooltip says it whole) beside a value
+/// column that still reads in a pane 240 wide.
+pub const DEFAULT_NAME_WIDTH: i64 = 148;
+
 /// RPROPERTYINSPECTOR's state.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Inspector {
@@ -50,10 +56,15 @@ pub struct Inspector {
     /// `Filter`: the search box's text.
     pub filter: String,
     pub show_events: bool,
-    pub show_ext: bool,
+    /// `MarkNonClassic` (alias `ShowRapidRExtensions`): the rows of members
+    /// older programs lack carry a small note. Studio sets it for a project
+    /// kept classic-compatible.
+    pub mark_non_classic: bool,
     pub read_only: bool,
     /// `Handlers`: the SUBs events can run, a line each (`Name(params)`).
     pub handlers: String,
+    /// `NameWidth`: the names' column, in pixels ([`DEFAULT_NAME_WIDTH`] until
+    /// the user drags the divider).
     pub name_width: i64,
     /// AddProperty's.
     pub custom: Vec<Custom>,
@@ -84,10 +95,10 @@ impl Default for Inspector {
             events_page: false,
             filter: String::new(),
             show_events: true,
-            show_ext: true,
+            mark_non_classic: false,
             read_only: false,
             handlers: String::new(),
-            name_width: 120,
+            name_width: DEFAULT_NAME_WIDTH,
             custom: Vec::new(),
             heading: Default::default(),
             choices: Vec::new(),
@@ -192,7 +203,7 @@ impl Inspector {
             alphabetic: self.alphabetic,
             events: self.events_page && self.show_events,
             filter: &self.filter,
-            show_ext: self.show_ext,
+            mark_non_classic: self.mark_non_classic,
             collapsed: Some(&self.ui.collapsed),
             expanded: Some(&self.ui.expanded),
         };
@@ -678,9 +689,6 @@ pub fn reveal(m: &mut Inspector, key: &str) {
         if key != p.key() {
             m.ui.expanded.insert(p.key());
         }
-        if !m.show_ext && p.ext {
-            m.show_ext = true;
-        }
     }
     m.ui.selected = Some(key.to_string());
     m.ui.reveal = true;
@@ -723,7 +731,8 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
         "page" => v_str(if m.events_page { "events" } else { "properties" }),
         "filter" => v_str(&m.filter),
         "showevents" => basic_bool(m.show_events),
-        "showrapidrextensions" => basic_bool(m.show_ext),
+        // (ShowRapidRExtensions: what it was called)
+        "marknonclassic" | "showrapidrextensions" => basic_bool(m.mark_non_classic),
         "readonly" => basic_bool(m.read_only),
         "handlers" => v_str(&m.handlers),
         "namewidth" => v_int(m.name_width),
@@ -773,8 +782,8 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
             with_mut(name, |m| m.show_events = truth(v));
             false
         }
-        "showrapidrextensions" => {
-            with_mut(name, |m| m.show_ext = truth(v));
+        "marknonclassic" | "showrapidrextensions" => {
+            with_mut(name, |m| m.mark_non_classic = truth(v));
             false
         }
         "readonly" => {

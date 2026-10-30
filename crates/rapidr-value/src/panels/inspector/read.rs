@@ -3,7 +3,7 @@
 //! ones they all have, for a multi-selection), the subject gives each its
 //! value.
 
-use super::model::{Custom, Ev, Prop, EXTENSIONS, MISC};
+use super::model::{Custom, Ev, Prop, MISC};
 use super::values::{self, Kind, FONT_PARTS};
 use crate::panels::subject::{default_value, Host, Subject};
 use crate::Value;
@@ -52,28 +52,25 @@ pub fn read(host: &dyn Host, subject: Option<&dyn Subject>, custom: &[Custom]) -
             if !comps.iter().all(|(_, c)| shown_properties(c).any(|(q, k)| q.name.eq_ignore_ascii_case(p.name) && same_kind(&k, &kind))) {
                 continue;
             }
-            let ext = first.origin == rapidr_lang::Origin::RapidQ && p.origin == rapidr_lang::Origin::RapidR;
-            let category = if ext {
-                EXTENSIONS.to_string()
-            } else if p.category.is_empty() {
-                MISC.to_string()
-            } else {
-                p.category.to_string()
-            };
+            // (older programs lack it: RapidR's own member of a component they know)
+            let non_classic = first.origin == rapidr_lang::Origin::RapidQ && p.origin == rapidr_lang::Origin::RapidR;
+            // (its purpose: the registry gives every property one — rapidr-lang's
+            // tests/categories.rs —, never where it comes from)
+            let category = if p.category.is_empty() { MISC.to_string() } else { p.category.to_string() };
             // (a Color without a registry default: what RapidQ reads until
             // it's set — clBtnFace, clWindow)
             let default = default_value(first.name, p.name)
                 .or_else(|| (kind == Kind::Color && p.name.eq_ignore_ascii_case("color")).then(|| crate::component_defaults::color_read(first.name, &Value::Null, || None)).flatten())
                 .or_else(|| (kind == Kind::Color && p.name.eq_ignore_ascii_case("fontcolor")).then_some(Value::Integer(crate::component_defaults::CL_WINDOW_TEXT)))
                 .and_then(|d| values::normalize(&kind, &d));
-            let mut prop = Prop { name: p.name.to_string(), kind: kind.clone(), category, ext, value: None, default, is_default: true, custom: false, doc: p.doc.to_string(), parts: Vec::new() };
+            let mut prop = Prop { name: p.name.to_string(), kind: kind.clone(), category, non_classic, value: None, default, is_default: true, custom: false, doc: p.doc.to_string(), parts: Vec::new() };
             if kind == Kind::Font {
                 prop.parts = FONT_PARTS
                     .iter()
                     .map(|(part_name, part)| {
                         let k = part.kind();
                         let read = |o: &str| s.get(host, o, &format!("{}.{part_name}", p.name)).or_else(|| s.get(host, o, part.flat()));
-                        let mut q = Prop { name: part_name.to_string(), kind: k.clone(), category: String::new(), ext: false, value: None, default: Some(part.default()), is_default: true, custom: false, doc: String::new(), parts: Vec::new() };
+                        let mut q = Prop { name: part_name.to_string(), kind: k.clone(), category: String::new(), non_classic: false, value: None, default: Some(part.default()), is_default: true, custom: false, doc: String::new(), parts: Vec::new() };
                         fill(&mut q, names.iter().map(|o| read(o)).collect());
                         q
                     })
@@ -101,7 +98,7 @@ pub fn read(host: &dyn Host, subject: Option<&dyn Subject>, custom: &[Custom]) -
             name: c.name.clone(),
             kind: c.kind.clone(),
             category: if c.category.is_empty() { MISC.to_string() } else { c.category.clone() },
-            ext: false,
+            non_classic: false,
             value: None,
             default: values::normalize(&c.kind, &c.default),
             is_default: false,
