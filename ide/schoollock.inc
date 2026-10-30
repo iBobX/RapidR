@@ -1,8 +1,9 @@
 ' schoollock.inc: School Lock (docs/manual/for-teachers.md) — a teacher
 ' turns features of RapidR Studio off behind a password; a school's IT can
 ' do it for every account of a computer with a policy file. For now the
-' features are its AI: RAI in Studio ("ai") and AI apps over MCP
-' ("ai_apps"); the list is open for more (rapidr-studio's school_lock.rs
+' features are its AI: RAI in Studio ("ai"), AI apps over MCP ("ai_apps"),
+' and RAI kept in Coach mode ("coach": RAI stays on with hints only —
+' aicoach.inc); the list is open for more (rapidr-studio's school_lock.rs
 ' keeps the lock, the hash, the wrong tries and the policy; RPROJECT's
 ' SchoolLock… members reach it).
 '
@@ -34,7 +35,6 @@
 
 DECLARE SUB KeepSchoolLock
 DECLARE FUNCTION LockUnlocked AS INTEGER
-DECLARE FUNCTION LockByPolicy AS INTEGER
 DECLARE FUNCTION SchoolLockHidesReporting AS INTEGER
 DECLARE FUNCTION LockWhatText AS STRING
 DECLARE SUB LockShowMode(Mode AS STRING)
@@ -57,6 +57,7 @@ DECLARE SUB LockAgain
 DECLARE SUB LayOutLockCard
 DECLARE SUB LockCardUnlock
 DECLARE SUB LockChipShow
+DECLARE SUB LockBoxesChanged
 DECLARE SUB LockStripLayOut(Strip AS RPanel, Mark AS RPanel, Icon AS RImage, Head AS RLabel, Body AS RLabel, Btn AS RButton, W AS INTEGER)
 
 ' (the dialog's mode: "set" — off, turn it on —, "locked", "unlocked")
@@ -98,6 +99,7 @@ DIM LockSuBtn AS RButton
 ' (the lock as it was when last applied: its changes are said once)
 DIM LockWasAI AS INTEGER
 DIM LockWasApps AS INTEGER
+DIM LockWasCoach AS INTEGER
 DIM LockMade AS INTEGER
 
 CREATE LockDialog AS RForm
@@ -124,11 +126,18 @@ CREATE LockDialog AS RForm
     Caption = TR$("&AI in Studio (RAI)")
     Checked = 1
     AccessibleDescription = TR$("The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI")
+    OnClick = LockBoxesChanged
   END CREATE
   CREATE LockAppsBox AS RCheckBox
     Caption = TR$("AI apps (&MCP)")
     Checked = 1
     AccessibleDescription = TR$("AI apps on this computer can't connect to RapidR Studio")
+  END CREATE
+  ' (RAI stays on, in Coach mode only: hints, never the answer — for when
+  ' AI in Studio isn't locked)
+  CREATE LockCoachBox AS RCheckBox
+    Caption = TR$("Keep RAI in &Coach mode")
+    AccessibleDescription = TR$("RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this.")
   END CREATE
   CREATE LockPwLabel AS RLabel
     Caption = TR$("&Password:")
@@ -190,6 +199,11 @@ FUNCTION LockOffApps AS INTEGER
   Result = Flag(Proj.SchoolLocked("ai_apps") <> 0)
 END FUNCTION
 
+' (RAI kept in Coach mode: aicoach.inc's dial shows it)
+FUNCTION LockKeepsCoach AS INTEGER
+  Result = Flag(Proj.SchoolLocked("coach") <> 0)
+END FUNCTION
+
 FUNCTION LockIsOn AS INTEGER
   Result = Flag(Proj.SchoolLock("on") = "1")
 END FUNCTION
@@ -221,6 +235,7 @@ SUB LoadSchoolLock
   ok = Proj.SchoolLockLoad(setting)
   LockWasAI = LockOffAI
   LockWasApps = LockOffApps
+  LockWasCoach = LockKeepsCoach
   ' (no crash strip, no Report on GitHub while it is on: crash.inc — before
   ' its strip is offered, once Studio's window is up)
   CrashSchoolLock SchoolLockHidesReporting
@@ -233,7 +248,8 @@ SUB KeepSchoolLock
   Reg.WriteString("SchoolLock", Proj.SchoolLock("setting"))
 END SUB
 
-' (what the lock turns off, in a sentence)
+' (what the lock turns off, in a sentence — RAI off says it all: Coach
+' mode is RAI's)
 FUNCTION LockWhatText AS STRING
   DIM f AS STRING
   f = "," + Proj.SchoolLock("features") + ","
@@ -241,6 +257,10 @@ FUNCTION LockWhatText AS STRING
     Result = TR$("RAI and AI apps are off in RapidR Studio on this computer.")
   ELSEIF INSTR(f, ",ai,") > 0 THEN
     Result = TR$("RAI is off in RapidR Studio on this computer.")
+  ELSEIF INSTR(f, ",coach,") > 0 AND INSTR(f, ",ai_apps,") > 0 THEN
+    Result = TR$("RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer.")
+  ELSEIF INSTR(f, ",coach,") > 0 THEN
+    Result = TR$("RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files.")
   ELSE
     Result = TR$("AI apps can't connect to RapidR Studio on this computer.")
   END IF
@@ -333,10 +353,14 @@ END SUB
 ' The lock applied everywhere: RAI, AI apps, the commands, the chip, the
 ' strips. What changed is said (the Output and a screen reader).
 SUB SchoolLockApply
-  DIM aiOff AS INTEGER, appsOff AS INTEGER, said AS STRING
+  DIM aiOff AS INTEGER, appsOff AS INTEGER, said AS STRING, coachOn AS INTEGER
   IF LockMade = 0 THEN EXIT SUB
   aiOff = LockOffAI
   appsOff = LockOffApps
+  coachOn = LockKeepsCoach
+  ' (Coach kept on, or let go: the dial — aicoach.inc)
+  AIDialApply
+  LayOutAIPanel
   ' (RAI: nothing is asked while it is off; its pane shows the card)
   IF aiOff THEN AI.Cancel
   AIShowOrHide
@@ -364,8 +388,8 @@ SUB SchoolLockApply
     LayOutAISetup
     IF aiOff = 0 AND LockWasAI <> 0 THEN AISuLook
   END IF
-  IF aiOff <> LockWasAI OR appsOff <> LockWasApps THEN
-    IF aiOff OR appsOff THEN
+  IF aiOff <> LockWasAI OR appsOff <> LockWasApps OR coachOn <> LockWasCoach THEN
+    IF aiOff OR appsOff OR coachOn THEN
       said = TR$("School Lock is on: {what}", "what", LockWhatText)
     ELSEIF LockIsOn THEN
       said = TR$("School Lock is unlocked until Studio closes.")
@@ -377,6 +401,7 @@ SUB SchoolLockApply
   END IF
   LockWasAI = aiOff
   LockWasApps = appsOff
+  LockWasCoach = coachOn
   ' (the crash strip and Report on GitHub hidden while it is on: crash.inc)
   CrashSchoolLock SchoolLockHidesReporting
 END SUB
@@ -678,12 +703,15 @@ SUB LockShowMode(Mode AS STRING)
   LockWhatLabel.Visible = isSet
   LockAIBox.Visible = isSet
   LockAppsBox.Visible = isSet
+  LockCoachBox.Visible = isSet
   LockPw2Label.Visible = isSet
   LockPw2Edit.Visible = isSet
   SELECT CASE Mode
     CASE "set"
       LockAIBox.Checked = 1
       LockAppsBox.Checked = 1
+      LockCoachBox.Checked = 0
+      LockBoxesChanged
       LockTitle.Caption = TR$("Turn on School Lock?")
       LockLead.Caption = TR$("Features of RapidR Studio are turned off for everyone who uses this account on this computer, until someone types the password. Everything else keeps working.")
       LockFoot.Caption = TR$("RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do.")
@@ -779,6 +807,8 @@ SUB LayOutLockDialog
     LockAIBox.Left = x: LockAIBox.Top = y: LockAIBox.Width = w: LockAIBox.Height = 22
     y = y + 24
     LockAppsBox.Left = x: LockAppsBox.Top = y: LockAppsBox.Width = w: LockAppsBox.Height = 22
+    y = y + 24
+    LockCoachBox.Left = x: LockCoachBox.Top = y: LockCoachBox.Width = w: LockCoachBox.Height = 22
     y = y + 22 + 16
   END IF
   ' (the labels' column as wide as the longer label, 120 at least)
@@ -907,6 +937,11 @@ SUB LockMainClick
         IF f <> "" THEN f = f + ","
         f = f + "ai_apps"
       END IF
+      ' (Coach kept on: only when RAI itself isn't locked)
+      IF LockCoachBox.Checked AND LockAIBox.Checked = 0 THEN
+        IF f <> "" THEN f = f + ","
+        f = f + "coach"
+      END IF
       IF f = "" THEN
         LockSay TR$("Choose at least one feature to lock.")
         EXIT SUB
@@ -939,6 +974,13 @@ SUB LockMainClick
       LockAgain
       LockDialog.Close
   END SELECT
+END SUB
+
+' (AI in Studio locked: RAI is off, so Coach mode has nothing to keep —
+' its box waits until AI in Studio is unchecked)
+SUB LockBoxesChanged
+  LockCoachBox.Enabled = Flag(LockAIBox.Checked = 0)
+  IF LockAIBox.Checked THEN LockCoachBox.Checked = 0
 END SUB
 
 ' Turn School Lock Off: the password again.
@@ -1027,6 +1069,7 @@ SUB SchoolLockStep(Stp AS STRING)
     CASE "dialog": ShowSchoolLock
     CASE "state"
       OutputLine "School Lock state: on=" + Proj.SchoolLock("on") + " unlocked=" + Proj.SchoolLock("unlocked") + " policy=" + Proj.SchoolLock("policy") + " features=" + Proj.SchoolLock("features") + " ai=" + Num(LockOffAI) + " ai_apps=" + Num(LockOffApps) + " wait=" + Proj.SchoolLock("wait") + " left=" + Proj.SchoolLock("left") + " mcp=" + Num(Mcp.Listening)
+      IF LockKeepsCoach THEN OutputLine "School Lock keeps Coach: 1"
       ' (the AI commands as the palette and the menu have them)
       k = CmdIndex("ai.newChat")
       IF k >= 0 THEN

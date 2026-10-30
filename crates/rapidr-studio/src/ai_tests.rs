@@ -1230,3 +1230,49 @@ fn coach_in_the_small_model_mode_is_short() {
     call(tools, "coachreset", &[]);
     assert_eq!(get(tools, "coachrung").unwrap().to_i64(), 0);
 }
+
+/// Coach's first hint is a nudge: a small model that answers it with code
+/// (qwen3.5 2B did, in the lane's walk) is asked once to write it again
+/// without — the code never shows in the chat, a muted line says why; a
+/// later hint may show code, and isn't asked again.
+#[test]
+fn a_nudge_that_shows_code_is_written_again() {
+    let _one = one_at_a_time();
+    let dir = project_dir("coach-redo");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let (url, server) = mock(vec![
+        text_answer("Here you go:\n\n```rapidr\nFOR i = 1 TO 10\n    total = total + i\nNEXT\n```"),
+        text_answer("What should happen to the total each time the loop goes round?"),
+        text_answer("The idea:\n\n```rapidr\nFOR k = 1 TO 3\n    PRINT k\nNEXT\n```"),
+    ]);
+    install();
+    let tools = "tools-coach-redo";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    set(tools, "mode", &s("coach"));
+    let n = "rai-coach-redo";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    call(tools, "coachask", &[]);
+    assert_eq!(rai_call(n, "ask", &[s("How do I add up 1 to 10?")]).to_i64(), -1);
+    wait(n);
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(!t.contains("total = total + i"), "the code never shows: {t}");
+    assert!(t.contains(crate::coach::REDO_LINE) && t.ends_with("What should happen to the total each time the loop goes round?"), "{t}");
+    assert_eq!(rai_get(n, "steps"), crate::coach::REDO_STEP);
+    // (hint 2 may show a tiny example: not asked again)
+    call(tools, "coachnext", &[]);
+    assert_eq!(rai_call(n, "ask", &[s("Give me the next hint.")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 3);
+    let redo: Json = serde_json::from_str(&seen[1]).unwrap();
+    assert!(redo["messages"].as_array().unwrap().iter().any(|m| m["role"] == "user" && m["content"].as_str().unwrap_or("").contains("this was hint 1 of 4, a nudge, and your answer showed code")));
+    let t2 = rapidr_ai::rai::peek(n).0;
+    assert!(t2.contains("    PRINT k") && t2.contains("[Copy](rai:copy/") && !t2.contains("total = total + i"), "{t2}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

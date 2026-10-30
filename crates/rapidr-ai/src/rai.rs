@@ -630,6 +630,13 @@ pub trait ToolProvider {
     fn nudge(&self, _question: &str, _answer: &str) -> Option<String> {
         None
     }
+    /// The answer [`Self::nudge`] asks again about is hidden — never shown
+    /// as text — with this muted line in its place and these words for the
+    /// progress checklist (RapidR Studio's Coach mode: a first hint that
+    /// showed code). `None`: hidden only when it claimed a change.
+    fn nudge_hides(&self, _answer: &str) -> Option<(String, String)> {
+        None
+    }
     /// What the tools send with the user's `question`, as data the model
     /// reads with it (RapidR Studio: a working program close to the new one
     /// asked for): part of the request — "what was sent" shows it —, never
@@ -723,6 +730,9 @@ struct Turn {
     buttons: Vec<(String, String)>,
     /// The steps are kept with the entry ([`Ai::keep_steps`]).
     kept: bool,
+    /// The muted line in place of a hidden draft, when the tools gave one
+    /// ([`ToolProvider::nudge_hides`]); else [`EARLIER_DRAFT`].
+    hidden_line: Option<String>,
 }
 
 impl Turn {
@@ -732,7 +742,7 @@ impl Turn {
     fn render(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.drafts.iter().any(|(_, collapsed)| *collapsed) {
-            parts.push(format!("> *{EARLIER_DRAFT}*"));
+            parts.push(format!("> *{}*", self.hidden_line.as_deref().unwrap_or(EARLIER_DRAFT)));
         }
         for (t, collapsed) in &self.drafts {
             if !collapsed && !t.trim().is_empty() {
@@ -2368,9 +2378,17 @@ impl Ai {
                         // (a reply that claimed the change: one muted line
                         // in the chat, never the claim as full text — the
                         // reply that comes next says what is true)
-                        let claimed = crate::claims::claims_change(&text);
+                        let hides = self.tools.iter().find_map(|(_, _, t)| t.nudge_hides(&text));
+                        let claimed = hides.is_some() || crate::claims::claims_change(&text);
                         self.reply_done(!claimed, claimed);
-                        self.turn.steps.push("Asked the model to make the change it described".into());
+                        let step = match hides {
+                            Some((line, step)) => {
+                                self.turn.hidden_line = Some(line);
+                                step
+                            }
+                            None => "Asked the model to make the change it described".into(),
+                        };
+                        self.turn.steps.push(step);
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;

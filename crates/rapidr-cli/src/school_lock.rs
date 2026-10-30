@@ -195,7 +195,15 @@ fn check(file: Option<&str>) -> ExitCode {
         println!("{}: school_lock = false — no lock from this computer (each user's own School Lock still applies).", p.file);
         return ExitCode::SUCCESS;
     }
-    let names: Vec<&str> = p.features.iter().map(|f| if f == "ai" { "RAI in Studio (ai)" } else { "AI apps, MCP (ai_apps)" }).collect();
+    let names: Vec<&str> = p
+        .features
+        .iter()
+        .map(|f| match f.as_str() {
+            "ai" => "RAI in Studio (ai)",
+            "coach" => "RAI kept in Coach mode: hints, no changes to files (coach_only)",
+            _ => "AI apps, MCP (ai_apps)",
+        })
+        .collect();
     println!("{}: School Lock is on for every user of this computer.", p.file);
     println!("Locked: {}.", if names.is_empty() { "nothing (locked = [])".to_string() } else { names.join(", ") });
     if p.hash.is_empty() {

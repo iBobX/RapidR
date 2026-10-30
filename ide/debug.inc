@@ -817,6 +817,8 @@ SUB StartProgram(WithDebugger AS INTEGER)
     OutputBox.Page = "problems"
     Dock.ShowPane("outputbox")
     GoToFirstProblem
+    ' (Coach: Help With This Error in RAI's pane)
+    AICoachShow
     EXIT SUB
   END IF
   SyncAllBreakpoints
@@ -826,6 +828,7 @@ SUB StartProgram(WithDebugger AS INTEGER)
   OutputBox.Clear "output"
   ' (the assistant sees the end of this run's output, not the last one's)
   AITools.RunOutput = ""
+  AICoachRunStarted
   OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
   ClearDebugPanes
@@ -1156,6 +1159,8 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   ShowLocation PausedFile, LineNo, kind
   IF Reason = "exception" THEN
     OutputAfterProgram FileTitle(PausedFile) + ":" + Num(LineNo) + ": " + Session.StopMessage
+    ' (Coach: Help With This Error offers it — aicoach.inc)
+    AICoachSawRunError FileTitle(PausedFile) + ":" + Num(LineNo) + ": " + Session.StopMessage
   END IF
   ' (a new stop: its references are new; Locals and the globals are in)
   RefsIn = "|" + Num(Session.LocalsRef) + "|" + Num(Session.GlobalsRef) + "|" + Num(Session.ComponentsRef) + "|"

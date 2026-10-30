@@ -750,6 +750,10 @@ impl ToolProvider for Handle {
         })
     }
 
+    fn nudge_hides(&self, answer: &str) -> Option<(String, String)> {
+        with(&self.name, |t| (t.coach() && coach::shows_code(answer)).then(|| (coach::REDO_LINE.to_string(), coach::REDO_STEP.to_string())))
+    }
+
     fn turn_cards(&self) -> Vec<(String, String)> {
         with(&self.name, |t| t.cards())
     }
@@ -767,6 +771,12 @@ impl ToolProvider for Handle {
 
     fn nudge(&self, question: &str, answer: &str) -> Option<String> {
         with(&self.name, |t| {
+            // (Coach: a first hint — a nudge — that showed code is written
+            // again without it, once: the ladder holds in Studio, whatever
+            // a small model does)
+            if t.coach() {
+                return (t.ladder.rung <= 1 && !t.ladder.error && coach::shows_code(answer)).then(|| coach::REDO_NUDGE.to_string());
+            }
             if !t.may_propose() {
                 None
             } else if t.touched {

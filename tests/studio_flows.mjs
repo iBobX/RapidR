@@ -7298,7 +7298,7 @@ const CASES = [
     do: "lock:unlock=it-secret-1,lock:state",
     delay: 6,
     dump: {
-      "outputbox.text": /School Lock: this computer's policy \([^)]*broken\.toml\) can't be read: it isn't TOML[^\n]*AI stays off until your school's IT fixes it\.[\s\S]*School Lock answered: -3 — No password can unlock this lock: ask your school's IT\.[\s\S]*School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps ai=1 ai_apps=1/,
+      "outputbox.text": /School Lock: this computer's policy \([^)]*broken\.toml\) can't be read: it isn't TOML[^\n]*AI stays off until your school's IT fixes it\.[\s\S]*School Lock answered: -3 — No password can unlock this lock: ask your school's IT\.[\s\S]*School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps,coach ai=1 ai_apps=1/,
     },
   },
   {
@@ -7348,6 +7348,233 @@ const CASES = [
       "lockcardtitle.caption": /^Tu docente desactivó la IA$/,
       "lockchiptext.caption": /^Bloqueo escolar$/,
       "lockmainbtn.caption": /^&Desbloquear hasta cerrar Studio$/,
+    },
+  },
+  // ---- COACH-MODE (Preview 5, "Pair with AI"): RAI's dial — Build or
+  // Coach — and Coach's hint ladder (ide/aicoach.inc, rapidr-studio's
+  // coach.rs, the manual's "Coach mode"). The mock provider answers in Coach
+  // with the hint Studio asks for (tests/ai_mock_server.mjs), so each step
+  // of the ladder is seen; a question with "edit" in it makes the mock call
+  // propose_edit, write_file and create_project — Studio never offers them
+  // in Coach, and refuses each. ----
+  {
+    // The dial by keyboard: Coach's segment has the keys (Tab reaches
+    // it), Enter chooses it — said, the pill moves, kept; a screen reader
+    // hears "Coach, chosen" as a button
+    name: "coach-dial-keyboard",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,wait,ai:coach:focus=coach`,
+    events: "aidialcoach.__key_13",
+    delay: 4,
+    capture: true,
+    a11y: [[/^Coach, chosen$/, "button"], [/^Build$/, "button"]],
+    dump: {
+      "aitools.mode": /^coach$/,
+      "aistatus.simpletext": /^Coach mode: RAI gives hints one step at a time\. You write the code\.$/,
+      "aidialcoachtext.caption": /^Coach$/,
+      "aidialbuildtext.caption": /^Build$/,
+      "ai.insertlinks": /^(0|False)$/i,
+      "aichat.emptytext": /^Coach mode: ask about your code/,
+    },
+  },
+  {
+    // …kept per user: Studio started again, still Coach; Space on Build
+    // turns it back
+    name: "coach-dial-kept",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: `${AI_READY},ai.assistant,wait,ai:coach:mode=coach`,
+    delay: 4,
+    restart: { do: `${AI_READY},ai.assistant,wait,ai:coach:state,ai:coach:focus=build`, events: "aidialbuild.__key_32", delay: 5 },
+    dump: {
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=0/,
+      "aitools.mode": /^build$/,
+      "ai.insertlinks": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // The four rungs, as a student climbs them: a question (a nudge, no
+    // code), Next Hint (the idea), Next Hint (the shape, blanks), Show the
+    // Code (the code as text: Copy, never Insert) — the chip says which
+    name: "coach-ladder",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks on my button,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:state`,
+    delay: 10,
+    capture: true,
+    dump: {
+      "ai.transcript": /how do I count the clicks[\s\S]*\*\*each time\*\*[\s\S]*Give me the next hint\.[\s\S]*declared outside the SUB[\s\S]*Give me the next hint\.[\s\S]*DIM ___ AS INTEGER[\s\S]*Show me the code\.[\s\S]*Label1\.Caption = STR\$\(Count\)[\s\S]*\[Copy\]\(rai:copy\/3/,
+      "aicoachchiptext.caption": /^Hint 4 of 4$/,
+      "aicoachnext.visible": /^0$/,
+      "aicoachgot.visible": /^1$/,
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=4 error=0 bar=1 next=0 insert=0 proposals=0 review=0/,
+    },
+    checks: [(d) => [!/rai:insert/.test(d["ai.transcript"] || ""), "no Insert link under any code block in Coach"]],
+  },
+  {
+    // The strip in the three looks after the first hint: the soft chip
+    // (Hint 1 of 4), Next Hint and I Got It — every text readable, the
+    // chip said as one sentence
+    name: "coach-strip",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks on my button,ai:wait,wait`,
+    delay: 6,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^Hint 1 of 4: a nudge$/], [/^Next Hint$/, "button"], [/^I Got It$/, "button"], [/^Coach, chosen$/, "button"]],
+    dump: {
+      "aicoachbar.visible": /^1$/,
+      "aicoachchiptext.caption": /^Hint 1 of 4$/,
+      "aicoachnext.caption": /^&Next Hint$/,
+    },
+  },
+  {
+    // I Got It: the problem done — the strip goes, the next question starts
+    // at the first hint again
+    name: "coach-gotit",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks,ai:wait,wait,ai:coach:next,ai:wait,wait,ai:coach:gotit,ai:coach:state,ai:ask=and how do I reset it,ai:wait,wait,ai:coach:state`,
+    delay: 8,
+    dump: {
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=0 error=0 bar=0[\s\S]*Coach state: mode=coach chosen=coach locked=0 rung=1 error=0 bar=1/,
+      "aistatus.simpletext": /./,
+      "aicoachchiptext.caption": /^Hint 1 of 4$/,
+    },
+  },
+  {
+    // The model tries to write the answer anyway — propose_edit,
+    // write_file, create_project: none offered, each refused; nothing to
+    // review, the editor's text as it was
+    name: "coach-no-edit",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=just edit my program for me,ai:wait,wait,wait,ai:coach:state`,
+    delay: 8,
+    dump: {
+      "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=1 error=0 bar=1 next=1 insert=0 proposals=0 review=0/,
+      "aireviewbar.visible": /^0$/,
+      "aibanner.visible": /^0$/,
+      "codedoc(0).text": /CREATE Form AS RForm\n/,
+      "ai.steps": /not in Coach mode/,
+    },
+    checks: [(d) => [!/Proposed a change|ai:review|PRINT 1/.test(d["ai.transcript"] || "") && !/PRINT 1/.test(d["codedoc(0).text"] || ""), "nothing proposed, nothing written"]],
+  },
+  {
+    // A program that doesn't compile, run: Help With This Error — what it
+    // means, why, a hint; no fix until the hints (Show the Code after the
+    // third)
+    name: "coach-error",
+    open: "tests/fixtures/studio_coach/main.rr",
+    webFiles: ["tests/fixtures/studio_coach/main.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,run.start,wait,ai:coach:error,ai:wait,wait`,
+    delay: 8,
+    capture: true,
+    dump: {
+      // (the Output shows Problems after the failed Run: the transcript and
+      // the strip say the rest)
+      "ai.transcript": /Help me with this error: main\.rr:24: Unknown SUB or FUNCTION 'STRR\$'[\s\S]*This error means RapidR doesn't know a name/,
+      "aitools.coacherror": /^(-1|1|True)$/i,
+      "aitools.coachrung": /^1$/,
+      "aicoachchiptext.caption": /^Hint 1 of 4$/,
+      "aicoachnext.caption": /^&Next Hint$/,
+      "aicoacherr.visible": /^0$/,
+    },
+  },
+  {
+    // The teacher's lock, Keep RAI in Coach mode: the dial shows Coach,
+    // Build can't be chosen (said), the lock's line beside it — in the
+    // three looks, readable, said to a screen reader
+    name: "coach-lock",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,lock:set=maestra1|coach,wait,ai:coach:mode=build,ai:coach:state,lock:state`,
+    delay: 9,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^Coach, chosen$/, "button"], [/^Build$/, "button", "disabled"]],
+    dump: {
+      "aitools.mode": /^coach$/,
+      "aidialbuild.enabled": /^(0|False)$/i,
+      "aidiallocktext.caption": /^Your teacher keeps RAI in Coach mode\.$/,
+      "aidiallocktext.visible": /^1$/,
+      "lockcard.visible": /^0$/,
+      "aichat.visible": /^(-1|1|True)$/i,
+      "outputbox.text": /School Lock is on: RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn.t change the student.s files\.[\s\S]*Coach state: mode=coach chosen=build locked=1[\s\S]*School Lock state: on=1 unlocked=0 policy=0 features=coach ai=0 ai_apps=0[^\n]*\nSchool Lock keeps Coach: 1/,
+    },
+  },
+  {
+    // Tools > School Lock…: AI in Studio unchecked, Keep RAI in Coach mode
+    // checked, the password twice, Enter: locked to Coach
+    name: "coach-lock-dialog",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: ["lockaibox.__key_32", "lockcoachbox.__key_32", "lockappsbox.__key_32", typeInto("lockpwedit", "maestra1"), typeInto("lockpw2edit", "maestra1"), "lockpw2edit.__key_13"].join(","),
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockchiptext.caption": /^School Lock$/,
+      "aitools.mode": /^coach$/,
+      "outputbox.text": /School Lock is on: RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn.t change the student.s files\./,
+    },
+  },
+  {
+    // …unlocked until Studio closes: Build can be chosen again
+    name: "coach-lock-unlocked",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,lock:set=maestra1|coach,wait,lock:unlock=maestra1,wait,ai:coach:mode=build,ai:coach:state`,
+    delay: 9,
+    dump: {
+      "aitools.mode": /^build$/,
+      "aidialbuild.enabled": /^(-1|1|True)$/i,
+      "aidiallocktext.visible": /^0$/,
+      "outputbox.text": /Coach state: mode=build chosen=build locked=0/,
+    },
+  },
+  {
+    // The computer's policy, coach_only = true (tests/fixtures/school_lock/
+    // coach.toml): Coach kept by the school, RAI on, AI apps locked
+    name: "coach-lock-policy",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/coach.toml") },
+    do: `${AI_READY},ai.assistant,wait,ai:coach:mode=build,ai:coach:state,lock:state`,
+    delay: 7,
+    capture: true,
+    dump: {
+      "aitools.mode": /^coach$/,
+      "aidiallocktext.caption": /^Your school keeps RAI in Coach mode\.$/,
+      "outputbox.text": /Coach state: mode=coach chosen=build locked=1[\s\S]*School Lock state: on=1 unlocked=0 policy=1 features=ai_apps,coach ai=0 ai_apps=1[^\n]*\nSchool Lock keeps Coach: 1/,
+    },
+  },
+  {
+    // In Spanish: the dial (Construir / Tutor), the chip (Pista 1 de 4), the
+    // buttons, the hint in the student's language
+    name: "coach-es",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=¿cómo cuento los clics de mi botón?,ai:wait,wait`,
+    delay: 7,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark"],
+    dump: {
+      "aidialbuildtext.caption": /^Construir$/,
+      "aidialcoachtext.caption": /^Tutor$/,
+      "aicoachchiptext.caption": /^Pista 1 de 4$/,
+      "aicoachnext.caption": /^&Siguiente pista$/,
+      "aicoachgot.caption": /^Ya lo &entendí$/,
+      "ai.transcript": /¿Qué debe pasar \*\*cada vez\*\*/,
+      "aistatus.simpletext": /./,
     },
   },
   // (CRASH-REPORTS) RapidR's crash and hang reports, walked as a person

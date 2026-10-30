@@ -136,7 +136,7 @@ pub fn rung_line(ladder: &Ladder, lite: bool) -> Option<String> {
         (1, true, false) => "Write hint 1 of 4 about this error: what the message means in plain words, why it happens on that line of their code, and a hint to fix it themselves. Don't write the corrected line.",
         (1, true, true) => "Hint 1 of 4 about this error: what it means, why it happens on that line, a hint to fix it. Not the fixed line.",
         (1, false, false) => "Write hint 1 of 4, a nudge: one or two short questions that point the way (what should happen, which event, what changes each time). No code at all.",
-        (1, false, true) => "Hint 1 of 4, a nudge: one short question that points the way. No code.",
+        (1, false, true) => "Hint 1 of 4, a nudge: one short question that points the way. No code, not the answer.",
         (2, _, false) => "Write hint 2 of 4, the concept: the idea they need, in plain words, with a tiny example of 2 to 4 lines about something else (other names, another task) — not their program and not its solution.",
         (2, _, true) => "Hint 2 of 4, the concept: plain words and a 2-4 line example about something else. Not their solution.",
         (3, _, false) => "Write hint 3 of 4, the shape of the code: the steps as pseudo-code, or a skeleton of their code in a code block with blanks (___) where the important parts go. Leave the blanks for them to fill.",
@@ -145,6 +145,25 @@ pub fn rung_line(ladder: &Ladder, lite: bool) -> Option<String> {
         (_, _, true) => "Hint 4 of 4, the code: show it in a code block and say they type or copy it in themselves.",
     };
     Some(format!("Coach mode: {line}"))
+}
+
+/// What the model is told when its first hint (a nudge) showed code: asked
+/// once to write it again without (RAI's nudge, the draft hidden).
+pub const REDO_NUDGE: &str = "(RapidR Studio, not the user: this was hint 1 of 4, a nudge, and your answer showed code. Write the hint again: one or two short questions that point the way, with no code and not the answer.)";
+
+/// The muted line in the chat where that draft was.
+pub const REDO_LINE: &str = "A first hint showed code too early: Studio asked RAI for a nudge without it.";
+
+/// The progress checklist's words for it.
+pub const REDO_STEP: &str = "Asked for the hint without code";
+
+/// Whether an answer shows code: a fenced block (an inline `name` is a
+/// word, not a solution).
+pub fn shows_code(answer: &str) -> bool {
+    answer.lines().any(|l| {
+        let t = l.trim_start();
+        t.starts_with("```") || t.starts_with("~~~")
+    })
 }
 
 /// What a tool that changes files answers in Coach (it was never offered):
@@ -236,5 +255,9 @@ mod tests {
         assert_eq!(Mode::parse("pair"), Mode::Build);
         assert_eq!(Mode::Coach.name(), "coach");
         assert!(refusal("propose_edit").starts_with("propose_edit isn't available in Coach mode"));
+        // (a nudge with a code block is written again; a `word` is fine)
+        assert!(shows_code("Try this:\n\n```rapidr\nPRINT 1\n```"));
+        assert!(shows_code("  ~~~\nx\n~~~"));
+        assert!(!shows_code("What does `Count` hold after each click?"));
     }
 }

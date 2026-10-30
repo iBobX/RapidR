@@ -57,6 +57,11 @@
 //   "write an endless …"  every answer cut at its length limit (RAI goes on by
 //                      itself four times, then stops with "Continue in smaller
 //                      steps"); that request gets a short answer
+//   (Coach mode)       any question: the hint Studio asks for ("Coach mode:
+//                      Write hint N of 4" — an error's first: what it means),
+//                      in Spanish when the user writes it; "… edit …" first
+//                      calls propose_edit, write_file and create_project
+//                      (Studio refuses each: tests/studio_flows.mjs coach-*)
 //
 // A request that asks the model to think (Anthropic's `thinking`, an
 // OpenAI-compatible `reasoning_effort` other than "none") gets a short
@@ -264,10 +269,45 @@ function nudged(messages) {
   return messages.some((m) => m.role === "user" && JSON.stringify(m.content).includes("your answer says you made or will make a change"));
 }
 
+// (Coach mode: each hint of the ladder as a tutor writes it — in Spanish
+// when the user writes Spanish; the 4th has RapidR code, shown as text)
+const COACH_HINTS = {
+  English: {
+    1: "What should happen **each time** the button is clicked? Which number changes, and where do you keep it between clicks?",
+    2: "A variable keeps a value between clicks when it is declared outside the SUB. For example, a score:\n\n```rapidr\nDIM Score AS INTEGER\nScore = Score + 10\n```\n\nTry it with a name of your own.",
+    3: "Here is the shape, with blanks for you:\n\n```rapidr\nDIM ___ AS INTEGER\n\nSUB ___Click\n    ___ = ___ + 1\n    Label1.Caption = ___\nEND SUB\n```\n\nFill in the blanks, then press Run.",
+    4: "Here is the code:\n\n```rapidr\nDIM Count AS INTEGER\n\nSUB Button1Click\n    Count = Count + 1\n    Label1.Caption = STR$(Count)\nEND SUB\n```\n\nType it into your program yourself, then press Run.",
+    error: "This error means RapidR doesn't know a name on that line. It happens when a name is written differently from where it was made. **Hint:** compare the name on that line with its DIM.",
+  },
+  Spanish: {
+    1: "¿Qué debe pasar **cada vez** que se hace clic en el botón? ¿Qué número cambia, y dónde lo guardas entre un clic y otro?",
+    2: "Una variable guarda un valor entre clics cuando se declara fuera del SUB. Por ejemplo, un puntaje:\n\n```rapidr\nDIM Puntaje AS INTEGER\nPuntaje = Puntaje + 10\n```\n\nPruébalo con un nombre tuyo.",
+    3: "Esta es la forma, con espacios para ti:\n\n```rapidr\nDIM ___ AS INTEGER\n\nSUB ___Click\n    ___ = ___ + 1\n    Label1.Caption = ___\nEND SUB\n```\n\nCompleta los espacios y presiona Ejecutar.",
+    4: "Este es el código:\n\n```rapidr\nDIM Cuenta AS INTEGER\n\nSUB Button1Click\n    Cuenta = Cuenta + 1\n    Label1.Caption = STR$(Cuenta)\nEND SUB\n```\n\nEscríbelo tú en tu programa y presiona Ejecutar.",
+    error: "Este error significa que RapidR no conoce un nombre de esa línea. Pasa cuando un nombre se escribe distinto de donde se creó. **Pista:** compara el nombre de esa línea con su DIM.",
+  },
+};
+
 // What to answer: { text?, tools?: [{ name, input }] }.
 function script(first, results, system, messages = []) {
   const step = results.length;
   const q = first.toLowerCase();
+  // (Coach mode: Studio says which hint to write, last in the instructions —
+  // the answer is that hint, so a flow sees the ladder. "… edit …" first
+  // tries every change tool (never offered: Studio refuses each), then hints)
+  if (system.startsWith("You are RAI in Coach mode")) {
+    const rung = (system.match(/Coach mode: (?:Write )?hint (\d) of 4/i) || [])[1] || "1";
+    const lang = /reply in Spanish/i.test(system) || languageOf(first) === "Spanish" || /\b(dame|muéstrame|ayúdame|pista)\b/i.test(first) ? "Spanish" : "English";
+    if (q.includes("edit") && step === 0) {
+      return { tools: [
+        { name: "propose_edit", input: { path: "main.rr", summary: "The answer", edits: [{ old_text: "END CREATE", new_text: "END CREATE\nPRINT 1" }] } },
+        { name: "write_file", input: { path: "main.rr", summary: "The answer", text: "PRINT 1\n" } },
+        { name: "create_project", input: { name: "Answer", main: "main.rr", summary: "The answer", files: [{ path: "main.rr", text: "PRINT 1\n" }] } },
+      ] };
+    }
+    const about = /about this error/.test(system) && rung === "1" ? "error" : rung;
+    return { text: COACH_HINTS[lang][about] };
+  }
   // (the project's facts line, "The open project: …; main file x.rr; files:
   // …" — not the language card's words about "the main file")
   const mainFile = (system.match(/The open project: [^\n]*?; main file ([^;]+);/) || [])[1] || "main.rr";
