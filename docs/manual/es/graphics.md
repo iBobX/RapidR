@@ -17,7 +17,7 @@ pantallas; en una pantalla de alta densidad de píxeles (high-DPI) (una Mac
 Retina, un navegador a 2x) todo se dibuja más fino, y los píxeles que un
 programa lee de vuelta (`Pixel`, `GetPixels`, `SaveToFile`) siguen siendo los que
 dibujó — mira
-[Pantallas de alta densidad de píxeles (high-DPI)](components.md#high-dpi-screens).
+[Pantallas de alta densidad de píxeles (high-DPI)](components.md#pantallas-de-alta-densidad-de-píxeles-high-dpi).
 
 | Para hacer esto | Llama a |
 |---|---|

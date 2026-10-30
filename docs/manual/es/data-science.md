@@ -12,7 +12,7 @@ gráfica. Cada nombre de miembro, con sus alias y dónde funciona:
 | `RDataFrame` | una tabla, al estilo de pandas |
 | `RPlot` | gráficos que se muestran en un RImage o se guardan como PNG, al estilo de Matplotlib |
 | `RJson` | documentos JSON |
-| `RCSV`, `RDataSource`, `RDBGrid` | datos vinculados: un archivo CSV como fuente, una fila actual compartida, una cuadrícula directamente desde una tabla — con `RDataFrame.Source` y `DataSource` / `DataField` en `REdit` y `RLabel` ([abajo](#linked-data-components); paso a paso: [Ciencia de datos con RapidR](data-science-with-rapidr.md)) |
+| `RCSV`, `RDataSource`, `RDBGrid` | datos vinculados: un archivo CSV como fuente, una fila actual compartida, una cuadrícula directamente desde una tabla — con `RDataFrame.Source` y `DataSource` / `DataField` en `REdit` y `RLabel` ([abajo](#componentes-de-datos-vinculados); paso a paso: [Ciencia de datos con RapidR](data-science-with-rapidr.md)) |
 
 RNum, RDataFrame y RPlot son una sola implementación (propia de RapidR, en Rust
 puro, sin ninguna biblioteca de datos debajo) que ejecutan por igual las
@@ -120,7 +120,7 @@ como se escribió (`"007"` sigue siendo `"007"`, `"1.50"` sigue siendo `"1.50"`)
 cada miembro da la misma respuesta que antes. tools/bench/ lo mide, con las
 condiciones de cada número (`tools/bench/compare.sh`, junto a pandas cuando está
 instalado): consulta
-[Por qué RapidR](why-rapidr.md#data-a-table-of-a-million-rows-in-a-blink).
+[Por qué RapidR](why-rapidr.md#datos-una-tabla-de-un-millón-de-filas-en-un-parpadeo).
 
 ## RPlot
 
@@ -243,7 +243,7 @@ nativa, como interpretada y en un navegador.
 - **Soltar archivos**: el `OnDropFiles = FilesDropped` del formulario nombra una
   `SUB` que recibe las rutas de los archivos, una por línea, y carga el primero
   que es `.csv`
-  ([Archivos soltados en un formulario](components.md#files-dropped-on-a-form)).
+  ([Archivos soltados en un formulario](components.md#archivos-soltados-en-un-formulario)).
 - **La tabla** es un `RListView` en vista de informe (`ViewStyle = vsReport`):
   `AddColumns` para los encabezados, `AddItems` y `AddSubItem` para las filas; su
   `OnColumnClick (Column)` ordena.
@@ -333,7 +333,7 @@ END CREATE
   una cuadrícula. Su `DataSource` también puede ser un `RSQLite` o un `RMySQL`:
   las filas de su última consulta, y las de una consulta en segundo plano a
   medida que llegan — el programa las ordena volviendo a preguntar con
-  `ORDER BY` ([Bases de datos](databases.md#a-querys-rows-in-a-grid)).
+  `ORDER BY` ([Bases de datos](databases.md#las-filas-de-una-consulta-en-una-cuadrícula)).
 - **DataSource + DataField** en **REdit** (su `Text`) y **RLabel** (su `Caption`):
   el campo de la fila actual; lo que el usuario escribe en un campo de texto
   vuelve a la tabla. Son propiedades propias de RapidR en estos componentes: un

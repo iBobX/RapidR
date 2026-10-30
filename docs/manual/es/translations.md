@@ -144,7 +144,7 @@ NEXT
   macOS, `lang/` junto a un `.exe` o en `usr/bin` de un AppDir de Linux, `lang/`
   junto a una página web. Una aplicación compilada habla todos los idiomas que
   tradujiste, dondequiera que se inicie
-  ([Compilar aplicaciones](building-apps.md#the-programs-data-files-go-with-it)).
+  ([Compilar aplicaciones](building-apps.md#los-archivos-de-datos-del-programa-lo-acompañan)).
 - Siguen siendo archivos simples en lo que distribuyes, así que el usuario puede
   añadir un idioma sin volver a compilar: pon `lang/fr.po` junto a los demás
   archivos de la aplicación. En la web, añade también su nombre a
@@ -180,7 +180,7 @@ NEXT
   (chino que una herramienta antigua perdió al escribirlo) no puede volver, así
   que escribe el archivo otra vez. Para escribir un catálogo desde un programa,
   usa `WriteText` (o `WriteStr(Text, LEN(Text))`) en un `RFileStream`: mira
-  [Texto y bytes](language.md#text-and-bytes-accents-chinese-emoji).
+  [Texto y bytes](language.md#texto-y-bytes-acentos-chino-emoji).
 - El chino, el japonés y el coreano se muestran por igual en etiquetas, botones
   y lienzos: el escritorio usa la fuente CJK del sistema y la web las fuentes
   Noto que vienen con la compilación; no hay nada que instalar.

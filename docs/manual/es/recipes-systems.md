@@ -12,7 +12,7 @@ ejecutar, con una ventana pequeña que muestra el resultado.
 Están en [`examples/recipes/`](../../../examples/recipes/) junto a los demás, y son
 de lo que parte el asistente de RapidR Studio cuando le pides una CPU, un emulador
 o un visor de memoria: encuentra por sí mismo la receta más cercana, en inglés,
-español o portugués ([el asistente](ai-assistant.md#recipes-and-friendly-hints)).
+español o portugués ([el asistente](ai-assistant.md#recetas-y-sugerencias-amistosas)).
 Sirven igual de bien para copiarlos a mano: un programa que funciona es el mejor
 lugar para empezar un programa que tiene que funcionar.
 
@@ -76,14 +76,14 @@ desensamblador lista uno más largo que usa todas las instrucciones.
 | [hex_dump.rr](../../../examples/recipes/hex_dump.rr) | **Un visor de memoria.** La dirección, 16 bytes en hexadecimal y los mismos como texto; el hexadecimal de cada valor se busca en una tabla hecha una sola vez, y cada fila se arma por sí sola | Show all 64 KB: 4096 filas |
 | [disassembler.rr](../../../examples/recipes/disassembler.rr) | **Una tabla de opcodes.** De bytes de vuelta a mnemónicos con una tabla leída de `DATA` (sin `SELECT CASE`): el nombre y el tipo de operando de cada opcode | Lista desde `0006`, el medio de una instrucción: el listado sale mal |
 | [load_binary.rr](../../../examples/recipes/load_binary.rr) | **Un archivo binario en la memoria.** `RFileStream`: los campos del encabezado en desplazamientos fijos, `ReadNum(Num_Byte)` y `ReadNum(Num_Word)`, y luego la memoria en un ciclo | Crea el archivo de muestra y luego cárgalo |
-| [video_memory.rr](../../../examples/recipes/video_memory.rr) | **Memoria de video en un lienzo.** Un mapa de bits de 1 bit y atributos de color en el arreglo de memoria; una copia decodificada (un número de color por cada píxel) que cada escritura mantiene al día, dibujada en un `RCanvas` con `SetPixels8` y `StretchDraw` ([Dibujar muchos píxeles rápido](graphics.md#drawing-many-pixels-fast)); una pelota dibujada con `XOR` | Repaint: la pantalla completa en unos 0.1 ms |
+| [video_memory.rr](../../../examples/recipes/video_memory.rr) | **Memoria de video en un lienzo.** Un mapa de bits de 1 bit y atributos de color en el arreglo de memoria; una copia decodificada (un número de color por cada píxel) que cada escritura mantiene al día, dibujada en un `RCanvas` con `SetPixels8` y `StretchDraw` ([Dibujar muchos píxeles rápido](graphics.md#dibujar-muchos-píxeles-rápido)); una pelota dibujada con `XOR` | Repaint: la pantalla completa en unos 0.1 ms |
 | [keyboard_matrix.rr](../../../examples/recipes/keyboard_matrix.rr) | **Una matriz de teclado.** `OnKeyDown` y `OnKeyUp` ponen en 0 y en 1 un bit en 8 filas de 5; `IN` elige filas con una máscara y da su AND | Presiona `Q` y luego `Enter` |
 | [cpu_timing.rr](../../../examples/recipes/cpu_timing.rr) | **Temporización.** Un presupuesto de ciclos para cada tic de un `RTimer` (un cuadro, 20 ms), con los ciclos gastados de más pasados al cuadro siguiente, para que la velocidad sea exacta; Pause y Frame sin congelar la ventana | Faster y luego Frame |
 
 Y el sonido de la máquina: [frame_audio.rr](../../../examples/recipes/frame_audio.rr)
 anota el ciclo de cada cambio de un altavoz de un bit durante un cuadro y convierte
 los cambios en las 882 muestras del cuadro para un `RAudioOut`
-([Emuladores: sonido a partir de una línea de tiempo de niveles](directx-and-media.md#emulators-sound-from-a-level-timeline)).
+([Emuladores: sonido a partir de una línea de tiempo de niveles](directx-and-media.md#emuladores-sonido-a-partir-de-una-línea-de-tiempo-de-niveles)).
 
 ![La CPU diminuta después de tres Step: PC 0005, A 08, B 03, 5 ciclos](../images/systems/cpu-step.png)
 
@@ -170,13 +170,13 @@ son iguales o mejores.
   repintado completo tardaba 7.7 ms, 77 veces más. Una llamada por cada píxel (o por
   cada píxel que está encendido) cuesta de 1 a 3 µs en el Runtime; `SetPixels8` pasa
   los 49 152 por una paleta en una sola llamada
-  ([Dibujar muchos píxeles rápido](graphics.md#drawing-many-pixels-fast)).
+  ([Dibujar muchos píxeles rápido](graphics.md#dibujar-muchos-píxeles-rápido)).
 - **Un cuadro cada 20 ms.** Un `RTimer` avanza en pasos de 15.6 ms, como los propios
   temporizadores de Windows: el `Interval = 20` de las recetas se dispara unas 32
   veces por segundo, y un tic llega 15.6 ms después de que terminó el controlador de
   eventos anterior. Para exactamente 50 por segundo, haz tics con frecuencia y dibuja
   cuando un cuadro *toca*
-  ([Una imagen cada 20 milisegundos](graphics.md#a-picture-every-20-milliseconds)).
+  ([Una imagen cada 20 milisegundos](graphics.md#una-imagen-cada-20-milisegundos)).
 - **Lo único lento que se encontró: escribir un archivo un byte a la vez.** Cada
   escritura es una llamada al sistema (la computadora pasa 0.8 s de ese segundo en el
   sistema), una lectura usa un búfer: escribir 64 KB tarda de 0.6 a 1 s y leerlos,

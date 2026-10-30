@@ -195,7 +195,7 @@ tu código.
 - El grupo **Datos** (RCSV, RDataFrame, RDataSource, RDBGrid …) muestra sus datos
   en vivo mientras diseñas ([Ciencia de datos con RapidR](data-science-with-rapidr.md));
   un **RAI** del grupo **IA** guarda su clave en tu llavero y escribe en el código
-  solo dónde está ([El asistente de IA y RAI](ai-assistant.md#in-the-designer)).
+  solo dónde está ([El asistente de IA y RAI](ai-assistant.md#en-el-diseñador)).
 - **RForm** y **RFormMDI** son documentos, no componentes: al hacer clic en ellos
   se añade un archivo de formulario (paso 2); el de RFormMDI es una ventana
   principal MDI (`CREATE Form3 AS RFormMDI`). Arrastrar RForm a un formulario no

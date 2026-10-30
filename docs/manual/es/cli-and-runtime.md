@@ -19,10 +19,10 @@ entorno de ejecución.
 | `rapidr <file.rr\|.bas> [flags]` | Atajo de `build`, optimizado de forma predeterminada |
 | `rapidr build <app.rrproj>` | Compila el archivo principal de un proyecto con la configuración de su aplicación |
 | `rapidr install-app <Name.AppDir>` | Linux: pone una aplicación compilada en tu menú de aplicaciones |
-| `rapidr check <file…>` | Lo que el panel Problemas de Studio enumera para el programa: sus errores y advertencias con su ubicación, y debajo de un error que es una costumbre de otro lenguaje, una línea `  hint:` con la forma de RapidR ([¿Vienes de otro lenguaje?](language.md#coming-from-another-language)). No se compila ni se ejecuta nada; el estado de salida es 1 cuando hay un error |
+| `rapidr check <file…>` | Lo que el panel Problemas de Studio enumera para el programa: sus errores y advertencias con su ubicación, y debajo de un error que es una costumbre de otro lenguaje, una línea `  hint:` con la forma de RapidR ([¿Vienes de otro lenguaje?](language.md#vienes-de-otro-lenguaje)). No se compila ni se ejecuta nada; el estado de salida es 1 cuando hay un error |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compila a bytecode, para el Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | Un paquete web estático (un `.zip`) |
-| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Escribe una copia convertida de un programa anterior —y de cada archivo que este incluye con `$INCLUDE`— con los nombres de RapidR, y un informe (`rapidr-import-report.md`), en `out_dir` (también `-o out_dir`; si no, `<nombre>-rapidr` junto a él). El original no se toca, y se comprueba que cada programa se compila al mismo bytecode. Un archivo incluido que no se encuentra en ninguna parte se imprime con lo que hay que hacer (código de salida 1). El comando de importación del menú **Archivo** de RapidR Studio hace lo mismo ([Archivos incluidos](importing-rapidq.md#include-files)) |
+| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Escribe una copia convertida de un programa anterior —y de cada archivo que este incluye con `$INCLUDE`— con los nombres de RapidR, y un informe (`rapidr-import-report.md`), en `out_dir` (también `-o out_dir`; si no, `<nombre>-rapidr` junto a él). El original no se toca, y se comprueba que cada programa se compila al mismo bytecode. Un archivo incluido que no se encuentra en ninguna parte se imprime con lo que hay que hacer (código de salida 1). El comando de importación del menú **Archivo** de RapidR Studio hace lo mismo ([Archivos incluidos](importing-rapidq.md#archivos-incluidos)) |
 | `rapidr upgrade-names <file> [--dry-run]` | La misma conversión en el mismo archivo, para los archivos propios de RapidR; `--dry-run` imprime las diferencias y no cambia nada |
 | `rapidr setup [--check] [--yes] [--no-path]` | Instala el Rust que usan las compilaciones nativas; pone `rapidr` en el PATH. `rapidr setup --rust` solo responde si las compilaciones nativas pueden ejecutarse (código de salida 0 sí, 1 no); un `rapidr build` nativo sin Rust se detiene y dice que uses `--interp` o ejecutes `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Imprime los avisos de terceros que lleva un tipo de compilación |
@@ -37,7 +37,7 @@ Todo comando que compila acepta **`--include-dir <folder>`** (cualquier cantidad
 de veces): una carpeta donde `$INCLUDE` busca después de la carpeta propia del
 programa. Escríbelo antes de los argumentos propios del programa:
 `rapidr run --include-dir ~/include prog.bas`. Cómo encuentra `$INCLUDE` su
-archivo: [Archivos incluidos](importing-rapidq.md#include-files).
+archivo: [Archivos incluidos](importing-rapidq.md#archivos-incluidos).
 
 ## Compilaciones
 
@@ -59,7 +59,7 @@ rapidr build prog.bas --web --interp       # paquete web: prog-web.zip
 | `[output folder]`, `--output <folder>`, `-o <folder>` | dónde va la aplicación: si no, la carpeta de salida del proyecto (`build`); si no, la carpeta del código fuente |
 | `--keep-rust` / `--no-keep-rust` | una compilación nativa deja también el Rust que generó en `<salida>/prog-rust-source/` (con un README) / lo elimina (el valor predeterminado; el `keep_rust` de un proyecto dice lo contrario) |
 | `--web`, `-w` | para el navegador (también cuando el programa dice `$APPTYPE WEB`) |
-| `--csp "connect-src https://api.example.com; …"` | (compilaciones web, y `bundle-bc`) orígenes que la Content-Security-Policy de la página añade a lo que necesitan los componentes del programa ([Compilar aplicaciones](building-apps.md#build-a-web-app)) |
+| `--csp "connect-src https://api.example.com; …"` | (compilaciones web, y `bundle-bc`) orígenes que la Content-Security-Policy de la página añade a lo que necesitan los componentes del programa ([Compilar aplicaciones](building-apps.md#compilar-una-aplicación-web)) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | la aplicación en que se convierte y su ícono: [Compilar aplicaciones y sus íconos](building-apps.md) |
 | `--target <os>-<arch>` | una compilación interpretada para otra arquitectura, a partir de los ejecutores (runners) que incluye el SDK: en Windows `windows-x86_64` y `windows-aarch64`; en macOS `macos` (universal, el valor predeterminado), `macos-arm64`, `macos-x86_64`; en Linux la propia de la máquina (`linux-x86_64` o `linux-aarch64`). Una copia del código fuente compila con cargo el ejecutor que necesita |
 
@@ -190,7 +190,7 @@ desde la que se ejecuta el comando. `rapidr setup --check` imprime cuál.
 
 | Variable | |
 |---|---|
-| `RAPIDR_THEME=name` | el tema para los programas que no indican ninguno ([Componentes](components.md#themes)) |
+| `RAPIDR_THEME=name` | el tema para los programas que no indican ninguno ([Componentes](components.md#temas)) |
 | `RAPIDR_RENDERER=cpu\|gpu` | fuerza el dibujo en la CPU o en la GPU (de forma predeterminada la GPU, o la CPU cuando la única GPU es una por software) |
 | `RAPIDR_PRINT_TO=<file or folder>` | los documentos impresos van allí como PDF en lugar de a una impresora |
 | `RAPIDR_REGISTRY=<file>` | RRegistry guarda sus claves en este archivo en lugar de en el del sistema (el registro de Windows; un almacén por usuario en otros sistemas) |

@@ -63,7 +63,7 @@ quedan como los escribes.
 ## Ayuda a traducir RapidR
 
 Las traducciones son archivos de texto sin formato, en el mismo formato PO que
-usan tus propios programas ([Tu programa en todos los idiomas](../translations.md)).
+usan tus propios programas ([Tu programa en todos los idiomas](translations.md)).
 Cada parte de RapidR tiene una plantilla y un archivo por idioma:
 
 | Qué | Plantilla | El archivo de un idioma |

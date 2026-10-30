@@ -191,7 +191,7 @@ pequeña o grande:
    solo crea un proyecto nuevo aparte.
 4. `check_code` después de cada escritura. Un error que es una costumbre de otro
    lenguaje tiene debajo una línea de **sugerencia** con la forma de RapidR
-   ([¿Vienes de otro lenguaje?](language.md#coming-from-another-language)).
+   ([¿Vienes de otro lenguaje?](language.md#vienes-de-otro-lenguaje)).
 5. El mismo error dos veces seguidas en un archivo: el rechazo cambia a *Same error
    again. Stop rewriting the whole file. Call find_example(…) and start from that
    recipe*, con las primeras líneas de la receta más cercana.
@@ -245,7 +245,7 @@ Studio:
 <!-- legal -->
 - mirar, hacer clic y escribir en tu programa en ejecución, cada cosa solo como lo
   permita el menú de permisos (el predeterminado te pregunta primero): mira
-  [Los ojos y las manos de un programa](app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program);
+  [Los ojos y las manos de un programa](app-eyes-and-hands.md#en-rapidr-studio-las-aplicaciones-de-ia-y-rai-miran-tu-programa-en-ejecución);
 <!-- legal -->
 - leer lo que imprime tu programa y los mensajes de error de Studio;
 <!-- legal -->
@@ -282,7 +282,7 @@ preguntar).
 
 `RMcpServer` le da a un programa tuyo sus propias herramientas para aplicaciones de
 IA, con el mismo protocolo y las mismas protecciones: mira
-[Redes](network.md#rmcpserver-your-programs-tools-for-ai-apps) y
+[Redes](network.md#rmcpserver-las-herramientas-de-tu-programa-para-las-aplicaciones-de-ia) y
 [examples/network/mcp_tools.rr](../../../examples/network/mcp_tools.rr).
 
 ## Notas

@@ -112,7 +112,7 @@ RapidR tiene ese archivo incluido integrado, así que la línea no necesita ning
 archivo: RapidR no distribuye ninguna copia de él. Sin la línea, `clRed` —y
 también `True` y `False`— es un nombre no declarado y vale 0, y el editor de
 código te avisa
-([la advertencia de RAPIDQ.INC](studio-editor.md#the-rapidqinc-warning)). Los
+([la advertencia de RAPIDQ.INC](studio-editor.md#la-advertencia-de-rapidqinc)). Los
 programas anteriores se comportan igual. La línea en un programa `.rr` es
 inofensiva: las constantes son entonces las del archivo incluido.
 
@@ -624,7 +624,7 @@ SLEEP(Calc.Twice(3)) / 10         ' (…) inicia el argumento: SLEEP 0.6
 | `$ESCAPECHARS ON` | secuencias de escape en las cadenas de texto de este archivo |
 | `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | toda variable tiene que estar declarada (`DIM`, `CONST`, un parámetro): a una no declarada a la que se le asigna un valor da `Undeclared identifier x`, y leída da `Undefined symbol X` |
 | `$OPTIMIZE` | se acepta |
-| `$THEME name` | de RapidR: el aspecto del escritorio ([Componentes](components.md#themes)) |
+| `$THEME name` | de RapidR: el aspecto del escritorio ([Componentes](components.md#temas)) |
 | `#If … Then` / `#ElseIf` / `#Else` / `#End If`, `#Const` | la compilación condicional de VB |
 
 Un error en el código incluido señala el archivo incluido y la línea.
@@ -656,7 +656,7 @@ Un error en el código incluido señala el archivo incluido y la línea.
 - Los controladores que siguen disparando eventos uno dentro de otro para siempre
   (un `Repaint` dentro del `OnPaint` del mismo lienzo) se detienen, a 200 niveles
   de profundidad, con un error de ejecución que nombra el evento —nunca un fallo
-  ([Cuándo se ejecutan los eventos](components.md#when-events-run)).
+  ([Cuándo se ejecutan los eventos](components.md#cuándo-se-ejecutan-los-eventos)).
 - `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (los de VB) se aceptan para que esos
   programas se compilen, y se **ignoran**.
 
@@ -678,7 +678,7 @@ Application.OnError = Failed
 que el controlador ha terminado — nunca por un error en la subrutina `Failed`
 misma. Un error en el código propio del programa principal sigue terminando el
 programa. RapidR Studio lo usa para mantener tu trabajo a salvo
-([Studio conserva tu trabajo](studio-projects.md#studio-keeps-your-work)).
+([Studio conserva tu trabajo](studio-projects.md#studio-conserva-tu-trabajo)).
 Prueba [examples/gui/on_error.rr](../../../examples/gui/on_error.rr): dos
 botones, cada uno con un error, y una ventana que sigue funcionando.
 

@@ -48,7 +48,7 @@ que lee el CSV desde la memoria con su motor predeterminado.
   pasos tardan 116 ms para un millón de filas en el motor con un solo hilo, y
   Chrome en la misma Mac carga el millón de filas en unos 0.15 s, las filtra en
   10 ms, las ordena en 60 ms y las agrupa en unos 35 ms
-  ([Ciencia de datos con RapidR](data-science-with-rapidr.md#5-a-million-rows)).
+  ([Ciencia de datos con RapidR](data-science-with-rapidr.md#5-un-millón-de-filas)).
 - El motor responde exactamente como el anterior (comprobado contra él con
   decenas de miles de programas aleatorios): más rápido, nunca distinto.
 
@@ -99,7 +99,7 @@ Un programa que dibuja una imagen a partir de números —la pantalla de un
 emulador, un filtro de imágenes, un mapa de calor, un juego de la vida— pone la
 imagen completa en un mapa de bits con una sola llamada: `SetPixels`,
 `SetPixels8` (números de paleta) o `GetPixels` para leerla de vuelta
-([Dibujo: lienzos, mapas de bits y píxeles](graphics.md#drawing-many-pixels-fast)).
+([Dibujo: lienzos, mapas de bits y píxeles](graphics.md#dibujar-muchos-píxeles-rápido)).
 Una imagen de 256 x 192 (49 152 píxeles) puesta en un mapa de bits y dibujada al
 doble de tamaño, en milisegundos, en un Apple M4 Max con macOS, compilaciones
 release, 30 de octubre de 2026, con la Mac ocupada con otros trabajos (carga
@@ -163,7 +163,7 @@ ARIA del mismo árbol. El contraste del texto cumple WCAG AA en todos los temas 
 AAA en el de contraste alto; el aspecto sigue la configuración clara, oscura o de
 contraste alto del sistema. El texto enriquecido llega a un lector de pantalla
 con su formato, y el propio RapidR Studio está hecho de la misma manera
-([Componentes y objetos](components.md#accessibility)).
+([Componentes y objetos](components.md#accesibilidad)).
 
 ## Seguro por diseño
 
@@ -171,7 +171,7 @@ con su formato, y el propio RapidR Studio está hecho de la misma manera
 - **Las compilaciones web llevan una Content-Security-Policy** hecha a partir de
   lo que usa el programa: sin scripts en línea, otros servidores solo para los
   componentes de red y las direcciones que el programa escribe de forma explícita
-  ([Compilar aplicaciones y sus íconos](building-apps.md#build-a-web-app)).
+  ([Compilar aplicaciones y sus íconos](building-apps.md#compilar-una-aplicación-web)).
 - **Un valor incorrecto es un error, no un cierre inesperado**: las funciones de
   memoria (`VARPTR`, `PEEK`, `POKE`) trabajan sobre vistas de los datos del propio
   programa y rechazan cualquier otra dirección; los valores hostiles detienen el

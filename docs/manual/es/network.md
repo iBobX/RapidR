@@ -98,7 +98,7 @@ Para una API web, `RHttpServer` hace todo el HTTP por ti.
 <!-- legal -->
 `RHttpServer` (propio de RapidR; solo para el escritorio) es un pequeño servidor
 web: una API local para otros programas, un panel de control, un servidor
-[MCP](#an-mcp-server) para aplicaciones de IA. Escucha en `127.0.0.1` salvo que
+[MCP](#un-servidor-mcp) para aplicaciones de IA. Escucha en `127.0.0.1` salvo que
 digas otra cosa, lee cada solicitud completa, rechaza por sí mismo lo que no
 corresponde, y te da el resto en `OnRequest` — en el hilo propio de tu programa,
 entre sus otros eventos, así que la ventana nunca se congela.
@@ -235,7 +235,7 @@ otras computadoras, ponlo detrás de un servidor web que hable HTTPS, y enumera 
 
 ### Un servidor MCP
 
-Usa [`RMcpServer`](#rmcpserver-your-programs-tools-for-ai-apps): habla el
+Usa [`RMcpServer`](#rmcpserver-las-herramientas-de-tu-programa-para-las-aplicaciones-de-ia): habla el
 protocolo por sí mismo, con las mismas conexiones y comprobaciones que
 `RHttpServer`.
 

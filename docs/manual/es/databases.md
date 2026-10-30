@@ -48,10 +48,10 @@ Ann tiene 34
 - `QueryScalar(sql)` devuelve la primera columna de la primera fila.
 - `ColName(i)` y `ColType(i)` dan el nombre de la columna `i` de la última
   consulta (desde 0) y su tipo declarado (consulta
-  [Nombres y tipos de columnas](#column-names-and-types)).
+  [Nombres y tipos de columnas](#nombres-y-tipos-de-columnas)).
 - `Schema` da las tablas, las vistas y las columnas de la base de datos como
   JSON, para el autocompletado de un editor de SQL (consulta
-  [El editor de SQL](#the-sql-editor)).
+  [El editor de SQL](#el-editor-de-sql)).
 - `EscapeString(s)` duplica las comillas simples, pero es mejor usar
   parámetros.
 - Eventos: `OnConnect`, `OnQueryDone`, `OnDisconnect`, `OnError (Message)`; y,
@@ -309,7 +309,7 @@ END SUB
 [transactions.rr](../../../examples/data/transactions.rr) lo muestra: Begin,
 Add a row, Commit y Rollback, el estado a partir de `InTransaction`, y una
 pregunta al cerrar cuya respuesta predeterminada es No (consulta los
-[cuadros de mensaje](components.md#message-boxes-the-safe-answer-on-enter)).
+[cuadros de mensaje](components.md#cuadros-de-mensaje-la-respuesta-segura-con-enter)).
 
 ## Nombres y tipos de columnas
 

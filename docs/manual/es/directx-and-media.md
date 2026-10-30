@@ -216,7 +216,7 @@ franja en la parte inferior derecha de una página web, y los clics llegan a
 `WndProc (hWnd, uMsg, wParam, lParam)` como los mensajes de mouse de Windows.
 `NI.hIcon = Application.Icon` muestra el ícono del programa. En Windows, el
 `WndProc` del formulario también recibe todos los demás mensajes de su ventana
-(consulta [Mensajes de Windows](components.md#windows-messages-a-forms-wndproc));
+(consulta [Mensajes de Windows](components.md#mensajes-de-windows-el-wndproc-de-un-formulario));
 en los demás sistemas, los de la bandeja son los únicos.
 
 ## El registro

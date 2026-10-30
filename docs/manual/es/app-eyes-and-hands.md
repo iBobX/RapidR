@@ -115,7 +115,7 @@ WebP animado o GIF).
 > Lo que hace clic ocurre de verdad —los recorridos, las demostraciones y las
 > pruebas automáticas pueden enviar correos reales, cobrar tarjetas reales y
 > eliminar datos reales—: ejecútalos con datos de prueba. (El cuadro completo está
-> en [RWindowCapture](#rwindowcapture-pictures-and-the-layout-report).)
+> en [RWindowCapture](#rwindowcapture-imágenes-y-el-informe-de-disposición).)
 
 ![guided_tour.rr mientras su recorrido escribe en el cuadro “Task”: el puntero y el anillo de su clic](../images/app-eyes/tour-pointer.png)
 

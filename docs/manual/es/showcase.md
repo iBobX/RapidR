@@ -19,14 +19,14 @@ dice.
 
 | Programa | Qué muestra |
 |---|---|
-| [Fuegos artificiales](#fireworks) | miles de chispas, cada una con su propia física; RNum dibuja las formas |
-| [Notas](#notes) | una aplicación de notas en Markdown con vista previa en vivo; archivos en el escritorio, el almacenamiento del navegador en la web |
-| [Un juego de la serpiente](#a-snake-game) | un juego solo para el teclado: un `RCanvas`, un `RTimer`, arreglos (arrays) para la serpiente |
-| [Los mismos números](#same-numbers) | cuatro conjuntos de puntos con exactamente las mismas estadísticas y cuatro imágenes distintas, hechas por el programa |
-| [Pi con dardos](#pi-by-darts) | RNum lanza y cuenta miles de dardos al azar; la estimación y su error se actualizan en vivo |
-| [Un planeta](#a-planet) | un planeta 3D iluminado y sombreado, con un anillo y una luna, construido a partir de caras |
-| [Laboratorio de señales](#signal-lab) | un generador de señales, un osciloscopio que un disparador mantiene quieto, y una FFT escrita en BASIC |
-| [Un visualizador MIDI](#a-midi-visualizer) | una escena 3D que baila al ritmo de una canción que el propio programa lee |
+| [Fuegos artificiales](#fuegos-artificiales) | miles de chispas, cada una con su propia física; RNum dibuja las formas |
+| [Notas](#notas) | una aplicación de notas en Markdown con vista previa en vivo; archivos en el escritorio, el almacenamiento del navegador en la web |
+| [Un juego de la serpiente](#un-juego-de-la-serpiente) | un juego solo para el teclado: un `RCanvas`, un `RTimer`, arreglos (arrays) para la serpiente |
+| [Los mismos números](#los-mismos-números) | cuatro conjuntos de puntos con exactamente las mismas estadísticas y cuatro imágenes distintas, hechas por el programa |
+| [Pi con dardos](#pi-con-dardos) | RNum lanza y cuenta miles de dardos al azar; la estimación y su error se actualizan en vivo |
+| [Un planeta](#un-planeta) | un planeta 3D iluminado y sombreado, con un anillo y una luna, construido a partir de caras |
+| [Laboratorio de señales](#laboratorio-de-señales) | un generador de señales, un osciloscopio que un disparador mantiene quieto, y una FFT escrita en BASIC |
+| [Un visualizador MIDI](#un-visualizador-midi) | una escena 3D que baila al ritmo de una canción que el propio programa lee |
 
 ## Fuegos artificiales
 

@@ -114,7 +114,7 @@ en su lugar algo definido, y lo dice:
   con `$THEME Classic`; los tamaños y las posiciones son los clásicos en ambos), con menús, cuadros de diálogo y portapapeles reales del sistema donde
   los usuarios los esperan.
 - Los documentos impresos con `Printer` / `LPRINT` son PDF que se envían a la
-  impresora del sistema (mira [Componentes](components.md#the-global-objects)).
+  impresora del sistema (mira [Componentes](components.md#los-objetos-globales)).
 - **Una cadena de texto con un carácter por encima de 255 es texto, no bytes.**
   Las cadenas de texto clásicas son bytes, y las de RapidR también lo son siempre que
   todos los caracteres sean de hasta 255: `WriteStr(CHR$(200), 1)` escribe el
@@ -126,7 +126,7 @@ en su lugar algo definido, y lo dice:
   texto y el editor de código nunca guardan un `?` en lugar de un carácter que
   falta en la codificación de su archivo (guardan UTF-8 en su lugar), y
   `WriteText` / `ReadAllText` existen a propósito para texto
-  (mira [Texto y bytes](language.md#text-and-bytes-accents-chinese-emoji)).
+  (mira [Texto y bytes](language.md#texto-y-bytes-acentos-chino-emoji)).
 - **El cuadro de diálogo de fuente nombra un color del sistema.** Una fuente que
   nunca estableció un color (un `RFontDialog` nuevo, las fuentes de la mayoría de
   los componentes) tiene `clWindowText`. El cuadro de diálogo clásico lo
@@ -167,7 +167,7 @@ un compilador clásico.
   `Form.OnDropFiles`.
 - En todos los componentes: `Anchors`, restricciones de tamaño, `AccessibleName` /
   `AccessibleDescription`, `Scale` / `OnScaleChanged`; `Application.Theme`
-  ([Componentes](components.md#rapidrs-additions-to-every-component)).
+  ([Componentes](components.md#adiciones-de-rapidr-a-todos-los-componentes)).
 - Enlace de parámetros de SQL (`Query sql, values…`, `AddParam`): sin inyección de
   SQL.
 - Imágenes SVG dondequiera que un programa clásico toma un mapa de bits; dibujadas con
@@ -176,7 +176,7 @@ un compilador clásico.
   ([Tus propios íconos SVG](svg-icons.md)). El nombre de un `$RESOURCE` va
   dondequiera que va un archivo de imagen (`RImage.Load RES`).
 - Conexiones cifradas a MySQL: `SSLMode`, `SSLCA` y `Encrypted` de RMySQL
-  ([Bases de datos](databases.md#encrypted-connections)).
+  ([Bases de datos](databases.md#conexiones-cifradas)).
 - Los ejes, botones y eventos de RDXJoystick; QMIDI sin un sintetizador del
   sistema.
 
@@ -196,7 +196,7 @@ un compilador clásico.
   esté configurado el sistema, con Inter como fuente predeterminada);
   `$THEME Classic` dibuja el aspecto exacto clásico de Windows. Los tamaños, las
   posiciones y los colores que un programa lee son los clásicos en todos los
-  aspectos ([Temas](components.md#themes)).
+  aspectos ([Temas](components.md#temas)).
 - El RapidR Runtime con tipos de archivo; ejecutables independientes que no
   necesitan Rust.
 <!-- legal -->

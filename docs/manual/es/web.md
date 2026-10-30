@@ -133,7 +133,7 @@ lo sobrepasa; arrastra su control deslizante, o gira la rueda del mouse sobre la
 barra de título de una ventana o sobre la barra de desplazamiento. El ejemplo
 [sales_dashboard.rr](../../../examples/gui/sales_dashboard.rr) es una ventana de
 1200 × 800 para probarlo
-([Depuración: en el escritorio y en el navegador](debugging.md#on-the-desktop-and-in-the-browser)).
+([Depuración: en el escritorio y en el navegador](debugging.md#en-el-escritorio-y-en-el-navegador)).
 
 ## Qué se ejecuta de otra manera en un navegador
 
@@ -152,7 +152,7 @@ barra de título de una ventana o sobre la barra de desplazamiento. El ejemplo
 - **RSecrets** no guarda nada en un navegador: una página no tiene llavero, y
   RapidR nunca pone secretos en el almacenamiento de la página. `Available` es
   `False` y toda llamada falla, y `Error` lo dice
-  ([Guardar secretos](secrets.md#in-a-browser)).
+  ([Guardar secretos](secrets.md#en-un-navegador)).
 - **RMySQL**, **RServerSocket** y **RHttpServer** no funcionan en un navegador (no
   hay TCP en bruto, y una página no puede escuchar conexiones); llama a un
   servidor tuyo con RHttp en su lugar. **RSocket** se conecta por WebSocket.
@@ -201,7 +201,7 @@ se ejecuta, pero sus métodos no hacen nada allí e imprimen una advertencia.
 escritorio, dibujado por el kernel de interfaz en la página: una carpeta para
 cualquier alojamiento estático (abre su `index.html` mediante un servidor web).
 Tiene el diseñador de formularios, el editor de código, el depurador
-([el mismo que el del escritorio](debugging.md#on-the-desktop-and-in-the-browser)),
+([el mismo que el del escritorio](debugging.md#en-el-escritorio-y-en-el-navegador)),
 el árbol del proyecto, el inspector, la caja de herramientas y Ejecutar (el
 programa se ejecuta en un marco aislado de la página), y **Ejecutar > Compilar
 aplicación web (.zip)**. Compila en el navegador; no se envía nada a ninguna
@@ -238,4 +238,4 @@ navegador no puede hacer (un socket de servidor, `SHELL`, los archivos de la
 computadora). Para ver qué no funcionará en un navegador, establece **Destinos** en
 **Proyecto > Opciones del proyecto** en **Web**: la pestaña Problemas anota cada
 uno de esos componentes (mira
-[Proyectos](studio-projects.md#targets-where-your-program-runs)).
+[Proyectos](studio-projects.md#destinos-dónde-se-ejecuta-tu-programa)).

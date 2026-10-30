@@ -97,7 +97,7 @@ END SUB
   `Btn(i).OnClick = Clicked`.
 - Los eventos se ejecutan cuando el programa espera: durante `ShowModal`,
   `DOEVENTS` o un cuadro de diálogo (mira
-  [Cuándo se ejecutan los eventos](#when-events-run)). El programa termina cuando
+  [Cuándo se ejecutan los eventos](#cuándo-se-ejecutan-los-eventos)). El programa termina cuando
   termina su código principal: los formularios que siguen abiertos se cierran con
   él y sus temporizadores se detienen.
 - El primer `Show` (o `ShowModal`) de un formulario dispara `OnResize`, `OnShow`,
@@ -134,7 +134,7 @@ DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed lo establece el OnClose del formula
 - **Un controlador que llama a `DOEVENTS`** deja que los eventos en espera se
   ejecuten allí mismo — la marca de otro temporizador, un clic —, y luego sigue.
 - **Los eventos que dispara tu propio código se ejecutan al instante**, dentro de
-  la línea que los dispara ([más abajo](#events-your-own-code-fires)):
+  la línea que los dispara ([más abajo](#eventos-que-dispara-tu-propio-código)):
   `Canvas.Repaint` ejecuta el `OnPaint` del lienzo antes de la línea siguiente.
 
 Así, un controlador que dispara su propio evento se ejecuta dentro de sí mismo:
@@ -147,7 +147,7 @@ el evento y la línea:
 run-time error: OnPaint of Screen ran inside itself 200 times: its handler fires it again before it ends (at game.rr line 21)
 ```
 
-Como con cualquier [error en un controlador](#a-run-time-error-in-a-handler), la
+Como con cualquier [error en un controlador](#un-error-de-ejecución-en-un-controlador), la
 ventana sigue funcionando. Dibuja en `OnPaint` y pide el repintado en otro
 lugar — el temporizador que mueve el juego: `Screen.Repaint`.
 
@@ -216,7 +216,7 @@ componentes clásicos no dicen nada. En un evento que se ejecutó dentro de un
 `DO: DOEVENTS: LOOP` de un programa principal termina allí, y el programa con él.
 Un error en el programa principal termina el programa. Con el depurador de
 Studio, el programa primero se detiene en la línea (mira
-[Depuración](debugging.md#when-the-program-fails)).
+[Depuración](debugging.md#cuando-el-programa-falla)).
 
 ### Mensajes de Windows: el WndProc de un formulario
 
@@ -287,7 +287,7 @@ Lo que conviene saber:
   formulario (los controles clásicos son ventanas propias). Los repintados de sus
   controles que hace RapidR no se entregan como `WM_PAINT`.
 - En macOS, Linux y la web no hay mensajes de Windows: `WndProc` oye solo el
-  [ícono de la bandeja del sistema](directx-and-media.md#the-system-tray) del
+  [ícono de la bandeja del sistema](directx-and-media.md#la-bandeja-del-sistema) del
   formulario. El `WndProc` de un control nunca se llama, en ningún sistema.
 
 Los ejemplos de [examples/windows/](../../../examples/windows/) enumeran los
@@ -415,9 +415,9 @@ compilador anterior no la conoce).
 | `AccessibleName`, `AccessibleDescription` | lo que dice un lector de pantalla, cuando el texto no basta |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | qué tan fina es la pantalla (2 en una pantalla Retina, 1.5 al 150 %) |
 | `Application.Theme`, `$THEME`, `Application.OnThemeChange` | el aspecto, y cuándo cambia (más abajo) |
-| `TabStop` en un panel | el panel toma el foco del teclado: una tarjeta en la que se puede hacer clic ([Accesibilidad](#accessibility)) |
-| `TabStop` en una etiqueta | la etiqueta es un enlace: Tab llega a ella, Enter o Space hace clic en ella ([Accesibilidad](#accessibility)) |
-| `Application.Announce Text [, Assertive]` | un lector de pantalla dice Text sin que se mueva el foco ([más abajo](#telling-screen-readers-about-news-applicationannounce)) |
+| `TabStop` en un panel | el panel toma el foco del teclado: una tarjeta en la que se puede hacer clic ([Accesibilidad](#accesibilidad)) |
+| `TabStop` en una etiqueta | la etiqueta es un enlace: Tab llega a ella, Enter o Space hace clic en ella ([Accesibilidad](#accesibilidad)) |
+| `Application.Announce Text [, Assertive]` | un lector de pantalla dice Text sin que se mueva el foco ([más abajo](#avisar-a-los-lectores-de-pantalla-de-las-novedades-applicationannounce)) |
 | `AutoComplete` en un campo de texto | la sugerencia de autocompletado del navegador, en la web |
 | `Placeholder = "Search the help"` en un campo de texto | la línea gris que se muestra mientras el campo está vacío, que dice qué escribir; nunca se lee de vuelta como el texto, desaparece cuando el usuario escribe (el cuadro de la Ayuda de RapidR Studio la usa) |
 | `Form.OnDropFiles (Files AS STRING)` | archivos arrastrados desde la computadora y soltados en la ventana (más abajo) |
@@ -454,7 +454,7 @@ END SUB
 Form.ShowModal
 ```
 
-El ejemplo [CSV Explorer](data-science.md#tutorial-the-csv-explorer) abre el
+El ejemplo [CSV Explorer](data-science.md#tutorial-el-explorador-de-csv) abre el
 archivo CSV que se suelta en él.
 
 ## El puntero del mouse

@@ -13,7 +13,7 @@ leen, nunca se cambian.
 
 - Copia el programa —el archivo principal, cada archivo que incluye con
   `$INCLUDE` (a cualquier profundidad, dondequiera que RapidR lo encuentre: mira
-  [Archivos incluidos](#include-files)) y (en una carpeta) todo lo demás de la
+  [Archivos incluidos](#archivos-incluidos)) y (en una carpeta) todo lo demás de la
   carpeta— en una carpeta nueva a su lado, llamada `<nombre>-rapidr`.
 - En la copia, cambia **solo los nombres de componentes**: `QFORM` pasa a ser
   `RForm`, `QBUTTON` pasa a ser `RButton`, `QGAUGE` pasa a ser `RProgressBar`, y
@@ -176,7 +176,7 @@ muestra primero los cambios).
 
 - **Mezclar nombres no es un problema.** RapidR lee `QBUTTON` y `RButton` como el
   mismo componente, siempre, sin ninguna configuración, tanto en archivos
-  antiguos como nuevos (mira [Componentes](components.md#the-older-q-names)).
+  antiguos como nuevos (mira [Componentes](components.md#los-nombres-q-anteriores)).
 - **Cuando añades algo a un archivo, Studio sigue su estilo.** En un archivo
   escrito con los nombres de RapidQ, el diseñador añade `QBUTTON` y el
   autocompletado ofrece los nombres de RapidQ, así que el archivo nunca los
@@ -184,5 +184,5 @@ muestra primero los cambios).
 - **Lo que no se convierte**, y aparece en el informe: los nombres en una rama
   `$IFDEF` que tu compilación no compila, los nombres que crea un `$DEFINE`, y
   los archivos incluidos que no se encontraron (añade la carpeta de inclusión de
-  RapidQ a tus carpetas de inclusión: [Archivos incluidos](#include-files)).
+  RapidQ a tus carpetas de inclusión: [Archivos incluidos](#archivos-incluidos)).
 - Las plantillas `.tpl` del IDE de RapidQ no se copian.

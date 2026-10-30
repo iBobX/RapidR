@@ -7,7 +7,7 @@ compilados. **Ejecutar > Compilar** de RapidR Studio hace lo mismo. Una
 compilación es una compilación final —optimizada, la que distribuyes (`--debug`
 crea una rápida para depurar)— y su carpeta de salida recibe solo la aplicación:
 el Rust que genera una compilación nativa y los archivos de cargo se quedan en la
-caché de compilación de RapidR ([La CLI](cli-and-runtime.md#native-builds)).
+caché de compilación de RapidR ([La CLI](cli-and-runtime.md#compilaciones-nativas)).
 
 | Sistema | Un programa con ventanas | Un programa de consola |
 |---|---|---|
@@ -266,7 +266,7 @@ formatos de arriba.
   aplicación descargada sin firmar se permite una sola vez en Configuración del
   Sistema > Privacidad y seguridad > Abrir de todos modos (*System Settings >
   Privacy & Security > Open Anyway*; mira
-  [Instalar en macOS](getting-started.md#install-on-macos)).
+  [Instalar en macOS](getting-started.md#instalar-en-macos)).
 - Una aplicación compilada se abre como cualquier otra aplicación de Mac:
 
   ![hello_form compilado con rapidr build y abierto como una aplicación en macOS: su ventana con un cuadro de nombre y un botón “Greet”](../images/install/macos-built-app.png)
@@ -390,7 +390,7 @@ navegadores no dejan que una página cargue WebAssembly desde `file://`.)
   `<salida>/<programa>-rust-source` para leerlo). Se guardan en el archivo del
   proyecto.
 - **Ejecutar > Compilar aplicación web** convierte el programa en una aplicación
-  web (mira [Compilar una aplicación web](#build-a-web-app)). En la página web este
+  web (mira [Compilar una aplicación web](#compilar-una-aplicación-web)). En la página web este
   es el comando Compilar: **Ejecutar > Compilar aplicación web (.zip)**. La página
   web no crea aplicaciones para una computadora (Compilar aplicación nativa,
   Compilar aplicación interpretada, Mostrar): esas están en RapidR Studio en el
