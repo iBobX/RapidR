@@ -437,10 +437,20 @@ pub mod issue {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Day(pub i64);
 
-/// Today (UTC).
+/// Today (UTC). In a browser there is no operating system clock (std's
+/// `SystemTime::now` panics there — it took the whole web Studio down at its
+/// start, the gate asking for the day before it knew there is no token) and
+/// no token either: day 0, which no token is valid on.
 pub fn today() -> Day {
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    Day(secs.div_euclid(86_400))
+    #[cfg(target_arch = "wasm32")]
+    {
+        Day(0)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+        Day(secs.div_euclid(86_400))
+    }
 }
 
 impl Day {
