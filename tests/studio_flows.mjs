@@ -6927,6 +6927,41 @@ const CASES = [
     a11y: [[/^first, saved by Ana, just now$/, null, "selected"], [/^second, saved by Ana, just now, the current version$/, null]],
     dump: { "vertimeline.itemindex": /^1$/, "verwhatbtn.enabled": /^1$/, "verbackbtn.enabled": /^1$/ },
   },
+  {
+    // (STUDIO-POLISH: a right click on "first" picks it and opens its menu
+    // there — What Changed?, Go Back..., Go Back for main.rr..., Undo —; the
+    // footer one row of three as wide as each other: their icons alone in
+    // the default column, their names in a wide one; Undo's words under them)
+    name: "versions-timeline-menu",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,wait`,
+    events: "studio.__wait_3500,vertimeline.__rightclick_40_80",
+    delay: 7,
+    capture: true,
+    dump: {
+      "vertimeline.itemindex": /^1$/,
+      "vertimeline.__popupat": /^40,80$/,
+      "vertimeitem(2).caption": /^Go Back to This Version for main\.rr\.\.\.$/,
+      "vertimeitem(3).caption": /^&Undo: Saved the version “second”$/,
+      "verwhatbtn.caption": /^$/,
+      "verwhatbtn.width": /^40$/,
+      "verundobtn.accessiblename": /^Undo$/,
+      "verundonote.caption": /^Undo: Saved the version/,
+    },
+  },
+  {
+    name: "versions-footer-names",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,versions:width=520,wait,versions:problems`,
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    checks: [(d) => [d["verwhatbtn.width"] === d["verundobtn.width"] && d["verbackbtn.width"] === d["verundobtn.width"] && d["verwhatbtn.top"] === d["verundobtn.top"], `the footer's three buttons one row, as wide as each other: ${d["verwhatbtn.width"]}/${d["verbackbtn.width"]}/${d["verundobtn.width"]} at ${d["verwhatbtn.top"]}/${d["verundobtn.top"]}`]],
+    dump: { "verwhatbtn.caption": /^What &Changed\?$/, "verwhatbtn.width": /^\d+$/, "verbackbtn.width": /^\d+$/, "verundobtn.width": /^\d+$/, "verwhatbtn.top": /^\d+$/, "verundobtn.top": /^\d+$/, "outputbox.text": /\[versions\] problems=0/ },
+  },
   ...[260, 400].map((width) => ({
     // (narrow side columns: nothing cut off, nothing on top of another)
     name: `versions-narrow-${width}`,

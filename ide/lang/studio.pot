@@ -308,7 +308,7 @@ msgstr ""
 msgid "Ask the assistant to fix the errors"
 msgstr ""
 
-#: ide/ai.inc ide/aichats.inc
+#: ide/ai.inc ide/aichats.inc ide/versions.inc
 msgid "Undo"
 msgstr ""
 
@@ -2003,11 +2003,11 @@ msgstr ""
 msgid "What Changed Since the &Last Version"
 msgstr ""
 
-#: ide/commands.inc
+#: ide/commands.inc ide/versions.inc
 msgid "&Go Back to This Version..."
 msgstr ""
 
-#: ide/commands.inc
+#: ide/commands.inc ide/versions.inc
 msgid "Go Back to This Version for This &File..."
 msgstr ""
 
@@ -4329,6 +4329,10 @@ msgstr ""
 msgid "Welcome"
 msgstr ""
 
+#: ide/panes.inc ide/versions.inc
+msgid "Versions"
+msgstr ""
+
 #: ide/panes.inc
 msgid "Example {name}: {what}"
 msgstr ""
@@ -5806,10 +5810,6 @@ msgid "RapidR Studio is ready."
 msgstr ""
 
 #: ide/versions.inc
-msgid "Versions"
-msgstr ""
-
-#: ide/versions.inc
 msgid "&Start Keeping Versions of This Project"
 msgstr ""
 
@@ -5874,11 +5874,15 @@ msgid "Timeline: every version, newest first"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Up and Down pick a version; What Changed? and Go Back... act on it"
+msgid "Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo"
 msgstr ""
 
 #: ide/versions.inc
 msgid "What this version changed (Git calls this a diff)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What Changed?"
 msgstr ""
 
 #: ide/versions.inc
@@ -5887,6 +5891,10 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Go back to this version: a new version with its files (Git calls this a revert)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go Back..."
 msgstr ""
 
 #: ide/versions.inc
@@ -6133,6 +6141,14 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Changed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go Back to This Version for {file}..."
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Undo: {what}"
 msgstr ""
 
 #: ide/versions.inc

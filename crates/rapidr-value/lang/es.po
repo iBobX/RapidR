@@ -1311,3 +1311,59 @@ msgstr "Clic o doble clic: Proyecto > Añadir formulario, un archivo de formular
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: a new MDI main window file of the program."
 msgstr "Clic o doble clic: un archivo de ventana principal MDI nuevo del programa."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Undid: {what}"
+msgstr "Se deshizo: {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Before: {what}"
+msgstr "Antes: {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Checkpoint: {label}"
+msgstr "Punto de control: {label}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Saved the version “{message}”"
+msgstr "Se guardó la versión “{message}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Started the experiment “{experiment}”"
+msgstr "Se empezó el experimento “{experiment}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Switched to the experiment “{experiment}”"
+msgstr "Se cambió al experimento “{experiment}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Brought “{experiment}” in"
+msgstr "Se incorporó “{experiment}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Got the latest from the shared folder ({experiment})"
+msgstr "Se trajo lo último de la carpeta compartida ({experiment})"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Restored {file} from version {id}"
+msgstr "Se restauró {file} de la versión {id}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to the checkpoint “{label}”"
+msgstr "Se volvió al punto de control “{label}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id}) for {file}"
+msgstr "Se volvió a “{message}” ({id}) para {file}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id})"
+msgstr "Se volvió a “{message}” ({id})"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to {what}"
+msgstr "Se volvió a {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Undoing “{what}” would replace your newer changes to {file}. Save a version first (or undo your own changes), then undo."
+msgstr "Deshacer “{what}” reemplazaría tus cambios más recientes en {file}. Guarda una versión primero (o deshaz tus propios cambios) y luego deshaz."

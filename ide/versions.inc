@@ -37,6 +37,10 @@ DECLARE SUB VerUndoClick
 DECLARE SUB VerLocalClick
 DECLARE SUB VerTimePicked
 DECLARE SUB VerTimeOpen
+DECLARE SUB VerTimeMouse(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB VerTimeKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB VerTimeMenuAt(X AS INTEGER, Y AS INTEGER)
+DECLARE SUB VerTimeMenuPicked(Sender AS RMenuItem)
 DECLARE SUB VerChangePicked
 DECLARE SUB VerChangeOpen
 DECLARE SUB VerDrawTime(Index AS INTEGER, State AS INTEGER, R AS RRect)
@@ -140,8 +144,16 @@ DIM VerAuthor AS STRING
 ' (Go Back...'s menu: the whole project, or the file open)
 DIM VerBackMenu AS RPopupMenu
 DIM VerBackItem(1) AS RMenuItem
+' (the timeline's menu: What Changed?, Go Back..., Go Back for This File...,
+' Undo — right click, Shift+F10 or the menu key on a version)
+DIM VerTimeMenu AS RPopupMenu
+DIM VerTimeItem(3) AS RMenuItem
+' (the footer's buttons: their names shown — 1 — or their icons alone)
+DIM VerActNames AS INTEGER
 DIM VerSaveFound AS INTEGER
-DIM VerBmp(4) AS RBitmap
+' (0 warning, 1 branch, 2 the count's icon, 3 timeline, 4 spare, 5-7 the
+' footer's What Changed?, Go Back..., Undo)
+DIM VerBmp(7) AS RBitmap
 ' (the lists' text measured: a long message cut with "…")
 DIM VerMeasure AS RBitmap
 ' (the header's second line, whole: cut to fit, its tooltip says it all)
@@ -269,27 +281,35 @@ CREATE VerPanel AS RPanel
   CREATE VerTimeline AS RListBox
     Style = lbOwnerDrawFixed
     AccessibleName = TR$("Timeline: every version, newest first")
-    AccessibleDescription = TR$("Up and Down pick a version; What Changed? and Go Back... act on it")
+    AccessibleDescription = TR$("Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo")
     OnDrawItem = VerDrawTime
     OnClick = VerTimePicked
     OnChange = VerTimePicked
     OnDblClick = VerTimeOpen
+    OnMouseUp = VerTimeMouse
+    OnKeyDown = VerTimeKey
   END CREATE
+  ' (one row under the timeline: What Changed? and Go Back... act on the
+  ' version picked, Undo on the last action; each its icon and its name, or
+  ' the icons alone in a narrow pane — VerLayOut)
   CREATE VerWhatBtn AS RButton
     Caption = TR$("What &Changed?")
     Hint = TR$("What this version changed (Git calls this a diff)")
     ShowHint = 1
+    AccessibleName = TR$("What Changed?")
     OnClick = VerWhatClick
   END CREATE
   CREATE VerBackBtn AS RButton
     Caption = TR$("&Go Back...")
     Hint = TR$("Go back to this version: a new version with its files (Git calls this a revert)")
     ShowHint = 1
+    AccessibleName = TR$("Go Back...")
     OnClick = VerBackClick
   END CREATE
   CREATE VerUndoBtn AS RButton
     Caption = TR$("&Undo")
     ShowHint = 1
+    AccessibleName = TR$("Undo")
     OnClick = VerUndoClick
   END CREATE
   CREATE VerUndoNote AS RLabel
@@ -430,6 +450,15 @@ SUB SetUpVersions
     VerBackItem(k).OnClick = VerBackPicked
     VerBackMenu.AddItems VerBackItem(k)
   NEXT
+  VerTimeItem(0).Caption = TR$("What &Changed?")
+  VerTimeItem(1).Caption = TR$("&Go Back to This Version...")
+  VerTimeItem(2).Caption = TR$("Go Back to This Version for This &File...")
+  VerTimeItem(3).Caption = TR$("&Undo")
+  FOR k = 0 TO 3
+    VerTimeItem(k).Tag = k
+    VerTimeItem(k).OnClick = VerTimeMenuPicked
+    VerTimeMenu.AddItems VerTimeItem(k)
+  NEXT
   VerFilesList.AddColumns TR$("File"), TR$("Change")
   VerRefresh
 END SUB
@@ -533,6 +562,13 @@ SUB ApplyVersionsChrome
   VerWhatBtn.Font = UIFont
   VerBackBtn.Font = UIFont
   VerUndoBtn.Font = UIFont
+  ' (the footer's icons, in the current look)
+  VerBmp(5).LoadIcon "compare", 16
+  VerBmp(6).LoadIcon "restore-version", 16
+  VerBmp(7).LoadIcon "undo", 16
+  VerWhatBtn.BMPHandle = VerBmp(5)
+  VerBackBtn.BMPHandle = VerBmp(6)
+  VerUndoBtn.BMPHandle = VerBmp(7)
   ' (the What Changed document)
   VerDiffPane.Color = TC("page")
   VerDiffTop.Color = TC("page")
@@ -1109,17 +1145,34 @@ SUB VerLayOut
   ' Undo's words (dropped when the pane is too short for them: Undo's
   ' tooltip and its description for a screen reader still say them), a
   ' version's row
-  bwd(0) = VerBtnW(VerWhatBtn.Caption): bwd(1) = VerBtnW(VerBackBtn.Caption): bwd(2) = VerBtnW(VerUndoBtn.Caption)
-  n = 1: x = 12
-  FOR i = 0 TO 2
-    IF bwd(i) > w - 24 THEN bwd(i) = w - 24
-    IF x > 12 AND x + bwd(i) > w - 12 THEN
-      n = n + 1
-      x = 12
+  ' (the footer: one row of three as wide as the widest — its icon, 4, its
+  ' name —; when three names don't fit, the icons alone, 40 wide, their
+  ' names in their tooltips and for a screen reader: never a cut word, never
+  ' a second row)
+  bw = VerBtnW(TR$("What &Changed?"))
+  IF VerBtnW(TR$("&Go Back...")) > bw THEN bw = VerBtnW(TR$("&Go Back..."))
+  IF VerBtnW(TR$("&Undo")) > bw THEN bw = VerBtnW(TR$("&Undo"))
+  bw = bw + 20
+  IF 12 + 3 * bw + 16 + 12 <= w THEN
+    IF VerActNames = 0 THEN
+      VerActNames = 1
+      VerWhatBtn.Caption = TR$("What &Changed?")
+      VerBackBtn.Caption = TR$("&Go Back...")
+      VerUndoBtn.Caption = TR$("&Undo")
     END IF
-    x = x + bwd(i) + 8
+  ELSE
+    bw = 40
+    IF VerActNames <> 0 OR VerWhatBtn.Caption <> "" THEN
+      VerActNames = 0
+      VerWhatBtn.Caption = ""
+      VerBackBtn.Caption = ""
+      VerUndoBtn.Caption = ""
+    END IF
+  END IF
+  FOR i = 0 TO 2
+    bwd(i) = bw
   NEXT
-  blockh = n * ch + (n - 1) * 8
+  blockh = ch
   noteh = 0
   IF VerUndoWanted THEN
     s = VerWrap(VerUndoNote.Hint, w - 24, 2, 2)
@@ -1171,15 +1224,15 @@ SUB VerLayOut
     rows = ((h - y) * 4 \ 10) \ rh
     IF rows < 3 THEN rows = 3
     IF rows > VerRowCount THEN rows = VerRowCount
-    k = (h - y - 16 - need - Flag(noteh > 0) * (6 + noteh) - 4) \ rh
+    k = (h - y - 16 - need - Flag(noteh > 0) * (8 + noteh) - 4) \ rh
     IF rows > k THEN rows = k
     IF rows < 1 THEN rows = 1
     VerChanges.Left = 8: VerChanges.Top = y: VerChanges.Width = w - 16: VerChanges.Height = rows * rh + 4
     y = y + rows * rh + 4 + 16
   END IF
   ' (Undo's words: only when they fit with one version's row above them)
-  VerUndoNote.Visible = Flag(noteh > 0 AND h - y - need - 6 - noteh >= 0)
-  IF VerUndoNote.Visible THEN blockh = blockh + 6 + noteh
+  VerUndoNote.Visible = Flag(noteh > 0 AND h - y - need - 8 - noteh >= 0)
+  IF VerUndoNote.Visible THEN blockh = blockh + 8 + noteh
   ' ---- the timeline
   VerTimeHead.Left = 12: VerTimeHead.Top = y: VerTimeHead.Width = w - 24: VerTimeHead.Height = lh
   y = y + lh + 6
@@ -1187,14 +1240,10 @@ SUB VerLayOut
   IF th < rowh + 4 THEN th = rowh + 4
   VerTimeline.Left = 8: VerTimeline.Top = y: VerTimeline.Width = w - 16: VerTimeline.Height = th
   y = y + th + 8
-  ' (What Changed?, Go Back..., Undo: each as wide as its words, 8 apart,
-  ' a new row when the next doesn't fit)
+  ' (What Changed?, Go Back..., Undo: one row, as wide as each other, 8
+  ' apart; what Undo takes back in dim words on its own line under them)
   x = 12
   FOR i = 0 TO 2
-    IF x > 12 AND x + bwd(i) > w - 12 THEN
-      x = 12
-      y = y + ch + 8
-    END IF
     SELECT CASE i
       CASE 0: VerWhatBtn.Left = x: VerWhatBtn.Top = y: VerWhatBtn.Width = bwd(i): VerWhatBtn.Height = ch
       CASE 1: VerBackBtn.Left = x: VerBackBtn.Top = y: VerBackBtn.Width = bwd(i): VerBackBtn.Height = ch
@@ -1202,7 +1251,7 @@ SUB VerLayOut
     END SELECT
     x = x + bwd(i) + 8
   NEXT
-  y = y + ch + 6
+  y = y + ch + 8
   IF VerUndoNote.Visible THEN
     VerUndoNote.Left = 12: VerUndoNote.Top = y: VerUndoNote.Width = w - 24: VerUndoNote.Height = noteh
   END IF
@@ -1386,6 +1435,58 @@ END SUB
 ' (a double click, Enter: what it changed)
 SUB VerTimeOpen
   VerShowDiff "version"
+END SUB
+
+' (a right click on a version: it picked, its menu where the mouse is)
+SUB VerTimeMouse(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+  DIM k AS INTEGER
+  IF Button <> 1 THEN EXIT SUB
+  IF VerTimeline.ItemHeight < 1 THEN EXIT SUB
+  k = VerTimeline.TopIndex + (Y - 2) \ VerTimeline.ItemHeight
+  IF k < 0 OR k >= VerTimeCount THEN EXIT SUB
+  IF VerTimeline.ItemIndex <> k THEN
+    VerTimeline.ItemIndex = k
+    VerTimePicked
+  END IF
+  VerTimeMenuAt X, Y
+END SUB
+
+' (Shift+F10 or the menu key: the version's menu under its row)
+SUB VerTimeKey(Key AS INTEGER, Shift AS INTEGER)
+  DIM k AS INTEGER
+  IF Key = 93 OR (Key = 121 AND (Shift AND 1) <> 0) THEN
+    k = VerTimeline.ItemIndex
+    IF k < 0 OR k >= VerTimeCount THEN EXIT SUB
+    VerTimeMenuAt 24, 2 + (k - VerTimeline.TopIndex + 1) * VerTimeline.ItemHeight
+  END IF
+END SUB
+
+' (the version's menu: what can be done now enabled, Undo naming what it takes back)
+SUB VerTimeMenuAt(X AS INTEGER, Y AS INTEGER)
+  DIM k AS INTEGER, u AS STRING
+  k = VerTimeline.ItemIndex
+  VerTimeItem(0).Enabled = Flag(k >= 0 AND k < VerTimeCount)
+  VerTimeItem(1).Enabled = Flag(k >= 0 AND k < VerTimeCount AND Repo.ReadOnly = 0)
+  VerTimeItem(2).Enabled = Flag(k >= 0 AND k < VerTimeCount AND Repo.ReadOnly = 0 AND ActiveCode >= 0)
+  IF ActiveCode >= 0 THEN
+    VerTimeItem(2).Caption = TR$("Go Back to This Version for {file}...", "file", FileTitle(DocFile(ActiveCode)))
+  ELSE
+    VerTimeItem(2).Caption = TR$("Go Back to This Version for This &File...")
+  END IF
+  u = Repo.CanUndo
+  IF LEN(u) > 48 THEN u = LEFT$(u, 47) + "…"
+  VerTimeItem(3).Enabled = Flag(u <> "")
+  IF u = "" THEN VerTimeItem(3).Caption = TR$("&Undo") ELSE VerTimeItem(3).Caption = TR$("&Undo: {what}", "what", u)
+  VerTimeMenu.PopupAt VerTimeline, X, Y
+END SUB
+
+SUB VerTimeMenuPicked(Sender AS RMenuItem)
+  SELECT CASE Sender.Tag
+    CASE 0: RunCommand "versions.whatChanged"
+    CASE 1: RunCommand "versions.goBack"
+    CASE 2: RunCommand "versions.goBackFile"
+    CASE 3: RunCommand "versions.undo"
+  END SELECT
 END SUB
 
 SUB VerChangePicked

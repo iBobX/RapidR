@@ -43,6 +43,7 @@ SUB PanesLanguageChanged
   Dock.PaneTitle("outlinetree", TR$("Outline"))
   Dock.PaneTitle("outputbox", TR$("Output"))
   Dock.PaneTitle("immediatebox", TR$("Immediate"))
+  IF Dock.PaneState("verpanel") <> "" THEN Dock.PaneTitle("verpanel", TR$("Versions"))
   IF Dock.PaneState("welcome") <> "" THEN Dock.PaneTitle("welcome", TR$("Welcome"))
   FOR k = 0 TO ExampleCount - 1
     ExCard(k).AccessibleName = TR$("Example {name}: {what}", "name", BaseName(ExampleFile(k)), "what", TR$(ExampleWhat(k)))

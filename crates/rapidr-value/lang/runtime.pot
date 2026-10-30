@@ -24,6 +24,58 @@ msgstr ""
 msgid "A check is running: wait for it, or stop it."
 msgstr ""
 
+#: crates/rapidr-studio/src/repository.rs
+msgid "Undid: {what}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Before: {what}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Checkpoint: {label}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Saved the version “{message}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Started the experiment “{experiment}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Switched to the experiment “{experiment}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Brought “{experiment}” in"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Got the latest from the shared folder ({experiment})"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Restored {file} from version {id}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to the checkpoint “{label}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id}) for {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id})"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to {what}"
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}, column {column}"
 msgstr ""

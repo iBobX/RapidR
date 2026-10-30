@@ -266,6 +266,82 @@ fn default_author() -> String {
 
 // ---- the desktop: rapidr-vcs ------------------------------------------------------
 
+/// The words of an action on the versions — kept in English in the
+/// project's history (`.git/rapidr/history.jsonl`, rapidr-vcs) — in Studio's
+/// language: what Undo takes back, what it undid, a safety point's label.
+/// Names (a version's message, an experiment, a file) stay as they are.
+/// Words of no known shape are given back unchanged.
+pub fn in_language(words: &str) -> String {
+    use rapidr_value::i18n::{tr_ui, tr_ui_fill};
+    // (“…” and what follows it)
+    fn quoted(s: &str) -> Option<(&str, &str)> {
+        let s = s.strip_prefix('\u{201C}')?;
+        let end = s.find('\u{201D}')?;
+        Some((&s[..end], &s[end + '\u{201D}'.len_utf8()..]))
+    }
+    if let Some(rest) = words.strip_prefix("Undid: ") {
+        return tr_ui_fill("Undid: {what}", &[("what", &in_language(rest))]);
+    }
+    if let Some(rest) = words.strip_prefix("Before: ") {
+        return tr_ui_fill("Before: {what}", &[("what", &in_language(rest))]);
+    }
+    if let Some(rest) = words.strip_prefix("Checkpoint: ") {
+        return tr_ui_fill("Checkpoint: {label}", &[("label", rest)]);
+    }
+    if let Some((m, "")) = words.strip_prefix("Saved the version ").and_then(quoted) {
+        return tr_ui_fill("Saved the version “{message}”", &[("message", m)]);
+    }
+    if let Some((n, "")) = words.strip_prefix("Started the experiment ").and_then(quoted) {
+        return tr_ui_fill("Started the experiment “{experiment}”", &[("experiment", n)]);
+    }
+    if let Some((n, "")) = words.strip_prefix("Switched to the experiment ").and_then(quoted) {
+        return tr_ui_fill("Switched to the experiment “{experiment}”", &[("experiment", n)]);
+    }
+    if let Some((n, " in")) = words.strip_prefix("Brought ").and_then(quoted) {
+        return tr_ui_fill("Brought “{experiment}” in", &[("experiment", n)]);
+    }
+    if let Some(e) = words.strip_prefix("Got the latest from the shared folder (").and_then(|s| s.strip_suffix(')')) {
+        return tr_ui_fill("Got the latest from the shared folder ({experiment})", &[("experiment", e)]);
+    }
+    if let Some(rest) = words.strip_prefix("Restored ") {
+        if let Some((file, id)) = rest.rsplit_once(" from version ") {
+            return tr_ui_fill("Restored {file} from version {id}", &[("file", file), ("id", id)]);
+        }
+    }
+    if let Some(rest) = words.strip_prefix("Went back to ") {
+        if let Some((l, "")) = rest.strip_prefix("the checkpoint ").and_then(quoted) {
+            return tr_ui_fill("Went back to the checkpoint “{label}”", &[("label", l)]);
+        }
+        if let Some((m, tail)) = quoted(rest) {
+            if let Some(t) = tail.strip_prefix(" (") {
+                if let Some((id, file)) = t.split_once(") for ") {
+                    return tr_ui_fill("Went back to “{message}” ({id}) for {file}", &[("message", m), ("id", id), ("file", file)]);
+                }
+                if let Some(id) = t.strip_suffix(')') {
+                    return tr_ui_fill("Went back to “{message}” ({id})", &[("message", m), ("id", id)]);
+                }
+            }
+        }
+        return tr_ui_fill("Went back to {what}", &[("what", rest)]);
+    }
+    // (Undo refused: the files changed since the action — its words have
+    // their own quotes, so split at the last)
+    if let Some(rest) = words.strip_prefix("Undoing \u{201C}").and_then(|t| t.strip_suffix(". Save a version first (or undo your own changes), then undo.")) {
+        if let Some((what, p)) = rest.rsplit_once("\u{201D} would replace your newer changes to ") {
+            return tr_ui_fill(
+                "Undoing “{what}” would replace your newer changes to {file}. Save a version first (or undo your own changes), then undo.",
+                &[("what", &in_language(what)), ("file", p)],
+            );
+        }
+    }
+    let t = tr_ui(words);
+    if t.is_empty() {
+        words.to_string()
+    } else {
+        t
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod engine {
     use std::path::{Path, PathBuf};
@@ -300,7 +376,7 @@ mod engine {
         if e.kind == ErrorKind::SecretsFound {
             r.secrets = e.secrets.iter().map(|s| format!("{}\t{}\t{}\t{}", s.path, s.line, s.what, s.masked)).collect();
         }
-        failed(r, kind_word(e.kind), e.message);
+        failed(r, kind_word(e.kind), super::in_language(&e.message));
     }
 
     fn dir(r: &Repo) -> PathBuf {
@@ -551,7 +627,7 @@ mod engine {
         match open(r).and_then(|mut v| v.undo()) {
             Ok(words) => {
                 ok(r);
-                Some(words)
+                Some(super::in_language(&words))
             }
             Err(e) => {
                 said(r, e);
@@ -564,7 +640,7 @@ mod engine {
         if !r.versioned {
             return None;
         }
-        open(r).ok()?.can_undo().ok().flatten()
+        open(r).ok()?.can_undo().ok().flatten().map(|w| super::in_language(&w))
     }
 
     /// The history of actions, newest first: its number, when, its kind,
@@ -573,7 +649,7 @@ mod engine {
         match open(r).and_then(|v| v.history()) {
             Ok(list) => {
                 ok(r);
-                list.iter().rev().map(|a| format!("{}\t{}\t{}\t{}\t{}", a.n, a.seconds, a.kind, i32::from(a.undone), a.words)).collect::<Vec<_>>().join("\n")
+                list.iter().rev().map(|a| format!("{}\t{}\t{}\t{}\t{}", a.n, a.seconds, a.kind, i32::from(a.undone), super::in_language(&a.words))).collect::<Vec<_>>().join("\n")
             }
             Err(e) => {
                 said(r, e);
@@ -660,6 +736,34 @@ mod engine {
 mod tests {
     use super::*;
     use std::process::Command;
+
+    // (STUDIO-POLISH: the history's English words in Studio's language —
+    // "Deshacer: Saved the version …" was seen in Spanish)
+    #[test]
+    fn the_history_words_follow_studios_language() {
+        rapidr_value::i18n::set_language("en");
+        assert_eq!(in_language("Saved the version \u{201C}first\u{201D}"), "Saved the version \u{201C}first\u{201D}");
+        assert_eq!(in_language("Something else"), "Something else");
+        rapidr_value::i18n::set_language("es");
+        let cases = [
+            ("Saved the version \u{201C}first\u{201D}", "Se guardó la versión \u{201C}first\u{201D}"),
+            ("Undid: Saved the version \u{201C}Two\u{201D}", "Se deshizo: Se guardó la versión \u{201C}Two\u{201D}"),
+            ("Went back to \u{201C}first\u{201D} (abc1234)", "Se volvió a \u{201C}first\u{201D} (abc1234)"),
+            ("Went back to \u{201C}first\u{201D} (abc1234) for main.rr", "Se volvió a \u{201C}first\u{201D} (abc1234) para main.rr"),
+            ("Went back to the checkpoint \u{201C}make it blue\u{201D}", "Se volvió al punto de control \u{201C}make it blue\u{201D}"),
+            ("Restored main.rr from version abc1234", "Se restauró main.rr de la versión abc1234"),
+            ("Started the experiment \u{201C}idea\u{201D}", "Se empezó el experimento \u{201C}idea\u{201D}"),
+            ("Switched to the experiment \u{201C}idea\u{201D}", "Se cambió al experimento \u{201C}idea\u{201D}"),
+            ("Brought \u{201C}idea\u{201D} in", "Se incorporó \u{201C}idea\u{201D}"),
+            ("Got the latest from the shared folder (main)", "Se trajo lo último de la carpeta compartida (main)"),
+            ("Before: Switched to the experiment \u{201C}idea\u{201D}", "Antes: Se cambió al experimento \u{201C}idea\u{201D}"),
+        ];
+        for (en, es) in cases {
+            assert_eq!(in_language(en), es, "{en}");
+        }
+        assert!(in_language("Undoing \u{201C}Saved the version \u{201C}x\u{201D}\u{201D} would replace your newer changes to a.rr. Save a version first (or undo your own changes), then undo.").starts_with("Deshacer"));
+        rapidr_value::i18n::set_language("");
+    }
 
     fn s(v: Option<Value>) -> String {
         v.unwrap().to_string_val()

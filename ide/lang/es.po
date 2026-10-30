@@ -6685,3 +6685,23 @@ msgstr "Aplicación MDI"
 #: ide/workspace.inc
 msgid "Child windows, File and Window menus."
 msgstr "Ventanas secundarias, menús Archivo y Ventana."
+
+#: ide/versions.inc
+msgid "Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo"
+msgstr "Arriba y Abajo eligen una versión; Intro muestra qué cambió; Mayús+F10 abre su menú: ¿Qué cambió?, Volver..., Deshacer"
+
+#: ide/versions.inc
+msgid "What Changed?"
+msgstr "¿Qué cambió?"
+
+#: ide/versions.inc
+msgid "Go Back..."
+msgstr "Volver..."
+
+#: ide/versions.inc
+msgid "Go Back to This Version for {file}..."
+msgstr "Volver a esta versión de {file}..."
+
+#: ide/versions.inc
+msgid "&Undo: {what}"
+msgstr "&Deshacer: {what}"
