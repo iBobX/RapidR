@@ -44,7 +44,7 @@ msgstr "A&plicar"
 msgid "Apply the accepted changes"
 msgstr "Aplicar los cambios aceptados"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1679,8 +1679,28 @@ msgid "Local &History of This File..."
 msgstr "&Historial local de este archivo..."
 
 #: ide/commands.inc
+msgid "Changed Outside S&tudio"
+msgstr "Cambiado &fuera de Studio"
+
+#: ide/commands.inc
+msgid "&Compare with the Disk's Version"
+msgstr "&Comparar con la versión del disco"
+
+#: ide/commands.inc ide/external.inc ide/versions.inc
+msgid "&Use Disk Version"
+msgstr "&Usar la versión del disco"
+
+#: ide/commands.inc ide/external.inc
+msgid "&Keep Mine"
+msgstr "Conservar la &mía"
+
+#: ide/commands.inc
 msgid "&Close Document"
 msgstr "Cerrar &documento"
+
+#: ide/commands.inc
+msgid "Reo&pen Project"
+msgstr "Rea&brir proyecto"
 
 #: ide/commands.inc
 msgid "Close Pro&ject"
@@ -2814,6 +2834,10 @@ msgstr[0] "{n} nota"
 msgstr[1] "{n} notas"
 
 #: ide/documents.inc
+msgid "{file} (deleted on disk)"
+msgstr "{file} (eliminado del disco)"
+
+#: ide/documents.inc
 msgid "Opened {file}"
 msgstr "Se abrió {file}"
 
@@ -2832,6 +2856,140 @@ msgstr "{file} no crea ningún formulario: ahora está en Módulos"
 #: ide/editor.inc
 msgid "Rename: {file} couldn't be opened"
 msgstr "Renombrar: no se pudo abrir {file}"
+
+#: ide/external.inc
+msgid "&Compare"
+msgstr "&Comparar"
+
+#: ide/external.inc
+msgid "Shows the disk's version beside yours"
+msgstr "Muestra la versión del disco junto a la tuya"
+
+#: ide/external.inc ide/versions.inc
+msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
+msgstr "Carga el archivo como está en el disco. Tu versión se guarda en el historial local, y Deshacer la recupera."
+
+#: ide/external.inc
+msgid "Keeps your version here. Saving it will ask before it replaces the disk's version."
+msgstr "Conserva tu versión aquí. Al guardarla, Studio pregunta antes de reemplazar la versión del disco."
+
+#: ide/external.inc
+msgid "&Show"
+msgstr "&Mostrar"
+
+#: ide/external.inc
+msgid "Lists the files in the Output"
+msgstr "Muestra la lista de archivos en la Salida"
+
+#: ide/external.inc
+msgid "C&lose"
+msgstr "&Cerrar"
+
+#: ide/external.inc
+msgid "Close the note"
+msgstr "Cerrar el aviso"
+
+#: ide/external.inc
+msgid "{file} changed outside Studio."
+msgstr "{file} cambió fuera de Studio."
+
+#: ide/external.inc
+msgid "{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine."
+msgstr "{file} cambió fuera de Studio, y tienes cambios sin guardar en él: Comparar, Usar la versión del disco o Conservar la mía."
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio."
+msgid_plural "{n} files were updated outside Studio."
+msgstr[0] "{n} archivo se actualizó fuera de Studio."
+msgstr[1] "{n} archivos se actualizaron fuera de Studio."
+
+#: ide/external.inc ide/versions.inc
+msgid "Local history: {why}"
+msgstr "Historial local: {why}"
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio: its text is kept here"
+msgstr "{file} se eliminó fuera de Studio: su texto se conserva aquí"
+
+#: ide/external.inc
+msgid "{file} changed outside Studio, and you have unsaved changes in it"
+msgstr "{file} cambió fuera de Studio, y tienes cambios sin guardar en él"
+
+#: ide/external.inc
+msgid "{file} was updated outside Studio"
+msgstr "{file} se actualizó fuera de Studio"
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio"
+msgid_plural "{n} files were updated outside Studio"
+msgstr[0] "{n} archivo se actualizó fuera de Studio"
+msgstr[1] "{n} archivos se actualizaron fuera de Studio"
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio: Save All makes it again"
+msgstr "{file} se eliminó fuera de Studio: Guardar todo lo vuelve a crear"
+
+#: ide/external.inc
+msgid "{file} was updated outside Studio: the Project pane follows it"
+msgstr "{file} se actualizó fuera de Studio: el panel Proyecto lo sigue"
+
+#: ide/external.inc ide/panels.inc
+msgid "Can't read the project again: {error}"
+msgstr "No se puede volver a leer el proyecto: {error}"
+
+#: ide/external.inc
+msgid "Loaded the disk's version of {file}: yours is in the local history, and Undo brings it back"
+msgstr "Se cargó la versión del disco de {file}: la tuya está en el historial local, y Deshacer la recupera"
+
+#: ide/external.inc
+msgid "Loaded the disk's version. Undo brings yours back."
+msgstr "Se cargó la versión del disco. Deshacer recupera la tuya."
+
+#: ide/external.inc
+msgid "Keeping your version of {file}: saving it asks first"
+msgstr "Se conserva tu versión de {file}: al guardarla, Studio pregunta primero"
+
+#: ide/external.inc
+msgid "Keeping your version. Saving it asks first."
+msgstr "Se conserva tu versión. Al guardarla, Studio pregunta primero."
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio:"
+msgid_plural "{n} files were updated outside Studio:"
+msgstr[0] "{n} archivo se actualizó fuera de Studio:"
+msgstr[1] "{n} archivos se actualizaron fuera de Studio:"
+
+#: ide/external.inc
+msgid "Save {file} again?"
+msgstr "¿Guardar {file} de nuevo?"
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio. Saving makes the file again with the text you have here."
+msgstr "{file} se eliminó fuera de Studio. Al guardar, el archivo se vuelve a crear con el texto que tienes aquí."
+
+#: ide/external.inc
+msgid "&Save Again"
+msgstr "&Guardar de nuevo"
+
+#: ide/external.inc
+msgid "Save {file} anyway?"
+msgstr "¿Guardar {file} de todos modos?"
+
+#: ide/external.inc
+msgid "{file} changed outside Studio since you opened it. Saving replaces the version on disk with yours; Studio keeps the disk's version in the local history first."
+msgstr "{file} cambió fuera de Studio desde que lo abriste. Al guardar, tu versión reemplaza la del disco; antes, Studio guarda la versión del disco en el historial local."
+
+#: ide/external.inc
+msgid "&Save Anyway"
+msgstr "&Guardar de todos modos"
+
+#: ide/external.inc
+msgid "Not saved: {file} changed outside Studio"
+msgstr "No se guardó: {file} cambió fuera de Studio"
+
+#: ide/external.inc
+msgid "Opened {file} again from the disk"
+msgstr "Se volvió a abrir {file} desde el disco"
 
 #: ide/markdown.inc ide/project.inc
 msgid "Ready"
@@ -3513,10 +3671,6 @@ msgstr "{file} se quitó del proyecto (sigue en el disco)"
 #: ide/panels.inc
 msgid "{main} no longer includes {file}"
 msgstr "{main} ya no incluye {file}"
-
-#: ide/panels.inc
-msgid "Can't read the project again: {error}"
-msgstr "No se puede volver a leer el proyecto: {error}"
 
 #: ide/panels.inc
 msgid "Can't save the project's order"
@@ -5342,12 +5496,28 @@ msgid "Before a restore, {when}"
 msgstr "Antes de una restauración, {when}"
 
 #: ide/versions.inc
+msgid "When it was deleted outside Studio, {when}"
+msgstr "Al eliminarse fuera de Studio, {when}"
+
+#: ide/versions.inc
 msgid "Saved, {when}"
 msgstr "Guardado, {when}"
 
 #: ide/versions.inc
 msgid "No copies yet: Studio keeps one each time you save this file."
 msgstr "Aún no hay copias: Studio guarda una cada vez que guardas este archivo."
+
+#: ide/versions.inc
+msgid "Compare: {file}"
+msgstr "Comparar: {file}"
+
+#: ide/versions.inc
+msgid "{file}: the disk's version and yours"
+msgstr "{file}: la versión del disco y la tuya"
+
+#: ide/versions.inc
+msgid "Left: on disk, changed outside Studio. Right: yours, not saved."
+msgstr "Izquierda: en el disco, cambiada fuera de Studio. Derecha: la tuya, sin guardar."
 
 #: ide/versions.inc
 msgid "What Changed: {message}"
@@ -5384,10 +5554,6 @@ msgstr "Se restauró una copia de {file}: guárdalo para conservarlo, Ctrl+Z lo 
 #: ide/versions.inc
 msgid "Restored. Save the file to keep it; Undo takes it back."
 msgstr "Restaurado. Guarda el archivo para conservarlo; Deshacer lo revierte."
-
-#: ide/versions.inc
-msgid "Local history: {why}"
-msgstr "Historial local: {why}"
 
 #: ide/versions.inc
 msgid "This line is as the last version has it"

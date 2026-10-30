@@ -806,8 +806,9 @@ SUB StartProgram(WithDebugger AS INTEGER)
   ' (F5 to the first form: docs/studio-wow.md PERF-8)
   RunStarted = TIMER
   PerfForm = -1
-  ' (VB's way: what is being run is saved first)
-  SaveAll
+  ' (VB's way: what is being run is saved first — not run when a save was
+  ' declined: its file changed outside Studio)
+  IF SaveAllOk = 0 THEN EXIT SUB
   AnalyzeActive
   ' (the program is its main file and what that includes: their errors
   ' stop it, whichever file is shown — Problems lists them: S-DESIGN-2)
@@ -1065,7 +1066,7 @@ END SUB
 SUB RunInBrowser
   DIM why AS STRING
   IF ProjectOpen = 0 THEN EXIT SUB
-  SaveAll
+  IF SaveAllOk = 0 THEN EXIT SUB
   AnalyzeActive
   ' (the program is its main file and what that includes: their errors
   ' stop it, whichever file is shown — Problems lists them: S-DESIGN-2)

@@ -295,6 +295,34 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
             });
             Outcome::default()
         }
+        // (RapidR's) DocumentBar(Name[, Component]): a strip across the top
+        // of a tabbed document, above its views (a question about the
+        // document: RapidR Studio's "changed outside Studio"), as tall as
+        // the component's Height; "" takes it away. A component is the bar
+        // of one document at a time.
+        "documentbar" => {
+            let p = name(0);
+            if args.len() < 2 {
+                return Some(Value::String(manager::with(dock, |m| m.pane(&p).map(|i| i.bar.clone())).flatten().unwrap_or_default().into()));
+            }
+            let bar = component_arg(&arg(1)).to_ascii_lowercase();
+            let old: Vec<String> = manager::with_mut(dock, |m| {
+                let mut old = Vec::new();
+                for i in m.panes.iter_mut() {
+                    if (i.name == p && i.bar != bar && !i.bar.is_empty()) || (i.name != p && !bar.is_empty() && i.bar == bar) {
+                        old.push(std::mem::take(&mut i.bar));
+                    }
+                    if i.name == p {
+                        i.bar = bar.clone();
+                    }
+                }
+                old
+            });
+            for b in old.iter().filter(|b| **b != bar) {
+                hide(rt, b);
+            }
+            Outcome::default()
+        }
         // SplitDocument(Name, Side): a new group of documents on that side
         "splitdocument" => match Side::parse(&s(1)) {
             Some(side) => manager::with_mut(dock, |m| m.split_document(&name(0), side)),
@@ -483,7 +511,8 @@ fn close_next<R: Runtime>(rt: R, dock: String, mut rest: Vec<String>) {
     }
     let name = given(&dock, &doc);
     let d = dock.clone();
-    let views: Vec<String> = manager::with(&dock, |m| m.pane(&doc).map(|i| i.views.iter().map(|v| v.0.clone()).collect())).flatten().unwrap_or_default();
+    // (its views and its bar go with it)
+    let views: Vec<String> = manager::with(&dock, |m| m.pane(&doc).map(|i| i.views.iter().map(|v| v.0.clone()).chain((!i.bar.is_empty()).then(|| i.bar.clone())).collect())).flatten().unwrap_or_default();
     rt.fire_then(
         &dock,
         "ondocumentclose",
@@ -669,9 +698,13 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
                 }
             }
             if mdi_on {
-                // (an MDI window holds the document's own component)
+                // (an MDI window holds the document's own component; a bar
+                // is the tabs')
                 for c in all.iter().filter(|c| *c != p) {
                     hide(rt, c);
+                }
+                if let Some(b) = manager::with(dock, |m| m.pane(p).map(|i| i.bar.clone())).flatten().filter(|b| !b.is_empty()) {
+                    hide(rt, &b);
                 }
                 if mdi::child_index(&docs, p).is_none() {
                     let title = manager::with(dock, |m| m.pane(p).map(|i| i.title.clone())).flatten().unwrap_or_default();
@@ -682,9 +715,29 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
             }
             // (tabbed: the shown document of each group in its group's places)
             let gr = d.groups.iter().find(|g| g.shown().map(String::as_str) == Some(p.as_str()));
+            // (its bar, when it has one: across the top of its places, the
+            // views under it)
+            let bar = manager::with(dock, |m| m.pane(p).map(|i| i.bar.clone())).flatten().unwrap_or_default();
+            let mut bar_h = 0;
+            if !bar.is_empty() && rt.exists(&bar) {
+                match gr.filter(|g| !g.places.is_empty()) {
+                    Some(g) => {
+                        let x0 = g.places.iter().map(|r| r.0).min().unwrap_or(0);
+                        let y0 = g.places.iter().map(|r| r.1).min().unwrap_or(0);
+                        let x1 = g.places.iter().map(|r| r.0 + r.2).max().unwrap_or(0);
+                        let h_min = g.places.iter().map(|r| r.3).min().unwrap_or(0);
+                        bar_h = rt.get(&bar, "height").to_i64().clamp(0, (h_min - 24).max(0));
+                        place(rt, &bar, &docs, (x0, y0, x1 - x0, bar_h));
+                    }
+                    None => hide(rt, &bar),
+                }
+            }
             for c in &all {
                 match (gr, shown.iter().position(|x| x == c)) {
-                    (Some(g), Some(i)) if i < g.places.len() => place_pane(rt, c, &docs, g.places[i]),
+                    (Some(g), Some(i)) if i < g.places.len() => {
+                        let r = g.places[i];
+                        place_pane(rt, c, &docs, (r.0, r.1 + bar_h, r.2, r.3 - bar_h));
+                    }
                     _ => hide(rt, c),
                 }
             }

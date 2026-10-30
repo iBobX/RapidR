@@ -35,8 +35,8 @@ TYPE StudioCommand
   Tool AS INTEGER
 END TYPE
 
-CONST MAXCMDS = 240
-CONST MAXMENUS = 280
+CONST MAXCMDS = 260
+CONST MAXMENUS = 300
 CONST MAXDOCS = 32
 
 DIM Cmd(MAXCMDS) AS StudioCommand
@@ -446,6 +446,32 @@ DECLARE SUB VerApplyBase(d AS INTEGER)
 DECLARE SUB VersionsProjectChanged
 DECLARE FUNCTION VersionsCommand(Id AS STRING) AS INTEGER
 DECLARE SUB VersionsStep(S AS STRING)
+
+' ---- files changed outside Studio (external.inc: another AI agent, an
+' editor, git — the file loaded again, or a question when it has unsaved
+' changes here; Save never overwrites newer content without asking) ----
+' (each document: its file changed on disk while it had unsaved changes —
+' the question waits; its file was deleted on disk — its tab marked)
+DIM DocExtAsk(MAXDOCS) AS INTEGER
+DIM DocGone(MAXDOCS) AS INTEGER
+DECLARE SUB SetUpExternal
+DECLARE SUB ApplyExternalChrome
+DECLARE SUB ExtCheck
+DECLARE SUB ExtOpened(d AS INTEGER)
+DECLARE SUB ExtClosed(d AS INTEGER)
+DECLARE SUB ExtSaved(d AS INTEGER)
+DECLARE FUNCTION ExtSaveOk(d AS INTEGER) AS INTEGER
+DECLARE SUB ExtOwnWrite(Path AS STRING)
+DECLARE SUB ExtProjectOpened
+DECLARE SUB ExtProjectClosed
+DECLARE SUB ExtCompareDoc(d AS INTEGER)
+DECLARE SUB ExtUseDisk(d AS INTEGER)
+DECLARE SUB ExtKeepMine(d AS INTEGER)
+DECLARE SUB ReopenProject
+DECLARE FUNCTION ExternalCommand(Id AS STRING) AS INTEGER
+DECLARE SUB ExternalStep(S AS STRING)
+' (every document with changes saved; 0 when a save was declined: documents.inc)
+DECLARE FUNCTION SaveAllOk AS INTEGER
 
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject

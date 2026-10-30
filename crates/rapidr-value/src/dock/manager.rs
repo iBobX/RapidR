@@ -42,6 +42,11 @@ pub struct PaneInfo {
     pub view_ratio: i64,
     /// (a document) Changed and not saved: a dot on its tab.
     pub modified: bool,
+    /// (a document) A strip across the top of its views (DocumentBar: a
+    /// question about it, as RapidR Studio's "changed outside Studio"),
+    /// its component's name, lowercase; "" none. Its Height is the room
+    /// it takes.
+    pub bar: String,
 }
 
 /// What a document with views shows: one of them, or the first two side
@@ -67,7 +72,7 @@ impl DocView {
 
 impl PaneInfo {
     fn new(name: &str, title: &str, icon: &str) -> PaneInfo {
-        PaneInfo { name: name.to_string(), given: name.to_string(), title: title.to_string(), icon: icon.to_string(), place: None, extent: super::DEFAULT_SIDE, float_size: super::DEFAULT_FLOAT, views: Vec::new(), view: DocView::First, view_ratio: 500, modified: false }
+        PaneInfo { name: name.to_string(), given: name.to_string(), title: title.to_string(), icon: icon.to_string(), place: None, extent: super::DEFAULT_SIDE, float_size: super::DEFAULT_FLOAT, views: Vec::new(), view: DocView::First, view_ratio: 500, modified: false, bar: String::new() }
     }
 
     /// The view shown, by caption ("Split": side by side).

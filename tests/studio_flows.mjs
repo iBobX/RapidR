@@ -468,6 +468,18 @@ const V_SECOND = `${V_FIRST},${V_EDIT},versions:save=second`;
 // (a key written in the code: the secret check's line; not a real key)
 const V_SECRET = 'code:PRINT "Done."=>key$ = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save';
 
+// (EXTERNAL-CHANGES) The walk's project — a copy of tests/fixtures/
+// studio_external outside this repository — and what another process writes
+// into it (tests/ext_writer.mjs): main.rr changed, typed in first, twelve
+// files rewritten at once.
+const X_OPEN = { open: "tests/fixtures/studio_external/Outside.rrproj", copyDir: true, fsck: true };
+const X_DIR = "tests/fixtures/studio_external";
+const X_MAIN = readFileSync(join(ROOT, X_DIR, "main.rr"), "utf8");
+const X_AGENT = X_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."');
+const X_CHANGE = "ext:go=1,ext:await=1";
+const X_MINE = 'code:PRINT "Done."=>PRINT "Mine."';
+const X_WINDOW = readFileSync(join(ROOT, X_DIR, "window.rr"), "utf8").replace('Caption = "Hello"', 'Caption = "Changed outside"').replace("Left = 24", "Left = 140");
+const X_TWELVE = Object.fromEntries(["main.rr", "greet.rr", "window.rr", ...Array.from({ length: 9 }, (_, i) => `part${i + 1}.rr`)].map((f) => [f, readFileSync(join(ROOT, X_DIR, f), "utf8") + "' (rewritten by an agent)\n"]));
 const CASES = [
   {
     name: "run-console",
@@ -6454,6 +6466,325 @@ const CASES = [
     delay: 6,
     dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES, "verdiff.changecount": /^0$/ },
   },
+  // (EXTERNAL-CHANGES) Files changed outside Studio — another AI agent, an
+  // editor, git — walked as a person sees it (the lane's acceptance): a
+  // copy of tests/fixtures/studio_external outside this repository, its
+  // files changed by another process (tests/ext_writer.mjs) between Studio's
+  // steps. main.rr changed with nothing unsaved: loaded again, the status
+  // bar says so, Ctrl+Z brings the old text back, the local history has a
+  // "before reload" copy — on a look (ext:check, as Studio coming to the
+  // front) and by the two-second timer. With unsaved changes: the strip
+  // above the editor (Compare, Use Disk Version, Keep Mine); Save after Keep
+  // Mine asks first, Cancel writing nothing. greet.rr deleted: its tab
+  // marked, its text kept. Twelve files at once: one note. Studio's own
+  // Save: no notice. The web: no disk to watch, nothing said.
+  {
+    name: "ext-reload",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "codedoc(0).text": /PRINT "Changed by an agent\."$/, "codedoc(0).modified": NO, "extbar.visible": /^0$/,
+      "outputbox.text": /\[ext\] status=main\.rr was updated outside Studio bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0[\s\S]*history=\d+\s+\d+\s+before-reload\s+\d+/,
+    },
+  },
+  {
+    // (Ctrl+Z: the text before the reload, one step — marked changed, as it
+    // differs from the disk's)
+    name: "ext-reload-undo",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},ext:check,wait,focus:codedoc(0),key:Ctrl+Z,wait,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES },
+  },
+  {
+    // (no look asked for: the two-second timer finds it)
+    name: "ext-timer",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},wait,wait,wait,wait,wait,wait,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    dump: { "codedoc(0).text": /PRINT "Changed by an agent\."$/, "outputbox.text": /main\.rr was updated outside Studio/ },
+  },
+  {
+    // (typed in, not saved, then changed on disk: the question above the
+    // editor; the editor's text untouched)
+    name: "ext-ask",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^main\.rr changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine\.$/, null], ["Compare", "button"], ["Use Disk Version", "button"], ["Keep Mine", "button"]],
+    dump: {
+      "extbar.visible": /^1$/, "extbartext.caption": /^main\.rr changed outside Studio\.$/, "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES,
+      "outputbox.text": /bar=ask \| main\.rr:main\.rr:dirty=1:ask=1:gone=0/,
+    },
+  },
+  {
+    // (in Spanish: the strip, its buttons, the status bar)
+    name: "ext-ask-es",
+    ...X_OPEN,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    a11y: [[/^main\.rr cambió fuera de Studio, y tienes cambios sin guardar en él: Comparar, Usar la versión del disco o Conservar la mía\.$/, null], ["Comparar", "button"], ["Usar la versión del disco", "button"], ["Conservar la mía", "button"]],
+    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^main\.rr cambió fuera de Studio\.$/, "extdisk.caption": /^&Usar la versión del disco$/ },
+  },
+  {
+    name: "ext-many-es",
+    ...X_OPEN,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait`,
+    external: [{ write: X_TWELVE }],
+    delay: 9,
+    themes: ["rapidr-light"],
+    capture: true,
+    dump: { "extbartext.caption": /^12 archivos se actualizaron fuera de Studio\.$/, "extshow.caption": /^&Mostrar$/ },
+  },
+  {
+    name: "ext-keep-mine-asks-es",
+    ...X_OPEN,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,file.save`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    themes: ["rapidr-light"],
+    capture: true,
+    captureAll: true,
+    dump: { "consenttitle.caption": /^¿Guardar main\.rr de todos modos\?$/, "consentyes.caption": /^&Guardar de todos modos$/, "consentno.default": YES },
+  },
+  {
+    // (Compare: the disk's version beside the editor's)
+    name: "ext-compare",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.compareDisk`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verdiffhead.caption": /^main\.rr: the disk's version and yours$/, "verdifflist.itemcount": /^1$/, "verdiff.changecount": /^1$/, "verdiffact.caption": /^&Use Disk Version$/ },
+  },
+  {
+    // (Use Disk Version, the strip's button clicked: the disk's text, saved;
+    // the editor's kept in the local history; Ctrl+Z brings it back)
+    name: "ext-use-disk",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    events: `extbar.__until_visible_1,${CLICK("extdisk", 40, 12)},codedoc(0).__wait_1000`,
+    delay: 6,
+    dump: { "codedoc(0).text": /PRINT "Changed by an agent\."$/, "codedoc(0).modified": NO, "extbar.visible": /^0$/, "outputbox.text": /main\.rr changed outside Studio, and you have unsaved changes in it/ },
+  },
+  {
+    name: "ext-use-disk-undo",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.useDisk,wait,focus:codedoc(0),key:Ctrl+Z,wait,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    dump: { "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES, "outputbox.text": /history=\d+\s+\d+\s+before-reload\s+\d+/ },
+  },
+  {
+    // (Keep Mine, then Ctrl+S: asked — Cancel the default — before the
+    // disk's newer text is replaced)
+    name: "ext-keep-mine-asks",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,focus:codedoc(0),key:Ctrl+S`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    captureAll: true,
+    dump: { "consentdialog.__shown": /^1$/, "consenttitle.caption": /^Save main\.rr anyway\?$/, "consentlead.caption": /^main\.rr changed outside Studio since you opened it\. Saving replaces/,"consentno.default": YES, "consentyes.caption": /^&Save Anyway$/, "extbar.visible": /^0$/ },
+    files: { "main.rr": /PRINT "Changed by an agent\."\n$/ },
+  },
+  {
+    name: "ext-keep-mine-cancel",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,file.save`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    events: `${CLICK("consentno", 40, 14)},codedoc(0).__wait_1000`,
+    delay: 7,
+    dump: { "consentdialog.__shown": /^0$/, "codedoc(0).modified": YES, "codedoc(0).text": /PRINT "Mine\."$/ },
+    files: { "main.rr": /PRINT "Changed by an agent\."\n$/ },
+  },
+  {
+    // (Save Anyway: written; the disk's version kept in the local history first)
+    name: "ext-keep-mine-save",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,file.save,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    events: `${CLICK("consentyes", 40, 14)},codedoc(0).__wait_1500`,
+    delay: 7,
+    dump: { "codedoc(0).modified": NO, "outputbox.text": /history=\d+\s+\d+\s+saved\s+\d+;\d+\s+\d+\s+on-disk\s+\d+/ },
+    files: { "main.rr": /PRINT "Mine\."\n?$/ },
+  },
+  {
+    // (greet.rr deleted outside: its tab stays, marked, its text kept)
+    name: "ext-deleted",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=greet.rr,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ remove: ["greet.rr"] }],
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    a11y: [["greet.rr (deleted on disk)", "tab"]],
+    dump: { "codedoc(1).text": /FUNCTION Greeting/, "outputbox.text": /greet\.rr was deleted outside Studio: its text is kept here[\s\S]*greet\.rr:greet\.rr \(deleted on disk\):dirty=1:ask=0:gone=1 \| history=\d+\s+\d+\s+deleted-outside\s+\d+/ },
+  },
+  {
+    // (deleted, then there again as Studio has it — a branch switched and
+    // back: no mark, nothing to save)
+    name: "ext-deleted-back",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=greet.rr,wait,${X_CHANGE},ext:check,wait,ext:go=2,ext:await=2,ext:check,wait,ext:report`,
+    external: [{ remove: ["greet.rr"] }, { write: { "greet.rr": readFileSync(join(ROOT, X_DIR, "greet.rr"), "utf8") } }],
+    delay: 8,
+    dump: { "codedoc(1).modified": NO, "outputbox.text": /greet\.rr:greet\.rr:dirty=0:ask=0:gone=0/ },
+  },
+  {
+    // (Save on a file deleted outside: asked — Save Again —, then made again)
+    name: "ext-deleted-save",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=greet.rr,wait,${X_CHANGE},ext:check,wait,file.save,wait,ext:report`,
+    external: [{ remove: ["greet.rr"] }],
+    events: `consenttitle.__until_caption_Save greet.rr again?,${CLICK("consentyes", 40, 14)},codedoc(1).__wait_1000`,
+    delay: 7,
+    dump: { "outputbox.text": /greet\.rr:greet\.rr:dirty=0:ask=0:gone=0/ },
+    files: { "greet.rr": /FUNCTION Greeting/ },
+  },
+  {
+    // (a form's file changed outside with nothing unsaved: the designer
+    // shows the new form)
+    name: "ext-form-reload",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=window.rr,wait,wait,${X_CHANGE},ext:check,wait,wait,ext:report`,
+    external: [{ write: { "window.rr": X_WINDOW } }],
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: { "codedoc(1).text": /Caption = "Changed outside"[\s\S]*Left = 140/, "extbar.visible": /^0$/, "outputbox.text": /window\.rr was updated outside Studio/ },
+  },
+  {
+    // (changed in the designer, not saved, then outside: the question above
+    // the designer too)
+    name: "ext-form-ask",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=window.rr,wait,wait,pick:Hello,prop:Caption=Mine,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: { "window.rr": X_WINDOW } }],
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    capture: true,
+    contrast: true,
+    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^window\.rr changed outside Studio\.$/, "codedoc(1).text": /Caption = "Mine"/, "outputbox.text": /window\.rr:window\.rr:dirty=1:ask=1:gone=0/ },
+  },
+  {
+    // (twelve open files rewritten at once — git checkout, an agent: one
+    // note, Show lists them in the Output)
+    name: "ext-many",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: X_TWELVE }],
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^12 files were updated outside Studio\.$/, null], ["Show", "button"]],
+    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^12 files were updated outside Studio\.$/, "outputbox.text": /\[ext\] status=12 files were updated outside Studio bar=note/ },
+  },
+  {
+    name: "ext-many-show",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait`,
+    external: [{ write: X_TWELVE }],
+    events: `extbar.__until_visible_1,${CLICK("extshow", 30, 12)},outputbox.__wait_800`,
+    delay: 9,
+    dump: { "extbar.visible": /^0$/, "outputbox.text": /12 files were updated outside Studio:\n {2}greet\.rr\n {2}main\.rr\n {2}part1\.rr[\s\S]* {2}window\.rr/ },
+  },
+  {
+    // (Studio's own writes: Save, then a look — nothing said)
+    name: "ext-own-save",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},file.save,wait,ext:check,wait,ext:report`,
+    delay: 6,
+    dump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=(?![^\n]*outside)[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
+    files: { "main.rr": /PRINT "Mine\."\n?$/ },
+  },
+  {
+    // (RAI's change applied, then saved: Studio's own — nothing said)
+    name: "ext-own-ai-apply",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,ai:apply,wait,file.save,wait,ext:check,wait,ext:report",
+    delay: 9,
+    dump: { "codedoc(0).text": /Caption = "AI Notes"/, "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=(?![^\n]*outside)[^\n]*bar= \| hello_form\.rr:hello_form\.rr:dirty=0:ask=0:gone=0/ },
+    files: { "hello_form.rr": /Caption = "AI Notes"/ },
+  },
+  {
+    // (the project file rewritten outside — a file added by an agent: the
+    // Project pane follows quietly)
+    name: "ext-project-file",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},ext:check,wait,view.project`,
+    external: [{ write: { "notes.rr": "' notes.rr: added by an agent.\n", "Outside.rrproj": readFileSync(join(ROOT, "tests/fixtures/studio_external/Outside.rrproj"), "utf8") + '\n[[files]]\npath = "notes.rr"\nkind = "module"\n' } }],
+    delay: 6,
+    dump: { "proj.filecount": /^13$/, "outputbox.text": /Outside\.rrproj was updated outside Studio: the Project pane follows it/ },
+  },
+  {
+    // (File > Reopen Project: the project read again from the disk)
+    name: "ext-reopen",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: "file.reopenProject,wait,wait",
+    delay: 5,
+    dump: { "outputbox.text": /Opened Outside\.rrproj again from the disk/, "codedoc(0).text": /PRINT "Done\."$/ },
+  },
+  {
+    // (the web: files in the page's store change only through Studio — a
+    // look finds nothing, says nothing)
+    name: "ext-web",
+    open: "tests/fixtures/studio_versions/Hello.rrproj",
+    webFiles: VERSIONS_FILES,
+    webOnly: true,
+    do: "ext:check,wait,ext:report",
+    delay: 4,
+    dump: {},
+    webDump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
+  },
 ];
 
 
@@ -6655,7 +6986,20 @@ function runDesktop(c, scale = 1) {
     },
   });
   rmSync(join(WORK, `${c.name}.reg`), { force: true });
+  // (EXTERNAL-CHANGES: another process changing the project's files while
+  // Studio has them open — tests/ext_writer.mjs, step n when Studio's
+  // `ext:go=n` asks, Studio's `ext:await=n` waiting for it; its folder of
+  // meeting files is RAPIDR_TEST_EXT)
+  let writer;
+  if (c.external) {
+    const meet = join(dir, "meet");
+    mkdirSync(meet, { recursive: true });
+    writeFileSync(join(dir, "external.json"), JSON.stringify(c.external));
+    writer = spawn(process.execPath, [join(HERE, "ext_writer.mjs"), meet, join(dir, "project"), join(dir, "external.json")], { stdio: "ignore" });
+    c.env = { ...(c.env || {}), RAPIDR_TEST_EXT: meet };
+  }
   let r = run(args, c.delay);
+  if (writer && writer.exitCode === null) writer.kill();
   if (c.restart) {
     // (started again on the settings the first run left: not --fresh)
     const again = args.filter((a) => a !== "--fresh");

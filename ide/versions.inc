@@ -1066,6 +1066,9 @@ SUB VerReloadDocs
         DocTitles d
         ProjectFileChanged d
       END IF
+      ' (what the versions wrote is Studio's own: no change from outside —
+      ' external.inc)
+      ExtOwnWrite DocFile(d)
     END IF
   NEXT
   AnalyzeActive
@@ -1106,12 +1109,26 @@ SUB VerShowDiff(Mode AS STRING)
           CASE "on-disk": VerDiffList.AddItems TR$("As it was on disk, {when}", "when", VerAgo(VAL(FIELD$(row, CHR$(9), 2))))
           CASE "before-reload": VerDiffList.AddItems TR$("Before reloading, {when}", "when", VerAgo(VAL(FIELD$(row, CHR$(9), 2))))
           CASE "before-restore": VerDiffList.AddItems TR$("Before a restore, {when}", "when", VerAgo(VAL(FIELD$(row, CHR$(9), 2))))
+          CASE "deleted-outside": VerDiffList.AddItems TR$("When it was deleted outside Studio, {when}", "when", VerAgo(VAL(FIELD$(row, CHR$(9), 2))))
           CASE ELSE: VerDiffList.AddItems TR$("Saved, {when}", "when", VerAgo(VAL(FIELD$(row, CHR$(9), 2))))
         END SELECT
         VerDiffRowCount = VerDiffRowCount + 1
       END IF
     NEXT
     IF n = 0 THEN VerDiffSub.Caption = TR$("No copies yet: Studio keeps one each time you save this file.")
+  ELSEIF Mode = "disk" THEN
+    ' (a file changed outside Studio while it had unsaved changes here: the
+    ' disk's version beside the editor's — external.inc; VerDiffFile set)
+    title = TR$("Compare: {file}", "file", FileTitle(VerDiffFile))
+    VerDiffHead.Caption = TR$("{file}: the disk's version and yours", "file", FileTitle(VerDiffFile))
+    VerDiffSub.Caption = TR$("Left: on disk, changed outside Studio. Right: yours, not saved.")
+    VerDiffList.AccessibleName = TR$("Files")
+    VerDiffAct.Caption = TR$("&Use Disk Version")
+    VerDiffAct.Hint = TR$("Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back.")
+    VerDiffAct.Visible = 1
+    VerDiffRow(0) = VerDiffFile
+    VerDiffList.AddItems FileTitle(VerDiffFile)
+    VerDiffRowCount = 1
   ELSE
     IF Mode = "version" THEN
       k = VerPicked
@@ -1174,6 +1191,17 @@ SUB VerDiffPicked
   DIM k AS INTEGER, p AS STRING, ext AS STRING, d AS INTEGER
   k = VerDiffList.ItemIndex
   IF k < 0 OR k >= VerDiffRowCount THEN EXIT SUB
+  IF VerDiffMode = "disk" THEN
+    p = VerDiffFile
+    VerDiff.Kind = "text"
+    VerDiff.Language = VerDiffLanguage(p)
+    IF FILEEXISTS(p) THEN VerDiff.LeftText = Proj.FileText(p) ELSE VerDiff.LeftText = ""
+    d = DocOf(p)
+    IF d >= 0 THEN VerDiff.RightText = CodeDoc(d).Text
+    ' (the first difference in view)
+    IF VerDiff.HunkCount > 0 THEN VerDiff.CurrentHunk = 0
+    EXIT SUB
+  END IF
   IF VerDiffMode = "history" THEN
     p = VerDiffFile
     VerDiff.Kind = "text"
@@ -1201,6 +1229,15 @@ END SUB
 ' person's choice.
 SUB VerDiffActClick
   DIM k AS INTEGER, d AS INTEGER, txt AS STRING, patch AS STRING
+  ' (Compare's Use Disk Version: external.inc)
+  IF VerDiffMode = "disk" THEN
+    d = DocOf(VerDiffFile)
+    IF d >= 0 THEN
+      ExtUseDisk d
+      VerDiffPicked
+    END IF
+    EXIT SUB
+  END IF
   IF VerDiffMode <> "history" THEN EXIT SUB
   k = VerDiffList.ItemIndex
   IF k < 0 OR k >= VerDiffRowCount THEN EXIT SUB

@@ -51,6 +51,7 @@ properties = [
   { name = "Languages", type = "string", access = "read", origin = "rapidr", effects = ["none"], doc = "The languages the program's catalogs have, one language tag a line (`es`, `pt-BR`): the `.po` files in its catalog folder (LanguageFolder; on the web, the folder's `index.txt` that builds write). For a list people pick their language from, with LanguageName." },
   { name = "ReducedMotion", type = "bool", access = "read", origin = "rapidr", doc = "True when the user asked the system for reduced motion (macOS' Reduce Motion, Windows' animations turned off, the browser's prefers-reduced-motion): a program's own animations — a pulse, a slide — then stay still or end at once, as RapidR's own do. Read it each time an animation starts." },
   { name = "KeysPending", type = "int", access = "read", origin = "rapidr", doc = "How many keystrokes sent with SendKeys are still waiting to reach the program's windows." },
+  { name = "Active", type = "bool", access = "read", origin = "rapidr", doc = "True while the program is the application in front: one of its windows has the keyboard. False while the person works in another application. For work that waits until they come back — RapidR Studio looks for files changed outside it when it is in front again. Always True on the web and for a program without windows." },
 ]
 methods = [
   { name = "HelpCommand", params = "Command AS WORD, Data AS LONG", missing = true },

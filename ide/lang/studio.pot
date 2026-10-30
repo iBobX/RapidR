@@ -36,7 +36,7 @@ msgstr ""
 msgid "Apply the accepted changes"
 msgstr ""
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr ""
 
@@ -1646,7 +1646,27 @@ msgid "Local &History of This File..."
 msgstr ""
 
 #: ide/commands.inc
+msgid "Changed Outside S&tudio"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Compare with the Disk's Version"
+msgstr ""
+
+#: ide/commands.inc ide/external.inc ide/versions.inc
+msgid "&Use Disk Version"
+msgstr ""
+
+#: ide/commands.inc ide/external.inc
+msgid "&Keep Mine"
+msgstr ""
+
+#: ide/commands.inc
 msgid "&Close Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Reo&pen Project"
 msgstr ""
 
 #: ide/commands.inc
@@ -2766,6 +2786,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/documents.inc
+msgid "{file} (deleted on disk)"
+msgstr ""
+
+#: ide/documents.inc
 msgid "Opened {file}"
 msgstr ""
 
@@ -2783,6 +2807,140 @@ msgstr ""
 
 #: ide/editor.inc
 msgid "Rename: {file} couldn't be opened"
+msgstr ""
+
+#: ide/external.inc
+msgid "&Compare"
+msgstr ""
+
+#: ide/external.inc
+msgid "Shows the disk's version beside yours"
+msgstr ""
+
+#: ide/external.inc ide/versions.inc
+msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
+msgstr ""
+
+#: ide/external.inc
+msgid "Keeps your version here. Saving it will ask before it replaces the disk's version."
+msgstr ""
+
+#: ide/external.inc
+msgid "&Show"
+msgstr ""
+
+#: ide/external.inc
+msgid "Lists the files in the Output"
+msgstr ""
+
+#: ide/external.inc
+msgid "C&lose"
+msgstr ""
+
+#: ide/external.inc
+msgid "Close the note"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio."
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine."
+msgstr ""
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio."
+msgid_plural "{n} files were updated outside Studio."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/external.inc ide/versions.inc
+msgid "Local history: {why}"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio: its text is kept here"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio, and you have unsaved changes in it"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was updated outside Studio"
+msgstr ""
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio"
+msgid_plural "{n} files were updated outside Studio"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio: Save All makes it again"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was updated outside Studio: the Project pane follows it"
+msgstr ""
+
+#: ide/external.inc ide/panels.inc
+msgid "Can't read the project again: {error}"
+msgstr ""
+
+#: ide/external.inc
+msgid "Loaded the disk's version of {file}: yours is in the local history, and Undo brings it back"
+msgstr ""
+
+#: ide/external.inc
+msgid "Loaded the disk's version. Undo brings yours back."
+msgstr ""
+
+#: ide/external.inc
+msgid "Keeping your version of {file}: saving it asks first"
+msgstr ""
+
+#: ide/external.inc
+msgid "Keeping your version. Saving it asks first."
+msgstr ""
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio:"
+msgid_plural "{n} files were updated outside Studio:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/external.inc
+msgid "Save {file} again?"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio. Saving makes the file again with the text you have here."
+msgstr ""
+
+#: ide/external.inc
+msgid "&Save Again"
+msgstr ""
+
+#: ide/external.inc
+msgid "Save {file} anyway?"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio since you opened it. Saving replaces the version on disk with yours; Studio keeps the disk's version in the local history first."
+msgstr ""
+
+#: ide/external.inc
+msgid "&Save Anyway"
+msgstr ""
+
+#: ide/external.inc
+msgid "Not saved: {file} changed outside Studio"
+msgstr ""
+
+#: ide/external.inc
+msgid "Opened {file} again from the disk"
 msgstr ""
 
 #: ide/markdown.inc ide/project.inc
@@ -3433,10 +3591,6 @@ msgstr ""
 
 #: ide/panels.inc
 msgid "{main} no longer includes {file}"
-msgstr ""
-
-#: ide/panels.inc
-msgid "Can't read the project again: {error}"
 msgstr ""
 
 #: ide/panels.inc
@@ -5242,11 +5396,27 @@ msgid "Before a restore, {when}"
 msgstr ""
 
 #: ide/versions.inc
+msgid "When it was deleted outside Studio, {when}"
+msgstr ""
+
+#: ide/versions.inc
 msgid "Saved, {when}"
 msgstr ""
 
 #: ide/versions.inc
 msgid "No copies yet: Studio keeps one each time you save this file."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Compare: {file}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file}: the disk's version and yours"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Left: on disk, changed outside Studio. Right: yours, not saved."
 msgstr ""
 
 #: ide/versions.inc
@@ -5283,10 +5453,6 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Restored. Save the file to keep it; Undo takes it back."
-msgstr ""
-
-#: ide/versions.inc
-msgid "Local history: {why}"
 msgstr ""
 
 #: ide/versions.inc

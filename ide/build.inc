@@ -379,7 +379,7 @@ SUB BuildProject(Kind AS STRING)
       EXIT SUB
     END IF
   END IF
-  SaveAll
+  IF SaveAllOk = 0 THEN EXIT SUB
   AnalyzeActive
   IF Lang.ErrorCount > 0 THEN
     OutputLine TRN$("Build: {n} error (see Problems).", "Build: {n} errors (see Problems).", Lang.ErrorCount)

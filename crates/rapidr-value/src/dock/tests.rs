@@ -1006,6 +1006,55 @@ fn a_pane_given_a_new_size_has_its_contents_laid_out_at_it() {
     assert!(laid().contains(&"s8out".to_string()));
 }
 
+#[test]
+fn a_documents_bar_sits_above_its_views() {
+    // (EXTERNAL-CHANGES: DocumentBar — RapidR Studio's "main.rr changed
+    // outside Studio" strip — across the top of a tabbed document, its
+    // views under it; another document shown hides it; "" takes it away)
+    use relayout::{component, Fake};
+    use runtime::Runtime;
+    use crate::Value;
+    let dock = "bardock";
+    component(dock, "RDOCKMANAGER", 1000, 700);
+    for p in ["bardoc1", "bardoc2", "bardesign1"] {
+        component(p, "RCODEEDITOR", 400, 300);
+    }
+    component("barstrip", "RPANEL", 400, 70);
+    manager::with_mut(dock, |m| {
+        m.layout.mode = DocumentMode::Tabs;
+        m.add_pane("bardoc1", "main.rr", "documents", "");
+        m.add_pane("bardoc2", "greet.rr", "documents", "");
+    });
+    runtime::rt_method(Fake, dock, "addview", &[Value::String("bardoc1".into()), Value::String("bardesign1".into()), Value::String("Design".into())]);
+    runtime::rt_method(Fake, dock, "addview", &[Value::String("bardoc1".into()), Value::String("bardoc1".into()), Value::String("Code".into())]);
+    runtime::rt_method(Fake, dock, "documentview", &[Value::String("bardoc1".into()), Value::String("Code".into())]);
+    runtime::rt_set(Fake, dock, "activedocument", &Value::String("bardoc1".into()));
+    runtime::apply(Fake, dock);
+    let rect = |n: &str| (Fake.get(n, "left").to_i64(), Fake.get(n, "top").to_i64(), Fake.get(n, "width").to_i64(), Fake.get(n, "height").to_i64());
+    let before = rect("bardoc1");
+    runtime::rt_method(Fake, dock, "documentbar", &[Value::String("bardoc1".into()), Value::String("barstrip".into())]);
+    assert_eq!(runtime::rt_method(Fake, dock, "documentbar", &[Value::String("bardoc1".into())]).map(|v| v.to_string_val()), Some("barstrip".into()));
+    let (bar, code) = (rect("barstrip"), rect("bardoc1"));
+    assert!(Fake.get("barstrip", "visible").to_bool(), "shown with its document");
+    assert_eq!((bar.0, bar.1, bar.2, bar.3), (before.0, before.1, before.2, 70), "across the top of the view");
+    assert_eq!(code, (before.0, before.1 + 70, before.2, before.3 - 70), "the code under it");
+    // (side by side: across both views)
+    runtime::rt_method(Fake, dock, "documentview", &[Value::String("bardoc1".into()), Value::String("Split".into())]);
+    let (bar, design, code) = (rect("barstrip"), rect("bardesign1"), rect("bardoc1"));
+    assert_eq!(bar.0, design.0.min(code.0));
+    assert_eq!(bar.0 + bar.2, (design.0 + design.2).max(code.0 + code.2), "as wide as both views");
+    assert_eq!((design.1, code.1), (bar.1 + 70, bar.1 + 70));
+    // (another document in front: the bar hides with its document)
+    runtime::rt_set(Fake, dock, "activedocument", &Value::String("bardoc2".into()));
+    assert!(!Fake.get("barstrip", "visible").to_bool(), "hidden with its document");
+    // (taken away: its document takes the whole place again)
+    runtime::rt_set(Fake, dock, "activedocument", &Value::String("bardoc1".into()));
+    runtime::rt_method(Fake, dock, "documentview", &[Value::String("bardoc1".into()), Value::String("Code".into())]);
+    runtime::rt_method(Fake, dock, "documentbar", &[Value::String("bardoc1".into()), Value::String("".into())]);
+    assert!(!Fake.get("barstrip", "visible").to_bool());
+    assert_eq!(rect("bardoc1"), before);
+}
+
 // ------------------------------------------- the panes' edges (SPLIT-3) --
 
 /// What `ops` leave on a `w` × `h` grid — their fills (a frame, a header,
