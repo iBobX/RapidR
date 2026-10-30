@@ -295,7 +295,8 @@ SUB LayOutAISetup
   ' (each text as tall as its lines need in Studio's language — English's
   ' heights at least —, what follows it moved down by as much: a longer
   ' language isn't cut off)
-  AISetMeasure.Font.Name = AISuLocalText.Font.Name: AISetMeasure.Font.Size = AISuLocalText.Font.Size
+  ' (the texts are in the UI's font, as Settings measures them)
+  AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
   h = AISetLinesHigh(AISuLocalText.Caption, w - 72)
   IF h < 78 THEN h = 78
   AISuLocalText.Left = 48: AISuLocalText.Top = 32: AISuLocalText.Width = w - 72: AISuLocalText.Height = h

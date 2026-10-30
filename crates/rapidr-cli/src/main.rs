@@ -216,7 +216,12 @@ fn main() -> ExitCode {
         (Some("upgrade-names"), _) => import::upgrade_names(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("install-app"), Some(dir)) => package::install_app(Path::new(&dir)),
-        (Some("lsp"), _) => rapidr_lsp::run_stdio(),
+        (Some("lsp"), _) => {
+            // (hovers and help in the user's language: RAPIDR_LANG, else the
+            // system's — the registry's translated docs, English without)
+            rapidr_lang::docs_i18n::set_doc_language(&rapidr_diagnostics::messages::cli_language());
+            rapidr_lsp::run_stdio()
+        }
         (Some("dap"), _) => rapidr_dap::run_stdio(),
         (Some("serve"), _) => serve::run(&args[1..]),
         (Some("parse"), Some(path)) => parse_source_file(&path),

@@ -61,8 +61,12 @@ cp ide/assets/* "$OUT/ide/assets/"
 # the page asks only for the ones listed; Studio reads them from ide/lang,
 # apart from the lang/ of the programs it runs. xx, the pseudo-language,
 # when a test made it: `rapidr i18n studio`)
-mkdir -p "$OUT/ide/lang"
+mkdir -p "$OUT/ide/lang" "$OUT/lang"
 : > "$OUT/ide/lang/index.txt"
+# (the page's own lang/: no catalogs — Studio's are ide/lang's, a program
+# it runs has its project's — an empty list, so nothing asks for a file
+# that isn't there before Studio names its folder)
+: > "$OUT/lang/index.txt"
 for po in ide/lang/*.po; do
     [ -f "$po" ] || continue
     cp "$po" "$OUT/ide/lang/"
