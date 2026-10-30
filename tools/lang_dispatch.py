@@ -160,6 +160,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/listview.rs", "*"): "RLISTVIEW",
     ("crates/rapidr-value/src/objects/media.rs", "*"): MEDIA,
     ("crates/rapidr-value/src/objects/memstream.rs", "*"): "RMEMORYSTREAM RFILESTREAM",
+    ("crates/rapidr-value/src/objects/audiostream.rs", "*"): "RAUDIOSTREAM",
     ("crates/rapidr-value/src/objects/menu.rs", "*"): "RMAINMENU RMENUITEM RPOPUPMENU",
     ("crates/rapidr-value/src/objects/mod.rs", "call"): "*",
     ("crates/rapidr-value/src/objects/printer.rs", "*"): "RPRINTER",

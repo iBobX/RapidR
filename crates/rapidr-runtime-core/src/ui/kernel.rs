@@ -465,6 +465,10 @@ pub fn step(max_wait: Option<Duration>) {
     if crate::database::busy() {
         at_most(Duration::from_millis(16));
     }
+    // (RAudioStream: OnNeedData asked often while a stream with one plays)
+    if crate::audio_stream::busy() {
+        at_most(crate::audio_stream::POLL_EVERY);
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
     #[cfg(feature = "studio")]
@@ -477,6 +481,7 @@ pub fn step(max_wait: Option<Duration>) {
     crate::httpserver::poll();
     #[cfg(feature = "database")]
     crate::database::poll();
+    crate::audio_stream::poll();
     crate::object::rp_run_deferred();
     // (a form's WndProc on Windows: its window's messages, as they came)
     deliver_window_messages();
