@@ -320,12 +320,14 @@ def area_of(rel):
         return "Studio (ide/)"
     if rel.startswith("examples/") and rel != "examples/README.md":
         return "examples"
-    if rel.endswith(".md"):
+    if rel.startswith("utilities/"):
+        return "VS Code extension"
+    if rel.startswith("tools/release/"):
+        return "installers and packages"
+    if rel.endswith(".md") and not rel.startswith(("crates/", "interpreter/")):
         return "README / CHANGELOG / top-level"
     if rel.startswith(("crates/", "interpreter/")):
         return "Rust strings (kernel, runtimes, Studio)"
-    if rel.startswith("utilities/"):
-        return "VS Code extension"
     return "other"
 
 
