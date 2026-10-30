@@ -26,6 +26,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import * as k from "./web_kernel_page.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const URL_BASE = (process.env.STUDIO_WEB_URL || "http://127.0.0.1:18473/").replace(/\/+$/, "");

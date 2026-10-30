@@ -23,6 +23,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "./cargo_builds.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const EXE = process.platform === "win32" ? ".exe" : "";

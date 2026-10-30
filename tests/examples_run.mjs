@@ -41,6 +41,8 @@ import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "./cargo_builds.mjs";
 import { startHttpServer } from "./http_test_server.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const EXAMPLES = join(ROOT, "examples");

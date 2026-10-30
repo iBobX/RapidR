@@ -103,6 +103,8 @@ import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
 import { dropBuild } from "./cargo_builds.mjs";
 import { startHttpServer } from "./http_test_server.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = join(ROOT, "tests/conformance/.work/native_gui_events");
