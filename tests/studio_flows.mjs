@@ -6420,6 +6420,17 @@ const CASES = [
     webDump: { "verdifflist.itemcount": /^[34]$/, "repo.versioned": NO, "verdiffhead.caption": /^Local History: main\.rr$/ },
   },
   {
+    // (keyboard only: View > Versions gives the pane the keys; Down picks
+    // "first" in the timeline, Tab reaches What Changed?, Space presses it)
+    name: "versions-keyboard",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,wait,key:Down,wait,key:Tab,wait,key:Space,wait`,
+    delay: 7,
+    a11y: [[/^What changed in “first”$|^Files that changed$/, null]],
+    dump: { "vertimeline.itemindex": /^1$/, "verdiffhead.caption": /^What changed in “first”$/ },
+  },
+  {
     // (the oldest copy picked — the file as it was before the first save —
     // and Restore This Copy: its text in the editor, unsaved, one Ctrl+Z
     // step; the editor's text kept first)
