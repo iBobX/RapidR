@@ -278,6 +278,14 @@ CREATE SettingsDialog AS RForm
       Style = 2
       AccessibleName = TR$("What the assistant may do")
     END CREATE
+    CREATE AIReplyLabel AS RLabel
+      Caption = TR$("&RAI answers in:")
+    END CREATE
+    CREATE AIReplyBox AS RComboBox
+      Style = 2
+      AccessibleName = TR$("The language of the assistant's answers")
+      AccessibleDescription = TR$("Studio's language: the assistant answers in the language Studio speaks, unless you clearly write in another one. The language I write in: it answers in the language of your latest message.")
+    END CREATE
     CREATE AIReviewBox AS RCheckBox
       Caption = TR$("Ask before the assistant &creates or changes files")
       AccessibleDescription = TR$("On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo.")
@@ -439,6 +447,9 @@ SUB LayOutSettingsDialog
   y = y + row
   AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = 108
   AIPermBox.Left = fx: AIPermBox.Top = y: AIPermBox.Width = fw
+  y = y + row
+  AIReplyLabel.Left = lx: AIReplyLabel.Top = y + 5: AIReplyLabel.Width = 108
+  AIReplyBox.Left = fx: AIReplyBox.Top = y: AIReplyBox.Width = fw
   y = y + row
   AIReviewBox.Left = fx: AIReviewBox.Top = y: AIReviewBox.Width = fw: AIReviewBox.Height = 22
   y = y + 28 + 4
@@ -685,6 +696,12 @@ SUB SettingsLanguageChanged
     AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
     AIPermBox.ItemIndex = p
   END IF
+  p = AIReplyBox.ItemIndex
+  IF AIReplyBox.ItemCount > 0 THEN
+    AIReplyBox.Clear
+    AIReplyBox.AddItems TR$("Studio's language"), TR$("The language I write in")
+    AIReplyBox.ItemIndex = p
+  END IF
   ' (the AI tab's notes made with values and the provider's links, while
   ' the dialog is open: each time it opens they are made again)
   IF SettingsDialog.Visible THEN
@@ -774,6 +791,7 @@ SUB AISettingsFill
       IF line <> "" THEN AIBaseBox.AddItems FIELD$(line, CHR$(9), 2)
     NEXT
     AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
+    AIReplyBox.AddItems TR$("Studio's language"), TR$("The language I write in")
   END IF
   ' (a list still coming from the last time the tab was open: not waited
   ' for; a key typed then and not kept: forgotten)
@@ -794,6 +812,7 @@ SUB AISettingsFill
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
+  IF AIReplyIn = "writer" THEN AIReplyBox.ItemIndex = 1 ELSE AIReplyBox.ItemIndex = 0
   AIReviewBox.Checked = AIReviewFirst
   AIWsEdit.Text = AIWorkspace
   IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = ""
@@ -846,6 +865,23 @@ SUB AISettingsProvider
   AISetLinksFill
 END SUB
 
+' Where a key is kept, in words: the RAI component says it in English (its
+' KeyStore, a value programs read), Studio says it in its language.
+FUNCTION AIStoreName(Store AS STRING) AS STRING
+  SELECT CASE Store
+    CASE "the macOS Keychain": Result = TR$("the macOS Keychain")
+    CASE "Windows Credential Manager": Result = TR$("Windows Credential Manager")
+    CASE "the Secret Service (GNOME Keyring or KWallet)": Result = TR$("the Secret Service (GNOME Keyring or KWallet)")
+    CASE "this browser tab, until it closes": Result = TR$("this browser tab, until it closes")
+    CASE "this browser, on this device": Result = TR$("this browser, on this device")
+    CASE "memory, until the program ends (this computer has no keychain RapidR can use)": Result = TR$("memory, until the program ends (this computer has no keychain RapidR can use)")
+    CASE "memory, for this session only": Result = TR$("memory, for this session only")
+    CASE "this program's memory, until it ends": Result = TR$("this program's memory, until it ends")
+    CASE "an environment variable": Result = TR$("an environment variable")
+    CASE ELSE: Result = Store
+  END SELECT
+END FUNCTION
+
 ' (where the shown provider's key is: never the key, its last four
 ' characters at most)
 SUB AISetKeyNote
@@ -857,12 +893,12 @@ SUB AISetKeyNote
     SELECT CASE SetAI.KeySource
       CASE "environment": keyNote = TR$("Using the key in {env} ({hint}). A key saved here goes first.", "env", SetAI.KeyEnv, "hint", SetAI.KeyHint)
       CASE "program": keyNote = TR$("Trying the key you typed ({hint}): OK or Save Key keeps it.", "hint", SetAI.KeyHint)
-      CASE ELSE: keyNote = TR$("Your key {hint} is kept in {store}, never in a project.", "hint", SetAI.KeyHint, "store", SetAI.KeyStore)
+      CASE ELSE: keyNote = TR$("Your key {hint} is kept in {store}, never in a project.", "hint", SetAI.KeyHint, "store", AIStoreName(SetAI.KeyStore))
     END SELECT
   ELSEIF web THEN
-    keyNote = TR$("Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.", "store", SetAI.KeyStore)
+    keyNote = TR$("Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.", "store", AIStoreName(SetAI.KeyStore))
   ELSE
-    keyNote = TR$("Paste your key and press Save Key: it is kept in {store}, never in a project.", "store", SetAI.KeyStore)
+    keyNote = TR$("Paste your key and press Save Key: it is kept in {store}, never in a project.", "store", AIStoreName(SetAI.KeyStore))
   END IF
   AIKeyNote.Caption = keyNote
   AIKeyNoteH = AISetLinesHigh(keyNote, AIKeyNote.Width)
@@ -1020,6 +1056,7 @@ SUB AISettingsTake
   IF n > 128000 THEN n = 128000
   AIMaxTokens = n
   IF AIPermBox.ItemIndex = 1 THEN AIPermission = "read-only" ELSE AIPermission = "propose"
+  IF AIReplyBox.ItemIndex = 1 THEN AIReplyIn = "writer" ELSE AIReplyIn = "studio"
   AIReviewFirst = Flag(AIReviewBox.Checked)
   AIPriceIn = VAL(AIPriceInEdit.Text)
   AIPriceOut = VAL(AIPriceOutEdit.Text)

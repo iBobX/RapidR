@@ -847,13 +847,61 @@ pub fn describe_text(v: &Json) -> String {
     out
 }
 
+/// A registry doc in the language `tag` (the translation, else the
+/// English): `rapidr_lang::docs_i18n`, keyed as the translations are.
+fn doc_in(tag: &str, key: &str, english: &str) -> String {
+    rapidr_lang::docs_i18n::translated_doc(key, tag).unwrap_or(english).to_string()
+}
+
+/// `describe`'s JSON with the docs of the registry in the language `tag`
+/// (what the assistant reads of a component, a builtin or the lists): each
+/// `doc` replaced by its translation where there is one. A list's line is
+/// the doc's first sentence, as in English.
+pub fn translate_docs(v: &mut Json, tag: &str) {
+    let first = |d: &str| -> String { d.find(". ").map_or(d, |i| &d[..=i]).to_string() };
+    let key_of = |ty: &str| rapidr_lang::resolve_component(ty).map(|c| c.name.to_ascii_uppercase());
+    if let Some(types) = v.get_mut("types").and_then(Json::as_array_mut) {
+        for t in types {
+            let Some(key) = t["type"].as_str().and_then(key_of) else { continue };
+            if let Some(d) = rapidr_lang::docs_i18n::translated_doc(&key, tag) {
+                t["doc"] = Json::String(first(d));
+            }
+        }
+        return;
+    }
+    if let Some(b) = v.get("builtin").and_then(Json::as_str).map(|b| b.to_ascii_uppercase()) {
+        if let Some(d) = v["doc"].as_str().map(|d| doc_in(tag, &b, d)) {
+            v["doc"] = Json::String(d);
+        }
+        return;
+    }
+    let Some(key) = v["type"].as_str().and_then(key_of) else { return };
+    if let Some(d) = v["doc"].as_str().map(|d| doc_in(tag, &key, d)) {
+        v["doc"] = Json::String(d);
+    }
+    for list in ["properties", "methods", "events"] {
+        for m in v.get_mut(list).and_then(Json::as_array_mut).into_iter().flatten() {
+            let Some(name) = m["name"].as_str().map(|n| format!("{key}.{}", n.to_ascii_uppercase())) else { continue };
+            if let Some(d) = m["doc"].as_str().map(|d| doc_in(tag, &name, d)) {
+                m["doc"] = Json::String(d);
+            }
+        }
+    }
+}
+
 fn describe(input: &Json) -> Outcome {
     let opt = |k: &str| input.get(k).and_then(Json::as_str).filter(|v| !v.trim().is_empty()).map(|v| v.trim().to_string());
     let (type_name, builtin, what) = (opt("type"), opt("builtin"), opt("what"));
     let target = type_name.clone().or_else(|| builtin.clone()).or_else(|| what.clone()).unwrap_or_default();
     let req = Request::Describe { type_name, builtin, what };
     match rapidr_introspect::handle(None, &req) {
-        Reply::Ok(v) => ok(describe_text(&v), format!("Looked up {target} in RapidR's registry"), "read", &target),
+        Reply::Ok(mut v) => {
+            // (the registry's docs in the language Studio speaks, where it
+            // has them: a Spanish question gets Spanish docs; names, types
+            // and examples are code and stay)
+            translate_docs(&mut v, &rapidr_value::i18n::language());
+            ok(describe_text(&v), format!("Looked up {target} in RapidR's registry"), "read", &target)
+        }
         Reply::Err(e) => err(e.message, format!("Looked up {target}: not found"), &target),
     }
 }
@@ -938,22 +986,25 @@ fn find_example(input: &Json) -> Outcome {
 fn reference_hits(query: &str) -> Option<String> {
     let word = query.split(|c: char| c.is_whitespace() || c == '.').filter(|w| !w.is_empty()).last()?;
     let mut hits: Vec<String> = Vec::new();
+    // (the docs in the language Studio speaks, where the registry has them)
+    let tag = rapidr_value::i18n::language();
+    let doc = |key: String, english: &str| doc_in(&tag, &key.to_ascii_uppercase(), english);
     if let Some(b) = rapidr_lang::builtin(word) {
-        hits.push(format!("{} (builtin): {}", b.syntax, b.doc));
+        hits.push(format!("{} (builtin): {}", b.syntax, doc(b.name.to_string(), b.doc)));
     }
     if let Some(c) = rapidr_lang::component(word).or_else(|| rapidr_lang::global(word)) {
-        hits.push(format!("{} (component): {} Call rapidr_describe with type {} for its members.", c.display, c.doc, c.display));
+        hits.push(format!("{} (component): {} Call rapidr_describe with type {} for its members.", c.display, doc(c.name.to_string(), c.doc), c.display));
     }
     for c in rapidr_lang::GLOBALS.iter().chain(rapidr_lang::COMPONENTS.iter()) {
         let owner = c.display;
         for p in c.properties.iter().filter(|p| p.name.eq_ignore_ascii_case(word)) {
-            hits.push(format!("{owner}.{} (property): {}", p.name, p.doc));
+            hits.push(format!("{owner}.{} (property): {}", p.name, doc(format!("{}.{}", c.name, p.name), p.doc)));
         }
         for m in c.methods.iter().filter(|m| m.name.eq_ignore_ascii_case(word)) {
-            hits.push(format!("{owner}.{} (method): {}", m.name, m.doc));
+            hits.push(format!("{owner}.{} (method): {}", m.name, doc(format!("{}.{}", c.name, m.name), m.doc)));
         }
         for e in c.events.iter().filter(|e| e.name.eq_ignore_ascii_case(word)) {
-            hits.push(format!("{owner}.{} (event): {}", e.name, e.doc));
+            hits.push(format!("{owner}.{} (event): {}", e.name, doc(format!("{}.{}", c.name, e.name), e.doc)));
         }
         if hits.len() >= 5 {
             break;
@@ -973,8 +1024,10 @@ fn search_manual(input: &Json) -> Outcome {
     if query.is_empty() {
         return err("give `query`: the question, or a few words of it", "search_manual: no question".into(), "");
     }
-    // (the user's language first — RAI answers in it —, English too)
-    let found = crate::manual_search::search_in(query, 3, &rapidr_value::i18n::language());
+    // (the user's language first — Studio's: RAI answers in it —, English
+    // too: a page not translated yet is read in English, and said so)
+    let tag = rapidr_value::i18n::language();
+    let found = crate::manual_search::search_in(query, 3, &tag);
     if found.is_empty() {
         // (a member's or builtin's name the manual's pages don't mention —
         // Application.ReducedMotion — is in the reference: say what it is
@@ -984,7 +1037,17 @@ fn search_manual(input: &Json) -> Outcome {
         }
         return ok(format!("The manual has nothing on \"{query}\". Try other words, or rapidr_describe for a component or builtin."), format!("Searched the manual for {query}: nothing"), "read", query);
     }
-    let text = found.iter().map(|s| crate::manual_search::excerpt(s)).collect::<Vec<_>>().join("\n\n---\n\n");
+    let translating = crate::manual_search::has_pages_in(&tag);
+    let text = found
+        .iter()
+        .map(|s| {
+            let e = crate::manual_search::excerpt(s);
+            // (an English page where the person's language has some: said
+            // on its heading line, so the model can say it to the person)
+            if translating && !s.page.contains('/') { e.replacen('\n', " (this page is in English: it isn't translated yet)\n", 1) } else { e }
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n---\n\n");
     let where_ = found.iter().map(|s| s.page).collect::<Vec<_>>().join(", ");
     ok(text, format!("Searched the manual for {query}: {where_}"), "read", query)
 }

@@ -461,9 +461,10 @@ SUB SetUpAI
   AI.OnKeyNeeded = AIKeyNeeded
   ' (every request, tool call and decision in the local audit log)
   AI.Audit = 1
-  ' (the answers in the language of the user's latest message, whatever
-  ' the files, the tools or a long chat's summary are written in)
-  AI.ReplyLanguage = "auto"
+  ' (the answers in Studio's language, or the person's when they clearly
+  ' write in another — Settings > AI's "RAI answers in:" —, whatever the
+  ' files, the tools or a long chat's summary are written in)
+  AIApplyReplyLanguage
   ' (the project as the assistant's tools: on demand, never all at once)
   AI.AttachComponent AITools, "project"
   ' (Tools > Settings > AI's own: its lists and errors on its tab)
@@ -959,6 +960,13 @@ FUNCTION AIProviderName AS STRING
   IF AI.Provider = "compatible" THEN Result = TR$("the server at {url}", "url", AI.BaseURL)
 END FUNCTION
 
+' "RAI answers in:" into the component: ReplyLanguage "app" — Studio's
+' language, unless the latest message is clearly in another — or "auto" —
+' the language the person writes in.
+SUB AIApplyReplyLanguage
+  IF AIReplyIn = "writer" THEN AI.ReplyLanguage = "auto" ELSE AI.ReplyLanguage = "app"
+END SUB
+
 ' The settings into the component and the panel.
 SUB AIApplySettings
   DIM k AS INTEGER
@@ -974,6 +982,7 @@ SUB AIApplySettings
   AI.PriceOut = AIPriceOut
   AITools.Permission = AIPermission
   AITools.ReviewFirst = AIReviewFirst
+  AIApplyReplyLanguage
   ' (the key: Studio's keychain entry for the provider, else its usual
   ' environment variable — never in the settings)
   AI.APIKeySource = AIKeySourceOf(AIProvider)
@@ -1251,6 +1260,7 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIWorkspace") THEN AIWorkspace = Reg.ReadString("AIWorkspace")
   IF Reg.ValueExists("AIMaxTokens") THEN AIMaxTokens = VAL(Reg.ReadString("AIMaxTokens"))
   IF Reg.ValueExists("AIPermission") THEN AIPermission = Reg.ReadString("AIPermission")
+  IF Reg.ValueExists("AIReplyIn") THEN AIReplyIn = Reg.ReadString("AIReplyIn")
   IF Reg.ValueExists("AIReviewFirst") THEN AIReviewFirst = VAL(Reg.ReadString("AIReviewFirst"))
   IF Reg.ValueExists("AIEffort") THEN AIEffort = Reg.ReadString("AIEffort")
   IF Reg.ValueExists("AIPrices") THEN
@@ -1271,6 +1281,7 @@ SUB SaveAISettings
   Reg.WriteString("AIWorkspace", AIWorkspace)
   Reg.WriteString("AIMaxTokens", LTRIM$(STR$(AIMaxTokens)))
   Reg.WriteString("AIPermission", AIPermission)
+  Reg.WriteString("AIReplyIn", AIReplyIn)
   Reg.WriteString("AIReviewFirst", LTRIM$(STR$(AIReviewFirst)))
   Reg.WriteString("AIEffort", AIEffort)
   Reg.WriteString("AIPrices", LTRIM$(STR$(AIPriceIn)) + "/" + LTRIM$(STR$(AIPriceOut)))
@@ -2968,6 +2979,10 @@ SUB AIStep(Stp AS STRING)
     CASE "permission"
       AIPermission = arg
       AIApplySettings
+    CASE "replyin"
+      ' (tests: Settings > AI's "RAI answers in:" — studio or writer)
+      AIReplyIn = arg
+      AIApplySettings
     CASE "reviewfirst"
       ' (Tools > Settings > AI's "Ask before the assistant creates or
       ' changes files")
@@ -3166,7 +3181,7 @@ FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
     kept = DesignAI.RememberKey(0)
     DesignAI.APIKey = ""
     IF kept THEN
-      SetState RunState, TR$("The key is kept in {store} as {q}{name}{q}: the program names it, never the key.", "store", DesignAI.KeyStore, "q", CHR$(34), "name", nm)
+      SetState RunState, TR$("The key is kept in {store} as {q}{name}{q}: the program names it, never the key.", "store", AIStoreName(DesignAI.KeyStore), "q", CHR$(34), "name", nm)
       IF KeychainNameOf(src) = "" THEN
         ' (the code names where the key is — and asks the program's user
         ' wherever the keychain doesn't have it); that change lists the
@@ -3192,7 +3207,7 @@ SUB DesignAIKeyNote
   DesignAITake
   nm = KeychainNameOf(DesignAI.APIKeySource)
   IF DesignAI.HasKey AND nm <> "" THEN
-    Inspector.SetNote "APIKey", TR$("A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it.", "hint", DesignAI.KeyHint, "store", DesignAI.KeyStore, "q", CHR$(34), "name", nm)
+    Inspector.SetNote "APIKey", TR$("A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it.", "hint", DesignAI.KeyHint, "store", AIStoreName(DesignAI.KeyStore), "q", CHR$(34), "name", nm)
   ELSEIF DesignAI.HasKey THEN
     Inspector.SetNote "APIKey", TR$("A key ({hint}) is found in the {source}: the code never holds it.", "hint", DesignAI.KeyHint, "source", DesignAI.KeySource)
   ELSE

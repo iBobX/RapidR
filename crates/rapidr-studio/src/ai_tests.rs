@@ -853,6 +853,162 @@ fn the_answers_stay_in_the_users_language() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Studio's own words in a language, for the instructions: Spanish has a
+/// row (the glossary's Decisions), English none; a short block.
+#[test]
+fn studio_words_come_from_a_table_keyed_by_language() {
+    let es = words_in("Spanish").expect("Spanish has its words");
+    // (the glossary's Decisions: compilar, aplicación, arreglo, controlador
+    // de eventos, añadir, biblioteca — and Studio's panes)
+    for term in [
+        "build=compilar", "app=aplicación", "array=arreglo", "event handler=controlador de eventos", "add=añadir", "library=biblioteca", "form=formulario", "component=componente", "property=propiedad", "event=evento", "method=método", "project=proyecto", "Toolbox=Caja de herramientas", "Properties=Propiedades", "Outline=Estructura", "Problems=Problemas", "Output=Salida", "Run=Ejecutar", "Debug=Depurar",
+        "Settings=Configuración", "file=archivo", "folder=carpeta", "mouse=mouse", "click=clic", "window=ventana", "Watch=Observar", "Call Stack=Pila de llamadas", "Breakpoints=Puntos de interrupción",
+    ] {
+        assert!(es.contains(term), "{term} is missing from the Spanish words");
+    }
+    // (tú, never vos / usted / vosotros; code stays code; menu paths as Studio shows them)
+    assert!(es.contains("as tú, never vos, usted or vosotros") && es.contains("stay English (RButton, Caption, PRINT, main.rr)") && es.contains("Herramientas > Configuración"));
+    // (never the words the Decisions ruled out)
+    assert!(!es.contains("agregar") && !es.contains("manejador") && !es.contains("ordenador"));
+    // (short: the prompt is paid per question, this part cached)
+    assert!(es.chars().count() < 900, "{} characters", es.chars().count());
+    assert!(words_in("spanish").is_some());
+    assert!(words_in("English").is_none() && words_in("Portuguese").is_none() && words_in("").is_none());
+    // (what the RAI adds to the instructions is the table's)
+    let h = Handle { name: "words-test".into() };
+    assert_eq!(h.language_words("Spanish"), es);
+    assert_eq!(h.language_words("English"), "");
+}
+
+/// The end of request `k`'s instructions: what a failed assertion shows.
+fn tail_of(seen: &[String], k: usize) -> String {
+    let t = system_of(seen, k);
+    let from = t.char_indices().rev().nth(320).map_or(0, |(i, _)| i);
+    t[from..].to_string()
+}
+
+fn a_chat_in(n: &str, tools: &str, dir: &std::path::Path, url: &str, pin: &str) {
+    install();
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "replylanguage", pin);
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+}
+
+/// ES-REFERENCE part 3: the assistant answers in Studio's language, unless
+/// the person clearly writes in another. In a Spanish Studio the
+/// instructions carry Spanish's words and the language line says Spanish —
+/// English for a message clearly in English, Spanish again for one that
+/// says too little — and "The language I write in" keeps the language the
+/// person was writing in.
+#[test]
+fn in_a_spanish_studio_the_prompt_names_spanish_and_its_words() {
+    let _one = one_at_a_time();
+    let dir = project_dir("es-prompt");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    rapidr_value::i18n::set_language("es");
+    let (url, server) = mock((0..5).map(|_| text_answer("Listo.")).collect());
+    let n = "rai-es-prompt";
+    a_chat_in(n, "tools-es-prompt", &dir, &url, "app");
+    // ("ok" says too little too, but it is a go-ahead: Studio asks a model
+    // that did nothing again — a second request; "hmm" is only too little)
+    for q in ["Please add a Clear button to the form", "hmm", "hazme una calculadora de propinas"] {
+        assert_eq!(rai_call(n, "ask", &[s(q)]).to_i64(), -1, "{}", rai_get(n, "error"));
+        wait(n);
+    }
+    // (the same chat, "The language I write in": English, then "hmm")
+    rai_set(n, "replylanguage", "auto");
+    for q in ["And what does the Start button do?", "hmm"] {
+        assert_eq!(rai_call(n, "ask", &[s(q)]).to_i64(), -1, "{}", rai_get(n, "error"));
+        wait(n);
+    }
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 5);
+    let words = words_in("Spanish").unwrap();
+    let because = " even when earlier messages, the conversation's summary, files or tool results are in another language.";
+    let studio_says = format!("Reply in Spanish (español) unless the person writes clearly in another language: then use theirs,{because}");
+    for k in 0..5 {
+        // (Studio's words, in the stable part, whatever the message)
+        let system = system_of(&seen, k);
+        assert!(system.contains(words), "request {k} lacks Spanish's words");
+        // (once: after the tools' instructions, before the project's facts)
+        assert_eq!(system.matches("Studio is in Spanish.").count(), 1);
+        assert!(system.find(words).unwrap() < system.find("The open project:").unwrap());
+    }
+    // (a message clearly in English: English)
+    assert!(system_of(&seen, 0).ends_with(&format!("The user writes in English: reply in English,{because}")), "{}", system_of(&seen, 0));
+    // ("hmm" says too little: Studio's language)
+    assert!(system_of(&seen, 1).ends_with(&studio_says), "{}", &system_of(&seen, 1)[system_of(&seen, 1).len() - 300..]);
+    // (clearly Spanish, in a Spanish Studio: Studio's language, by default)
+    assert!(system_of(&seen, 2).ends_with(&studio_says), "{}", &system_of(&seen, 2)[system_of(&seen, 2).len() - 300..]);
+    // ("The language I write in": English; "hmm" keeps English, the last
+    // language it saw, not Studio's)
+    assert!(system_of(&seen, 3).ends_with(&format!("The user writes in English: reply in English,{because}")), "{}", tail_of(&seen, 3));
+    assert!(system_of(&seen, 4).ends_with(&format!("The user writes in English: reply in English,{because}")), "{}", tail_of(&seen, 4));
+    // (the stable instructions don't fight the line: they say it names the language)
+    assert!(system_of(&seen, 0).contains("in the language the last line of these instructions names"));
+    rapidr_value::i18n::set_language("");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// An English Studio: nothing Spanish in the instructions; the line says
+/// English, unless the person clearly writes in another language — then
+/// that one (Spanish, here, with no Spanish words: Studio's menus are
+/// English, so the Spanish words of Studio's panes would mislead).
+#[test]
+fn in_an_english_studio_the_prompt_has_no_other_words() {
+    let _one = one_at_a_time();
+    let dir = project_dir("en-prompt");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    rapidr_value::i18n::set_language("en");
+    let (url, server) = mock((0..3).map(|_| text_answer("Done.")).collect());
+    let n = "rai-en-prompt";
+    a_chat_in(n, "tools-en-prompt", &dir, &url, "app");
+    for q in ["Please add a Clear button to the form", "hmm", "hazme una calculadora de propinas"] {
+        assert_eq!(rai_call(n, "ask", &[s(q)]).to_i64(), -1, "{}", rai_get(n, "error"));
+        wait(n);
+    }
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 3);
+    let because = " even when earlier messages, the conversation's summary, files or tool results are in another language.";
+    for k in 0..3 {
+        let system = system_of(&seen, k);
+        assert!(!system.contains("Studio is in Spanish") && !system.contains("compilar") && !system.contains("Caja de herramientas") && !system.contains("tú"), "request {k} has Spanish words");
+    }
+    assert!(system_of(&seen, 0).ends_with(&format!("Reply in English unless the person writes clearly in another language: then use theirs,{because}")), "{}", system_of(&seen, 0));
+    assert!(system_of(&seen, 1).ends_with(&format!("Reply in English unless the person writes clearly in another language: then use theirs,{because}")));
+    assert!(system_of(&seen, 2).ends_with(&format!("The user writes in Spanish: reply in Spanish (español),{because}")), "{}", tail_of(&seen, 2));
+    rapidr_value::i18n::set_language("");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Studio's language set by a program that doesn't follow it (a language's
+/// name, or nothing): the words aren't added, the line is the program's.
+#[test]
+fn a_pinned_language_or_none_adds_no_words() {
+    let _one = one_at_a_time();
+    let dir = project_dir("pin-prompt");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    rapidr_value::i18n::set_language("es");
+    let (url, server) = mock((0..2).map(|_| text_answer("Hecho.")).collect());
+    let n = "rai-pin-prompt";
+    a_chat_in(n, "tools-pin-prompt", &dir, &url, "French");
+    assert_eq!(rai_call(n, "ask", &[s("hola")]).to_i64(), -1);
+    wait(n);
+    rai_set(n, "replylanguage", "");
+    assert_eq!(rai_call(n, "ask", &[s("hola")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert!(!system_of(&seen, 0).contains("Studio is in Spanish") && system_of(&seen, 0).ends_with("Reply in French (français), even when earlier messages, the conversation's summary, files or tool results are in another language."));
+    assert!(!system_of(&seen, 1).contains("Studio is in Spanish") && !system_of(&seen, 1).contains("even when earlier messages, the conversation's summary"));
+    rapidr_value::i18n::set_language("");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Characters a request's instructions and tools take.
 fn prompt_chars(sent: &Json) -> usize {
     let system: usize = sent["messages"].as_array().unwrap().iter().filter(|m| m["role"] == "system").map(|m| m["content"].as_str().unwrap_or("").len()).sum();

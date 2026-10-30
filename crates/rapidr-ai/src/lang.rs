@@ -9,6 +9,11 @@
 //! and pasted output (fenced blocks, `inline code`, links, paths) are left
 //! out first. When it isn't sure ("ok", "do it?", a line of code) it says
 //! nothing, and the caller keeps the language it had.
+//!
+//! RapidR Studio's assistant answers in **Studio's language** (Robert,
+//! 2026-10-30), unless the person clearly writes in another: that decision
+//! is [`reply_language`], a pure function of Studio's language tag, the
+//! setting "RAI answers in:" ([`ReplyIn`]) and the latest message.
 
 /// The words that tell a language apart (lower case; words two languages
 /// share — "de", "la", "en", "que", "como", "es" — are in neither list).
@@ -22,7 +27,7 @@ const WORDS: &[(&str, &[&str])] = &[
     (
         "Spanish",
         &[
-            "el", "los", "las", "por", "pero", "muy", "más", "qué", "cómo", "también", "hay", "yo", "sí", "gracias", "hola", "hacer", "puedes", "quiero", "ahora", "botón", "ventana", "cuando", "donde", "dónde", "sin", "esto", "eso", "ese", "esa", "y", "agrega", "añade", "cambia", "arregla", "errores", "archivo", "explica", "dime", "necesito", "tengo", "puede",
+            "el", "los", "las", "por", "pero", "muy", "más", "qué", "cómo", "también", "hay", "yo", "sí", "gracias", "hola", "hacer", "puedes", "quiero", "ahora", "botón", "ventana", "cuando", "donde", "dónde", "sin", "esto", "eso", "ese", "esa", "y", "agrega", "añade", "cambia", "arregla", "errores", "archivo", "explica", "dime", "necesito", "tengo", "puede", "hazme", "dame", "muéstrame", "muestrame", "construye", "crea", "nuevo", "nueva", "botones", "propinas", "ayuda", "ayúdame", "escribe", "calcula",
         ],
     ),
     (
@@ -219,6 +224,72 @@ pub fn for_model(language: &str) -> String {
     }
 }
 
+/// A language, by its English name ("Spanish").
+pub type Language = &'static str;
+
+/// Where the language of the answers comes from (Tools > Settings > AI,
+/// "RAI answers in:").
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum ReplyIn {
+    /// Studio's language — the default —, unless the person writes clearly
+    /// in another one: then that message is answered in it, and the next
+    /// message that says too little ("ok", a line of code) goes back to
+    /// Studio's.
+    #[default]
+    Studio,
+    /// The language the person writes in: the latest message's, kept while
+    /// a message says too little; Studio's before the first one that says.
+    Writer,
+}
+
+impl ReplyIn {
+    /// The setting as it is kept ("studio" or "writer"): anything else
+    /// (an old settings file, nothing) is the default, Studio's language.
+    pub fn parse(text: &str) -> ReplyIn {
+        if text.trim().eq_ignore_ascii_case("writer") { ReplyIn::Writer } else { ReplyIn::Studio }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReplyIn::Studio => "studio",
+            ReplyIn::Writer => "writer",
+        }
+    }
+}
+
+/// Studio's language as a language: the name of the tag (`es-AR` →
+/// Spanish); English for one this doesn't know (a pseudo-language, a tag
+/// not yet translated) — RapidR's own words are English there.
+pub fn studio_language(tag: &str) -> Language {
+    name_of_tag(tag).unwrap_or("English")
+}
+
+/// The language an answer is in: Studio's (`studio_tag`, "es", "es-AR",
+/// "") unless the person's latest message is clearly written in another
+/// language — then theirs. A message that says too little (*ok*, a line of
+/// code) is answered in Studio's language.
+pub fn reply_language(studio_tag: &str, setting: ReplyIn, latest: &str) -> Language {
+    reply_language_keeping(studio_tag, setting, latest, None)
+}
+
+/// [`reply_language`] for a chat that goes on: with [`ReplyIn::Writer`], a
+/// message that says too little is answered in the language the person was
+/// last seen writing in (`kept`), not Studio's.
+pub fn reply_language_keeping(studio_tag: &str, setting: ReplyIn, latest: &str, kept: Option<&str>) -> Language {
+    if let Some(written) = detect(latest) {
+        return written;
+    }
+    match (setting, kept.and_then(known)) {
+        (ReplyIn::Writer, Some(k)) => k,
+        _ => studio_language(studio_tag),
+    }
+}
+
+/// A language's English name, as this module spells it, when it knows it.
+fn known(name: &str) -> Option<Language> {
+    WORDS.iter().map(|(l, _)| *l).chain(NATIVE.iter().map(|(l, _)| *l)).find(|l| l.eq_ignore_ascii_case(name.trim()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -247,6 +318,45 @@ mod tests {
         // (code and paths pasted in: the words around them decide)
         assert_eq!(detect("Me sale este error en `server.rr`: ```\nerror server.rr:12: the variable is not declared\n```\n¿qué hago?"), Some("Spanish"));
         assert_eq!(detect("Gracias"), Some("Spanish"));
+    }
+
+    #[test]
+    fn answers_in_studios_language_unless_the_person_writes_another() {
+        use ReplyIn::*;
+        // (Studio in Spanish, a message clearly in English: English)
+        assert_eq!(reply_language("es", Studio, "Please add a Clear button to the form"), "English");
+        // (in Spanish: Spanish)
+        assert_eq!(reply_language("es", Studio, "hazme una calculadora"), "Spanish");
+        // (says too little: Studio's)
+        assert_eq!(reply_language("es", Studio, "ok"), "Spanish");
+        assert_eq!(reply_language("es-AR", Studio, ""), "Spanish");
+        // (the code alone: Studio's)
+        assert_eq!(reply_language("es", Studio, "```basic\nPRINT 1 + 2\n```"), "Spanish");
+        assert_eq!(reply_language("en", Studio, "```basic\nPRINT 1 + 2\n```"), "English");
+        // (the language the person writes in: English message, English)
+        assert_eq!(reply_language("es", Writer, "Please add a Clear button to the form"), "English");
+        // (Studio in English, Chinese or Spanish messages)
+        assert_eq!(reply_language("en", Studio, "请添加一个清除按钮"), "Chinese");
+        assert_eq!(reply_language("en", Studio, "hazme una calculadora con botones"), "Spanish");
+        assert_eq!(reply_language("en", Studio, "hazme una calculadora de propinas"), "Spanish");
+        assert_eq!(detect("hazme una calculadora de propinas"), Some("Spanish"));
+        assert_eq!(reply_language("en", Studio, "ok"), "English");
+        // (a language Studio isn't in, or no tag: English)
+        assert_eq!(reply_language("xx", Studio, "ok"), "English");
+        assert_eq!(reply_language("", Studio, "ok"), "English");
+        assert_eq!(reply_language("zh-Hans", Studio, "ok"), "Chinese");
+        // (a chat that goes on: Studio's way goes back to Studio's language
+        // at "ok"; the writer's way keeps the language it saw)
+        assert_eq!(reply_language_keeping("es", Studio, "ok", Some("English")), "Spanish");
+        assert_eq!(reply_language_keeping("es", Writer, "ok", Some("English")), "English");
+        assert_eq!(reply_language_keeping("es", Writer, "ok", None), "Spanish");
+        assert_eq!(reply_language_keeping("es", Writer, "hazme una calculadora", Some("English")), "Spanish");
+        // (the setting as it is kept: an old file's nothing is the default)
+        assert_eq!(ReplyIn::parse(""), Studio);
+        assert_eq!(ReplyIn::parse("studio"), Studio);
+        assert_eq!(ReplyIn::parse(" Writer "), Writer);
+        assert_eq!(ReplyIn::parse("who knows"), Studio);
+        assert_eq!(Writer.as_str(), "writer");
     }
 
     #[test]
