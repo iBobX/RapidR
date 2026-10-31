@@ -1,0 +1,55 @@
+' Tip calculator: the bill, the tip in percent and the people.
+$THEME rapidr
+
+DECLARE SUB Calculate
+
+CREATE Form AS RForm
+    Caption = "Tip Calculator"
+    ClientWidth = 300: ClientHeight = 232
+    Center
+    CREATE BillLabel AS RLabel
+        Caption = "&Bill:": Left = 16: Top = 20: Width = 100
+    END CREATE
+    CREATE BillEdit AS REdit
+        Text = "": Left = 124: Top = 16: Width = 160
+        OnChange = Calculate
+    END CREATE
+    CREATE TipLabel AS RLabel
+        Caption = "&Tip (%):": Left = 16: Top = 56: Width = 100
+    END CREATE
+    CREATE TipEdit AS REdit
+        Text = "15": Left = 124: Top = 52: Width = 160
+        OnChange = Calculate
+    END CREATE
+    CREATE PeopleLabel AS RLabel
+        Caption = "&People:": Left = 16: Top = 92: Width = 100
+    END CREATE
+    CREATE PeopleEdit AS REdit
+        Text = "1": Left = 124: Top = 88: Width = 160
+        OnChange = Calculate
+    END CREATE
+    CREATE TipAmount AS RLabel
+        Caption = "Tip: 0.00": Left = 16: Top = 132: Width = 268
+    END CREATE
+    CREATE Total AS RLabel
+        Caption = "Total: 0.00": Left = 16: Top = 160: Width = 268
+        Font.Size = 14: Font.Bold = 1
+    END CREATE
+    CREATE Each AS RLabel
+        Caption = "Each pays: 0.00": Left = 16: Top = 196: Width = 268
+    END CREATE
+END CREATE
+
+SUB Calculate
+    DIM bill AS DOUBLE, tip AS DOUBLE, people AS INTEGER
+    bill = VAL(BillEdit.Text)
+    tip = bill * VAL(TipEdit.Text) / 100
+    people = VAL(PeopleEdit.Text)
+    IF people < 1 THEN people = 1
+    TipAmount.Caption = "Tip: " + FORMAT$("%.2f", tip)
+    Total.Caption = "Total: " + FORMAT$("%.2f", bill + tip)
+    Each.Caption = "Each pays: " + FORMAT$("%.2f", (bill + tip) / people)
+END SUB
+
+BillEdit.SetFocus
+Form.ShowModal

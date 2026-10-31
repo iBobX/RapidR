@@ -77,3 +77,6 @@ tests/conformance/cases/ ::
 
 # ---- code provenance (2026-10-22): the licensing record names the identifiers of the translated GNU diff routine and of Git's xdiff, as evidence ----
 docs/licensing.md ::
+
+# ---- the video pipeline test names other products only to assert the videos never mention them ----
+tests/video_pipeline.mjs ::

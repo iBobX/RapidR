@@ -5,8 +5,12 @@
   "id": "first-app",
   "title": { "en": "Your first app in RapidR Studio", "es": "Tu primera app en RapidR Studio" },
   "description": {
-    "en": "A new project, a button from the Toolbox, its caption, its OnClick, Run, and a saved version — in about a minute.",
-    "es": "Un proyecto nuevo, un botón desde la Caja de herramientas, su texto, su OnClick, Ejecutar y una versión guardada, en un minuto."
+    "en": "Make your first app in RapidR Studio in about a minute: a new project, a button dragged from the Toolbox, its caption, the one line it runs, and Run. Then save a version of your work.",
+    "es": "Crea tu primera app en RapidR Studio en un minuto: un proyecto nuevo, un botón arrastrado desde la Caja de herramientas, su texto, la única línea que ejecuta y Ejecutar. Luego guarda una versión de tu trabajo."
+  },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "BASIC", "first app", "tutorial", "beginner", "programming", "forms", "learn to code"],
+    "es": ["RapidR", "RapidR Studio", "BASIC", "primera app", "tutorial", "principiantes", "programación", "formularios", "aprender a programar"]
   },
   "screen": [1440, 810],
   "scale": 1.3333333,
@@ -16,6 +20,7 @@
   "studio": { "theme": "rapidr-light" },
   "steps": [
     {
+      "chapter": { "en": "Your first app", "es": "Tu primera app" },
       "card": {
         "title": { "en": "Your first app", "es": "Tu primera app" },
         "lines": ["RapidR Studio"],
@@ -28,6 +33,7 @@
       "gap": 1.2
     },
     {
+      "chapter": { "en": "A new project", "es": "Un proyecto nuevo" },
       "say": [{ "en": "Start with a new project.", "es": "Empieza con un proyecto nuevo." }],
       "do": [
         { "click": "StartRow(0)" },
@@ -48,6 +54,7 @@
       ]
     },
     {
+      "chapter": { "en": "Drag a button", "es": "Arrastra un botón" },
       "say": [
         { "en": "This is your app's window, ready to design.", "es": "Esta es la ventana de tu app, lista para diseñar." },
         { "en": "Drag a button from the Toolbox onto it.", "es": "Arrastra un botón desde la Caja de herramientas." }
@@ -59,6 +66,7 @@
       ]
     },
     {
+      "chapter": { "en": "Its caption", "es": "Su texto" },
       "say": [
         { "en": "In Properties, give it a caption.", "es": "En Propiedades, ponle un texto." },
         { "text": { "en": "The button shows it right away.", "es": "El botón lo muestra enseguida." }, "cue": "captioned" }
@@ -72,6 +80,7 @@
       ]
     },
     {
+      "chapter": { "en": "What it does", "es": "Lo que hace" },
       "say": [
         { "en": "Double-click the button to write what it does.", "es": "Haz doble clic en el botón para escribir lo que hace." },
         { "text": { "en": "Studio opens its code, right where the click goes.", "es": "Studio abre su código, justo donde va el clic." }, "cue": "code" }
@@ -88,6 +97,7 @@
       ]
     },
     {
+      "chapter": { "en": "Run it", "es": "Ejecútala" },
       "say": [{ "en": "Now run it.", "es": "Ahora ejecútala." }],
       "do": [
         { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
@@ -108,6 +118,7 @@
       "gap": 0.6
     },
     {
+      "chapter": { "en": "Save a version", "es": "Guarda una versión" },
       "say": [{ "en": "Stop it, and save a version of your work.", "es": "Detenla y guarda una versión de tu trabajo." }],
       "do": [
         { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },

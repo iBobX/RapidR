@@ -1,0 +1,9 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Counter"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"

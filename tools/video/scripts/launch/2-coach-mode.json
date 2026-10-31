@@ -1,43 +1,191 @@
-// Launch video 2 (Preview 5): Coach mode. 60-80 s.
-// SKELETON for Robert's review: not recorded yet. TODO marks a target to
-// check when recorded. Wording follows docs/legal/review-2026-10-30-coach-mode.md:
-// hints one at a time, the code only as the fourth hint; no "never the answer".
+// Launch video 6 of the Preview 5 playlist "RapidR Studio Tutorials": Coach
+// mode: learn by doing (about 2.5 min).
+// Record: node tools/video/video.mjs tools/video/scripts/launch/2-coach-mode.json --lang en,es --webm
+// Wording follows docs/legal/review-2026-10-30-coach-mode.md: hints one at a
+// time, the code only as the fourth hint; no "never the answer". The AI is the
+// tests' mock (scripted hints, a made-up "demo-model", no key, no network).
+// The project is tools/video/fixtures/click-counter (a button that should count).
 {
   "id": "launch-2-coach-mode",
-  "draft": "skeleton",
-  "title": { "en": "Coach mode: learn by doing", "es": "Modo tutor: aprende haciendo" },
+  "title": { "en": "Coach mode: hints, not answers", "es": "Modo tutor: pistas, no respuestas" },
   "description": {
-    "en": "In Coach mode RAI gives hints one step at a time and doesn't change your files: you write the code.",
-    "es": "En modo tutor, RAI da pistas paso a paso y no cambia tus archivos: el código lo escribes tú."
+    "en": "In Coach mode RAI gives hints one step at a time and doesn't change your files: you write the code. See the four hints on a click counter, then Help With This Error, which explains a mistake without fixing it for you.",
+    "es": "En modo tutor, RAI da pistas paso a paso y no cambia tus archivos: el código lo escribes tú. Mira las cuatro pistas en un contador de clics, y luego Ayuda con este error, que te explica un fallo sin arreglarlo por ti."
   },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "RAI", "coach mode", "learn to code", "AI tutor", "BASIC", "programming for beginners", "tutorial", "education"],
+    "es": ["RapidR", "RapidR Studio", "RAI", "modo tutor", "aprender a programar", "tutor de IA", "BASIC", "programación para principiantes", "tutorial", "educación"]
+  },
+  "demoModel": true,
   "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
-  // TODO: a small example with a mistake to fix (a copy)
-  "studio": { "theme": "rapidr-light", "open": "examples/basics/hello.rr" },
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": {
+    "theme": "rapidr-light",
+    "mock": true,
+    "fixtures": { "tools/video/fixtures/click-counter": "projects/Counter" },
+    "open": "projects/Counter/Counter.rrproj"
+  },
   "steps": [
-    { "card": { "title": { "en": "Coach mode", "es": "Modo tutor" }, "lines": [{ "en": "learn by doing", "es": "aprende haciendo" }],
+    {
+      "chapter": { "en": "A nudge, not the answer", "es": "Un empujón, no la respuesta" },
+      "card": {
+        "title": { "en": "Coach mode", "es": "Modo tutor" },
+        "lines": [{ "en": "hints, not answers", "es": "pistas, no respuestas" }],
         "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
-        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
-      "say": [{ "en": "Sometimes you don't want the answer. You want a nudge.", "es": "A veces no quieres la respuesta. Quieres un empujoncito." }] },
-    { "say": [{ "en": "In RAI's pane, turn the dial to Coach.", "es": "En el panel de RAI, gira el selector a Tutor." }],
-      "do": [{ "do": "ai.assistant" }, { "click": "AIDialCoach" }] },
-    { "say": [{ "en": "Ask your question.", "es": "Haz tu pregunta." }],
-      "do": [{ "type": { "en": "How do I make the label count up?", "es": "¿Cómo hago que la etiqueta cuente?" }, "into": "AIInput" }, { "key": "Enter" }] },
-    { "say": [{ "en": "The first hint is a nudge: where to look.", "es": "La primera pista es un empujón: dónde mirar." }],
-      "do": [{ "waitFor": { "shows": "caption:Next Hint" }, "timeout": 120 }, { "highlight": "AICoachChip", "for": 2 }] },
-    { "say": [{ "en": "Still stuck? Next hint: an idea.", "es": "¿Sigues atascado? Siguiente pista: una idea." }],
-      "do": [{ "click": "caption:Next Hint" }, { "wait": 2 }] },
-    { "say": [{ "en": "You try it yourself. RAI won't touch your files in Coach mode.", "es": "Lo intentas tú. En modo tutor, RAI no toca tus archivos." }],
-      // TODO: the editor's name and line
-      "do": [{ "click": "codedoc(0)" }, { "type": "Count = Count + 1" }] },
-    { "say": [{ "en": "An error? Help With This Error explains it, one step at a time.", "es": "¿Un error? Ayuda con este error lo explica, paso a paso." }],
-      // TODO: the button
-      "do": [{ "click": "caption:Help With This Error" }, { "wait": 2 }] },
-    { "say": [{ "en": "Run it. You fixed it yourself.", "es": "Ejecútalo. Lo arreglaste tú." }],
-      "do": [{ "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "mark": "poster" }] },
-    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Hints, not shortcuts", "es": "Pistas, no atajos" }, "rapidr.dev"],
-        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
-                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
-        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
-      "say": [{ "en": "Learn by doing, with a coach beside you.", "es": "Aprende haciendo, con un tutor a tu lado." }], "do": [{ "wait": 2.5 }] }
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Sometimes you don't want the answer. You want a nudge.", "es": "A veces no quieres la respuesta. Quieres un empujoncito." }],
+      "do": [{ "do": "ai:on,ai:provider=compatible,ai:base={mock},ai:model=demo-model,ai.assistant" }],
+      "gap": 1.0
+    },
+    {
+      "say": [
+        { "en": "Here is a click counter. The button should count, but the label stays at zero.", "es": "Este es un contador de clics. El botón debería contar, pero la etiqueta se queda en cero." },
+        { "en": "A small demo model coaches, so you can follow along.", "es": "Un pequeño modelo de demostración hace de tutor, para que puedas seguir el paso a paso." }
+      ],
+      "do": [{ "highlight": "designdoc(0)", "for": 3.4 }]
+    },
+    {
+      "say": [{ "en": "In RAI's pane, turn the dial to Coach.", "es": "En el panel de RAI, gira el selector a Tutor." }],
+      "do": [{ "click": "AIDialCoach" }, { "wait": 0.8 }]
+    },
+    {
+      "chapter": { "en": "The four hints", "es": "Las cuatro pistas" },
+      "say": [
+        { "en": "Ask your question.", "es": "Haz tu pregunta." },
+        { "text": { "en": "The first hint is a nudge: a question that points the way.", "es": "La primera pista es un empujón: una pregunta que señala el camino." }, "cue": "hint1" }
+      ],
+      "do": [
+        { "type": { "en": "How do I count the clicks on my button?", "es": "¿Cómo cuento los clics de mi botón?" }, "into": "AIInput" },
+        { "key": "Enter" },
+        { "waitFor": "shows:AICoachNext", "timeout": 60 },
+        { "wait": 0.4, "cue": "hint1" },
+        { "highlight": "AICoachBar", "for": 2.4 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Still stuck? Ask for the next hint: the idea, with an example about something else.", "es": "¿Sigues atascado? Pide la siguiente pista: la idea, con un ejemplo de otra cosa." }
+      ],
+      "do": [
+        { "click": "AICoachNext" },
+        { "wait": 3.0 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "The third hint is the shape of the code, with blanks for you to fill.", "es": "La tercera pista es la forma del código, con espacios para que los llenes tú." }
+      ],
+      "do": [
+        { "click": "AICoachNext" },
+        { "wait": 3.2 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Only when you ask a fourth time, the code, as text.", "es": "Solo cuando pides una cuarta vez, el código, como texto." },
+        { "en": "You type it yourself: RAI can't change your files in Coach mode.", "es": "Lo escribes tú: en modo tutor, RAI no puede cambiar tus archivos." }
+      ],
+      "do": [
+        { "click": "AICoachNext" },
+        { "wait": 3.6 }
+      ]
+    },
+    {
+      "chapter": { "en": "You write the code", "es": "Tú escribes el código" },
+      "say": [
+        { "en": "I Got It ends the hints. Now write it yourself: double-click the button.", "es": "Lo Tengo termina las pistas. Ahora escríbelo tú: haz doble clic en el botón." },
+        { "en": "Add one to the count, and show it in the label.", "es": "Suma uno a la cuenta, y muéstrala en la etiqueta." }
+      ],
+      "do": [
+        { "click": "AICoachGot" },
+        { "wait": 0.6 },
+        { "double": "designdoc(0) > Button1" },
+        { "wait": 1.0 },
+        { "type": "    Count = Count + 1" },
+        { "key": "Escape" },
+        { "key": "Enter" },
+        { "type": "Label1.Caption = STRR$(Count)" },
+        { "key": "Escape" },
+        { "wait": 0.6 }
+      ]
+    },
+    {
+      "chapter": { "en": "Help With This Error", "es": "Ayuda con este error" },
+      "say": [
+        { "en": "Run it. An error: that happens to everyone.", "es": "Ejecútalo. Un error: le pasa a todo el mundo." }
+      ],
+      "do": [
+        { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
+        { "waitFor": "shows:AICoachErr", "timeout": 30 },
+        { "wait": 0.8 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Help With This Error explains it, and gives you a hint.", "es": "Ayuda con este error te lo explica, y te da una pista." },
+        { "en": "Not the fix: you find that.", "es": "No el arreglo: eso lo encuentras tú." }
+      ],
+      "do": [
+        { "click": "AICoachErr" },
+        { "waitFor": "shows:AICoachNext", "timeout": 60 },
+        { "wait": 1.2 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Compare the name with the one RapidR knows: there's an extra R. Fix it yourself.", "es": "Compara el nombre con el que RapidR conoce: sobra una R. Arréglalo tú." }
+      ],
+      "do": [
+        { "click": { "target": "codedoc(0)", "x": 0.9, "y": 0.904 } },
+        { "key": "Shift+Home" },
+        { "type": "Label1.Caption = STR$(Count)" },
+        { "key": "Escape" },
+        { "wait": 0.6 }
+      ]
+    },
+    {
+      "chapter": { "en": "It works", "es": "Funciona" },
+      "say": [
+        { "en": "Run it. Click the button: it counts.", "es": "Ejecútalo. Haz clic en el botón: cuenta." },
+        { "text": { "en": "You fixed it yourself.", "es": "Lo arreglaste tú." }, "cue": "counted" }
+      ],
+      "do": [
+        { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
+        { "waitFor": { "app": true }, "timeout": 60 },
+        { "click": "app:Button1" },
+        { "click": "app:Button1" },
+        { "click": "app:Button1", "cue": "counted", "pause": 1.4 },
+        { "mark": "poster" }
+      ]
+    },
+    {
+      "say": [{ "en": "Writing the code yourself is what makes it stick.", "es": "Escribir el código tú mismo es lo que hace que se te quede." }],
+      "do": [
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 },
+        { "pointer": "hide" },
+        { "wait": 0.6 }
+      ],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "Hints, not shortcuts", "es": "Pistas, no atajos" }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Learn by doing, with a coach beside you.", "es": "Aprende haciendo, con un tutor a tu lado." }],
+      "do": [{ "wait": 2.5 }]
+    }
   ]
 }

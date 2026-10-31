@@ -1,0 +1,186 @@
+// Launch video 2 of the Preview 5 playlist "RapidR Studio Tutorials": a real
+// little app, a tip calculator: forms, properties, events (about 2 min).
+// Record: node tools/video/video.mjs tools/video/scripts/launch/tip-calculator.json --lang en,es --webm
+// The format: docs/video-pipeline.md.
+{
+  "id": "launch-tip-calculator",
+  "title": { "en": "Build a real little app: a tip calculator", "es": "Crea una app de verdad: una calculadora de propinas" },
+  "description": {
+    "en": "Drag a label, a text box and a button onto a form, set their properties, write the one line the button runs, and try it. A small app with everything an app needs: a window, controls, properties and an event.",
+    "es": "Arrastra una etiqueta, un cuadro de texto y un botón a un formulario, cambia sus propiedades, escribe la única línea que ejecuta el botón y pruébala. Una app pequeña con todo lo que necesita una app: una ventana, controles, propiedades y un evento."
+  },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "BASIC", "tutorial", "beginner", "programming", "forms", "events", "learn to code", "tip calculator"],
+    "es": ["RapidR", "RapidR Studio", "BASIC", "tutorial", "principiantes", "programación", "formularios", "eventos", "aprender a programar", "calculadora de propinas"]
+  },
+  "screen": [1440, 810],
+  "scale": 1.3333333,
+  "fps": 30,
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": { "theme": "rapidr-light" },
+  "steps": [
+    {
+      "chapter": { "en": "A real little app", "es": "Una app de verdad" },
+      "card": {
+        "title": { "en": "A real little app", "es": "Una app de verdad" },
+        "lines": [{ "en": "A tip calculator", "es": "Una calculadora de propinas" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Let's build a real little app: a tip calculator.", "es": "Vamos a crear una app de verdad: una calculadora de propinas." }],
+      "gap": 1.2
+    },
+    {
+      "chapter": { "en": "A new project", "es": "Un proyecto nuevo" },
+      "say": [{ "en": "Start a new project, a form app, and call it TipCalc.", "es": "Empieza un proyecto nuevo, una app con formulario, y llámalo TipCalc." }],
+      "do": [
+        { "click": "StartRow(0)" },
+        { "waitFor": "window:NewDialog" },
+        { "type": "TipCalc" },
+        { "wait": 0.8 },
+        { "click": "NewOk", "pause": 0.4 },
+        { "waitFor": "gone:NewDialog" }
+      ]
+    },
+    {
+      "chapter": { "en": "Controls from the Toolbox", "es": "Controles de la Caja de herramientas" },
+      "say": [
+        { "en": "An app is a window with controls on it. They live in the Toolbox.", "es": "Una app es una ventana con controles. Están en la Caja de herramientas." },
+        { "en": "Drag a label onto the window.", "es": "Arrastra una etiqueta a la ventana." }
+      ],
+      "do": [
+        { "highlight": "Toolbox", "for": 2.2 },
+        { "drag": "Toolbox > RLabel", "to": { "target": "designdoc(0)", "x": 0.07, "y": 0.18 }, "afterLine": 1 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Its Caption property is the text it shows.", "es": "Su propiedad Caption es el texto que muestra." },
+        { "en": "Make it say Bill.", "es": "Haz que diga Cuenta." }
+      ],
+      "do": [
+        { "click": { "target": "Inspector > Caption", "x": 0.78 } },
+        { "key": "Ctrl+A" },
+        { "type": { "en": "Bill:", "es": "Cuenta:" } },
+        { "key": "Enter" }
+      ]
+    },
+    {
+      "say": [{ "en": "Next, a text box to type the bill in.", "es": "Ahora, un cuadro de texto para escribir la cuenta." }],
+      "do": [
+        { "drag": "Toolbox > REdit", "to": { "target": "designdoc(0)", "x": 0.17, "y": 0.18 } },
+        { "click": { "target": { "en": "Inspector > Search properties", "es": "Inspector > Buscar propiedades" }, "x": 0.4 } },
+        { "type": "Text" },
+        { "click": { "target": "Inspector > Text", "x": 0.78 } },
+        { "key": "Ctrl+A" },
+        { "type": "80" },
+        { "key": "Enter" },
+        { "click": { "target": { "en": "Inspector > Search properties", "es": "Inspector > Buscar propiedades" }, "x": 0.4 } },
+        { "key": "Ctrl+A" },
+        { "key": "Backspace" }
+      ]
+    },
+    {
+      "say": [{ "en": "A button that will work out the tip…", "es": "Un botón que calculará la propina…" }],
+      "do": [
+        { "drag": "Toolbox > RButton", "to": { "target": "designdoc(0)", "x": 0.17, "y": 0.28 } },
+        { "click": { "target": "Inspector > Caption", "x": 0.78 } },
+        { "key": "Ctrl+A" },
+        { "type": { "en": "Work out the tip", "es": "Calcular la propina" } },
+        { "key": "Enter" }
+      ]
+    },
+    {
+      "say": [{ "en": "…and a second label for the answer.", "es": "…y una segunda etiqueta para la respuesta." }],
+      "do": [
+        { "drag": "Toolbox > RLabel", "to": { "target": "designdoc(0)", "x": 0.07, "y": 0.4 } },
+        { "click": { "target": "Inspector > Caption", "x": 0.78 } },
+        { "key": "Ctrl+A" },
+        { "type": { "en": "Tip: 0.00", "es": "Propina: 0.00" } },
+        { "key": "Enter" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Click the window itself, to change its own properties.", "es": "Haz clic en la propia ventana, para cambiar sus propiedades." },
+        { "en": "Give it a title.", "es": "Ponle un título." }
+      ],
+      "do": [
+        { "click": { "target": "designdoc(0)", "x": 0.46, "y": 0.7 } },
+        { "click": { "target": "Inspector > Caption", "x": 0.78 } },
+        { "key": "Ctrl+A" },
+        { "type": { "en": "Tip calculator", "es": "Calculadora de propinas" } },
+        { "key": "Enter" },
+        { "highlight": "designdoc(0)", "for": 2.0 }
+      ]
+    },
+    {
+      "chapter": { "en": "Make the button do something", "es": "Que el botón haga algo" },
+      "say": [
+        { "en": "Now make the button do something.", "es": "Ahora haz que el botón haga algo." },
+        { "text": { "en": "Double-click it, and Studio opens its code.", "es": "Haz doble clic, y Studio abre su código." }, "cue": "code" }
+      ],
+      "do": [
+        { "double": "designdoc(0) > Button1" },
+        { "wait": 0.6, "cue": "code" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Read the box, take fifteen percent of it, and show the answer in the label.", "es": "Lee el cuadro, calcula el quince por ciento y muestra la respuesta en la etiqueta." }
+      ],
+      "do": [
+        { "type": { "en": "Label2.Caption = \"Tip: \" + FORMAT$(\"%.2f\", VAL(Edit1.Text) * 0.15)", "es": "Label2.Caption = \"Propina: \" + FORMAT$(\"%.2f\", VAL(Edit1.Text) * 0.15)" } }
+      ]
+    },
+    {
+      "chapter": { "en": "Run it", "es": "Ejecútala" },
+      "say": [{ "en": "Run it.", "es": "Ejecútala." }],
+      "do": [
+        { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
+        { "waitFor": { "app": true }, "timeout": 60 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Change the bill to one hundred and twenty…", "es": "Cambia la cuenta a ciento veinte…" },
+        { "text": { "en": "and press the button: eighteen, the tip.", "es": "y pulsa el botón: dieciocho, la propina." }, "cue": "clicked" }
+      ],
+      "do": [
+        { "click": "app:Edit1" },
+        { "key": "Ctrl+A", "into": "app:" },
+        { "type": "120", "into": "app:" },
+        { "click": "app:Button1", "cue": "clicked", "pause": 1.6 },
+        { "mark": "poster" }
+      ]
+    },
+    {
+      "say": [{ "en": "A window, some controls, a few properties and one event: that's how an app is made.", "es": "Una ventana, algunos controles, unas propiedades y un evento: así se hace una app." }],
+      "do": [
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 },
+        { "pointer": "hide" },
+        { "wait": 0.6 }
+      ],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "BASIC is powerful again", "es": "BASIC vuelve a ser poderoso" }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Now make it yours.", "es": "Ahora hazla tuya." }],
+      "do": [{ "wait": 2.5 }]
+    }
+  ]
+}
