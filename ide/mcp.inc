@@ -137,6 +137,7 @@ DECLARE FUNCTION McpOpenAllowed(Path AS STRING) AS INTEGER
 DECLARE FUNCTION McpDirtyFiles AS STRING
 DECLARE FUNCTION McpOpenProject(Path AS STRING) AS STRING
 DECLARE FUNCTION McpOpenCheck(Path AS STRING) AS STRING
+DECLARE FUNCTION McpErrorOutcome(Answer AS STRING) AS STRING
 DECLARE FUNCTION McpRunWords AS STRING
 DECLARE FUNCTION McpOutputFrom(At AS LONG) AS STRING
 DECLARE FUNCTION McpReadOutput(All AS INTEGER) AS STRING
@@ -1210,6 +1211,8 @@ FUNCTION McpOutcomeShown(Outcome AS STRING) AS STRING
         why = MID$(Outcome, 10)
         IF why = "Read only" THEN why = McpModeName("read")
         Result = TR$("refused: {why}", "why", why)
+      ELSEIF LEFT$(Outcome, 7) = "error: " THEN
+        Result = TR$("error: {why}", "why", MID$(Outcome, 8))
       ELSEIF LEFT$(Outcome, 9) = "refused (" AND RIGHT$(Outcome, 6) = " open)" THEN
         Result = TR$("refused ({dialog} open)", "dialog", McpDialogShown(MID$(Outcome, 10, LEN(Outcome) - 15)))
       ELSE
@@ -1642,12 +1645,23 @@ SUB McpRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STR
       answer = McpTools.CallTool(Tool, Arguments)
       failed = McpTools.CallFailed
       Mcp.Reply CallId, answer, failed
-      IF failed THEN McpLogLine Client, Tool, What, McpTools.CallTarget, "error" ELSE McpLogLine Client, Tool, What, McpTools.CallTarget, "ok"
+      IF failed THEN McpLogLine Client, Tool, What, McpTools.CallTarget, McpErrorOutcome(answer) ELSE McpLogLine Client, Tool, What, McpTools.CallTarget, "ok"
       EXIT SUB
   END SELECT
   Mcp.Reply CallId, answer, failed
-  IF failed THEN McpLogLine Client, Tool, What, "", "error" ELSE McpLogLine Client, Tool, What, "", "ok"
+  IF failed THEN McpLogLine Client, Tool, What, "", McpErrorOutcome(answer) ELSE McpLogLine Client, Tool, What, "", "ok"
 END SUB
+
+' (a failed call's line says why: the first sentence the AI app was told,
+' kept short — the pane showed a bare "error")
+FUNCTION McpErrorOutcome(Answer AS STRING) AS STRING
+  DIM why AS STRING, k AS INTEGER
+  why = TRIM$(REPLACESUBSTR$(REPLACESUBSTR$(Answer, CHR$(13), " "), CHR$(10), " "))
+  k = INSTR(why, ". ")
+  IF k > 0 THEN why = LEFT$(why, k)
+  IF LEN(why) > 160 THEN why = LEFT$(why, 157) + "..."
+  IF why = "" THEN Result = "error" ELSE Result = "error: " + why
+END FUNCTION
 
 ' (~ for the home folder: an AI app needs no user name)
 FUNCTION McpShownPath(Path AS STRING) AS STRING

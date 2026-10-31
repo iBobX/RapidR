@@ -3952,6 +3952,10 @@ msgid "refused: {why}"
 msgstr ""
 
 #: ide/mcp.inc
+msgid "error: {why}"
+msgstr ""
+
+#: ide/mcp.inc
 msgid "refused ({dialog} open)"
 msgstr ""
 
