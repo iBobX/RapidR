@@ -91,7 +91,8 @@ try {
       tags: Array.isArray(script.tags) ? script.tags : [],
       credits,
       chapterList: chapters(script.steps, timeline.lines),
-      music: opts.music ? script.musicCredit || "(credit the track here)" : null,
+      // (a credit per language: { "en": …, "es": … }, or one string)
+      music: opts.music ? (typeof script.musicCredit === "object" && script.musicCredit ? script.musicCredit[lang] || script.musicCredit.en : script.musicCredit) || "(credit the track here)" : null,
       demoModel: !!script.demoModel,
     });
     writeFileSync(join(opts.out, `${name}.description.txt`), desc);

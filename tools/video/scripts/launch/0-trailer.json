@@ -1,5 +1,5 @@
 // Launch trailer of the Preview 5 playlist "RapidR Studio Tutorials": RapidR
-// Studio in 90 seconds. Fast cuts of real moments, one Studio session:
+// Studio in about a minute ("Meet RapidR Studio"). Fast cuts of real moments, one Studio session:
 // drag a button and Run; Coach gives a hint; RAI builds an app from one
 // sentence; Versions brings back lost work; Studio changes language.
 // Record: node tools/video/video.mjs tools/video/scripts/launch/0-trailer.json --lang en,es --webm
@@ -9,10 +9,11 @@
 // RapidR Studio title card.
 {
   "id": "launch-0-trailer",
-  "title": { "en": "RapidR Studio in 90 seconds", "es": "RapidR Studio en 90 segundos" },
+  "title": { "en": "Meet RapidR Studio", "es": "Conoce RapidR Studio" },
+  "musicCredit": { "en": "Apple Loops, used under the Logic Pro licence", "es": "Apple Loops, usados bajo la licencia de Logic Pro" },
   "description": {
-    "en": "Drag a button and run an app. Get a hint instead of the answer. Ask RAI for an app in a sentence. Bring back work you lost. All in RapidR Studio, in about 90 seconds.",
-    "es": "Arrastra un botón y ejecuta una app. Recibe una pista en vez de la respuesta. Pídele una app a RAI en una frase. Recupera el trabajo que perdiste. Todo en RapidR Studio, en unos 90 segundos."
+    "en": "Drag a button and run an app. Get a hint instead of the answer. Ask RAI for an app in a sentence. Bring back work you lost. All in RapidR Studio, in about a minute.",
+    "es": "Arrastra un botón y ejecuta una app. Recibe una pista en vez de la respuesta. Pídele una app a RAI en una frase. Recupera el trabajo que perdiste. Todo en RapidR Studio, en un minuto."
   },
   "tags": {
     "en": ["RapidR", "RapidR Studio", "BASIC", "programming", "AI assistant", "RAI", "learn to code", "app builder", "version control", "trailer"],
@@ -28,7 +29,7 @@
   "steps": [
     {
       "card": {
-        "title": { "en": "RapidR Studio in 90 seconds", "es": "RapidR Studio en 90 segundos" },
+        "title": { "en": "Meet RapidR Studio", "es": "Conoce RapidR Studio" },
         "lines": [{ "en": "real apps, in minutes", "es": "apps de verdad, en minutos" }],
         "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
         "background": "../../assets/card-bg.svg",
