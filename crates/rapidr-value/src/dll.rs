@@ -177,7 +177,7 @@ impl Param {
     pub fn is_numeric(&self) -> bool {
         matches!(
             self.type_name.as_str(),
-            "" | "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" | "INT64" | "VARIANT" | "BOOLEAN" | "BOOL"
+            "" | "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" | "INT64" | "UINT64" | "VARIANT" | "BOOLEAN" | "BOOL"
         )
     }
 
@@ -234,7 +234,7 @@ pub fn numeric_size(type_name: &str) -> usize {
     match type_name {
         "BYTE" => 1,
         "WORD" | "SHORT" => 2,
-        "DOUBLE" | "INT64" | "CURRENCY" => 8,
+        "DOUBLE" | "INT64" | "UINT64" | "CURRENCY" => 8,
         _ => 4,
     }
 }

@@ -354,7 +354,7 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
         (Raw::Text(t), _) => v_str(&t),
         (Raw::Int(_), "") => v_null(),
         (Raw::Int(_), "STRING") => v_str(""),
-        (Raw::Int(n), "INT64") => v_int(n),
+        (Raw::Int(n), "INT64" | "UINT64") => v_int(n),
         (Raw::Int(n), "BYTE") => v_int((n & 0xFF) as i64),
         (Raw::Int(n), "WORD") => v_int((n & 0xFFFF) as i64),
         (Raw::Int(n), "SHORT") => v_int(n as i16 as i64),

@@ -41,7 +41,7 @@ fn kind(p: &Parameter) -> Option<&'static str> {
     let t = if declared.is_empty() { suffix_type(&p.name).unwrap_or("").to_string() } else { declared };
     match t.split('*').next().unwrap_or("").trim() {
         "STRING" => Some("S"),
-        "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "INT64" | "CURRENCY" => Some("N"),
+        "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "INT64" | "UINT64" | "CURRENCY" => Some("N"),
         _ => None,
     }
 }

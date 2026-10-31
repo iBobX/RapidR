@@ -48,6 +48,7 @@ claims, headless).
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
 | [unicode.rr](basics/unicode.rr) | Text in any language in a file (accents, Chinese, emoji): `WriteStr(text, LEN(text))`, `ReadAllText`, `PRINT #` / `LINE INPUT #`, and binary strings that stay bytes ([the manual](../docs/manual/language.md#text-and-bytes-accents-chinese-emoji)) | run · interp · native · web | `rapidr run basics/unicode.rr` |
 | [bytes.rr](basics/bytes.rr) | A binary file's bytes: `WriteNum`, `ReadBinStr`, every byte with `ASC(MID$(…))` / `data[i]` (fast at any length), a hex dump built with `s = s + …`, `MemCopyTo` into a `BYTE` array | run · interp · native · web | `rapidr run basics/bytes.rr` |
+| [int64_uint64.rr](basics/int64_uint64.rr) | Whole numbers beyond 32 bits: `INT64` and `UINT64` shown in full, a size in bytes, a 64-bit FNV-1a hash, a bit mask with `AND` / `SHR`, unsigned comparisons ([the manual](../docs/manual/language.md#variables-and-types)) | run · interp · native · web | `rapidr run basics/int64_uint64.rr` |
 | [language.rr](basics/language.rr) | A tour: `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
 
 ### gui/ — forms and their events

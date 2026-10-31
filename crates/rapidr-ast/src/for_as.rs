@@ -24,7 +24,7 @@ use rapidr_diagnostics::TextSpan;
 use crate::*;
 
 /// The types a FOR counter may have: numbers.
-pub const COUNTER_TYPES: &[&str] = &["BYTE", "SHORT", "WORD", "INTEGER", "DWORD", "LONG", "SINGLE", "DOUBLE", "INT64", "CURRENCY"];
+pub const COUNTER_TYPES: &[&str] = &["BYTE", "SHORT", "WORD", "INTEGER", "DWORD", "LONG", "SINGLE", "DOUBLE", "INT64", "UINT64", "CURRENCY"];
 
 fn key(name: &str) -> String {
     strip_type_suffix(name).to_ascii_lowercase()

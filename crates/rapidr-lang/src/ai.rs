@@ -232,7 +232,7 @@ fn example_arg(p: &Param) -> String {
     match p.ty.to_ascii_uppercase().as_str() {
         "STRING" => "\"text\"".into(),
         "DOUBLE" | "SINGLE" | "FLOAT" => "1.5".into(),
-        "INTEGER" | "LONG" | "WORD" | "BYTE" | "SHORT" | "DWORD" | "INT64" | "BOOLEAN" | "" => "0".into(),
+        "INTEGER" | "LONG" | "WORD" | "BYTE" | "SHORT" | "DWORD" | "INT64" | "UINT64" | "BOOLEAN" | "" => "0".into(),
         // (an object: a variable of that type)
         _ => p.name.trim_end_matches("()").to_string(),
     }

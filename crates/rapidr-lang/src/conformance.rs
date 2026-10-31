@@ -100,7 +100,7 @@ pub fn printed_default(p: &Property) -> Option<String> {
 fn dummy(p: &Param) -> Option<&'static str> {
     let ty = p.ty.to_ascii_uppercase();
     match ty.as_str() {
-        "" | "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "INT64" | "BOOLEAN" | "VARIANT" => {
+        "" | "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "INT64" | "UINT64" | "BOOLEAN" | "VARIANT" => {
             Some(if p.name.ends_with('$') { "\"\"" } else { "0" })
         }
         "STRING" => Some("\"\""),

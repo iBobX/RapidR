@@ -326,7 +326,7 @@ fn params_schema(text: &str) -> Result<Json, String> {
         }
         let t = match kind.to_ascii_uppercase().as_str() {
             "STRING" => "string",
-            "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "INT64" => "integer",
+            "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "INT64" | "UINT64" => "integer",
             "SINGLE" | "DOUBLE" | "NUMBER" => "number",
             "BOOLEAN" | "BOOL" => "boolean",
             "LIST" | "ARRAY" => "array",

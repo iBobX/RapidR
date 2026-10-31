@@ -279,7 +279,7 @@ fn concat_at(span: TextSpan, left: Expression, right: &str) -> Expression {
 fn field_fill(span: TextSpan, type_name: &str) -> Expression {
     match type_name.to_ascii_uppercase().as_str() {
         "STRING" => text_at(span, ""),
-        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" => int_at(span, 0),
+        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" | "INT64" | "UINT64" => int_at(span, 0),
         _ => call_at(span, "__null", Vec::new()),
     }
 }
@@ -603,7 +603,12 @@ impl Lowering<'_> {
                 return call_at(span, &mangle(&def, &name), vec![o]);
             }
             if let Some(slot) = self.types.slot(t, member) {
-                return call_at(span, "__getfield", vec![o, int_at(span, slot as i64)]);
+                let get = call_at(span, "__getfield", vec![o, int_at(span, slot as i64)]);
+                // (an INT64 / UINT64 field read as one: crate::numeric)
+                return match self.types.field_conversion(t, member) {
+                    Some(conv) if conv.is_wide() && !self.is_array_field(t, member) => crate::numeric::convert_at(span, conv, get),
+                    _ => get,
+                };
             }
         }
         call_at(span, "__objget", vec![o, text_at(span, member)])
@@ -618,7 +623,11 @@ impl Lowering<'_> {
             }
             if let (Some(slot), true) = (self.types.slot(t, member), self.is_array_field(t, member)) {
                 let array = call_at(span, "__getfield", vec![o, int_at(span, slot as i64)]);
-                return call_at(span, "__aget", std::iter::once(array).chain(args).collect());
+                let get = call_at(span, "__aget", std::iter::once(array).chain(args).collect());
+                return match self.types.field_conversion(t, member) {
+                    Some(conv) if conv.is_wide() => crate::numeric::convert_at(span, conv, get),
+                    _ => get,
+                };
             }
         }
         call_at(span, "__objcall", [o, text_at(span, member)].into_iter().chain(args).collect())

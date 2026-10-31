@@ -120,7 +120,7 @@ impl Types {
             "BYTE" => 1,
             "WORD" | "SHORT" => 2,
             "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "STRING" => 4,
-            "DOUBLE" => 8,
+            "DOUBLE" | "INT64" | "UINT64" => 8,
             // (RapidQ's data types: RC.EXE's SIZEOF — QNOTIFYICONDATA's six
             // numbers, its tip not counted)
             "QRECT" | "RRECT" => 16,

@@ -2949,7 +2949,7 @@ fn numeric_kind(fc: &rapidr_ast::FunctionCallExpression) -> Option<rapidr_value:
 fn type_default(type_name: &str) -> Const {
     match type_name.to_ascii_uppercase().as_str() {
         "STRING" => Const::Str(String::new()),
-        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "INT64" => Const::Int(0),
+        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "INT64" | "UINT64" => Const::Int(0),
         "SINGLE" | "DOUBLE" | "CURRENCY" => Const::Double(0.0),
         _ => Const::Null,
     }

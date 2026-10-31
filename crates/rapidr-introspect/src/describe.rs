@@ -93,7 +93,7 @@ pub fn property_schema(p: &Property) -> Value {
 /// A parameter's JSON Schema, from its BASIC type.
 pub fn param_schema(p: &Param) -> Value {
     match p.ty.to_ascii_uppercase().as_str() {
-        "INTEGER" | "LONG" | "WORD" | "BYTE" | "SHORT" | "DWORD" | "INT64" => json!({"type": "integer"}),
+        "INTEGER" | "LONG" | "WORD" | "BYTE" | "SHORT" | "DWORD" | "INT64" | "UINT64" => json!({"type": "integer"}),
         "DOUBLE" | "SINGLE" | "FLOAT" => json!({"type": "number"}),
         "STRING" => json!({"type": "string"}),
         "BOOLEAN" => json!({"type": "boolean"}),

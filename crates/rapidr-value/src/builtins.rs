@@ -552,7 +552,7 @@ pub fn rp_doevents() {
 
 pub fn rp_default_for_type(type_name: &str) -> Value {
     match type_name.to_uppercase().as_str() {
-        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "INT64" => v_int(0),
+        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "INT64" | "UINT64" => v_int(0),
         "DOUBLE" | "SINGLE" | "CURRENCY" => v_dbl(0.0),
         "STRING" => v_str(""),
         _ => v_null(),

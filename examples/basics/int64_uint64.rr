@@ -1,0 +1,45 @@
+' int64_uint64.rr: whole numbers beyond 32 bits with INT64 (signed) and
+' UINT64 (unsigned) — a file's size in bytes, a 64-bit hash, a bit mask.
+'
+'   rapidr run int64_uint64.rr
+'
+' PRINT, STR$ and HEX$ show them in full; + - * wrap at 64 bits; \, MOD,
+' the comparisons and AND / OR / XOR / SHL / SHR use all 64 bits. A UINT64
+' is read unsigned. Everything without an INT64 or UINT64 keeps the classic
+' 32-bit rule (a LONG still prints 4000000000 as -2147483648).
+$APPTYPE CONSOLE
+
+' Sizes: 5 files of 3 GB each add up past 32 bits.
+DIM total AS INT64
+DIM i AS INTEGER
+FOR i = 1 TO 5
+    total = total + 3221225472
+NEXT i
+PRINT "Total size: "; total; " bytes = "; total \ 1073741824; " GB"
+
+' The limits.
+DIM biggest AS INT64 = 9223372036854775807
+DIM smallest AS INT64 = -9223372036854775808
+DIM top AS UINT64 = 18446744073709551615
+PRINT "INT64: "; smallest; " to "; biggest
+PRINT "UINT64: 0 to "; top; " (HEX$ "; HEX$(top); ")"
+
+' A 64-bit hash (FNV-1a): XOR in each byte, multiply, wrap at 64 bits.
+FUNCTION Fnv1a(text AS STRING) AS UINT64
+    DIM h AS UINT64 = &HCBF29CE484222325
+    DIM k AS INTEGER
+    FOR k = 1 TO LEN(text)
+        h = h XOR ASC(MID$(text, k, 1))
+        h = h * 1099511628211
+    NEXT k
+    Fnv1a = h
+END FUNCTION
+PRINT "FNV-1a hash of RapidR: "; HEX$(Fnv1a("RapidR"))
+
+' A bit mask: the high 16 bits of each 32-bit half.
+DIM mask AS UINT64 = &HFFFF0000FFFF0000
+PRINT "Mask "; HEX$(mask); " AND &H123456789ABCDEF0 = "; HEX$(mask AND &H123456789ABCDEF0)
+PRINT "Mask SHR 16 = "; mask SHR 16
+
+' Unsigned comparisons: above 2^63 is still above everything signed.
+IF top > biggest THEN PRINT "UINT64 max is greater than INT64 max"

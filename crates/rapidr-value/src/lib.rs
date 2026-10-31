@@ -10,6 +10,7 @@ pub mod basic_string;
 pub use basic_string::BasicString;
 pub mod strings;
 pub mod numeric;
+pub mod wide;
 pub mod runtime_text;
 pub mod variadic;
 pub mod data;
@@ -1373,6 +1374,8 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         "__shell_notifyicon" => return Some(Ok(tray::shell_notify_icon_builtin(&arg(0), &arg(1)))),
         "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),
         "__arg_round" => return Some(Ok(numeric::arg_round(&arg(0)))),
+        // INT64 / UINT64 shown and operated on in 64 bits (rapidr_ast::numeric).
+        "__str64" | "__hex64" | "__idiv64" | "__mod64" | "__cmp64" | "__bits64" => return wide::call(key, args),
         // An event handler's start (rapidr_ast::event_params): the Sender
         // only for an object parameter.
         "__sender_param" => return Some(Ok(events::sender_param(&arg(0), &arg(1), &arg(2)))),

@@ -46,7 +46,8 @@ una terminal.
 | `SHORT` | `%` | -32 768 … 32 767 (`q% = 40000` contiene -25 536) |
 | `INTEGER`, `LONG` | `&` | 32 bits con signo |
 | `DWORD` | `???` | 32 bits (con signo) |
-| `INT64` | | reservado para un entero de 64 bits (2.122.2); hoy 32 bits, como `LONG` |
+| `INT64` | | 64 bits con signo: -9223372036854775808 … 9223372036854775807 |
+| `UINT64` | | 64 bits sin signo: 0 … 18446744073709551615 |
 | `SINGLE` | `!` | punto flotante de 32 bits |
 | `DOUBLE` | `#` | punto flotante de 64 bits |
 | `STRING` | `$` | texto; `STRING * n` siempre tiene n caracteres |
@@ -68,10 +69,28 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 - **Guardar un valor en una variable entera lo trunca** (`i = 2.7` da 2); más
   allá de 32 bits da -2 147 483 648. En cambio, un parámetro `BYVAL` redondea
   los casos intermedios al entero par.
-  Para números enteros de más de 32 bits usa un `DOUBLE`: guarda cada uno
-  exacto hasta 9 007 199 254 740 992 (2^53). `PRINT` muestra un número
-  entero como un entero de 32 bits (la regla clásica): muestra uno grande con
-  `FORMAT$("%.0f", n)`.
+- **Números enteros de más de 32 bits: `INT64` y `UINT64`.** `PRINT`, `STR$` y
+  `HEX$` los muestran completos (`HEX$` con 16 cifras); `+ - *` dan la vuelta
+  a los 64 bits; `\`, `MOD`, las comparaciones y `AND OR XOR NOT SHL SHR` usan
+  los 64 bits. Un `UINT64` se lee sin signo, y con un `INT64` en la misma
+  expresión el resultado es un `UINT64`; las comparaciones son exactas
+  (`u > -1` es verdadero para cualquier `UINT64`). Un `DOUBLE` que se guarda
+  en uno se trunca hacia cero (fuera del rango: `INT64` recibe
+  -9223372036854775808, `UINT64` 0); un texto se lee como lo lee `VAL`, hasta
+  la última cifra. Los literales hasta 18446744073709551615 y `&H` de hasta
+  16 cifras son exactos. Un `DOUBLE` en la expresión da un `DOUBLE`, como
+  siempre. Un bucle `FOR` sobre uno compara su contador exacto hasta 2^53.
+  Todo lo que no tiene un `INT64` ni un `UINT64` sigue la regla clásica:
+  `PRINT` muestra un número entero como un entero de 32 bits.
+
+  ```basic
+  DIM big AS INT64 = 9223372036854775807
+  DIM mask AS UINT64 = &HFFFF0000FFFF0000
+  PRINT big; " "; HEX$(mask); " "; mask SHR 16   ' 9223372036854775807 FFFF0000FFFF0000 281470681808895
+  ```
+
+  (Un `DOUBLE` sigue guardando exacto cada número entero hasta
+  9 007 199 254 740 992, 2^53; `FORMAT$("%.0f", n)` muestra uno completo.)
 - Dentro de una `SUB` o una `FUNCTION`, `DIM` crea una variable local; `STATIC`
   conserva su valor entre llamadas. Una variable no declarada que una `SUB` usa
   antes que el programa principal es propia de la `SUB` (se conserva entre
@@ -205,7 +224,9 @@ PRINT STRF$(1234.5678, 2, 8, 2)                    ' 1234.57 (ffFixed)
 
 Otras reglas numéricas: `INT` y `FIX` truncan hacia cero; `ROUND`, `CINT` y
 `CLNG` son `INT(x + 0.5)` (2.5 → 3, -2.5 → -2); `VAL` lee el número que está al
-comienzo del texto (`VAL("12abc")` es 12); `HEX$` tiene 8 dígitos.
+comienzo del texto (`VAL("12abc")` es 12); `HEX$` tiene 8 dígitos. Un
+`INT64` o un `UINT64` se imprime completo y su `HEX$` tiene 16 dígitos
+([Variables y tipos](#variables-y-tipos)).
 
 ## Control de flujo
 

@@ -2984,7 +2984,7 @@ fn dim_default(d: &DimStatement) -> String {
 
 fn default_value_for_type(type_name: &str) -> String {
     match type_name.to_uppercase().as_str() {
-        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "SHORT" | "INT64" => "v_int(0)".to_string(),
+        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "SHORT" | "INT64" | "UINT64" => "v_int(0)".to_string(),
         "DOUBLE" | "SINGLE" | "CURRENCY" => "v_dbl(0.0)".to_string(),
         "STRING" => "v_str(\"\")".to_string(),
         _ => "v_null()".to_string(),
@@ -3231,6 +3231,12 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__to_dword" => Some(format!("numeric::to_dword(&{a0})")),
         "__to_double" => Some(format!("numeric::to_double(&{a0})")),
         "__to_single" => Some(format!("numeric::to_single(&{a0})")),
+        "__to_int64" => Some(format!("numeric::to_int64(&{a0})")),
+        "__to_uint64" => Some(format!("numeric::to_uint64(&{a0})")),
+        // INT64 / UINT64 shown and operated on in 64 bits (rapidr_ast::numeric).
+        "__str64" | "__hex64" | "__idiv64" | "__mod64" | "__cmp64" | "__bits64" => {
+            Some(format!("wide::rp({name:?}, &[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")))
+        }
         "__arg_round" => Some(format!("numeric::arg_round(&{a0})")),
         // An event handler's start (rapidr_ast::event_params).
         "__sender_param" => Some(format!("rr_events::sender_param(&{a0}, &{a1}, &{a2})")),

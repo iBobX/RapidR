@@ -1,6 +1,7 @@
 use rapidr_diagnostics::TextSpan;
 
 pub mod numeric;
+pub mod wide_literals;
 pub mod objects;
 pub mod array_refs;
 pub mod suffix_routines;

@@ -3508,10 +3508,18 @@ impl<'a> Parser<'a> {
             }
             TokenType::Number => {
                 let tok = self.advance()?;
-                Some(Expression::Literal(Literal {
-                    span: tok.span,
-                    value: parse_number_literal(&tok.lexeme),
-                }))
+                let value = parse_number_literal(&tok.lexeme);
+                // (`&H` past 8 digits: its low 32 bits, as RapidQ reads it;
+                // all 64 noted for an INT64 / UINT64 — rapidr_ast::wide_literals)
+                if let (Some(hex), LiteralValue::Integer(low)) = (tok.lexeme.strip_prefix("0x"), &value) {
+                    let hex = hex.trim_start_matches('0');
+                    if hex.len() > 8 && hex.len() <= 16 {
+                        if let Ok(full) = u64::from_str_radix(hex, 16) {
+                            rapidr_ast::wide_literals::record(tok.span, *low, full);
+                        }
+                    }
+                }
+                Some(Expression::Literal(Literal { span: tok.span, value }))
             }
             // `&` stuck to decimal digits where a value starts: the number
             // (RC.EXE: `&0` is 0, `&10` 10 — RapidQ's music examples have

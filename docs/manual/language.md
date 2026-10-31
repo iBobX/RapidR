@@ -42,7 +42,8 @@ and whether a program double-clicked on macOS or Linux gets a terminal.
 | `SHORT` | `%` | -32768 … 32767 (`q% = 40000` holds -25536) |
 | `INTEGER`, `LONG` | `&` | 32-bit signed |
 | `DWORD` | `???` | 32-bit (signed) |
-| `INT64` | | reserved for a 64-bit integer (2.122.2); today 32 bits, as `LONG` |
+| `INT64` | | 64-bit signed: -9223372036854775808 … 9223372036854775807 |
+| `UINT64` | | 64-bit unsigned: 0 … 18446744073709551615 |
 | `SINGLE` | `!` | 32-bit float |
 | `DOUBLE` | `#` | 64-bit float |
 | `STRING` | `$` | text; `STRING * n` is always n characters |
@@ -62,11 +63,29 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 - Variables needn't be declared; an undeclared name is a VARIANT. A name
   with a suffix (`n%`, `s$`) has the suffix's type.
 - **A store into an integer variable truncates** (`i = 2.7` gives 2);
-  beyond 32 bits it gives -2147483648. For whole numbers beyond 32 bits use a
-  `DOUBLE`: it holds every one exactly up to 9,007,199,254,740,992 (2^53).
-  `PRINT` shows a whole number as a 32-bit integer (the classic rule), so show
-  a big one with `FORMAT$("%.0f", n)`. A `BYVAL` parameter rounds half to
+  beyond 32 bits it gives -2147483648. A `BYVAL` parameter rounds half to
   even instead.
+- **Whole numbers beyond 32 bits: `INT64` and `UINT64`.** `PRINT`, `STR$` and
+  `HEX$` show them in full (`HEX$` in 16 digits); `+ - *` wrap at 64 bits;
+  `\`, `MOD`, the comparisons and `AND OR XOR NOT SHL SHR` work on all 64
+  bits. A `UINT64` is read unsigned, and with an `INT64` in the same
+  expression the result is a `UINT64`; comparisons are exact (`u > -1` is
+  true for any `UINT64`). A `DOUBLE` stored into one is truncated toward zero
+  (out of range: `INT64` gets -9223372036854775808, `UINT64` 0); text is read
+  as `VAL` reads it, to the last digit. Literals up to 18446744073709551615
+  and `&H` with up to 16 digits are exact. A `DOUBLE` in the expression makes
+  a `DOUBLE`, as usual. A `FOR` loop on one compares its counter exactly up
+  to 2^53. Everything without an `INT64` or `UINT64` keeps the classic rule:
+  `PRINT` shows a whole number as a 32-bit integer.
+
+  ```basic
+  DIM big AS INT64 = 9223372036854775807
+  DIM mask AS UINT64 = &HFFFF0000FFFF0000
+  PRINT big; " "; HEX$(mask); " "; mask SHR 16   ' 9223372036854775807 FFFF0000FFFF0000 281470681808895
+  ```
+
+  (A `DOUBLE` still holds every whole number exactly up to
+  9,007,199,254,740,992, 2^53; `FORMAT$("%.0f", n)` shows one in full.)
 - Inside a SUB or FUNCTION, `DIM` makes a local; `STATIC` keeps its value
   between calls. An undeclared variable a SUB uses before the main program
   does is the SUB's own (kept between calls) — the one-pass rule.
@@ -193,7 +212,9 @@ PRINT STRF$(1234.5678, 2, 8, 2)                    ' 1234.57 (ffFixed)
 
 Other numeric rules: `INT` and `FIX` truncate toward zero; `ROUND`, `CINT`
 and `CLNG` are `INT(x + 0.5)` (2.5 → 3, -2.5 → -2); `VAL` reads the number
-at the start of the text (`VAL("12abc")` is 12); `HEX$` has 8 digits.
+at the start of the text (`VAL("12abc")` is 12); `HEX$` has 8 digits. An
+`INT64` or `UINT64` prints in full and its `HEX$` has 16 digits
+([Variables and types](#variables-and-types)).
 
 ## Control flow
 

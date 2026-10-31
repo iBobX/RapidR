@@ -176,6 +176,7 @@
 | `STRING` | Text of any length, counted in characters; `STRING * n` always holds n characters. Suffix `$`. |
 | `VARIANT` | Holds whatever is stored in it: a number, text or object. An undeclared variable is one. |
 | `QOBJECT` | The base type of objects: `TYPE name EXTENDS RObject` makes a TYPE with methods, a constructor and inheritance. |
-| `INT64` | Reserved for a 64-bit signed integer, coming in 2.122.2. For now it holds 32 bits, as LONG does; for whole numbers beyond 32 bits use a DOUBLE (exact up to 9,007,199,254,740,992) and show it with FORMAT$("%.0f", n). |
+| `INT64` | A 64-bit signed whole number, from -9223372036854775808 to 9223372036854775807. PRINT, STR$ and HEX$ show it in full; `+ - *` wrap at 64 bits; `\`, MOD, the comparisons and AND, OR, XOR, NOT, SHL, SHR work on all 64 bits. A DOUBLE stored into it is truncated toward zero (out of range: -9223372036854775808); text is read as VAL reads it, to the last digit. Literals up to 18446744073709551615 and `&H` with up to 16 digits are exact. With a DOUBLE in the expression the result is a DOUBLE, as usual. |
+| `UINT64` | A 64-bit unsigned whole number, from 0 to 18446744073709551615. It works as INT64 does, unsigned: PRINT, STR$, `\`, MOD and the comparisons read it as unsigned. With an INT64 in the same expression the result is a UINT64; a comparison is exact (a UINT64 above 9223372036854775807 is greater than any INT64, and `u > -1` is true). A DOUBLE stored into it that is negative or too big gives 0; a whole number keeps its 64 bits (-1 is 18446744073709551615). |
 | `CURRENCY` | A number for amounts of money; RapidR keeps it as a 64-bit floating-point number. |
 | `ROBJECT` | RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`. |

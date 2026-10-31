@@ -1,0 +1,102 @@
+' INT64 and UINT64 (RapidR's 64-bit integers): stored, shown (PRINT, STR$,
+' HEX$) and operated on in full 64 bits, the same on every runtime; a LONG
+' (and any expression without an INT64 / UINT64) stays RapidQ's 32 bits.
+TYPE TBig
+    n AS INT64
+    u AS UINT64
+    k(3) AS INT64
+END TYPE
+
+CONST BIGC AS INT64 = 9223372036854775807
+CONST UMAX AS UINT64 = 18446744073709551615
+
+FUNCTION Twice(x AS INT64) AS INT64
+    Twice = x * 2
+END FUNCTION
+
+SUB Bump(BYREF v AS UINT64)
+    v = v + 1
+END SUB
+
+' Limits, PRINT, STR$, HEX$
+DIM a AS INT64 = 9223372036854775807
+DIM m AS INT64 = -9223372036854775808
+DIM u AS UINT64 = 18446744073709551615
+PRINT a; " "; m; " "; u
+PRINT STR$(a); " "; STR$(u); " "; HEX$(u); " "; HEX$(m); " "; HEX$(a)
+DIM b AS INT64
+b = 4000000000
+PRINT b * 2; " "; b + b; " "; b - 9000000000
+
+' Wrapping at 64 bits, \ and MOD near the edges
+PRINT a + 1; " "; m - 1; " "; u + 1
+PRINT a \ 2; " "; m \ 3; " "; a MOD 10; " "; m MOD 10
+PRINT u \ 2; " "; u MOD 10; " "; u \ 4294967296
+DIM z AS INT64 = -7
+PRINT z \ 2; " "; z MOD 3; " "; z / 2
+
+' Comparisons: exact, a UINT64 read unsigned
+IF u > a THEN PRINT "u > a"
+IF u > -1 THEN PRINT "u > -1"
+IF a > a - 1 THEN PRINT "a > a - 1"
+DIM w AS UINT64 = 9223372036854775807
+w = w + 1
+IF w = 9223372036854775808 THEN PRINT "w = 2^63: "; w
+IF NOT (w < 5) THEN PRINT "w is not below 5"
+
+' AND OR XOR NOT SHL SHR, &H with 16 digits
+DIM h AS UINT64 = &HFFFF0000FFFF0000
+PRINT HEX$(h); " "; h
+PRINT HEX$(h AND &H00FFFF0000FFFF00); " "; HEX$(h OR 255); " "; HEX$(h XOR h)
+PRINT HEX$(h SHR 8); " "; HEX$(NOT h)
+DIM s AS INT64 = 1
+s = s SHL 40
+PRINT s; " "; HEX$(s)
+
+' Arrays, TYPE fields, BYREF, a FUNCTION's result, CONST
+DIM t AS TBig
+t.n = 5000000000
+t.u = UMAX
+t.k(2) = -9000000000
+PRINT t.n; " "; t.u; " "; t.k(2); " "; t.n * 3
+PRINT Twice(t.n); " "; BIGC; " "; UMAX
+DIM arr(1 TO 3) AS UINT64
+arr(1) = 18446744073709551614
+arr(1) = arr(1) + 1
+PRINT arr(1)
+Bump w
+PRINT w
+
+' FOR counters past 32 bits
+DIM i AS INT64
+FOR i = 4294967294 TO 4294967297
+    PRINT i; " ";
+NEXT i
+PRINT
+FOR j AS UINT64 = 9007199254740990 TO 9007199254740991
+    PRINT j
+NEXT j
+
+' Stores from DOUBLE (truncated) and from text (exact)
+DIM d AS INT64
+d = 1E18 + 0.5
+PRINT d
+d = -2.7
+PRINT d
+d = 1E30
+PRINT d
+d = "123456789012345678"
+PRINT d
+DIM e AS UINT64
+e = -1
+PRINT e
+e = -1.5
+PRINT e
+e = "18446744073709551615"
+PRINT e
+PRINT STR$(z * 1.5)
+
+' Classic: a LONG, and numbers without an INT64, stay 32 bits
+DIM l AS LONG
+l = 4000000000
+PRINT l; " "; 2147483648; " "; HEX$(4294967296 + 5)
