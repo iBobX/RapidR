@@ -95,6 +95,13 @@ Check "no Insert in Coach mode" $t '^ai\.insertlinks=(0|False)'
 
 Write-Host "== Set Up RAI > On this computer: no local AI app found"
 $t = Studio "localai" $null "ai:setup,wait" 'aisufoundtext.caption,aisumodels.visible' "$(Idle 8),$(Click aisunextbtn 30 14),$(Idle 4)" "$P\main.rr"
+$laName = "localai"
+# (a computer that has a local AI app: its models are found, and the empty state is looked at with a closed port instead)
+if (($t -notmatch '(?m)^aisufoundtext\.caption=No local AI app found') -and ($t -match '(?m)^aisufoundtext\.caption=.*Found \d+ model')) {
+    Ok "this computer has a local AI app: Set Up RAI found its models; the empty state next, with a closed port"
+    $t = Studio "localai-empty" $null "ai:setupprobes=http://127.0.0.1:9/v1,ai:setup,wait" 'aisufoundtext.caption,aisumodels.visible' "$(Idle 8),$(Click aisunextbtn 30 14),$(Idle 4)" "$P\main.rr"
+    $laName = "localai-empty"
+}
 Check "says calmly that no local AI app was found" $t '^aisufoundtext\.caption=No local AI app found running on this computer'
 Check "lists no models" $t '^aisumodels\.visible=(0|False)'
 
@@ -113,7 +120,7 @@ Check "it asks for the password" $t '^lockpwedit\.visible=(1|-1|True)'
 Check "it is School Lock" $t '^lockdialog\.caption=.*School Lock'
 
 Write-Host "== the pictures"
-foreach ($c in "versions", "coach", "localai", "spanish", "lock") {
+foreach ($c in "versions", "coach", $laName, "spanish", "lock") {
     if (Test-Path "$Work\$c\window-1.bmp") { Ok "$c`: $((Get-Item "$Work\$c\window-1.bmp").Length) bytes of window" } else { Bad "$c`: no picture of Studio's window" }
 }
 if ($script:fail -eq 0) { Write-Host "Preview 5 checks: all passed" } else { Write-Host "Preview 5 checks: FAILED" }

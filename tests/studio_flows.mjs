@@ -36,6 +36,9 @@ const WORK = join(ROOT, "tests", "results", "studio-flows");
 const filters = process.argv.slice(2);
 // (STUDIO_FLOWS_HOSTS=desktop or web: one host only)
 const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
+// (STUDIO_FLOWS_SCALES=1,2: a desktop case that captures runs at each of these scales — the use-audit's
+// pictures at 1x and 2x —, unless the case names its own `scales`)
+const DESKTOP_SCALES = (process.env.STUDIO_FLOWS_SCALES || "1").split(",").map(Number);
 // (the save prompts' project: a file and the one it includes)
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 // (Preview 4 S1/S2: the seven-file project, three forms in ui.rr)
@@ -8962,10 +8965,16 @@ if (!filters.length || filters.some((f) => "commands-handled".includes(f))) {
 
 // (a case with `themes`: one run per look, named for it)
 const SHORT = { "rapidr-light": "light", "rapidr-dark": "dark", "rapidr-high-contrast": "contrast", classic: "classic" };
-const RUNS = CASES.flatMap((c) => (c.themes ? c.themes.map((theme) => ({ ...c, theme, name: `${c.name}-${SHORT[theme] || theme}` })) : [c]));
+// (STUDIO_FLOWS_THEMES=rapidr-light,rapidr-dark: every case runs in these looks, named for them — the use-audit's
+// pictures in light and dark — whatever looks the case names itself)
+const AUDIT_THEMES = process.env.STUDIO_FLOWS_THEMES ? process.env.STUDIO_FLOWS_THEMES.split(",") : null;
+const RUNS = CASES.flatMap((c) => {
+  const themes = AUDIT_THEMES || c.themes;
+  return themes ? themes.map((theme) => ({ ...c, theme, name: `${c.name}-${SHORT[theme] || theme}` })) : [c];
+});
 for (const c of RUNS.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   if (HOSTS.includes("desktop") && !c.webOnly) {
-    for (const scale of c.capture ? c.scales || [1] : [1]) {
+    for (const scale of c.capture ? c.scales || DESKTOP_SCALES : [1]) {
       const seen = c.mockLog ? (await mockLog()).length : 0;
       check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
       if (c.mockLog) checkMockLog(`${c.name} (desktop)`, (await mockLog()).slice(seen), c.mockLog);

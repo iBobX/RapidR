@@ -120,8 +120,15 @@ check "no Insert in Coach mode" "$T/coach/out.txt" '^ai.insertlinks=(0|False)$'
 
 echo "== Set Up RAI > On this computer: no local AI app found"
 studio localai - "${P5_PROBES:+ai:setupprobes=$P5_PROBES,}ai:setup,wait" 'aisufoundtext.caption,aisumodels.visible' "$(IDLE 8),$(CLICK aisunextbtn 30 14),$(IDLE 4)" "$T/versions-project/main.rr"
-check "says calmly that no local AI app was found" "$T/localai/out.txt" '^aisufoundtext.caption=No local AI app found running on this computer'
-check "lists no models" "$T/localai/out.txt" '^aisumodels.visible=(0|False)$'
+LA=localai
+# (a computer that has a local AI app: its models are found — good —, and the empty state is looked at with a closed port instead)
+if ! has x "$T/localai/out.txt" '^aisufoundtext.caption=No local AI app found' && has x "$T/localai/out.txt" '^aisufoundtext.caption=.*Found [0-9]+ model'; then
+    ok "this computer has a local AI app: Set Up RAI found its models ($(grep -o 'Found [0-9]* model[s]*' "$T/localai/out.txt" | head -1)); the empty state next, with a closed port"
+    studio localai-empty - "ai:setupprobes=http://127.0.0.1:9/v1,ai:setup,wait" 'aisufoundtext.caption,aisumodels.visible' "$(IDLE 8),$(CLICK aisunextbtn 30 14),$(IDLE 4)" "$T/versions-project/main.rr"
+    LA=localai-empty
+fi
+check "says calmly that no local AI app was found" "$T/$LA/out.txt" '^aisufoundtext.caption=No local AI app found running on this computer'
+check "lists no models" "$T/$LA/out.txt" '^aisumodels.visible=(0|False)$'
 
 echo "== Studio in Spanish"
 studio spanish es "$AI_ON,ai.assistant,wait" 'mi(0).caption,mi(1).caption,mi(2).caption,mi(9).caption,aidialbuildtext.caption,aidialcoachtext.caption' - "$T/versions-project/main.rr"
@@ -138,7 +145,7 @@ check "it asks for the password" "$T/lock/out.txt" '^lockpwedit.visible=(1|-1|Tr
 check "it is School Lock" "$T/lock/out.txt" '^lockdialog.caption=.*School Lock'
 
 echo "== the pictures"
-for c in versions coach localai spanish lock; do
+for c in versions coach "$LA" spanish lock; do
     [ -f "$T/$c/window-1.bmp" ] && ok "$c: $(wc -c < "$T/$c/window-1.bmp" | tr -d ' ') bytes of window" || bad "$c: no picture of Studio's window"
 done
 [ "$KEEP" = 1 ] && echo "(the runs' folders, with the pictures, are kept in $T)"

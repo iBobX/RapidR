@@ -23,6 +23,7 @@
 # downloads RapidR's toolchain into a throwaway RUSTUP_HOME / CARGO_HOME).
 set -uo pipefail
 ART="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+HERE="$(cd "$(dirname "$0")" && pwd)"   # (this script's folder: p5check.sh is beside it; the script changes folder later)
 [ -f "$ART" ] || { echo "usage: $0 <artifact>"; exit 2; }
 T="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/rapidr-smoke.XXXXXX")" && pwd -P)"
 MNT=""
@@ -221,9 +222,9 @@ if [ "$KIND" = sdk ]; then
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide 2>&1)" "Studio.caption=RapidR Studio"
     check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide "$W/hello.bas" 2>&1)" "Studio.caption=hello - RapidR Studio"
     # (Preview 5's features, in the installed Studio: p5check.sh beside this script)
-    if [ -f "$(dirname "$0")/p5check.sh" ]; then
+    if [ -f "$HERE/p5check.sh" ]; then
         echo "== Preview 5's features (p5check.sh)"
-        bash "$(dirname "$0")/p5check.sh" "$R" "$W/p5" || FAIL=1
+        bash "$HERE/p5check.sh" "$R" "$W/p5" || FAIL=1
     fi
     # (EXAMPLES-DATA) a data example built: its staff.csv inside the app, and the app started as
     # the desktop starts it — macOS' Finder / `open` in /, a Linux launcher in the home folder, no
