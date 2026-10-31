@@ -262,6 +262,12 @@ if [ "$KIND" = sdk ]; then
         # library in 2.118.0)
         PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build gui.bas > native-gui.log 2>&1
         check "rapidr build (native, release, a form)" grep -q "Build succeeded" native-gui.log; grep -q "Build succeeded" native-gui.log || tail -25 native-gui.log
+        # (RARCHIVE turns on the one build feature the defaults leave off: its
+        # crates — zip, xz, zstd, 7z — compile only here; 2.122.0's shipped
+        # sources missed a module of ruzstd and no check built one)
+        printf '$APPTYPE CONSOLE\nDIM Zip AS RARCHIVE\nPRINT "archive "; LEN(COMPRESS$("aaaaaaaaaa")) > 0\n' > archive.bas
+        PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build archive.bas --debug > native-archive.log 2>&1
+        check "rapidr build (native, RArchive: every archive crate)" has "$(./archive 2>&1)" "archive"; [ -x ./archive ] || tail -25 native-archive.log
         if [[ "$ART" == *.dmg ]]; then
             # (a debug build is this Mac's architecture only; release builds are
             # universal — setup gave the toolchain both targets)

@@ -821,6 +821,13 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
 
 /// Its properties its model answers.
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
+    // (another property — a font, a size — never opens the model: the kernel
+    // reads those while it may have the model open, and on the web the read
+    // comes here; see console::rt_get)
+    const OWN: [&str; 11] = ["text", "filename", "openlinks", "emptytext", "followend", "codelanguage", "__tip", "plaintext", "seltext", "linkcount", "headings"];
+    if !OWN.contains(&prop) {
+        return None;
+    }
     with_mut(name, |m| {
         Some(match prop {
             "text" => Value::String(m.text.clone().into()),

@@ -890,11 +890,13 @@ impl ComponentKind for Console {
         }
         let (pos, _, _) = vscroll_state(id);
         let font = Font { color: 0, ..rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current()) };
+        // (the store read before the model is open: on the web a store read
+        // can reach the model — 2.122.0 panicked here on a mouse move)
+        let mono = if store::string(store, id, "fontname").trim().is_empty() { Console::mono_default() } else { Font { color: 0, ..store.font(id) } };
         model::with(id, |c| {
             if c.page != Page::Problems {
                 // (a line cut at the edge, whole: the monospaced font's, as
                 // the page draws it)
-                let mono = if store::string(store, id, "fontname").trim().is_empty() { Console::mono_default() } else { Font { color: 0, ..store.font(id) } };
                 let lh = text_size("Ag", &mono).1 + 2;
                 let k = usize::try_from((yi - by - 2 + pos).div_euclid(lh)).ok()?;
                 let text = c.line_text(c.page, k)?;

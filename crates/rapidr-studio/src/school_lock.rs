@@ -663,7 +663,9 @@ pub fn call<H: crate::Host>(host: H, method: &str, args: &[Value]) -> Option<(Va
             let mut l = l.borrow_mut();
             l.user = UserSetting::parse(&s(0));
             l.policy = read_policy(read_disk);
-            l.throttle = crate::read_text(&tries_file()).map(|t| Throttle::parse(&t)).unwrap_or_default();
+            // (on the web, asked of the page's store, never of the site: a
+            // first visit has none, and the site answered 403/500)
+            l.throttle = crate::recovery::read_if_there(&tries_file()).map(|t| Throttle::parse(&t)).unwrap_or_default();
             let err = l.policy.as_ref().map(|p| p.error.clone()).unwrap_or_default();
             (crate::flag(l.on()), err)
         }),

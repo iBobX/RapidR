@@ -303,7 +303,11 @@ def trim_needed(vendor, needed):
         files = checksum["files"]
         for rel in sorted(files):
             parts = os.path.normpath(rel).split(os.sep)
-            if not (any(p in DROP_DIRS for p in parts[:-1]) or (rel.lower().endswith(DROP_SUFFIXES) and not links_libs)):
+            # (a folder under src/ is a module, never cargo's tests/ or benches/:
+            # ruzstd 0.9's lib.rs has `mod tests;` with no cfg, and 2.122.0's trimmed
+            # copy broke every native build of a program using RArchive)
+            dropped_dir = parts[0] != "src" and any(p in DROP_DIRS for p in parts[:-1])
+            if not (dropped_dir or (rel.lower().endswith(DROP_SUFFIXES) and not links_libs)):
                 continue
             full = os.path.join(path, rel)
             if not os.path.isfile(full) or os.path.normpath(rel) in included or any(p in kept_dirs for p in parts[:-1]):

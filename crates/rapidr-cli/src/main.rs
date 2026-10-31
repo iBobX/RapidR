@@ -781,11 +781,23 @@ fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package
     // are built into it): beside it, below it (`art/logo.svg`), its
     // translations (`lang/es.po`)
     let built_in: Vec<PathBuf> = pre.as_ref().map(|p| p.resources.iter().filter_map(|r| r.path.clone()).collect()).unwrap_or_default();
+    let written = rapidr_project::program_files::written_by(Path::new(path));
+    let mut left_out: Vec<String> = Vec::new();
     plan.data = rapidr_project::program_files::data_files_of(Path::new(path))
         .into_iter()
         .filter(|f| !built_in.iter().any(|r| rapidr_project::program_files::same_path(r, f)))
         .map(|f| (f.file_name().unwrap_or_default().to_string_lossy().into_owned(), f))
+        .filter(|(name, _)| {
+            let keep = !written.contains(&name.to_lowercase());
+            if !keep {
+                left_out.push(name.clone());
+            }
+            keep
+        })
         .collect();
+    if !left_out.is_empty() {
+        println!("  not packed (the program writes them, so your copy may hold your own data): {}", left_out.join(", "));
+    }
     let carried = carried_for_build(path, &built_in);
     plan.data.extend(carried.files);
     plan.data.extend(carried.catalogs.unwrap_or_default().into_iter().map(|(name, f)| (format!("{}/{name}", rapidr_project::ship::LANG_FOLDER), f)));
@@ -800,6 +812,14 @@ fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package
 fn carried_for_build(path: &str, built_in: &[PathBuf]) -> rapidr_project::program_files::Carried {
     let mut carried = rapidr_project::program_files::carried_of(Path::new(path));
     carried.files.retain(|(_, f)| !built_in.iter().any(|r| rapidr_project::program_files::same_path(r, f)));
+    // (a file below the folder the program writes — data/settings.ini —:
+    // never packed, as beside it)
+    let written = rapidr_project::program_files::written_by(Path::new(path));
+    let (keep, left): (Vec<_>, Vec<_>) = carried.files.drain(..).partition(|(to, _)| !written.contains(&to.to_lowercase()));
+    carried.files = keep;
+    if !left.is_empty() {
+        println!("  not packed (the program writes them, so your copy may hold your own data): {}", left.iter().map(|(to, _)| to.as_str()).collect::<Vec<_>>().join(", "));
+    }
     for w in &carried.warnings {
         eprintln!("warning: {w}");
     }
@@ -1656,31 +1676,34 @@ fn data_url(name: &str, bytes: &[u8]) -> String {
     format!("data:{};base64,{}", rapidr_webbundle::mime_for(name), base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
+/// A web build's files from beside the program: the data files its source
+/// names ([`rapidr_project::program_files::data_files_of`], as a desktop
+/// build's), never one it writes (its settings, progress: the developer's
+/// copy may hold their own data) and never a file it doesn't name — before
+/// 2.122.1 every .txt, .csv, .db, picture and sound beside it went into the page.
 fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, String> {
     let mut assets = std::collections::HashMap::new();
-    let source_dir = source_path.parent().unwrap_or(Path::new("."));
-    
-    let entries = match fs::read_dir(source_dir) {
-        Ok(e) => e,
-        Err(_) => return assets,
-    };
-
-    let asset_exts = ["csv", "db", "sqlite", "png", "jpg", "jpeg", "gif", "bmp", "txt", "wav", "mp3"];
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                let ext_lower = ext.to_lowercase();
-                if asset_exts.contains(&ext_lower.as_str()) {
-                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-                        if let Ok(bytes) = fs::read(&path) {
-                            assets.insert(filename.to_string(), data_url(filename, &bytes));
-                        }
-                    }
-                }
-            }
+    let written = rapidr_project::program_files::written_by(source_path);
+    let built_in = built_in_files(&source_path.to_string_lossy());
+    let mut left_out: Vec<String> = Vec::new();
+    for path in rapidr_project::program_files::data_files_of(source_path) {
+        if built_in.iter().any(|r| rapidr_project::program_files::same_path(r, &path)) {
+            continue;
         }
+        let Some(filename) = path.file_name().and_then(|f| f.to_str()) else { continue };
+        if written.contains(&filename.to_lowercase()) {
+            left_out.push(filename.to_string());
+            continue;
+        }
+        match fs::read(&path) {
+            Ok(bytes) => {
+                assets.insert(filename.to_string(), data_url(filename, &bytes));
+            }
+            Err(e) => eprintln!("warning: {}: {e}", path.display()),
+        }
+    }
+    if !left_out.is_empty() {
+        println!("  not packed (the program writes them, so your copy may hold your own data): {}", left_out.join(", "));
     }
     assets
 }

@@ -208,6 +208,12 @@ if ($kind -eq "sdk") {
             Write-Host "  arithmetic.exe imports: $($dlls -join ', ')"
             Check "native executables need no MinGW / LLVM DLL" { -not ($dlls | Where-Object { $_ -match "unwind|c\+\+|winpthread|gcc|stdc" }) }
         }
+        # (RARCHIVE turns on the one build feature the defaults leave off: its crates
+        # compile only here; 2.122.0's shipped sources missed a module of ruzstd)
+        Set-Content "$T\work\archive.bas" "`$APPTYPE CONSOLE`r`nDIM Zip AS RARCHIVE`r`nPRINT `"archive `"; LEN(COMPRESS`$(`"aaaaaaaaaa`")) > 0`r`n"
+        $alog = Out-Of $R @("build", "archive.bas")
+        Check "native RArchive build (every archive crate)" { (Test-Path "$T\work\archive.exe") -and ((Out-Of "$T\work\archive.exe" @()) -match "archive") }
+        if (-not (Test-Path "$T\work\archive.exe")) { Write-Host (($alog -split "`n" | Select-Object -Last 25) -join "`n") }
         Copy-Item "$Cases\tests\fixtures\list_items.bas" "$T\work\list_items.bas"
         Out-Of $R @("build", "list_items.bas") | Out-Null
         $env:RAPIDR_CAPTURE = "$T\work\gui"; $env:RAPIDR_CAPTURE_DELAY = "0.5"

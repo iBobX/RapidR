@@ -2,6 +2,10 @@
 
 The extension's version is the version of RapidR it ships with.
 
+## 2.122.1 (2026-10-31)
+
+- Same as 2.122.0 (the fixes are in RapidR itself).
+
 ## 2.122.0 (2026-10-31)
 
 Robert's first walk in 2.121.3 found that an ancient `rapidr` 0.1.0 (from `cargo install`) first on `PATH` was used, so there was no completion, no hover, and debugging did nothing, with no word why. This is the fix, and a lot more.

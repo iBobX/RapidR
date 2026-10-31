@@ -174,6 +174,80 @@ fn quoted_strings(text: &str) -> std::collections::HashSet<String> {
     out
 }
 
+/// The files program `src` (or a file it includes) writes, by name as its
+/// source has them (lower case, `/` separators): a build never packs them,
+/// since the developer's own copy may hold their data (settings, progress,
+/// paths, a key). See [`written_names_in`].
+pub fn written_by(src: &Path) -> std::collections::HashSet<String> {
+    written_names_in(&program_text(src, &includes_of(src)))
+}
+
+/// The file names `text` writes: the string literals — and the constants or
+/// variables set to one — on a line that writes a file: a `Save…` method
+/// (`SaveToFile`, `SaveToCSV`, `SaveFig` …), `WriteText`, `WriteCSV`,
+/// `WriteNewFile`, `OPEN … FOR OUTPUT` / `APPEND`, `KILL`, `NAME … AS`, a
+/// stream opened with `fmCreate`, `fmOpenWrite` or `fmOpenReadWrite`.
+pub fn written_names_in(text: &str) -> std::collections::HashSet<String> {
+    fn words(line: &str) -> Vec<String> {
+        line.split(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '$').filter(|w| !w.is_empty()).map(|w| w.to_ascii_uppercase()).collect()
+    }
+    fn literals(line: &str) -> Vec<String> {
+        let parts: Vec<&str> = line.split('"').collect();
+        (1..parts.len().saturating_sub(1)).step_by(2).map(|i| parts[i].trim().replace('\\', "/").to_lowercase()).filter(|s| !s.is_empty()).collect()
+    }
+    // (a comment's words don't write: from ' or REM to the line's end, outside quotes)
+    fn code_of(line: &str) -> &str {
+        let mut quoted = false;
+        for (i, c) in line.char_indices() {
+            match c {
+                '"' => quoted = !quoted,
+                '\'' if !quoted => return &line[..i],
+                _ => {}
+            }
+        }
+        let t = line.trim_start();
+        if t.len() >= 3 && t[..3].eq_ignore_ascii_case("REM") && t[3..].chars().next().is_none_or(|c| c.is_whitespace()) {
+            return "";
+        }
+        line
+    }
+    let lines: Vec<&str> = text.lines().map(code_of).collect();
+    // (NAME = "file.cfg", CONST NAME = "…", DIM NAME AS STRING = "…": the name's literal)
+    let mut named: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for line in &lines {
+        let Some(eq) = line.find('=') else { continue };
+        let left = words(&line[..eq]);
+        let Some(name) = left.iter().rev().find(|w| !matches!(w.as_str(), "CONST" | "DIM" | "AS" | "STRING" | "SHARED" | "GLOBAL" | "LET")) else { continue };
+        let lits = literals(&line[eq..]);
+        if lits.len() == 1 {
+            named.entry(name.clone()).or_default().extend(lits);
+        }
+    }
+    let mut out = std::collections::HashSet::new();
+    for line in &lines {
+        // (the words outside quotes: PRINT "Saved" doesn't write)
+        let bare: String = line.split('"').step_by(2).collect::<Vec<_>>().join(" ");
+        let w = words(&bare);
+        let upper = bare.to_ascii_uppercase();
+        let writes = w.iter().any(|x| {
+            (x.starts_with("SAVE") && x.len() > 4)
+                || matches!(x.as_str(), "WRITETEXT" | "WRITECSV" | "WRITENEWFILE" | "KILL" | "FMCREATE" | "FMOPENWRITE" | "FMOPENREADWRITE")
+        }) || upper.contains("FOR OUTPUT")
+            || upper.contains("FOR APPEND")
+            || (w.first().map(String::as_str) == Some("NAME") && w.iter().skip(1).any(|x| x == "AS"));
+        if !writes {
+            continue;
+        }
+        out.extend(literals(line));
+        for x in &w {
+            if let Some(lits) = named.get(x) {
+                out.extend(lits.iter().cloned());
+            }
+        }
+    }
+    out
+}
+
 /// Every file of program `src`: itself, what it includes from its folder,
 /// its data files ([`data_files_of`]), and what it takes from below its
 /// folder ([`carried_of`]: `art/logo.svg`, its `lang/*.po`).
@@ -383,6 +457,31 @@ mod tests {
         let got: Vec<String> = data_files_of(&dir.join("hello.bas")).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
         assert_eq!(got, vec!["staff.csv".to_string()]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// (2.122.1) The files a program writes — its settings, progress, the
+    /// paths a user chose — are its own at run time: a build never packs
+    /// the developer's copy. RapidR8Bit's 0.1.0 builds carried the
+    /// developer's ROM paths that way.
+    #[test]
+    fn files_a_program_writes_are_named() {
+        let src = r#"
+CONST PrefsFile = "app_prefs.cfg"
+DIM Roms AS STRING = "roms.cfg"
+cfg.SaveToFile PrefsFile
+list.SaveToFile "progress.cfg"
+OPEN Roms FOR OUTPUT AS #1
+OPEN "log.txt" FOR APPEND AS #2
+KILL "old.tmp"
+NAME "a.dat" AS "b.dat"
+df.SaveToCSV "data\out.csv"
+OPEN "staff.csv" FOR INPUT AS #3
+img.LoadFromFile "logo.png"
+PRINT "Saved to notes.txt" ' cfg.SaveToFile "comment.cfg"
+"#;
+        let mut got: Vec<String> = super::written_names_in(src).into_iter().collect();
+        got.sort();
+        assert_eq!(got, ["a.dat", "app_prefs.cfg", "b.dat", "data/out.csv", "log.txt", "old.tmp", "progress.cfg", "roms.cfg"]);
     }
     use super::*;
 

@@ -762,7 +762,17 @@ fn copied<R: Runtime>(rt: R, text: Option<String>) -> Value {
 
 /// Its properties its model answers.
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
-    with_mut(name, |c| {
+    // (only its own properties open the model, and only to read: the kernel
+    // reads a console's font or size while it has the model open — on the
+    // web that read comes here, and 2.122.0's Studio panicked on a mouse
+    // move over Output, its tooltip asking the font)
+    const OWN: [&str; 13] = [
+        "page", "maxlines", "filter", "showtabs", "autoscroll", "wordwrap", "linecount", "problemcount", "topline", "text", "seltext", "hasselection", "clickedline",
+    ];
+    if !OWN.contains(&prop) {
+        return None;
+    }
+    let read = |c: &Console| -> Option<Value> {
         Some(match prop {
             "page" => Value::String(c.page.name().into()),
             "maxlines" => Value::Integer(c.max_lines as i64),
@@ -780,7 +790,8 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "clickedline" => Value::Integer(c.pressed_index().map_or(-1, |i| i as i64)),
             _ => return None,
         })
-    })
+    };
+    with(name, read).unwrap_or_else(|| read(&Console::default()))
 }
 
 /// Its properties its model keeps: whether `prop` was one.
@@ -1047,5 +1058,57 @@ mod tests {
             c.add_problem(Problem { message: i.to_string(), ..Problem::default() });
         }
         assert_eq!(c.problems.len(), 2);
+    }
+
+    /// (2.122.1) A read through the runtime while the kernel has the model
+    /// open — the web's store reads come here: Console::tip_at asked the font
+    /// on a mouse move over Output, and 2.122.0's Studio panicked ("RefCell
+    /// already borrowed"). Another property doesn't open the model; its own
+    /// are read, never written.
+    #[test]
+    fn a_read_while_the_model_is_open_never_panics() {
+        #[derive(Clone, Copy)]
+        struct Fake;
+        impl Runtime for Fake {
+            fn get(self, _: &str, _: &str) -> Value {
+                Value::Null
+            }
+            fn set(self, _: &str, _: &str, _: Value) {}
+            fn call(self, _: &str, _: &str, _: &[Value]) -> Value {
+                Value::Null
+            }
+            fn exists(self, _: &str) -> bool {
+                true
+            }
+            fn type_of(self, _: &str) -> String {
+                "ROUTPUTCONSOLE".into()
+            }
+            fn components(self) -> Vec<(String, String)> {
+                Vec::new()
+            }
+            fn children(self, _: &str) -> Vec<(String, String)> {
+                Vec::new()
+            }
+            fn form_of(self, _: &str) -> Option<String> {
+                None
+            }
+            fn fire(self, _: &str, _: &str, _: &[Value]) {}
+            fn fire_then(self, _: &str, _: &str, _: &[Value], _: super::super::runtime::Then) {}
+            fn focus(self, _: &str) {}
+            fn invalidate(self) {}
+            fn restructure(self) {}
+            fn drop_list(self, _: &str, _: &str, _: Vec<String>, _: crate::objects::ops::Rect) {}
+            fn set_clipboard(self, _: &str) {}
+        }
+        let name = "con_reentrant_test";
+        remove(name);
+        with_mut(name, |c| c.write("hello\n"));
+        let (font, text) = with(name, |_| (rt_get(Fake, name, "fontname"), rt_get(Fake, name, "text"))).unwrap();
+        assert_eq!(font, None, "a property not the model's never opens it");
+        assert_eq!(text.map(|v| v.to_string_val()), Some("hello".to_string()));
+        // (one never made: read from a fresh model, none made)
+        assert_eq!(rt_get(Fake, "con_never_made", "linecount").map(|v| v.to_string_val()), Some("0".to_string()));
+        assert!(!exists("con_never_made"));
+        remove(name);
     }
 }
