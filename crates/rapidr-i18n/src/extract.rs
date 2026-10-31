@@ -270,7 +270,7 @@ pub fn extract_rust(text: &str, file: &str) -> Vec<Found> {
     let text: String = text[..code_end].lines().map(|l| if l.trim_start().starts_with("//") { "" } else { l }).collect::<Vec<_>>().join("\n");
     let text = text.as_str();
     let mut out = Vec::new();
-    for marker in ["tr_ui(\"", "tr_ui_fill(\""] {
+    for marker in ["tr_ui(\"", "tr_ui_fill(\"", "tr_note!(\""] {
         let mut from = 0;
         while let Some(i) = text[from..].find(marker) {
             let at = from + i;

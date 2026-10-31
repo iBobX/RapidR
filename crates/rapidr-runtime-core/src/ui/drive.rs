@@ -95,6 +95,9 @@ pub fn turn() {
         hands::step(Rt);
     }
     app_components::deliver(Rt, &answer);
+    // (demo mode: a scripted tutorial played and recorded — test hooks
+    // only, docs/video-pipeline.md)
+    rapidr_ui_app::demo::turn(Rt);
 }
 
 /// A turn while the debugger holds the program: looking is served (its

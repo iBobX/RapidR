@@ -24,6 +24,7 @@ use rapidr_preprocessor::LineKind;
 use crate::context::{self, chain_before, pretty_component, Ty};
 use crate::model::SymbolKind;
 use crate::text::{is_name_char, LineIndex};
+use crate::words::{tr_ui, tr_ui_fill};
 use crate::{CodeAction, FileDiagnostic, Snapshot, Targets, TextEdit};
 
 pub(crate) const RAPIDR_ONLY: &str = "rapidr-only";
@@ -42,18 +43,18 @@ const COMPAT: &str = "a classic compiler refuses it (this project is kept classi
 pub(crate) fn notes(origin: Origin, owner: Origin, missing: bool, runtimes: Runtimes, from: Option<&str>) -> String {
     let mut out: Vec<String> = Vec::new();
     if missing {
-        out.push("*Not implemented in RapidR yet.*".into());
+        out.push(tr_ui("*Not implemented in RapidR yet.*"));
     }
     if origin == Origin::RapidR && owner == Origin::RapidQ {
-        out.push("*A RapidR extension.*".into());
+        out.push(tr_ui("*A RapidR extension.*"));
     }
     match runtimes {
         Runtimes::All => {}
-        Runtimes::Desktop => out.push("*Desktop only (native builds and the interpreter): the web runtime doesn't have it.*".into()),
-        Runtimes::Web => out.push("*Web only: the desktop doesn't have it.*".into()),
+        Runtimes::Desktop => out.push(tr_ui("*Desktop only (native builds and the interpreter): the web runtime doesn't have it.*")),
+        Runtimes::Web => out.push(tr_ui("*Web only: the desktop doesn't have it.*")),
     }
     if let Some(inc) = from {
-        out.push(format!("*From `{inc}`.*"));
+        out.push(tr_ui_fill("*From `{inc}`.*", &[("inc", inc)]));
     }
     out.join("\n\n")
 }
@@ -383,7 +384,7 @@ pub(crate) fn actions(diags: &[FileDiagnostic], text_of: impl Fn(&Path) -> Optio
         if matches!(d.code.as_deref(), Some(NOT_RAPIDQ_NAME | RAPIDR_NAME)) {
             if let Some(name) = d.message.rsplit(' ').next() {
                 out.push(CodeAction {
-                    title: format!("Write {name}"),
+                    title: tr_ui_fill("Write {name}", &[("name", name)]),
                     edit: vec![(d.file.clone(), vec![TextEdit { start: d.start, end: d.end, text: name.to_string() }])],
                     fixes: Some(d.clone()),
                     preferred: true,
@@ -425,7 +426,7 @@ fn did_you_mean(d: &FileDiagnostic, text: &str, member: &str, class: &str) -> Ve
         .take(3)
         .enumerate()
         .map(|(k, (_, name))| CodeAction {
-            title: format!("Change to {name}"),
+            title: tr_ui_fill("Change to {name}", &[("name", name)]),
             edit: vec![(d.file.clone(), vec![TextEdit { start, end: start + member.len(), text: name.to_string() }])],
             fixes: Some(d.clone()),
             preferred: k == 0,

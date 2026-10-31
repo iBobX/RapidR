@@ -2027,6 +2027,39 @@ const CASES = [
     // a panel on Main and Main.AddChild after it)
     dump: { "codedoc(0).text": /\n    CREATE Form1 AS RPanel\n        Left = 0\n        Top = 0\n        Width = 320\n        Height = 240\n    END CREATE\nEND CREATE\nMain\.AddChild\(Form1\.Handle, "Form1", 0, 0, 0, 0, 0, 1\)\n/, "outputbox.text": /Form1 is a child window of Main/, "proj.filecount": /^1$/ },
   },
+  // (DEMO-MODE, docs/video-pipeline.md) A tiny demo script played headless:
+  // a new project, a button dragged from the Toolbox by the demo's pointer
+  // (the kernel's own input), its caption typed in Properties, saved — the
+  // project on disk says Studio reacted; frames written at 30 fps, the
+  // timeline done, Studio ended by demo mode itself (exit 0, no dump).
+  {
+    name: "demo-mode-tiny",
+    open: "",
+    // (Studio runs a script's `do` steps: ide/demo.inc)
+    do: "demo:poll",
+    desktopOnly: true,
+    delay: 60,
+    quit: true,
+    demo: {
+      id: "tiny", title: "Tiny", screen: [960, 600], scale: 1, pointer: { speed: 3 },
+      steps: [
+        { card: { title: "A tiny demo", lines: ["RapidR Studio"] }, say: ["A tiny demo."], gap: 0.1 },
+        { say: ["A new project."], do: [{ do: "newproject:gui|{dir}|Tiny" }, { waitFor: "shows:designdoc(0)", timeout: 20 }] },
+        { say: ["A button from the Toolbox."], do: [{ drag: "Toolbox > RButton", to: { target: "designdoc(0)", x: 0.4, y: 0.4 } }] },
+        { say: ["Its caption."], do: [{ click: { target: "Inspector > Caption", x: 0.78 } }, { key: "Ctrl+A" }, { type: "Go now" }, { key: "Enter" }] },
+        { say: ["Saved."], do: [{ do: "file.saveAll" }, { wait: 0.5 }, { mark: "poster" }], gap: 0.1 },
+      ],
+    },
+    dump: {},
+    files: {
+      // (the drag added one button, not two; the caption typed reached it)
+      "Tiny/main.rr": /^(?![\s\S]*Button2)[\s\S]*CREATE Button1 AS RButton\n\s*Caption = "Go now"/,
+      "demo-out/timeline.json": /"done": true[\s\S]*"marks": \{\s*"poster": \d+/,
+      // (at least a second of frames, at 30 a second)
+      "demo-out/frames/frames.json": /"written":[1-9][\s\S]*"t":[1-9]\d{3,}/,
+      "demo-out/done": /^done$/,
+    },
+  },
   // (S-DESIGN-2, Robert's report) The form itself (nothing selected) in
   // the inspector, with its events: OnShow's handler made, bound and
   // written as a component's is.
@@ -4864,6 +4897,215 @@ const CASES = [
       "ai.userlanguage": /^Spanish$/,
       // (the last request: the chat summarised again, now in Spanish)
       "ai.lastrequest": /Write the summary in Spanish \(español\) \(the language the user writes in\)/,
+    },
+  },
+  // ---- RAI in Studio's language (ES-REFERENCE part 3, Robert 2026-10-30) ----
+  // The assistant answers in Studio's language unless the person clearly
+  // writes in another (Settings > AI: "RAI answers in:"). What the model is
+  // sent (the last request, as sent — ai.lastrequest) carries the language
+  // line and, in Spanish, the RapidR words; the pane shows it all in the
+  // language Studio speaks. The mock-polyglot model answers in the language
+  // the request's instructions name.
+  {
+    // The empty assistant in Spanish: the greeting and what to ask, nothing
+    // English left; the setting's default is Studio's language ("app")
+    name: "ai-es-greeting",
+    lang: "es",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,wait,wait",
+    delay: 6,
+    dump: {
+      "ai.replylanguage": /^app$/,
+      "aichat.plaintext": /^$/,
+      "ai.model": /^mock-polyglot$/,
+    },
+  },
+  {
+    // A question in Spanish in a Spanish Studio: the instructions say so —
+    // Studio's language, the RapidR words (Decisions of the glossary), tú —
+    // and the answer, the status and the chat are in Spanish
+    name: "ai-es-language",
+    lang: "es",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:ask=¿Qué muestra el formulario?,ai:wait,wait",
+    delay: 8,
+    dump: {
+      "ai.transcript": /¿Qué muestra el formulario\?[\s\S]*El formulario tiene una lista de sitios/,
+      "aistatus.simpletext": /^Respondido\.$/,
+      "ai.userlanguage": /^Spanish$/,
+      // (the stable instructions: Studio's words in Spanish; the last line:
+      // Spanish unless the person writes clearly in another language)
+      "ai.lastrequest": /Studio is in Spanish\. Say its words and RapidR's terms as Studio does, menu paths too \(Herramientas > Configuración\): build=compilar, app=aplicación, array=arreglo, event handler=controlador de eventos, add=añadir, library=biblioteca, form=formulario[\s\S]*Toolbox=Caja de herramientas, Properties=Propiedades, Outline=Estructura, Problems=Problemas, Output=Salida, Run=Ejecutar, Debug=Depurar, Settings=Configuración[\s\S]*Watch=Observar, Call Stack=Pila de llamadas, Breakpoints=Puntos de interrupción\. Speak to the person as tú, never vos, usted or vosotros\. Code, names, keywords and file names stay English[\s\S]*Reply in Spanish \(español\) unless the person writes clearly in another language: then use theirs, even when earlier messages/,
+    },
+  },
+  {
+    // A message clearly in English to a Spanish Studio: the person's
+    // language wins — the last line names English; Studio's words are still
+    // there (the panes the answer may name are in Spanish)
+    name: "ai-es-english-message",
+    lang: "es",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:ask=What does the form show?,ai:wait,wait",
+    delay: 8,
+    dump: {
+      "ai.transcript": /What does the form show\?[\s\S]*The form has a list of sites/,
+      "ai.userlanguage": /^English$/,
+      "ai.lastrequest": /Studio is in Spanish[\s\S]*The user writes in English: reply in English, even when earlier messages/,
+    },
+  },
+  {
+    // "Studio's language", the default: English, then a message that says
+    // too little ("ok") goes back to Studio's language (Spanish). "The
+    // language I write in" (ai:replyin=writer): the same chat keeps English
+    name: "ai-es-says-too-little",
+    lang: "es",
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:ask=What does the form show?,ai:wait,ai:ask=ok,ai:wait,wait",
+    delay: 10,
+    dump: {
+      "ai.replylanguage": /^app$/,
+      "ai.userlanguage": /^English$/,
+      "ai.lastrequest": /Reply in Spanish \(español\) unless the person writes clearly in another language: then use theirs[\s\S]*$/,
+    },
+  },
+  {
+    name: "ai-es-writer-keeps-language",
+    lang: "es",
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:replyin=writer,ai:ask=What does the form show?,ai:wait,ai:ask=ok,ai:wait,wait",
+    delay: 10,
+    dump: {
+      "ai.replylanguage": /^auto$/,
+      "ai.userlanguage": /^English$/,
+      // (kept: the language the person was writing in, English; the
+      // Spanish words are Studio's — still there)
+      "ai.lastrequest": /Studio is in Spanish[\s\S]*The user writes in English: reply in English, even when earlier messages/,
+    },
+  },
+  {
+    // English Studio: nothing Spanish in the instructions, the line says
+    // English unless the person writes clearly in another language; a
+    // message in Spanish is answered in Spanish
+    name: "ai-en-language",
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:ask=What does the form show?,ai:wait,wait",
+    delay: 8,
+    dump: {
+      "ai.replylanguage": /^app$/,
+      "ai.transcript": /The form has a list of sites/,
+      "ai.lastrequest": /^(?![\s\S]*(compilar|Caja de herramientas|Studio is in Spanish))[\s\S]*Reply in English unless the person writes clearly in another language: then use theirs, even when earlier messages[\s\S]*$/,
+    },
+  },
+  {
+    name: "ai-en-spanish-message",
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:ask=¿Y el botón Start?,ai:wait,wait",
+    delay: 8,
+    dump: {
+      "ai.transcript": /El formulario tiene una lista de sitios/,
+      "ai.userlanguage": /^Spanish$/,
+      "ai.lastrequest": /^(?![\s\S]*(compilar|Caja de herramientas))[\s\S]*The user writes in Spanish: reply in Spanish \(español\), even when earlier messages/,
+    },
+  },
+  {
+    // The assistant's work in Spanish: the status, the steps and the card
+    // of a change it proposes (mock-small's "rename the window")
+    name: "ai-es-card",
+    lang: "es",
+    capture: true,
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "ai.steps": /^Se leyó hello_form\.rr\nCambio propuesto a hello_form\.rr$/,
+      "ai.transcript": /\*\*Tú\*\*[\s\S]*\*\*Asistente\*\*[\s\S]*##### ✓ Cambio propuesto a hello_form\.rr\u2003\u2003<ins title="1 línea añadida">\+1<\/ins> <del title="1 línea quitada">−1<\/del>\u2003\u2003\[Revisar\]\(ai:review\)/,
+      "aistatus.simpletext": /^Pendiente — El asistente propuso un cambio: revísalo\.$/,
+    },
+  },
+  {
+    // Tools > Settings > AI in Spanish: "RAI answers in:" with its two
+    // choices — Studio's language is chosen; the other picked and kept
+    name: "ai-es-settings",
+    lang: "es",
+    capture: true,
+    captureAll: true,
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, idle(8)].join(","),
+    delay: 5,
+    dump: {
+      "aireplylabel.caption": /^RAI respon&de en:$/,
+      "aireplybox.itemcount": /^2$/,
+      "aireplybox.text": /^El idioma de Studio$/,
+    },
+  },
+  {
+    // The assistant's other words in Spanish: the slash commands typed ("/")
+    // and the chats' list — nothing English left in the pane
+    name: "ai-es-slash",
+    lang: "es",
+    capture: true,
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,wait,ai.assistant,type:/c`,
+    delay: 9,
+    dump: {
+      "aislashbar.__shown": /^1$/,
+      "aislashlist.text": /^\/compact {3}Resume este chat ahora[^\n]*\r?\n\/chats {3}Los chats de este proyecto/,
+    },
+  },
+  {
+    name: "ai-es-chats",
+    lang: "es",
+    capture: true,
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "aichatlist.itemcount": /^2$/,
+      "aichatsbtn.caption": /^Atrás$/,
+    },
+  },
+  {
+    // English: the same row; "The language I write in" picked and OK: the
+    // assistant follows the writer ("auto"), and Studio started again
+    // keeps it
+    name: "ai-settings-reply-language",
+    capture: true,
+    captureAll: true,
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aireplybox.__item_1", OK, idle(20)].join(","),
+    restart: { do: "view.settings", delay: 5, events: [AI_TAB, idle(8)].join(",") },
+    delay: 5,
+    dump: {
+      "aireplylabel.caption": /^&RAI answers in:$/,
+      "aireplybox.itemcount": /^2$/,
+      "aireplybox.text": /^The language I write in$/,
+      "ai.replylanguage": /^auto$/,
     },
   },
   {
@@ -8253,7 +8495,7 @@ function runDesktop(c, scale = 1) {
     if (c.installedWritable) writeFileSync(join(home, "release.toml"), 'version = "0.0.0"\nrust = "1.0.0"\nkind = "sdk"\n');
     else writableTree(home, false);
   }
-  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light", ...(c.desktopArgs || [])];
+  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light", ...(c.lang ? ["--lang", c.lang] : []), ...(c.desktopArgs || [])];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
@@ -8332,6 +8574,9 @@ function runDesktop(c, scale = 1) {
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
+      // (DEMO-MODE: the script played and recorded; no capture — demo mode
+      // ends Studio itself when the script is done)
+      ...(c.demo ? { RAPIDR_DEMO: join(dir, "demo.json"), RAPIDR_DEMO_OUT: join(dir, "demo-out"), RAPIDR_DEMO_LANG: c.demoLang || "en", RAPIDR_CAPTURE: undefined, RAPIDR_CAPTURE_DELAY: undefined, RAPIDR_TEST_DUMP: undefined } : {}),
     },
   });
   rmSync(join(WORK, `${c.name}.reg`), { force: true });
@@ -8347,6 +8592,8 @@ function runDesktop(c, scale = 1) {
     writer = spawn(process.execPath, [join(HERE, "ext_writer.mjs"), meet, join(dir, "project"), join(dir, "external.json")], { stdio: "ignore" });
     c.env = { ...(c.env || {}), RAPIDR_TEST_EXT: meet };
   }
+  // (DEMO-MODE: the case's script, {dir} its own folder)
+  if (c.demo) writeFileSync(join(dir, "demo.json"), JSON.stringify(c.demo).replaceAll("{dir}", dir));
   let r = run(args, c.delay);
   if (writer && writer.exitCode === null) writer.kill();
   if (c.restart) {
@@ -8506,6 +8753,8 @@ async function runWebPage(ctx, c, last, scale, record) {
     if (langAt >= 0) q.set("lang", c.desktopArgs[langAt + 1]);
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
+    // (`lang`: Studio started in that language)
+    if (c.lang) q.set("lang", c.lang);
     // (the program's files are in the page's store: imported from there;
     // {dir}: the case's own folder in the page's store)
     const doSteps = c.webDo ?? c.do;

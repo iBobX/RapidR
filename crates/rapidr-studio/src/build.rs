@@ -50,7 +50,7 @@ pub fn building(name: &str) -> bool {
 /// [`web_output`] and [`web_done`]).
 pub fn web_start(name: &str) -> Result<(), String> {
     if building(name) {
-        return Err("a build is running already".into());
+        return Err(rapidr_value::i18n::tr_ui("a build is running already"));
     }
     WEB_BUILDS.with(|b| b.borrow_mut().insert(name.to_ascii_lowercase(), Vec::new()));
     Ok(())
@@ -79,7 +79,7 @@ pub fn start(name: &str, rapidr: PathBuf, args: &[String], cwd: &str) -> Result<
     use std::io::{BufRead, BufReader};
     use std::process::{Command, Stdio};
     if building(name) {
-        return Err("a build is running already".into());
+        return Err(rapidr_value::i18n::tr_ui("a build is running already"));
     }
     let mut cmd = Command::new(&rapidr);
     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());

@@ -83,6 +83,28 @@ pub const MESSAGES: &[Message] = &[
     m("RR0016", "GOSUB needs a label"),
     m("RR0017", "FOR {name} AS {type}: {name} is already declared AS {declared}"),
     m("RR0018", "{file}: no errors"),
+    // (the Problems pane's notes about what works on one runtime only: the
+    // language service writes them in English — the assistant's tools read
+    // them so — and Problems shows them translated)
+    m("RR0019", "{key} works on the desktop only: the web runtime doesn't have it ({n} uses)"),
+    m("RR0020", "{key} works on the desktop only: the web runtime doesn't have it (1 use)"),
+    m("RR0021", "{key} works in the web runtime only: the desktop doesn't have it ({n} uses)"),
+    m("RR0022", "{key} works in the web runtime only: the desktop doesn't have it (1 use)"),
+    m("RR0023", "{what} works on the desktop only: the web runtime doesn't have it"),
+    m("RR0024", "{what} works in the web runtime only: the desktop doesn't have it"),
+    // (the language service's other notes — compatibility with the classic
+    // compiler, the habits of other languages, a number's NOT — written in
+    // English too and shown translated: ES-REFERENCE part 2b)
+    m("RR0025", "{what} is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)"),
+    m("RR0026", "The classic {what} is not implemented in RapidR yet"),
+    m("RR0027", "{written} is not a classic name: RapidR reads it as {name}"),
+    m("RR0028", "{shown} is RapidR's name: a classic compiler knows it as {q}"),
+    m("RR0029", "{name} is RapidR's own component: a classic compiler doesn't have it (this project is kept classic-compatible)"),
+    m("RR0030", "{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"),
+    m("RR0031", "Inside FUNCTION {function}, Result is the FUNCTION's own value (RESULT): this variable can't be used there. Give it another name"),
+    m("RR0032", "&& is not a logical AND in RapidR (& joins text), so this test is never what was meant"),
+    m("RR0033", "{name} is not RapidR: nothing is printed"),
+    m("RR0034", "{name} is a {inc} constant — add $INCLUDE \"{inc}\""),
 ];
 
 /// The message with ID `id`.
@@ -92,86 +114,7 @@ pub fn by_id(id: &str) -> Option<&'static Message> {
 
 // ------------------------------------------------------------ matching --
 
-#[derive(Debug)]
-enum Part<'a> {
-    Lit(&'a str),
-    Var(&'a str),
-}
-
-fn parts(template: &str) -> Vec<Part<'_>> {
-    let mut out = Vec::new();
-    let mut rest = template;
-    while let Some(i) = rest.find('{') {
-        let Some(j) = rest[i..].find('}') else { break };
-        if i > 0 {
-            out.push(Part::Lit(&rest[..i]));
-        }
-        out.push(Part::Var(&rest[i + 1..i + j]));
-        rest = &rest[i + j + 1..];
-    }
-    if !rest.is_empty() {
-        out.push(Part::Lit(rest));
-    }
-    out
-}
-
-/// `text` against template parts from `k`: the values taken (in order), and
-/// how much of `text` is left over when `prefix` allows that.
-fn match_from(parts: &[Part], k: usize, text: &str, values: &mut Vec<(String, String)>, prefix: bool) -> Option<usize> {
-    let Some(part) = parts.get(k) else {
-        return if text.is_empty() || prefix { Some(text.len()) } else { None };
-    };
-    match part {
-        Part::Lit(l) => {
-            let rest = text.strip_prefix(l)?;
-            match_from(parts, k + 1, rest, values, prefix)
-        }
-        Part::Var(name) => {
-            // (the same name twice: the same value)
-            if let Some((_, v)) = values.iter().find(|(n, _)| n == name).cloned() {
-                let rest = text.strip_prefix(v.as_str())?;
-                return match_from(parts, k + 1, rest, values, prefix);
-            }
-            match parts.get(k + 1) {
-                // (the last: the rest of the text, or the next word when a
-                // longer message may follow)
-                None if !prefix => {
-                    if text.is_empty() {
-                        return None;
-                    }
-                    values.push((name.to_string(), text.to_string()));
-                    Some(0)
-                }
-                None => {
-                    let end = text.find(|c: char| c.is_whitespace() || c == ',' || c == ';').unwrap_or(text.len());
-                    if end == 0 {
-                        return None;
-                    }
-                    values.push((name.to_string(), text[..end].to_string()));
-                    Some(text.len() - end)
-                }
-                Some(Part::Lit(next)) => {
-                    // (the shortest value the rest matches with)
-                    let mut from = 1;
-                    while from <= text.len() {
-                        let Some(at) = text.get(from..).and_then(|t| t.find(next)).map(|i| i + from) else { return None };
-                        values.push((name.to_string(), text[..at].to_string()));
-                        if let Some(left) = match_from(parts, k + 1, &text[at..], values, prefix) {
-                            return Some(left);
-                        }
-                        values.pop();
-                        from = at + 1;
-                        while from < text.len() && !text.is_char_boundary(from) {
-                            from += 1;
-                        }
-                    }
-                    None
-                }
-                Some(Part::Var(_)) => None,
-            }
-        }
-    }
-}
+use rapidr_i18n::template::{match_from, parts};
 
 /// What may follow a message that is matched whole by a template's start:
 /// a hint the compiler adds (` — did you mean …`, ` (in …)`, `: …`).
@@ -387,6 +330,16 @@ mod tests {
         for m in MESSAGES {
             assert!(m.id.len() == 6 && (m.id.starts_with("RQ") || m.id.starts_with("RR")), "{}", m.id);
         }
+    }
+
+    #[test]
+    fn the_language_services_notes_are_identified_and_translated() {
+        let (m, v, _) = identify("RButton.Foo is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)").unwrap();
+        assert_eq!((m.id, v[0].1.as_str()), ("RR0025", "RButton.Foo"));
+        assert_eq!(identify("console.log is not RapidR: nothing is printed").unwrap().0.id, "RR0033");
+        assert_eq!(identify("mbYes is a RAPIDQ.INC constant — add $INCLUDE \"RAPIDQ.INC\"").unwrap().0.id, "RR0034");
+        assert_eq!(localize("console.log is not RapidR: nothing is printed", "es"), "console.log no es RapidR: no se imprime nada");
+        assert_eq!(localize("console.log is not RapidR: nothing is printed", "en"), "console.log is not RapidR: nothing is printed");
     }
 
     #[test]

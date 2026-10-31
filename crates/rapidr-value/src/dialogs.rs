@@ -3,6 +3,7 @@
 //! (browser dialogs) — and what every runtime's message box shows: its
 //! caption, its icon ([`icon_shapes`]) and its layout ([`message_layout`]).
 
+use crate::i18n::tr_ui;
 use crate::objects::trackbar::Shape;
 
 /// A dialog button: its label and the value the call returns when chosen.
@@ -134,6 +135,10 @@ pub fn message_dlg_title(msg_type: i64) -> &'static str {
 pub fn message_dlg_caption(msg_type: i64, app_title: &str) -> String {
     match message_dlg_title(msg_type) {
         "" => app_title.to_string(),
+        "Warning" => tr_ui("Warning"),
+        "Error" => tr_ui("Error"),
+        "Information" => tr_ui("Information"),
+        "Confirm" => tr_ui("Confirm"),
         t => t.to_string(),
     }
 }
@@ -341,8 +346,18 @@ pub fn wrap(text: &str, font: &crate::objects::font::Font, width: i64) -> Vec<St
 
 /// The mnemonic Windows gives a message box's button (`&Yes`).
 pub fn button_caption(label: &str) -> String {
+    // (the button is still told by its English label — the test hooks, the
+    // answers' numbers —; the words the person reads are the language's,
+    // with the mnemonic where the language puts it)
     match label {
-        "Yes" | "No" | "Retry" | "Abort" | "Ignore" | "All" => format!("&{label}"),
+        "Yes" => tr_ui("&Yes"),
+        "No" => tr_ui("&No"),
+        "Retry" => tr_ui("&Retry"),
+        "Abort" => tr_ui("&Abort"),
+        "Ignore" => tr_ui("&Ignore"),
+        "All" => tr_ui("&All"),
+        "OK" => tr_ui("OK"),
+        "Cancel" => tr_ui("Cancel"),
         _ => label.to_string(),
     }
 }

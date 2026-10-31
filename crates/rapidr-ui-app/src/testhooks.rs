@@ -53,6 +53,10 @@
 //!   `__look_contrast`, `__look_darkcontrast`) changes it mid-run, as the
 //!   user switching the system to dark would ([`Action::Look`]). Test-only:
 //!   a normal run never reads it.
+//! - `RAPIDR_DEMO=<script.json>`, `RAPIDR_DEMO_OUT=<folder>`,
+//!   `RAPIDR_DEMO_LANG=es`: demo mode — a scripted tutorial played in the
+//!   program's own windows and recorded headless ([`crate::demo`],
+//!   docs/video-pipeline.md). Input automation: gated as every hook here.
 //!
 //! Every hook reads its variable through [`var`]: a release build's hooks
 //! act only with a signed test-mode token (`RAPIDR_TEST_MODE`, SEC-24,

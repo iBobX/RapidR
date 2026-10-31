@@ -731,7 +731,7 @@ pub fn overlay_ops(m: &Manager, g: &Geometry, t: &Theme, font: &Font) -> Vec<Op>
 pub fn describe_target(target: &Target, m: &Manager) -> String {
     let titles = m.titles();
     let what = |a: &Anchor| match a {
-        Anchor::Documents => "Documents".to_string(),
+        Anchor::Documents => crate::i18n::tr_ui("Documents"),
         // (a group by the pane it shows)
         Anchor::Pane(p) => match m.layout.find(p) {
             Some(super::Where::Docked(path, _)) => match m.layout.root.at(&path) {
@@ -741,18 +741,33 @@ pub fn describe_target(target: &Target, m: &Manager) -> String {
             _ => titles.title(p),
         },
     };
+    use crate::i18n::{tr_ui, tr_ui_fill};
+    // (a whole phrase for each: the words agree in other languages)
     match target {
-        Target::Edge(s) => format!("Dock {}", s.name()),
-        Target::Beside(a, s) => format!("{} of {}", match s {
-            Side::Left => "Left",
-            Side::Right => "Right",
-            Side::Top => "Above",
-            Side::Bottom => "Below",
-        }, what(a)),
-        Target::Into(Anchor::Documents) => "As a document".to_string(),
-        Target::Into(a) => format!("Tab with {}", what(a)),
-        Target::Float(_) => "Float".to_string(),
-        Target::AutoHide(s) => format!("Auto-hide {}", s.name()),
+        Target::Edge(s) => match s {
+            Side::Left => tr_ui("Dock left"),
+            Side::Top => tr_ui("Dock top"),
+            Side::Right => tr_ui("Dock right"),
+            Side::Bottom => tr_ui("Dock bottom"),
+        },
+        Target::Beside(a, s) => {
+            let pane = what(a);
+            match s {
+                Side::Left => tr_ui_fill("Left of {pane}", &[("pane", &pane)]),
+                Side::Right => tr_ui_fill("Right of {pane}", &[("pane", &pane)]),
+                Side::Top => tr_ui_fill("Above of {pane}", &[("pane", &pane)]),
+                Side::Bottom => tr_ui_fill("Below of {pane}", &[("pane", &pane)]),
+            }
+        }
+        Target::Into(Anchor::Documents) => tr_ui("As a document"),
+        Target::Into(a) => tr_ui_fill("Tab with {pane}", &[("pane", &what(a))]),
+        Target::Float(_) => tr_ui("Float"),
+        Target::AutoHide(s) => match s {
+            Side::Left => tr_ui("Auto-hide left"),
+            Side::Top => tr_ui("Auto-hide top"),
+            Side::Right => tr_ui("Auto-hide right"),
+            Side::Bottom => tr_ui("Auto-hide bottom"),
+        },
     }
 }
 

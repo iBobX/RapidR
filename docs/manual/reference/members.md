@@ -262,6 +262,7 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `HotTrack` | bool | False | Highlights the item, tab or header section under the mouse. |
+| `TabIcons` | string |  | Each tab's icon, RapidR's icons by name, separated by commas ("image,audio,settings"; "" for none): a 16-pixel icon before each tab's name, and the icons alone, each named in a tooltip and for a screen reader, when one line of tabs is too narrow for every name — never a cut name. The tabs are at least 24 pixels tall; vertical tabs show no icons. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `MultiLine` | bool | False | Wraps the tabs onto more rows instead of scrolling them. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |

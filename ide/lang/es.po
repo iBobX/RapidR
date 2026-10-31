@@ -369,7 +369,7 @@ msgstr "Elige un modelo en la lista de arriba (↻ pide sus modelos al proveedor
 
 #: ide/ai.inc
 msgid "Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
-msgstr "Pregunta por este proyecto o pide un programa nuevo: {q}Añade un botón Borrar{q}, {q}Hazme una calculadora de propinas{q}. Un programa nuevo se abre en Studio, listo para ejecutarse; los cambios a tus archivos esperan a que los revises. Escribe / para ver los comandos."
+msgstr "Pregunta por este proyecto o pide un programa: {q}Añade un botón Borrar{q}, {q}Hazme una calculadora de propinas{q}. Un programa nuevo se abre en Studio, listo para ejecutarse; tus cambios esperan tu revisión. Escribe / para ver los comandos."
 
 #: ide/ai.inc
 msgid "the provider"
@@ -532,7 +532,7 @@ msgstr "RAI quiere hacer clic y escribir en tu programa en ejecución: elige Per
 
 #: ide/ai.inc
 msgid "Waiting for you — {status}"
-msgstr "Esperando tu respuesta — {status}"
+msgstr "Pendiente — {status}"
 
 #: ide/ai.inc
 msgid "Stopped. Your queued message is back in the box, not sent."
@@ -957,7 +957,7 @@ msgstr "Un chat nuevo."
 # legal
 #: ide/aichats.inc
 msgid "Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good."
-msgstr "Se guardan en esta computadora, en la carpeta propia de Studio — nunca en el proyecto. Eliminar quita un chat para siempre."
+msgstr "Se guardan en esta computadora, en la carpeta de Studio — nunca en el proyecto. Eliminar es definitivo."
 
 #: ide/aichats.inc
 msgid "Kept in {folder}"
@@ -4539,7 +4539,7 @@ msgstr "Una ventana grande: un tablero"
 #: ide/panes.inc
 #, review
 msgid "A data frame and a chart"
-msgstr "Un marco de datos y un gráfico"
+msgstr "Una tabla de datos y un gráfico"
 
 #: ide/panes.inc
 msgid "Debug it: values as trees"
@@ -5855,6 +5855,71 @@ msgid "Only read the project and answer"
 msgstr "Solo leer el proyecto y responder"
 
 #: ide/settings.inc
+msgid "&RAI answers in:"
+msgstr "RAI respon&de en:"
+
+#: ide/settings.inc
+msgid "The language of the assistant's answers"
+msgstr "El idioma de las respuestas del asistente"
+
+#: ide/settings.inc
+msgid "Studio's language: the assistant answers in the language Studio speaks, unless you clearly write in another one. The language I write in: it answers in the language of your latest message."
+msgstr "El idioma de Studio: el asistente responde en el idioma que habla Studio, salvo que escribas claramente en otro. El idioma en que escribo: responde en el idioma de tu último mensaje."
+
+#: ide/settings.inc
+msgid "Studio's language"
+msgstr "El idioma de Studio"
+
+#: ide/settings.inc
+msgid "The language I write in"
+msgstr "El idioma en que escribo"
+
+# legal
+#: ide/settings.inc
+msgid "the macOS Keychain"
+msgstr "el Llavero de macOS"
+
+# legal
+#: ide/settings.inc
+msgid "Windows Credential Manager"
+msgstr "el Administrador de credenciales de Windows"
+
+# legal
+#: ide/settings.inc
+msgid "the Secret Service (GNOME Keyring or KWallet)"
+msgstr "el Secret Service (GNOME Keyring o KWallet)"
+
+# legal
+#: ide/settings.inc
+msgid "this browser tab, until it closes"
+msgstr "esta pestaña del navegador, hasta que se cierre"
+
+# legal
+#: ide/settings.inc
+msgid "this browser, on this device"
+msgstr "este navegador, en este dispositivo"
+
+# legal
+#: ide/settings.inc
+msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
+msgstr "la memoria, hasta que el programa termine (esta computadora no tiene un llavero que RapidR pueda usar)"
+
+# legal
+#: ide/settings.inc
+msgid "memory, for this session only"
+msgstr "la memoria, solo durante esta sesión"
+
+# legal
+#: ide/settings.inc
+msgid "this program's memory, until it ends"
+msgstr "la memoria de este programa, hasta que termine"
+
+# legal
+#: ide/settings.inc
+msgid "an environment variable"
+msgstr "una variable de entorno"
+
+#: ide/settings.inc
 msgid "Include folders: none ($INCLUDE looks in the program's folder)"
 msgstr "Carpetas de inclusión: ninguna ($INCLUDE busca en la carpeta del programa)"
 
@@ -6453,7 +6518,7 @@ msgstr "Historial local: {file}"
 
 #: ide/versions.inc
 msgid "A copy each time the file was saved, kept in the project's .rapidr folder (never in a version)"
-msgstr "Una copia cada vez que se guardó el archivo, guardada en la carpeta .rapidr del proyecto (nunca en una versión)"
+msgstr "Una copia de cada guardado, en .rapidr del proyecto (nunca en una versión)"
 
 #: ide/versions.inc
 msgid "Copies of {file}, newest first"
@@ -6686,6 +6751,26 @@ msgstr "Aplicación MDI"
 msgid "Child windows, File and Window menus."
 msgstr "Ventanas secundarias, menús Archivo y Ventana."
 
+#: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
+msgid "RapidR Light"
+msgstr "Claro"
+
+#. A look in the Properties pane's Theme row: the row's value column is narrow, so the word is short (the View > Theme menu says RapidR claro / oscuro / contraste alto)
+#: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
+msgid "RapidR Dark"
+msgstr "Oscuro"
+
+#: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
+msgid "RapidR High Contrast"
+msgstr "Contraste alto"
+
+#: ide/panels.inc
+msgid "Classic"
+msgstr "Clásico"
+
 #: ide/versions.inc
 msgid "Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo"
 msgstr "Arriba y Abajo eligen una versión; Intro muestra qué cambió; Mayús+F10 abre su menú: ¿Qué cambió?, Volver..., Deshacer"
@@ -6729,3 +6814,4 @@ msgstr "Lo que comparte Enviar: detalles"
 #: ide/ai.inc
 msgid "Context: {pct}%"
 msgstr "Contexto: {pct}%"
+

@@ -73,7 +73,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
         "error" => text(r.error),
         "errorkind" => text(r.kind),
         "secrets" => text(r.secrets.join("\n")),
-        "canundo" => text(engine::can_undo(&r).unwrap_or_default()),
+        "canundo" => text(in_language(&engine::can_undo(&r).unwrap_or_default())),
         "historyfolder" => text(if r.folder.is_empty() { String::new() } else { local_history::history_folder(&r.folder) }),
         // (when the timeline's and the history's times are: "2 minutes ago")
         "now" => Value::Integer(local_history::now()),
@@ -422,24 +422,18 @@ mod engine {
     fn refusal(d: &Path) -> Option<String> {
         let canon = d.canonicalize().ok()?;
         if canon.parent().is_none() {
-            return Some("Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project).".into());
+            return Some(rapidr_value::i18n::tr_ui("Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project)."));
         }
         let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).and_then(|h| h.canonicalize().ok());
         if let Some(home) = home {
             let shared = [home.clone(), home.join("Desktop"), home.join("Documents"), home.join("Downloads")];
             if shared.iter().any(|s| *s == canon) {
-                return Some(format!(
-                    "Versions keep a project's own folder, and {} holds much more than this project. Put the project in a folder of its own first (File > New Project, or Save All into a new folder).",
-                    canon.display()
-                ));
+                return Some(rapidr_value::i18n::tr_ui_fill("Versions keep a project's own folder, and {folder} holds much more than this project. Put the project in a folder of its own first (File > New Project, or Save All into a new folder).", &[("folder", &canon.display().to_string())]));
             }
         }
         for up in canon.ancestors().skip(1) {
             if up.join(".git").exists() {
-                return Some(format!(
-                    "This project is inside {}, which already has versions of its own. Studio keeps the versions of a project's own folder only, so it doesn't start new ones inside it. Copy the project into a folder of its own to version it here.",
-                    up.display()
-                ));
+                return Some(rapidr_value::i18n::tr_ui_fill("This project is inside {folder}, which already has versions of its own. Studio keeps the versions of a project's own folder only, so it doesn't start new ones inside it. Copy the project into a folder of its own to version it here.", &[("folder", &up.display().to_string())]));
             }
         }
         None
@@ -447,7 +441,7 @@ mod engine {
 
     pub fn start(r: &mut Repo) -> bool {
         if r.folder.is_empty() {
-            failed(r, "not-versioned", "Open a project first: versions are kept for a project's folder.".into());
+            failed(r, "not-versioned", rapidr_value::i18n::tr_ui("Open a project first: versions are kept for a project's folder."));
             return false;
         }
         let d = dir(r);
@@ -680,7 +674,7 @@ mod engine {
     use super::{failed, Repo, NOT_ON_THE_WEB};
 
     fn no(r: &mut Repo) {
-        failed(r, "not-available", NOT_ON_THE_WEB.to_string());
+        failed(r, "not-available", rapidr_value::i18n::tr_ui("Versions need RapidR Studio on your computer: in a browser, Studio keeps a local history of your saves only."));
     }
 
     pub fn read_state(_: &mut Repo) -> Result<(), String> {
@@ -751,11 +745,11 @@ mod tests {
             ("Went back to \u{201C}first\u{201D} (abc1234)", "Se volvió a \u{201C}first\u{201D} (abc1234)"),
             ("Went back to \u{201C}first\u{201D} (abc1234) for main.rr", "Se volvió a \u{201C}first\u{201D} (abc1234) para main.rr"),
             ("Went back to the checkpoint \u{201C}make it blue\u{201D}", "Se volvió al punto de control \u{201C}make it blue\u{201D}"),
-            ("Restored main.rr from version abc1234", "Se restauró main.rr de la versión abc1234"),
-            ("Started the experiment \u{201C}idea\u{201D}", "Se empezó el experimento \u{201C}idea\u{201D}"),
+            ("Restored main.rr from version abc1234", "Se restauró main.rr desde la versión abc1234"),
+            ("Started the experiment \u{201C}idea\u{201D}", "Se inició el experimento \u{201C}idea\u{201D}"),
             ("Switched to the experiment \u{201C}idea\u{201D}", "Se cambió al experimento \u{201C}idea\u{201D}"),
             ("Brought \u{201C}idea\u{201D} in", "Se incorporó \u{201C}idea\u{201D}"),
-            ("Got the latest from the shared folder (main)", "Se trajo lo último de la carpeta compartida (main)"),
+            ("Got the latest from the shared folder (main)", "Se obtuvo lo último de la carpeta compartida (main)"),
             ("Before: Switched to the experiment \u{201C}idea\u{201D}", "Antes: Se cambió al experimento \u{201C}idea\u{201D}"),
         ];
         for (en, es) in cases {

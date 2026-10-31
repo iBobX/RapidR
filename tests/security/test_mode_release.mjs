@@ -12,7 +12,8 @@
 // makes (a fixture key, trusted by no build), a tampered one and a garbled
 // one — runs a program as if none were set: no Studio MCP token, no crash at
 // the line RAPIDR_TEST_CRASH names, ENVIRON$ empty for the hooks' names, one
-// line on stderr saying the hooks are off. When ./rapidr is a development
+// line on stderr saying the hooks are off, no demo played (RAPIDR_DEMO:
+// input automation). When ./rapidr is a development
 // build (dev-hooks) these are skipped, said; RAPIDR_RELEASE must be a release
 // build. RAPIDR_DEV (a development build, optional) is the control: the same
 // run with the hooks on. --gui adds a windowed program (a window shows for
@@ -38,7 +39,7 @@ const check = (name, ok, more = "") => {
 
 // ---- the source ----------------------------------------------------------------
 
-const HOOK_READ = /std::env::var(?:_os)?\(\s*"RAPIDR_(?:TEST_|CAPTURE|SCHOOL_POLICY|AI_TEST_|LOGIN_SHELL|DUMP_MENUS)/;
+const HOOK_READ = /std::env::var(?:_os)?\(\s*"RAPIDR_(?:TEST_|CAPTURE|SCHOOL_POLICY|AI_TEST_|LOGIN_SHELL|DUMP_MENUS|DEMO)/;
 function rustFiles(dir, out = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
@@ -68,6 +69,10 @@ for (const f of shipped) {
 check(`no shipped crate reads a test hook's variable around the gate (${shipped.length} files)`, around.length === 0, around.join(", "));
 check("the GUI hooks' var() falls back to the gate", /rapidr_testmode::var\(name\)/.test(readFileSync(join(ROOT, "crates/rapidr-ui-app/src/testhooks.rs"), "utf8")));
 check("ENVIRON$ answers the hooks' names through the gate", /rapidr_testmode::is_hook\(name\) && !rapidr_testmode::allowed\(name\)/.test(readFileSync(join(ROOT, "crates/rapidr-value/src/environ.rs"), "utf8")));
+check("demo mode reads its script, folder and language through the gate", (() => {
+  const t = readFileSync(join(ROOT, "crates/rapidr-ui-app/src/demo/mod.rs"), "utf8");
+  return ["RAPIDR_DEMO", "RAPIDR_DEMO_OUT", "RAPIDR_DEMO_LANG"].every((n) => t.includes(`crate::testhooks::var("${n}")`)) && !/std::env::var(?:_os)?\(\s*"RAPIDR_DEMO/.test(t);
+})());
 check("Studio passes a program its hooks only while its own act", /if let Some\(prefix\) = rapidr_testmode::var\("RAPIDR_CAPTURE"\)/.test(readFileSync(join(ROOT, "crates/rapidr-runtime-core/src/studio.rs"), "utf8")));
 
 const tomls = [];
@@ -117,7 +122,13 @@ const HOOKS = {
   RAPIDR_TEST_CLIPBOARD: "1",
   RAPIDR_SCHOOL_POLICY: join(work, "policy.toml"),
   RAPIDR_AI_TEST_SERVER: "http://127.0.0.1:9/",
+  // (demo mode: input automation — a script played in the program's
+  // windows and recorded, docs/video-pipeline.md)
+  RAPIDR_DEMO: join(work, "demo.json"),
+  RAPIDR_DEMO_OUT: join(work, "demo-out"),
+  RAPIDR_DEMO_LANG: "es",
 };
+writeFileSync(join(work, "demo.json"), JSON.stringify({ id: "sec24", screen: [640, 480], steps: [{ say: ["A demo."], do: [{ click: "B" }] }] }));
 writeFileSync(join(work, "look.txt"), "dark\n");
 const PROGRAM = join(work, "probe.rr");
 writeFileSync(
@@ -125,7 +136,8 @@ writeFileSync(
   [
     `PRINT "mcp=[" + ENVIRON$("RAPIDR_TEST_MCP_TOKEN") + "]"`,
     `PRINT "ext=[" + ENVIRON$("RAPIDR_TEST_EXT") + "]"`,
-    `PRINT "capture=[" + ENVIRON$("rapidr_capture") + "]"`,
+    // (the probe's lines stay four up to RAPIDR_TEST_CRASH's: demo mode's names on the capture's line)
+    `PRINT "capture=[" + ENVIRON$("rapidr_capture") + "] demo=[" + ENVIRON$("RAPIDR_DEMO") + ENVIRON$("RAPIDR_DEMO_OUT") + "]"`,
     // (a call into the runtime: where RAPIDR_TEST_CRASH's line is checked)
     `PRINT "line four" + LEFT$(ENVIRON$("HOME"), 0)`,
     `PRINT "done"`,
@@ -143,7 +155,8 @@ writeFileSync(
 const offLines =(stderr) => (stderr || "").split("\n").filter((l) => /^RapidR: (test hooks are off|the test-mode token was refused)/.test(l));
 function expectOff(label, r, why) {
   check(`${label}: the program ran to its end (no crash at RAPIDR_TEST_CRASH's line)`, r.status === 0 && /line four\ndone/.test(r.stdout), `status ${r.status}: ${r.stdout} ${r.stderr}`);
-  check(`${label}: ENVIRON$ is empty for the hooks' names (Studio's MCP token, its test folder, the capture)`, /mcp=\[\]\next=\[\]\ncapture=\[\]/.test(r.stdout), r.stdout);
+  check(`${label}: ENVIRON$ is empty for the hooks' names (Studio's MCP token, its test folder, the capture, demo mode)`, /mcp=\[\]\next=\[\]\ncapture=\[\] demo=\[\]/.test(r.stdout), r.stdout);
+  check(`${label}: demo mode wrote nothing (RAPIDR_DEMO_OUT)`, !existsSync(join(work, "demo-out")));
   check(`${label}: no crash report`, readdirSync(join(work, "crashes")).length === 0);
   const lines = offLines(r.stderr);
   check(`${label}: one line on stderr says the hooks are off${why ? ` (${why})` : ""}`, lines.length === 1 && (!why || lines[0].includes(why)), JSON.stringify(r.stderr));
@@ -195,6 +208,7 @@ if (missing || dev) {
     check("a window: no scripted click (RAPIDR_TEST_EVENTS)", !/clicked/.test(r.stdout), r.stdout);
     check("a window: no capture written (RAPIDR_CAPTURE)", !readdirSync(work).some((f) => f.startsWith("cap")), readdirSync(work).join(" "));
     check("a window: no dump (RAPIDR_TEST_DUMP)", !/f\.caption/i.test(r.stdout), r.stdout);
+    check("a window: no demo played nor recorded (RAPIDR_DEMO)", !existsSync(join(work, "demo-out")), readdirSync(work).join(" "));
   }
 }
 
@@ -205,7 +219,8 @@ if (process.env.RAPIDR_DEV && existsSync(process.env.RAPIDR_DEV)) {
   const crashed = run(process.env.RAPIDR_DEV, ["run", PROGRAM], HOOKS);
   check("the control: a development build crashes where RAPIDR_TEST_CRASH says", crashed.status !== 0 && !/line four/.test(crashed.stdout), `${crashed.status} ${crashed.stdout}`);
   if (GUI) {
-    const w = run(process.env.RAPIDR_DEV, ["run", gui], { ...HOOKS, RAPIDR_TEST_CRASH: "" }, 30000);
+    // (no demo here: its script would drive the window instead of the events)
+    const w = run(process.env.RAPIDR_DEV, ["run", gui], { ...HOOKS, RAPIDR_TEST_CRASH: "", RAPIDR_DEMO: "", RAPIDR_DEMO_OUT: "" }, 30000);
     check("the control: a development build clicks and captures the window (headless)", /clicked/.test(w.stdout) && readdirSync(work).some((f) => f.startsWith("cap")), `${w.status} ${w.stdout} ${w.stderr} ${readdirSync(work).join(" ")}`);
   }
 }

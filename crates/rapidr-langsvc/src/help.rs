@@ -18,22 +18,30 @@
 
 use rapidr_lang::{Component, Origin, Runtimes};
 
+use crate::words::{tr_ui, tr_ui_fill};
 use crate::SymbolHelp;
 
 /// Who a name belongs to, in words.
-fn origin(o: Origin) -> &'static str {
+fn origin(o: Origin) -> String {
     match o {
-        Origin::RapidQ => "classic",
-        Origin::RapidR => "RapidR's own",
+        Origin::RapidQ => tr_ui("classic"),
+        Origin::RapidR => tr_ui("RapidR's own"),
     }
 }
 
-fn runs(r: Runtimes) -> &'static str {
+fn runs(r: Runtimes) -> String {
     match r {
-        Runtimes::All => "desktop and web",
-        Runtimes::Desktop => "desktop only",
-        Runtimes::Web => "web only",
+        Runtimes::All => tr_ui("desktop and web"),
+        Runtimes::Desktop => tr_ui("desktop only"),
+        Runtimes::Web => tr_ui("web only"),
     }
+}
+
+/// Of a component's default event: `its default event OnClick` (the line
+/// that says what the component is has it at its end; the page says it
+/// again as a link, and takes it off the line).
+fn default_event_text(event: &str) -> String {
+    tr_ui_fill("its default event {event}", &[("event", event)])
 }
 
 fn default_text(d: &rapidr_lang::DefaultValue) -> String {
@@ -52,41 +60,44 @@ fn default_text(d: &rapidr_lang::DefaultValue) -> String {
 pub fn member(c: &Component, name: &str) -> Option<Vec<String>> {
     let comp = c.spelling();
     if let Some(p) = c.property(name) {
-        let mut what = format!("Property of {comp} · {}", p.ty.as_str());
+        let mut what = format!("{} · {}", tr_ui_fill("Property of {comp}", &[("comp", &comp)]), p.ty.as_str());
         if let Some(d) = &p.default {
-            what.push_str(&format!(" · default {}", default_text(d)));
+            what.push_str(&format!(" · {}", tr_ui_fill("default {value}", &[("value", &default_text(d))])));
         }
         what.push_str(&format!(" · {} · {}", origin(p.origin), runs(p.runtimes)));
         return Some(vec![format!("{comp}.{}", p.name), p.name.to_string(), what, crate::hover::tdoc(&format!("{}.{}", c.name, p.name), p.doc).to_string()]);
     }
     if let Some(m) = c.method(name) {
-        let what = format!("Method of {comp} · {} · {}", origin(m.origin), runs(m.runtimes));
+        let what = format!("{} · {} · {}", tr_ui_fill("Method of {comp}", &[("comp", &comp)]), origin(m.origin), runs(m.runtimes));
         return Some(vec![format!("{comp}.{}", m.name), m.signature(), what, crate::hover::tdoc(&format!("{}.{}", c.name, m.name), m.doc).to_string()]);
     }
     if let Some(e) = c.event(name) {
-        let what = format!("Event of {comp} · its handler: SUB Name{} · {} · {}", rapidr_lang::params_text(e.params), origin(e.origin), runs(e.runtimes));
+        let handler = tr_ui_fill("its handler: SUB Name{params}", &[("params", &rapidr_lang::params_text(e.params))]);
+        let what = format!("{} · {handler} · {} · {}", tr_ui_fill("Event of {comp}", &[("comp", &comp)]), origin(e.origin), runs(e.runtimes));
         return Some(vec![format!("{comp}.{}", e.name), format!("{} = Name", e.name), what, crate::hover::tdoc(&format!("{}.{}", c.name, e.name), e.doc).to_string()]);
     }
     None
 }
 
 /// The names of a component's properties, methods and events (what RapidR
-/// doesn't have yet left out), each kind in the order the registry has.
-fn member_names(c: &Component) -> [(&'static str, Vec<&'static str>); 3] {
+/// doesn't have yet left out), each kind in the order the registry has,
+/// with the kind's heading in the person's language.
+fn member_names(c: &Component) -> [(String, Vec<&'static str>); 3] {
     [
-        ("Properties", c.properties.iter().filter(|p| !p.missing).map(|p| p.name).collect()),
-        ("Methods", c.methods.iter().filter(|m| !m.missing).map(|m| m.name).collect()),
-        ("Events", c.events.iter().filter(|e| !e.missing).map(|e| e.name).collect()),
+        (tr_ui("Properties"), c.properties.iter().filter(|p| !p.missing).map(|p| p.name).collect()),
+        (tr_ui("Methods"), c.methods.iter().filter(|m| !m.missing).map(|m| m.name).collect()),
+        (tr_ui("Events"), c.events.iter().filter(|e| !e.missing).map(|e| e.name).collect()),
     ]
 }
 
 /// A component's entry under RapidR's name (`RButton`): what it is and its
-/// members by kind.
-fn component(c: &Component) -> Vec<String> {
+/// members by kind. `what` is the word for what it is ("Component", or
+/// "Object" for a global object).
+fn component(c: &Component, global: bool) -> Vec<String> {
     let name = c.spelling();
-    let mut what = format!("Component · {}", runs(c.runtimes));
+    let mut what = format!("{} · {}", if global { tr_ui("Object") } else { tr_ui("Component") }, runs(c.runtimes));
     if let Some(e) = c.default_event {
-        what.push_str(&format!(" · its default event {e}"));
+        what.push_str(&format!(" · {}", default_event_text(e)));
     }
     let mut out = vec![name.clone(), format!("CREATE {}1 AS {name}\n\nEND CREATE", c.display), what, crate::hover::tdoc(c.name, c.doc).to_string()];
     for (title, names) in member_names(c) {
@@ -131,7 +142,7 @@ pub fn lookup(word: &str, of: &str) -> Option<(Vec<String>, Found)> {
         }
     }
     if let Some(c) = rapidr_lang::resolve_component(word) {
-        return Some((component(c), Found::Component(c)));
+        return Some((component(c, false), Found::Component(c)));
     }
     let other = |parts: Vec<String>| Some((parts, Found::Other));
     if let Some(b) = rapidr_lang::builtin(word) {
@@ -139,29 +150,28 @@ pub fn lookup(word: &str, of: &str) -> Option<(Vec<String>, Found)> {
         if let (Some(r), true) = (b.returns, b.syntax.is_empty()) {
             syntax.push_str(&format!(" AS {r}"));
         }
-        let what = format!("{} · {} · {}", if b.returns.is_some() { "Function" } else { "Statement" }, origin(b.origin), runs(b.runtimes));
+        let what = format!("{} · {} · {}", if b.returns.is_some() { tr_ui("Function") } else { tr_ui("Statement") }, origin(b.origin), runs(b.runtimes));
         return other(vec![b.name.to_string(), syntax, what, crate::hover::tdoc(b.name, b.doc).to_string()]);
     }
     if let Some(s) = rapidr_lang::statement(word) {
-        return other(vec![s.name.to_string(), s.syntax.to_string(), format!("Statement · {}", origin(s.origin)), crate::hover::tdoc(s.name, s.doc).to_string()]);
+        return other(vec![s.name.to_string(), s.syntax.to_string(), format!("{} · {}", tr_ui("Statement"), origin(s.origin)), crate::hover::tdoc(s.name, s.doc).to_string()]);
     }
     if let Some(d) = rapidr_lang::directive(word) {
-        return other(vec![d.name.to_string(), d.syntax.to_string(), format!("Directive · {}", origin(d.origin)), crate::hover::tdoc(d.name, d.doc).to_string()]);
+        return other(vec![d.name.to_string(), d.syntax.to_string(), format!("{} · {}", tr_ui("Directive"), origin(d.origin)), crate::hover::tdoc(d.name, d.doc).to_string()]);
     }
     if let Some(k) = rapidr_lang::keyword(word) {
-        return other(vec![k.name.to_string(), k.name.to_string(), format!("Keyword ({}) · {}", k.kind, origin(k.origin)), crate::hover::tdoc(k.name, k.doc).to_string()]);
+        return other(vec![k.name.to_string(), k.name.to_string(), format!("{} · {}", tr_ui_fill("Keyword ({kind})", &[("kind", k.kind)]), origin(k.origin)), crate::hover::tdoc(k.name, k.doc).to_string()]);
     }
     if let Some(t) = rapidr_lang::type_name(word) {
-        return other(vec![t.name.to_string(), t.name.to_string(), format!("Type · {}", origin(t.origin)), crate::hover::tdoc(t.name, t.doc).to_string()]);
+        return other(vec![t.name.to_string(), t.name.to_string(), format!("{} · {}", tr_ui("Type"), origin(t.origin)), crate::hover::tdoc(t.name, t.doc).to_string()]);
     }
     if let Some((v, g)) = rapidr_lang::constant(word) {
         let name = g.constants.iter().find(|(n, _)| n.eq_ignore_ascii_case(word)).map_or(word, |(n, _)| *n);
-        return other(vec![name.to_string(), name.to_string(), format!("Constant = {v} (&H{v:X}) · {} · {}", g.name, origin(g.origin)), crate::hover::tdoc(g.name, g.doc).to_string()]);
+        return other(vec![name.to_string(), name.to_string(), format!("{} · {} · {}", tr_ui_fill("Constant = {v} (&H{hex})", &[("v", &v.to_string()), ("hex", &format!("{v:X}"))]), g.name, origin(g.origin)), crate::hover::tdoc(g.name, g.doc).to_string()]);
     }
     if let Some(c) = rapidr_lang::global(word) {
-        let mut e = component(c);
+        let mut e = component(c, true);
         e[1] = c.spelling();
-        e[2] = e[2].replacen("Component", "Object", 1);
         return Some((e, Found::Global(c)));
     }
     None
@@ -249,24 +259,26 @@ fn entry_page(parts: &[String], found: Found, level: usize, syntax: bool, can_in
     let mut what = parts[2].clone();
     let mut insert = String::new();
     if let Found::Member(c) = found {
-        md.push_str(&format!("A member of {}.\n\n", link(&c.spelling(), &c.spelling(), "")));
+        md.push_str(&tr_ui_fill("A member of {component}.", &[("component", &link(&c.spelling(), &c.spelling(), ""))]));
+        md.push_str("\n\n");
     }
     if let Found::Component(c) | Found::Global(c) = found {
         if let Some(e) = c.default_event {
-            what = what.replace(&format!(" · its default event {e}"), "");
+            what = what.replace(&format!(" · {}", default_event_text(e)), "");
         }
     }
     md.push_str(&format!("{}\n\n", plain(&what)));
     if let Found::Component(c) | Found::Global(c) = found {
         if let Some(e) = c.default_event {
-            md.push_str(&format!("Its default event is {}.\n\n", link(e, e, &c.spelling())));
+            md.push_str(&tr_ui_fill("Its default event is {event}.", &[("event", &link(e, e, &c.spelling()))]));
+            md.push_str("\n\n");
         }
     }
     if syntax && !parts[1].trim().is_empty() {
         md.push_str(&code(&parts[1]));
         insert = parts[1].replace('\n', "\r");
         if can_insert {
-            md.push_str("[Insert into the code](help-insert:)\n\n");
+            md.push_str(&format!("[{}](help-insert:)\n\n", plain(&tr_ui("Insert into the code"))));
         }
     }
     if !parts[3].trim().is_empty() {
@@ -281,38 +293,45 @@ fn entry_page(parts: &[String], found: Found, level: usize, syntax: bool, can_in
 /// Where Help starts, when nothing is asked: how to use it, and a few
 /// words to begin with.
 fn start_page(key: &str) -> String {
-    let mut md = heading(TOP, "Help");
+    let mut md = heading(TOP, &tr_ui("Help"));
     let key = if key.trim().is_empty() { "F1" } else { key.trim() };
-    md.push_str(&format!("Put the caret on a word in your code and press **{key}**, or type a word in the box above. Click a name here to open its page.\n\n"));
-    md.push_str(&heading(TOP + 1, "Start with"));
+    md.push_str(&tr_ui_fill("Put the caret on a word in your code and press {key}, or type a word in the box above. Click a name here to open its page.", &[("key", &format!("**{key}**"))]));
+    md.push_str("\n\n");
+    md.push_str(&heading(TOP + 1, &tr_ui("Start with")));
     for (w, what) in [
-        ("RForm", "a window"),
-        ("RButton", "a button to click"),
-        ("RLabel", "text on the form"),
-        ("PRINT", "show text"),
-        ("IF", "choose what to do"),
-        ("FOR", "repeat something"),
+        ("RForm", tr_ui("a window")),
+        ("RButton", tr_ui("a button to click")),
+        ("RLabel", tr_ui("text on the form")),
+        ("PRINT", tr_ui("show text")),
+        ("IF", tr_ui("choose what to do")),
+        ("FOR", tr_ui("repeat something")),
     ] {
         md.push_str(&format!("- {}: {what}\n", link(w, w, "")));
     }
-    md.push_str("\nNew to RapidR? Read [Getting started](manual:getting-started.md), the manual's first page, here.\n");
-    md.push_str("\nThe whole manual is at [the RapidR manual](https://github.com/iBobX/RapidR/tree/main/docs/manual).\n");
+    let getting_started = format!("[{}](manual:getting-started.md)", plain(&tr_ui("Getting started")));
+    md.push_str(&format!("\n{}\n", tr_ui_fill("New to RapidR? Read {page}, the manual's first page, here.", &[("page", &getting_started)])));
+    let manual = format!("[{}](https://github.com/iBobX/RapidR/tree/main/docs/manual)", plain(&tr_ui("the RapidR manual")));
+    md.push_str(&format!("\n{}\n", tr_ui_fill("The whole manual is at {manual}.", &[("manual", &manual)])));
     md
 }
 
 /// The page for a word nothing knows: the closest names.
 fn unknown_page(word: &str, program: &[(String, &'static str)]) -> String {
-    let mut md = heading(TOP, &format!("No entry for {word}"));
-    md.push_str(&format!("Nothing in the language, and nothing in this program, is called **{}**.\n\n", plain(word)));
+    let mut md = heading(TOP, &tr_ui_fill("No entry for {word}", &[("word", word)]));
+    md.push_str(&tr_ui_fill("Nothing in the language, and nothing in this program, is called {word}.", &[("word", &format!("**{}**", plain(word)))]));
+    md.push_str("\n\n");
     let near = suggest(word, program, 8);
+    let start = format!("[{}](help:)", plain(&tr_ui("start page")));
     if near.is_empty() {
-        md.push_str("Check the spelling, or go back to the [start page](help:).\n");
+        md.push_str(&tr_ui_fill("Check the spelling, or go back to the {page}.", &[("page", &start)]));
+        md.push('\n');
     } else {
-        md.push_str("Did you mean:\n\n");
+        md.push_str(&tr_ui("Did you mean:"));
+        md.push_str("\n\n");
         for (n, kind) in near {
             md.push_str(&format!("- {}: {}\n", link(&n, &n, ""), plain(&kind)));
         }
-        md.push_str("\nOr go back to the [start page](help:).\n");
+        md.push_str(&format!("\n{}\n", tr_ui_fill("Or go back to the {page}.", &[("page", &start)])));
     }
     md
 }
@@ -328,8 +347,22 @@ fn mine_page(m: &SymbolHelp, can_insert: bool) -> String {
         k => k,
     };
     let mut md = heading(TOP, &m.name);
-    let article = if kind.starts_with(['a', 'e', 'i', 'o', 'u']) { "An" } else { "A" };
-    md.push_str(&format!("{article} {} in this program", plain(kind)));
+    // (a whole sentence for each kind: the article and the noun agree in
+    // other languages)
+    let is = match m.kind {
+        "variable" => tr_ui("A variable in this program"),
+        "constant" => tr_ui("A constant in this program"),
+        "parameter" => tr_ui("A parameter in this program"),
+        "sub" => tr_ui("A SUB in this program"),
+        "function" => tr_ui("A FUNCTION in this program"),
+        "dll" => tr_ui("A DLL routine in this program"),
+        "type" => tr_ui("A TYPE in this program"),
+        "field" => tr_ui("A field in this program"),
+        "component" => tr_ui("A component in this program"),
+        "label" => tr_ui("A label in this program"),
+        other => format!("A {other} in this program"),
+    };
+    md.push_str(&plain(&is));
     if m.what != kind && !m.what.eq_ignore_ascii_case(kind) {
         md.push_str(&format!(" · {}", m.what.replace('`', "")));
     }
@@ -337,17 +370,19 @@ fn mine_page(m: &SymbolHelp, can_insert: bool) -> String {
     md.push_str(&code(&m.code));
     if let Some(f) = &m.file {
         let name = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        md.push_str(&format!("Declared in [{}, line {}](help-goto:)", plain(&name), m.line));
+        let place = tr_ui_fill("{name}, line {line}", &[("name", &name), ("line", &m.line.to_string())]);
+        md.push_str(&tr_ui_fill("Declared in {place}", &[("place", &format!("[{}](help-goto:)", plain(&place)))]));
         md.push_str(&format!(" · {}", uses(m.uses)));
         md.push_str("\n\n");
     } else {
         md.push_str(&format!("{}\n\n", uses(m.uses)));
     }
-    md.push_str("[Find References](help-refs:)\n\n");
+    md.push_str(&format!("[{}](help-refs:)\n\n", plain(&tr_ui("Find References"))));
     let routine = matches!(m.kind, "sub" | "function" | "dll");
     if let (Some(t), false) = (&m.ty, routine) {
         let shown = rapidr_lang::resolve_component(t).map_or_else(|| t.clone(), |c| c.spelling());
-        md.push_str(&format!("Its type is {}.\n\n", link(&shown, &shown, "")));
+        md.push_str(&tr_ui_fill("Its type is {type}.", &[("type", &link(&shown, &shown, ""))]));
+        md.push_str("\n\n");
         if let Some((parts, found)) = lookup(t, "") {
             md.push_str(&entry_page(&parts, found, TOP + 1, false, can_insert).0);
         }
@@ -357,9 +392,9 @@ fn mine_page(m: &SymbolHelp, can_insert: bool) -> String {
 
 fn uses(n: usize) -> String {
     match n {
-        0 => "not used yet".to_string(),
-        1 => "used once".to_string(),
-        n => format!("used {n} times"),
+        0 => tr_ui("not used yet"),
+        1 => tr_ui("used once"),
+        n => tr_ui_fill("used {n} times", &[("n", &n.to_string())]),
     }
 }
 
@@ -494,7 +529,33 @@ pub fn suggest(query: &str, program: &[(String, &'static str)], limit: usize) ->
             }
         }
     }
-    out
+    out.into_iter().map(|(n, what)| (n, kind_label(&what))).collect()
+}
+
+/// What a suggestion is, in words, in the person's language (`what` as the
+/// search names it in English).
+fn kind_label(what: &str) -> String {
+    match what {
+        "component" => tr_ui("component"),
+        "object" => tr_ui("object"),
+        "function" => tr_ui("function"),
+        "statement" => tr_ui("statement"),
+        "keyword" => tr_ui("keyword"),
+        "type" => tr_ui("type"),
+        "directive" => tr_ui("directive"),
+        "constant" => tr_ui("constant"),
+        "your variable" => tr_ui("your variable"),
+        "your constant" => tr_ui("your constant"),
+        "your parameter" => tr_ui("your parameter"),
+        "your sub" => tr_ui("your sub"),
+        "your function" => tr_ui("your function"),
+        "your dll" => tr_ui("your dll"),
+        "your type" => tr_ui("your type"),
+        "your field" => tr_ui("your field"),
+        "your component" => tr_ui("your component"),
+        "your label" => tr_ui("your label"),
+        other => other.to_string(),
+    }
 }
 
 #[cfg(test)]

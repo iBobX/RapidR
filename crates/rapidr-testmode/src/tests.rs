@@ -23,7 +23,7 @@ fn hex_both_ways() {
 
 #[test]
 fn the_hooks_names() {
-    for h in ["RAPIDR_CAPTURE", "RAPIDR_CAPTURE_DELAY", "RAPIDR_CAPTURE_WINDOWS", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_DUMP", "rapidr_test_dump", "RAPIDR_TEST_SYSTEM_LOOK", "RAPIDR_TEST_CRASH", "RAPIDR_TEST_MCP_TOKEN", "RAPIDR_SCHOOL_POLICY", "RAPIDR_AI_TEST_SERVER", "RAPIDR_LOGIN_SHELL"] {
+    for h in ["RAPIDR_CAPTURE", "RAPIDR_CAPTURE_DELAY", "RAPIDR_CAPTURE_WINDOWS", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_DUMP", "rapidr_test_dump", "RAPIDR_TEST_SYSTEM_LOOK", "RAPIDR_TEST_CRASH", "RAPIDR_TEST_MCP_TOKEN", "RAPIDR_SCHOOL_POLICY", "RAPIDR_AI_TEST_SERVER", "RAPIDR_LOGIN_SHELL", "RAPIDR_DEMO", "RAPIDR_DEMO_OUT", "RAPIDR_DEMO_LANG", "rapidr_demo"] {
         assert!(is_hook(h), "{h}");
     }
     // (not hooks: the token's own variable, and the runs' settings that

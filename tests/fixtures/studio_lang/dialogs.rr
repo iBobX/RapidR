@@ -1,0 +1,42 @@
+' The dialogs a program can show: the colour dialog (compact, and with its
+' editor open), the font dialog and a message box (tests/studio_lang.mjs runs
+' it in the pseudo-language and in Spanish, with the test hooks that hold the
+' dialogs open and then answer them).
+DECLARE SUB PickColor
+DECLARE SUB PickFull
+DECLARE SUB PickFont
+DECLARE SUB Ask
+DIM Colors AS RColorDialog
+DIM Full AS RColorDialog
+DIM Fonts AS RFontDialog
+CREATE Form AS RForm
+  Caption = "Dialogs"
+  Width = 480
+  Height = 120
+  CREATE ColorButton AS RButton
+    Left = 10 : Top = 10 : Width = 100 : Caption = "Colour" : OnClick = PickColor
+  END CREATE
+  CREATE FullButton AS RButton
+    Left = 120 : Top = 10 : Width = 100 : Caption = "Editor" : OnClick = PickFull
+  END CREATE
+  CREATE FontButton AS RButton
+    Left = 230 : Top = 10 : Width = 100 : Caption = "Font" : OnClick = PickFont
+  END CREATE
+  CREATE AskButton AS RButton
+    Left = 340 : Top = 10 : Width = 100 : Caption = "Ask" : OnClick = Ask
+  END CREATE
+END CREATE
+Full.Style = 0
+SUB PickColor
+  IF Colors.Execute THEN PRINT "Picked"
+END SUB
+SUB PickFull
+  IF Full.Execute THEN PRINT "Picked"
+END SUB
+SUB PickFont
+  IF Fonts.Execute THEN PRINT "Picked"
+END SUB
+SUB Ask
+  PRINT MESSAGEDLG("Save the file?", 3, 11, 0)
+END SUB
+Form.ShowModal

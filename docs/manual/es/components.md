@@ -1,4 +1,4 @@
-<!-- translated-from: components.md 694912b9ade24d32 -->
+<!-- translated-from: components.md 62ed24921e32c921 -->
 # Componentes y objetos
 
 Un programa de RapidR construye sus ventanas con **componentes** —

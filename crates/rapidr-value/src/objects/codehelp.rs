@@ -14,6 +14,7 @@
 //! caret leaves it, so nothing on the line being typed jumps (a mark's
 //! value — its colour — still follows).
 
+use crate::i18n::{tr_ui, tr_ui_fill};
 use rapidr_editor::service::{HelperKind, HelperSite};
 use rapidr_editor::transaction::{Assoc, ChangeSet};
 
@@ -635,13 +636,12 @@ pub fn color_words(rgb: u32) -> String {
     let s = if d == 0.0 { 0.0 } else { d / (1.0 - (2.0 * l - 1.0).abs()) };
     if s < 0.15 || d < 0.08 {
         return match l {
-            l if l < 0.12 => "black",
-            l if l < 0.35 => "dark grey",
-            l if l < 0.65 => "grey",
-            l if l < 0.9 => "light grey",
-            _ => "white",
-        }
-        .into();
+            l if l < 0.12 => tr_ui("black"),
+            l if l < 0.35 => tr_ui("dark grey"),
+            l if l < 0.65 => tr_ui("grey"),
+            l if l < 0.9 => tr_ui("light grey"),
+            _ => tr_ui("white"),
+        };
     }
     let h = if d == 0.0 {
         0.0
@@ -654,28 +654,27 @@ pub fn color_words(rgb: u32) -> String {
     };
     let h = if h < 0.0 { h + 360.0 } else { h };
     let name = match h {
-        h if !(12.0..345.0).contains(&h) => "red",
+        h if !(12.0..345.0).contains(&h) => tr_ui("red"),
         h if h < 42.0 => {
             if l < 0.32 {
-                return "brown".into();
+                return tr_ui("brown");
             }
-            "orange"
+            tr_ui("orange")
         }
-        h if h < 68.0 => "yellow",
-        h if h < 160.0 => "green",
-        h if h < 195.0 => "cyan",
-        h if h < 255.0 => "blue",
-        h if h < 290.0 => "purple",
-        _ => "pink",
+        h if h < 68.0 => tr_ui("yellow"),
+        h if h < 160.0 => tr_ui("green"),
+        h if h < 195.0 => tr_ui("cyan"),
+        h if h < 255.0 => tr_ui("blue"),
+        h if h < 290.0 => tr_ui("purple"),
+        _ => tr_ui("pink"),
     };
-    let shade = if l < 0.3 {
-        "dark "
+    if l < 0.3 {
+        tr_ui_fill("dark {name}", &[("name", &name)])
     } else if l > 0.75 {
-        "light "
+        tr_ui_fill("light {name}", &[("name", &name)])
     } else {
-        ""
-    };
-    format!("{shade}{name}")
+        name
+    }
 }
 
 /// A colour helper read aloud: "orange, 255 130 20" (a named colour's
@@ -683,7 +682,8 @@ pub fn color_words(rgb: u32) -> String {
 pub fn color_said(value: i64) -> String {
     use crate::panels::inspector::values::{color_name, is_system_color};
     if is_system_color(value) {
-        return format!("{}, the system's colour", color_name(value).unwrap_or("a system colour"));
+        let name = color_name(value).map_or_else(|| tr_ui("a system colour"), str::to_string);
+        return tr_ui_fill("{name}, the system's colour", &[("name", &name)]);
     }
     let (r, g, b) = (value & 0xFF, (value >> 8) & 0xFF, (value >> 16) & 0xFF);
     let words = color_words(((r << 16) | (g << 8) | b) as u32);

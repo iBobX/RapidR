@@ -748,7 +748,7 @@ impl FormUi {
         let last = pi + 1 == self.menus.panels.len();
         let list = items(&panel.parent);
         let mut menu_node = AccessNode::new(part_id(&panel.parent, PART_POPUP, 0), Role::Menu);
-        menu_node.name = menu::with(&panel.parent, |n| mnemonic(menu::split_caption(&n.caption).0).0).filter(|c| !c.is_empty()).unwrap_or_else(|| "Menu".to_string());
+        menu_node.name = menu::with(&panel.parent, |n| mnemonic(menu::split_caption(&n.caption).0).0).filter(|c| !c.is_empty()).unwrap_or_else(|| rapidr_value::i18n::tr_ui("Menu"));
         menu_node.bounds = panel.rect;
         menu_node.orientation = Some(Orientation::Vertical);
         menu_node.states.focused = last && panel.hot.is_none();

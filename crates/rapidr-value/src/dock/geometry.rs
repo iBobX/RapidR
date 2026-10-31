@@ -448,7 +448,7 @@ pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, t
     let mut right = gx + gw - 6;
     if views.len() >= 2 {
         let mut segs: Vec<(DocView, String, i64)> = views.iter().enumerate().map(|(i, c)| (if i == 0 { DocView::First } else { DocView::One(i) }, c.clone(), text_size(c, font).0 + 22)).collect();
-        segs.push((DocView::Split, "Side by Side".into(), SWITCH_SPLIT));
+        segs.push((DocView::Split, crate::i18n::tr_ui("Side by Side"), SWITCH_SPLIT));
         let total: i64 = segs.iter().map(|s| s.2).sum();
         let mut x = right - total;
         let y = gy + (DOC_TABS - SWITCH_H) / 2;

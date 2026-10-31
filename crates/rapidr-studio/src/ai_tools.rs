@@ -31,6 +31,7 @@ use std::path::PathBuf;
 use rapidr_ai::Tool;
 use rapidr_introspect::{Reply, Request};
 use rapidr_langsvc::{Analysis, Options};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use serde_json::{json, Value as Json};
 
 /// A change the assistant proposes: the user sees it as a diff (an edit),
@@ -305,50 +306,88 @@ fn known_key(token: &str) -> bool {
 /// server.rr"); `input` may hold only the fields written so far.
 pub fn activity(name: &str, input: &Json) -> Option<String> {
     let field = |k: &str| input.get(k).and_then(Json::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+    // (the person reads these, in their language: whole phrases, the values
+    // — a file, a component, a caption — put in)
     Some(match name {
-        "read_file" => field("path").map_or_else(|| "Reading a file".to_string(), |p| format!("Reading {p}")),
-        "list_files" => "Listing the files".into(),
-        "project_outline" => "Reading the project's outline".into(),
-        "search_manual" => "Searching the manual".into(),
-        "find_example" => "Finding an example".into(),
-        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| "Reading RapidR's reference".to_string(), |t| format!("Reading the help of {t}")),
-        "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
-        "check_code" => "Checking (compiling)".into(),
-        "layout" => "Laying out the buttons".into(),
+        "read_file" => field("path").map_or_else(|| tr_ui("Reading a file"), |p| tr_ui_fill("Reading {file}", &[("file", &p)])),
+        "list_files" => tr_ui("Listing the files"),
+        "project_outline" => tr_ui("Reading the project's outline"),
+        "search_manual" => tr_ui("Searching the manual"),
+        "find_example" => tr_ui("Finding an example"),
+        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| tr_ui("Reading RapidR's reference"), |t| tr_ui_fill("Reading the help of {name}", &[("name", &t)])),
+        "rapidr_list" | "rapidr_get" => tr_ui("Looking at the form"),
+        "check_code" => tr_ui("Checking (compiling)"),
+        "layout" => tr_ui("Laying out the buttons"),
         // (the running program's eyes and hands: an AI app's arguments are
         // capitalised, RAI's not)
-        "app_layout" => "Reading the running program's layout".into(),
-        "app_screenshot" => "Looking at the running program".into(),
-        "app_wait" => "Letting the running program work".into(),
+        "app_layout" => tr_ui("Reading the running program's layout"),
+        "app_screenshot" => tr_ui("Looking at the running program"),
+        "app_wait" => tr_ui("Letting the running program work"),
         "app_click" | "app_type" | "app_key" | "app_drag" | "app_scroll" => {
             let any = |k: &str| field(k).or_else(|| field(&k.to_ascii_lowercase()));
-            let on = any("Caption").map(|c| format!(" \"{c}\"")).or_else(|| any("Name").map(|n| format!(" {n}"))).or_else(|| any("Label").map(|l| format!(" the box beside \"{l}\""))).unwrap_or_default();
+            // (what it is done on: a caption, a name, or the box beside a label)
+            enum On {
+                Nothing,
+                Caption(String),
+                Name(String),
+                Beside(String),
+            }
+            let on = any("Caption").map(On::Caption).or_else(|| any("Name").map(On::Name)).or_else(|| any("Label").map(On::Beside)).unwrap_or(On::Nothing);
+            let a: &str = match &on {
+                On::Nothing => "",
+                On::Caption(c) | On::Name(c) | On::Beside(c) => c,
+            };
             match name {
-                "app_click" => format!("Clicking{on} in the running program"),
+                "app_click" => match &on {
+                    On::Nothing => tr_ui("Clicking in the running program"),
+                    On::Caption(_) => tr_ui_fill("Clicking \"{what}\" in the running program", &[("what", a)]),
+                    On::Name(_) => tr_ui_fill("Clicking {what} in the running program", &[("what", a)]),
+                    On::Beside(_) => tr_ui_fill("Clicking the box beside \"{what}\" in the running program", &[("what", a)]),
+                },
                 // (never what is typed: a password typed into the program
                 // would show in the pane, the status line, read aloud and
                 // in the question — only how many characters)
                 "app_type" => {
                     let n = ["Text", "text"].iter().find_map(|k| input.get(*k).and_then(Json::as_str)).unwrap_or_default().chars().count();
-                    format!("Typing {n} character{}{} in the running program", if n == 1 { "" } else { "s" }, if on.is_empty() { String::new() } else { format!(" into{on}") })
+                    let count = n.to_string();
+                    match (&on, n == 1) {
+                        (On::Nothing, true) => tr_ui("Typing 1 character in the running program"),
+                        (On::Nothing, false) => tr_ui_fill("Typing {n} characters in the running program", &[("n", &count)]),
+                        (On::Caption(_), true) => tr_ui_fill("Typing 1 character into \"{what}\" in the running program", &[("what", a)]),
+                        (On::Caption(_), false) => tr_ui_fill("Typing {n} characters into \"{what}\" in the running program", &[("n", &count), ("what", a)]),
+                        (On::Name(_), true) => tr_ui_fill("Typing 1 character into {what} in the running program", &[("what", a)]),
+                        (On::Name(_), false) => tr_ui_fill("Typing {n} characters into {what} in the running program", &[("n", &count), ("what", a)]),
+                        (On::Beside(_), true) => tr_ui_fill("Typing 1 character into the box beside \"{what}\" in the running program", &[("what", a)]),
+                        (On::Beside(_), false) => tr_ui_fill("Typing {n} characters into the box beside \"{what}\" in the running program", &[("n", &count), ("what", a)]),
+                    }
                 }
                 // (keys by name — Enter, Ctrl+S —; anything else, a single
                 // character or a word, may be typing: only counted)
                 "app_key" => match any("Keys") {
-                    Some(k) if k.split_whitespace().all(known_key) => format!("Pressing {k} in the running program"),
-                    Some(k) if k.split_whitespace().count() == 1 => "Pressing a key in the running program".into(),
-                    Some(k) => format!("Pressing {} keys in the running program", k.split_whitespace().count()),
-                    None => "Pressing keys in the running program".into(),
+                    Some(k) if k.split_whitespace().all(known_key) => tr_ui_fill("Pressing {keys} in the running program", &[("keys", &k)]),
+                    Some(k) if k.split_whitespace().count() == 1 => tr_ui("Pressing a key in the running program"),
+                    Some(k) => tr_ui_fill("Pressing {n} keys in the running program", &[("n", &k.split_whitespace().count().to_string())]),
+                    None => tr_ui("Pressing keys in the running program"),
                 },
-                "app_drag" => format!("Dragging{on} in the running program"),
-                _ => format!("Scrolling{on} in the running program"),
+                "app_drag" => match &on {
+                    On::Nothing => tr_ui("Dragging in the running program"),
+                    On::Caption(_) => tr_ui_fill("Dragging \"{what}\" in the running program", &[("what", a)]),
+                    On::Name(_) => tr_ui_fill("Dragging {what} in the running program", &[("what", a)]),
+                    On::Beside(_) => tr_ui_fill("Dragging the box beside \"{what}\" in the running program", &[("what", a)]),
+                },
+                _ => match &on {
+                    On::Nothing => tr_ui("Scrolling in the running program"),
+                    On::Caption(_) => tr_ui_fill("Scrolling \"{what}\" in the running program", &[("what", a)]),
+                    On::Name(_) => tr_ui_fill("Scrolling {what} in the running program", &[("what", a)]),
+                    On::Beside(_) => tr_ui_fill("Scrolling the box beside \"{what}\" in the running program", &[("what", a)]),
+                },
             }
         }
         // ("lines": how many the model has written so far, counted as they
         // stream in — a file's or a program's, not an edit's)
-        "propose_edit" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
-        "write_file" => field("path").map_or_else(|| "Writing a file".to_string(), |p| format!("Writing {p}{}", lines(input))),
-        "create_project" => field("name").map_or_else(|| "Writing the new program".to_string(), |n| format!("Writing {n}{}", lines(input))),
+        "propose_edit" => field("path").map_or_else(|| tr_ui("Writing a change"), |p| tr_ui_fill("Writing {file}", &[("file", &p)])),
+        "write_file" => field("path").map_or_else(|| tr_ui("Writing a file"), |p| format!("{}{}", tr_ui_fill("Writing {file}", &[("file", &p)]), lines(input))),
+        "create_project" => field("name").map_or_else(|| tr_ui("Writing the new program"), |n| format!("{}{}", tr_ui_fill("Writing {file}", &[("file", &n)]), lines(input))),
         _ => return None,
     })
 }
@@ -356,8 +395,8 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
 /// " (+318 lines)" for the lines written so far, else nothing.
 fn lines(input: &Json) -> String {
     match input.get("lines").and_then(Json::as_u64) {
-        Some(1) => " (+1 line)".into(),
-        Some(n) if n > 1 => format!(" (+{n} lines)"),
+        Some(1) => format!(" {}", tr_ui("(+1 line)")),
+        Some(n) if n > 1 => format!(" {}", tr_ui_fill("(+{n} lines)", &[("n", &n.to_string())])),
         _ => String::new(),
     }
 }
@@ -808,13 +847,61 @@ pub fn describe_text(v: &Json) -> String {
     out
 }
 
+/// A registry doc in the language `tag` (the translation, else the
+/// English): `rapidr_lang::docs_i18n`, keyed as the translations are.
+fn doc_in(tag: &str, key: &str, english: &str) -> String {
+    rapidr_lang::docs_i18n::translated_doc(key, tag).unwrap_or(english).to_string()
+}
+
+/// `describe`'s JSON with the docs of the registry in the language `tag`
+/// (what the assistant reads of a component, a builtin or the lists): each
+/// `doc` replaced by its translation where there is one. A list's line is
+/// the doc's first sentence, as in English.
+pub fn translate_docs(v: &mut Json, tag: &str) {
+    let first = |d: &str| -> String { d.find(". ").map_or(d, |i| &d[..=i]).to_string() };
+    let key_of = |ty: &str| rapidr_lang::resolve_component(ty).map(|c| c.name.to_ascii_uppercase());
+    if let Some(types) = v.get_mut("types").and_then(Json::as_array_mut) {
+        for t in types {
+            let Some(key) = t["type"].as_str().and_then(key_of) else { continue };
+            if let Some(d) = rapidr_lang::docs_i18n::translated_doc(&key, tag) {
+                t["doc"] = Json::String(first(d));
+            }
+        }
+        return;
+    }
+    if let Some(b) = v.get("builtin").and_then(Json::as_str).map(|b| b.to_ascii_uppercase()) {
+        if let Some(d) = v["doc"].as_str().map(|d| doc_in(tag, &b, d)) {
+            v["doc"] = Json::String(d);
+        }
+        return;
+    }
+    let Some(key) = v["type"].as_str().and_then(key_of) else { return };
+    if let Some(d) = v["doc"].as_str().map(|d| doc_in(tag, &key, d)) {
+        v["doc"] = Json::String(d);
+    }
+    for list in ["properties", "methods", "events"] {
+        for m in v.get_mut(list).and_then(Json::as_array_mut).into_iter().flatten() {
+            let Some(name) = m["name"].as_str().map(|n| format!("{key}.{}", n.to_ascii_uppercase())) else { continue };
+            if let Some(d) = m["doc"].as_str().map(|d| doc_in(tag, &name, d)) {
+                m["doc"] = Json::String(d);
+            }
+        }
+    }
+}
+
 fn describe(input: &Json) -> Outcome {
     let opt = |k: &str| input.get(k).and_then(Json::as_str).filter(|v| !v.trim().is_empty()).map(|v| v.trim().to_string());
     let (type_name, builtin, what) = (opt("type"), opt("builtin"), opt("what"));
     let target = type_name.clone().or_else(|| builtin.clone()).or_else(|| what.clone()).unwrap_or_default();
     let req = Request::Describe { type_name, builtin, what };
     match rapidr_introspect::handle(None, &req) {
-        Reply::Ok(v) => ok(describe_text(&v), format!("Looked up {target} in RapidR's registry"), "read", &target),
+        Reply::Ok(mut v) => {
+            // (the registry's docs in the language Studio speaks, where it
+            // has them: a Spanish question gets Spanish docs; names, types
+            // and examples are code and stay)
+            translate_docs(&mut v, &rapidr_value::i18n::language());
+            ok(describe_text(&v), format!("Looked up {target} in RapidR's registry"), "read", &target)
+        }
         Reply::Err(e) => err(e.message, format!("Looked up {target}: not found"), &target),
     }
 }
@@ -899,22 +986,25 @@ fn find_example(input: &Json) -> Outcome {
 fn reference_hits(query: &str) -> Option<String> {
     let word = query.split(|c: char| c.is_whitespace() || c == '.').filter(|w| !w.is_empty()).last()?;
     let mut hits: Vec<String> = Vec::new();
+    // (the docs in the language Studio speaks, where the registry has them)
+    let tag = rapidr_value::i18n::language();
+    let doc = |key: String, english: &str| doc_in(&tag, &key.to_ascii_uppercase(), english);
     if let Some(b) = rapidr_lang::builtin(word) {
-        hits.push(format!("{} (builtin): {}", b.syntax, b.doc));
+        hits.push(format!("{} (builtin): {}", b.syntax, doc(b.name.to_string(), b.doc)));
     }
     if let Some(c) = rapidr_lang::component(word).or_else(|| rapidr_lang::global(word)) {
-        hits.push(format!("{} (component): {} Call rapidr_describe with type {} for its members.", c.display, c.doc, c.display));
+        hits.push(format!("{} (component): {} Call rapidr_describe with type {} for its members.", c.display, doc(c.name.to_string(), c.doc), c.display));
     }
     for c in rapidr_lang::GLOBALS.iter().chain(rapidr_lang::COMPONENTS.iter()) {
         let owner = c.display;
         for p in c.properties.iter().filter(|p| p.name.eq_ignore_ascii_case(word)) {
-            hits.push(format!("{owner}.{} (property): {}", p.name, p.doc));
+            hits.push(format!("{owner}.{} (property): {}", p.name, doc(format!("{}.{}", c.name, p.name), p.doc)));
         }
         for m in c.methods.iter().filter(|m| m.name.eq_ignore_ascii_case(word)) {
-            hits.push(format!("{owner}.{} (method): {}", m.name, m.doc));
+            hits.push(format!("{owner}.{} (method): {}", m.name, doc(format!("{}.{}", c.name, m.name), m.doc)));
         }
         for e in c.events.iter().filter(|e| e.name.eq_ignore_ascii_case(word)) {
-            hits.push(format!("{owner}.{} (event): {}", e.name, e.doc));
+            hits.push(format!("{owner}.{} (event): {}", e.name, doc(format!("{}.{}", c.name, e.name), e.doc)));
         }
         if hits.len() >= 5 {
             break;
@@ -934,8 +1024,10 @@ fn search_manual(input: &Json) -> Outcome {
     if query.is_empty() {
         return err("give `query`: the question, or a few words of it", "search_manual: no question".into(), "");
     }
-    // (the user's language first — RAI answers in it —, English too)
-    let found = crate::manual_search::search_in(query, 3, &rapidr_value::i18n::language());
+    // (the user's language first — Studio's: RAI answers in it —, English
+    // too: a page not translated yet is read in English, and said so)
+    let tag = rapidr_value::i18n::language();
+    let found = crate::manual_search::search_in(query, 3, &tag);
     if found.is_empty() {
         // (a member's or builtin's name the manual's pages don't mention —
         // Application.ReducedMotion — is in the reference: say what it is
@@ -945,7 +1037,17 @@ fn search_manual(input: &Json) -> Outcome {
         }
         return ok(format!("The manual has nothing on \"{query}\". Try other words, or rapidr_describe for a component or builtin."), format!("Searched the manual for {query}: nothing"), "read", query);
     }
-    let text = found.iter().map(|s| crate::manual_search::excerpt(s)).collect::<Vec<_>>().join("\n\n---\n\n");
+    let translating = crate::manual_search::has_pages_in(&tag);
+    let text = found
+        .iter()
+        .map(|s| {
+            let e = crate::manual_search::excerpt(s);
+            // (an English page where the person's language has some: said
+            // on its heading line, so the model can say it to the person)
+            if translating && !s.page.contains('/') { e.replacen('\n', " (this page is in English: it isn't translated yet)\n", 1) } else { e }
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n---\n\n");
     let where_ = found.iter().map(|s| s.page).collect::<Vec<_>>().join(", ");
     ok(text, format!("Searched the manual for {query}: {where_}"), "read", query)
 }
@@ -2443,6 +2545,55 @@ mod tests {
         let outline = tools.iter().find(|t| t.name == "project_outline").expect("project_outline");
         assert!(outline.description.contains("before writing changes to a project of several files"));
         assert!(tools.iter().any(|t| t.name == "search_manual"));
+    }
+
+    /// ES-REFERENCE part 3: what the assistant looks up — a component, a
+    /// builtin, the lists, the manual — comes in the language Studio speaks
+    /// where the registry and the manual have it, English where they don't;
+    /// names, types and examples are code and never change.
+    #[test]
+    fn lookups_come_in_studios_language() {
+        let empty = HashMap::new();
+        let p = project(&[], &empty);
+        let button = |lang: &str| {
+            rapidr_value::i18n::set_language(lang);
+            run("rapidr_describe", &json!({"type": "RButton"}), &p, &mut Vec::new(), true).content
+        };
+        let (en, es) = (button("en"), button("es"));
+        assert!(en.contains("RButton") && en.contains("OnClick"), "{en}");
+        // (the component's own doc and a member's, in Spanish; the names stay)
+        assert!(es.contains("Un botón: al hacer clic en él se ejecuta su controlador de eventos OnClick"), "{es}");
+        assert!(es.contains("- Caption: ") && es.contains("OnClick(") && es.contains("Properties (name: type = default"), "{es}");
+        assert!(!es.contains("A button: "), "{es}");
+        // (a regional language: the language's own docs; one with none: English)
+        assert_eq!(button("es-UY"), es);
+        assert_eq!(button("sw"), en);
+        // (a builtin's doc, the lists' first sentences)
+        rapidr_value::i18n::set_language("es");
+        let len = run("rapidr_describe", &json!({"builtin": "LEN"}), &p, &mut Vec::new(), true).content;
+        assert!(len.contains("El número de caracteres de una cadena"), "{len}");
+        let types = run("rapidr_describe", &json!({"what": "types"}), &p, &mut Vec::new(), true).content;
+        assert!(types.contains("RButton [") && types.contains("Un botón: al hacer clic en él se ejecuta su controlador de eventos OnClick."), "{types}");
+        // (the reference hits of a word the manual doesn't mention)
+        let hits = reference_hits("RButton.AccessibleHidden").expect("hits");
+        assert!(hits.contains("True: el control es decoración"), "{hits}");
+        rapidr_value::i18n::set_language("en");
+        assert!(!reference_hits("RButton.AccessibleHidden").unwrap().contains("el control es decoración"));
+        // (the manual: the pages in Studio's language first; an English page
+        // is said to be English)
+        rapidr_value::i18n::set_language("es");
+        let r = run("search_manual", &json!({"query": "instalar el SDK"}), &p, &mut Vec::new(), true);
+        assert!(r.content.contains("Manual › ") && !r.is_error, "{}", r.content);
+        assert!(r.note.contains("es/getting-started.md"), "{}", r.note);
+        // (every page of the manual has its Spanish: a hit is in Spanish and says nothing about English;
+        // the note stays for a language whose manual is partial)
+        let serial = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
+        assert!(serial.contains("Manual › ") && !serial.contains("isn't translated yet"), "{serial}");
+        rapidr_value::i18n::set_language("en");
+        let plain = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
+        assert!(!plain.contains("isn't translated yet"), "{plain}");
+        assert!(crate::manual_search::has_pages_in("es-AR") && !crate::manual_search::has_pages_in("en") && !crate::manual_search::has_pages_in("xx"));
+        rapidr_value::i18n::set_language("");
     }
 
     #[test]

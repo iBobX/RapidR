@@ -1,0 +1,153 @@
+// Your first app in RapidR Studio — the sample launch video (60–90 s).
+// Record: node tools/video/video.mjs tools/video/scripts/first-app.json --lang en,es
+// The format: docs/video-pipeline.md.
+{
+  "id": "first-app",
+  "title": { "en": "Your first app in RapidR Studio", "es": "Tu primera app en RapidR Studio" },
+  "description": {
+    "en": "A new project, a button from the Toolbox, its caption, its OnClick, Run, and a saved version — in about a minute.",
+    "es": "Un proyecto nuevo, un botón desde la Caja de herramientas, su texto, su OnClick, Ejecutar y una versión guardada, en un minuto."
+  },
+  "screen": [1440, 810],
+  "scale": 1.3333333,
+  "fps": 30,
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": { "theme": "rapidr-light" },
+  "steps": [
+    {
+      "card": {
+        "title": { "en": "Your first app", "es": "Tu primera app" },
+        "lines": ["RapidR Studio"],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../assets/card-bg.svg",
+        "logo": "../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Let's make your first app in RapidR Studio.", "es": "Vamos a crear tu primera app en RapidR Studio." }],
+      "gap": 1.2
+    },
+    {
+      "say": [{ "en": "Start with a new project.", "es": "Empieza con un proyecto nuevo." }],
+      "do": [
+        { "click": "StartRow(0)" },
+        { "waitFor": "window:NewDialog" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Give it a name.", "es": "Dale un nombre." },
+        { "en": "A form app gives you a window to design. Create it.", "es": "Una app con formulario te da una ventana para diseñar. Créala." }
+      ],
+      "do": [
+        { "type": "HelloApp" },
+        { "highlight": "TplCard(0)", "afterLine": 1, "for": 2.0 },
+        { "wait": 1.6 },
+        { "click": "NewOk", "pause": 0.4 },
+        { "waitFor": "gone:NewDialog" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "This is your app's window, ready to design.", "es": "Esta es la ventana de tu app, lista para diseñar." },
+        { "en": "Drag a button from the Toolbox onto it.", "es": "Arrastra un botón desde la Caja de herramientas." }
+      ],
+      "do": [
+        { "highlight": "designdoc(0)", "for": 1.6 },
+        { "wait": 1.2 },
+        { "drag": "Toolbox > RButton", "to": { "target": "designdoc(0)", "x": 0.4, "y": 0.4 }, "afterLine": 1 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "In Properties, give it a caption.", "es": "En Propiedades, ponle un texto." },
+        { "text": { "en": "The button shows it right away.", "es": "El botón lo muestra enseguida." }, "cue": "captioned" }
+      ],
+      "do": [
+        { "click": { "target": "Inspector > Caption", "x": 0.78 } },
+        { "key": "Ctrl+A" },
+        { "type": { "en": "Say Hello", "es": "Saludar" } },
+        { "key": "Enter", "cue": "captioned" },
+        { "highlight": "designdoc(0) > Button1", "for": 1.8 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Double-click the button to write what it does.", "es": "Haz doble clic en el botón para escribir lo que hace." },
+        { "text": { "en": "Studio opens its code, right where the click goes.", "es": "Studio abre su código, justo donde va el clic." }, "cue": "code" }
+      ],
+      "do": [
+        { "double": "designdoc(0) > Button1" },
+        { "wait": 0.6, "cue": "code" }
+      ]
+    },
+    {
+      "say": [{ "en": "One line: show a friendly message.", "es": "Una línea: mostrar un mensaje amable." }],
+      "do": [
+        { "type": { "en": "ShowMessage \"Hello from RapidR!\"", "es": "ShowMessage \"¡Hola desde RapidR!\"" } }
+      ]
+    },
+    {
+      "say": [{ "en": "Now run it.", "es": "Ahora ejecútala." }],
+      "do": [
+        { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
+        { "waitFor": { "app": true }, "timeout": 60 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Your app is running. Click its button…", "es": "Tu app está en marcha. Haz clic en su botón…" },
+        { "text": { "en": "and there's your message.", "es": "y ahí está tu mensaje." }, "cue": "clicked" }
+      ],
+      "do": [
+        { "click": "app:Button1", "cue": "clicked", "pause": 1.4 },
+        { "wait": 0.7 },
+        { "mark": "poster" },
+        { "key": "Enter", "into": "app:" }
+      ],
+      "gap": 0.6
+    },
+    {
+      "say": [{ "en": "Stop it, and save a version of your work.", "es": "Detenla y guarda una versión de tu trabajo." }],
+      "do": [
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 },
+        { "click": { "en": "studio > File", "es": "studio > Archivo" } },
+        { "click": { "en": "studio > Save a Version", "es": "studio > Guardar una versión" } },
+        { "waitFor": "window:VerSaveDialog", "timeout": 20 }
+      ]
+    },
+    {
+      "say": [{ "en": "A few words about what changed, and save.", "es": "Unas palabras sobre lo que cambió, y guarda." }],
+      "do": [
+        { "type": { "en": "My first app", "es": "Mi primera app" }, "into": "VerMsgEdit" },
+        { "click": "VerSaveOk" },
+        { "waitFor": "gone:VerSaveDialog", "timeout": 20 }
+      ]
+    },
+    {
+      "say": [{ "en": "Your version is in the timeline: you can go back to it anytime.", "es": "Tu versión está en la línea de tiempo: puedes volver a ella cuando quieras." }],
+      "do": [{ "highlight": "VerTimeline", "for": 2.6 }]
+    },
+    {
+      "say": [{ "en": "That's it: your first app, saved and ready to grow.", "es": "Listo: tu primera app, guardada y lista para crecer." }],
+      "do": [{ "pointer": "hide" }, { "wait": 0.6 }],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "BASIC is powerful again", "es": "BASIC vuelve a ser poderoso" }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../assets/card-bg.svg",
+        "logo": "../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Make something you love.", "es": "Crea algo que te encante." }],
+      "do": [{ "wait": 2.5 }]
+    }
+  ]
+}
