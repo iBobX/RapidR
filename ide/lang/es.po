@@ -6770,3 +6770,48 @@ msgstr "Contraste alto"
 #: ide/panels.inc
 msgid "Classic"
 msgstr "Clásico"
+
+#: ide/versions.inc
+msgid "Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo"
+msgstr "Arriba y Abajo eligen una versión; Intro muestra qué cambió; Mayús+F10 abre su menú: ¿Qué cambió?, Volver..., Deshacer"
+
+#: ide/versions.inc
+msgid "What Changed?"
+msgstr "¿Qué cambió?"
+
+#: ide/versions.inc
+msgid "Go Back..."
+msgstr "Volver..."
+
+#: ide/versions.inc
+msgid "Go Back to This Version for {file}..."
+msgstr "Volver a esta versión de {file}..."
+
+#: ide/versions.inc
+msgid "&Undo: {what}"
+msgstr "&Deshacer: {what}"
+
+#: ide/ai.inc
+msgid "Less"
+msgstr "Menos"
+
+#: ide/ai.inc
+msgid "Show less about what Send shares"
+msgstr "Mostrar menos sobre lo que comparte Enviar"
+
+#: ide/ai.inc
+msgid "Send shares this chat with {provider}."
+msgstr "Enviar comparte este chat con {provider}."
+
+#: ide/ai.inc
+msgid "Details"
+msgstr "Detalles"
+
+#: ide/ai.inc
+msgid "What Send shares: details"
+msgstr "Lo que comparte Enviar: detalles"
+
+#: ide/ai.inc
+msgid "Context: {pct}%"
+msgstr "Contexto: {pct}%"
+

@@ -367,6 +367,49 @@ The example [`examples/gui/updown.rr`](../../examples/gui/updown.rr) has one
 pair of arrows with an edit, one that steps by 15, and one with no `Associate`
 that a label follows through `OnChange`.
 
+## Tabs with icons: TabIcons
+
+`TabIcons` gives each tab of an `RTabControl` one of RapidR's icons, drawn
+before the tab's name. Name the icons in the tabs' order, separated by
+commas; `""` leaves a tab without one:
+
+```basic
+CREATE Pages AS RTabControl
+    Left = 8: Top = 8: Width = 428: Height = 150
+    Anchors = akLeft + akTop + akRight
+    TabIcons = "image,audio,video,settings"
+END CREATE
+Pages.AddTabs "Pictures", "Music", "Videos", "Settings"
+```
+
+![The tabs, each with its icon before its name](images/components/tab-icons.png)
+
+When one line of tabs is too narrow for every name, the tabs show their
+icons alone, never a cut name. Each icon still has its name: as a tooltip
+when the mouse rests on it, and for a screen reader. Make the window wider
+and the names come back.
+
+![The same tabs in a narrow window: the icons alone](images/components/tab-icons-narrow.png)
+
+The icons are the ones RapidR Studio uses (the [icon catalog](icons/index.html)
+lists their names). They are drawn in the look's colours, so they stay
+clear in light, dark and high contrast:
+
+![The tabs in the dark look](images/components/tab-icons-dark.png)
+
+A few things to know:
+
+- The tabs get a little taller (24 pixels) so the icon fits inside the
+  focus ring.
+- Vertical tabs (`VerticalTabs`) show their names only, without icons.
+- Several lines of tabs (`MultiLine`) and tabs of a fixed width
+  (`TabWidth`) always show the names beside the icons; only a single line
+  of tabs shows its icons alone.
+- Without `TabIcons` the tabs are exactly as before.
+
+The example [`examples/gui/tab_icons.rr`](../../examples/gui/tab_icons.rr)
+has four tabs with icons and a Narrower button that shows them alone.
+
 ## The global objects
 
 | Object | What it has |

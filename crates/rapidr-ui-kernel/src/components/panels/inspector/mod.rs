@@ -825,19 +825,19 @@ fn page_titles() -> [String; 2] {
     [tr_ui("Properties"), tr_ui("Events")]
 }
 
+/// The two pages' icons.
+const PAGE_ICONS: [&str; 2] = ["property", "event"];
+
+/// The two tabs' rectangles in strip `t` (as `common::tabs` lays them out).
+fn page_rects(t: Rect, font: &rapidr_value::objects::font::Font) -> Vec<Rect> {
+    let titles = page_titles();
+    common::tab_rects(t, &[titles[0].as_str(), titles[1].as_str()], &[], font).0
+}
+
 /// The tab at x, if the strip has one there.
 fn tab_at(cx: &Cx, v: &V, x: i64) -> Option<usize> {
     let t = v.g.tabs?;
-    let mut at = t.0 + 4;
-    for (i, title) in page_titles().iter().enumerate() {
-        let (tw, _) = rapidr_value::objects::text::text_size(title, &cx.font);
-        let w = tw + 20;
-        if x >= at && x < at + w {
-            return Some(i);
-        }
-        at += w + 2;
-    }
-    None
+    page_rects(t, &cx.font).iter().position(|r| x >= r.0 && x < r.0 + r.2)
 }
 
 impl ComponentKind for Inspector {
@@ -852,6 +852,14 @@ impl ComponentKind for Inspector {
         let (w, h) = (crate::store::int(store, id, "width", 0), crate::store::int(store, id, "height", 0));
         let v = view_of(id, w, h, classic());
         let (xi, yi) = (x.floor() as i64, y.floor() as i64);
+        // (a page's tab that shows its icon alone: its name)
+        if let Some(t) = v.g.tabs.filter(|&t| common::inside(t, xi, yi)) {
+            let titles = page_titles();
+            let font = rapidr_value::objects::font::Font { color: 0, ..store.font(id) };
+            let (rects, icons_only) = common::tab_rects(t, &[titles[0].as_str(), titles[1].as_str()], &[], &font);
+            let k = rects.iter().position(|&r| common::inside(r, xi, yi))?;
+            return icons_only.then(|| titles[k].clone());
+        }
         let (i, rr) = v.row_at(xi, yi)?;
         let font = rapidr_value::objects::font::Font { color: 0, ..store.font(id) };
         geo::row_tip(&v.m, &v.rows[i], rr, v.nw, xi, &font)
@@ -898,7 +906,7 @@ impl ComponentKind for Inspector {
                 _ => None,
             };
             let titles = page_titles();
-            common::tabs(p, t, &l, &[titles[0].as_str(), titles[1].as_str()], usize::from(v.m.on_events()), hover, &font);
+            common::tabs(p, t, &l, &[titles[0].as_str(), titles[1].as_str()], &PAGE_ICONS, &[], usize::from(v.m.on_events()), hover, &font);
         }
         draw::strip(p, &v.g, &v.m, &c);
         if searching {
@@ -1111,15 +1119,13 @@ impl ComponentKind for Inspector {
             let mut list = AccessNode::new(part_id(cx.id, PART_TAB, PART_TABS + 9), Role::TabList);
             list.name = tr_ui("Pages");
             list.bounds = at(t);
-            let mut x = t.0 + 4;
+            let rects = page_rects(t, &cx.font);
             for (i, title) in page_titles().iter().enumerate() {
-                let (tw, _) = rapidr_value::objects::text::text_size(title, &cx.font);
                 let mut tab = AccessNode::new(part_id(cx.id, PART_TAB, PART_TABS + i), Role::Tab);
                 tab.name = title.clone();
                 tab.states.selected = Some(usize::from(v.m.on_events()) == i);
                 tab.actions = vec![Action::Click];
-                tab.bounds = at((x, t.1, tw + 20, t.3));
-                x += tw + 22;
+                tab.bounds = at(rects[i]);
                 list.children.push(tab);
             }
             n.children.push(list);

@@ -445,7 +445,14 @@ const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},de
 // the properties are read, and what each must say (a regular expression;
 // `same`: equal to a file's text, line ends as the editor keeps them).
 // (I8 AI-REAL: the settings dialog's clicks — typeInto and idle below)
-const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
+const AI_TAB = "settingstabs.__mousedown_108_12,settingstabs.__mouseup_108_12";
+// (STUDIO-POLISH P3: the tab strips' names, a screen reader's — dialog-fits)
+const TAB_NAMES = {
+  "main-en": ["Output", "Build", "Problems", "Properties", "Events"],
+  "main-es": ["Salida", "Construir", "Problemas", "Propiedades", "Eventos"],
+  "settings-general-en": ["General", "AI", "AI Apps"],
+  "settings-general-es": ["General", "IA", "Aplicaciones de IA"],
+};
 const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
 const OK = "settingsokbtn.__mousedown_40_14,settingsokbtn.__mouseup_40_14";
 const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
@@ -4475,8 +4482,9 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:prices=2/10,ai:ask=hello there,wait,wait,wait",
     delay: 5,
     capture: true,
-    // (one line: 18 pixels, as it always was)
-    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/, "aimeter.height": /^18$/ },
+    // (one line: 18 pixels, as it always was — two, 35, in the right dock's
+    // 272 since INSPECTOR-CATEGORIES)
+    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/, "aimeter.height": /^(18|35)$/ },
   },
   {
     // The meter with cached tokens and prices is longer than a line of the
@@ -4518,8 +4526,10 @@ const CASES = [
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
       // (the pane opens 380 wide, not the dock's 240; its controls follow —
       // its contents 378, inside the group's 1-pixel frame on each side)
-      "aipanel.width": /^378$/,
-      "aiinput.width": /^366$/,
+      // (the right dock 272 wide since INSPECTOR-CATEGORIES; the box 8
+      // from each edge — STUDIO-POLISH)
+      "aipanel.width": /^270$/,
+      "aiinput.width": /^254$/,
     },
   },
   {
@@ -6512,8 +6522,9 @@ const CASES = [
       "aiprovbox.text": /^OpenAI$/,
       "aifetchbtn.enabled": /^(-1|1|True)$/i,
       "aifetchnote.caption": /^OpenAI refused the API key \(401\) \(OpenAI says: "Incorrect API key provided[\s\S]*Check the key: it may be mistyped, revoked, or a key of another provider\.$/,
-      // (the note as tall as its four lines: nothing cut)
-      "aifetchnote.height": /^(6\d|7\d|8\d)$/,
+      // (the note as tall as its lines — three since the key is shown
+      // masked, "mock****"; four in a narrower look: nothing cut)
+      "aifetchnote.height": /^(4[89]|[5-8]\d)$/,
       "aimodelcombo.itemcount": /^0$/,
     },
   },
@@ -7168,6 +7179,41 @@ const CASES = [
     contrast: true,
     a11y: [[/^first, saved by Ana, just now$/, null, "selected"], [/^second, saved by Ana, just now, the current version$/, null]],
     dump: { "vertimeline.itemindex": /^1$/, "verwhatbtn.enabled": /^1$/, "verbackbtn.enabled": /^1$/ },
+  },
+  {
+    // (STUDIO-POLISH: a right click on "first" picks it and opens its menu
+    // there — What Changed?, Go Back..., Go Back for main.rr..., Undo —; the
+    // footer one row of three as wide as each other: their icons alone in
+    // the default column, their names in a wide one; Undo's words under them)
+    name: "versions-timeline-menu",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,wait`,
+    events: "studio.__wait_3500,vertimeline.__rightclick_40_80",
+    delay: 7,
+    capture: true,
+    dump: {
+      "vertimeline.itemindex": /^1$/,
+      "vertimeline.__popupat": /^40,80$/,
+      "vertimeitem(2).caption": /^Go Back to This Version for main\.rr\.\.\.$/,
+      "vertimeitem(3).caption": /^&Undo: Saved the version “second”$/,
+      "verwhatbtn.caption": /^$/,
+      "verwhatbtn.width": /^40$/,
+      "verundobtn.accessiblename": /^Undo$/,
+      "verundonote.caption": /^Undo: Saved the version/,
+    },
+  },
+  {
+    name: "versions-footer-names",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,versions:width=520,wait,versions:problems`,
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    checks: [(d) => [d["verwhatbtn.width"] === d["verundobtn.width"] && d["verbackbtn.width"] === d["verundobtn.width"] && d["verwhatbtn.top"] === d["verundobtn.top"], `the footer's three buttons one row, as wide as each other: ${d["verwhatbtn.width"]}/${d["verbackbtn.width"]}/${d["verundobtn.width"]} at ${d["verwhatbtn.top"]}/${d["verundobtn.top"]}`]],
+    dump: { "verwhatbtn.caption": /^What &Changed\?$/, "verwhatbtn.width": /^\d+$/, "verbackbtn.width": /^\d+$/, "verundobtn.width": /^\d+$/, "verwhatbtn.top": /^\d+$/, "verundobtn.top": /^\d+$/, "outputbox.text": /\[versions\] problems=0/ },
   },
   ...[260, 400].map((width) => ({
     // (narrow side columns: nothing cut off, nothing on top of another)
@@ -8012,6 +8058,30 @@ const CASES = [
     },
   },
   {
+    // (STUDIO-POLISH) the strip under the chat, calm: the dial whole (8 from
+    // the edge, its segments inside the track), every control compact,
+    // what Send shares one line until Details opens it (Less closes it)
+    name: "coach-strip-calm",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks on my button,ai:wait,wait`,
+    events: [CLICK("ainotelink", 10, 8), idle(3)].join(","),
+    delay: 7,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^Show less about what Send shares$/], [/^Coach, chosen$/, "button"]],
+    dump: {
+      "aidialtrack.left": /^8$/,
+      "aidialbuild.left": /^10$/,
+      "aisendbtn.height": /^24$/,
+      "aicompactbtn.height": /^24$/,
+      "aichatsbtn.height": /^24$/,
+      "ainotelink.caption": /^Less$/,
+      "ainote.caption": /nothing else, nothing before\.$/,
+    },
+  },
+  {
     // I Got It: the problem done — the strip goes, the next question starts
     // at the first hint again
     name: "coach-gotit",
@@ -8311,6 +8381,48 @@ const CASES = [
     capture: true,
     dump: { "outputbox.text": /Tu programa se detuvo: se desbordó la pila \(las llamadas fueron demasiado profundas\), en main\.rr línea 24, en SUB Tick \(OnTimer de Ticker\)\.\nRapidR lo detuvo: es un problema de RapidR, no de tu código\. Un informe queda en esta computadora: Ver informe/ },
   },
+  // (STUDIO-POLISH, the design audit and the dialog size rule —
+  // docs/design-guidelines.md § Dialogs and resizing: Studio at 1280 x 720
+  // on a 1280 x 720 screen (RAPIDR_TEST_SCREEN), each pane and dialog in
+  // English and in Spanish: a dialog at most 85 % of the screen (612 x
+  // 1088), its buttons inside it; nothing cut off, nothing on top of
+  // another, nothing past its window's edge, as the layout report sees
+  // them — the event layoutprobe.ontimer, from inside a dialog's wait)
+  ...[
+    ["main", "examples/gui/hello_form.rr", "view.output", ""],
+    ["versions", "examples/gui/hello_form.rr", "versions.pane", ""],
+    ["aiapps", "examples/gui/hello_form.rr", "view.aiApps", ""],
+    ["settings-general", "examples/gui/hello_form.rr", "view.settings", "settingsdialog"],
+    ["settings-ai", "examples/gui/hello_form.rr", "ai.settings", "settingsdialog"],
+    ["settings-aiapps", "examples/gui/hello_form.rr", "mcp.settings", "settingsdialog"],
+    ["schoollock", "examples/gui/hello_form.rr", "tools.schoolLock", "lockdialog"],
+    ["newproject", "examples/gui/hello_form.rr", "file.newProject", "newdialog"],
+    ["setup-rai", "examples/gui/hello_form.rr", "ai.setup", "aisetup"],
+    ["project-options", "tests/fixtures/studio_mcp/Hello.rrproj", "project.options", "appdialog"],
+  ].flatMap(([state, open, steps, dialog]) =>
+    ["en", "es"].map((lang) => ({
+      name: `dialog-fits-${state}-${lang}`,
+      desktopOnly: true,
+      open,
+      env: { RAPIDR_TEST_SCREEN: "1280x720" },
+      do: `wait,${lang === "es" ? "lang:es,wait," : ""}layout:size=1280x720,wait,${steps}`,
+      events: "layoutprobe.ontimer",
+      delay: 6,
+      capture: true,
+      contrast: true,
+      // (each tab named for a screen reader — its icon alone when narrow)
+      ...(TAB_NAMES[`${state}-${lang}`] ? { a11y: TAB_NAMES[`${state}-${lang}`].map((n) => [n, "tab"]) } : {}),
+      ...(dialog
+        ? {
+            checks: [(d) => [Number(d[`${dialog}.height`]) <= 612 && Number(d[`${dialog}.width`]) <= 1088, `${dialog} fits 85 % of a 1280 x 720 screen (${d[`${dialog}.width`]} x ${d[`${dialog}.height`]})`]],
+          }
+        : {}),
+      dump: {
+        "outputbox.text": /\[layout\] problems=0/,
+        ...(dialog ? { [`${dialog}.height`]: /^\d+$/, [`${dialog}.width`]: /^\d+$/, [`${dialog}.visible`]: /^(-1|1|True)$/i } : {}),
+      },
+    })),
+  ),
 ];
 
 
@@ -8367,7 +8479,7 @@ async function settingsByMouse(page, scale, record) {
       await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     } else {
       const s = await center("#rr-settingstabs");
-      await page.mouse.click(s.b.x + 75, s.b.y + 12);
+      await page.mouse.click(s.b.x + 108, s.b.y + 12);
     }
     await page.waitForTimeout(300);
     record("", (await prop("settingstabs", "tabindex")) === "1", "the AI tab, clicked");

@@ -46,6 +46,10 @@ DECLARE SUB AIInputKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB AIModelPicked
 DECLARE SUB AIReviewClick
 DECLARE SUB AISentLinkClick
+DECLARE SUB AINoteLinkClick
+DECLARE SUB AIContextFit
+DECLARE FUNCTION AIDimW(Text AS STRING) AS INTEGER
+DECLARE FUNCTION AITextHigh(Text AS STRING, W AS INTEGER, Size AS INTEGER) AS INTEGER
 DECLARE SUB AIRevPicked
 DECLARE SUB AIRevHunk(Index AS INTEGER, Accepted AS INTEGER)
 DECLARE SUB AIRevAcceptAll
@@ -180,6 +184,9 @@ DIM AIInput AS RMemo
 DIM AISendBtn AS RButton
 DIM AIStopBtn AS RButton
 DIM AINote AS RLabel
+' (what Send shares: one line and Details, or the whole paragraph and Less)
+DIM AINoteLink AS RLabel
+DIM AINoteOpen AS INTEGER
 DIM AIMeter AS RLabel
 ' (measures the meter's text: how many lines it wraps to, AIMeterHigh)
 DIM AIMeterMeasure AS RBitmap
@@ -241,6 +248,9 @@ DIM AIQuietAfter AS INTEGER
 ' (R5: the context meter and Compact)
 DIM AIContextBar AS RProgressBar
 DIM AIContextText AS RLabel
+' (the context's words, whole and short: AIContextFit)
+DIM AIContextFull AS STRING
+DIM AIContextShort AS STRING
 DIM AICompactBtn AS RButton
 ' (R5: the / commands, listed while one is typed)
 DIM AISlashBar AS RPanel
@@ -574,6 +584,11 @@ SUB SetUpAI
   AINote.Parent = AIBottom
   AINote.WordWrap = 1: AINote.AutoSize = 0
   AINote.AccessibleName = TR$("What Send shares")
+  AINoteLink.Parent = AIBottom
+  AINoteLink.AutoSize = 0: AINoteLink.WordWrap = 0
+  AINoteLink.Cursor = -21
+  AINoteLink.TabStop = 1
+  AINoteLink.OnClick = AINoteLinkClick
   ' (the session's tokens, and their cost when the prices are known)
   AIMeter.Parent = AIBottom
   AIMeter.WordWrap = 1: AIMeter.AutoSize = 0
@@ -806,9 +821,15 @@ END SUB
 ' doesn't (with cached tokens and prices it is longer than the pane is
 ' wide: "· about $…" is never left out of a label one line high).
 FUNCTION AIMeterHigh(W AS INTEGER) AS INTEGER
+  Result = AITextHigh(AIMeter.Caption, W, DimFont.Size)
+END FUNCTION
+
+' (Text's height wrapped to W pixels in the small font of Size: 18 a line,
+' each more a line's pitch)
+FUNCTION AITextHigh(Text AS STRING, W AS INTEGER, Size AS INTEGER) AS INTEGER
   DIM lines AS INTEGER, cur AS STRING, wd AS STRING, i AS INTEGER, n AS INTEGER, t AS STRING
-  AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = DimFont.Size
-  t = LTRIM$(RTRIM$(AIMeter.Caption))
+  AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = Size
+  t = LTRIM$(RTRIM$(Text))
   lines = 1
   IF t <> "" THEN
     n = TALLY(t, " ") + 1
@@ -840,53 +861,92 @@ END SUB
 ' The panel's controls placed for its width (the docks resize it).
 SUB LayOutAIPanel
   DIM w AS INTEGER, bh AS INTEGER, y AS INTEGER, mh AS INTEGER, ew AS INTEGER
+  DIM cw AS INTEGER, nw AS INTEGER, lw AS INTEGER, here AS INTEGER, sent AS INTEGER, rx AS INTEGER
+  DIM dw AS INTEGER, tw AS INTEGER, nh AS INTEGER
   w = AIPanel.ClientWidth
   IF w < 200 THEN w = 200
-  IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
+  ' (docs/design-guidelines.md: every control compact — UiCompactH —, on
+  ' its row's centre line, 8 apart, 8 from the pane's edges)
+  bh = UiCompactH
   ' (the chats and this one's title above, New Chat at the right; the
   ' model below with ↻ and the effort: the docks keep the panel narrow)
-  AIChatsBtn.Left = 6: AIChatsBtn.Top = 4: AIChatsBtn.Width = 64: AIChatsBtn.Height = bh
-  AINewBtn.Left = w - 86: AINewBtn.Top = 4: AINewBtn.Width = 80: AINewBtn.Height = bh
-  AIChatTitle.Left = 78: AIChatTitle.Top = 4 + (bh - 18) \ 2: AIChatTitle.Width = w - 86 - 6 - 78: AIChatTitle.Height = 18
+  cw = UITextWidth(REPLACESUBSTR$(AIChatsBtn.Caption, "&", "")) + 24
+  IF cw < 72 THEN cw = 72
+  nw = UITextWidth(REPLACESUBSTR$(AINewBtn.Caption, "&", "")) + 24
+  IF nw < 72 THEN nw = 72
+  AIChatsBtn.Left = 8: AIChatsBtn.Top = 8: AIChatsBtn.Width = cw: AIChatsBtn.Height = bh
+  AINewBtn.Left = w - 8 - nw: AINewBtn.Top = 8: AINewBtn.Width = nw: AINewBtn.Height = bh
+  AIChatTitle.Left = 8 + cw + 8: AIChatTitle.Top = 8 + (bh - 18) \ 2: AIChatTitle.Width = w - 8 - nw - 8 - (8 + cw + 8): AIChatTitle.Height = 18
   ew = 118
   IF w < 300 THEN ew = 96
-  AIEffortBox.Left = w - 6 - ew: AIEffortBox.Top = 38: AIEffortBox.Width = ew
-  AIRefreshBtn.Left = w - 6 - ew - 4 - 30: AIRefreshBtn.Top = 37: AIRefreshBtn.Width = 30: AIRefreshBtn.Height = bh
-  AIModelBox.Left = 6: AIModelBox.Top = 38: AIModelBox.Width = w - 12 - ew - 4 - 30 - 4
+  AIEffortBox.Left = w - 8 - ew: AIEffortBox.Top = 40: AIEffortBox.Width = ew
+  AIRefreshBtn.Left = w - 8 - ew - 8 - bh: AIRefreshBtn.Top = 40: AIRefreshBtn.Width = bh: AIRefreshBtn.Height = bh
+  AIModelBox.Left = 8: AIModelBox.Top = 40: AIModelBox.Width = w - 8 - ew - 8 - bh - 8 - 8
   ' (the dial: Build or Coach, a row of its own — and School Lock's line)
-  y = 70 + LayOutAIDial(70, w) + 6
+  y = 72 + LayOutAIDial(72, w) + 8
   IF AITop.Height <> y THEN AITop.Height = y
-  ' (the box; Send and Stop, the answer's seconds at the right; the
-  ' context with Compact; the meter, two lines when narrow; "What was
-  ' sent" beside the buttons when it fits, else under the meter; what
-  ' Send shares)
-  AIInput.Left = 6: AIInput.Top = 6: AIInput.Width = w - 12: AIInput.Height = 64
-  AISendBtn.Left = 6: AISendBtn.Top = 76: AISendBtn.Width = 74: AISendBtn.Height = bh
-  AIStopBtn.Left = 86: AIStopBtn.Top = 76: AIStopBtn.Width = 74: AIStopBtn.Height = bh
-  AIElapsed.Left = w - 62: AIElapsed.Top = 76 + (bh - 16) \ 2: AIElapsed.Width = 56: AIElapsed.Height = 18
-  y = 82 + bh
-  AICompactBtn.Left = w - 6 - 84: AICompactBtn.Top = y: AICompactBtn.Width = 84: AICompactBtn.Height = bh
-  AIContextBar.Left = 8: AIContextBar.Top = y + (bh - 8) \ 2: AIContextBar.Width = 56: AIContextBar.Height = 8
-  AIContextText.Left = 70: AIContextText.Top = y + (bh - 18) \ 2: AIContextText.Width = w - 6 - 84 - 6 - 70: AIContextText.Height = 18
-  y = y + bh + 6
+  ' (the box; under it Send and Stop at the left, Compact at the right and
+  ' "What was sent" between them when it fits; the context — its bar and
+  ' its words, shorter when the long ones don't fit — on a line of its own;
+  ' the meter, two lines when narrow; what Send shares in one line with
+  ' Details, the whole paragraph when opened)
+  AIInput.Left = 8: AIInput.Top = 8: AIInput.Width = w - 16: AIInput.Height = 64
+  y = 80
+  AISendBtn.Left = 8: AISendBtn.Top = y: AISendBtn.Width = 72: AISendBtn.Height = bh
+  AIStopBtn.Left = 88: AIStopBtn.Top = y: AIStopBtn.Width = 72: AIStopBtn.Height = bh
+  AIElapsed.Left = 168: AIElapsed.Top = y + (bh - 16) \ 2: AIElapsed.Width = 56: AIElapsed.Height = 18
+  cw = UITextWidth(REPLACESUBSTR$(AICompactBtn.Caption, "&", "")) + 24
+  IF cw < 72 THEN cw = 72
+  lw = AIDimW(AISentLink.Caption) + 4
+  here = Flag(w - 8 - cw >= 168)
+  IF here THEN
+    AICompactBtn.Left = w - 8 - cw: AICompactBtn.Top = y: AICompactBtn.Width = cw: AICompactBtn.Height = bh
+  END IF
+  sent = Flag(here <> 0 AND 168 + lw + 8 <= w - 8 - cw)
+  IF sent THEN
+    AISentLink.Left = 168: AISentLink.Top = y + (bh - 16) \ 2: AISentLink.Width = lw: AISentLink.Height = 18
+  END IF
+  y = y + bh + 8
+  rx = w - 8
+  IF here = 0 THEN
+    AICompactBtn.Left = w - 8 - cw: AICompactBtn.Top = y: AICompactBtn.Width = cw: AICompactBtn.Height = bh
+    rx = w - 8 - cw - 8
+  END IF
+  AIContextBar.Left = 8: AIContextBar.Top = y + (bh - 8) \ 2: AIContextBar.Width = 48: AIContextBar.Height = 8
+  AIContextText.Left = 64: AIContextText.Top = y + (bh - 18) \ 2: AIContextText.Width = rx - 64: AIContextText.Height = 18
+  AIContextFit
+  y = y + bh + 4
   mh = AIMeterHigh(w - 16)
   AIMeter.Left = 8: AIMeter.Top = y: AIMeter.Width = w - 16: AIMeter.Height = mh
   y = y + mh + 4
-  IF w - 176 - 60 >= 96 THEN
-    AISentLink.Left = 170: AISentLink.Top = 76 + (bh - 16) \ 2: AISentLink.Width = w - 176 - 60
-  ELSE
-    AISentLink.Left = 8: AISentLink.Top = y: AISentLink.Width = w - 16
-    y = y + 22
-  END IF
-  AIEditText.Left = 8: AIEditText.Top = 6: AIEditText.Width = w - 16 - 84: AIEditText.Height = 60
-  AIEditCancel.Left = w - 6 - 76: AIEditCancel.Top = (72 - bh) \ 2: AIEditCancel.Width = 76: AIEditCancel.Height = bh
+  AIEditText.Left = 8: AIEditText.Top = 8: AIEditText.Width = w - 16 - 84: AIEditText.Height = 60
+  AIEditCancel.Left = w - 8 - 76: AIEditCancel.Top = (72 - bh) \ 2: AIEditCancel.Width = 76: AIEditCancel.Height = bh
   IF ThemeName = "classic" THEN AISlashList.ItemHeight = 16 ELSE AISlashList.ItemHeight = 22
   LayOutAILive
   LayOutAIChats
   AIShowChatTitle
-  AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
-  IF AIBottom.Height <> y + 68 THEN AIBottom.Height = y + 68
-  AIReviewBtn.Left = 6: AIReviewBtn.Top = 9: AIReviewBtn.Width = w - 12: AIReviewBtn.Height = bh
+  ' (what Send shares: one line with Details beside it — under it, with
+  ' "What was sent" when that didn't fit beside Stop, when the line is
+  ' long —; opened, the paragraph and Less under it)
+  dw = AIDimW(AINoteLink.Caption) + 4
+  AIMeterMeasure.Font.Name = AINote.Font.Name: AIMeterMeasure.Font.Size = AINote.Font.Size
+  tw = AIMeterMeasure.TextWidth(AINote.Caption) + 4
+  nh = AITextHigh(AINote.Caption, w - 16, AINote.Font.Size)
+  IF AINoteOpen = 0 AND sent <> 0 AND 8 + tw + 8 + dw <= w - 8 THEN
+    AINote.Left = 8: AINote.Top = y: AINote.Width = tw: AINote.Height = 18
+    AINoteLink.Left = 8 + tw + 8: AINoteLink.Top = y: AINoteLink.Width = dw: AINoteLink.Height = 18
+    y = y + 18
+  ELSE
+    AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = nh
+    y = y + nh + 2
+    AINoteLink.Left = 8: AINoteLink.Top = y: AINoteLink.Width = dw: AINoteLink.Height = 18
+    IF sent = 0 THEN
+      AISentLink.Left = 8 + dw + 12: AISentLink.Top = y: AISentLink.Width = lw: AISentLink.Height = 18
+    END IF
+    y = y + 18
+  END IF
+  IF AIBottom.Height <> y + 8 THEN AIBottom.Height = y + 8
+  AIReviewBtn.Left = 8: AIReviewBtn.Top = 8: AIReviewBtn.Width = w - 16: AIReviewBtn.Height = bh
   AIQueueCancel.Left = w - 34: AIQueueCancel.Top = (32 - 26) \ 2: AIQueueCancel.Width = 28: AIQueueCancel.Height = 26
   AIQueueText.Left = 8: AIQueueText.Top = 8: AIQueueText.Width = w - 48: AIQueueText.Height = 18
   AIShowQueue
@@ -920,6 +980,8 @@ SUB AIPanelFonts
   AIMeter.Font.Color = TC("page.dim")
   AISentLink.Font = DimFont
   AISentLink.Font.Color = TC("page.link")
+  AINoteLink.Font = DimFont
+  AINoteLink.Font.Color = TC("page.link")
   AIStatus.Font = StatusFont
   AIReviewBtn.Font = UIFont
   AIReviewBtn.Font.Bold = 1
@@ -1029,8 +1091,36 @@ END SUB
 
 ' What Send shares, said under the box (the provider's name in it).
 SUB AIShowNote
-  AINote.Caption = TR$("Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with {provider}: nothing else, nothing before.", "provider", AIProviderName)
+  DIM all AS STRING
+  all = TR$("Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with {provider}: nothing else, nothing before.", "provider", AIProviderName)
+  ' (closed: one line naming who gets it, Details opens the rest; a
+  ' screen reader hears all of it either way)
+  IF AINoteOpen THEN
+    AINote.Caption = all
+    AINoteLink.Caption = TR$("Less")
+    AINoteLink.AccessibleName = TR$("Show less about what Send shares")
+  ELSE
+    AINote.Caption = TR$("Send shares this chat with {provider}.", "provider", AIProviderName)
+    AINoteLink.Caption = TR$("Details")
+    AINoteLink.AccessibleName = TR$("What Send shares: details")
+  END IF
+  AINote.Hint = all
+  AINote.ShowHint = Flag(AINoteOpen = 0)
+  AINote.AccessibleDescription = all
 END SUB
+
+' (Details / Less under the box: what Send shares, opened or closed)
+SUB AINoteLinkClick
+  AINoteOpen = Flag(AINoteOpen = 0)
+  AIShowNote
+  LayOutAIPanel
+END SUB
+
+' (Text's width in the small font)
+FUNCTION AIDimW(Text AS STRING) AS INTEGER
+  AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = DimFont.Size
+  Result = AIMeterMeasure.TextWidth(Text)
+END FUNCTION
 
 ' The model list: the ones fetched (by the assistant, or by Settings for
 ' the same provider and address), else the one chosen.
@@ -1175,12 +1265,26 @@ SUB AIShowContext
   ELSE
     t = TR$("Context: {used} of {limit} ({pct}%)", "used", AIThousands(used), "limit", AIThousands(limit), "pct", pct)
   END IF
+  AIContextFull = t
+  AIContextShort = TR$("Context: {pct}%", "pct", pct)
+  IF used <= 0 THEN AIContextShort = t
+  t = AIContextFull
+  IF AIContextText.Width > 0 AND AIDimW(t) + 4 > AIContextText.Width THEN t = AIContextShort
   IF AIContextText.Caption <> t THEN
     AIContextText.Caption = t
     AIContextText.Hint = TR$("About {used} tokens go with the next question. At {limit} the chat is compacted by itself; Compact does it now.", "used", AIThousands(used), "limit", AIThousands(limit))
     AIContextText.ShowHint = 1
-    AIContextBar.AccessibleDescription = t
+    AIContextBar.AccessibleDescription = AIContextFull
   END IF
+END SUB
+
+' (the context's words for the room they have: whole, or the short ones)
+SUB AIContextFit
+  DIM t AS STRING
+  IF AIContextFull = "" THEN EXIT SUB
+  t = AIContextFull
+  IF AIDimW(t) + 4 > AIContextText.Width THEN t = AIContextShort
+  IF AIContextText.Caption <> t THEN AIContextText.Caption = t
 END SUB
 
 ' (1234567 → "1,234,567")

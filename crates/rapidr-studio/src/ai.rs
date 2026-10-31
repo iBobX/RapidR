@@ -773,7 +773,8 @@ impl ToolProvider for Handle {
     }
 
     fn nudge_hides(&self, answer: &str) -> Option<(String, String)> {
-        with(&self.name, |t| (t.coach() && coach::shows_code(answer)).then(|| (tr_ui("A first hint showed code too early: Studio asked RAI for a nudge without it."), tr_ui("Asked for the hint without code"))))
+        // (said in Studio's language: the chat's muted line, the step)
+        with(&self.name, |t| (t.coach() && coach::shows_code(answer)).then(|| coach::hidden_words(t.ladder.rung)))
     }
 
     fn turn_cards(&self) -> Vec<(String, String)> {
@@ -798,6 +799,13 @@ impl ToolProvider for Handle {
             // again without it, once: the ladder holds in Studio, whatever
             // a small model does)
             if t.coach() {
+                // (hints 2 and 3 that gave the whole solution away — a code
+                // block with no blanks that compiles as a program —: asked
+                // once for the hint they were, the draft hidden as hint 1's)
+                if t.ladder.rung >= 2 && t.ladder.rung < coach::RUNGS {
+                    let compiles = |code: &str| diagnostics_count(&[("main.rr".to_string(), code.to_string())], "coach-check", "main.rr") == 0;
+                    return coach::gives_solution(answer, compiles).then(|| coach::redo_rung(t.ladder.rung).to_string());
+                }
                 return (t.ladder.rung <= 1 && !t.ladder.error && coach::shows_code(answer)).then(|| coach::REDO_NUDGE.to_string());
             }
             if !t.may_propose() {

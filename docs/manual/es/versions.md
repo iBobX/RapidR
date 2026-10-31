@@ -1,4 +1,4 @@
-<!-- translated-from: versions.md c340afd1271f4b1f -->
+<!-- translated-from: versions.md 0600d6d68169348a -->
 # Versiones: nunca pierdas tu trabajo
 
 **Versiones** conserva cada estado guardado de tu proyecto, muestra qué cambió
@@ -96,13 +96,19 @@ quién la guardó y cuándo. La más nueva —la versión **actual**, aquella en
 se basan tus archivos— tiene un anillo del color de acento. Los puntos de
 control de una IA (lo que el asistente conserva antes de cambiar tus archivos)
 tienen un punto más pequeño y más discreto. Elige una versión y **¿Qué
-cambió?** y **Volver...** actúan sobre ella; **Deshacer** está a su lado, y debajo,
-con palabras, lo que desharía.
+cambió?** y **Volver...** actúan sobre ella; **Deshacer** revierte la última
+acción. Los tres están en una fila bajo la línea de tiempo, todos del mismo
+ancho, y debajo, en palabras atenuadas, lo que Deshacer revertiría. Un clic
+derecho en una versión (o Mayús+F10 cuando la línea de tiempo tiene el teclado)
+abre las mismas acciones en un menú: **¿Qué cambió?**, **Volver a esta
+versión...**, **Volver a esta versión de** el archivo abierto y **Deshacer**.
 
 ![El panel Versiones: un cambio sin guardar como versión, dos versiones en la línea de tiempo, ¿Qué cambió?, Volver..., Deshacer](../images/versions/studio-timeline.png)
 
-El panel se adapta a cualquier ancho: en el más estrecho, las etiquetas pasan
-debajo del título y los botones siguen en otra fila; nada queda cortado.
+El panel se adapta a cualquier ancho: en una columna estrecha, las etiquetas
+pasan debajo del título y los tres botones muestran solo sus íconos (cada uno
+con su nombre en su sugerencia y para un lector de pantalla); nada queda
+cortado ni pasa a otra fila.
 
 ![El mismo panel en una columna estrecha, con el aspecto oscuro de RapidR](../images/versions/studio-narrow.png)
 
@@ -183,6 +189,8 @@ navegador.
 |---|---|
 | Guardar una versión... | Ctrl+Shift+V (Cmd+Shift+V) |
 | Elegir una versión | Flecha arriba y flecha abajo en la línea de tiempo, y luego Tab hasta ¿Qué cambió? o Volver... |
+| Qué cambió una versión | Intro (o doble clic) sobre ella |
+| El menú de una versión | clic derecho sobre ella, o Mayús+F10 (la tecla de menú) |
 | Abrir un archivo cambiado | doble clic (o Intro) en la lista de cambios |
 | Abrir o cerrar una carpeta de cambios | Derecha / Izquierda (o Espacio), o un clic en su flecha |
 | Ver solo algunos archivos cambiados | escribe en el cuadro de filtro (más de 20 cambios) |

@@ -308,7 +308,7 @@ msgstr ""
 msgid "Ask the assistant to fix the errors"
 msgstr ""
 
-#: ide/ai.inc ide/aichats.inc
+#: ide/ai.inc ide/aichats.inc ide/versions.inc
 msgid "Undo"
 msgstr ""
 
@@ -373,6 +373,26 @@ msgid "Send shares your message, this chat, what the assistant reads of this pro
 msgstr ""
 
 #: ide/ai.inc
+msgid "Less"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Show less about what Send shares"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Send shares this chat with {provider}."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Details"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What Send shares: details"
+msgstr ""
+
+#: ide/ai.inc
 msgid "A model of {provider}. The provider is chosen in Tools > Settings > AI, or Set up RAI."
 msgstr ""
 
@@ -418,6 +438,10 @@ msgstr ""
 
 #: ide/ai.inc
 msgid "Context: {used} of {limit} ({pct}%)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Context: {pct}%"
 msgstr ""
 
 #: ide/ai.inc
@@ -2003,11 +2027,11 @@ msgstr ""
 msgid "What Changed Since the &Last Version"
 msgstr ""
 
-#: ide/commands.inc
+#: ide/commands.inc ide/versions.inc
 msgid "&Go Back to This Version..."
 msgstr ""
 
-#: ide/commands.inc
+#: ide/commands.inc ide/versions.inc
 msgid "Go Back to This Version for This &File..."
 msgstr ""
 
@@ -4348,6 +4372,10 @@ msgstr ""
 msgid "Welcome"
 msgstr ""
 
+#: ide/panes.inc ide/versions.inc
+msgid "Versions"
+msgstr ""
+
 #: ide/panes.inc
 msgid "Example {name}: {what}"
 msgstr ""
@@ -5881,10 +5909,6 @@ msgid "RapidR Studio is ready."
 msgstr ""
 
 #: ide/versions.inc
-msgid "Versions"
-msgstr ""
-
-#: ide/versions.inc
 msgid "&Start Keeping Versions of This Project"
 msgstr ""
 
@@ -5949,11 +5973,15 @@ msgid "Timeline: every version, newest first"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Up and Down pick a version; What Changed? and Go Back... act on it"
+msgid "Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo"
 msgstr ""
 
 #: ide/versions.inc
 msgid "What this version changed (Git calls this a diff)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What Changed?"
 msgstr ""
 
 #: ide/versions.inc
@@ -5962,6 +5990,10 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Go back to this version: a new version with its files (Git calls this a revert)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go Back..."
 msgstr ""
 
 #: ide/versions.inc
@@ -6208,6 +6240,14 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Changed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go Back to This Version for {file}..."
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Undo: {what}"
 msgstr ""
 
 #: ide/versions.inc

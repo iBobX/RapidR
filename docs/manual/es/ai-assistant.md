@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 99eebc4666e8562d -->
+<!-- translated-from: ai-assistant.md bb167dc1938f191d -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -75,6 +75,10 @@ después en Configuración.
 **IA**):
 
 ![Herramientas > Configuración, la página IA: el proveedor, una clave guardada para la sesión, el modelo elegido de la lista del proveedor, el límite de respuesta, los precios, el permiso](../images/ai/settings.png)
+
+En una pantalla baja (una portátil de 1280 × 720, una ventana pequeña del
+navegador) Configuración nunca es más alta que la pantalla: su página se
+desplaza bajo las pestañas, y Aceptar y Cancelar quedan abajo.
 
 1. **Activar el asistente de IA.**
 2. **Proveedor.** **Ver precios** abre la página de precios del proveedor.
@@ -275,6 +279,13 @@ una sugerencia.)
 otro para la siguiente pregunta. **↻** le pide otra vez al proveedor sus modelos (un
 modelo nuevo, o uno que acabas de descargar a tu computadora). El propio proveedor se
 elige en Configuración, o con Configurar RAI.
+
+Debajo del cuadro: **Enviar** y **Detener** a la izquierda, **Compactar** a la
+derecha (y *Qué se envió* entre ellos cuando el panel es lo bastante ancho);
+el medidor de contexto en su propia línea, con palabras más cortas cuando el
+panel es estrecho (los números completos en su sugerencia); los tokens usados; y
+una línea que dice con quién comparte Enviar el chat: **Detalles** abre la frase
+completa (qué se comparte, y nada más) y **Menos** la vuelve a cerrar.
 
 ![El panel Asistente: una pregunta y su respuesta, la línea de estado, el medidor de contexto, el medidor de tokens, lo que comparte Enviar](../images/ai/panel.png)
 

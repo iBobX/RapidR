@@ -157,6 +157,68 @@ pub const REDO_LINE: &str = "A first hint showed code too early: Studio asked RA
 /// The progress checklist's words for it.
 pub const REDO_STEP: &str = "Asked for the hint without code";
 
+/// What the model is told when hint 2 or 3 gave the whole solution away
+/// ([`gives_solution`]): asked once to write the hint it was asked for.
+pub fn redo_rung(rung: u8) -> &'static str {
+    if rung <= 2 {
+        "(RapidR Studio, not the user: this was hint 2 of 4, the concept, and your answer showed a whole program. Write the hint again: the idea in plain words and a tiny example of 2 to 4 lines about something else — not their program and not its solution.)"
+    } else {
+        "(RapidR Studio, not the user: this was hint 3 of 4, the shape of the code, and your answer showed the whole code with no blanks. Write the hint again: the skeleton of their code in a code block with blanks (___) where the important parts go, for them to fill.)"
+    }
+}
+
+/// The muted line in the chat where that draft was.
+pub const REDO_SOLUTION_LINE: &str = "A hint showed the whole solution too early: Studio asked RAI for the hint it was on.";
+
+/// The progress checklist's words for it.
+pub const REDO_SOLUTION_STEP: &str = "Asked for the hint without the solution";
+
+/// The muted line and the step for a hidden draft at hint `rung`, in
+/// Studio's language (the same words as [`REDO_LINE`] / [`REDO_STEP`] and
+/// [`REDO_SOLUTION_LINE`] / [`REDO_SOLUTION_STEP`], written here whole so
+/// `rapidr i18n runtime` finds them).
+pub fn hidden_words(rung: u8) -> (String, String) {
+    use rapidr_value::i18n::tr_ui;
+    if (2..RUNGS).contains(&rung) {
+        (tr_ui("A hint showed the whole solution too early: Studio asked RAI for the hint it was on."), tr_ui("Asked for the hint without the solution"))
+    } else {
+        (tr_ui("A first hint showed code too early: Studio asked RAI for a nudge without it."), tr_ui("Asked for the hint without code"))
+    }
+}
+
+/// The code blocks of an answer: what is between its fences (``` or ~~~).
+pub fn code_blocks(answer: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur: Option<String> = None;
+    for l in answer.lines() {
+        let t = l.trim_start();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            match cur.take() {
+                Some(block) => out.push(block),
+                None => cur = Some(String::new()),
+            }
+        } else if let Some(block) = cur.as_mut() {
+            block.push_str(l);
+            block.push('\n');
+        }
+    }
+    out
+}
+
+/// Whether hint 2 or 3 gave the solution away (a model drifting down the
+/// ladder: a small one gave the shape at hint 2 and the whole program at
+/// hint 3): a code block with no blank (`___`), five lines of code at least
+/// — hint 2's example has two to four — that `compiles` as a whole program.
+pub fn gives_solution(answer: &str, compiles: impl Fn(&str) -> bool) -> bool {
+    code_blocks(answer).iter().any(|b| {
+        let code = b.lines().filter(|l| {
+            let t = l.trim();
+            !t.is_empty() && !t.starts_with('\'') && !t.to_ascii_uppercase().starts_with("REM ")
+        });
+        !b.contains("___") && code.count() >= 5 && compiles(b)
+    })
+}
+
 /// Whether an answer shows code: a fenced block (an inline `name` is a
 /// word, not a solution).
 pub fn shows_code(answer: &str) -> bool {
@@ -259,5 +321,27 @@ mod tests {
         assert!(shows_code("Try this:\n\n```rapidr\nPRINT 1\n```"));
         assert!(shows_code("  ~~~\nx\n~~~"));
         assert!(!shows_code("What does `Count` hold after each click?"));
+    }
+
+    // (STUDIO-POLISH, the Haiku walk of 10-30: the whole click counter at
+    // hint 3 — a block with no blanks that compiles is the solution; a
+    // skeleton with blanks, a tiny example, or a snippet that doesn't
+    // compile alone are hints)
+    #[test]
+    fn a_whole_program_at_hint_two_or_three_gives_the_solution_away() {
+        let whole = "Here it is:\n\n```rapidr\nDIM Clicks AS INTEGER\nCREATE Form AS RForm\n  CREATE Button1 AS RButton\n    OnClick = Count\n  END CREATE\nEND CREATE\nSUB Count\n  Clicks = Clicks + 1\nEND SUB\nForm.ShowModal\n```";
+        let shape = "```rapidr\nDIM ___ AS INTEGER\nSUB ___Click\n    ___ = ___ + 1\n    Label1.Caption = ___\nEND SUB\n```";
+        let tiny = "```rapidr\nDIM n AS INTEGER\nn = n + 1\nPRINT n\n```";
+        assert_eq!(code_blocks(whole).len(), 1);
+        assert!(gives_solution(whole, |_| true));
+        assert!(!gives_solution(whole, |_| false), "a snippet that doesn't compile alone");
+        assert!(!gives_solution(shape, |_| true), "blanks: a skeleton");
+        assert!(!gives_solution(tiny, |_| true), "a tiny example");
+        assert!(!gives_solution("No code, just words.", |_| true));
+        assert!(redo_rung(2).contains("hint 2 of 4") && redo_rung(3).contains("hint 3 of 4"));
+        rapidr_value::i18n::set_language("en");
+        assert_eq!(hidden_words(1), (REDO_LINE.to_string(), REDO_STEP.to_string()));
+        assert_eq!(hidden_words(3), (REDO_SOLUTION_LINE.to_string(), REDO_SOLUTION_STEP.to_string()));
+        rapidr_value::i18n::set_language("");
     }
 }

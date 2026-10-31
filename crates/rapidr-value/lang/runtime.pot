@@ -1085,14 +1085,6 @@ msgid "The assistant proposed changes to {files} files that don't compile yet: r
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
-msgid "A first hint showed code too early: Studio asked RAI for a nudge without it."
-msgstr ""
-
-#: crates/rapidr-studio/src/ai.rs
-msgid "Asked for the hint without code"
-msgstr ""
-
-#: crates/rapidr-studio/src/ai.rs
 msgid "You applied the change to {path}."
 msgstr ""
 
@@ -1416,6 +1408,22 @@ msgstr ""
 msgid "a build is running already"
 msgstr ""
 
+#: crates/rapidr-studio/src/coach.rs
+msgid "A hint showed the whole solution too early: Studio asked RAI for the hint it was on."
+msgstr ""
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "Asked for the hint without the solution"
+msgstr ""
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "A first hint showed code too early: Studio asked RAI for a nudge without it."
+msgstr ""
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "Asked for the hint without code"
+msgstr ""
+
 #: crates/rapidr-studio/src/crash.rs
 msgid "{name}: there is no such report"
 msgstr ""
@@ -1558,6 +1566,22 @@ msgstr ""
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Listed the forms' components ({n})"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "1 error"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{n} errors"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "1 warning"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{n} warnings"
 msgstr ""
 
 #: crates/rapidr-studio/src/notes.rs
@@ -1804,42 +1828,6 @@ msgstr ""
 msgid "a syntax error"
 msgstr ""
 
-#: crates/rapidr-studio/src/notes.rs
-msgid "Undid: {words}"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Saved the version “{message}”"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Went back to “{message}” ({id}) for {path}"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Went back to “{message}” ({id})"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Went back to the checkpoint “{label}”"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Restored {path} from version {id}"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Started the experiment “{name}”"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Switched to the experiment “{name}”"
-msgstr ""
-
-#: crates/rapidr-studio/src/notes.rs
-msgid "Got the latest from the shared folder ({experiment})"
-msgstr ""
-
 #: crates/rapidr-studio/src/project.rs
 msgid "{path}: not a RapidR project"
 msgstr ""
@@ -1898,6 +1886,58 @@ msgstr ""
 
 #: crates/rapidr-studio/src/recovery.rs
 msgid "{folder} can't be written: {error}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Undid: {what}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Before: {what}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Checkpoint: {label}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Saved the version “{message}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Started the experiment “{experiment}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Switched to the experiment “{experiment}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Brought “{experiment}” in"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Got the latest from the shared folder ({experiment})"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Restored {file} from version {id}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to the checkpoint “{label}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id}) for {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id})"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to {what}"
 msgstr ""
 
 #: crates/rapidr-studio/src/repository.rs

@@ -33,6 +33,9 @@ const BUTTON_GAP: i64 = 3;
 const FLAT_GAP: i64 = 8;
 /// The scroll buttons' width (a single line of tabs too long to show).
 const SCROLL_W: i64 = 17;
+/// TabIcons (RapidR's): an icon's size and the gap after it.
+const ICON: i64 = 16;
+const ICON_GAP: i64 = 6;
 
 // (the edges' colours, the hot-tracked and disabled text: the current
 // theme's — crate::theme)
@@ -66,6 +69,10 @@ pub struct TabControl {
     pub hot: Option<usize>,
     /// Goes up whenever it must be drawn (and its area laid out) again.
     pub revision: u64,
+    /// TabIcons (RapidR's): each tab's icon, a RapidR icon's name ("" none)
+    /// — beside its name, or alone when a single line can't show every
+    /// name. None set: RapidQ's tabs exactly.
+    pub icons: Vec<String>,
 }
 
 impl Default for TabControl {
@@ -89,6 +96,7 @@ impl Default for TabControl {
             first: 0,
             hot: None,
             revision: 0,
+            icons: Vec::new(),
         }
     }
 }
@@ -166,14 +174,71 @@ impl TabControl {
         // (the tabs' sizes are RapidQ's in every theme: measured as RC.EXE
         // measures, whatever face the theme draws their text in)
         let fh = crate::theme::rapidq_metrics(|| text_size("Ag", font).1.max(1));
-        fh + SELECTED + if self.button_style { 6 } else { 3 }
+        let h = fh + SELECTED + if self.button_style { 6 } else { 3 };
+        // (TabIcons: room for the icon inside the focus ring)
+        if (0..self.count()).any(|i| self.has_icon(i)) {
+            h.max(ICON + 8)
+        } else {
+            h
+        }
     }
 
     fn tab_width_for(&self, i: usize, font: &Font) -> i64 {
         if self.tab_width > 0 {
             return self.tab_width;
         }
-        crate::theme::rapidq_metrics(|| text_size(&self.tabs[i], font).0) + 2 * PAD_X
+        let words = crate::theme::rapidq_metrics(|| text_size(&self.tabs[i], font).0) + 2 * PAD_X;
+        if self.has_icon(i) { words + ICON + ICON_GAP } else { words }
+    }
+
+    /// Tab `i` has an icon (TabIcons; never on vertical tabs).
+    fn has_icon(&self, i: usize) -> bool {
+        !self.vertical && self.icons.get(i).is_some_and(|n| !n.is_empty())
+    }
+
+    /// The tabs show their icons alone: a single line with icons too long
+    /// for its `len` with every name (never a cut name).
+    fn icons_only(&self, len: i64, font: &Font) -> bool {
+        if self.multi() || self.tab_width > 0 || !(0..self.count()).any(|i| self.has_icon(i)) {
+            return false;
+        }
+        let gap = if !self.button_style { 0 } else if self.flat_buttons { FLAT_GAP } else { BUTTON_GAP };
+        let start = if self.button_style { 0 } else { SELECTED };
+        let total: i64 = (0..self.count()).map(|i| self.tab_width_for(i, font)).sum::<i64>() + gap * (self.count() as i64 - 1).max(0);
+        start + total > len - if self.button_style { 0 } else { SELECTED }
+    }
+
+    /// Each tab's icon and where it goes, in the control's pixels, and
+    /// whether its tab is the selected one — what the kernel draws over
+    /// [`Self::ops`] (TabIcons).
+    pub fn icon_rects(&self, w: i64, h: i64, font: &Font) -> Vec<(Rect, String, bool)> {
+        if self.icons.iter().all(String::is_empty) {
+            return Vec::new();
+        }
+        let l = self.layout(w, h, font);
+        let only = self.icons_only(self.axes(w, h).0, font);
+        l.items
+            .iter()
+            .filter(|it| it.shown && self.has_icon(it.index) && it.rect.0 < l.clip)
+            .map(|it| {
+                let selected = self.index == it.index as i64;
+                let ty = it.rect.1 + if selected && !self.button_style { if it.side == Side::Near { -1 } else { 1 } } else { 0 };
+                let x = if only { it.rect.0 + (it.rect.2 - ICON) / 2 } else { it.rect.0 + PAD_X };
+                (self.map(&l, (x, ty + (it.rect.3 - ICON) / 2, ICON, ICON)), self.icons[it.index].clone(), selected)
+            })
+            .collect()
+    }
+
+    /// The tooltip at (x, y): a tab that shows its icon alone, its name
+    /// (TabIcons; the name is its screen reader's too).
+    pub fn icon_tip(&self, x: i64, y: i64, w: i64, h: i64, font: &Font) -> Option<String> {
+        if !self.icons_only(self.axes(w, h).0, font) {
+            return None;
+        }
+        match self.hit(x, y, w, h, font)? {
+            Ok(i) if self.has_icon(i) => self.tabs.get(i).cloned(),
+            _ => None,
+        }
     }
 
     fn layout(&self, w: i64, h: i64, font: &Font) -> Layout {
@@ -183,7 +248,8 @@ impl TabControl {
         let gap = if !buttons { 0 } else if self.flat_buttons { FLAT_GAP } else { BUTTON_GAP };
         let start = if buttons { 0 } else { SELECTED };
         let end = if buttons { len } else { len - SELECTED };
-        let widths: Vec<i64> = (0..self.count()).map(|i| self.tab_width_for(i, font)).collect();
+        let only = self.icons_only(len, font);
+        let widths: Vec<i64> = (0..self.count()).map(|i| if only && self.has_icon(i) { ICON + 2 * PAD_X } else { self.tab_width_for(i, font) }).collect();
 
         // Rows of tabs, in order (a single line: one row).
         let mut rows: Vec<Vec<usize>> = vec![Vec::new()];
@@ -533,8 +599,14 @@ impl TabControl {
             } else {
                 rgb(text_font.color)
             };
-            let tr = self.map(&l, (tx, ty, it.rect.2.min(l.clip - tx), it.rect.3));
-            out.push(Op::Text { rect: tr, text: self.tabs[it.index].clone(), angle: self.text_angle(), font: text_font.clone(), color });
+            // (TabIcons: the name after the icon — none when the icons
+            // show alone)
+            let only = self.has_icon(it.index) && self.icons_only(self.axes(w, h).0, font);
+            let skip = if self.has_icon(it.index) { ICON + ICON_GAP } else { 0 };
+            if !only {
+                let tr = self.map(&l, (tx + skip, ty, (it.rect.2 - skip).min(l.clip - tx - skip), it.rect.3));
+                out.push(Op::Text { rect: tr, text: self.tabs[it.index].clone(), angle: self.text_angle(), font: text_font.clone(), color });
+            }
             if selected && focused {
                 let (fx, fy, fw, fh) = (it.rect.0 + 3, ty + 3, it.rect.2 - 6, it.rect.3 - 6);
                 if fw > 0 && fh > 0 && th.fluent() {
@@ -751,6 +823,7 @@ impl TabControl {
         let flag = |b: bool| v_int(b as i64);
         Some(match prop {
             "tabindex" => v_int(self.index),
+            "tabicons" => v_str(&self.icons.join(",")),
             "multiline" => flag(self.multi_line),
             "buttonstyle" => flag(self.button_style),
             "flatbuttons" => flag(self.flat_buttons),
@@ -788,6 +861,7 @@ impl TabControl {
                 self.hot_track = on;
                 self.hot = None;
             }
+            "tabicons" => self.icons = val.to_string_val().split([',', '|']).map(|n| n.trim().to_string()).collect(),
             "scrollopposite" => self.scroll_opposite = on,
             "verticaltabs" => self.vertical = on,
             "tabposition" => self.tab_position = val.to_i64(),
@@ -882,6 +956,46 @@ mod tests {
         let (vx, vy, _, _) = t.display(300, 200, &font);
         assert_eq!((vx, vy), (2 + fh + 5 + 4, 4));
         assert!(t.ops(300, 200, &font, 0xF0F0F0, true, true).iter().any(|o| matches!(o, Op::Text { angle: 90, .. })));
+    }
+
+    // (STUDIO-POLISH: TabIcons, RapidR's — an icon before each name, the
+    // icons alone when one line is too narrow; none set, RapidQ's tabs)
+    #[test]
+    fn tab_icons_go_before_the_names_or_alone() {
+        crate::theme::set(&crate::theme::CLASSIC);
+        let font = Font::default();
+        let mut t = tc(&["General", "AI"]);
+        assert!(t.icon_rects(300, 200, &font).is_empty(), "none set: nothing drawn");
+        let plain = t.ops(300, 200, &font, 0xF0F0F0, true, false);
+        t.set("tabicons", &v_str("settings, ai"));
+        assert_eq!(t.get("tabicons").unwrap().to_string_val(), "settings,ai");
+        let icons = t.icon_rects(300, 200, &font);
+        assert_eq!(icons.len(), 2);
+        assert_eq!(icons[0].1, "settings");
+        assert_eq!((icons[0].0 .2, icons[0].0 .3), (16, 16));
+        // (the tabs tall enough for the icon inside the focus ring)
+        assert!(t.tab_height_for(&font) >= 16 + 8);
+        // (the name after the icon: its text starts past it)
+        let text_x = |ops: &[Op], word: &str| ops.iter().find_map(|o| match o { Op::Text { rect, text, .. } if text == word => Some(rect.0), _ => None });
+        let with = t.ops(300, 200, &font, 0xF0F0F0, true, false);
+        assert!(text_x(&with, "General").unwrap() >= icons[0].0 .0 + 16, "the name after the icon");
+        assert!(text_x(&plain, "General").is_some());
+        // (narrow: the icons alone, no name drawn, never cut)
+        let narrow = t.ops(60, 200, &font, 0xF0F0F0, true, false);
+        assert!(text_x(&narrow, "General").is_none() && text_x(&narrow, "AI").is_none());
+        assert_eq!(t.icon_rects(60, 200, &font).len(), 2);
+        // (each icon alone tells its name in a tooltip; with names, none)
+        let first = t.icon_rects(60, 200, &font)[0].0;
+        assert_eq!(t.icon_tip(first.0 + 8, first.1 + 8, 60, 200, &font).as_deref(), Some("General"));
+        // (a screen reader hears each icon's name, its place the icon's)
+        let d = t.describe("tc", 60, 200, &font);
+        assert_eq!(d.children.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["General", "AI"]);
+        assert_eq!(d.children[1].bounds.2, 16 + 2 * PAD_X);
+        let wide = t.icon_rects(300, 200, &font)[0].0;
+        assert_eq!(t.icon_tip(wide.0 + 8, wide.1 + 8, 300, 200, &font), None);
+        // (vertical tabs: no icons)
+        t.set("verticaltabs", &v_int(1));
+        assert!(t.icon_rects(300, 200, &font).is_empty());
     }
 
     #[test]

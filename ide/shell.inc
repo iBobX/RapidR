@@ -17,6 +17,37 @@ FUNCTION AboutText AS STRING
   Result = TR$("RapidR Studio (RapidR {version})", "version", Lang.Version) + nl + TR$("BASIC is powerful again: desktop and web apps from one source.") + nl + nl + TR$("Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence.")
 END FUNCTION
 
+' (a test step: layout:size=WxH — Studio's window that big; layout:problems
+' — the design audit's and the dialogs' check: text cut off, a control past its window's or its panel's edge or
+' on top of another, in every window shown; "[layout] problem: …" a line
+' each and "[layout] problems=N" in the Output)
+SUB LayoutStep(S AS STRING)
+  DIM v AS STRING, what AS STRING, i AS INTEGER, k AS INTEGER
+  ' (layout:size=1280x720: Studio's window that big, as on a small screen)
+  IF LEFT$(S, 5) = "size=" THEN
+    v = MID$(S, 6)
+    Studio.Width = VAL(FIELD$(v, "x", 1)): Studio.Height = VAL(FIELD$(v, "x", 2))
+    EXIT SUB
+  END IF
+  IF S <> "problems" THEN EXIT SUB
+  v = VerEyes.Problems("")
+  k = 0
+  FOR i = 1 TO TALLY(v, CHR$(10)) + 1
+    what = FIELD$(v, CHR$(10), i)
+    IF LEN(what) > 0 THEN
+      OutputLine "[layout] problem: " + what
+      k = k + 1
+    END IF
+  NEXT
+  OutputLine "[layout] problems=" + Num(k)
+END SUB
+
+' (tests: the event layoutprobe.ontimer — what layout:problems says, from
+' inside a dialog's wait)
+SUB LayoutProbeTick
+  LayoutStep "problems"
+END SUB
+
 SUB ShowAbout
   SHOWMESSAGE AboutText
 END SUB
@@ -190,6 +221,10 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 9) = "versions:" THEN
         ' (a test step: versions:<what>=<value> — versions.inc's VersionsStep)
         VersionsStep MID$(Id, 10)
+      ELSEIF LEFT$(Id, 7) = "layout:" THEN
+        ' (a test step: layout:problems — what the layout report finds
+        ' wrong in every window shown, a line each in the Output)
+        LayoutStep MID$(Id, 8)
       ELSEIF LEFT$(Id, 4) = "ext:" THEN
         ' (a test step: ext:<what>=<value> — external.inc's ExternalStep)
         ExternalStep MID$(Id, 5)

@@ -521,6 +521,7 @@
 "RTABCONTROL.SHOWHINT" = "Muestra la sugerencia `Hint` cuando el mouse se detiene sobre el control; en `Application`, activa o desactiva todas las sugerencias."
 "RTABCONTROL.TAB" = "El texto de una pestaña, `Tab(i)` desde 0."
 "RTABCONTROL.TABHEIGHT" = "La altura de cada pestaña, en píxeles (0: se ajusta al texto)."
+"RTABCONTROL.TABICONS" = "El ícono de cada pestaña, íconos de RapidR por nombre, separados por comas (\"image,audio,settings\"; \"\" para ninguno): un ícono de 16 píxeles antes del nombre de cada pestaña, y solo los íconos, cada uno con su nombre en una información sobre herramientas y para un lector de pantalla, cuando una línea de pestañas es demasiado angosta para todos los nombres; nunca un nombre cortado. Las pestañas miden al menos 24 píxeles de alto; las pestañas verticales no muestran íconos."
 "RTABCONTROL.TABINACTIVECOLOR" = "El color de las pestañas que no están seleccionadas, como &HBBGGRR."
 "RTABCONTROL.TABINACTIVEFONT" = "La fuente de las pestañas que no están seleccionadas; solo escritura."
 "RTABCONTROL.TABINDEX" = "La pestaña seleccionada, desde 0."

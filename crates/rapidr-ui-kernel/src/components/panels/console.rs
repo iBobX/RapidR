@@ -102,19 +102,29 @@ impl Console {
     }
 }
 
-/// The tabs' rectangles in `strip` (as `common::tabs` lays them out).
-fn tab_rects(strip: Rect, font: &Font) -> Vec<Rect> {
-    let (x, y, _, h) = strip;
-    let mut at = x + 4;
-    Page::ALL
-        .iter()
-        .map(|p| {
-            let (tw, _) = text_size(&p.title(), font);
-            let r = (at, y, tw + 20, h);
-            at += r.2 + 2;
-            r
-        })
-        .collect()
+/// The pages' icons (RapidR's icons), in Page::ALL's order.
+const PAGE_ICONS: [&str; 3] = ["output", "build", "problems"];
+
+/// The room after the Problems tab's name for its count's badge.
+const BADGE_ROOM: i64 = 26;
+
+/// The tabs' rectangles in `strip` (as `common::tabs` lays them out) and
+/// whether they show their icons alone.
+fn tab_rects(strip: Rect, font: &Font, badge: bool) -> Vec<Rect> {
+    let owned: Vec<String> = Page::ALL.iter().map(|p| p.title()).collect();
+    let titles: Vec<&str> = owned.iter().map(String::as_str).collect();
+    common::tab_rects(strip, &titles, &page_extra(badge), font).0
+}
+
+/// Each page's room after its name: the Problems tab's badge, while it
+/// shows one.
+fn page_extra(badge: bool) -> Vec<i64> {
+    Page::ALL.iter().map(|p| if badge && *p == Page::Problems { BADGE_ROOM } else { 0 }).collect()
+}
+
+/// The Problems tab shows a count's badge (there are problems).
+fn has_badge(id: &str) -> bool {
+    model::with(id, |c| badge_of(&c.problems).is_some()).unwrap_or(false)
 }
 
 fn geo(cx: &Cx) -> Geo {
@@ -126,11 +136,13 @@ fn geo(cx: &Cx) -> Geo {
     let lh = text_size("Ag", &mono).1 + 2;
     let (strip, tabs, search, top) = if show_tabs {
         let strip = (i, i, w - 2 * i, rows::TABS);
-        let tabs = tab_rects(strip, &chrome(cx));
-        let tabs_end = tabs.last().map_or(i, |t| t.0 + t.2 + 28);
+        let tabs = tab_rects(strip, &chrome(cx), has_badge(cx.id));
+        // (the Problems tab holds its count's badge: the search box 16 past
+        // the last tab, when there's room)
+        let tabs_end = tabs.last().map_or(i, |t| t.0 + t.2);
         let sw = ((w - 2 * i) / 3).clamp(120, 220);
         let sx = w - i - sw - 4;
-        let search = (sx >= tabs_end + 70).then_some((sx, i + 4, sw, rows::TABS - 8));
+        let search = (sx >= tabs_end + 16).then_some((sx, i + 4, sw, rows::TABS - 8));
         (Some(strip), tabs, search, i + rows::TABS)
     } else {
         (None, Vec::new(), None, i)
@@ -340,7 +352,9 @@ impl Console {
         let Some(strip) = g.strip else { return };
         let owned: Vec<String> = Page::ALL.iter().map(|p| p.title()).collect();
         let titles: Vec<&str> = owned.iter().map(String::as_str).collect();
-        let tabs = common::tabs(p, strip, l, &titles, s.page.index(), s.hover_tab, &chrome(cx));
+        let extra = page_extra(s.badge.is_some());
+        let (_, icons_only) = common::tab_rects(strip, &titles, &extra, &chrome(cx));
+        let tabs = common::tabs(p, strip, l, &titles, &PAGE_ICONS, &extra, s.page.index(), s.hover_tab, &chrome(cx));
         // (the problems' count after their tab's title)
         if let (Some((n, sev)), Some(&tab)) = (s.badge, tabs.get(Page::Problems.index())) {
             let small = Font { size: (chrome(cx).size - 1).max(6), styles: 1, ..chrome(cx) };
@@ -350,7 +364,9 @@ impl Console {
             // (clear of the title, drawn bold while its page shows)
             let title_font = Font { styles: chrome(cx).styles | u8::from(s.page == Page::Problems && !l.classic), ..chrome(cx) };
             let (title_w, _) = text_size(&Page::Problems.title(), &title_font);
-            let x = (tab.0 + tab.2 - 5).max(tab.0 + (tab.2 + title_w) / 2 + 3);
+            // (after the name; on the icon's corner when the tabs show their
+            // icons alone)
+            let x = if icons_only { tab.0 + tab.2 - bw.min(tab.2 - 4) } else { common::tab_name_x(tab) + title_w + 4 };
             let r = (x, strip.1 + (strip.3 - bh) / 2, bw, bh);
             let color = match sev {
                 Severity::Error => l.error,
@@ -847,13 +863,25 @@ impl ComponentKind for Console {
     /// line cut at the edge: its whole text. While WordWrap is on (the
     /// default) nothing is cut, so there is none.
     fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
-        if model::with(id, |c| c.word_wrap).unwrap_or(true) {
-            return None;
-        }
         let l = look(rapidr_value::theme::current());
         let (w, h) = (store::int(store, id, "width", 0), store::int(store, id, "height", 0));
         let i = common::inset(&l);
         let show_tabs = model::with(id, |c| c.show_tabs).unwrap_or(true);
+        // (a tab that shows its icon alone, the strip too narrow for every
+        // name: its name)
+        if show_tabs {
+            let strip = (i, i, w - 2 * i, rows::TABS);
+            let owned: Vec<String> = Page::ALL.iter().map(|p| p.title()).collect();
+            let titles: Vec<&str> = owned.iter().map(String::as_str).collect();
+            let font = Font { color: 0, ..rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current()) };
+            let (rects, icons_only) = common::tab_rects(strip, &titles, &page_extra(has_badge(id)), &font);
+            if let Some(k) = rects.iter().position(|&r| common::inside(r, x.floor() as i64, y.floor() as i64)) {
+                return icons_only.then(|| owned[k].clone());
+            }
+        }
+        if model::with(id, |c| c.word_wrap).unwrap_or(true) {
+            return None;
+        }
         let top = if show_tabs { i + rows::TABS } else { i };
         let (bx, by, bw, bh) = (i, top, (w - 2 * i).max(0), (h - top - i).max(0));
         let (xi, yi) = (x.floor() as i64, y.floor() as i64);
@@ -1570,7 +1598,7 @@ mod tests {
         assert_eq!(model::with("con1", |c| c.filter.clone()).as_deref(), Some(""));
         // the Problems tab; screen readers see the tabs and the problems
         f.paint(&s, &mut ts, 1.0);
-        let tabs = super::tab_rects((2, 2, 496, 28), &s.font("con1"));
+        let tabs = super::tab_rects((2, 2, 496, 28), &s.font("con1"), true);
         click(&mut f, &s, &mut ts, (tabs[2].0 + 5) as f64, 14.0, Mods::NONE);
         assert_eq!(panel_events(&mut f), vec![User::Console(model::User::Page(Page::Problems))]);
         model::with_mut("con1", |c| c.show(Page::Problems));

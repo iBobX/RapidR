@@ -312,7 +312,7 @@ SUB SetUpSchoolLock
   LockChipText.Transparent = 1
   LockChipText.AccessibleHidden = 1
   ' (Settings' strip: over the AI and AI Apps pages)
-  LockSetStrip.Parent = SettingsDialog
+  LockSetStrip.Parent = SettingsScroll
   LockSetStrip.BevelOuter = 0
   LockSetStrip.Visible = 0
   LockSetMark.Parent = LockSetStrip

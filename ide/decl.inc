@@ -488,6 +488,9 @@ DECLARE SUB ExtKeepMine(d AS INTEGER)
 DECLARE SUB ReopenProject
 DECLARE FUNCTION ExternalCommand(Id AS STRING) AS INTEGER
 DECLARE SUB ExternalStep(S AS STRING)
+' (a test step: layout:problems — the layout report of every window shown: shell.inc)
+DECLARE SUB LayoutStep(S AS STRING)
+DECLARE SUB LayoutProbeTick
 ' (every document with changes saved; 0 when a save was declined: documents.inc)
 DECLARE FUNCTION SaveAllOk AS INTEGER
 ' (RapidR's crash and hang reports: crash.inc)

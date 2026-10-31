@@ -161,6 +161,13 @@ export const cases = [
   // (no Associate: the program's OnChange writes the label; Wrap goes round from 1 to 5)
   { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "pagespin.__mousedown_9_18,pagespin.__mouseup_9_18", dump: "pageno.caption,pagespin.position",
     expect: ["pageno.caption=5", "pagespin.position=5"] },
+  // (TabIcons, RapidR's: a click on a tab with its icon and its name; then
+  // Narrower — the tabs show their icons alone, and a click on the fourth
+  // icon picks its page)
+  { file: "gui/tab_icons.rr", runtimes: ["run", "interp", "native", "web"], events: "pages.__mousedown_180_12,pages.__mouseup_180_12", dump: "note.caption,pages.tabicons,pages.tabindex",
+    expect: ["note.caption=The Videos page.", "pages.tabicons=image,audio,video,settings", "pages.tabindex=2"] },
+  { file: "gui/tab_icons.rr", runtimes: ["run", "interp", "native", "web"], events: "widthbtn.onclick,pages.__mousedown_100_12,pages.__mouseup_100_12", dump: "form.width,pages.width,widthbtn.caption,note.caption",
+    expect: ["form.width=220", "pages.width=188", "widthbtn.caption=&Wider", "note.caption=The Settings page."] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
     dump: "laps.itemcount,state.caption,time.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "time.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",

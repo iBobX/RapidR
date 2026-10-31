@@ -1,4 +1,4 @@
-<!-- translated-from: components.md 694912b9ade24d32 -->
+<!-- translated-from: components.md 62ed24921e32c921 -->
 # Componentes y objetos
 
 Un programa de RapidR construye sus ventanas con **componentes** —
@@ -383,6 +383,51 @@ las flechas solo cambian `Position`: muéstralo tú mismo en `OnChange`.
 El ejemplo [`examples/gui/updown.rr`](../../../examples/gui/updown.rr) tiene un
 par de flechas con un campo de texto, uno que cambia de a 15 y otro sin
 `Associate` que una etiqueta sigue mediante `OnChange`.
+
+## Pestañas con íconos: TabIcons
+
+`TabIcons` le da a cada pestaña de un `RTabControl` uno de los íconos de
+RapidR, dibujado antes del nombre de la pestaña. Nombra los íconos en el
+orden de las pestañas, separados por comas; `""` deja una pestaña sin ícono:
+
+```basic
+CREATE Pages AS RTabControl
+    Left = 8: Top = 8: Width = 428: Height = 150
+    Anchors = akLeft + akTop + akRight
+    TabIcons = "image,audio,video,settings"
+END CREATE
+Pages.AddTabs "Pictures", "Music", "Videos", "Settings"
+```
+
+![Las pestañas, cada una con su ícono antes de su nombre](../images/components/tab-icons.png)
+
+Cuando una sola línea de pestañas es demasiado angosta para todos los
+nombres, las pestañas muestran solo sus íconos, nunca un nombre cortado.
+Cada ícono conserva su nombre: como información sobre herramientas cuando
+el mouse se detiene sobre él, y para un lector de pantalla. Haz la ventana
+más ancha y los nombres vuelven.
+
+![Las mismas pestañas en una ventana angosta: solo los íconos](../images/components/tab-icons-narrow.png)
+
+Los íconos son los que usa RapidR Studio (el [catálogo de íconos](../icons/index.html)
+lista sus nombres). Se dibujan en los colores del aspecto, así que se ven
+claros en claro, oscuro y alto contraste:
+
+![Las pestañas en el aspecto oscuro](../images/components/tab-icons-dark.png)
+
+Algunas cosas que conviene saber:
+
+- Las pestañas son un poco más altas (24 píxeles) para que el ícono quepa
+  dentro del anillo de foco.
+- Las pestañas verticales (`VerticalTabs`) muestran solo sus nombres, sin
+  íconos.
+- Varias líneas de pestañas (`MultiLine`) y las pestañas de ancho fijo
+  (`TabWidth`) siempre muestran los nombres junto a los íconos; solo una
+  única línea de pestañas muestra sus íconos solos.
+- Sin `TabIcons`, las pestañas son exactamente como antes.
+
+El ejemplo [`examples/gui/tab_icons.rr`](../../../examples/gui/tab_icons.rr)
+tiene cuatro pestañas con íconos y un botón Narrower que las muestra solas.
 
 ## Los objetos globales
 

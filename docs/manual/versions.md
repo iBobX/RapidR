@@ -89,13 +89,18 @@ each, its words (on two lines when they need them), who saved it and when.
 The newest — the **current** version, the one your files are based on —
 has a ring in the accent colour. An AI's checkpoints (what the assistant
 keeps before it changes your files) have a smaller, lighter dot. Pick a
-version and **What Changed?** and **Go Back...** act on it; **Undo** is
-beside them, and under them what it would take back, in words.
+version and **What Changed?** and **Go Back...** act on it; **Undo** takes
+back the last action. The three sit in one row under the timeline, as wide
+as each other, and under them, in dim words, what Undo would take back. A
+right click on a version (or Shift+F10 when the timeline has the keys) opens
+the same actions in a menu: **What Changed?**, **Go Back to This Version...**,
+**Go Back to This Version for** the file open, and **Undo**.
 
 ![The Versions pane: one change not saved as a version, two versions on the timeline, What Changed?, Go Back..., Undo](images/versions/studio-timeline.png)
 
-The pane fits any width: at its narrowest the chips go under the title and
-the buttons wrap onto another row — nothing is cut off.
+The pane fits any width: in a narrow column the chips go under the title
+and the three buttons show their icons alone (each named in its tooltip and
+for a screen reader) — nothing is cut off, nothing wraps.
 
 ![The same pane in a narrow column, in RapidR's dark look](images/versions/studio-narrow.png)
 
@@ -172,6 +177,8 @@ works there too, in the browser's own storage.
 |---|---|
 | Save a Version... | Ctrl+Shift+V (Cmd+Shift+V) |
 | Pick a version | Up and Down in the timeline, then Tab to What Changed? or Go Back... |
+| What a version changed | Enter (or a double click) on it |
+| A version's menu | a right click on it, or Shift+F10 (the menu key) |
 | Open a changed file | a double click (or Enter) in the changes list |
 | Open or close a folder of changes | Right / Left (or Space), or a click on its arrow |
 | Show only some changed files | type in the filter box (more than 20 changes) |

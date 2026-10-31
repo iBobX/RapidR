@@ -3801,3 +3801,76 @@ msgstr "La condición `{cond}` del punto de interrupción falló: {error}"
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "(at {file} line {n})"
 msgstr "(en {file}, línea {n})"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Undid: {what}"
+msgstr "Se deshizo: {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Before: {what}"
+msgstr "Antes: {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Checkpoint: {label}"
+msgstr "Punto de control: {label}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Started the experiment “{experiment}”"
+msgstr "Se inició el experimento “{experiment}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Switched to the experiment “{experiment}”"
+msgstr "Se cambió al experimento “{experiment}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Brought “{experiment}” in"
+msgstr "Se incorporó “{experiment}”"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Restored {file} from version {id}"
+msgstr "Se restauró {file} desde la versión {id}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to “{message}” ({id}) for {file}"
+msgstr "Se volvió a “{message}” ({id}) para {file}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Went back to {what}"
+msgstr "Se volvió a {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Undoing “{what}” would replace your newer changes to {file}. Save a version first (or undo your own changes), then undo."
+msgstr "Deshacer “{what}” reemplazaría tus cambios más recientes en {file}. Guarda una versión primero (o deshaz tus propios cambios) y luego deshaz."
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 error"
+msgstr "1 error"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} errors"
+msgstr "{n} errores"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 warning"
+msgstr "1 advertencia"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} warnings"
+msgstr "{n} advertencias"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{what} to fix"
+msgstr "{what} por corregir"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Looked up {name}"
+msgstr "Consulté {name}"
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "A hint showed the whole solution too early: Studio asked RAI for the hint it was on."
+msgstr "Una pista mostró la solución completa demasiado pronto: Studio le pidió a RAI la pista que tocaba."
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "Asked for the hint without the solution"
+msgstr "Se pidió la pista sin la solución"
+

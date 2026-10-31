@@ -28,6 +28,12 @@ CREATE AppDialog AS RForm
   Caption = TR$("Project Options")
   Width = 520: Height = 480
   BorderStyle = 3
+  ' (everything but the buttons: it scrolls when the screen is too short
+  ' for it, the buttons staying under it — docs/design-guidelines.md
+  ' § Dialogs and resizing)
+  CREATE AppScroll AS RScrollBox
+    BorderStyle = 0
+    HorzVisible = 0
   CREATE AppIconImage AS RImage
     Left = 16: Top = 16: Width = 64: Height = 64
     Stretch = 1
@@ -134,6 +140,7 @@ CREATE AppDialog AS RForm
     WordWrap = 1: AutoSize = 0
     Caption = ""
   END CREATE
+  END CREATE
   CREATE AppOk AS RButton
     Left = 254: Top = 410: Width = 84: Caption = TR$("OK")
     Default = 1
@@ -150,7 +157,7 @@ END CREATE
 ' LayOutDialogs does for Studio's other dialogs; the fields AutoSize 0,
 ' as tall as this makes them)
 SUB LayOutAppDialog
-  DIM row AS INTEGER, fh AS INTEGER, bh AS INTEGER, bw AS INTEGER, x AS INTEGER, w AS INTEGER, y AS INTEGER, pad AS INTEGER, ic AS INTEGER, nh AS INTEGER, ch AS INTEGER
+  DIM row AS INTEGER, fh AS INTEGER, bh AS INTEGER, bw AS INTEGER, x AS INTEGER, w AS INTEGER, y AS INTEGER, pad AS INTEGER, ic AS INTEGER, nh AS INTEGER, ch AS INTEGER, sh AS INTEGER
   IF ThemeName = "classic" THEN
     row = 30: fh = 21: bh = 25: bw = 84: x = 110: w = 320: pad = 16: ic = 48: nh = 28: ch = 17
   ELSE
@@ -196,7 +203,14 @@ SUB LayOutAppDialog
   AppKeepRust.Left = x: AppKeepRust.Top = y: AppKeepRust.Width = w: AppKeepRust.Height = ch
   y = y + ch + 2
   AppKeepNote.Left = x + 20: AppKeepNote.Top = y: AppKeepNote.Width = w - 20: AppKeepNote.Height = nh
-  y = y + nh + pad
+  y = y + nh + 8
+  ' (the dialog fits the screen: at most 85 % of its work area tall — what
+  ' is above the buttons scrolls when it needs more)
+  sh = Screen.ClientHeight * 85 \ 100 - (AppDialog.Height - AppDialog.ClientHeight) - bh - pad - 8
+  IF sh < 160 THEN sh = 160
+  IF sh > y THEN sh = y
+  AppScroll.Left = 0: AppScroll.Top = 0: AppScroll.Width = x + w + pad: AppScroll.Height = sh
+  y = sh + 8
   AppNo.Width = bw: AppNo.Height = bh: AppNo.Left = x + w - bw: AppNo.Top = y
   AppOk.Width = bw: AppOk.Height = bh: AppOk.Left = x + w - 2 * bw - 8: AppOk.Top = y
   AppDialog.ClientWidth = x + w + pad

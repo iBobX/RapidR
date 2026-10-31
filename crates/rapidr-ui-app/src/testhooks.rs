@@ -24,6 +24,9 @@
 //! - `RAPIDR_TEST_FRAMES=file`, `RAPIDR_TEST_FRAMES_OF=a,b`: each turn's
 //!   place and size of those components, a line whenever one changed
 //!   (`Desktop::trace_frame`).
+//! - `RAPIDR_TEST_SCREEN=1280x720`: the headless host's screen (and work
+//!   area) that size instead of 1920 × 1080: dialogs that fit the screen
+//!   checked on a small one ([`screen`]).
 //! - `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused ([`no_focus`]).
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
@@ -94,6 +97,15 @@ pub fn var(name: &str) -> Option<String> {
 /// what `tools/visual/designer_wysiwyg.py` compares the designer with.
 pub fn no_focus() -> bool {
     var("RAPIDR_TEST_NOFOCUS").is_some_and(|v| !v.is_empty() && v != "0")
+}
+
+/// `RAPIDR_TEST_SCREEN=WxH`: the headless host's screen that size (a
+/// small one: the design guide's dialogs at 1280 × 720).
+pub fn screen() -> Option<(i64, i64)> {
+    let v = var("RAPIDR_TEST_SCREEN")?;
+    let (w, h) = v.trim().split_once(['x', 'X'])?;
+    let (w, h) = (w.trim().parse::<i64>().ok()?, h.trim().parse::<i64>().ok()?);
+    (w > 0 && h > 0).then_some((w, h))
 }
 
 /// A GUI test drives the program (`RAPIDR_CAPTURE` or `RAPIDR_TEST_EVENTS`):
@@ -570,6 +582,17 @@ mod tests {
         std::fs::write(&path, "high contrast").unwrap();
         assert_eq!(system_look(), Some((false, true)));
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn a_tests_small_screen() {
+        // (STUDIO-POLISH: the design guide's dialogs at 1280 x 720)
+        set_vars(vec![("RAPIDR_TEST_SCREEN".into(), "1280x720".into())]);
+        assert_eq!(screen(), Some((1280, 720)));
+        set_vars(vec![("RAPIDR_TEST_SCREEN".into(), "wide".into())]);
+        assert_eq!(screen(), None);
+        set_vars(Vec::new());
+        assert_eq!(screen(), None);
     }
 
     #[test]

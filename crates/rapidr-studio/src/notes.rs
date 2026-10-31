@@ -61,7 +61,17 @@ pub fn ui_note(en: &str) -> String {
     tr_note!("Listed the new project {name}'s files");
     tr_note!("Listed the project's files ({n})");
     tr_note!("Listed the forms' components ({n})");
-    tr_note!("Checked: {what}");
+    // (what the check found, its count in words: "Checked: 2 errors")
+    if let Some(what) = en.strip_prefix("Checked: ") {
+        let counted = match what.split_once(' ') {
+            Some(("1", "error")) => tr_ui("1 error"),
+            Some((n, "errors")) if n.parse::<u64>().is_ok() => tr_ui_fill("{n} errors", &[("n", n)]),
+            Some(("1", "warning")) => tr_ui("1 warning"),
+            Some((n, "warnings")) if n.parse::<u64>().is_ok() => tr_ui_fill("{n} warnings", &[("n", n)]),
+            _ => ui_note(what),
+        };
+        return tr_ui_fill("Checked: {what}", &[("what", &counted)]);
+    }
     tr_note!("Checked the code");
     tr_note!("Checked {file}: no problems");
     tr_note!("Checked {file}: {errors} errors, {warnings} warnings");
@@ -126,36 +136,5 @@ pub fn ui_note(en: &str) -> String {
     tr_note!("it is cut off at the end");
     tr_note!("the same syntax error again");
     tr_note!("a syntax error");
-    en.to_string()
-}
-
-/// What a step in a project's history says it did ("Saved the version “first”",
-/// "Went back to “first” (a1b2c3d)"), in the person's language: Versions'
-/// Undo line. The words are written into the history in English (they are
-/// data, with the versions' own messages); they are translated where shown.
-pub fn ui_history(en: &str) -> String {
-    let language = rapidr_value::i18n::language();
-    if en.is_empty() || language == "en" || language.starts_with("en-") {
-        return en.to_string();
-    }
-    if let Some(inner) = en.strip_prefix("Undid: ") {
-        return tr_ui_fill("Undid: {words}", &[("words", &ui_history(inner))]);
-    }
-    macro_rules! tr_note {
-        ($tpl:literal) => {
-            if let Some(v) = match_whole($tpl, en) {
-                let v: Vec<(&str, &str)> = v.iter().map(|(n, x)| (n.as_str(), x.as_str())).collect();
-                return tr_ui_fill($tpl, &v);
-            }
-        };
-    }
-    tr_note!("Saved the version “{message}”");
-    tr_note!("Went back to “{message}” ({id}) for {path}");
-    tr_note!("Went back to “{message}” ({id})");
-    tr_note!("Went back to the checkpoint “{label}”");
-    tr_note!("Restored {path} from version {id}");
-    tr_note!("Started the experiment “{name}”");
-    tr_note!("Switched to the experiment “{name}”");
-    tr_note!("Got the latest from the shared folder ({experiment})");
     en.to_string()
 }

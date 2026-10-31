@@ -67,6 +67,10 @@ changes nothing. Everything can be changed later in Settings.
 
 ![Tools > Settings, the AI page: the provider, a key kept for the session, the model picked from the provider's list, the reply limit, the prices, the permission](images/ai/settings.png)
 
+On a short screen (a 1280 × 720 laptop, a small browser window) Settings is
+never taller than the screen: its page scrolls under the tabs, and OK and
+Cancel stay at the bottom.
+
 1. **Turn on the AI assistant.**
 2. **Provider.** **See prices** opens the provider's price page.
 3. **API key** — the key from your account with the provider (**Get a
@@ -262,6 +266,13 @@ editor; the chat's words are a mouse feature, as a tooltip is.)
 models; pick another for the next question. **↻** asks the provider for its
 models again (a new model, or one you just downloaded to your computer). The
 provider itself is chosen in Settings, or with Set up RAI.
+
+Under the box: **Send** and **Stop** at the left, **Compact** at the right
+(and *What was sent* between them when the pane is wide enough); the context
+meter on its own line, its words shorter when the pane is narrow (the whole
+numbers in its tooltip); the tokens used; and one line that says who Send
+shares the chat with — **Details** opens the whole sentence (what is shared,
+and nothing else), **Less** closes it again.
 
 ![The Assistant pane: a question and its answer, the status line, the context meter, the token meter, what Send shares](images/ai/panel.png)
 

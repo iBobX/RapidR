@@ -71,8 +71,18 @@ CREATE SettingsDialog AS RForm
   OnClose = SettingsClosed
   CREATE SettingsTabs AS RTabControl
     AccessibleName = TR$("Settings pages")
+    ' (each page's icon before its name — the icons alone when narrow:
+    ' docs/design-guidelines.md § Tabs)
+    TabIcons = "settings,ai,ai-agent"
     OnChange = SettingsTabChanged
   END CREATE
+  ' (the pages, under the tabs: they scroll when the screen is too short
+  ' for them, the buttons staying under them — docs/design-guidelines.md
+  ' § Dialogs and resizing)
+  CREATE SettingsScroll AS RScrollBox
+    BorderStyle = 0
+    HorzVisible = 0
+    AccessibleName = TR$("Settings pages")
   ' ---- General ----
   CREATE GenPage AS RPanel
     BevelOuter = 0
@@ -297,6 +307,7 @@ CREATE SettingsDialog AS RForm
       OnLinkClick = AISetLink
     END CREATE
   END CREATE
+  END CREATE
   CREATE SettingsOkBtn AS RButton
     Caption = TR$("OK")
     Default = 1
@@ -316,9 +327,9 @@ END CREATE
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
   DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER, lw AS INTEGER
-  DIM lk AS INTEGER
+  DIM lk AS INTEGER, top AS INTEGER, sh AS INTEGER, pw AS INTEGER
   IF ThemeName = "classic" THEN
-    pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
+    pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 28: row = 30: fh = 21
   ELSE
     pad = 20: w = 620: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
   END IF
@@ -484,13 +495,28 @@ SUB LayOutSettingsDialog
   ' (School Lock: a strip on the AI and AI Apps pages while their feature
   ' is locked, under the greyed switch, where the switch's note was — the
   ' dialog no taller: schoollock.inc)
-  lk = pad - 8 + th + pad - 4 + 26
+  ' (in the pages' scroll box, whose top is the pages')
+  lk = pad - 4 + 26
   LockSetPlace pad, lk + (68 - LockStripH) \ 2, w
-  GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
-  AIPage.Left = 0: AIPage.Top = pad - 8 + th: AIPage.Width = w + 2 * pad: AIPage.Height = ph
-  McpLayOutPage pad, w, pad - 8 + th, ph, row, fh, bh
+  ' (the dialog fits the screen: at most 85 % of its work area tall — the
+  ' pages scroll under the tabs when they need more, the buttons stay
+  ' under them)
+  top = pad - 8 + th
+  sh = Screen.ClientHeight * 85 \ 100 - (SettingsDialog.Height - SettingsDialog.ClientHeight) - top - 8 - bh - pad
+  IF sh < 160 THEN sh = 160
+  IF sh > ph THEN sh = ph
+  pw = w + 2 * pad
+  ' (a scroll bar takes the right edge's room)
+  IF sh < ph THEN pw = pw - 16
+  ' (3 over the tab strip's foot: the strip's page frame, which the pages
+  ' don't use, shows as one line under the tabs, not two)
+  SettingsScroll.Left = 0: SettingsScroll.Top = top - 3: SettingsScroll.Width = w + 2 * pad: SettingsScroll.Height = sh + 3
+  GenPage.Left = 0: GenPage.Top = 0: GenPage.Width = pw: GenPage.Height = ph
+  AIPage.Left = 0: AIPage.Top = 0: AIPage.Width = pw: AIPage.Height = ph
+  McpLayOutPage pad, w, 0, ph, row, fh, bh
+  McpPage.Width = pw
 
-  y = pad - 8 + th + ph + 8
+  y = top + sh + 8
   SettingsNo.Width = bw: SettingsNo.Height = bh: SettingsNo.Left = pad + w - bw: SettingsNo.Top = y
   SettingsOkBtn.Width = bw: SettingsOkBtn.Height = bh: SettingsOkBtn.Left = pad + w - 2 * bw - 8: SettingsOkBtn.Top = y
   SettingsDialog.ClientWidth = w + 2 * pad
@@ -547,6 +573,8 @@ SUB ShowSettingsPage(k AS INTEGER)
 END SUB
 
 SUB SettingsTabChanged
+  ' (each page from its top)
+  SettingsScroll.VertPosition = 0
   GenPage.Visible = Flag(SettingsTabs.TabIndex = 0)
   AIPage.Visible = Flag(SettingsTabs.TabIndex = 1)
   ' (AI Apps: mcp.inc)

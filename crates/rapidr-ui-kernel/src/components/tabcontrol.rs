@@ -32,6 +32,11 @@ impl ComponentKind for Tabs {
         let font = crate::paint::inked(cx, crate::text::bgr_to_rgb(color));
         let ops = with_tabcontrol(cx.id, |t| t.ops(w, h, &font, color, cx.state.enabled, cx.state.focused)).unwrap_or_default();
         p.ops(lift(ops));
+        // (TabIcons: each tab's icon, RapidR's, in the theme's ink)
+        let icons = with_tabcontrol(cx.id, |t| t.icon_rects(w, h, &font)).unwrap_or_default();
+        for (r, name, _) in icons {
+            p.icon(&name, r, None, !cx.state.enabled);
+        }
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
@@ -70,6 +75,14 @@ impl ComponentKind for Tabs {
             cx.change();
         }
         true
+    }
+
+    /// (tooltip.rs) A tab that shows its icon alone (TabIcons, too
+    /// narrow for every name): its name.
+    fn tip_at(&self, store: &dyn crate::store::Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let (w, h) = (crate::store::int(store, id, "width", 0), crate::store::int(store, id, "height", 0));
+        let font = store.font(id);
+        with_tabcontrol(id, |t| t.icon_tip(x.floor() as i64, y.floor() as i64, w, h, &font)).flatten()
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {
