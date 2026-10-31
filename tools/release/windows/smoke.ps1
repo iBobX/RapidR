@@ -146,30 +146,11 @@ if ($kind -eq "sdk") {
         if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
     }
     # (-Regress: the conformance suite on the bytecode VM and the examples on `rapidr run`, with the INSTALLED
-    # rapidr — a copy of it beside the tests, its home named — from the release's source, -Cases)
+    # rapidr, the release's own tests (-Cases): regress.ps1)
     if ($Regress) {
-        $node = "$env:USERPROFILE\node\node.exe"
-        if (-not (Test-Path $node)) { $nc = Get-Command node.exe -ErrorAction SilentlyContinue; if ($nc) { $node = $nc.Source } }
-        if ((Test-Path $node) -and (Test-Path "$Cases\tests\conformance\run.mjs")) {
-            Write-Host "== regression with the installed rapidr: conformance (the bytecode VM) and the examples (rapidr run)"
-            $rg = "$T\regress"
-            New-Item -ItemType Directory -Force $rg | Out-Null
-            Copy-Item -Recurse "$Cases\tests", "$Cases\examples" $rg
-            Copy-Item $R "$rg\rapidr.exe"
-            $env:RAPIDR_HOME = "$T\app\lib\rapidr"
-            Push-Location $rg
-            & $node tests\conformance\run.mjs --backend vm *> "$rg\conformance.txt"
-            Get-Content "$rg\conformance.txt" | Select-Object -Last 2 | Write-Host
-            Check "conformance (the bytecode VM): none failed" { (Get-Content -Raw "$rg\conformance.txt") -match "\d+ passed, \d+ known failures \(xfail\), 0 failed" }
-            # (the harness marks a failed example with U+2717; this file is read as ANSI by Windows PowerShell: no such character here)
-            try { $oe = [Console]::OutputEncoding; [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { $oe = $null }
-            & $node tests\examples_run.mjs --runtimes run *> "$rg\examples.txt"
-            if ($oe) { try { [Console]::OutputEncoding = $oe } catch { } }
-            Get-Content "$rg\examples.txt" | Where-Object { $_.Length -gt 0 -and ([int]$_[0] -eq 0x2717 -or $_ -match "^Examples:") } | Select-Object -First 12 | Write-Host
-            Check "examples (rapidr run): none failed" { (Get-Content -Raw "$rg\examples.txt") -match "Examples: \d+ checks passed, 0 failed" }
-            Pop-Location
-            Remove-Item env:RAPIDR_HOME
-        } else { Write-Host "  (-Regress: no node.exe or no tests in $Cases: skipped)" }
+        Write-Host "== regression with the installed rapidr (regress.ps1)"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\regress.ps1" -Prefix "$T\app" -Source $Cases | Write-Host
+        if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
     }
     # (EXAMPLES-DATA) a data example built: its staff.csv beside the .exe, and the .exe started
     # as Explorer starts it — in its own folder — reads it

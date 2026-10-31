@@ -108,7 +108,7 @@ Check "lists no models" $t '^aisumodels\.visible=(0|False)'
 Write-Host "== Studio in Spanish"
 $t = Studio "spanish" "es" "$aiOn,ai.assistant,wait" 'mi(0).caption,mi(1).caption,mi(2).caption,mi(9).caption,aidialbuildtext.caption,aidialcoachtext.caption' $null "$P\main.rr"
 Check "the File menu is Archivo" $t '^mi\(0\)\.caption=&Archivo'
-Check "the Edit menu is Edicion" $t '^mi\(1\)\.caption=&Edici.n'
+Check "the Edit menu is Edicion" $t '^mi\(1\)\.caption=&Edici.+n'
 Check "the Help menu is Ayuda" $t '^mi\(9\)\.caption=Ay&uda'
 Check "the dial is Construir" $t '^aidialbuildtext\.caption=Construir'
 Check "the dial's Coach is Tutor" $t '^aidialcoachtext\.caption=Tutor'

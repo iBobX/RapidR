@@ -9,6 +9,9 @@
 #                                            Sign=…), in the VM's %USERPROFILE%\rapidr-release\out
 #   tools/release/windows-vm.sh smoke <installer file name> [Native] [Associations]
 #   tools/release/windows-vm.sh fetch <file in …\rapidr-release\out> <local file>
+#   tools/release/windows-vm.sh regress [Prefix=<folder>] [Source=<folder>]
+#                                            the conformance suite (bytecode VM) and the examples (`rapidr run`)
+#                                            with the build's staged ARM64 SDK (or another install), windows/regress.ps1
 #   tools/release/windows-vm.sh stop         stop the release jobs running in the VM
 #   tools/release/windows-vm.sh clean [--dry-run] [--keep-out]
 #                                            remove everything the release and smoke scripts left in
@@ -100,6 +103,7 @@ case "${1:-}" in
         job windows.ps1 -Prep "$SHARE\\.release-share\\prep" "$@"
         ;;
     smoke) inst="$2"; shift 2; awake; profile; job smoke.ps1 "Installer=$UP\\rapidr-release\\out\\$inst" "$@" ;;
+    regress) shift; awake; profile; job regress.ps1 "$@" ;;
     stop) awake; wps stop.ps1 ;;
     clean)
         shift; flags=(-Delete)
