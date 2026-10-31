@@ -8,6 +8,7 @@
 {
   "id": "launch-2-coach-mode",
   "title": { "en": "Coach mode: hints, not answers", "es": "Modo tutor: pistas, no respuestas" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "In Coach mode RAI gives hints one step at a time and doesn't change your files: you write the code. See the four hints on a click counter, then Help With This Error, which explains a mistake without fixing it for you.",
     "es": "En modo tutor, RAI da pistas paso a paso y no cambia tus archivos: el código lo escribes tú. Mira las cuatro pistas en un contador de clics, y luego Ayuda con este error, que te explica un fallo sin arreglarlo por ti."

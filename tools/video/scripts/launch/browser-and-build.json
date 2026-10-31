@@ -9,6 +9,7 @@
 {
   "id": "launch-browser-and-build",
   "title": { "en": "Run it in the browser, and build an app file", "es": "Ejecútala en el navegador, y crea un archivo de tu app" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "The same app can run in a web browser and become a file you can share. Run in Browser serves your app on your own computer only; Build Web App makes a .zip any web host can serve.",
     "es": "La misma app puede ejecutarse en un navegador web y convertirse en un archivo que puedes compartir. Ejecutar en el navegador sirve tu app solo en tu propia computadora; Compilar aplicación web crea un .zip que cualquier servidor web puede servir."

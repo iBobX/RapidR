@@ -9,6 +9,7 @@
 {
   "id": "launch-rai-builds-app",
   "title": { "en": "RAI builds an app for you, and you decide", "es": "RAI crea una app por ti, y tú decides" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "Describe an app in one sentence and RAI, RapidR Studio's assistant, makes it. Then ask for a change: RAI shows every change as a hunk you accept or leave out, and nothing is written until you press Apply.",
     "es": "Describe una app en una frase y RAI, el asistente de RapidR Studio, la crea. Luego pide un cambio: RAI muestra cada cambio como un bloque que aceptas o dejas fuera, y no se escribe nada hasta que pulsas Aplicar."

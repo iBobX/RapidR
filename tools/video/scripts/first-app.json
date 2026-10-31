@@ -4,6 +4,7 @@
 {
   "id": "first-app",
   "title": { "en": "Your first app in RapidR Studio", "es": "Tu primera app en RapidR Studio" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "Make your first app in RapidR Studio in about a minute: a new project, a button dragged from the Toolbox, its caption, the one line it runs, and Run. Then save a version of your work.",
     "es": "Crea tu primera app en RapidR Studio en un minuto: un proyecto nuevo, un botón arrastrado desde la Caja de herramientas, su texto, la única línea que ejecuta y Ejecutar. Luego guarda una versión de tu trabajo."

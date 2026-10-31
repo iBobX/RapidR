@@ -8,6 +8,7 @@
 {
   "id": "launch-1-pair-with-ai",
   "title": { "en": "Pair with AI on your own computer", "es": "Programa con IA en tu propia computadora" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "RAI, RapidR Studio's assistant, can work with a model that runs on your own computer: no account, no key, and what you ask stays here. Studio checks which models fit your memory, tries them for you, names the best match in plain words, and then you build together.",
     "es": "RAI, el asistente de RapidR Studio, puede trabajar con un modelo que corre en tu propia computadora: sin cuenta, sin clave y lo que preguntas se queda aquí. Studio comprueba qué modelos caben en tu memoria, los prueba por ti, te dice en palabras simples cuál es el mejor y luego construyen juntos."

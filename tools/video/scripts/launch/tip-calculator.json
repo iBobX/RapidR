@@ -5,6 +5,7 @@
 {
   "id": "launch-tip-calculator",
   "title": { "en": "Build a real little app: a tip calculator", "es": "Crea una app de verdad: una calculadora de propinas" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "Drag a label, a text box and a button onto a form, set their properties, write the one line the button runs, and try it. A small app with everything an app needs: a window, controls, properties and an event.",
     "es": "Arrastra una etiqueta, un cuadro de texto y un botón a un formulario, cambia sus propiedades, escribe la única línea que ejecuta el botón y pruébala. Una app pequeña con todo lo que necesita una app: una ventana, controles, propiedades y un evento."

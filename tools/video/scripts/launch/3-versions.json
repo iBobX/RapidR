@@ -7,6 +7,7 @@
 {
   "id": "launch-3-versions",
   "title": { "en": "Versions: never lose your work", "es": "Versiones: nunca pierdas tu trabajo" },
+  "musicCredit": { "en": "MiniMax-Music3 (AI-generated, instrumental, run locally)", "es": "MiniMax-Music3 (generada con IA, instrumental, en local)" },
   "description": {
     "en": "Start keeping versions of a project, save one with a few words, then delete all your code by mistake. See what changed, go back to the version that worked in one step, and undo that too. Your versions stay in your project folder, on your computer.",
     "es": "Empieza a guardar versiones de un proyecto, guarda una con unas palabras y luego borra todo tu código por error. Mira qué cambió, vuelve a la versión que funcionaba en un paso, y deshaz también eso. Tus versiones se quedan en la carpeta de tu proyecto, en tu computadora."
