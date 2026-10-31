@@ -1,10 +1,11 @@
 // The recording made into a video (ffmpeg, a tool on this Mac — never
 // bundled with RapidR): demo mode's frames held for their times (the
-// concat demuxer), each narration clip placed where its line started,
-// loudness normalised (EBU R128, I=-16, TP=-1.5), an optional music bed
-// ducked 12 dB under the voice, H.264 (CRF 20) + AAC 160k; the captions as
-// an .srt beside it (they are burned into the frames already: demo mode
-// draws them); a poster frame as a JPEG.
+// concat demuxer), each narration clip placed where its line started, an
+// optional music bed (100 Hz high-passed, ducked 12 dB under the voice), the
+// final mix loudness-normalised in two passes to EBU R128 -14 LUFS
+// integrated, -1.5 dBTP, H.264 (CRF 20) + AAC 160k; the captions as an .srt
+// beside it (they are burned into the frames already: demo mode draws them);
+// a poster frame as a JPEG.
 
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -14,7 +15,12 @@ import { promisify } from "node:util";
 import { FFMPEG } from "./config.mjs";
 
 const exec = promisify(execFile);
-const ffmpeg = (args) => exec(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", ...args], { maxBuffer: 64 * 1024 * 1024 });
+const ffmpeg = (args, level = "error") => exec(FFMPEG, ["-hide_banner", "-loglevel", level, "-y", ...args], { maxBuffer: 64 * 1024 * 1024 });
+
+/** The final mix's loudness (the web's usual: -14 LUFS integrated, -1.5 dBTP). */
+export const TARGET = { i: -14, tp: -1.5, lra: 11 };
+/** The music bus is high-passed so a bed never muddies the voice. */
+export const BED_HIGHPASS_HZ = 100;
 
 /** The music bed's level: -2 dB at rest, 12 dB lower under the voice. */
 const BED_GAIN_DB = -2;
@@ -87,6 +93,55 @@ function frameList(frames, dir, endMs, listFile) {
 }
 
 /**
+ * The audio before loudness: each narration clip placed where its line
+ * started, the music bed (when there is one) high-passed at 100 Hz and
+ * ducked under the voice. Returns the inputs and the filter graph.
+ */
+export function premixGraph({ clips, bed, total }) {
+  const inputs = [];
+  clips.forEach((c) => inputs.push("-i", c.clip));
+  if (bed) inputs.push("-stream_loop", "-1", "-i", bed);
+  const filters = [];
+  clips.forEach((c, i) => {
+    const ms = Math.max(0, Math.round(c.start));
+    filters.push(`[${i}:a]aresample=44100,pan=stereo|c0=c0|c1=c0,adelay=${ms}|${ms}[a${i}]`);
+  });
+  let label = null;
+  if (clips.length) {
+    filters.push(`${clips.map((_, i) => `[a${i}]`).join("")}amix=inputs=${clips.length}:duration=longest:normalize=0,apad=whole_dur=${total.toFixed(3)}[voice]`);
+    label = "[voice]";
+  }
+  if (bed) {
+    const spans = clips.map((c) => ({ start: c.start / 1000, end: (c.start + c.ms) / 1000 }));
+    const b = clips.length;
+    filters.push(`[${b}:a]aresample=44100,aformat=channel_layouts=stereo,highpass=f=${BED_HIGHPASS_HZ},atrim=duration=${total.toFixed(3)},afade=t=in:st=0:d=1.5,volume='${duckExpression(spans)}':eval=frame,afade=t=out:st=${Math.max(0, total - 2.5).toFixed(3)}:d=2.5,apad=whole_dur=${total.toFixed(3)}[bed]`);
+    if (label) {
+      filters.push(`[voice][bed]amix=inputs=2:duration=first:normalize=0[mix]`);
+      label = "[mix]";
+    } else {
+      label = "[bed]";
+    }
+  }
+  return { inputs, filters, label };
+}
+
+/** Speech has a high peak-to-loudness ratio: a gentle compressor first, so -14 LUFS fits under -1.5 dBTP. */
+const LEVELLER = "acompressor=threshold=-20dB:ratio=3:attack=8:release=120:makeup=1,alimiter=limit=0.84:attack=3:release=40:level=false";
+
+/** A file's loudness as loudnorm measures it (first pass). */
+export async function measure(file, pre = "") {
+  const { stderr } = await ffmpeg(["-i", file, "-af", `${pre}${pre ? "," : ""}loudnorm=I=${TARGET.i}:TP=${TARGET.tp}:LRA=${TARGET.lra}:print_format=json`, "-f", "null", "-"], "info");
+  const m = stderr.match(/\{[^{}]*"input_i"[^{}]*\}/);
+  if (!m) throw new Error("couldn't measure the loudness");
+  return JSON.parse(m[0]);
+}
+
+/** The loudness filter for the second pass: linear, from the first pass's numbers. */
+export function loudnessFilter(m) {
+  return `loudnorm=I=${TARGET.i}:TP=${TARGET.tp}:LRA=${TARGET.lra}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true,alimiter=limit=0.82:attack=2:release=30:level=false`;
+}
+
+/**
  * The video from demo mode's output folder `take` (frames/, timeline.json):
  * `<out>/<name>.mp4`, `.srt`, `.jpg`. `music`: a bed (optional, Robert's
  * choice of track); `meta`: title and credits for the file's tags.
@@ -104,43 +159,36 @@ export async function mux({ take, out, name, music, webm = false, meta = {}, log
   frameList(frames, join(take, "frames"), endMs, listFile);
   const [w, h] = index.size;
   const clips = timeline.lines.filter((l) => l.clip && existsSync(l.clip));
-  const inputs = ["-f", "concat", "-safe", "0", "-i", listFile];
-  clips.forEach((c) => inputs.push("-i", c.clip));
   const bed = music && existsSync(music) ? music : null;
   if (music && !bed) log(`   music  ${music} isn't there: no music bed`);
-  if (bed) inputs.push("-stream_loop", "-1", "-i", bed);
+  // (the audio first, on its own: placed clips, the bed, then the loudness
+  // measured on the leveled mix and applied in a second pass)
+  let audioFile = null;
+  let loud = null;
+  if (clips.length || bed) {
+    const g = premixGraph({ clips, bed, total });
+    const premixScript = join(take, "premix-filter.txt");
+    writeFileSync(premixScript, [...g.filters, `${g.label}${LEVELLER},atrim=duration=${total.toFixed(3)}[pre]`].join(";\n"));
+    audioFile = join(take, "premix.wav");
+    await ffmpeg([...g.inputs, "-filter_complex_script", premixScript, "-map", "[pre]", "-ar", "44100", "-c:a", "pcm_f32le", audioFile]);
+    loud = await measure(audioFile);
+  }
+  const inputs = ["-f", "concat", "-safe", "0", "-i", listFile];
+  if (audioFile) inputs.push("-i", audioFile);
   const filters = [
     // (1920 × 1080 whatever the frames' size; Lanczos when they're bigger: sharp)
     `[0:v]fps=${fps},scale=1920:1080:flags=lanczos,setsar=1,format=yuv420p,trim=duration=${total.toFixed(3)},fade=t=in:st=0:d=0.4,fade=t=out:st=${Math.max(0, total - 0.6).toFixed(3)}:d=0.6[v]`,
   ];
-  clips.forEach((c, i) => {
-    const ms = Math.max(0, Math.round(c.start));
-    filters.push(`[${i + 1}:a]aresample=44100,pan=stereo|c0=c0|c1=c0,adelay=${ms}|${ms}[a${i}]`);
-  });
   let audio = null;
-  if (clips.length) {
-    filters.push(`${clips.map((_, i) => `[a${i}]`).join("")}amix=inputs=${clips.length}:duration=longest:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,apad=whole_dur=${total.toFixed(3)}[voice]`);
-    audio = "[voice]";
-  }
-  if (bed) {
-    const spans = clips.map((c) => ({ start: c.start / 1000, end: (c.start + c.ms) / 1000 }));
-    const b = clips.length + 1;
-    filters.push(`[${b}:a]aresample=44100,aformat=channel_layouts=stereo,atrim=duration=${total.toFixed(3)},afade=t=in:st=0:d=1.5,volume='${duckExpression(spans)}':eval=frame,afade=t=out:st=${Math.max(0, total - 2.5).toFixed(3)}:d=2.5,apad=whole_dur=${total.toFixed(3)}[bed]`);
-    if (audio) {
-      filters.push(`[voice][bed]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.84:level=false,afade=t=out:st=${Math.max(0, total - 0.7).toFixed(3)}:d=0.7[a]`);
-    } else {
-      filters.push(`[bed]alimiter=limit=0.84:level=false[a]`);
-    }
-    audio = "[a]";
-  } else if (audio) {
-    filters.push(`[voice]afade=t=in:st=0:d=0.2,afade=t=out:st=${Math.max(0, total - 0.7).toFixed(3)}:d=0.7[a]`);
+  if (audioFile) {
+    filters.push(`[1:a]${loudnessFilter(loud)},afade=t=in:st=0:d=0.2,afade=t=out:st=${Math.max(0, total - 0.7).toFixed(3)}:d=0.7,apad=whole_dur=${total.toFixed(3)}[a]`);
     audio = "[a]";
   }
   const script = join(take, "filter.txt");
   writeFileSync(script, filters.join(";\n"));
   const mp4 = join(out, `${name}.mp4`);
   const tags = Object.entries({ title: meta.title, comment: meta.comment, copyright: meta.copyright }).filter(([, v]) => v).flatMap(([k, v]) => ["-metadata", `${k}=${v}`]);
-  log(`   mux    ${frames.length} frames (${index.written} distinct), ${clips.length} narration clip(s)${bed ? ", music bed" : ""}, ${total.toFixed(1)} s`);
+  log(`   mux    ${frames.length} frames (${index.written} distinct), ${clips.length} narration clip(s)${bed ? ", music bed" : ""}, ${total.toFixed(1)} s${loud ? `, mix ${Number(loud.input_i).toFixed(1)} LUFS -> ${TARGET.i}` : ""}`);
   await ffmpeg([
     ...inputs,
     "-filter_complex_script", script,

@@ -75,20 +75,41 @@ export const TTS = {
 /**
  * The credits every video carries, per language (the cards say them in
  * the script; the description and the file's tags from here):
- * docs/legal/review-2026-10-30-demo-mode.md M1.
+ * docs/legal/review-2026-10-30-demo-mode.md M1. The links are the same in
+ * every language (lib/describe.mjs puts them in the description).
  */
+export const LINKS = {
+  site: "https://rapidr.dev",
+  source: "https://github.com/iBobX/RapidR",
+  sponsors: "https://github.com/sponsors/iBobX",
+  coffee: "https://www.buymeacoffee.com/roanbema",
+};
 export const CREDITS = {
   en: {
     disclosure: "Narrated by an AI-generated voice (Qwen3-TTS, Apache License 2.0, run locally). The voice was made up by the model; no recording of a real person was used.",
-    madeWith: "Made with RapidR Studio: https://rapidr.dev",
-    support: "Support RapidR: GitHub Sponsors https://github.com/sponsors/iBobX · Buy Me a Coffee https://www.buymeacoffee.com/roanbema",
+    voice: "Voice: AI-generated (Qwen3-TTS, Apache License 2.0)",
+    madeWith: "Made with RapidR Studio",
+    demoNote: "Where an AI answers in this video, a scripted demo model answers, so the recording is the same every time; a real model's answers differ.",
     music: "Music",
+    chapters: "Chapters",
+    credits: "Credits",
+    links: "Links",
+    tags: "Tags",
+    site: "RapidR",
+    source: "Source code",
   },
   es: {
     disclosure: "Narrado por una voz generada con IA (Qwen3-TTS, licencia Apache 2.0, ejecutado en local). La voz la inventó el modelo; no se usó ninguna grabación de una persona real.",
-    madeWith: "Hecho con RapidR Studio: https://rapidr.dev",
-    support: "Apoya RapidR: GitHub Sponsors https://github.com/sponsors/iBobX · Buy Me a Coffee https://www.buymeacoffee.com/roanbema",
+    voice: "Voz: generada con IA (Qwen3-TTS, licencia Apache 2.0)",
+    madeWith: "Hecho con RapidR Studio",
+    demoNote: "Donde una IA responde en este video, responde un modelo de demostración con guion, para que la grabación sea igual cada vez; las respuestas de un modelo real son distintas.",
     music: "Música",
+    chapters: "Capítulos",
+    credits: "Créditos",
+    links: "Enlaces",
+    tags: "Etiquetas",
+    site: "RapidR",
+    source: "Código fuente",
   },
 };
 /** A language's credits (English when there are none for it yet). */

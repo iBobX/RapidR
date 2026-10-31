@@ -1,45 +1,182 @@
-// Launch video 1 (Preview 5): Pair with AI on this computer. 75-90 s.
-// SKELETON for Robert's review: not recorded yet. Steps marked TODO name a
-// target to check against Studio when it is recorded (docs/video-pipeline.md).
-// Only a model already on this Mac; no key, no cloud provider in the video.
+// Launch video 4 of the Preview 5 playlist "RapidR Studio Tutorials": Pair
+// with AI on this computer (about 2 min).
+// Record: node tools/video/video.mjs tools/video/scripts/launch/1-pair-with-ai.json --lang en,es --webm
+// Only RapidR's own programs and a made-up demo model: the pipeline starts the
+// tests' mock AI (tests/ai_mock_server.mjs: models "small-model-3b" …, no
+// product named, no key, no network) and tells Studio the computer has 16 GB
+// of memory with 12 free, so the fit chips are the same every time.
 {
   "id": "launch-1-pair-with-ai",
-  "draft": "skeleton",
-  "title": { "en": "Pair with AI on this computer", "es": "Programa con IA en tu computadora" },
+  "title": { "en": "Pair with AI on your own computer", "es": "Programa con IA en tu propia computadora" },
   "description": {
-    "en": "RAI, RapidR Studio's assistant, with a model that runs on your own computer: Studio checks what fits your memory, then you build together.",
-    "es": "RAI, el asistente de RapidR Studio, con un modelo que corre en tu propia computadora: Studio comprueba qué cabe en tu memoria y luego construyen juntos."
+    "en": "RAI, RapidR Studio's assistant, can work with a model that runs on your own computer: no account, no key, and what you ask stays here. Studio checks which models fit your memory, tries them for you, names the best match in plain words, and then you build together.",
+    "es": "RAI, el asistente de RapidR Studio, puede trabajar con un modelo que corre en tu propia computadora: sin cuenta, sin clave y lo que preguntas se queda aquí. Studio comprueba qué modelos caben en tu memoria, los prueba por ti, te dice en palabras simples cuál es el mejor y luego construyen juntos."
   },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "RAI", "AI assistant", "local AI", "AI on your computer", "private AI", "programming", "BASIC", "tutorial"],
+    "es": ["RapidR", "RapidR Studio", "RAI", "asistente de IA", "IA local", "IA en tu computadora", "IA privada", "programación", "BASIC", "tutorial"]
+  },
+  "demoModel": true,
   "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
-  "studio": { "theme": "rapidr-light" },
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": {
+    "theme": "rapidr-light",
+    "mock": true
+  },
   "steps": [
-    { "card": { "title": { "en": "Pair with AI", "es": "Programa con IA" }, "lines": [{ "en": "on this computer", "es": "en tu computadora" }],
+    {
+      "chapter": { "en": "RAI on your computer", "es": "RAI en tu computadora" },
+      "card": {
+        "title": { "en": "Pair with AI", "es": "Programa con IA" },
+        "lines": [{ "en": "on your own computer", "es": "en tu propia computadora" }],
         "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
-        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
-      "say": [{ "en": "RAI can help you build, right on your own computer.", "es": "RAI puede ayudarte a construir, en tu propia computadora." }] },
-    { "say": [{ "en": "Open RAI's setup.", "es": "Abre la configuración de RAI." }],
-      "do": [{ "do": "ai.setup" }, { "waitFor": "window:AISetup", "timeout": 10 }] },
-    { "say": [
-        { "en": "Studio looks at this computer's memory first…", "es": "Primero, Studio mira la memoria de esta computadora…" },
-        { "en": "and says, in plain words, which models fit.", "es": "y te dice, con palabras simples, qué modelos caben." } ],
-      "do": [{ "highlight": "AISuMemText", "for": 3 }] },
-    { "say": [{ "en": "Pick a model that's already here, and connect.", "es": "Elige un modelo que ya esté aquí y conéctalo." }],
-      // TODO: captions
-      "do": [{ "click": "caption:This computer" }, { "click": "caption:Connect" }] },
-    { "say": [{ "en": "Nothing leaves your computer: no key, no account.", "es": "Nada sale de tu computadora: sin clave, sin cuenta." }],
-      "do": [{ "spotlight": "AIPanel", "for": 2.5 }] },
-    { "say": [{ "en": "Ask for what you want, in your own words.", "es": "Pide lo que quieres, con tus propias palabras." }],
-      "do": [{ "type": { "en": "Add a button that counts my clicks", "es": "Agrega un botón que cuente mis clics" }, "into": "AIInput" }, { "key": "Enter" }] },
-    { "say": [{ "en": "RAI shows its change before anything is written.", "es": "RAI muestra su cambio antes de escribir nada." }],
-      "do": [{ "waitFor": { "shows": "caption:Apply" }, "timeout": 120 }, { "highlight": "caption:Apply", "for": 2 }] },
-    { "say": [{ "en": "You decide: apply it, and run.", "es": "Tú decides: aplícalo y ejecuta." }],
-      "do": [{ "click": "caption:Apply" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }] },
-    { "say": [{ "en": "It works. And if something breaks, RAI reads the error with you.", "es": "Funciona. Y si algo falla, RAI lee el error contigo." }],
-      "do": [{ "click": "app:Button1", "pause": 1.0 }, { "mark": "poster" }] },
-    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Your computer, your code", "es": "Tu computadora, tu código" }, "rapidr.dev"],
-        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
-                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
-        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
-      "say": [{ "en": "Pair with AI, on your terms.", "es": "Programa con IA, a tu manera." }], "do": [{ "wait": 2.5 }] }
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "RAI can help you build, with a model that runs on your own computer.", "es": "RAI puede ayudarte a construir, con un modelo que corre en tu propia computadora." }],
+      "do": [{ "do": "ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1,ai:setupfacts=total=16384&free=12288" }],
+      "gap": 1.0
+    },
+    {
+      "say": [{ "en": "Here, a small demo model answers, so you can follow along.", "es": "Aquí responde un pequeño modelo de demostración, para que puedas seguir el paso a paso." }],
+      "do": [{ "wait": 1.0 }]
+    },
+    {
+      "chapter": { "en": "Set Up RAI", "es": "Configurar RAI" },
+      "say": [{ "en": "Open Tools, and Set Up RAI.", "es": "Abre Herramientas, y Configurar RAI." }],
+      "do": [
+        { "click": { "en": "studio > Tools", "es": "studio > Herramientas" } },
+        { "click": { "en": "studio > Set Up RAI", "es": "studio > Configurar RAI" } },
+        { "waitFor": "window:AISetup", "timeout": 20 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Choose free, on this computer.", "es": "Elige gratis, en esta computadora." },
+        { "en": "Studio finds the models your local AI apps already have.", "es": "Studio encuentra los modelos que tus apps de IA locales ya tienen." }
+      ],
+      "do": [
+        { "spotlight": "AISuFoundText", "for": 5.5 },
+        { "waitFor": { "prop": "AISuFoundText.Caption", "has": { "en": "Found 3", "es": "3 modelos" } }, "timeout": 30 },
+        { "click": "AISuLocal" },
+        { "wait": 1.4 }
+      ]
+    },
+    {
+      "chapter": { "en": "Which models fit", "es": "Qué modelos caben" },
+      "say": [
+        { "en": "Next, Studio looks at this computer's memory…", "es": "Después, Studio mira la memoria de esta computadora…" },
+        { "en": "and tells you, in plain words, what fits.", "es": "y te dice, con palabras simples, qué cabe." }
+      ],
+      "do": [
+        { "click": "AISuNextBtn" },
+        { "waitFor": { "prop": "AISuMemText.Caption", "has": { "en": "memory", "es": "memoria" } }, "timeout": 30 },
+        { "highlight": "AISuMemText", "for": 3.0 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "This one fits, and it can build apps.", "es": "Este cabe, y puede construir apps." },
+        { "en": "This one can chat, but can't build.", "es": "Este puede conversar, pero no construir." },
+        { "en": "And this one is too big for this computer.", "es": "Y este es demasiado grande para esta computadora." }
+      ],
+      "do": [
+        { "click": "AISuModels > small-model-3b" },
+        { "highlight": "AISuDetail", "for": 3.2 },
+        { "click": "AISuModels > mini-model-1.5b", "afterLine": 1 },
+        { "highlight": "AISuDetail", "for": 3.0 },
+        { "click": "AISuModels > huge-model-405b", "afterLine": 2 },
+        { "highlight": "AISuDetail", "for": 3.0 }
+      ]
+    },
+    {
+      "chapter": { "en": "Check My Models", "es": "Comprobar mis modelos" },
+      "say": [
+        { "en": "Check My Models tries each model that fits, one at a time.", "es": "Comprobar mis modelos prueba cada modelo que cabe, uno por uno." },
+        { "en": "How fast it answers, and whether it can build a small app.", "es": "Qué tan rápido responde, y si puede construir una app pequeña." }
+      ],
+      "do": [
+        { "click": "AISuModels > small-model-3b" },
+        { "click": "AISuCheckBtn" },
+        { "wait": 1.0 },
+        { "waitFor": { "prop": "AISuCheckNote.Caption", "has": { "en": "checked", "es": "comprobados" } }, "timeout": 180 },
+        { "wait": 0.6 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "And the best match, in words.", "es": "Y la mejor opción, en palabras." }
+      ],
+      "do": [
+        { "highlight": "AISuModels", "for": 3.2 }
+      ]
+    },
+    {
+      "say": [{ "en": "Choose it, and finish.", "es": "Elígelo, y finaliza." }],
+      "do": [
+        { "click": "AISuModels > small-model-3b" },
+        { "click": "AISuNextBtn" },
+        { "waitFor": "gone:AISetup", "timeout": 20 }
+      ]
+    },
+    {
+      "chapter": { "en": "Build together", "es": "Construyan juntos" },
+      "say": [
+        { "en": "Nothing leaves your computer: no key, no account.", "es": "Nada sale de tu computadora: sin clave, sin cuenta." },
+        { "en": "Ask for what you want, in your own words.", "es": "Pide lo que quieres, con tus propias palabras." }
+      ],
+      "do": [
+        { "do": "ai.assistant" },
+        { "wait": 1.2 },
+        { "type": { "en": "Build me a window with a button that says Hello", "es": "Hazme una ventana con un botón que diga Hola" }, "into": "AIInput", "afterLine": 1 },
+        { "key": "Enter" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "RAI makes the program, and tells you, right at the top.", "es": "RAI crea el programa, y te lo dice, arriba del todo." },
+        { "en": "Run it, undo it, or ask what it did: you decide.", "es": "Ejecútalo, deshazlo, o pregunta qué hizo: tú decides." }
+      ],
+      "do": [
+        { "waitFor": "shows:AIBannerRun", "timeout": 120 },
+        { "highlight": "AIBanner", "for": 4.0 }
+      ]
+    },
+    {
+      "say": [{ "en": "Run it: your window, with its button, made together.", "es": "Ejecútalo: tu ventana, con su botón, hechos entre los dos." }],
+      "do": [
+        { "click": "AIBannerRun" },
+        { "waitFor": { "app": true }, "timeout": 60 },
+        { "click": "app:HelloButton", "pause": 1.4 },
+        { "mark": "poster" }
+      ]
+    },
+    {
+      "say": [{ "en": "AI on your own computer: private, free, and yours.", "es": "IA en tu propia computadora: privada, gratis y tuya." }],
+      "do": [
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 },
+        { "pointer": "hide" },
+        { "wait": 0.6 }
+      ],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "Your computer, your code", "es": "Tu computadora, tu código" }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Pair with AI, on your terms.", "es": "Programa con IA, a tu manera." }],
+      "do": [{ "wait": 2.5 }]
+    }
   ]
 }

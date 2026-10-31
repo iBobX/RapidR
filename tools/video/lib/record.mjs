@@ -7,13 +7,39 @@
 // shell reaches it). No window shows on the screen and the real mouse and
 // keyboard are never used: demo mode draws the windows itself and plays
 // its input through the kernel. Still watch each video whole before posting.
+//
+// A take that shows RAI uses the scripted mock AI of the tests
+// (tests/ai_mock_server.mjs, started here on a free port of 127.0.0.1 and
+// stopped after): no key, no network, the same answers every time. `{mock}`
+// and `{mockroot}` in the script's text are its addresses.
 
 import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { ROOT, rapidrBinary, testModeToken } from "./config.mjs";
+
+/**
+ * The names the mock's models go by on screen: made up and neutral, never a
+ * real product's (the local ones match their sizes: tests/ai_mock_server.mjs
+ * LOCAL_MODELS is small 3.2B, chat 1.5B, huge 405B, embedding 137M).
+ */
+const MOCK_MODELS = "demo-model:Demo model";
+const MOCK_LOCAL_NAMES = "small-model-3b,mini-model-1.5b,huge-model-405b,embed-model-137m";
+
+/** The mock AI server of the tests, on a free loopback port (null: this script doesn't use it). */
+async function startMock(studio) {
+  if (!studio.mock) return null;
+  process.env.AI_MOCK_MODELS = MOCK_MODELS;
+  process.env.AI_MOCK_LOCAL_NAMES = MOCK_LOCAL_NAMES;
+  const mod = await import(pathToFileURL(join(ROOT, "tests", "ai_mock_server.mjs")).href);
+  return mod.startMock(0);
+}
+
+/** `{mockroot}` and `{mock}` in a text, as the tests write them. */
+const withMock = (text, mock) => (mock ? text.split("{mockroot}").join(mock.root).split("{mock}").join(mock.url) : text);
 
 /** Studio's language tag for a video's language (Studio's catalogs: ide/lang). */
 function studioLang(lang) {
@@ -42,10 +68,14 @@ export async function record({ script, lang, take, log = () => {}, timeoutMin = 
   symlinkSync(join(ROOT, "ide"), join(home, "ide"));
   symlinkSync(join(ROOT, "docs"), join(home, "docs"));
   cpSync(join(ROOT, "examples"), join(home, "examples"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$|big(_\d+)?\.csv$/.test(src) });
-  const file = join(take, "script.json");
-  writeFileSync(file, JSON.stringify(script, null, 2));
   const studio = script.studio || {};
-  const setup = [studio.setup, "demo:poll"].filter(Boolean).join(",");
+  // (a small project to start from: the tests' fixtures, copied into the
+  // home — `fixtures`: { "tests/fixtures/studio_coach": "projects/Counter" })
+  for (const [from, to] of Object.entries(studio.fixtures || {})) cpSync(join(ROOT, from), join(home, to), { recursive: true, filter: (src) => !/(^|\/)\.git(\/|$)/.test(src) });
+  const mock = await startMock(studio);
+  const file = join(take, "script.json");
+  writeFileSync(file, withMock(JSON.stringify(script, null, 2), mock));
+  const setup = [withMock(studio.setup || "", mock), "demo:poll"].filter(Boolean).join(",");
   const args = ["run", "ide/studio.rr", "--home", "./", "--fresh", "--maximized", "--theme", studio.theme || "rapidr-light", "--lang", studioLang(lang), "--do", setup];
   if (studio.open) args.push(studio.open);
   const token = testModeToken();
@@ -68,6 +98,8 @@ export async function record({ script, lang, take, log = () => {}, timeoutMin = 
     RAPIDR_AI_KEYSTORE: "memory",
     RAPIDR_PRINT_TO: join(profile, "prints"),
     RAPIDR_LOGIN_PATH: "off",
+    // (Run in Browser serves the page but opens no browser on this Mac)
+    RAPIDR_NO_BROWSER: "1",
     RAPIDR_BUILD_CACHE: join(profile, "build-cache"),
     // (the name a saved version is by: a learner's, never this machine's
     // account; no Git identity of this machine read either)
@@ -89,6 +121,7 @@ export async function record({ script, lang, take, log = () => {}, timeoutMin = 
       clearTimeout(timer);
       writeFileSync(join(take, "studio-stderr.txt"), err);
       if (!process.env.VIDEO_KEEP_PROFILE) rmSync(profile, { recursive: true, force: true });
+      if (mock) mock.close();
       resolve(c);
     });
   });

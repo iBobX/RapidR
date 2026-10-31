@@ -1,0 +1,24 @@
+' A click counter: the label should show how many times the button was clicked.
+DECLARE SUB Button1Click
+
+DIM Count AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Counter"
+    Width = 240: Height = 140
+    CREATE Label1 AS RLabel
+        Caption = "0"
+        Left = 20: Top = 20
+    END CREATE
+    CREATE Button1 AS RButton
+        Caption = "Count"
+        Left = 20: Top = 50
+        OnClick = Button1Click
+    END CREATE
+END CREATE
+
+SUB Button1Click
+
+END SUB
+
+Form.ShowModal

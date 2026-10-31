@@ -51,6 +51,7 @@ video never go in Git):
 | `<id>-<lang>.jpg` | the poster: the frame at the script's `poster` mark |
 | `<id>-<lang>.description.txt` | title, description, the AI-voice disclosure, made-with, support line |
 | `<id>-<lang>.timeline.json` | when each line was said (clip file names only) |
+| `sheets/<id>-<lang>[-n].jpg` | a contact sheet to look at after every take (an ffmpeg tile: 20 evenly spaced moments, left to right, top to bottom; one sheet per ~75 s; the log says where the first tile is and how far apart they are) |
 | `takes/`, `clips/`, `voices/` | working files: the frames, the cached narration clips, the narrators' copies |
 
 Options: `--lang en,es` (default: every language the title has),
@@ -130,10 +131,33 @@ the second (`{RAI|Rye}`).
   "pointer": { "speed": 0.9, "size": 1.3 },
   "typing": 1,                             // 1: about 11 characters a second
   "captions": { "size": 24 },              // caption text height (0: none drawn)
-  "studio": { "theme": "rapidr-light", "setup": "…", "open": "examples/…", "user": "Ana" },
+  "studio": { "theme": "rapidr-light", "setup": "…", "open": "examples/…", "user": "Ana",
+              "mock": true,                      // the tests' mock AI (below)
+              "fixtures": { "tools/video/fixtures/click-counter": "projects/Counter" } },
+  "tags": { "en": ["RapidR", …], "es": [ … ] },  // the description's tags
+  "demoModel": true,                       // the description says a scripted demo model answers
+  "typing": 1,                             // 2: twice as fast (the trailer)
   "steps": [ … ]
 }
 ```
+
+- `studio.setup` is Studio's own commands, run at its start with `--do`
+  (Studio echoes them in Output: for anything the video shows, use a step's
+  `do` instead, which is quiet). `studio.fixtures` copies folders of this
+  checkout into the take's home (`projects/…`); `studio.open` opens one.
+- `studio.mock` starts **the tests' mock AI** (`tests/ai_mock_server.mjs`) on
+  a free port of 127.0.0.1 for the take and stops it after; `{mock}` and
+  `{mockroot}` in the script's text are its addresses
+  (`ai:on,ai:provider=compatible,ai:base={mock},ai:model=demo-model`). It
+  has scripted answers, no key and no network; its models have made-up,
+  neutral names (`demo-model`; the local AI app's `small-model-3b`,
+  `mini-model-1.5b`, `huge-model-405b`, `embed-model-137m`) and a video says
+  a demo model answers (the description does too: `demoModel`). Memory facts
+  for Set Up RAI: `ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1`,
+  `ai:setupfacts=total=16384&free=12288`.
+- A step can name its `chapter` (any language map): the description lists
+  the chapters with the time of the step's first line (the first at 0:00;
+  fewer than three, or one under 10 s long, are left out).
 
 A **step** is narration and the actions played meanwhile; it ends when
 both are done, then `gap` seconds (0.45 by default).
@@ -193,7 +217,14 @@ the line's spoken text and the language's narrator clip as `ref_audio`
 (model, narrator, tempo, words): a script recorded again only speaks its
 new lines. Each clip is resampled to 44.1 kHz mono; Spanish is played 1.2
 times as fast with the pitch kept (`atempo=1.2`, Robert's choice). The mix
-is loudness-normalised (EBU R128, I=-16, TP=-1.5, LRA=11).
+is loudness-normalised in `mux.mjs`: the clips and the music bed (when
+there is one: high-passed at 100 Hz, ducked 12 dB under the voice) are mixed,
+a gentle compressor and limiter keep speech's peaks in check, and the mix is
+measured and then normalised in a second, linear pass to **-14 LUFS
+integrated, -1.5 dBTP** (EBU R128, LRA 11; the web's usual level). The log
+says the mix's level before; check a finished file with `ffmpeg -i x.mp4 -af
+ebur128=peak=true -f null -`. A music bed added later (`--mux-only --music
+FILE`) only re-mixes: nothing is recorded again.
 
 The narrators (`tools/video/lib/config.mjs` `VOICES`; the clips in the
 main checkout's git-ignored `dist/voices/narrators/`, back them up before
@@ -244,17 +275,38 @@ third-party player); on mailing lists, a link rather than an attachment.
 
 ## The sample and the launch videos
 
+**RapidR Studio Tutorials** (the Preview 5 playlist), in this order, each in
+English and Spanish (Spanish takes run Studio in Spanish), a title card that
+says "AI-generated narration" and an end card with the voice credit and the
+support line:
+
+| # | Script (tools/video/scripts/) | Video |
+|---|---|---|
+| 0 | `launch/0-trailer.json` | RapidR Studio in 90 seconds (fast cuts: drag a button and Run, RAI builds an app from a sentence, Coach, Versions, the language) |
+| 1 | `first-app.json` | Your first app in RapidR Studio |
+| 2 | `launch/tip-calculator.json` | A real little app: a tip calculator (forms, properties, events) |
+| 3 | `launch/browser-and-build.json` | Run it in the browser, and build an app file |
+| 4 | `launch/1-pair-with-ai.json` | Pair with AI on your own computer (Set Up RAI, the fit chips, Check My Models) |
+| 5 | `launch/rai-builds-an-app.json` | RAI builds an app for you, and you decide (the review's hunks) |
+| 6 | `launch/2-coach-mode.json` | Coach mode: hints, not answers |
+| 7 | `launch/3-versions.json` | Versions: never lose your work |
+
+Not recorded yet: `4-spanish-and-school-lock.json`, `5-new-components.json`,
+`6-8bit-showcase.json` (skeletons). The demo player records the desktop
+Studio only: there is no web Studio cut. Music: none until Robert chooses a
+track (`--music`).
+
 - `tools/video/scripts/first-app.json`: **Your first app in RapidR
   Studio** (about a minute, English and Spanish): a new project, a button
   dragged from the Toolbox, its caption set in Properties, a double-click
   to its OnClick, one line typed, Run, the running app's button clicked,
   Stop, and a version saved.
-- `tools/video/scripts/launch/`: the six Preview 5 launch videos as
-  **skeletons** for review (steps plus English and Spanish narration; not
-  recorded yet; `// TODO` marks a target to check when recorded):
-  `1-pair-with-ai.json`, `2-coach-mode.json`, `3-versions.json`,
-  `4-spanish-and-school-lock.json`, `5-new-components.json`,
-  `6-8bit-showcase.json`. Only RapidR's own programs and examples appear.
+- `tools/video/scripts/launch/`: the rest of the playlist above. Only
+  RapidR's own programs and examples appear; a video that shows RAI uses the
+  mock AI, says so, and never names a real model or product.
+  `4-spanish-and-school-lock.json`, `5-new-components.json` and
+  `6-8bit-showcase.json` are still skeletons for review (`// TODO` marks a
+  target to check when recorded).
 
 ## Tests
 
@@ -263,6 +315,10 @@ third-party player); on mailing lists, a link rather than an attachment.
   typing rhythm, the recorder's helpers; `cargo test -p rapidr-ui-kernel
   --lib demo_overlay`: the overlay's drawing; `cargo test -p
   rapidr-testmode`: the demo's variables are hooks.
+- `node tests/video_pipeline.mjs`: the pipeline's pure parts (chapters, the
+  description's order, the audio graph with the bed high-passed at 100 Hz,
+  the -14 LUFS / -1.5 dBTP filter, captions) and that every launch script is
+  valid, has English and Spanish, and names no other product.
 - `node tests/studio_flows.mjs demo-mode-tiny` (desktop): a tiny script
   played headless: a new project, a button dragged from the Toolbox, its
   caption typed; the saved project has exactly one button with that

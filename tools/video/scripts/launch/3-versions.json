@@ -1,44 +1,180 @@
-// Launch video 3 (Preview 5): Versions. 70-90 s.
-// SKELETON for Robert's review: not recorded yet. TODO marks a target to
-// check when recorded. The Versions list shows times: the take's clock is
-// the recording's (docs/legal/review-2026-10-30-demo-mode.md, privacy).
+// Launch video 7 of the Preview 5 playlist "RapidR Studio Tutorials": Versions
+// (about 2 min).
+// Record: node tools/video/video.mjs tools/video/scripts/launch/3-versions.json --lang en,es --webm
+// The Versions list shows times: the take's clock is the recording's, and the
+// saved versions are by "Ana" (docs/legal/review-2026-10-30-demo-mode.md).
+// The project is tools/video/fixtures/tip-project (a tip calculator).
 {
   "id": "launch-3-versions",
-  "draft": "skeleton",
   "title": { "en": "Versions: never lose your work", "es": "Versiones: nunca pierdas tu trabajo" },
   "description": {
-    "en": "Save a version with a few words, see what changed, go back in one click — built into RapidR Studio.",
-    "es": "Guarda una versión con unas palabras, mira qué cambió y vuelve atrás con un clic, dentro de RapidR Studio."
+    "en": "Start keeping versions of a project, save one with a few words, then delete all your code by mistake. See what changed, go back to the version that worked in one step, and undo that too. Your versions stay in your project folder, on your computer.",
+    "es": "Empieza a guardar versiones de un proyecto, guarda una con unas palabras y luego borra todo tu código por error. Mira qué cambió, vuelve a la versión que funcionaba en un paso, y deshaz también eso. Tus versiones se quedan en la carpeta de tu proyecto, en tu computadora."
+  },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "versions", "version control", "undo", "backup", "BASIC", "programming for beginners", "tutorial", "learn to code"],
+    "es": ["RapidR", "RapidR Studio", "versiones", "control de versiones", "deshacer", "copia de seguridad", "BASIC", "programación para principiantes", "tutorial", "aprender a programar"]
   },
   "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
-  // TODO: start from a small saved project instead
-  "studio": { "theme": "rapidr-light", "setup": "file.newProject" },
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": {
+    "theme": "rapidr-light",
+    "fixtures": { "tools/video/fixtures/tip-project": "projects/TipCalc" },
+    "open": "projects/TipCalc/TipCalc.rrproj",
+    "user": "Ana"
+  },
   "steps": [
-    { "card": { "title": { "en": "Versions", "es": "Versiones" }, "lines": [{ "en": "never lose your work", "es": "nunca pierdas tu trabajo" }],
+    {
+      "chapter": { "en": "Keep your history", "es": "Guarda tu historia" },
+      "card": {
+        "title": { "en": "Versions", "es": "Versiones" },
+        "lines": [{ "en": "never lose your work", "es": "nunca pierdas tu trabajo" }],
         "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
-        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
-      "say": [{ "en": "Every project can keep its history. Here's how.", "es": "Cada proyecto puede guardar su historia. Así se hace." }] },
-    { "say": [{ "en": "Open Versions, and start keeping them.", "es": "Abre Versiones y empieza a guardarlas." }],
-      // TODO: caption
-      "do": [{ "do": "versions.pane" }, { "click": "caption:Start Versions" }] },
-    { "say": [{ "en": "Save a version: a few words about what changed.", "es": "Guarda una versión: unas palabras sobre lo que cambió." }],
-      "do": [{ "do": "versions.save" }, { "waitFor": "window:VerSaveDialog" }, { "type": { "en": "A working start", "es": "Un comienzo que funciona" }, "into": "VerMsgEdit" }, { "click": "VerSaveOk" }, { "waitFor": "gone:VerSaveDialog" }] },
-    { "say": [{ "en": "Now change something. Maybe too much.", "es": "Ahora cambia algo. Quizás demasiado." }],
-      // TODO: the editor's name
-      "do": [{ "click": "codedoc(0)" }, { "key": "Ctrl+A" }, { "key": "Delete" }] },
-    { "say": [{ "en": "What Changed shows every line, side by side.", "es": "Qué cambió muestra cada línea, lado a lado." }],
-      "do": [{ "do": "versions.whatChanged" }, { "wait": 2.5 }, { "mark": "poster" }] },
-    { "say": [{ "en": "Go back to the version that worked: one click.", "es": "Vuelve a la versión que funcionaba: un clic." }],
-      // TODO: show the button, not the command
-      "do": [{ "do": "versions.goBack" }, { "wait": 1.5 }] },
-    { "say": [{ "en": "Changed your mind? Undo brings it back.", "es": "¿Cambiaste de idea? Deshacer lo trae de vuelta." }],
-      "do": [{ "do": "versions.undo" }, { "wait": 1.5 }] },
-    { "say": [{ "en": "Your versions stay in your project folder, on your computer.", "es": "Tus versiones se quedan en la carpeta de tu proyecto, en tu computadora." }],
-      "do": [{ "highlight": "VerTimeline", "for": 2.5 }] },
-    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Try anything. Go back anytime.", "es": "Prueba lo que quieras. Vuelve cuando quieras." }, "rapidr.dev"],
-        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
-                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
-        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
-      "say": [{ "en": "Try anything. You can always go back.", "es": "Prueba lo que quieras. Siempre puedes volver." }], "do": [{ "wait": 2.5 }] }
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Every project can keep its history. Here's how.", "es": "Cada proyecto puede guardar su historia. Así se hace." }],
+      "gap": 1.0
+    },
+    {
+      "say": [{ "en": "This is a small project: a tip calculator that works.", "es": "Este es un proyecto pequeño: una calculadora de propinas que funciona." }],
+      "do": [{ "highlight": "designdoc(0)", "for": 2.4 }]
+    },
+    {
+      "chapter": { "en": "Start keeping versions", "es": "Empieza a guardar versiones" },
+      "say": [{ "en": "Open Versions, and start keeping them.", "es": "Abre Versiones, y empieza a guardarlas." }],
+      "do": [
+        { "do": "versions.pane" },
+        { "wait": 0.8 },
+        { "click": "VerStartBtn" },
+        { "wait": 1.0 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Save a version: a few words about what it is.", "es": "Guarda una versión: unas palabras sobre lo que es." }
+      ],
+      "do": [
+        { "click": "VerSaveBtn" },
+        { "waitFor": "window:VerSaveDialog", "timeout": 20 },
+        { "type": { "en": "A working tip calculator", "es": "Una calculadora de propinas que funciona" }, "into": "VerMsgEdit" },
+        { "wait": 0.6 },
+        { "click": "VerSaveOk" },
+        { "waitFor": "gone:VerSaveDialog", "timeout": 20 }
+      ]
+    },
+    {
+      "say": [{ "en": "It's in the timeline: your work, as it is now.", "es": "Está en la línea de tiempo: tu trabajo, tal como está ahora." }],
+      "do": [{ "highlight": "VerTimeline", "for": 2.6 }]
+    },
+    {
+      "chapter": { "en": "Oops", "es": "Ups" },
+      "say": [
+        { "en": "Now change something. Maybe too much.", "es": "Ahora cambia algo. Quizás demasiado." },
+        { "en": "Oops: all the code, gone. And saved.", "es": "Ups: todo el código, desaparecido. Y guardado." }
+      ],
+      "do": [
+        { "do": "view.code" },
+        { "wait": 0.8 },
+        { "click": "codedoc(0)" },
+        { "key": "Ctrl+A" },
+        { "key": "Delete" },
+        { "wait": 0.4 },
+        { "do": "file.save" },
+        { "wait": 1.2 }
+      ]
+    },
+    {
+      "chapter": { "en": "What changed", "es": "Qué cambió" },
+      "say": [
+        { "en": "What Changed shows every line, side by side.", "es": "Qué cambió muestra cada línea, lado a lado." }
+      ],
+      "do": [
+        { "click": { "en": "studio > File", "es": "studio > Archivo" } },
+        { "click": { "en": "studio > Versions", "es": "studio > Versiones" } },
+        { "click": { "en": "studio > What Changed Since the Last Version", "es": "studio > Cambios desde la última versión" } },
+        { "wait": 1.2 },
+        { "click": "VerDiffList > main.rr" },
+        { "wait": 2.0 },
+        { "mark": "poster" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Studio goes back from a saved state, so nothing is ever lost: save this one as a version too.", "es": "Studio vuelve atrás desde un estado guardado, así que nunca se pierde nada: guarda también este como una versión." }
+      ],
+      "do": [
+        { "click": "VerSaveBtn" },
+        { "waitFor": "window:VerSaveDialog", "timeout": 20 },
+        { "type": { "en": "Oops, I deleted my code", "es": "Ups, borré mi código" }, "into": "VerMsgEdit" },
+        { "wait": 0.5 },
+        { "click": "VerSaveOk" },
+        { "waitFor": "gone:VerSaveDialog", "timeout": 20 }
+      ]
+    },
+    {
+      "chapter": { "en": "Go back", "es": "Vuelve atrás" },
+      "say": [
+        { "en": "Now pick the version that worked, and go back to it.", "es": "Ahora elige la versión que funcionaba, y vuelve a ella." },
+        { "en": "Studio asks first, and says what will happen.", "es": "Studio pregunta primero, y dice qué va a pasar." }
+      ],
+      "do": [
+        { "click": { "en": "VerTimeline > A working tip calculator", "es": "VerTimeline > Una calculadora de propinas que funciona" } },
+        { "click": { "en": "studio > File", "es": "studio > Archivo" } },
+        { "click": { "en": "studio > Versions", "es": "studio > Versiones" } },
+        { "click": { "en": "studio > Go Back to This Version", "es": "studio > Volver a esta versión" } },
+        { "wait": 2.4 }
+      ]
+    },
+    {
+      "say": [{ "en": "Go back.", "es": "Vuelve." }],
+      "do": [
+        { "click": { "en": "caption:Go Back", "es": "caption:Volver" } },
+        { "wait": 1.6 },
+        { "highlight": "VerTimeline", "for": 2.4 }
+      ]
+    },
+    {
+      "say": [{ "en": "Your code is back, and the version you left is still on the timeline.", "es": "Tu código ha vuelto, y la versión que dejaste sigue en la línea de tiempo." }],
+      "do": [
+        { "do": "view.code" },
+        { "wait": 2.4 }
+      ]
+    },
+    {
+      "chapter": { "en": "Undo", "es": "Deshacer" },
+      "say": [{ "en": "Changed your mind about going back? Undo takes you right back.", "es": "¿Cambiaste de idea sobre volver atrás? Deshacer te devuelve al instante." }],
+      "do": [
+        { "click": { "en": "studio > File", "es": "studio > Archivo" } },
+        { "click": { "en": "studio > Versions", "es": "studio > Versiones" } },
+        { "click": { "en": "studio > Undo the Last Versions Action", "es": "studio > Deshacer la última acción de Versiones" } },
+        { "wait": 2.4 }
+      ]
+    },
+    {
+      "say": [{ "en": "Your versions stay in your project folder, on your computer.", "es": "Tus versiones se quedan en la carpeta de tu proyecto, en tu computadora." }],
+      "do": [
+        { "highlight": "VerTimeline", "for": 2.8 },
+        { "pointer": "hide" }
+      ],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "Try anything. Go back anytime.", "es": "Prueba lo que quieras. Vuelve cuando quieras." }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Try anything. You can always go back.", "es": "Prueba lo que quieras. Siempre puedes volver." }],
+      "do": [{ "wait": 2.5 }]
+    }
   ]
 }

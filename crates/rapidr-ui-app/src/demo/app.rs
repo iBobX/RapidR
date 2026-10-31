@@ -38,7 +38,11 @@ enum Step {
 
 #[derive(Default)]
 struct Side {
+    /// The next request's number. A program Studio runs again starts with the
+    /// requests the one before it answered still in the folder: it goes on
+    /// after them (else its typing and clicks are played twice).
     next: u32,
+    started: bool,
     cur: Option<(u32, VecDeque<Step>, Instant, u8)>,
     exported: Option<Instant>,
     last: u64,
@@ -56,9 +60,22 @@ pub fn turn<R: Program + Windows>(rt: R, dir: &Path) {
     let now = Instant::now();
     SIDE.with(|s| {
         let Ok(mut s) = s.try_borrow_mut() else { return };
+        if !s.started {
+            s.started = true;
+            s.next = first_free(dir);
+        }
         let acted = serve(&mut s, rt, dir, now);
         export(&mut s, rt, dir, now, acted);
     });
+}
+
+/// The number of the first request not in `dir` yet (1 when none is).
+fn first_free(dir: &Path) -> u32 {
+    let mut n = 1;
+    while dir.join(format!("in-{n}.json")).exists() {
+        n += 1;
+    }
+    n
 }
 
 fn target_of(v: &Json) -> Target {
@@ -268,5 +285,22 @@ mod tests {
         assert!(read_layers(b"nope").is_none());
         // (cut short: refused, never read past the end)
         assert!(read_layers(&b[..b.len() - 2]).is_none());
+    }
+
+    /// A program run again (a new process, the same folder) goes on after the
+    /// requests the one before it answered: its typing and clicks were
+    /// played twice before ("8080" for "80").
+    #[test]
+    fn a_program_run_again_goes_on_after_the_old_requests() {
+        let dir = std::env::temp_dir().join(format!("rapidr-demo-app-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(first_free(&dir), 1);
+        for n in 1..=3 {
+            std::fs::write(dir.join(format!("in-{n}.json")), "{}").unwrap();
+            std::fs::write(dir.join(format!("out-{n}.json")), "{}").unwrap();
+        }
+        assert_eq!(first_free(&dir), 4);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
