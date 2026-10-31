@@ -909,6 +909,22 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] Next: the web Studio syncing with GitHub through its REST API; pull requests; interactive rebase; LFS; submodules; signed commits
 
 
+## Preview 5 — Pair with AI (2.122.0, built 2026-10-31; lane RELEASE-PREP; checks: [docs/release/2.122.0-checks.md](docs/release/2.122.0-checks.md))
+
+What shipped (each lane's detail is in the entries above and in [CHANGELOG.md](CHANGELOG.md)):
+- [x] ★ Never lose anything: Versions (RapidR's own, in plain words), the local history of every save, files changed outside Studio, unsaved work restored after a crash, RapidR's own crash and hang reports (local, scrubbed, no telemetry)
+- [x] ★ Pair with AI: Coach mode (the dial, the four-hint ladder, Help With This Error), School Lock (the teacher's password, the computer's policy file, Keep RAI in Coach mode), local AI made easy (the models you have, the fit check, Check My Models, the best match in words, `RSystemInfo`), small models succeed with RapidR (RAI2-SMALL-A), AI apps' and RAI's eyes and hands for a running program
+- [x] ★ In Spanish: Studio's whole interface, the compiler's messages and hints, the 5,377 docs of the reference and the manual (español neutro); the plumbing is language-neutral (any `.po`)
+- [x] ★ One design: the design guide, status colours, tabs with icons everywhere, the Properties pane grouped by purpose, dialogs that fit a 1280 × 720 screen (the design audit)
+- [x] ★ SEC-24: the GUI test hooks behind a signed test mode (the release scripts' smoke tests take the harness token: `tools/release/README.md`)
+- [x] For your programs: `RAudioOut`, `SetPixels` / `GetPixels` / `StretchDraw`, `RArchive`, `COMPRESS$` / `DECOMPRESS$`, `RWindowCapture`, `RAppHands`, `Application.OnError`, faster strings and file streams; the classic `FORMAT$`, `&`, one-line `IF ... ELSE` and name-clash rules
+- [x] Demo mode and the video pipeline (the launch videos are recorded by the RECORD-TUTORIALS lane)
+- [ ] The release gates for 2.122.0: the packages built (macOS universal, Windows x64 and ARM64, Linux x86_64 and aarch64, web, VS Code extension), the smoke tests on each system, the use-audit, Robert's look at the contact sheet, `SHA256SUMS` signed (Robert), `gh release` (Robert's go)
+
+Moves to Preview 6 (not started or only begun): Versions G4-G10 (experiments, blame, accounts and GitHub, Pro, RAI's help with messages and merges), RAI R8 / R9 (permissions, safe test runs and the red card), Coach's Pair and Quiz me, a built-in local model runner with licence acceptance, RTutor and RCaptions as public components, Portuguese and Chinese, the VS Code extension's last items (EXT3-EXT6), S4, S6's `file:line` links, K2, K5, K6, E3-E5.
+
+---
+
 ## Assembly (Robert's question, 2026-10-21; decided)
 - **No inline machine code and no 32→64-bit translation layer.**
   - RapidQ never had assembly, and none of the 386 examples in its corpus run machine code. They use `VARPTR` and `CALLFUNC` only for DLL and COM calls, which RapidR has.
