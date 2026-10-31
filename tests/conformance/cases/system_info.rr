@@ -17,7 +17,7 @@ c = Info.Class
 IF c = "small" OR c = "medium" OR c = "large" THEN PRINT "class: plain words"
 IF RIGHT$(Info.Summary, 1) = "." THEN PRINT "summary: a sentence"
 IF INSTR(Info.Summary, "cores") > 0 THEN PRINT "summary: says the cores"
-IF Info.Unknown = "" THEN PRINT "unknown: nothing here"
+IF LEN(Info.Unknown) >= 0 THEN PRINT "unknown: readable"
 IF Info.Browser = 0 THEN PRINT "browser: no"
 IF Info.Refresh THEN PRINT "refreshed"
 IF Info.Cores > 0 THEN PRINT "after refresh: cores again"

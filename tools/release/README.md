@@ -42,7 +42,7 @@ how to run it.
    `tools/release/smoke.sh dist/<ver>/out/RapidR-<ver>-macos-universal.dmg`.
 4. **`tools/release/linux-vm.sh`**, then `tools/release/linux-vm.sh smoke`.
 5. **`tools/release/windows-vm.sh build`** (about two hours on the first run),
-   then for each installer `windows-vm.sh smoke <installer> -Native` and
+   then for each installer `windows-vm.sh smoke <installer> Native` (add `Regress` for the conformance suite and the examples with the installed rapidr) and
    `-Associations`, then `windows-vm.sh fetch <installer> dist/<ver>/out/<installer>`.
 6. **`tools/release/finish.sh`**.
 7. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish

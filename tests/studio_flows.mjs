@@ -39,6 +39,8 @@ const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 // (STUDIO_FLOWS_SCALES=1,2: a desktop case that captures runs at each of these scales — the use-audit's
 // pictures at 1x and 2x —, unless the case names its own `scales`)
 const DESKTOP_SCALES = (process.env.STUDIO_FLOWS_SCALES || "1").split(",").map(Number);
+// (STUDIO_FLOWS_CAPTURE_ALL=1: every window a run captured — a dialog over Studio — is kept, as with `captureAll`)
+const CAPTURE_ALL = !!process.env.STUDIO_FLOWS_CAPTURE_ALL;
 // (the save prompts' project: a file and the one it includes)
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 // (Preview 4 S1/S2: the seven-file project, three forms in ui.rr)
@@ -8681,7 +8683,7 @@ function runDesktop(c, scale = 1) {
   // over it — `captureAll` — <case>-desktop-<n>@<s>x.png)
   if (c.capture && existsSync(join(dir, "window-1.bmp"))) {
     spawnSync("sips", ["-s", "format", "png", join(dir, "window-1.bmp"), "--out", join(WORK, `${c.name}-desktop@${scale}x.png`)], { stdio: "ignore" });
-    for (let n = 2; c.captureAll && existsSync(join(dir, `window-${n}.bmp`)); n++) {
+    for (let n = 2; (c.captureAll || CAPTURE_ALL) && existsSync(join(dir, `window-${n}.bmp`)); n++) {
       spawnSync("sips", ["-s", "format", "png", join(dir, `window-${n}.bmp`), "--out", join(WORK, `${c.name}-desktop-${n}@${scale}x.png`)], { stdio: "ignore" });
     }
   }

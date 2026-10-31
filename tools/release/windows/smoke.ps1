@@ -3,7 +3,7 @@
 # Windows), then uninstalls it.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File smoke.ps1 -Installer <...-setup.exe>
-#       [-Associations] [-Native -Cases <the release's source>]
+#       [-Associations] [-Native -Cases <the release's source>] [-Regress]
 #
 # The .rrbc / .rr file types are always registered (HKCU\Software\Classes, this
 # user's) and the test checks the uninstaller removes them: run it in a test VM.
@@ -18,6 +18,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [switch]$Associations,
     [switch]$Native,
+    [switch]$Regress,
     [string]$Cases = "$env:USERPROFILE\rapidr-release\src"
 )
 # (Continue: Windows PowerShell turns a native tool's stderr into errors when the output is
@@ -143,6 +144,29 @@ if ($kind -eq "sdk") {
         Write-Host "== Preview 5's features (p5check.ps1)"
         & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\p5check.ps1" -Rapidr $R -Work "$T\work\p5" | Write-Host
         if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
+    }
+    # (-Regress: the conformance suite on the bytecode VM and the examples on `rapidr run`, with the INSTALLED
+    # rapidr — a copy of it beside the tests, its home named — from the release's source, -Cases)
+    if ($Regress) {
+        $node = "$env:USERPROFILE\node\node.exe"
+        if (-not (Test-Path $node)) { $nc = Get-Command node.exe -ErrorAction SilentlyContinue; if ($nc) { $node = $nc.Source } }
+        if ((Test-Path $node) -and (Test-Path "$Cases\tests\conformance\run.mjs")) {
+            Write-Host "== regression with the installed rapidr: conformance (the bytecode VM) and the examples (rapidr run)"
+            $rg = "$T\regress"
+            New-Item -ItemType Directory -Force $rg | Out-Null
+            Copy-Item -Recurse "$Cases\tests", "$Cases\examples" $rg
+            Copy-Item $R "$rg\rapidr.exe"
+            $env:RAPIDR_HOME = "$T\app\lib\rapidr"
+            Push-Location $rg
+            & $node tests\conformance\run.mjs --backend vm *> "$rg\conformance.txt"
+            Get-Content "$rg\conformance.txt" | Select-Object -Last 2 | Write-Host
+            Check "conformance (the bytecode VM): none failed" { (Get-Content -Raw "$rg\conformance.txt") -match "\d+ passed, \d+ known failures \(xfail\), 0 failed" }
+            & $node tests\examples_run.mjs --runtimes run *> "$rg\examples.txt"
+            Get-Content "$rg\examples.txt" | Select-String -Pattern "Examples:|^.{1,3} .*\(run\)$" | Where-Object { $_ -notmatch "^.{1,3}\s*(✓|\?)" } | Select-Object -Last 12 | Write-Host
+            Check "examples (rapidr run): none failed" { (Get-Content -Raw "$rg\examples.txt") -match "Examples: \d+ checks passed, 0 failed" }
+            Pop-Location
+            Remove-Item env:RAPIDR_HOME
+        } else { Write-Host "  (-Regress: no node.exe or no tests in $Cases: skipped)" }
     }
     # (EXAMPLES-DATA) a data example built: its staff.csv beside the .exe, and the .exe started
     # as Explorer starts it — in its own folder — reads it

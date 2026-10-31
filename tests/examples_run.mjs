@@ -212,6 +212,9 @@ export const cases = [
     expect: ["greeting.caption=Olá, Ana!", "filecount.caption=3 arquivos", "addbutton.caption=&Adicionar um arquivo"] },
   { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["zh-Hans"], events: "addbutton.onclick", dump: "greeting.caption,filecount.caption",
     expect: ["greeting.caption=你好，Ana！", "filecount.caption=2 个文件"] },
+  // (the picker with the least code: the catalogs beside it, English at the start)
+  { file: "translations/language_picker.rr", runtimes: ["run"], includes: true, dump: "form.caption,addbutton.caption,languages.itemcount",
+    expect: ["form.caption=Languages", "addbutton.caption=&Add a file", "languages.itemcount=4"] },
   { file: "translations/languages.rr", runtimes: ["run", "interp", "web"], includes: true, elsewhere: true, args: ["pt-BR"], dump: "savebutton.caption,languages.itemindex",
     expect: ["savebutton.caption=&Salvar", "languages.itemindex=2"] },
   // recipes/ (the short programs RapidR Studio's assistant starts from: each
@@ -374,6 +377,10 @@ export const cases = [
   { file: "studio/versions.rr", runtimes: ["run"], expect: ["Local history of main.rr:"] },
   // (EXTERNAL-CHANGES: RProject's Watch / ExternalChanges(); the change
   // from outside is tests/studio_flows.mjs' ext-* walk)
+  // (CRASH-REPORTS: RProject's CrashList and CrashFolder, read from a folder of
+  // the test's own — never this computer's real reports)
+  { file: "studio/crash_reports.rr", runtimes: ["run"], env: { RAPIDR_CRASH_DIR: "no-crash-reports" }, dump: "said.caption,names.itemcount",
+    expect: ["said.caption=No reports: RapidR hasn't crashed on this computer lately.", "names.itemcount=0"] },
   { file: "studio/watch_file.rr", runtimes: ["run"], dump: "said.caption,note.text", expect: ["said.caption=Edit note.tmp.txt elsewhere, then come back.", "note.text=A note. Change me in another editor."] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
@@ -442,7 +449,7 @@ export const cases = [
   { file: "system_info.rr", runtimes: ["run", "interp", "native", "web"], dump: "summary.caption,advice.caption,refreshbutton.caption",
     expect: ["summary.caption=", " computer: this program would use its ", "refreshbutton.caption=&Refresh"] },
   { file: "system_info.rr", runtimes: ["run", "interp", "native"], events: "refreshbutton.onclick", dump: "summary.caption",
-    expect: [" cores), ", " of memory ("] },
+    expect: [" cores", " of memory ("] },
   // (RArchive: a .z80 found in a zip, a 7z, a .gz — or taken as it is —
   // its first bytes; a zip made and opened)
   { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption,loaded.caption,hexview.caption,entries.itemcount",

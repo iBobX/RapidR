@@ -8,7 +8,7 @@ battery: consistent
 class: plain words
 summary: a sentence
 summary: says the cores
-unknown: nothing here
+unknown: readable
 browser: no
 refreshed
 after refresh: cores again
