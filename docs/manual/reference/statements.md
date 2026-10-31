@@ -176,6 +176,6 @@
 | `STRING` | Text of any length, counted in characters; `STRING * n` always holds n characters. Suffix `$`. |
 | `VARIANT` | Holds whatever is stored in it: a number, text or object. An undeclared variable is one. |
 | `QOBJECT` | The base type of objects: `TYPE name EXTENDS RObject` makes a TYPE with methods, a constructor and inheritance. |
-| `INT64` | 64-bit signed integer, -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807. |
+| `INT64` | Reserved for a 64-bit signed integer, coming in 2.122.2. For now it holds 32 bits, as LONG does; for whole numbers beyond 32 bits use a DOUBLE (exact up to 9,007,199,254,740,992) and show it with FORMAT$("%.0f", n). |
 | `CURRENCY` | A number for amounts of money; RapidR keeps it as a 64-bit floating-point number. |
 | `ROBJECT` | RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`. |
