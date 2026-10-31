@@ -161,8 +161,11 @@ if ($kind -eq "sdk") {
             & $node tests\conformance\run.mjs --backend vm *> "$rg\conformance.txt"
             Get-Content "$rg\conformance.txt" | Select-Object -Last 2 | Write-Host
             Check "conformance (the bytecode VM): none failed" { (Get-Content -Raw "$rg\conformance.txt") -match "\d+ passed, \d+ known failures \(xfail\), 0 failed" }
+            # (the harness marks a failed example with U+2717; this file is read as ANSI by Windows PowerShell: no such character here)
+            try { $oe = [Console]::OutputEncoding; [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { $oe = $null }
             & $node tests\examples_run.mjs --runtimes run *> "$rg\examples.txt"
-            Get-Content "$rg\examples.txt" | Select-String -Pattern "Examples:|^.{1,3} .*\(run\)$" | Where-Object { $_ -notmatch "^.{1,3}\s*(✓|\?)" } | Select-Object -Last 12 | Write-Host
+            if ($oe) { try { [Console]::OutputEncoding = $oe } catch { } }
+            Get-Content "$rg\examples.txt" | Where-Object { $_.Length -gt 0 -and ([int]$_[0] -eq 0x2717 -or $_ -match "^Examples:") } | Select-Object -First 12 | Write-Host
             Check "examples (rapidr run): none failed" { (Get-Content -Raw "$rg\examples.txt") -match "Examples: \d+ checks passed, 0 failed" }
             Pop-Location
             Remove-Item env:RAPIDR_HOME
