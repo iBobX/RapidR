@@ -142,7 +142,7 @@
       "do": [
         { "click": { "target": "codedoc(0)", "x": 0.9, "y": 0.904 } },
         { "key": "Shift+Home" },
-        { "type": "    Label1.Caption = STR$(Count)" },
+        { "type": "Label1.Caption = STR$(Count)" },
         { "key": "Escape" },
         { "wait": 0.6 }
       ]

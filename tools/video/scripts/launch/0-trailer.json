@@ -117,7 +117,7 @@
     {
       "say": [{ "en": "Lost your work? Versions brings it back.", "es": "¿Perdiste tu trabajo? Versiones lo recupera." }],
       "do": [
-        { "do": { "en": "versions.pane,versions.start,versions:author=Ana,versions:save=A working tip calculator", "es": "versions.pane,versions.start,versions:author=Ana,versions:save=Una calculadora que funciona" } },
+        { "do": { "en": "versions.pane,versions.start,versions:author=Ana,versions:save=A working tip calculator", "es": "versions.pane,versions.start,versions:author=Ana,versions:save=Calculadora que funciona" } },
         { "wait": 1.0 },
         { "do": "view.code" },
         { "wait": 0.6 },
@@ -126,7 +126,7 @@
         { "key": "Delete" },
         { "do": { "en": "file.save,versions:save=Oops", "es": "file.save,versions:save=Ups" } },
         { "wait": 1.0 },
-        { "click": { "en": "VerTimeline > A working tip calculator", "es": "VerTimeline > Una calculadora que funciona" } },
+        { "click": { "en": "VerTimeline > A working tip calculator", "es": "VerTimeline > Calculadora que funciona" } },
         { "click": { "en": "studio > File", "es": "studio > Archivo" } },
         { "click": { "en": "studio > Versions", "es": "studio > Versiones" } },
         { "click": { "en": "studio > Go Back to This Version", "es": "studio > Volver a esta versión" } },

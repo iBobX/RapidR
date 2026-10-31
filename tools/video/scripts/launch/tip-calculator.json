@@ -72,13 +72,13 @@
       "say": [{ "en": "Next, a text box to type the bill in.", "es": "Ahora, un cuadro de texto para escribir la cuenta." }],
       "do": [
         { "drag": "Toolbox > REdit", "to": { "target": "designdoc(0)", "x": 0.17, "y": 0.18 } },
-        { "click": { "target": "Inspector > Search properties", "x": 0.4 } },
+        { "click": { "target": { "en": "Inspector > Search properties", "es": "Inspector > Buscar propiedades" }, "x": 0.4 } },
         { "type": "Text" },
         { "click": { "target": "Inspector > Text", "x": 0.78 } },
         { "key": "Ctrl+A" },
         { "type": "80" },
         { "key": "Enter" },
-        { "click": { "target": "Inspector > Search properties", "x": 0.4 } },
+        { "click": { "target": { "en": "Inspector > Search properties", "es": "Inspector > Buscar propiedades" }, "x": 0.4 } },
         { "key": "Ctrl+A" },
         { "key": "Backspace" }
       ]

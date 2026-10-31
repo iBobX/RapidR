@@ -155,6 +155,15 @@ the second (`{RAI|Rye}`).
   a demo model answers (the description does too: `demoModel`). Memory facts
   for Set Up RAI: `ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1`,
   `ai:setupfacts=total=16384&free=12288`.
+- `studio.web` is for a take that shows Run in Browser or Build Web App:
+  the take gets the web runtime (`VIDEO_WEB_RUNTIME`, else the main
+  checkout's `dist/<version>/prep/web-runtime`, linked at the checkout's
+  git-ignored `target/web` where its `rapidr` looks) and the user's own Rust
+  toolchain read-only (`RUSTUP_HOME`, `CARGO_HOME`: the bundle's third-party
+  notices come from `cargo metadata`), and its paths are under `/tmp`. Run in
+  Browser serves the app on 127.0.0.1 but opens no browser on this Mac
+  (`RAPIDR_NO_BROWSER` is set in every take): the take shows Studio's side
+  only; the demo player records Studio's windows, not a browser's.
 - A step can name its `chapter` (any language map): the description lists
   the chapters with the time of the step's first line (the first at 0:00;
   fewer than three, or one under 10 s long, are left out).
@@ -285,7 +294,7 @@ support line:
 | 0 | `launch/0-trailer.json` | RapidR Studio in 90 seconds (fast cuts: drag a button and Run, RAI builds an app from a sentence, Coach, Versions, the language) |
 | 1 | `first-app.json` | Your first app in RapidR Studio |
 | 2 | `launch/tip-calculator.json` | A real little app: a tip calculator (forms, properties, events) |
-| 3 | `launch/browser-and-build.json` | Run it in the browser, and build an app file |
+| 3 | `launch/browser-and-build.json` | Run it in the browser, and build an app file (Studio's side: the command, the output, the .zip) |
 | 4 | `launch/1-pair-with-ai.json` | Pair with AI on your own computer (Set Up RAI, the fit chips, Check My Models) |
 | 5 | `launch/rai-builds-an-app.json` | RAI builds an app for you, and you decide (the review's hunks) |
 | 6 | `launch/2-coach-mode.json` | Coach mode: hints, not answers |

@@ -15,11 +15,11 @@
 
 import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { ROOT, rapidrBinary, testModeToken } from "./config.mjs";
+import { MAIN, ROOT, rapidrBinary, testModeToken } from "./config.mjs";
 
 /**
  * The names the mock's models go by on screen: made up and neutral, never a
@@ -41,6 +41,27 @@ async function startMock(studio) {
 /** `{mockroot}` and `{mock}` in a text, as the tests write them. */
 const withMock = (text, mock) => (mock ? text.split("{mockroot}").join(mock.root).split("{mock}").join(mock.url) : text);
 
+/**
+ * The web runtime Run in Browser and Build Web App bundle (rapidrintr.js +
+ * rapidrintr_bg.wasm): VIDEO_WEB_RUNTIME, else the release preparation of
+ * this checkout's version in the main checkout's dist/ (git-ignored).
+ */
+function webRuntime() {
+  if (process.env.VIDEO_WEB_RUNTIME) return process.env.VIDEO_WEB_RUNTIME;
+  let version = "";
+  try {
+    version = (readFileSync(join(ROOT, "Cargo.toml"), "utf8").match(/^version\s*=\s*"([^"]+)"/m) || [])[1] || "";
+  } catch {
+    // (no workspace version: the newest one below)
+  }
+  const dist = join(MAIN, "dist");
+  const have = (d) => existsSync(join(d, "rapidrintr_bg.wasm")) && existsSync(join(d, "rapidrintr.js"));
+  const exact = join(dist, version, "prep", "web-runtime");
+  if (version && have(exact)) return exact;
+  const found = existsSync(dist) ? readdirSync(dist).map((v) => join(dist, v, "prep", "web-runtime")).filter(have).sort() : [];
+  return found.length ? found[found.length - 1] : null;
+}
+
 /** Studio's language tag for a video's language (Studio's catalogs: ide/lang). */
 function studioLang(lang) {
   const base = lang.split("-")[0];
@@ -60,13 +81,33 @@ export async function record({ script, lang, take, log = () => {}, timeoutMin = 
   // (outside any repository: Studio rightly won't start versions inside a
   // folder that has some — this checkout's; projects are ./projects, so the
   // video shows no path of this machine)
-  const profile = mkdtempSync(join(tmpdir(), "rapidr-video-"));
+  // (a take that shows a build's output: its paths are under /tmp, a place
+  // that says nothing about this computer, not the user's temporary folder)
+  const profile = mkdtempSync(join(script.studio?.web ? "/tmp" : tmpdir(), "rapidr-video-"));
   const home = join(profile, "home");
   mkdirSync(home, { recursive: true });
   for (const d of ["docs", "studio", "chats", "prints"]) mkdirSync(join(profile, d), { recursive: true });
   // (Studio's home: what it reads beside it; projects go to ./projects here)
   symlinkSync(join(ROOT, "ide"), join(home, "ide"));
   symlinkSync(join(ROOT, "docs"), join(home, "docs"));
+  // (Run in Browser and Build Web App: the web runtime where a checkout's
+  // rapidr looks for it, and the Rust toolchain the third-party notices are
+  // made with — read only, the user's own, named by RUSTUP_HOME / CARGO_HOME)
+  let rust = {};
+  if (script.studio?.web) {
+    const runtime = webRuntime();
+    if (!runtime) throw new Error("No web runtime for Run in Browser: set VIDEO_WEB_RUNTIME to a folder with rapidrintr.js and rapidrintr_bg.wasm.");
+    mkdirSync(join(home, "target"), { recursive: true });
+    symlinkSync(runtime, join(home, "target", "web"));
+    // (a build runs in the project's folder, where target/web isn't: a checkout's
+    // rapidr looks in its own root too — target/ is git-ignored)
+    const rootWeb = join(ROOT, "target", "web");
+    if (!existsSync(rootWeb)) {
+      mkdirSync(join(ROOT, "target"), { recursive: true });
+      symlinkSync(runtime, rootWeb);
+    }
+    rust = { RUSTUP_HOME: process.env.RUSTUP_HOME || join(homedir(), ".rustup"), CARGO_HOME: process.env.CARGO_HOME || join(homedir(), ".cargo") };
+  }
   cpSync(join(ROOT, "examples"), join(home, "examples"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$|big(_\d+)?\.csv$/.test(src) });
   const studio = script.studio || {};
   // (a small project to start from: the tests' fixtures, copied into the
@@ -84,6 +125,7 @@ export async function record({ script, lang, take, log = () => {}, timeoutMin = 
   const env = {
     ...keep,
     HOME: home,
+    ...rust,
     ...(token ? { RAPIDR_TEST_MODE: token } : {}),
     RAPIDR_DEMO: file,
     RAPIDR_DEMO_OUT: take,

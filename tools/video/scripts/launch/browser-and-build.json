@@ -1,0 +1,101 @@
+// Launch video 3 of the Preview 5 playlist "RapidR Studio Tutorials": Run it
+// in the browser, and build an app file (about 1.5 min).
+// Record: node tools/video/video.mjs tools/video/scripts/launch/browser-and-build.json --lang en,es --webm
+// The demo player records Studio's windows only: Run in Browser serves the app
+// on 127.0.0.1 and no browser is opened on this Mac (RAPIDR_NO_BROWSER), so the
+// take shows Studio's side: the command, the output, the build. `studio.web`
+// gives the take the web runtime and the Rust toolchain the build's notices need
+// (docs/video-pipeline.md); its paths are under /tmp.
+{
+  "id": "launch-browser-and-build",
+  "title": { "en": "Run it in the browser, and build an app file", "es": "Ejecútala en el navegador, y crea un archivo de tu app" },
+  "description": {
+    "en": "The same app can run in a web browser and become a file you can share. Run in Browser serves your app on your own computer only; Build Web App makes a .zip any web host can serve.",
+    "es": "La misma app puede ejecutarse en un navegador web y convertirse en un archivo que puedes compartir. Ejecutar en el navegador sirve tu app solo en tu propia computadora; Compilar aplicación web crea un .zip que cualquier servidor web puede servir."
+  },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "web app", "run in browser", "build", "share your app", "BASIC", "programming", "tutorial", "beginner"],
+    "es": ["RapidR", "RapidR Studio", "app web", "ejecutar en el navegador", "compilar", "comparte tu app", "BASIC", "programación", "tutorial", "principiantes"]
+  },
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": {
+    "theme": "rapidr-light",
+    "web": true,
+    "fixtures": { "tools/video/fixtures/tip-project": "projects/TipCalc" },
+    "open": "projects/TipCalc/TipCalc.rrproj"
+  },
+  "steps": [
+    {
+      "chapter": { "en": "Out of Studio", "es": "Fuera de Studio" },
+      "card": {
+        "title": { "en": "Run it in the browser", "es": "Ejecútala en el navegador" },
+        "lines": [{ "en": "and build an app file", "es": "y crea un archivo de tu app" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "The same app can run in a browser, and become a file you can share.", "es": "La misma app puede ejecutarse en un navegador, y convertirse en un archivo que puedes compartir." }],
+      "gap": 1.0
+    },
+    {
+      "say": [{ "en": "Here is our tip calculator again.", "es": "Aquí está otra vez nuestra calculadora de propinas." }],
+      "do": [{ "highlight": "designdoc(0)", "for": 2.2 }]
+    },
+    {
+      "chapter": { "en": "Run in Browser", "es": "Ejecutar en el navegador" },
+      "say": [
+        { "en": "Open the Run menu, and choose Run in Browser.", "es": "Abre el menú Ejecutar, y elige Ejecutar en el navegador." },
+        { "en": "Studio builds your app for the web, and serves it on this computer only.", "es": "Studio compila tu app para la web, y la sirve solo en esta computadora." }
+      ],
+      "do": [
+        { "click": { "en": "studio > Run", "es": "studio > Ejecutar" } },
+        { "click": { "en": "studio > Run in Browser", "es": "studio > Ejecutar en el navegador" } },
+        { "waitFor": { "prop": "OutputBox.Text", "has": "127.0.0.1" }, "timeout": 90 },
+        { "highlight": "OutputBox", "for": 4.0 }
+      ]
+    },
+    {
+      "say": [{ "en": "The address is private: nobody else can reach it, and it ends when Studio does.", "es": "La dirección es privada: nadie más puede llegar a ella, y termina cuando termina Studio." }],
+      "do": [{ "wait": 3.0 }]
+    },
+    {
+      "chapter": { "en": "Build an app file", "es": "Crea un archivo de tu app" },
+      "say": [
+        { "en": "To share it, build it. Build Web App makes one file.", "es": "Para compartirla, compílala. Compilar aplicación web crea un solo archivo." },
+        { "en": "Unzip it on any web host, and your app is online.", "es": "Descomprímelo en cualquier servidor web, y tu app está en línea." }
+      ],
+      "do": [
+        { "click": { "en": "studio > Run", "es": "studio > Ejecutar" } },
+        { "click": { "en": "studio > Build Web App", "es": "studio > Compilar aplicación web" } },
+        { "wait": 8.0 },
+        { "mark": "poster" }
+      ]
+    },
+    {
+      "say": [{ "en": "A web app is a folder of plain files: no install, nothing to download but the page.", "es": "Una app web es una carpeta de archivos simples: sin instalar, nada que descargar salvo la página." }],
+      "do": [
+        { "highlight": "OutputBox", "for": 3.4 },
+        { "pointer": "hide" }
+      ],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "Write once, share anywhere", "es": "Escribe una vez, comparte donde quieras" }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Share what you make.", "es": "Comparte lo que creas." }],
+      "do": [{ "wait": 2.5 }]
+    }
+  ]
+}

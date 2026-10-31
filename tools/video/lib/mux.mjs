@@ -138,7 +138,7 @@ export async function measure(file, pre = "") {
 
 /** The loudness filter for the second pass: linear, from the first pass's numbers. */
 export function loudnessFilter(m) {
-  return `loudnorm=I=${TARGET.i}:TP=${TARGET.tp}:LRA=${TARGET.lra}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true,alimiter=limit=0.82:attack=2:release=30:level=false`;
+  return `loudnorm=I=${TARGET.i}:TP=${TARGET.tp}:LRA=${TARGET.lra}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true,alimiter=limit=0.80:attack=2:release=30:level=false`;
 }
 
 /**

@@ -49,31 +49,23 @@
       "do": [
         { "click": { "en": "studio > Tools", "es": "studio > Herramientas" } },
         { "click": { "en": "studio > Set Up RAI", "es": "studio > Configurar RAI" } },
-        { "waitFor": "window:AISetup", "timeout": 20 }
-      ]
-    },
-    {
-      "say": [
-        { "en": "Choose free, on this computer.", "es": "Elige gratis, en esta computadora." },
-        { "en": "Studio finds the models your local AI apps already have.", "es": "Studio encuentra los modelos que tus apps de IA locales ya tienen." }
-      ],
-      "do": [
-        { "spotlight": "AISuFoundText", "for": 5.5 },
-        { "waitFor": { "prop": "AISuFoundText.Caption", "has": { "en": "Found 3", "es": "3 modelos" } }, "timeout": 30 },
-        { "click": "AISuLocal" },
-        { "wait": 1.4 }
+        { "waitFor": "window:AISetup", "timeout": 20 },
+        // (the window's first page names the cloud services it can use instead: this
+        // video is about the computer's own models, so it goes straight to them —
+        // free, on this computer — dimmed for the moment it shows)
+        { "spotlight": "AISuFoundText", "for": 1.6 },
+        { "do": "ai:setuplocal,ai:setupnext" }
       ]
     },
     {
       "chapter": { "en": "Which models fit", "es": "Qué modelos caben" },
       "say": [
-        { "en": "Next, Studio looks at this computer's memory…", "es": "Después, Studio mira la memoria de esta computadora…" },
-        { "en": "and tells you, in plain words, what fits.", "es": "y te dice, con palabras simples, qué cabe." }
+        { "en": "Free, on this computer: Studio finds the models your local AI apps already have…", "es": "Gratis, en esta computadora: Studio encuentra los modelos que tus apps de IA locales ya tienen…" },
+        { "en": "looks at this computer's memory, and tells you, in plain words, what fits.", "es": "mira la memoria de esta computadora, y te dice, con palabras simples, qué cabe." }
       ],
       "do": [
-        { "click": "AISuNextBtn" },
         { "waitFor": { "prop": "AISuMemText.Caption", "has": { "en": "memory", "es": "memoria" } }, "timeout": 30 },
-        { "highlight": "AISuMemText", "for": 3.0 }
+        { "highlight": "AISuMemText", "for": 3.4 }
       ]
     },
     {

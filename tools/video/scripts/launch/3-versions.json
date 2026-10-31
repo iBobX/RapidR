@@ -59,7 +59,7 @@
       "do": [
         { "click": "VerSaveBtn" },
         { "waitFor": "window:VerSaveDialog", "timeout": 20 },
-        { "type": { "en": "A working tip calculator", "es": "Una calculadora de propinas que funciona" }, "into": "VerMsgEdit" },
+        { "type": { "en": "A working tip calculator", "es": "Calculadora que funciona" }, "into": "VerMsgEdit" },
         { "wait": 0.6 },
         { "click": "VerSaveOk" },
         { "waitFor": "gone:VerSaveDialog", "timeout": 20 }
@@ -121,7 +121,7 @@
         { "en": "Studio asks first, and says what will happen.", "es": "Studio pregunta primero, y dice qué va a pasar." }
       ],
       "do": [
-        { "click": { "en": "VerTimeline > A working tip calculator", "es": "VerTimeline > Una calculadora de propinas que funciona" } },
+        { "click": { "en": "VerTimeline > A working tip calculator", "es": "VerTimeline > Calculadora que funciona" } },
         { "click": { "en": "studio > File", "es": "studio > Archivo" } },
         { "click": { "en": "studio > Versions", "es": "studio > Versiones" } },
         { "click": { "en": "studio > Go Back to This Version", "es": "studio > Volver a esta versión" } },
