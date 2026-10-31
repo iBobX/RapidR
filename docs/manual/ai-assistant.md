@@ -67,6 +67,10 @@ changes nothing. Everything can be changed later in Settings.
 
 ![Tools > Settings, the AI page: the provider, a key kept for the session, the model picked from the provider's list, the reply limit, the prices, the permission](images/ai/settings.png)
 
+On a short screen (a 1280 × 720 laptop, a small browser window) Settings is
+never taller than the screen: its page scrolls under the tabs, and OK and
+Cancel stay at the bottom.
+
 1. **Turn on the AI assistant.**
 2. **Provider.** **See prices** opens the provider's price page.
 3. **API key** — the key from your account with the provider (**Get a

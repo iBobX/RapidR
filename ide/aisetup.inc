@@ -343,6 +343,9 @@ SUB AISuClosed(Action AS INTEGER)
 END SUB
 
 SUB AISuFonts
+  ' (the dialog's own font — its buttons' — Studio's, as every dialog's:
+  ' Look Again, Cancel and Next were in the small default font)
+  AISetup.Font.Name = UIFont.Name: AISetup.Font.Size = UIFont.Size
   AISuTitle.Font = SubFont
   AISuTitle.Font.Color = TC("page.text")
   AISuLocal.Font = UIFont

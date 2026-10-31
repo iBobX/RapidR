@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 934e853b0da666b6 -->
+<!-- translated-from: ai-assistant.md bb167dc1938f191d -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -75,6 +75,10 @@ después en Configuración.
 **IA**):
 
 ![Herramientas > Configuración, la página IA: el proveedor, una clave guardada para la sesión, el modelo elegido de la lista del proveedor, el límite de respuesta, los precios, el permiso](../images/ai/settings.png)
+
+En una pantalla baja (una portátil de 1280 × 720, una ventana pequeña del
+navegador) Configuración nunca es más alta que la pantalla: su página se
+desplaza bajo las pestañas, y Aceptar y Cancelar quedan abajo.
 
 1. **Activar el asistente de IA.**
 2. **Proveedor.** **Ver precios** abre la página de precios del proveedor.

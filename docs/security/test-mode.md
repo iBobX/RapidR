@@ -137,6 +137,7 @@ Every hook below is ignored by a release build without a valid token.
 | `RAPIDR_TEST_EVENTS` | scripted clicks, keys, mouse | testhooks |
 | `RAPIDR_TEST_DUMP` | `component.property` values printed | testhooks, `panels.rs` |
 | `RAPIDR_TEST_RESIZE`, `RAPIDR_TEST_SPLIT`, `RAPIDR_TEST_NOFOCUS` | forms resized, splitters dragged, no focus | testhooks |
+| `RAPIDR_TEST_SCREEN` | the headless host's screen a given size (a dialog checked on a 1280 × 720 screen) | testhooks |
 | `RAPIDR_TEST_FRAMES`, `RAPIDR_TEST_FRAMES_OF` | each turn's place and size of the named components written to a file (the splitter-resize stability test) | `rapidr-ui-app` `desktop.rs` (`Desktop::trace_frame`) |
 | `RAPIDR_TEST_FILE_DIALOG`, `RAPIDR_TEST_DROP`, `RAPIDR_TEST_COLOR_DIALOG`, `RAPIDR_TEST_FONT_DIALOG`, `RAPIDR_TEST_MESSAGE_DIALOG`, `RAPIDR_TEST_DIALOG_HOLD` | dialogs and message boxes answered, files dropped | testhooks |
 | `RAPIDR_TEST_SYSTEM_LOOK` (`file:PATH` too) | the system's look; `file:` reads a file | testhooks |

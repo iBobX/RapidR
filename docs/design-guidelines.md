@@ -157,7 +157,7 @@ Before something with consequences is turned on (AI apps working in Studio, a lo
 
 ## Dialogs and resizing
 
-- **A dialog fits the screen:** at most 85 % of the screen's work area in height and width; its content scrolls, its buttons stay pinned at the bottom. It must work at 1280 × 720 and at 200 % text.
+- **A dialog fits the screen:** at most 85 % of the screen's work area in height and width; its content scrolls, its buttons stay pinned at the bottom. It must work at 1280 × 720 and at 200 % text. How (Settings, Project Options): the content in an `RScrollBox` (`BorderStyle = 0`, `HorzVisible = 0`) as tall as `Screen.ClientHeight * 85 \ 100` less the frame, the buttons and the padding, never taller than the content; the buttons under it. `node tests/studio_flows.mjs dialog-fits` checks every dialog it can open at 1280 × 720.
 - **Long lists fold:** a list a person rarely edits (paths, folders) shows a one-line summary ("14 folders · Show") and opens as a small list (about five rows) with its own scroll bar.
 - **Smooth:** scrolling, resizing and dragging never show a half-drawn frame, a fallback rendering or sizes bouncing back and forth; a frame takes about 8 ms (120 Hz).
 
@@ -206,6 +206,7 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 - Search and Help fields are 26 (search.inc).
 - The status bar's paused colour (`statusbar.debugging`, `#B45309`) is outside the brand palette.
 - Settings > AI: the links block (an `RMarkdownView`) draws a white `window` block across the dialog's face (settings.inc).
+- The design audit of 2026-10-30 ([docs/design-audit-2026-10.md](design-audit-2026-10.md)) lists the rest: Settings' long pages (the redesign), Set Up RAI's empty half, Keyboard Shortcuts and About as message boxes, the Help field's missing magnifier, two rows of Toolbox and Outline at 720, the dialogs the size test doesn't reach yet, 200 % text (no setting yet).
 - Pane headers differ: the review window's 44, A New Program's 64, Set Up RAI's 56 (ai.inc, aisetup.inc); a two-line pane header is 52.
 
 ## Checklist before you merge UI

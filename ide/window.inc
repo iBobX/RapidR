@@ -101,6 +101,14 @@ CREATE Studio AS RForm
     Enabled = 0
     OnTimer = MacroTick
   END CREATE
+  ' (tests only, never on: the event layoutprobe.ontimer writes the layout
+  ' report of every window shown — a dialog's too, while it waits for the
+  ' user — to the Output: shell.inc's LayoutStep)
+  CREATE LayoutProbe AS RTimer
+    Interval = 60000
+    Enabled = 0
+    OnTimer = LayoutProbeTick
+  END CREATE
   CREATE EditorFocus AS RTimer
     Interval = 1
     Enabled = 0

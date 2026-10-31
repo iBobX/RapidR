@@ -466,6 +466,8 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [x] Status tokens `status.info` / `success` / `warning` / `danger` (fill, `.text`, `.border`), contrast-tested; example gui/status_colors.rr *(DESIGN-GUIDE, 2026-10-29)*
 - [x] The AI Apps pane per the guide (soft chip, one-height header, the question strip), the first-time question as a consent dialog with rows (`ide/consent.inc`, reusable), Settings > AI Apps' rows, Copy / Copy All on the activity *(DESIGN-GUIDE, 2026-10-29)*
 - [ ] The other panes and dialogs brought to the guide (the offenders listed in docs/design-guidelines.md "Known gaps"; `tools/check_design.py --list`)
+  - [x] The design audit at 1280 × 720 (light / dark / high contrast, English and Spanish, the layout report): [docs/design-audit-2026-10.md](docs/design-audit-2026-10.md); Settings and Project Options fit a 1280 × 720 screen (content scrolls, buttons pinned), checked by `studio_flows` dialog-fits *(STUDIO-POLISH P4–P5, 2026-10-30; 200 % text waits for a text-size setting)*
+  - [ ] The Settings redesign (category list + search, folded lists, one-line descriptions) and the smoothness lane (frame times, flips: `RAPIDR_TEST_FRAMES`) — the audit's "Still to do"
   - [x] Tabs with icons everywhere: Settings (General / AI / AI Apps), Output / Build / Problems, Properties / Events — each its icon and its name, the icons alone (named in a tooltip and for a screen reader) when a strip is too narrow, never a cut name; `RTabControl.TabIcons` for programs (example gui/tab_icons.rr) *(STUDIO-POLISH P3, 2026-10-30; the Versions footer and the RAI pane's strip: P1, P2)*
 
 **I0 — Foundations** (L, 12–16 sessions)

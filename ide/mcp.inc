@@ -801,7 +801,7 @@ SUB SetUpMcp
   Dock.HidePane("mcppanel")
   ' (Output stays the group's front tab, as SetUpDock left it)
   Dock.ShowPane("outputbox")
-  McpPage.Parent = SettingsDialog
+  McpPage.Parent = SettingsScroll
   SettingsTabs.AddTabs TR$("AI Apps")
   McpFillModes McpPageModeBox
   McpModeFollow

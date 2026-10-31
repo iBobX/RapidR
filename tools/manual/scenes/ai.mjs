@@ -88,7 +88,7 @@ export const scenes = [
     do: `${READY},ai:settings,wait`,
     delay: 8,
     viewport: { width: 1280, height: 800 },
-    crop: [350, 47, 580, 693],
+    crop: [309, 61, 662, 680],
   },
   {
     // The Assistant panel: a question, the tools it used, the token meter

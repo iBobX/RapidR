@@ -446,6 +446,13 @@ const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},de
 // `same`: equal to a file's text, line ends as the editor keeps them).
 // (I8 AI-REAL: the settings dialog's clicks — typeInto and idle below)
 const AI_TAB = "settingstabs.__mousedown_108_12,settingstabs.__mouseup_108_12";
+// (STUDIO-POLISH P3: the tab strips' names, a screen reader's — dialog-fits)
+const TAB_NAMES = {
+  "main-en": ["Output", "Build", "Problems", "Properties", "Events"],
+  "main-es": ["Salida", "Construir", "Problemas", "Propiedades", "Eventos"],
+  "settings-general-en": ["General", "AI", "AI Apps"],
+  "settings-general-es": ["General", "IA", "Aplicaciones de IA"],
+};
 const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
 const OK = "settingsokbtn.__mousedown_40_14,settingsokbtn.__mouseup_40_14";
 const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
@@ -6515,8 +6522,9 @@ const CASES = [
       "aiprovbox.text": /^OpenAI$/,
       "aifetchbtn.enabled": /^(-1|1|True)$/i,
       "aifetchnote.caption": /^OpenAI refused the API key \(401\) \(OpenAI says: "Incorrect API key provided[\s\S]*Check the key: it may be mistyped, revoked, or a key of another provider\.$/,
-      // (the note as tall as its four lines: nothing cut)
-      "aifetchnote.height": /^(6\d|7\d|8\d)$/,
+      // (the note as tall as its lines — three since the key is shown
+      // masked, "mock****"; four in a narrower look: nothing cut)
+      "aifetchnote.height": /^(4[89]|[5-8]\d)$/,
       "aimodelcombo.itemcount": /^0$/,
     },
   },
@@ -8373,6 +8381,48 @@ const CASES = [
     capture: true,
     dump: { "outputbox.text": /Tu programa se detuvo: se desbordó la pila \(las llamadas fueron demasiado profundas\), en main\.rr línea 24, en SUB Tick \(OnTimer de Ticker\)\.\nRapidR lo detuvo: es un problema de RapidR, no de tu código\. Un informe queda en esta computadora: Ver informe/ },
   },
+  // (STUDIO-POLISH, the design audit and the dialog size rule —
+  // docs/design-guidelines.md § Dialogs and resizing: Studio at 1280 x 720
+  // on a 1280 x 720 screen (RAPIDR_TEST_SCREEN), each pane and dialog in
+  // English and in Spanish: a dialog at most 85 % of the screen (612 x
+  // 1088), its buttons inside it; nothing cut off, nothing on top of
+  // another, nothing past its window's edge, as the layout report sees
+  // them — the event layoutprobe.ontimer, from inside a dialog's wait)
+  ...[
+    ["main", "examples/gui/hello_form.rr", "view.output", ""],
+    ["versions", "examples/gui/hello_form.rr", "versions.pane", ""],
+    ["aiapps", "examples/gui/hello_form.rr", "view.aiApps", ""],
+    ["settings-general", "examples/gui/hello_form.rr", "view.settings", "settingsdialog"],
+    ["settings-ai", "examples/gui/hello_form.rr", "ai.settings", "settingsdialog"],
+    ["settings-aiapps", "examples/gui/hello_form.rr", "mcp.settings", "settingsdialog"],
+    ["schoollock", "examples/gui/hello_form.rr", "tools.schoolLock", "lockdialog"],
+    ["newproject", "examples/gui/hello_form.rr", "file.newProject", "newdialog"],
+    ["setup-rai", "examples/gui/hello_form.rr", "ai.setup", "aisetup"],
+    ["project-options", "tests/fixtures/studio_mcp/Hello.rrproj", "project.options", "appdialog"],
+  ].flatMap(([state, open, steps, dialog]) =>
+    ["en", "es"].map((lang) => ({
+      name: `dialog-fits-${state}-${lang}`,
+      desktopOnly: true,
+      open,
+      env: { RAPIDR_TEST_SCREEN: "1280x720" },
+      do: `wait,${lang === "es" ? "lang:es,wait," : ""}layout:size=1280x720,wait,${steps}`,
+      events: "layoutprobe.ontimer",
+      delay: 6,
+      capture: true,
+      contrast: true,
+      // (each tab named for a screen reader — its icon alone when narrow)
+      ...(TAB_NAMES[`${state}-${lang}`] ? { a11y: TAB_NAMES[`${state}-${lang}`].map((n) => [n, "tab"]) } : {}),
+      ...(dialog
+        ? {
+            checks: [(d) => [Number(d[`${dialog}.height`]) <= 612 && Number(d[`${dialog}.width`]) <= 1088, `${dialog} fits 85 % of a 1280 x 720 screen (${d[`${dialog}.width`]} x ${d[`${dialog}.height`]})`]],
+          }
+        : {}),
+      dump: {
+        "outputbox.text": /\[layout\] problems=0/,
+        ...(dialog ? { [`${dialog}.height`]: /^\d+$/, [`${dialog}.width`]: /^\d+$/, [`${dialog}.visible`]: /^(-1|1|True)$/i } : {}),
+      },
+    })),
+  ),
 ];
 
 
