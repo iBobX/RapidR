@@ -22,6 +22,8 @@ The other files are the parts those scripts share:
 - `home.py`: the runtime's sources with their crates vendored (what native builds compile against, offline).
 - `stage.py`: lays out an installed RapidR (`bin/`, `lib/rapidr/`, `share/doc/rapidr/`) from built pieces; every package is made from that tree.
 - `smoke.sh` (macOS, Linux) and `windows/smoke.ps1` (Windows): install a package into a temporary place, check it, uninstall it, and remove everything they made (temporary folder, build cache, cargo target) even when a check fails.
+- `p5check.sh` and `windows/p5check.ps1`: Preview 5's features in the installed Studio, headless (Versions: save, change, save, Go Back; the Coach dial; Set Up RAI's empty "On this computer"; Studio in Spanish; School Lock's dialog). `smoke.sh` and `windows/smoke.ps1` run them; `linux-vm.sh smoke` sends `p5check.sh` beside `smoke.sh`.
+- **The test-mode token (SEC-24).** A release build's test hooks (the captures and dumps every smoke test reads) act only with a signed token: `RAPIDR_TEST_MODE=<token>`, or the harnesses' `~/.rapidr/test-mode.token` (`%USERPROFILE%\.rapidr\test-mode.token` on Windows), which `smoke.sh`, `smoke.ps1` and `p5check` pick up. On the Mac it is already there; for a VM, copy the token file to that user's `.rapidr` folder first (it is signed, expires, and is not a key: [docs/security/test-mode.md](../../docs/security/test-mode.md)). Without it every GUI check fails with "test hooks are off".
 - `linux.sh`, `linux/` (install.sh, uninstall.sh, the MIME types and desktop entries, setup-tools.sh, clean.sh): the Linux build, run inside the VM by `linux-vm.sh`; `ubuntu-vm.sh` is the VM driver (send, run, root, fetch).
 - `windows/` (windows.ps1, rapidr.iss, setup-tools.ps1, smoke.ps1, clean.ps1, the job helpers detach/job/stop/piece/user/whoami, watch-windows.ps1): the Windows build, run inside the VM by `windows-vm.sh`. Its calls run as SYSTEM and its jobs in a headless console, so nothing opens a window on the VM's desktop (`windows-vm.sh flashtest control` checks).
 - `macos/`: the two Info.plists and the entitlements.
@@ -40,7 +42,7 @@ how to run it.
    `tools/release/smoke.sh dist/<ver>/out/RapidR-<ver>-macos-universal.dmg`.
 4. **`tools/release/linux-vm.sh`**, then `tools/release/linux-vm.sh smoke`.
 5. **`tools/release/windows-vm.sh build`** (about two hours on the first run),
-   then for each installer `windows-vm.sh smoke <installer> -Native` and
+   then for each installer `windows-vm.sh smoke <installer> Native` (add `Regress` for the conformance suite and the examples with the installed rapidr) and
    `-Associations`, then `windows-vm.sh fetch <installer> dist/<ver>/out/<installer>`.
 6. **`tools/release/finish.sh`**.
 7. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish

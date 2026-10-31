@@ -235,7 +235,7 @@ def studio_status(project: tuple[str, str, list[tuple[str, str]]] | None, versio
 def rapidr_version() -> str:
     f = META / "rapidr-version.txt"
     m = re.search(r"(\d+\.\d+\.\d+)", f.read_text()) if f.exists() else None
-    return m.group(1) if m else "2.121.3"
+    return m.group(1) if m else "2.122.0"
 
 
 CANNED = {"studio_status"}  # tools of Studio's MCP server that rai_check does not have

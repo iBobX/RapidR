@@ -3,7 +3,7 @@
 # Windows), then uninstalls it.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File smoke.ps1 -Installer <...-setup.exe>
-#       [-Associations] [-Native -Cases <the release's source>]
+#       [-Associations] [-Native -Cases <the release's source>] [-Regress]
 #
 # The .rrbc / .rr file types are always registered (HKCU\Software\Classes, this
 # user's) and the test checks the uninstaller removes them: run it in a test VM.
@@ -18,6 +18,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [switch]$Associations,
     [switch]$Native,
+    [switch]$Regress,
     [string]$Cases = "$env:USERPROFILE\rapidr-release\src"
 )
 # (Continue: Windows PowerShell turns a native tool's stderr into errors when the output is
@@ -30,6 +31,10 @@ $env:RAPIDR_PRINT_TO = "$T\prints"; $env:RAPIDR_REGISTRY = "$T\registry.reg"; $e
 # (the build cache inside $T too: by default it is %LOCALAPPDATA%\RapidR\Cache, ~3 GB per run that
 # stayed in the user's profile until the disk was full; smoke.sh does the same)
 $env:RAPIDR_BUILD_CACHE = "$T\build-cache"
+# (SEC-24: a release build's test hooks — the captures and dumps these checks read — act only with a
+# signed test-mode token, docs/security/test-mode.md: RAPIDR_TEST_MODE, or the harnesses' own
+# %USERPROFILE%\.rapidr\test-mode.token)
+if (-not $env:RAPIDR_TEST_MODE -and (Test-Path "$env:USERPROFILE\.rapidr\test-mode.token")) { $env:RAPIDR_TEST_MODE = "$env:USERPROFILE\.rapidr\test-mode.token" }
 $script:fail = 0
 # (an error the script didn't expect counts as a failure, and the rest still runs: the uninstall
 # and the clean-up, so a failed run leaves no install, file types or toolchain behind)
@@ -134,6 +139,19 @@ if ($kind -eq "sdk") {
     Check "the IDE starts (headless)" { (Out-Of $R @("ide")) -match "Studio.caption=RapidR Studio" }
     Check "the IDE opens a file" { (Out-Of $R @("ide", "$T\work\hello.bas")) -match "Studio.caption=hello - RapidR Studio" }
     Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
+    # (Preview 5's features, in the installed Studio: p5check.ps1 beside this script)
+    if (Test-Path "$PSScriptRoot\p5check.ps1") {
+        Write-Host "== Preview 5's features (p5check.ps1)"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\p5check.ps1" -Rapidr $R -Work "$T\work\p5" | Write-Host
+        if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
+    }
+    # (-Regress: the conformance suite on the bytecode VM and the examples on `rapidr run`, with the INSTALLED
+    # rapidr, the release's own tests (-Cases): regress.ps1)
+    if ($Regress) {
+        Write-Host "== regression with the installed rapidr (regress.ps1)"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\regress.ps1" -Prefix "$T\app" -Source $Cases | Write-Host
+        if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
+    }
     # (EXAMPLES-DATA) a data example built: its staff.csv beside the .exe, and the .exe started
     # as Explorer starts it — in its own folder — reads it
     Write-Host "== a data example built, started as Explorer starts it"
