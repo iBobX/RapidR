@@ -182,6 +182,17 @@ SITES = {
     ("crates/rapidr-value/src/objects/trackbar.rs", "*"): "RTRACKBAR",
     ("crates/rapidr-value/src/objects/tree.rs", "item"): "TREENODE",
     ("crates/rapidr-value/src/objects/tree.rs", "*"): "RTREEVIEW",
+    # (RMCPSERVER: its members, desktop and web; the MCP protocol's own
+    # method names - initialize, tools/list ... - are not RapidR members)
+    ("crates/rapidr-runtime-core/src/mcpserver.rs", "method"): "RMCPSERVER",
+    ("crates/rapidr-runtime-core/src/mcpserver.rs", "modern_request"): "-",
+    ("crates/rapidr-runtime-core/src/mcpserver.rs", "legacy"): "-",
+    ("crates/rapidr-runtime-web/src/object_web.rs", "mcp_server_web_method"): "RMCPSERVER",
+    # (the designer reading a program's picture loads - x.Load(, .BMP =,
+    # .Icon = - of other components, not RDESIGNSURFACE members)
+    ("crates/rapidr-value/src/objects/design.rs", "picture_loads"): "-",
+    # (INT64 / UINT64: the compiler's internal builtins __str64, __hex64 ...)
+    ("crates/rapidr-value/src/wide.rs", "call"): "-",
 }
 
 # Names a site matches on that aren't members: sub-object keys, internal
