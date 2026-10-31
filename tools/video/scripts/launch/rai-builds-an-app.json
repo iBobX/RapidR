@@ -1,0 +1,170 @@
+// Launch video 5 of the Preview 5 playlist "RapidR Studio Tutorials": RAI
+// builds an app for you, and you review every change (about 2.5 min).
+// Record: node tools/video/video.mjs tools/video/scripts/launch/rai-builds-an-app.json --lang en,es --webm
+// The AI is the tests' mock (tests/ai_mock_server.mjs: scripted answers, a
+// made-up "demo-model", no key, no network); the pipeline starts it.
+// The review dialog's hunk buttons are drawn inside it, so they are points
+// of the dialog (its client area, logical pixels): hunk 1's Accept (862, 148),
+// hunk 2's Accept (862, 425); after 6 wheel notches hunk 3's Reject (936, 397).
+{
+  "id": "launch-rai-builds-app",
+  "title": { "en": "RAI builds an app for you, and you decide", "es": "RAI crea una app por ti, y tú decides" },
+  "description": {
+    "en": "Describe an app in one sentence and RAI, RapidR Studio's assistant, makes it. Then ask for a change: RAI shows every change as a hunk you accept or leave out, and nothing is written until you press Apply.",
+    "es": "Describe una app en una frase y RAI, el asistente de RapidR Studio, la crea. Luego pide un cambio: RAI muestra cada cambio como un bloque que aceptas o dejas fuera, y no se escribe nada hasta que pulsas Aplicar."
+  },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "RAI", "AI assistant", "build apps with AI", "code review", "BASIC", "programming", "tutorial", "beginner"],
+    "es": ["RapidR", "RapidR Studio", "RAI", "asistente de IA", "crear apps con IA", "revisión de código", "BASIC", "programación", "tutorial", "principiantes"]
+  },
+  "demoModel": true,
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "window": "studio",
+  "pointer": { "speed": 0.9, "size": 1.3 },
+  "studio": { "theme": "rapidr-light", "mock": true },
+  "steps": [
+    {
+      "chapter": { "en": "Ask for an app", "es": "Pide una app" },
+      "card": {
+        "title": { "en": "RAI builds an app for you", "es": "RAI crea una app por ti" },
+        "lines": [{ "en": "and you decide", "es": "y tú decides" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "Describe an app in a sentence, and RAI makes it. You stay in charge.", "es": "Describe una app en una frase, y RAI la crea. Tú sigues al mando." }],
+      "do": [{ "do": "ai:on,ai:provider=compatible,ai:base={mock},ai:model=demo-model,ai.assistant" }],
+      "gap": 1.0
+    },
+    {
+      "say": [{ "en": "Here a small demo model answers, so you can follow along.", "es": "Aquí responde un pequeño modelo de demostración, para que puedas seguir el paso a paso." }],
+      "do": [{ "wait": 1.2 }]
+    },
+    {
+      "say": [
+        { "en": "Ask for what you want, in your own words.", "es": "Pide lo que quieres, con tus propias palabras." },
+        { "en": "A tip calculator.", "es": "Una calculadora de propinas." }
+      ],
+      "do": [
+        { "type": { "en": "Make me a tip calculator", "es": "Hazme una calculadora de propinas" }, "into": "AIInput" },
+        { "key": "Enter" },
+        { "waitFor": "shows:AIBannerRun", "timeout": 60 },
+        { "wait": 0.6 }
+      ]
+    },
+    {
+      "chapter": { "en": "Run it", "es": "Ejecútala" },
+      "say": [
+        { "en": "RAI made the program, and says so, right at the top.", "es": "RAI creó el programa, y lo dice arriba del todo." },
+        { "en": "Run it, undo it, or ask what it did.", "es": "Ejecútalo, deshazlo, o pregunta qué hizo." }
+      ],
+      "do": [
+        { "highlight": "AIBanner", "for": 4.0 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Run it, and try it: a bill of eighty.", "es": "Ejecútalo, y pruébalo: una cuenta de ochenta." }
+      ],
+      "do": [
+        { "click": "AIBannerRun" },
+        { "waitFor": { "app": true }, "timeout": 60 },
+        { "click": "app:BillEdit" },
+        { "type": "80", "into": "app:" },
+        { "wait": 1.6 },
+        { "mark": "poster" }
+      ]
+    },
+    {
+      "say": [{ "en": "Fifteen percent: twelve of tip. A real app, from one sentence.", "es": "Quince por ciento: doce de propina. Una app de verdad, desde una frase." }],
+      "do": [
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 }
+      ]
+    },
+    {
+      "chapter": { "en": "Ask for a change", "es": "Pide un cambio" },
+      "say": [
+        { "en": "Now ask for a change.", "es": "Ahora pide un cambio." },
+        { "en": "RAI proposes it. Nothing is written yet.", "es": "RAI lo propone. Todavía no se escribe nada." }
+      ],
+      "do": [
+        { "type": { "en": "Make the tip 20 percent", "es": "Pon la propina al 20 por ciento" }, "into": "AIInput" },
+        { "key": "Enter" },
+        { "waitFor": "shows:AIReviewBtn", "timeout": 60 },
+        { "highlight": "AIReviewBtn", "for": 2.0 }
+      ]
+    },
+    {
+      "chapter": { "en": "Review every change", "es": "Revisa cada cambio" },
+      "say": [
+        { "en": "Review the changes. Each one is a hunk, side by side.", "es": "Revisa los cambios. Cada uno es un bloque, lado a lado." }
+      ],
+      "do": [
+        { "click": "AIReviewBtn" },
+        { "waitFor": "window:AIReview", "timeout": 20 },
+        { "wait": 2.0 }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Accept the new title.", "es": "Acepta el título nuevo." },
+        { "en": "Accept the twenty percent.", "es": "Acepta el veinte por ciento." },
+        { "en": "And leave out the bigger font: it's your call, hunk by hunk.", "es": "Y deja fuera la letra más grande: tú decides, bloque a bloque." }
+      ],
+      "do": [
+        { "click": { "window": "AIReview", "at": [862, 148] } },
+        { "click": { "window": "AIReview", "at": [862, 425] }, "afterLine": 1 },
+        { "scroll": "AIRevDiff", "by": 6, "afterLine": 2 },
+        { "wait": 0.8 },
+        { "click": { "window": "AIReview", "at": [936, 397] } },
+        { "wait": 1.2 }
+      ]
+    },
+    {
+      "say": [{ "en": "Apply writes only what you accepted.", "es": "Aplicar escribe solo lo que aceptaste." }],
+      "do": [
+        { "click": "AIRevApplyBtn" },
+        { "waitFor": "gone:AIReview", "timeout": 20 },
+        { "wait": 1.2 }
+      ]
+    },
+    {
+      "chapter": { "en": "Try the change", "es": "Prueba el cambio" },
+      "say": [{ "en": "Run it again: twenty percent now. A bill of eighty, sixteen of tip.", "es": "Ejecútalo otra vez: ahora es el veinte por ciento. Una cuenta de ochenta, dieciséis de propina." }],
+      "do": [
+        { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
+        { "waitFor": { "app": true }, "timeout": 60 },
+        { "click": "app:BillEdit" },
+        { "type": "80", "into": "app:" },
+        { "wait": 1.8 }
+      ]
+    },
+    {
+      "say": [{ "en": "And if you change your mind, Undo takes it all back.", "es": "Y si cambias de idea, Deshacer lo devuelve todo." }],
+      "do": [
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 },
+        { "pointer": "hide" },
+        { "wait": 0.8 }
+      ],
+      "gap": 0.8
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "You ask. You review. You decide.", "es": "Tú pides. Tú revisas. Tú decides." }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "RAI builds. You decide.", "es": "RAI construye. Tú decides." }],
+      "do": [{ "wait": 2.5 }]
+    }
+  ]
+}

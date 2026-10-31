@@ -149,6 +149,20 @@ Form.ShowModal
 // (RapidR's own calculator recipe: what a model starting from it makes)
 const SCI_CALC = readFileSync(new URL("../examples/recipes/calculator.rr", import.meta.url), "utf8");
 
+// (the launch videos, tools/video/scripts/launch: RapidR's tip calculator
+// recipe from one sentence, in English or — asked in Spanish — with Spanish
+// words, then a change of three separate hunks to review)
+const TIP_CALC = readFileSync(new URL("../examples/recipes/tip_calculator.rr", import.meta.url), "utf8")
+  .split("\n")
+  .filter((l) => !l.startsWith("' Recipe") && !l.startsWith("' Keywords") && !l.startsWith("'   rapidr run"))
+  .join("\n")
+  .replace(/^(?:'[^\n]*\n)+/, "");
+const TIP_CALC_ES = [
+  ['"Tip Calculator"', '"Calculadora de propinas"'], ['"&Bill:"', '"&Cuenta:"'], ['"&Tip (%):"', '"&Propina (%):"'], ['"&People:"', '"&Personas:"'],
+  ['"Tip: 0.00"', '"Propina: 0.00"'], ['"Each pays: 0.00"', '"Cada uno paga: 0.00"'], ['"Tip: "', '"Propina: "'], ['"Each pays: "', '"Cada uno paga: "'],
+].reduce((t, [from, to]) => t.split(from).join(to), TIP_CALC);
+const asksInSpanish = (q) => /^(hazme|haz |pon |cambia|c[oó]mo|ay[uú]dame)/i.test(q);
+
 // (a program with a form and one compile error: RapidR has no BOOLEAN)
 const BROKEN = `' broken: a form, and a type RapidR doesn't have.
 DIM ready AS BOOLEAN
@@ -407,6 +421,39 @@ function script(first, results, system, messages = []) {
   // (the smart chat: RapidR words, inline and in a block)
   if (q.startsWith("show me the words")) return { text: "Use a `RListBox` and `PRINT` it:\n\n```basic\nSHOWMESSAGE \"Hi\"\nList1.AddItems \"x\"\n```" };
   if (q.startsWith("continue where you stopped, in smaller steps")) return { text: "Here is the next small step: `SHOWMESSAGE` shows a message box. Done in smaller steps." };
+  // (the launch videos: a tip calculator from one sentence — "Make me a tip
+  // calculator" / "Hazme una calculadora de propinas" — and a change to it
+  // in three places, so the review shows three hunks to accept or leave)
+  if (q.startsWith("make me a tip calculator") || q.startsWith("hazme una calculadora de propinas")) {
+    const es = asksInSpanish(q);
+    if (step === 0) {
+      return es
+        ? { text: "Aquí tienes una calculadora de propinas.", tools: [{ name: "create_project", input: { name: "Calculadora de propinas", main: "main.rr", summary: "Cuenta, propina y personas: calcula la propina, el total y lo que paga cada uno", files: [{ path: "main.rr", text: TIP_CALC_ES }] } }] }
+        : { text: "Here is a tip calculator.", tools: [{ name: "create_project", input: { name: "Tip Calculator", main: "main.rr", summary: "Bill, tip and people: it works out the tip, the total and what each person pays", files: [{ path: "main.rr", text: TIP_CALC }] } }] };
+    }
+    return es
+      ? { text: "Tu **calculadora de propinas** está lista: presiona **Ejecutar**, escribe una cuenta y mira la propina, el total y lo que paga cada uno." }
+      : { text: "Your **tip calculator** is ready: press **Run**, type a bill and watch the tip, the total and what each person pays." };
+  }
+  if (q.startsWith("make the tip 20 percent") || q.startsWith("pon la propina al 20 por ciento")) {
+    const es = asksInSpanish(q);
+    if (step === 0) return { text: es ? "Voy a leer el formulario primero." : "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) {
+      let file = "";
+      try { file = JSON.parse(results[0].content).content; } catch { file = ""; }
+      const form = file.match(/Caption = "[^"]*"/);
+      const total = file.match(/Font\.Size = 14/);
+      if (!form || !total || !file.includes('Text = "15"')) return { text: es ? "No encontré dónde cambiarlo." : "I couldn't find where to change it." };
+      return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: es ? "La propina empieza en 20 %, el total se ve más grande y el título lo dice" : "The tip starts at 20 percent, the total is bigger and the title says so", edits: [
+        { old_text: form[0], new_text: form[0].slice(0, -1) + (es ? ' al 20 %"' : ' at 20%"') },
+        { old_text: 'Text = "15"', new_text: 'Text = "20"' },
+        { old_text: "Font.Size = 14", new_text: "Font.Size = 18" },
+      ] } }] };
+    }
+    return es
+      ? { text: "Propuse tres cambios: la propina empieza en **20**, el total se ve más grande y el título lo dice. Revísalos y aplica los que quieras." }
+      : { text: "I proposed three changes: the tip starts at **20**, the total is bigger and the title says so. Review them and apply the ones you like." };
+  }
   if (q.startsWith("build me")) {
     if (step === 0) return { text: "Here is a small program with a form.", tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets the name typed in it", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };
     return { text: "The project **hello-form** is ready to preview: a form with a name box and a Greet button." };
@@ -654,6 +701,11 @@ function localAnswer(model, first, results) {
   if (q.startsWith("read the file")) {
     if (results.length === 0) return { tools: [{ name: "read_file", input: { path: "main.rr" } }] };
     return { text: "Its first line is a comment." };
+  }
+  // (the launch video "Pair with AI on this computer", in Spanish)
+  if (q.startsWith("hazme una ventana con un botón que diga hola")) {
+    if (results.length === 0) return { text: "Aquí está.", tools: [{ name: "create_project", input: { name: "Hola", main: "main.rr", summary: "Una ventana con un botón que dice Hola", files: [{ path: "main.rr", text: LOCAL_HELLO.split('"Hello"').join('"Hola"') }] } }] };
+    return { text: "Una ventana con un botón que dice Hola." };
   }
   if (q.startsWith("build me a window with a button that says hello")) {
     if (results.length === 0) return { text: "Here it is.", tools: [{ name: "create_project", input: { name: "Hello", main: "main.rr", summary: "A window with a Hello button", files: [{ path: "main.rr", text: LOCAL_HELLO }] } }] };

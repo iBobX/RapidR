@@ -18,11 +18,13 @@
 //   --webm              a WebM too (VP9 + Opus, royalty-free: rapidr.dev's pages)
 //   --out DIR           where the videos go (default dist/video)
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { COPYRIGHT, WORK, creditsFor } from "./lib/config.mjs";
+import { chapters, describe } from "./lib/describe.mjs";
 import { mux } from "./lib/mux.mjs";
+import { contactSheets } from "./lib/sheet.mjs";
 import { StopError, connect, narrate, unload } from "./lib/narration.mjs";
 import { record } from "./lib/record.mjs";
 import { absolutePaths, languagesOf, linesOf, readScript, resolveLang } from "./lib/script.mjs";
@@ -80,21 +82,23 @@ try {
     const name = `${id}-${lang}`;
     const credits = creditsFor(lang);
     const res = await mux({ take, out: opts.out, name, music: opts.music, webm: opts.webm, log, meta: { title, comment: credits.disclosure, copyright: COPYRIGHT } });
-    // (title, description, the AI-voice disclosure right under it — seen
-    // before "Show more" —, made with, music, support)
-    const desc = [
+    // (title, summary, the AI-voice disclosure right under it — seen before
+    // "Show more" —, chapters, credits, links, tags: lib/describe.mjs)
+    const timeline = JSON.parse(readFileSync(join(take, "timeline.json"), "utf8"));
+    const desc = describe({
       title,
-      "",
-      script.description || "",
-      "",
-      credits.disclosure,
-      "",
-      credits.madeWith,
-      opts.music ? `${credits.music}: ${script.musicCredit || "(credit the track here)"}` : null,
-      credits.support,
-    ].filter((l) => l !== null).join("\n").replace(/\n{3,}/g, "\n\n");
-    writeFileSync(join(opts.out, `${name}.description.txt`), `${desc}\n`);
-    log(`   video  ${res.mp4} (${res.seconds.toFixed(1)} s)${res.webm ? `\n          ${res.webm}` : ""}\n          ${res.srt}\n          ${res.poster}`);
+      summary: script.description || "",
+      tags: Array.isArray(script.tags) ? script.tags : [],
+      credits,
+      chapterList: chapters(script.steps, timeline.lines),
+      // (a credit per language: { "en": …, "es": … }, or one string)
+      music: opts.music ? (typeof script.musicCredit === "object" && script.musicCredit ? script.musicCredit[lang] || script.musicCredit.en : script.musicCredit) || "(credit the track here)" : null,
+      demoModel: !!script.demoModel,
+    });
+    writeFileSync(join(opts.out, `${name}.description.txt`), desc);
+    // (a contact sheet to look at: every tile a moment, its time on it)
+    const sheets = await contactSheets({ mp4: res.mp4, out: join(opts.out, "sheets"), name, seconds: res.seconds });
+    log(`   video  ${res.mp4} (${res.seconds.toFixed(1)} s)${res.webm ? `\n          ${res.webm}` : ""}\n          ${res.srt}\n          ${res.poster}\n          ${sheets.map((s) => `${s.file} (tiles ${s.step.toFixed(1)} s apart from ${s.from.toFixed(0)} s)`).join("\n          ")}`);
   }
 } catch (e) {
   failed = true;

@@ -1,0 +1,166 @@
+// Launch trailer of the Preview 5 playlist "RapidR Studio Tutorials": RapidR
+// Studio in about a minute ("Meet RapidR Studio"). Fast cuts of real moments, one Studio session:
+// drag a button and Run; Coach gives a hint; RAI builds an app from one
+// sentence; Versions brings back lost work; Studio changes language.
+// Record: node tools/video/video.mjs tools/video/scripts/launch/0-trailer.json --lang en,es --webm
+// The AI is the tests' mock (scripted answers, a made-up "demo-model", no key,
+// no network). No web Studio cut (the demo player records the desktop Studio
+// only) and no 8-bit computer cut (no capture of it yet): the end is the
+// RapidR Studio title card.
+{
+  "id": "launch-0-trailer",
+  "title": { "en": "Meet RapidR Studio", "es": "Conoce RapidR Studio" },
+  "musicCredit": { "en": "Apple Loops, used under the Logic Pro licence", "es": "Apple Loops, usados bajo la licencia de Logic Pro" },
+  "description": {
+    "en": "Drag a button and run an app. Get a hint instead of the answer. Ask RAI for an app in a sentence. Bring back work you lost. All in RapidR Studio, in about a minute.",
+    "es": "Arrastra un botón y ejecuta una app. Recibe una pista en vez de la respuesta. Pídele una app a RAI en una frase. Recupera el trabajo que perdiste. Todo en RapidR Studio, en un minuto."
+  },
+  "tags": {
+    "en": ["RapidR", "RapidR Studio", "BASIC", "programming", "AI assistant", "RAI", "learn to code", "app builder", "version control", "trailer"],
+    "es": ["RapidR", "RapidR Studio", "BASIC", "programación", "asistente de IA", "RAI", "aprender a programar", "crear apps", "control de versiones", "tráiler"]
+  },
+  "demoModel": true,
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "window": "studio",
+  "pointer": { "speed": 1.6, "size": 1.3 },
+  "typing": 2.2,
+  "captions": { "size": 26 },
+  "studio": { "theme": "rapidr-light", "mock": true },
+  "steps": [
+    {
+      "card": {
+        "title": { "en": "Meet RapidR Studio", "es": "Conoce RapidR Studio" },
+        "lines": [{ "en": "real apps, in minutes", "es": "apps de verdad, en minutos" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "RapidR Studio. Real apps, in minutes.", "es": "RapidR Studio. Apps de verdad, en minutos." }],
+      "gap": 0.6
+    },
+    {
+      "say": [{ "en": "Start a project.", "es": "Empieza un proyecto." }],
+      "do": [
+        { "click": "StartRow(0)" },
+        { "waitFor": "window:NewDialog" },
+        { "type": "Hello" },
+        { "wait": 0.4 },
+        { "click": "NewOk", "pause": 0.3 },
+        { "waitFor": "gone:NewDialog" }
+      ]
+    },
+    {
+      "say": [
+        { "en": "Drag a button onto your window.", "es": "Arrastra un botón a tu ventana." },
+        { "en": "Give it a name.", "es": "Dale un nombre." }
+      ],
+      "do": [
+        { "drag": "Toolbox > RButton", "to": { "target": "designdoc(0)", "x": 0.3, "y": 0.3 } },
+        { "click": { "target": "Inspector > Caption", "x": 0.78 }, "afterLine": 1 },
+        { "key": "Ctrl+A" },
+        { "type": { "en": "Say Hello", "es": "Saludar" } },
+        { "key": "Enter" }
+      ]
+    },
+    {
+      "say": [{ "en": "One line of code, and press Run.", "es": "Una línea de código, y pulsa Ejecutar." }],
+      "do": [
+        { "double": "designdoc(0) > Button1" },
+        { "wait": 0.5 },
+        { "type": { "en": "ShowMessage \"Hello from RapidR!\"", "es": "ShowMessage \"¡Hola desde RapidR!\"" } },
+        { "key": "Escape" },
+        { "click": { "en": "ToolBar > Run (F5)", "es": "ToolBar > Ejecutar (F5)" } },
+        { "waitFor": { "app": true }, "timeout": 60 },
+        { "click": "app:Button1", "pause": 1.0 },
+        { "key": "Enter", "into": "app:" },
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 }
+      ]
+    },
+    {
+      "say": [{ "en": "Learning? Coach mode gives a hint, not the answer.", "es": "¿Aprendiendo? El modo tutor da una pista, no la respuesta." }],
+      "do": [
+        { "do": "file.saveAll" },
+        { "do": "ai:on,ai:provider=compatible,ai:base={mock},ai:model=demo-model,ai.assistant" },
+        { "wait": 0.8 },
+        { "click": "AIDialCoach" },
+        { "type": { "en": "How do I count the clicks on my button?", "es": "¿Cómo cuento los clics de mi botón?" }, "into": "AIInput" },
+        { "key": "Enter" },
+        { "waitFor": "shows:AICoachNext", "timeout": 60 },
+        { "highlight": "AICoachBar", "for": 2.4 }
+      ]
+    },
+    {
+      "say": [{ "en": "Or just ask RAI for an app, in a sentence.", "es": "O pídele una app a RAI, en una frase." }],
+      "do": [
+        { "click": "AICoachGot" },
+        { "click": "AIDialBuild" },
+        { "type": { "en": "Make me a tip calculator", "es": "Hazme una calculadora de propinas" }, "into": "AIInput" },
+        { "key": "Enter" },
+        { "waitFor": "shows:AIBannerRun", "timeout": 60 },
+        { "wait": 0.4 }
+      ]
+    },
+    {
+      "say": [{ "en": "It builds it. You run it.", "es": "Ella la construye. Tú la ejecutas." }],
+      "do": [
+        { "click": "AIBannerRun" },
+        { "waitFor": { "app": true }, "timeout": 60 },
+        { "click": "app:BillEdit" },
+        { "type": "80", "into": "app:" },
+        { "wait": 1.2 },
+        { "mark": "poster" },
+        { "click": { "en": "ToolBar > Stop", "es": "ToolBar > Detener" } },
+        { "waitFor": { "app": false }, "timeout": 20 }
+      ]
+    },
+    {
+      "say": [{ "en": "Lost your work? Versions brings it back.", "es": "¿Perdiste tu trabajo? Versiones lo recupera." }],
+      "do": [
+        { "do": { "en": "versions.pane,versions.start,versions:author=Ana,versions:save=A working tip calculator", "es": "versions.pane,versions.start,versions:author=Ana,versions:save=Calculadora que funciona" } },
+        { "wait": 1.0 },
+        { "do": "view.code" },
+        { "wait": 0.6 },
+        { "click": "codedoc(0)" },
+        { "key": "Ctrl+A" },
+        { "key": "Delete" },
+        { "do": { "en": "file.save,versions:save=Oops", "es": "file.save,versions:save=Ups" } },
+        { "wait": 1.0 },
+        { "click": { "en": "VerTimeline > A working tip calculator", "es": "VerTimeline > Calculadora que funciona" } },
+        { "click": { "en": "studio > File", "es": "studio > Archivo" } },
+        { "click": { "en": "studio > Versions", "es": "studio > Versiones" } },
+        { "click": { "en": "studio > Go Back to This Version", "es": "studio > Volver a esta versión" } },
+        { "wait": 1.2 },
+        { "click": { "en": "caption:Go Back", "es": "caption:Volver" } },
+        { "wait": 1.6 }
+      ]
+    },
+    {
+      "say": [{ "en": "And Studio speaks your language.", "es": "Y Studio habla tu idioma." }],
+      "do": [
+        { "do": { "en": "lang:es", "es": "lang:en" } },
+        { "wait": 1.8 },
+        { "do": { "en": "wait", "es": "lang:es" } },
+        { "wait": 1.0 },
+        { "pointer": "hide" }
+      ],
+      "gap": 0.6
+    },
+    {
+      "card": {
+        "title": "RapidR Studio",
+        "lines": [{ "en": "BASIC is powerful again", "es": "BASIC vuelve a ser poderoso" }, "rapidr.dev"],
+        "small": [
+          { "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+          { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }
+        ],
+        "background": "../../assets/card-bg.svg",
+        "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg",
+        "logoHeight": 64
+      },
+      "say": [{ "en": "RapidR Studio. Make something you love.", "es": "RapidR Studio. Crea algo que te encante." }],
+      "do": [{ "wait": 2.5 }]
+    }
+  ]
+}
