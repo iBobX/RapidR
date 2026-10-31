@@ -466,6 +466,7 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [x] Status tokens `status.info` / `success` / `warning` / `danger` (fill, `.text`, `.border`), contrast-tested; example gui/status_colors.rr *(DESIGN-GUIDE, 2026-10-29)*
 - [x] The AI Apps pane per the guide (soft chip, one-height header, the question strip), the first-time question as a consent dialog with rows (`ide/consent.inc`, reusable), Settings > AI Apps' rows, Copy / Copy All on the activity *(DESIGN-GUIDE, 2026-10-29)*
 - [ ] The other panes and dialogs brought to the guide (the offenders listed in docs/design-guidelines.md "Known gaps"; `tools/check_design.py --list`)
+  - [x] Tabs with icons everywhere: Settings (General / AI / AI Apps), Output / Build / Problems, Properties / Events — each its icon and its name, the icons alone (named in a tooltip and for a screen reader) when a strip is too narrow, never a cut name; `RTabControl.TabIcons` for programs (example gui/tab_icons.rr) *(STUDIO-POLISH P3, 2026-10-30; the Versions footer and the RAI pane's strip: P1, P2)*
 
 **I0 — Foundations** (L, 12–16 sessions)
 - [ ] The language registry (`rapidr-lang`): every component (Q and R names, which RapidQ has), property (type, default, editor, origin), method, event, builtin, statement and directive, with docs in our words; tests tie it to both runtimes both ways; generates the IDE's completion data, the VS Code data, the manual's reference sections and the AI prompt; `COMPONENT_TYPES` and the runtimes' name lists generated (Phase 0's "single language registry")

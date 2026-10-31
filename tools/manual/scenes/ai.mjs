@@ -46,7 +46,7 @@ const READY = `ai:on,ai:provider=anthropic,ai:key=sk-ant-EXAMPLE-not-a-real-key-
 // made-up key: "bad" refused, "org" an organisation's)
 const typeInto = (comp, text) => [...text].map((c) => (/[a-z]/.test(c) ? c.toUpperCase().charCodeAt(0) : /[0-9]/.test(c) ? c.charCodeAt(0) : 189)).map((k) => `${comp}.__key_${k}`).join(",");
 const idle = (n) => Array(n).fill("aionnote.onclick").join(",");
-const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
+const AI_TAB = "settingstabs.__mousedown_108_12,settingstabs.__mouseup_108_12";
 const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
 
 export const topic = "ai";

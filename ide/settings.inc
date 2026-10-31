@@ -70,6 +70,9 @@ CREATE SettingsDialog AS RForm
   OnClose = SettingsClosed
   CREATE SettingsTabs AS RTabControl
     AccessibleName = TR$("Settings pages")
+    ' (each page's icon before its name — the icons alone when narrow:
+    ' docs/design-guidelines.md § Tabs)
+    TabIcons = "settings,ai,ai-agent"
     OnChange = SettingsTabChanged
   END CREATE
   ' ---- General ----
@@ -309,7 +312,7 @@ SUB LayOutSettingsDialog
   DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER
   DIM lk AS INTEGER
   IF ThemeName = "classic" THEN
-    pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
+    pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 28: row = 30: fh = 21
   ELSE
     pad = 20: w = 620: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
   END IF

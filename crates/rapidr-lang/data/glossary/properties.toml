@@ -464,6 +464,7 @@ SubItem = { category = "Data", doc = "A list view item's text in a further colum
 szTip = { category = "Help", doc = "The tooltip text of the tray icon." }
 Tab = { category = "Data", doc = "A tab's caption, `Tab(i)` from 0." }
 TabHeight = { category = "Layout", doc = "The height of each tab, in pixels (0: fits the text)." }
+TabIcons = { category = "Appearance", doc = "Each tab's icon (RapidR's icons by name, separated by commas): before its name, or alone when the tabs are too narrow for every name." }
 TabInactiveColor = { category = "Appearance", doc = "The colour of the tabs that aren't selected, as &HBBGGRR." }
 TabInactiveFont = { category = "Font", doc = "The font of the tabs that aren't selected; write-only." }
 TabIndex = { category = "Data", doc = "The selected tab, from 0." }

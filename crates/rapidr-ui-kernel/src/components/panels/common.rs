@@ -408,38 +408,78 @@ pub fn search_box(p: &mut Painter, rect: Rect, l: &Look, text: &str, placeholder
     area
 }
 
-/// A strip of tabs across `rect`: `titles`, `active` underlined in the
-/// accent (a fluent theme) or raised (classic). Each tab's rectangle.
-pub fn tabs(p: &mut Painter, rect: Rect, l: &Look, titles: &[&str], active: usize, hover: Option<usize>, font: &Font) -> Vec<Rect> {
+/// A tab's padding at each end, its icon and the gap after the icon
+/// (docs/design-guidelines.md § Tabs: 16-px icon, 6, the name).
+const TAB_PAD: i64 = 10;
+const TAB_ICON: i64 = 16;
+const TAB_GAP: i64 = 6;
+/// A tab with its icon alone (a narrow strip).
+const TAB_ICON_ONLY: i64 = TAB_PAD + TAB_ICON + TAB_PAD;
+
+/// The tabs' rectangles in a strip `rect` for `titles` — each its icon and
+/// its name, `extra[i]` more room after tab i's name (a count's badge) —,
+/// and whether they show their icons alone: when every name doesn't fit
+/// the strip's width, never a cut name. What [`tabs`] draws and what a
+/// click or a screen reader finds.
+pub fn tab_rects(rect: Rect, titles: &[&str], extra: &[i64], font: &Font) -> (Vec<Rect>, bool) {
+    let (x, y, w, h) = rect;
+    let bold = Font { styles: font.styles | 1, ..font.clone() };
+    let named: Vec<i64> = titles.iter().enumerate().map(|(i, t)| TAB_PAD + TAB_ICON + TAB_GAP + text_size(t, &bold).0 + extra.get(i).copied().unwrap_or(0) + TAB_PAD).collect();
+    let need = 4 + named.iter().sum::<i64>() + 2 * (titles.len() as i64 - 1).max(0);
+    let icons_only = need > w;
+    let mut at = x + 4;
+    let out = named
+        .iter()
+        .map(|&nw| {
+            let r = (at, y, if icons_only { TAB_ICON_ONLY } else { nw }, h);
+            at += r.2 + 2;
+            r
+        })
+        .collect();
+    (out, icons_only)
+}
+
+/// A strip of tabs across `rect`: each `titles[i]` with its icon `icons[i]`
+/// (RapidR's icons by name), `active` underlined in the accent (a fluent
+/// theme) or raised (classic); their icons alone when the strip is too
+/// narrow for every name. Each tab's rectangle (as [`tab_rects`]).
+#[allow(clippy::too_many_arguments)]
+pub fn tabs(p: &mut Painter, rect: Rect, l: &Look, titles: &[&str], icons: &[&str], extra: &[i64], active: usize, hover: Option<usize>, font: &Font) -> Vec<Rect> {
     let (x, y, w, h) = rect;
     p.fill(rect, l.chrome);
     hline(p, x, y + h - 1, w, l.line);
-    let mut out = Vec::new();
-    let mut at = x + 4;
-    for (i, t) in titles.iter().enumerate() {
-        let (tw, _) = text_size(t, font);
-        let tab = (at, y, tw + 20, h);
+    let (rects, icons_only) = tab_rects(rect, titles, extra, font);
+    for (i, (t, &tab)) in titles.iter().zip(&rects).enumerate() {
         let on = i == active;
+        let ink = if on || l.classic { l.text } else { l.dim };
         if l.classic {
             if on {
                 p.fill((tab.0, y + 2, tab.2, h - 2), l.body);
                 p.raised_edge((tab.0, y + 2, tab.2, h));
             }
-            p.text(tab, t, font, l.text, Place::Center);
-        } else {
-            if hover == Some(i) && !on {
-                p.round((tab.0 + 2, y + 4, tab.2 - 4, h - 8), 4.0, Some(l.hover), None, 1.0);
-            }
-            let bold = Font { styles: font.styles | u8::from(on), ..font.clone() };
-            p.text(tab, t, &bold, if on { l.text } else { l.dim }, Place::Center);
-            if on {
-                p.round((tab.0 + 6, y + h - 3, tab.2 - 12, 3), 1.5, Some(l.accent), None, 1.0);
-            }
+        } else if hover == Some(i) && !on {
+            p.round((tab.0 + 2, y + 4, tab.2 - 4, h - 8), 4.0, Some(l.hover), None, 1.0);
         }
-        out.push(tab);
-        at += tab.2 + 2;
+        let iy = y + (h - TAB_ICON) / 2;
+        if let Some(name) = icons.get(i).filter(|n| !n.is_empty()) {
+            icon(p, name, tab.0 + TAB_PAD, iy, TAB_ICON, Some(ink), false);
+        }
+        if !icons_only {
+            let bold = Font { styles: font.styles | u8::from(on && !l.classic), ..font.clone() };
+            let tx = tab.0 + TAB_PAD + TAB_ICON + TAB_GAP;
+            p.text((tx, y, tab.0 + tab.2 - tx, h), t, &bold, ink, Place::Left);
+        }
+        if on && !l.classic {
+            p.round((tab.0 + 6, y + h - 3, tab.2 - 12, 3), 1.5, Some(l.accent), None, 1.0);
+        }
     }
-    out
+    rects
+}
+
+/// Where a tab's name starts in its rectangle (after its icon), for a
+/// badge drawn after the name.
+pub fn tab_name_x(tab: Rect) -> i64 {
+    tab.0 + TAB_PAD + TAB_ICON + TAB_GAP
 }
 
 /// Whether (x, y) is inside `r`.
@@ -450,6 +490,25 @@ pub fn inside(r: Rect, x: i64, y: i64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// (STUDIO-POLISH, design guide § Tabs) Each tab its icon and its
+    /// name; a strip too narrow for every name: the icons alone, each the
+    /// same width, never a cut name.
+    #[test]
+    fn tabs_name_beside_the_icon_or_the_icons_alone() {
+        let font = rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current());
+        let titles = ["Output", "Build", "Problems"];
+        let (wide, only) = tab_rects((0, 0, 600, 28), &titles, &[0, 0, 26], &font);
+        assert!(!only);
+        let bold = Font { styles: font.styles | 1, ..font.clone() };
+        assert_eq!(wide[0].2, TAB_PAD + TAB_ICON + TAB_GAP + text_size("Output", &bold).0 + TAB_PAD);
+        assert!(wide[2].2 > TAB_PAD + TAB_ICON + TAB_GAP + text_size("Problems", &bold).0 + TAB_PAD, "room for the badge");
+        assert_eq!(tab_name_x(wide[1]), wide[1].0 + TAB_PAD + TAB_ICON + TAB_GAP);
+        let (narrow, only) = tab_rects((0, 0, 140, 28), &titles, &[0, 0, 26], &font);
+        assert!(only);
+        assert!(narrow.iter().all(|r| r.2 == TAB_ICON_ONLY));
+        assert!(narrow.windows(2).all(|p| p[1].0 == p[0].0 + p[0].2 + 2));
+    }
 
     /// Every theme's look gives text that reads on its rows and headings
     /// (contrast at least 4.5 : 1 for text, 3 : 1 for dimmed values and

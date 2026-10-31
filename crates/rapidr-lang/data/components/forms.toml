@@ -255,6 +255,7 @@ properties = [
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },
   { name = "HotTrack", type = "bool", default = false },
+  { name = "TabIcons", type = "string", origin = "rapidr", doc = "Each tab's icon, RapidR's icons by name, separated by commas (\"settings,ai,ai-agent\"; \"\" for none): a 16-pixel icon before each tab's name, and the icons alone, never a cut name, when one line of tabs is too narrow for every name. Not on vertical tabs. (RapidR's.)" },
   { name = "Left", type = "int", default = 0 },
   { name = "MultiLine", type = "bool", default = false },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },

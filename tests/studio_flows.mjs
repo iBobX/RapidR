@@ -445,7 +445,7 @@ const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},de
 // the properties are read, and what each must say (a regular expression;
 // `same`: equal to a file's text, line ends as the editor keeps them).
 // (I8 AI-REAL: the settings dialog's clicks — typeInto and idle below)
-const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
+const AI_TAB = "settingstabs.__mousedown_108_12,settingstabs.__mouseup_108_12";
 const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
 const OK = "settingsokbtn.__mousedown_40_14,settingsokbtn.__mouseup_40_14";
 const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
@@ -8187,7 +8187,7 @@ async function settingsByMouse(page, scale, record) {
       await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     } else {
       const s = await center("#rr-settingstabs");
-      await page.mouse.click(s.b.x + 75, s.b.y + 12);
+      await page.mouse.click(s.b.x + 108, s.b.y + 12);
     }
     await page.waitForTimeout(300);
     record("", (await prop("settingstabs", "tabindex")) === "1", "the AI tab, clicked");
