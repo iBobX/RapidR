@@ -42,6 +42,7 @@ and whether a program double-clicked on macOS or Linux gets a terminal.
 | `SHORT` | `%` | -32768 … 32767 (`q% = 40000` holds -25536) |
 | `INTEGER`, `LONG` | `&` | 32-bit signed |
 | `DWORD` | `???` | 32-bit (signed) |
+| `INT64` | | reserved for a 64-bit integer (2.122.2); today 32 bits, as `LONG` |
 | `SINGLE` | `!` | 32-bit float |
 | `DOUBLE` | `#` | 64-bit float |
 | `STRING` | `$` | text; `STRING * n` is always n characters |
@@ -61,7 +62,10 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 - Variables needn't be declared; an undeclared name is a VARIANT. A name
   with a suffix (`n%`, `s$`) has the suffix's type.
 - **A store into an integer variable truncates** (`i = 2.7` gives 2);
-  beyond 32 bits it gives -2147483648. A `BYVAL` parameter rounds half to
+  beyond 32 bits it gives -2147483648. For whole numbers beyond 32 bits use a
+  `DOUBLE`: it holds every one exactly up to 9,007,199,254,740,992 (2^53).
+  `PRINT` shows a whole number as a 32-bit integer (the classic rule), so show
+  a big one with `FORMAT$("%.0f", n)`. A `BYVAL` parameter rounds half to
   even instead.
 - Inside a SUB or FUNCTION, `DIM` makes a local; `STATIC` keeps its value
   between calls. An undeclared variable a SUB uses before the main program

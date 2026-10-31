@@ -65,7 +65,7 @@
 "INC" = "Suma `amount` (1 si no se da) a una variable."
 "INPUT" = "Muestra el mensaje, lee una línea escrita en la consola y la guarda en la variable (como número si es numérica)."
 "INPUT #" = "Lee valores separados por comas de un archivo abierto para INPUT y los guarda en variables."
-"INT64" = "Entero con signo de 64 bits, de -9 223 372 036 854 775 808 a 9 223 372 036 854 775 807."
+"INT64" = "Reservado para un entero con signo de 64 bits, que llega en la 2.122.2. Por ahora guarda 32 bits, como LONG; para números enteros de más de 32 bits usa un DOUBLE (exacto hasta 9 007 199 254 740 992) y muéstralo con FORMAT$(\"%.0f\", n)."
 "INTEGER" = "Entero con signo de 32 bits, de -2 147 483 648 a 2 147 483 647, igual que LONG; al guardar un valor con fracción, esta se trunca."
 "IS" = "En `CASE IS > n` (y las demás comparaciones): compara la expresión de SELECT CASE."
 "LIB" = "En DECLARE: la biblioteca compartida en la que está una rutina."

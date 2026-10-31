@@ -46,6 +46,7 @@ una terminal.
 | `SHORT` | `%` | -32 768 … 32 767 (`q% = 40000` contiene -25 536) |
 | `INTEGER`, `LONG` | `&` | 32 bits con signo |
 | `DWORD` | `???` | 32 bits (con signo) |
+| `INT64` | | reservado para un entero de 64 bits (2.122.2); hoy 32 bits, como `LONG` |
 | `SINGLE` | `!` | punto flotante de 32 bits |
 | `DOUBLE` | `#` | punto flotante de 64 bits |
 | `STRING` | `$` | texto; `STRING * n` siempre tiene n caracteres |
@@ -67,6 +68,10 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 - **Guardar un valor en una variable entera lo trunca** (`i = 2.7` da 2); más
   allá de 32 bits da -2 147 483 648. En cambio, un parámetro `BYVAL` redondea
   los casos intermedios al entero par.
+  Para números enteros de más de 32 bits usa un `DOUBLE`: guarda cada uno
+  exacto hasta 9 007 199 254 740 992 (2^53). `PRINT` muestra un número
+  entero como un entero de 32 bits (la regla clásica): muestra uno grande con
+  `FORMAT$("%.0f", n)`.
 - Dentro de una `SUB` o una `FUNCTION`, `DIM` crea una variable local; `STATIC`
   conserva su valor entre llamadas. Una variable no declarada que una `SUB` usa
   antes que el programa principal es propia de la `SUB` (se conserva entre

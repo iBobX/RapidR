@@ -9,11 +9,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed
 
+### Added
+- **A Windows 7 / 8 / 8.1 (32-bit) alpha download** with the release: `RapidR-2.122.1-win7-x86-alpha1.zip` (`tools/win7/alpha.sh`): RapidR Studio and interpreted programs for old PCs, unzip and run, labelled alpha (as is, out of Microsoft's support).
+
 ### Fixed
 - **RapidR Studio on the web stopped when the mouse moved over the Output pane** ("RefCell already borrowed"): the pane's tooltip read its font while it had its lines open, and on the web that read reached the same lines again. A console's or a Markdown view's property read now opens the pane's model only for its own properties, and only to read; the tooltip reads the font first. Test: rapidr-value `a_read_while_the_model_is_open_never_panics`. (Found by mapping the browser's crash trace to the release's own functions.)
 - **Native builds of a program that uses RArchive (or COMPRESS$) work again.** 2.122.0's installers left a module of the zstd library out of the Rust sources they carry (the release script dropped every folder named `tests`, and ruzstd keeps a module in one), so `rapidr build` stopped with "file not found for module `tests`". The release script now never trims inside a library's `src/`, and every release's smoke test builds an RArchive program natively from the installed SDK (macOS, Linux, Windows).
 - **A build never packs a file the program writes.** Settings, progress, a log, the paths a user chose: a file the program saves (`SaveToFile`, `SaveToCSV` and the other `Save…` methods, `WriteText`, `OPEN … FOR OUTPUT` / `APPEND`, `KILL`, `NAME … AS`, a stream made with `fmCreate`), named directly or through a constant, is left out of desktop and web builds, and the build says so ("not packed (the program writes them, so your copy may hold your own data)"). Before, the developer's own copy went into the app.
 - **A web build packs only the files its program names.** Before, every `.txt`, `.csv`, `.db`, picture and sound beside the program went into the page, named or not. Now the same rule as a desktop build: the files the source names, never the ones it writes.
+- **A missing data file reads the same on Windows**: "there is no file \"staff.csv\"", as on macOS and Linux (Windows said its own "The system cannot find the file specified."; a known issue of 2.122.0). Test: rapidr-value `a_missing_file_reads_the_same_on_every_system`.
+- **`INT64` is described as it is**: reserved for a 64-bit integer, which comes with `UINT64` in 2.122.2; today it holds 32 bits, as `LONG`. The manual's types table lists it (English and Spanish), and both say how to keep whole numbers beyond 32 bits today: a `DOUBLE` (exact up to 2^53), shown with `FORMAT$("%.0f", n)`.
 - **RapidR Studio on the web no longer asks the site for School Lock's file** (the browser's console showed an error on every start); it reads the page's own store, as Studio's other files.
 
 ## [2.122.0] — 2026-10-31 — Preview 5: Pair with AI

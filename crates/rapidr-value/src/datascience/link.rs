@@ -870,7 +870,10 @@ pub fn read_beside(file: &str) -> Result<String, String> {
 fn unreadable(file: &str, e: &str) -> String {
     let why = e.rsplit_once(": ").map_or(e, |(_, w)| w);
     let why = why.split(" (os error").next().unwrap_or(why).trim();
-    if why.to_ascii_lowercase().contains("no such file") || why.to_ascii_lowercase().contains("not found") {
+    // (Windows says "The system cannot find the file specified." and "…the
+    // path specified.": the same missing file, RapidR's words for it)
+    let low = why.to_ascii_lowercase();
+    if low.contains("no such file") || low.contains("not found") || low.contains("cannot find the file") || low.contains("cannot find the path") {
         format!("there is no file \"{file}\"")
     } else {
         format!("can't read \"{file}\": {why}")
@@ -1690,6 +1693,17 @@ pub fn design_sync(surface: &str) -> (Vec<(String, String, Value)>, Vec<String>)
 
 #[cfg(test)]
 mod tests {
+
+    /// (2.122.1) Windows' own words for a missing file read as RapidR's, as
+    /// on macOS and Linux (a known issue of 2.122.0).
+    #[test]
+    fn a_missing_file_reads_the_same_on_every_system() {
+        let want = "there is no file \"staff.csv\"";
+        assert_eq!(unreadable("staff.csv", "can't read staff.csv: The system cannot find the file specified. (os error 2)"), want);
+        assert_eq!(unreadable("staff.csv", "The system cannot find the path specified. (os error 3)"), want);
+        assert_eq!(unreadable("staff.csv", "No such file or directory (os error 2)"), want);
+        assert_eq!(unreadable("staff.csv", "Permission denied (os error 13)"), "can't read \"staff.csv\": Permission denied");
+    }
     use super::*;
 
     fn setup(names: &[(&str, &str)]) {
