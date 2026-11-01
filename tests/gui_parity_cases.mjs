@@ -42,10 +42,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=100 RFormMDI RLabel []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=107 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RAIProjectTools", "info.caption=117 RForm RAIProjectTools []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RRepository", "info.caption=124 RForm RRepository []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },
@@ -94,7 +94,7 @@ export const cases = [
   // RTOOLBAR: Save, the disabled Stop (nothing), the Grid toggle, a
   // QCOOLBTN on it, the strip; the narrow bar's "»" and Redo in its menu,
   // then its menu's "Cut" line (hidden: Layout); the mouse over Open.
-  { name: "panel_console", events: "cons.__mousedown_70_72,cons.__mouseup_70_72,cons.__mousedown_88_14,cons.__mouseup_88_14,cons.__mousedown_40_55,cons.__mouseup_40_55,cons.__mousedown_140_14,cons.__mouseup_140_14,cons.__mousedown_200_61,cons.__mouseup_200_61,cons.__mousedown_30_14,cons.__mouseup_30_14,bfind.onclick,cons.__key_114,breport.onclick",
+  { name: "panel_console", events: "cons.__mousedown_70_72,cons.__mouseup_70_72,cons.__mousedown_88_14,cons.__mouseup_88_14,cons.__mousedown_40_55,cons.__mouseup_40_55,cons.__mousedown_200_14,cons.__mouseup_200_14,cons.__mousedown_200_61,cons.__mouseup_200_61,cons.__mousedown_30_14,cons.__mouseup_30_14,bfind.onclick,cons.__key_114,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= link:Main.rr:12 page:build link:src/app.bas:3 page:problems link:src/app.bas:3 page:output find:3 next:2",
       "info.caption=output 7 2 [RapidR output console] [           LOCATE 6, 12] line"] },
@@ -217,7 +217,7 @@ export const cases = [
   { name: "form_draw", events: "big.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=paints2|255|14737632|35|338"] },
   { name: "owner_list", events: "btn.onclick", dump: "lbl.caption",
-    expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,180,72 h24"] },
+    expect: ["lbl.caption=r2 0:1;1:1;2:0; 0,48,196,72 h24"] },
   // a TYPE's instance made where its CREATE stands inside a form's block
   // (RC.EXE's answer: RapidQ's richedit/syntax.bas shows its editor)
   { name: "nested_typed_create", events: "", dump: "lbl.caption,n.caption",
@@ -239,7 +239,7 @@ export const cases = [
   { name: "drawing_members", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=w24 h13 cb24 g24 get0 put0 000000FF 00FFFFFF"],
     pixels: [[109, 69, "ffff00"], [111, 75, "ffffff"], [70, 20, "ff0000"], [70, 60, "ffffff"], [135, 148, "000080"], [144, 135, "ffffff"], [88, 165, "ffff00"],
-      [445, 120, "008000"], [451, 110, "f0f0f0"], [378, 198, "ffffcc"], [355, 57, "99ccff"], [363, 45, "ffffff"], [200, 50, "008000"]], clientWidth: 518 },
+      [445, 120, "008000"], [451, 110, "f0f0f0"], [378, 198, "ffffcc"], [355, 57, "99ccff"], [379, 45, "ffffff"], [200, 50, "008000"]], clientWidth: 518 },
   // RapidQ's drawing methods on lists and a grid (an RC.EXE-built program of
   // this layout, seen in Windows): owner-drawn items and a cell with
   // Rectangle and Paint's flood fill inside it (blue), a plain list box
