@@ -48,10 +48,10 @@ const state = () => frame.evaluate(() => {
 const output = () => Promise.resolve(r.output());
 let s = await state();
 ok(s && s.role === "listbox" && s.names.join(",") === "Alpha,Beta,Gamma", `an owner-drawn list box shows its items (${s && s.names})`);
-ok(s && s.size.every((v) => v === "180x24") && s.edge.join("|") === s.bg.join("|"), `each item is ItemHeight tall and the width less the frame, drawn to its far corner (${s && s.size}; ${s && s.edge.join("|")})`);
+ok(s && s.size.every((v) => v === "196x24") && s.edge.join("|") === s.bg.join("|"), `each item is ItemHeight tall and the width less the frame, drawn to its far corner (${s && s.size}; ${s && s.edge.join("|")})`);
 ok(s && s.bg.join("|") === "255,255,255|0,255,0|255,255,255", `item 1 (selected, State 0) drawn green, the others white (${s && s.bg.join("|")})`);
 ok(s && s.chip.every((v) => v === "255,0,0"), `Draw put the bitmap on every item (${s && s.chip.join("|")})`);
-ok(s && /^r1 0:1;1:0;2:1; 0,48,180,72 h24/.test(s.caption), `OnDrawItem got Index, State and Rect (${s && s.caption})`);
+ok(s && /^r1 0:1;1:0;2:1; 0,48,196,72 h24/.test(s.caption), `OnDrawItem got Index, State and Rect (${s && s.caption})`);
 
 // A click on item 2 selects it: OnClick after the model changed, then a redraw.
 // (a real mouse click at the item's place)
