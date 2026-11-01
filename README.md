@@ -30,16 +30,44 @@ you build are yours.
 
 👉 **Try it in your browser: [rapidr.dev](https://rapidr.dev)**, nothing to install.
 
-### New in 2.120: describe it, RAI builds it 🤖
+### New in Preview 5 (2.122): Pair with AI 🤝
 
-Tell RapidR Studio what you want, in your own words, and **RAI**, its assistant,
-builds the program, checks it with RapidR's compiler, fixes its own errors, and
-opens it ready to **▶ Run**. The code is plain, commented RapidR BASIC: read it,
-learn from it, make it yours. Claude, OpenAI, DeepSeek or a free model on your
-own computer; off until you turn it on.
+- **Coach mode:** RAI, Studio's assistant, gives **one hint at a time**
+  instead of the answer, so you learn as you build. **Help With This Error**
+  explains a message and the line it's on. In Coach, RAI can't change your
+  files.
+- **School Lock:** a teacher turns Studio's AI off, or keeps it in Coach mode,
+  behind a password.
+- **AI on your own computer, made easy:** Studio finds the models already on
+  your computer, says which fit your memory, tries them, and tells you the
+  best match. Free and private.
+- **Versions:** Save a Version, see **What Changed?**, **Go Back** in one
+  click. Studio notices files changed outside it, keeps unsaved work through a
+  crash, and writes its own crash reports, kept on your computer.
+- **RapidR in Spanish:** Studio, the compiler's messages, the reference and the
+  manual. Portuguese and Chinese are next.
+- **New for your programs:** `INT64` and `UINT64`, `RAudioOut` (sound made
+  sample by sample), `RArchive` (zip, 7z, tar, gz, xz, zst, safely), and fast
+  whole-picture drawing (`SetPixels`, `GetPixels`, `StretchDraw`).
+- **RapidR for old PCs (alpha):** Studio and interpreted programs on
+  Windows 7, 8 and 8.1, 32-bit. Unzip and run.
 
-<p align="center"><a href="https://youtu.be/B0hq28e6iy0"><img src="design/brand/video/rai-demo-thumbnail.png" alt="Watch the 2-minute demo: three apps from three sentences in RapidR Studio" width="640"></a><br>
-<sub>▶ <b><a href="https://youtu.be/B0hq28e6iy0">Watch the 2-minute demo</a></b>: a graphing calculator, an Excel-like CSV plotter and a snake game, from three sentences · <a href="https://youtu.be/0imZYHo9OnA">en español</a> · <a href="https://youtu.be/rd8cKOSa8n4">em português</a></sub></p>
+And since 2.120: **describe it, RAI builds it**. Tell Studio what you want, and
+RAI writes the program, checks it with RapidR's compiler, fixes its own errors
+and opens it ready to **▶ Run**. Claude, OpenAI, DeepSeek or a free model on
+your own computer; off until you turn it on.
+
+<p align="center"><a href="https://youtu.be/3_xkzG3JGLY"><img src="design/brand/video/trailer-thumbnail.jpg" alt="Watch the trailer: Meet RapidR Studio" width="640"></a><br>
+<sub>▶ <b><a href="https://youtu.be/3_xkzG3JGLY">Watch the trailer</a></b> · <a href="https://youtu.be/ONTWkfUaK3M">en español</a> · the eight short tutorials:
+<a href="https://youtu.be/frGb6IdM7wk">your first app</a> ·
+<a href="https://youtu.be/vkO4B8ZCVls">a tip calculator</a> ·
+<a href="https://youtu.be/bX6nvhWH0V4">browser and app file</a> ·
+<a href="https://youtu.be/qqW3CH3DVno">pair with AI</a> ·
+<a href="https://youtu.be/9eUhqC2OE-0">RAI builds an app</a> ·
+<a href="https://youtu.be/9_U1kGeCgB0">Coach mode</a> ·
+<a href="https://youtu.be/IkaS66BO260">Versions</a> ·
+<a href="https://www.youtube.com/playlist?list=PLCWMuE07IRZc">todos en español</a><br>
+The 2-minute RAI demo: <a href="https://youtu.be/B0hq28e6iy0">three apps from three sentences</a> (<a href="https://youtu.be/0imZYHo9OnA">es</a>, <a href="https://youtu.be/rd8cKOSa8n4">pt</a>)</sub></p>
 
 ## What's inside
 
@@ -114,10 +142,11 @@ Each system has two packages (**most people want the SDK**):
 
 | System | SDK | Runtime only |
 |---|---|---|
-| **Windows** 10 / 11, x64 or ARM64 | `RapidR-2.120.0-windows-x64-setup.exe` / `…-arm64-setup.exe` | `RapidR-Runtime-2.120.0-windows-<arch>-setup.exe` |
-| **macOS** 11 or newer, Apple silicon and Intel (one universal app) | `RapidR-2.120.0-macos-universal.dmg` | `RapidR-Runtime-2.120.0-macos-universal.dmg` |
-| **Linux** x86_64 or aarch64: Ubuntu 22.04, Debian 12 or newer | `rapidr_2.120.0_<amd64\|arm64>.deb` or `rapidr-2.120.0-linux-<arch>.tar.gz` | `rapidr-runtime_…` |
-| **Web** | `rapidr-web-2.120.0.zip`: the web IDE, for any static host | |
+| **Windows** 10 / 11, x64 or ARM64 | `RapidR-2.122.1-windows-x64-setup.exe` / `…-arm64-setup.exe` | `RapidR-Runtime-2.122.1-windows-<arch>-setup.exe` |
+| **macOS** 11 or newer, Apple silicon and Intel (one universal app) | `RapidR-2.122.1-macos-universal.dmg` | `RapidR-Runtime-2.122.1-macos-universal.dmg` |
+| **Linux** x86_64 or aarch64: Ubuntu 22.04, Debian 12 or newer | `rapidr_2.122.1_<amd64\|arm64>.deb` or `rapidr-2.122.1-linux-<arch>.tar.gz` | `rapidr-runtime_…` |
+| **Web** | `rapidr-web-2.122.1.zip`: the web IDE, for any static host | |
+| **Windows 7 / 8 / 8.1**, 32-bit (alpha) | `RapidR-2.122.1-win7-x86-alpha1.zip`: Studio and interpreted programs, unzip and run `RapidR-Studio.bat` | |
 
 - **Windows**: run the installer (per user, no administrator rights). It
   adds *RapidR Studio* to the Start menu and, if you keep the box ticked,
@@ -125,7 +154,7 @@ Each system has two packages (**most people want the SDK**):
 - **macOS**: drag *RapidR* (and/or *RapidR Runtime*) to Applications. Then
   `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to put
   `rapidr` on your PATH.
-- **Linux**: `sudo apt install ./rapidr_2.120.0_amd64.deb`, or unpack the
+- **Linux**: `sudo apt install ./rapidr_2.122.1_amd64.deb`, or unpack the
   `.tar.gz` and run `./install.sh` (into `~/.local`, no root). Linux needs
   OpenSSL 3 (HTTPS uses the system's), hence Ubuntu 22.04 / Debian 12 and
   newer.
@@ -233,15 +262,19 @@ Next: **[the user manual](docs/manual/README.md)** and
 
 From [the roadmap](ROADMAP.md), in no order and with no dates:
 
-- **RapidR in four languages**: the manual, Studio, the messages and the
-  website in English, Spanish, Portuguese and Chinese.
+- **Speed**: faster programs in Studio and native builds, a real-time audio
+  engine, and bigger numbers (`INT128`, and whole numbers of any size).
+- **Clearer error messages**: "did you mean…?", fixes suggested, for people
+  and AI agents alike.
+- **Portuguese and Chinese**: Studio, the messages and the manual (English and
+  Spanish are done).
 - **A native look** (`$THEME native`): programs that look like the system they
   run on — Windows 11, macOS, Linux.
 - **RapidR on the ESP32**: BASIC running on the board itself, flashed from
   Studio (today a program talks to a board over a serial port).
-- **More RAI**: an assistant that can look at and test-run what it builds (with
-  your permission), a coach mode that teaches as it helps, and a drop-in chat
-  component (RChat).
+- **More RAI**: asks permission in plain words and tests risky code safely,
+  Pair and Quiz modes next to Coach, and a drop-in chat component (RChat).
+- **More of Versions**: experiments, and GitHub.
 - **More data connectors**: Excel, Parquet, PostgreSQL and more, as linked
   components.
 - **Constants with no include**: in `.rr` programs `clRed`, `mbYes` and the
@@ -262,7 +295,8 @@ tests, and what a screen reader sees (macOS Accessibility, Windows UI
 Automation). The browser suites run in Chromium. The installers are
 smoke-tested on each system — the x64 Windows and x86_64 Linux packages
 under emulation on ARM machines. The Intel slice of the macOS apps is
-checked by inspection only (no Intel Mac in the loop yet).
+checked by inspection only (no Intel Mac in the loop yet). The Windows 7 /
+8 / 8.1 alpha is checked in a Windows 7 32-bit virtual machine.
 
 ## Documentation
 
@@ -320,7 +354,7 @@ programs and [report what differs](https://github.com/iBobX/RapidR/issues/new/ch
 ## Credits
 
 - **Roberto Berrospe** ([@iBobX](https://github.com/iBobX)) — Creator, architect, and lead developer
-- **VS Code Copilot/Claude + Antigravity/Gemini** — AI pair-programming assistant for feature implementation, testing, and documentation
+- **RapidR Assistant** — AI pair programming (Claude) for implementation, testing and documentation
 
 RapidQ was created by William Yu. RapidR is an independent implementation
 that is compatible with RapidQ: it contains nothing of RapidQ's (no code,
