@@ -2473,7 +2473,9 @@ impl RustCodegen {
             self.write_indent();
             let _ = writeln!(self.output, "rp_print_hash(&{fnum}, &[]);");
         } else {
-            let items: Vec<String> = p.items.iter().map(|e| self.expr_to_string(e)).collect();
+            // (owned, as PRINT's: a variable is cloned, never moved - `PRINT #9, n`
+            // then `n` again failed with "borrow of moved value")
+            let items: Vec<String> = p.items.iter().map(|e| self.owned_expr(e)).collect();
             let args = items.join(", ");
             self.write_indent();
             let _ = writeln!(self.output, "rp_print_hash(&{fnum}, &[{args}]);");
