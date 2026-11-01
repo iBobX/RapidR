@@ -1,1128 +1,128 @@
 # RapidR Roadmap
 
-> Goal: the best RapidQ-compatible, VB-style BASIC compiler, interpreter, debugger and IDE ever —
-> compatible, secure by default, AI-native, and open source. A modern RapidQ-compatible system:
-> old programs keep working; new ones get high-DPI, accessible, responsive
-> interfaces, the data-science and AI stacks, and the same behaviour on the
-> desktop (native and interpreted), the web and, later, mobile. Target: 2027
-> the year of the best BASIC language and IDE (see "Timeline" at the end).
->
-> Created 2026-09-24 from a codebase review at v2.8.1 (`development` @ `d458126`).
-> Keep this file current: tick boxes as work lands, add findings as they are discovered.
-
----
-
-**The sequence to 1.0, who does each piece and why: [docs/master-plan.md](docs/master-plan.md).**
-
-## Guiding principles
-
-1. **Never silently wrong.** Every construct either compiles correctly or produces a clear diagnostic with line/column. No dropped statements.
-2. **One semantics.** The bytecode VM is the reference implementation. The Rust codegen backend must produce identical output on every conformance program (differential testing in CI).
-3. **One source of truth.** A single language registry (components, properties, methods, events, builtins, signatures, docs) generates the IDE completion data, the VS Code extension data, the manual, and the AI system prompt. Done: `rapidr lang export` generates them (the old HTML web IDE's hand-written data went with that IDE, 2026-10-08).
-4. **Secure by default.** Untrusted code, imported projects, and AI output never get more privilege than they asked for.
-5. **Measured compatibility.** A public "% of real RapidQ/VB corpus that compiles and runs" number, tracked over time.
-6. **Logical pixels, device rendering.** A program's coordinates are RapidQ's pixels (1/96 inch, Windows at 100 %) on every platform, so old layouts stay as they were; everything is *drawn* at the screen's real resolution (text, lines, shapes, SVG), so it's sharp on high-DPI screens. Nothing old code reads changes; what's new (the scale, SVG, @2x images) is additive.
-7. **One UI kernel.** Each component is a shared model (`rapidr_value::objects`) that lays itself out, draws itself as vector ops, hit-tests, and describes itself (accessibility and AI); the runtimes only render the ops and pass input. Already the case for menus, text edits, list / tree / grid / list views, tab controls, track bars and scroll bars — every component moves there. It's what makes the desktop, the web and mobile identical, high-DPI, accessible and inspectable by AI from one place.
-8. **Accessible by default.** Every program is usable by keyboard and by screen readers without the author doing anything; the accessibility tree comes from the same shared models.
-
-Status: open source (MIT). Monetization is explicitly deferred. Possible future direction: build our own apps with RapidR (also the best dogfooding).
-
----
-
-## Baseline findings (2026-09-24)
-
-### Compatibility / correctness (verified by running programs, see Appendix A)
-
-> **All fixed** — re-checked on both backends in v2.55.0 (`tests/conformance/cases/early_findings.bas`, `builtins_manual.bas`); kept as history.
-
-| Construct | Result |
-|---|---|
-| `$INCLUDE "RAPIDQ.INC"` | Hard error — file not found |
-| `QFORM`, `QBUTTON`, … | Compile, but runtime only matches `"RFORM"` etc. → nothing created |
-| `? "text"` | Lexer error `Unexpected character: ?` |
-| `GOSUB` / `GOTO` / labels / `RETURN` | **Silently dropped** — wrong execution order, program exits early |
-| `INC i` / `DEC i` | Silently ignored |
-| `TYPE … EXTENDS QFORM` + `EVENT … END EVENT` | No `EVENT` keyword; compiles to 1 fn with no error |
-| `DECLARE SUB` | bcgen warning "statement not yet lowered: Declare" |
-| `REPLACESUBSTR$("aXbX","X","-")` | Returns empty string (VM) |
-| `INSERT$("XY","hello",2)` | Wrong result (VM) |
-| `FORMAT$("%05d", 42)` | `42` instead of `00042` |
-| `STRF$(3.14159, 0, 5, 2)` | Ignores format args |
-| `PRINT a, b, c` | No tab zones between items |
-| Parser | Tolerant — 13-line program parsed to 9 statements with no diagnostics |
-
-Working: `IIF`, `FIELD$`, `TALLY`, `RINSTR`, `CONVBASE$`, `HEX$`, `CHR$`, `ASC`, `MID$`, `UCASE$`, `LTRIM$`, `DELETE$`, `REVERSE$`, `CREATE … END CREATE` with R-types, `DEFINT`, single-line `IF … THEN … ELSE`, `:` separators.
-
-| ~~`MID$` / `LEFT$` / `RIGHT$` byte slicing → crash on `"héllo"`~~ | fixed v2.11.0 (shared char-based `rapidr_value::strings`) |
-
-**Conformance suite findings (2026-09-24, `tests/conformance`, both backends):**
-
-| Bug | VM | Codegen |
-|---|---|---|
-| ~~Identifiers (variables, SUBs) case-sensitive~~ fixed v2.10.0 | ok | ok |
-| Bare calls inside CREATE (`Center`) dropped → forms never centered (found v2.10.0, fixed) | ok | ok |
-| ~~`FOR … STEP -n` runs zero times~~ fixed v2.10.1 | ok | ok |
-| ~~`CASE 2, 3` jumps to program start → infinite loop~~ fixed v2.10.1 | ok | ok |
-| ~~`CASE a TO b` / `CASE IS > n` wrong branch~~ fixed v2.10.1 | ok | ok |
-| ~~Interpreter arrays were comma-separated strings (DIM didn't allocate, no 2-D, commas corrupt); codegen 1-D only, LBOUND/UBOUND broken~~ real `Value::Array` on both, fixed v2.11.0 | ok | ok |
-| ~~FUNCTION return-by-name returns empty~~ fixed v2.10.1 | ok | ok |
-| ~~`BYREF` ignored (VM) / doesn't compile (codegen)~~ fixed v2.10.1 | ok | ok |
-| ~~Whole-number float results print as `1024.0`~~ fixed v2.10.1 | ok | ok |
-| ~~`;`/`,` in PRINT wrong on both~~ separators + 14-col zones, fixed v2.11.0 | ok | ok |
-| GOTO/GOSUB/labels: VM done v2.12.0; codegen refuses with a clear error (needs state-machine lowering) | ok | ✗ |
-| ~~Bare `END` silently ignored (program ran into its subroutines)~~ fixed v2.12.0 | ok | ok |
-| ~~EXIT SUB/FUNCTION only left loops; EXIT FOR in nested WHILE left the WHILE~~ fixed v2.10.1 | ok | ok |
-| Calls to unknown SUBs / builtins: ~~VM silent no-op~~ compile error (v2.10.0); codegen confusing rustc error | ok | ✗ |
-
-Open questions — settled in v2.55.0 from the manual: `INSERT$(insert, source, index)`; numbers print as RapidQ's own float-to-string does (15 significant digits: `0.1 + 0.2` → `0.3`), which RapidQ's `FORMAT$` / `STRF$` (its `Format` / `FloatToStrF`) follow; both backends print `x:5` (no leading space). Still unconfirmed without a real RapidQ: the 14-column PRINT zone width.
-
-Other notes: ~84 unit tests for ~40k LoC; no cross-backend conformance tests.
-
-### Security (found by code reading — not yet exploited/verified dynamically)
-
-| ID | Sev | Issue | Location | Fix |
-|---|---|---|---|---|
-| SEC-01 | **Critical** | Legacy build server binds `0.0.0.0`, `CorsLayer::permissive()`, compiles arbitrary source incl. `RUSTSTART` via cargo → RCE from LAN or any visited website | `crates/rapidr-buildserver/src/main.rs:105`, `:112` | Delete crate, or bind `127.0.0.1` + random token + origin allowlist |
-| SEC-02 | High | Preview iframe `sandbox="allow-scripts allow-same-origin"` neutralizes the sandbox; app code runs with IDE origin (can read future API keys, modify IDE) | the old HTML web IDE's preview frame (deleted 2026-10-08) | Serve preview from a separate origin; postMessage-only bridge |
-| SEC-03 | High | `message` listeners don't check `e.source`/origin; `postMessage(..., "*")` | the old HTML web IDE's host and preview page (deleted 2026-10-08) | Verify `e.source === iframe.contentWindow` + per-session nonce; explicit targetOrigin |
-| SEC-04 | High | JS injection: `RStringList.SaveToFile` escapes `"` but not `\` before `eval` (payload `\");alert(1);//`) | `crates/rapidr-runtime-web/src/object_web.rs:1310` | Use `web_sys` Blob + anchor, no eval |
-| SEC-05 | Medium | `Caption`/`Text` set via `innerHTML` for non-label elements → XSS when showing DB/HTTP/AI data | `crates/rapidr-runtime-web/src/gui_web.rs:235`, `:604` (15 innerHTML sites total) | `textContent` by default; explicit `.HTML` property for markup |
-| SEC-06 | Medium | 6 `js_sys::eval` sites with string-built JS. **Also a functional bug:** bundle CSP (`script-src 'self' 'wasm-unsafe-eval'`) blocks eval, so `RHttp`, `Sound`/`Beep`, `SaveToFile` likely fail in deployed bundles; `connect-src 'self'` blocks external APIs; `frame-src 'none'` blocks `RWebView` | `network_web.rs:58`, `:125`; `builtins.rs:550`, `:569`; `object_web.rs:1314`; `gui_web.rs:1269`; CSP in the old HTML web IDE's zip exporter (deleted 2026-10-08) | Replace with `web_sys` calls; clippy `disallowed_methods` for eval outside `RJavaScript`; derive CSP from components used |
-| SEC-07 | ~~Medium~~ fixed v2.114.0 | SQL APIs take raw strings, no parameter binding (`query_map([], …)`) → SQLi by default | `crates/rapidr-runtime-core/src/database.rs:103` (+ MySQL path, web DB) | Add parameter binding API (`?` placeholders + `.AddParam`/array arg); document; teach AI |
-| SEC-08 | Review | ~~23 `unsafe` in web host; event dispatcher stores leaked raw `*mut Vm` → possible aliasing/UB on re-entrant events~~ fixed in v2.30.0: events are queued and run by the VM itself; the VM and both hosts `#![forbid(unsafe_code)]`. Remaining: 68 `unsafe` in FFI | `crates/rapidr-runtime-core/src/ffi.rs` | Document invariants; Miri |
-| SEC-09 | Gap | ~~No cargo-deny~~ (done v2.8.4); no fuzzing, no SECURITY.md; IDE loads Google Fonts (third-party) | — | Phase 0 + Phase 6 |
-| SEC-11 | High | Build server preview path traversal: `dir.join(rel).starts_with(dir)` does not catch `..` → arbitrary file read | `crates/rapidr-buildserver/src/main.rs` (`serve_preview_path`) | Reject any non-`Normal` path component |
-| SEC-12 | ~~Medium~~ fixed (SEC-15 pass) | `RWebView.HTML` uses `srcdoc` with default sandbox `allow-scripts allow-same-origin` → HTML runs with the app's origin | `crates/rapidr-runtime-web/src/gui_web.rs` (`"html"` prop, iframe creation ~:2201) | Drop `allow-same-origin` for `srcdoc` content by default; opt-in property |
-| SEC-13 | Low | IDE preview: `RHttp` to relative URLs needs CORS headers from the IDE's server now that the preview is opaque-origin; origin-bound browser APIs (notifications) may be unavailable in preview | the old HTML web IDE's preview page (deleted 2026-10-08; RapidR Studio's run frame, `ide/web/run.html`, has the same opaque origin) | Document; optionally proxy same-server requests through the IDE bridge (needs async RHttp) |
-| SEC-10 | Gap | `$INCLUDE` resolves arbitrary paths; projects with `RUSTSTART` / `DECLARE … LIB` get no warning on open/build | `crates/rapidr-preprocessor/src/lib.rs` | Confine includes to project root in IDE/MCP contexts; "native-privileged" project flag + confirmation |
-
-### IDE / debugger baseline
-
-Has: Monaco editor, regex-based completion/hover/signature help, visual designer, debugger (breakpoints, step in/over/out, stack, variables, watch list, component properties), assets manager, zip build, themes.
-Missing: compiler diagnostics as editor markers, ~~undo/redo~~ (done v2.9.0), immediate-window evaluation (stubs), conditional breakpoints/logpoints, native/DAP debugging. (This was the old HTML / Monaco web IDE, a 4,587-line `host.js`; RapidR Studio replaced it and it was deleted on 2026-10-08.)
-
----
-
-## Phase 0 — Stabilize & secure (~3 weeks)
-
-**Sprint 1 (~2 weeks)**
-- [x] SEC-01 + SEC-11: `rapidr-buildserver` locked down — binds 127.0.0.1 (override `RAPIDR_BUILDSERVER_HOST` warns), Host/Origin loopback guard (blocks cross-site + DNS rebinding), CORS loopback-only, path traversal fixed; unit tests + live curl probes (v2.8.2)
-- [x] SEC-02 / SEC-03: preview iframe runs without `allow-same-origin` (opaque origin), runtime shipped in at boot, private `MessageChannel` handshake instead of window messages; `tests/web_ide_preview_isolation.mjs` (fails 11/15 on 2.8.2, passes on 2.8.3) (v2.8.3; since 2026-10-08 `tests/studio_run_frame.mjs` on RapidR Studio's run frame)
-- [x] SEC-04: `SaveToFile` now uses shared `trigger_download` Blob helper (no eval); wasm check passes — verified in Chromium with and without bundle CSP (v2.8.2)
-- [x] SEC-05: Caption/Text fallback and `PRINT` → `#rr-console` now plain text; markup only via `RDOM.InnerHTML` / `RWebView.HTML` (v2.8.2)
-- [x] SEC-06: `RHttp`, `BEEP`, `SOUND` via `web_sys` (XHR / Web Audio); only `RJavaScript.Eval` remains; `clippy.toml` bans `js_sys::eval` (v2.8.2)
-- [x] Unsupported constructs → hard diagnostics: parser errors with line/col for every bad line; bytecode compiler rejects unknown SUB/FUNCTION names (shared builtin registry) and statements it can't run; no catch-all arm left (v2.10.0). Codegen still reports unknown calls only via rustc.
-- [x] IDE diagnostics: squiggles via `setModelMarkers` in the right form/module, clickable Errors panel, live checking while typing (v2.10.0; errors travel as `line:col: error:` text — move to a structured wasm API when the language service lands)
-- [x] `tests/conformance/` harness (`run.mjs`) — now 34 pass / 4 known failures (all codegen): `*.bas` + `*.expected` / `*.expected-error`, VM **and** Rust codegen, xfail markers for known bugs, runs in CI — 15 seed cases, 7 pass / 23 known failures
-- [x] Fix conformance failures (table above) until every case passes on both backends (all pass; re-verified v2.55.0)
-- [x] `cargo-deny` (advisories, licenses, bans, sources) + `.github/workflows/ci.yml` (deny, workspace tests, eval lint); 5 vulnerable crates patched; native build fixed on Rust 1.98 (`ethnum`) (v2.8.4)
-- [x] Undo/redo in the IDE: snapshot-based project history, menu/toolbar/Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y, 100 steps, `tests/web_ide_undo.mjs` (v2.9.0)
-- [x] `tests/web_ide_bugfixes.mjs` and `tests/web_ide_phaseF.mjs` pass; every `tests/web_ide_*.mjs` runs in `tools/regress.sh` (local; CI is manual-only) (v2.71.0; the suites were retired with the old IDE on 2026-10-08: docs/studio-wow.md §7)
-
-**Rest of Phase 0**
-- [x] Upgrade `mysql` crate to drop `proc-macro-error2` (v2.113.0: mysql 28 without derive / TLS / system zlib) (unmaintained, future-incompatible: will stop compiling on a future Rust like `ethnum` did)
-- [ ] Confirm first CI run on GitHub (Linux system packages for the UI kernel host and ALSA untested)
-- [x] Local checks on the other systems (no remote CI): Linux in Docker (`tools/linux/check.sh`: build, conformance, GUI events headless and through Xvfb) and an Ubuntu 24.04 ARM VM with real Wayland windows; a Windows 11 ARM VM — build (RHTTP on SChannel: no clang), conformance, the GUI events headless and with real windows, UI Automation (`tools/windows/uia_probe.ps1`). Found and fixed: `.exe` names, Windows paths in the generated Cargo.toml, INPUT$ from a pipe, Wayland's applied sizes, labels' text for screen readers, WARP crashing vello (software GPUs draw on the CPU) (v2.115.0)
-- [x] `SECURITY.md` → GitHub private vulnerability reporting (repo setting must be enabled by owner)
-- [x] Track all of `tests/` in git (generated outputs ignored)
-- [ ] Run the web IDE Playwright suites in CI (wasm-pack build + static server + Playwright)
-- [x] SEC-07: SQL parameter binding (SQLite, MySQL, web SQLite) — `Query(sql, values…)`, `AddParam`, `ClearParams`; the web runs SQLite itself (wasm) instead of its imitation (v2.114.0)
-- [x] CSP generated per bundle from components used (`'unsafe-eval'` only with RJAVASCRIPT; `connect-src https: wss:` with RHTTP / RSOCKET / RDOWNLOAD, plus the origins the program spells out; `frame-src` only with RWEBVIEW; `object-src 'none'`, `base-uri 'none'`); the author's additions by `--csp`; `_headers` / `.htaccess` with the same policy plus `frame-ancestors` (SEC-15, docs/security-audit.md)
-- [x] SEC-12: RWEBVIEW's frame defaults to no `allow-same-origin` (its `Sandbox` is the opt-in), and its Html runs in `rapidr-webview.html`, a frame of its own, not in an `srcdoc` that would inherit the page's policy (SEC-15)
-- [x] SEC-16: the project's and its files' names escaped for where they go (HTML text / attribute, JS string, URL, file name); no name is written into a script (loader.js and start.js are fixed files)
-- [x] SEC-17: the release's web bundle is RapidR Studio's (`tools/release/web.sh` → `tools/build_studio_web.sh`); program bundles carry only rapidr-webbundle's own `web/` files; the old HTML / Monaco IDE is deleted (2026-10-08)
-- [x] SEC-18: `rapidr lsp` reads only the workspace folders and the open documents' folders; `rapidr dap` launches only RapidR programs and passes no loader variables (`LD_*`, `DYLD_*`, `PATH` …); `rapidr mcp`'s authentication designed (docs/security-audit.md §7)
-- [x] SEC-20: memmap2 0.9.11, anyhow 1.0.104, `unsound = "all"` in deny.toml, stale ignore gone, `.cargo/audit.toml`; ttf-parser parses only RapidR's built-in fonts (pinned by tests/security/supply_chain.mjs)
-- [ ] Sign `SHA256SUMS` (minisign proposed, docs/security-audit.md §8): Robert to decide on the key
-- [ ] Single language registry → generate `lang-data.js`, VS Code data, manual sections (planned as the IDE's stage I0, [docs/ide-plan.md](docs/ide-plan.md))
-
-## Phase 1 — RapidQ & VB compatibility (~6–8 weeks)
-
-**Direction (2026-09-25):** no Windows-only compatibility. RapidQ's own
-features (built-ins, components, console, dialogs) are mapped to portable
-Rust implementations on desktop and web. **Revised 2026-10-08:** a
-program that calls Windows' own DLLs (`DECLARE … LIB "user32"`) runs on
-Windows — the DLL is really called, in native builds and the interpreter —
-and stops with a clear error naming the function and that it needs Windows
-on macOS, Linux and the web ([docs/windows-dll-calls.md](docs/windows-dll-calls.md)). Any library we
-add must be open source with a permissive license (`deny.toml`) and be
-credited: `THIRD_PARTY_NOTICES.md` (generated, checked in CI), README and
-the IDE's About dialog.
-
-**Refined (2026-10-03):** RapidQ had a Linux version too — everything the
-Windows and Linux RapidQ shared (its standard API) gets 100 % support, and
-that's the "portable corpus" we measure. RapidQ's DirectX objects (QDXSCREEN,
-QD3D*, QDXTIMER, QDXIMAGELIST, QDXJOYSTICK, …) are translated, not emulated,
-onto **wgpu** (MIT / Apache: commercial programs allowed), which maps to
-DirectX 12, Vulkan, Metal and WebGPU, so the same 3D program runs on the
-desktop and the web. OLE / COM stays last (Windows-only builds).
-
-- [x] Portable corpus classified by `tools/rapidq_corpus.py` (v2.103.0): of RapidQ's 386 examples, 123 use only the shared API — **all 123 compile** (169 call DLLs, 32 DirectX, 15 OLE, 7 DOS-era port I/O, 17 miss an include / resource the corpus doesn't have, 23 aren't RapidQ: other BASICs' code or typos, each listed with its reason in the tool)
-- [x] The portable corpus *running* alike native vs interpreted (`tools/corpus_compare.mjs`, v2.104.0): every program that doesn't depend on random numbers / the clock / the network behaves identically (8 differences found and fixed)
-- [x] RapidQ's own compiler as the ground truth ([docs/rapidq-ground-truth.md](docs/rapidq-ground-truth.md)): RC.EXE runs in a Windows VM, `tools/rapidq_truth.py` compares its programs' output with RapidR's (conformance cases, console corpus programs, probes). ~30 differences found and fixed on native, interpreted and web: PRINT's numbers (9 decimals, 32-bit whole numbers) and comma (no zones), STR$ (9 digits), INT / ROUND / CINT / CEIL / FLOOR, stores truncating vs parameters rounding, SINGLE, DWORD, `\` / MOD / bit operators, division by zero, NaN, VAL, HEX$, REPLACE$, INV, `""` in strings, STRING * n, implicit SUB variables, DIM without AS, IF … PRINT … ELSE, CASE IS … AND, property sets, Boolean properties reading 1, TIMER; judgment calls listed there
-- [ ] RC.EXE ground truth, next: the GUI side (component defaults and events, read back through a console probe), the console statements on screen (`s_*` probes), RESOURCE(), QREGISTRY under `HKCU\Software\RapidR-Test`; the last digits of PRINT for values ≥ 1E7
-- [x] The same comparison against the web runtime (`tests/corpus_web_compare.mjs`, v2.105.0): output plus every form's and component's properties as the program reads them, browser vs desktop interpreter — every program that doesn't depend on random numbers / the clock / the network / the machine (`Application.ExeName`, `CURDIR$`) behaves identically; 12 differences found and fixed (forms shown unasked, OnShow missing on the web, files and `$RESOURCE`s in any case, unparented components, button padding, menu height, fractional geometry, `Parent = QFORM`, desktop SHOWMESSAGE)
-- [x] Desktop: `Form.Visible = True` shows the form and fires OnShow, as Show does (RapidQ's behaviour; it did nothing for a form not shown yet) — `Visible = 1` inside the form's CREATE shows it once the program waits; OnShow from `Visible = True` on the web too (v2.106.0)
-- [x] QFORM's Visible reads False until the form is shown (RapidQ's default; both runtimes read True) (v2.106.0)
-- [x] Web: the VM yields to the page every few milliseconds, so a busy loop (`cpuhog: GOTO cpuhog`, a game loop without DoEvents) doesn't freeze the tab — the IDE's Stop always works (v2.106.0, `tests/web_vm_yield.mjs`)
-- [ ] DirectX objects on wgpu (desktop and web): QDXSCREEN (2D surface, sprites, blits), QDXIMAGELIST, QDXTIMER, QDXJOYSTICK (gamepads: `gilrs`), QD3D* (meshes, textures, frames, lights, camera) as a retained-mode scene drawn by wgpu — staged in [docs/directx-plan.md](docs/directx-plan.md)
-  - [x] D1: QDXSCREEN 2D (back buffer, Flip, drawing, Init / AutoSize / AllowStretch, set-up events), QDXIMAGELIST (`.DXG` libraries), QDXTIMER (Interval 0, FrameRate) on native, interpreted and web (`dx_screen` fixture)
-  - [x] D1b: FullScreen, ActiveOnly, Rotate, View.*, Cursor, a screen added to a shown form, the screen font (MS Sans Serif 8) (`dx_more` fixture)
-  - [x] D2: QDXSOUND (rodio / Web Audio) (`dx_sound` fixture)
-  - [x] D3–D4: the QD3D* scene and API, the `.X` loader, the software rasterizer, shadows (`d3d_scene`, `d3d_xfile` fixtures; compared with RapidQ's own since C-DX) (v2.116.0)
-  - [x] C-DX: RapidQ's 32 DirectX / Direct3D corpus programs against RC.EXE run with the `d3drm.dll` RapidQ's examples ship — QRECT fields in objects, TYPEs no DIM makes, `Obj.Method = a, b`, OnResize as RapidQ fires it, D3DRM's zero vectors and wraps, specular highlights, every `.X` model drawn as D3DRM draws it, RC.EXE's unknown-type errors, `$DEFINE` in any case; 26 compile interpreted (19 before), 28 native, the 4 RC.EXE refuses refused alike (docs/directx-plan.md, "The corpus's DirectX programs"). Open: RAPIDQ2.INC's Windows API calls (the DLL lane), HideTitleBar
-  - [x] D5: Direct3D on wgpu everywhere — Metal, Direct3D 12 (WARP without a GPU), Vulkan / OpenGL, WebGL 2 in the browser; the scene read back into the QDXSCREEN's back buffer; the software rasterizer compared, then removed (docs/directx-plan.md "Stage D5 results")
-  - [x] D6: joysticks — RapidQ's undocumented QDXJOYSTICK (IsLeft … Button(n), Update; found in RC.EXE) plus RapidR's X / Buttons / POV / events, on gilrs (Windows, macOS), evdev (Linux) and the Gamepad API (`dx_joystick` fixture)
-
-Next up, in order:
-- [x] `THIRD_PARTY_NOTICES.md` generated from the real dependency graph (`tools/third_party_notices.py`, `--check` in CI); linked from README, LICENSES.md and the IDE About dialog; shipped in every web bundle; native C/C++ libraries credited in LICENSES.md §7 (v2.16.1)
-- [x] Licence compliance for users: every output carries a generated `THIRD-PARTY-NOTICES.txt` (native / interpreted executables beside them, web builds in their root, linked from index.html) with every licence text, from the build's real graph (`rapidr notices`, offline in an install); `LEGAL.md` (what users may do, what to ship, trademarks, no warranty), `docs/licensing.md` (per-output tables, licence obligations, codecs and patents); RapidQ-derived library bodies and manual-example tests rewritten; `tools/regress.sh legal` (cargo deny, the notices for every kind). Open: a professional review before the first release (docs/licensing.md §8)
-- [x] Legal hardening: nothing copyleft or data-licensed and no TLS library in any program (some standard cryptography remains: docs/licensing.md §2.5) — HTTPS on the OS's TLS (Security.framework, SChannel, the system's OpenSSL 3 on Linux; ring/rustls/webpki-roots gone), MP3 by nanomp3 (symphonia's MPL gone), charts' text in Liberation Sans via ab_glyph (font-kit, dwrote, option-ext, FreeType gone), winit's KDE blur bindings replaced by RapidR's stand-in (`crates/patches/wayland-protocols-plasma`); shipped graphs allow only the permissive list (deny.toml, notices.rs `ALLOWED`/`BANNED`, check_notices.py), `regress.sh legal` exits 1 on any violation. Open: AT-SPI interface names (docs/licensing.md §8.1)
-- [x] RapidQ review (`docs/legal/rapidq-review.md`): RapidQ's terms and rights (freeware; rights sold to REAL Software in 2000), trademark searches, the law on re-implementing it, RC.EXE as a black box; full-history provenance scan (no RapidQ file ever committed); built-in RAPIDQ.INC constants regrouped by public origin (same names and values, pinned); the last example-derived test code, fixture data and manual quotes rewritten; CONTRIBUTING.md, NOTICE, `docs/legal/clean-room.md`. Open for the owner: keep or rename "RapidR", `rapidr.dev`, a DNPI filing, GitHub's cache of the rewritten commits (review §13)
-- [x] Windows DLL calls: error says RapidR doesn't emulate Windows and names the portable equivalent (SHELL, RCANVAS, RSQLITE, RSOCKET, …) (v2.17.0); **since 2026-10-08 the call is made on Windows** (native and interpreted, RapidQ's DECLARE rules checked against RC.EXE: numbers by value unless BYREF, strings and TYPEs by address, pointers into the program's own memory, `Form.Handle` the real HWND) and the error — with the hint — is a run-time one on the other systems, so such programs compile everywhere ([docs/windows-dll-calls.md](docs/windows-dll-calls.md)). Swept 2026-10-08 (C-SYS-2, docs/windows-dll-calls.md §6): the 175 DLL-calling corpus programs built and run in the Windows 11 VM, interpreted and native — 126 compile (SENDMESSAGE / POSTMESSAGE / KILLMESSAGE added), 81 run interpreted and 77 native without an error, the rest stopped by callbacks, x86 machine code, 32-bit DLLs and 64-bit structure layouts, each named; SEC-19 reviewed. Second pass (same day): user32 / kernel32 / gdi32 corpus programs side by side with RC.EXE in the VM (docs/windows-dll-calls.md §6: DiskVolumeInfo, GetShortFileName, SPYINFO3A, AlwaysOnTop, LockWin, cursors, region forms, GDI+), the streams' memory copies on the checked model, a QRECT handed to a DLL as a RECT, a DECLAREd RtlMoveMemory as the DLL's. Open: callbacks (`CODEPTR` to a DLL), per-control HWNDs (RapidR draws its own controls), TYPEs with pointer / handle fields (64-bit layouts), RapidQ's console code page (437) for bytes 128–255, window regions (SetWindowRgn) on RapidR's GPU-drawn windows
-- [x] Console: `CLS`, `COLOR`, `LOCATE`, `CSRLIN`, `POS` as ANSI sequences on both backends; the IDE Output panel renders them (v2.17.0; now RapidR Studio's ROutputConsole, `rapidr_value::panels::console`)
-- [x] Web bundles: an on-page console for programs that PRINT (`bundle_console.js` + `ansi_screen.js`, now `interpreter/rapidr-webbundle/web/`) (v2.21.0)
-- [x] Omitted arguments (`INSTR(, a, b)`, `COLOR , 1`); builtins without parentheses (`TIMER`, `CSRLIN`, …) in the VM too (v2.17.0)
-- [x] `REDIM` keeping data (resized in place; creates the array without a DIM; `REDIM PRESERVE`), `INV` (v2.18.0)
-- [x] Dialogs with buttons: `MESSAGEBOX`, `MESSAGEDLG` (dialogs the UI kernel draws on the desktop; browser alert/confirm on the web, which can't offer a third button) (v2.19.0)
-- [x] Web: in-page dialogs with any buttons for MESSAGEBOX/MESSAGEDLG/SHOWMESSAGE/INPUT — the VM suspends and resumes (`VmError::Suspended`, `Vm::resume_with`) (v2.22.0)
-- [x] `INPUT` per the manual: prompt printed, whole line, stored as text/number by DIM type or suffix (both backends) (v2.22.0)
-- [x] `SLEEP` in seconds (as RapidQ), `DOEVENTS` (the desktop runs its pending events and timers; the web pauses the program so the browser goes on), `INKEY$` (QBasic's keys: the terminal, the program's windows, the page), timers enabled again ticking again, on native, interpreter and web (v2.80.0)
-- [x] `INPUT$(n)`: returns on the n-th key, no polling (terminal poll, window event loop, page keydown) (v2.83.0)
-- [ ] The Rust-compiled web build's waits (it has no suspension: browser dialogs, SLEEP doesn't wait)
-- [x] RapidQ objects QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM, shared by both runtimes (`rapidr_value::objects`); `Canvas.Draw`; desktop fonts, canvas-relative drawing, left-aligned labels; `RAPIDR_CAPTURE` window capture for checking desktop rendering (v2.20.0)
-- [x] Arrays of components and indexed sub-objects (also inside CREATE), both backends (v2.26.0)
-- [x] Components render their indexed sub-objects: QSTATUSBAR panels and QLISTVIEW columns/items/sub-items (shared model in `rapidr_value::objects::listview`), desktop and web (v2.29.0)
-- [x] QLISTVIEW as RapidQ has it, drawn by the shared model on native, interpreter and web: vsIcon / vsSmallIcon / vsList / vsReport with LargeImages / SmallImages / StateImages, CheckBoxes, MultiSelect (Ctrl / Shift / Ctrl+A), SortType stText, RowSelect, GridLines, HotTrack, HideSelection, ColumnClick and column resizing, scroll bars and the wheel, the keyboard, in-place caption editing (ReadOnly False: F2, a click on the selected item); OnChange (Index, Change), OnClick, OnDblClick, OnColumnClick (v2.77.0)
-- [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
-- [x] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused (v2.28.1)
-- [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
-- [x] Speed: binary data (STRING-SPEED, 2026-10-29) — strings shared (copy on write) with a character index, so `MID$` / `LEFT$` / `RIGHT$` / `LEN` / `INSTR` / `ASC` / `s[i]` on a long string cost what they return (a 64 KB byte scan 8.2 s → 13 ms in `rapidr run`, 18 s → 7 ms native, 13 s → 23 ms on the web); `s = s + x` in place (VM and native); `RFileStream` writes kept and written together (flushed at Close, waits, the end, every 64 KB and before any other use of the file by name); `SaveArray` / `LoadArray` in one call; `tools/bench/vm/` + `web_bench.mjs`, the `string_speed` guard test
-- [ ] Speed next (found by STRING-SPEED): a component method call costs ~1–3 µs (`ReadNum`, `WriteNum`: the method name lower-cased and the component looked up by name in several registries each call) — resolve once, as builtins are; `SHL` / `SHR` are builtin calls, not opcodes; `s = s + a + b` copies `s` once per statement (in place only for `s = s + (a + b)`)
-- [x] Declared numeric types enforced in both backends (`rapidr_ast::numeric`, v2.31.0)
-- [x] Native typed locals: numeric SUB/FUNCTION locals are Rust `i64`/`f64` with native arithmetic, conditions and FOR loops (`typed.rs`, v2.32.0)
-- [x] Native typed main-program variables (atomic statics) and BYVAL parameters (v2.38.0)
-- [ ] Speed next: typed main-program variables (globals no SUB touches), typed BYVAL parameters and FUNCTION results, typed builtins (ABS, INT, SQR…), typed array elements; fewer clones in generated code; `Module::add_string` is a linear search at compile time
-- [x] Native builds of real RapidQ programs: all 116 corpus programs that compile to bytecode `cargo check` natively (from 49; objects by name, WITH on any object, indexed properties, builtin-named variables, nested SUBs, argument fitting) — `tools/corpus_native.sh` (v2.33.0)
-- [x] Native corpus programs run like the interpreter: `tools/corpus_compare.mjs` runs both builds and compares output and window captures — 99/102 identical, the other 3 use RND/TIMER (v2.38.0)
-- [x] Corpus gaps both backends share (found by corpus_compare): ~~QMEMORYSTREAM SaveArray/LoadArray~~ (v2.39.0), ~~QIMAGE `BMPHandle` from `$RESOURCE` + drawing (othello's board)~~ (v2.40.0), ~~Printer~~ (v2.45.0, PDF through CUPS / the browser)
-- [x] Corpus comparison after v2.40.0: 98/101 identical (3 RND/TIMER); rotate.bas needs its missing `$RESOURCE` file
-- [x] `$RESOURCE` on both backends: files built into the program (bytecode section / `include_bytes!`), RESOURCE(n), RESOURCECOUNT, EXTRACTRESOURCE, `Stream.ExtractRes`, BMPHandle, AddBMPHandle (v2.40.0)
-- [x] QIMAGE as a picture from the shared Bitmap model on desktop and web: BMP / BMPHandle, AutoSize, Stretch, Center, Transparent, drawing, Pixel; RapidQ's mouse events; MOUSEX / MOUSEY (v2.40.0)
-- [x] `$RESOURCE` in the web IDE: the files are the project's assets (v2.52.0)
-- [x] The conformance suite (`tests/web_conformance.mjs`) and the desktop GUI fixtures (`tests/web_gui_parity.mjs`) run in the browser too (v2.52.0): 53 of 55 conformance cases and 21 GUI checks match; the rest are marked
-- [x] Web: a `ShowModal` in the main program waits (the IDE shows the startup form after the program's own statements, as RapidQ's designer does); the program ends when its main body finishes with no form open (timers stop); `Form.Repaint`; web parity checks for them and for a resized form with a dragged splitter (`align_layout`) (v2.61.0)
-- [x] Resources: ICOHandle / Icon (forms v2.73.0, QIMAGE v2.76.0); ICO, PNG and JPEG resources and files wherever a bitmap goes, in the shared model (v2.73.0 / v2.76.0) (PLAYWAV of files and resources: v2.45.0)
-- [x] Mouse event arguments in RapidQ's order everywhere (v2.59.0)
-- [x] QSTRINGGRID runtime: one model for desktop and web; Cell(col,row), sizes, fixed rows/cols, insert/delete/swap, Separator files/streams, selection, in-place editing, ellipsis columns, OnSelectCell/OnSetEditText/OnEllipsisClick (v2.34.0)
-- [x] QSTRINGGRID OnDrawCell with the grid's drawing methods, on desktop and web (v2.42.0)
-- [x] QSTRINGGRID goRangeSelect, gcsList drop-downs, goColSizing / goRowSizing on desktop and web (v2.43.0)
-- [x] QSTRINGGRID extras: row / column moving by the mouse (goRowMoving / goColMoving: a header cell dragged), VisibleRowCount / VisibleColCount, RapidR's MoveCol / MoveRow, on native, interpreter and web (v2.78.0); a selected range read by the program: RapidQ has no property for it (goRangeSelect's range stays the user's)
-- [x] `Align` (alTop / alBottom / alLeft / alRight / alClient) on desktop and web from one layout function (RapidQ's alignment rules), live geometry on the desktop, form resizing with OnResize (v2.35.0)
-- [x] QSPLITTER dragging on desktop and web (RapidQ's splitter: neighbour, MinSize, OnMoved) (v2.37.0)
-- [x] Form Width/Height include the frame (29px caption, 1px borders) and ClientWidth/ClientHeight exclude it and the menu, the same on desktop and web; bsNone has no frame (v2.37.0)
-- [x] QLISTBOX / QCOMBOBOX from one shared model on desktop and web: Item, ItemCount, ItemIndex, AddItems (kept only the last item on the desktop), InsertItem, DelItems, Sorted, MultiSelect/Selected/SelCount, Text, Load/SaveToFile (v2.36.0)
-- [x] QLISTBOX MultiSelect drawn and picked on the desktop; QCOMBOBOX csDropDown edit box on desktop and web (v2.41.0)
-- [x] QFILELISTBOX and QDIRTREE on desktop and web from shared models (v2.44.0)
-- [x] QLISTBOX owner-draw (OnDrawItem) (v2.50.0)
-- [x] QLISTBOX `Columns`; owner-drawn QCOMBOBOX (v2.60.0)
-- [x] Type suffixes as declared types: `?` BYTE, `??` WORD, `???` DWORD, `%` SHORT, `&` LONG, `!` SINGLE, `#` DOUBLE (v2.55.0)
-- [x] Security: overflow-safe integer ops, string size cap, VM call-depth limit, builtin and compiler fuzzing (v2.28.0)
-- [x] Security: the VM hosts are sound on re-entrant events — the runtime queues handlers, the VM runs them at safe points and serves ShowModal's wait itself; no `unsafe` in the VM or its hosts (v2.30.0)
-- [ ] Fuzzing in CI
-- [x] QFILESTREAM on the shared stream code; `Stream.Read(var)` (v2.26.0)
-- [x] Streams: ReadUDT/WriteUDT (v2.56.0; LoadArray/SaveArray and typed `Read(var)` / `Write(var)` sizes done in v2.39.0, ExtractRes in v2.40.0)
-- [x] QBITMAP text (`TextOut`, `TextWidth`/`TextHeight`, Font) from built-in Liberation fonts (OFL) on every platform (v2.46.0)
-- [x] QCANVAS drawn by the shared bitmap model (text, fonts, `Pixel`, same pixels on desktop and web); desktop `Rect`/`FillRect` now take corners like RapidQ (v2.47.0)
-- [x] QCANVAS/QFORM `OnPaint`: form built, resize, Repaint/Refresh/Update (v2.48.0)
-- [x] Drawing on a QFORM itself (`Form.TextOut`, `Form.Line`, …) on desktop and web from the shared bitmap model; a form paints again when resized (v2.49.0)
-- [x] Owner-drawn QLISTBOX (`Style`, `ItemHeight`, `OnDrawItem`) on desktop and web from the shared list model (v2.50.0); all of RAPIDQ.INC's option constants (v2.50.0)
-- [x] RapidQ syntax gaps found by the example corpus: `Arr()` arguments, multi-dimensional TYPE array fields, `THEN:` blocks, `=>` / `=<`, `&H…&`, `CASE list stmt`, line-numbered `NEXT` / `DATA`, per-file `$ESCAPECHARS` (v2.51.0); 134 of 386 example programs compile, all of them build natively (`python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples`)
-- [x] Native builds: routines that differ only by a type suffix, `DEFSTR` arrays next to same-named locals, `GOSUB` / labels inside SELECT CASE (v2.54.0)
-- [x] Native builds: a line label / `GOSUB` inside `WITH` or `CREATE` (v2.91.0)
-- [x] `INPUT #`, `LINE INPUT #`, BASIC file I/O on the web, `CREATE name(dims) AS type`, keywords as names (v2.53.0)
-- [x] `DIM s AS STRING * n` (stores cut to n), `CBOOL`, `ON ERROR …` accepted (ignored), an unclosed `WITH` closed by `END SUB` (v2.54.0)
-- [ ] Real `ON ERROR RESUME NEXT` / `Err` (VB): resuming after a run-time error needs recovery points in the VM and native code; fixed strings also need padding to `n` in `WriteUDT`/`ReadUDT`
-- [x] The runtime continues after an event's handler has run (`rp_fire_event_then`, `rapidr_value::events`): at once natively; in the interpreter the continuation travels with the queued event and the VM hands it back when the handler returns, even after a dialog (v2.57.0)
-- [x] Events inside events never crash a program (EVENT-REENTRY, 2026-10-30; a crash under Studio on 2026-10-29, 3,313 handlers deep): a handler that fires its own event for ever (a `Repaint` in the canvas's own `OnPaint`) stops 200 deep with a run-time error naming the event (`rapidr_value::events::MAX_EVENT_DEPTH`, `runaway`), the window going on; the window loop's events (`QueuedEvent::asynchronous`) never run inside a running handler's statement — only in a wait or once it has ended; a timer never inside itself; on the interpreter, native and the web (conformance `event_*`); a handler failing after a web time slice's yield no longer loses its timer. Not yet: Application.OnError on the web for a handler that failed after a yield
-- [x] Events that return values through by-reference parameters: `OnClose(Action)`, `OnSelectCell(…, CanSelect)`, `OnMeasureItem(Index, Height)`, `OnListDropDown(Col, Row, S)` on native, interpreter and web (v2.58.0). QTREEVIEW's `OnChanging` / `OnExpanding` / `OnCollapsing` / `OnEditing` / `OnEdited` come with QTREEVIEW's nodes (below)
-- [x] Keyboard and mouse events with RapidQ's arguments on desktop and web: OnKeyDown / OnKeyUp (Key, Shift), OnKeyPress (Key), OnMouseDown / OnMouseUp (Button, X, Y, Shift), OnMouseMove (X, Y, Shift) — `rapidr_value::input` (v2.59.0). Not yet: `KeyPreview` order (the form after the control), a handler changing `Key` to swallow it, `KillMessage`
-- [x] QFORMMDI: child windows (AddChild by Handle, frames with title bar / minimize / maximize / close, drag, resize), activation, next / previous, cascade, tiling, arrange icons, minimize / maximize / restore all, GetChild / ChildExist / FreeChild, Child* properties, OnChildActive / OnChildClose (ChildResult) / OnChildResize — one model (`rapidr_value::mdi`) for the desktop and the web (v2.57.0). Not yet: `MDIMenu` (the window list in a menu), `ChildIcon`, `SetDeskBar`
-- [x] Components given a parent after their form is shown get their widget then (desktop; the web did) (v2.57.0); `Handle` for components (v2.57.0)
-- [x] Owner-drawn QCOMBOBOX (`csOwnerDrawFixed` / `csOwnerDrawVariable`: OnDrawItem, OnMeasureItem) and QLISTBOX `Columns` on desktop and web from the shared list model (v2.60.0)
-- [x] QLISTBOX `TabWidth`, `ExtendedSelect` (v2.63.0)
-- [ ] Grid `OnDrawCell` text from the shared fonts in the browser too (the desktop's UI kernel draws it with them; `ExtendedSelect` for plain multi-select lists came with the shared list model the kernel draws)
-- [x] Desktop look: `$THEME` honored by native and interpreted programs (v2.62.0); since FLTK's removal (Stage 11) the UI kernel draws Windows' classic look (RapidQ's) and says once when a program names another
-- [x] Kernel themes beside the classic look: a modern one for new programs and a high-contrast one, drawn from the same models (`$THEME` picks; old programs keep classic) — modern, dark, highcontrast; `Application.Theme`, `RAPIDR_THEME`, `auto` (v2.116.0); `auto` follows a change while running, from the program's first line, desktop and web, with `Application.OnThemeChange` for the colours a program took (THEME-LIVE, v2.119.0); next: the web on the same table (W3+), the code editor's colours
-- [x] QIMAGELIST AddICOFile / AddICOHandle / InsertICO… / GetICO (an icon scaled whole to the list's size) and `ImageList.Draw` onto a canvas (v2.76.0)
-- [ ] `Rotate (xOrigin, yOrigin, Angle)` on QBITMAP / QCANVAS / QIMAGE: the manual doesn't say the direction or what fills the uncovered area — needs a real RapidQ to compare
-- [x] `rapidr build --interp` always has cargo refresh `rapidrintr-runner` (v2.24.0)
-- [x] QTREEVIEW from a shared model (`rapidr_value::objects::tree`): nodes numbered depth-first, AddItems / AddChildItems / InsertItem / DelItems / Clear / Sort, Expand / Collapse / FullExpand / FullCollapse, GetItemAt, Item(i).Text / ImageIndex / SelectedIndex / StateIndex / HasChildren / Selected / Expanded / Count / Level / IsVisible / Parent, Images icons, LoadFromFile / SaveToFile, OnChanging / OnExpanding / OnCollapsing (answering), OnChange / OnExpanded / OnCollapsed / OnDeletion / OnClick / OnDblClick on native, interpreter and web (v2.64.0)
-- [x] QTREEVIEW in-place editing: F2 or a click on the selected node, `OnEditing (Index, AllowEdit)` / `OnEdited (Index, S)` answering, Enter / leaving keeps, Escape drops, ReadOnly on native, interpreter and web (v2.65.0)
-- [x] QTREEVIEW: StateImages (beside the node's image), OnGetImageIndex / OnGetSelectedIndex (asked when what's shown changes), HideSelection, GetItemAt(X, Y) on native, interpreter and web (v2.74.0)
-- [x] RapidQ global objects `Screen`, `Application`, `Clipboard`, `Mouse` from a shared model (system clipboard on the desktop), component `Cursor` codes, QRECT fields default 0 on native, interpreter and web (v2.65.0)
-- [x] `Canvas.CopyRect(D AS QRECT, Image, S AS QRECT)` with DIMmed QRECTs; `Application.Icon` / `IcoHandle` and `Form.Icon` / `IcoHandle` (ICO, BMP, PNG or SVG; the web's title bars and page icon); ICO and PNG pictures everywhere a bitmap goes; a new QIMAGE sized by its first picture (v2.73.0)
-- [ ] `Screen.CaptureToBMP` / `CaptureToFile` (RAPIDQ2.INC, the Windows desktop): with the Windows-only objects
-- [x] RapidQ's include libraries: a TYPE extending a component created inside a form, `TypeName.Field` in its PROPERTY SET, fields redeclaring the component's properties, FOR counters and `Result` in its code; QPANEL BevelOuter / BevelInner / BevelWidth / BorderWidth (QBevel.inc works; QDigDisplay.inc with RapidR's own digit bitmaps, `examples/digdisplay`) (v2.66.0)
-- [x] RapidQ syntax found by the include folder and the example corpus: an object field's own properties (`P.MoverRect.Top`), keywords as a TYPE's field / method names (`Step`, `Open`, `Data`, `FUNCTION Create`), keyword parameters and variables (`select`, `case`, `type = 2`), `END PROPERTY SET`, `STRUCT … END STRUCT`, `ByVal` in calls, `_` stuck to a name as a line continuation, comment lines inside continued statements (v2.68.0)
-- [x] SUBI / FUNCTIONI closed by END SUB / END FUNCTION; a method of any object expression (`This.Names.Item(2)`, `printer.Font.DelStyles(3)`); RUN (and SHELL / SHELLWAIT through `cmd /C` on Windows); INITARRAY (v2.69.0)
-- [x] Dotted TYPE field names (`hdr.hwndFrom AS LONG`, `Table.Name(150) AS STRING`): a record inside the record, on both backends (v2.75.0)
-- [ ] RapidQ's include folder: 81 of 108 libraries compile (`./rapidr build-bc` on each `include/*.inc` from that folder; 76 before dotted fields, 78 before templates — an earlier "85" was counted another way); the rest call the Windows API (SENDMESSAGE, GetDC, …), miss include files, or have typos (`&HFFFF0000???`, `TYPE X<Size>`)
-- [ ] Example corpus: 173 of 428 compile (2026-10-08; **358 of 428 on 2026-10-15** after CORPUS-WIN's RC.EXE-checked forms, CHANGELOG; with the `.rqw` / `.rqb` / `.rq` programs: 158 of 386 `.bas` before; `python3 tools/rapidq_corpus.py ~/Downloads/Rapidq/examples --include ~/Downloads/Rapidq/include`) — portable 138 of 139; most of the rest call the Windows API (C-SYS-2 makes DLL calls compile everywhere), miss include files, or have typos RapidQ couldn't compile either
-- [x] SVG wherever a bitmap goes — QBITMAP / QIMAGE (`LoadFromFile`, `BMP`, `BMPHandle`), QIMAGELIST (`AddBMPFile`, `AddBMPHandle`), `Canvas.Draw`, `$RESOURCE` — drawn by resvg in the shared model with soft edges (per-pixel alpha, kept through `.BMP`) on native, interpreter and web (v2.67.0)
-- [x] SVG form / application icons (v2.73.0)
-- [x] QOUTLINE (a tree view: AddLines by indentation, AddChild(Index, S), Insert, Item(i), Row, LineCount); QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG from a shared model (RapidQ filters, FilterIndex, InitialDir, DefaultExt, MultiSelect, Files(), SelCount, FileTitle; an in-page dialog on the web with Upload) on native, interpreter and web (v2.71.0)
-- [x] QHEADER from a shared model: AddSections, Clear, `Sections(i)` Caption / Width / MinWidth / MaxWidth / Alignment / AllowClick / Style, drawn on like a canvas; sections clicked and resized with the mouse (resize cursor on an edge), OnSectionClick / OnSectionTrack (begin, move, end) / OnSectionResize, owner-drawn sections through OnDrawSection (Index, Pressed, Rect) on native, interpreter and web (v2.72.0)
-- [x] High-DPI: canvases, form surfaces, QIMAGE pictures, owner-drawn list / combo items, grid images and tree icons shown at the screen's scale (the window's scale factor on Retina, the browser's `devicePixelRatio`): each bitmap keeps what the screen shows next to the pixels programs read (`Pixel`, `.BMP`, flood fills — unchanged, checked by the GUI suites at 2×); text, lines and ellipses drawn finer, SVGs drawn at the scale (v2.70.0)
-- [x] High-DPI: grid cells' own drawing on the web at the screen's scale (v2.75.0)
-- [ ] High-DPI leftover: RapidR's own IDE icons as vectors
-- [x] RapidQ's UI and data objects from that list, checked against RC.EXE and RapidQ's include libraries, on native, interpreter and web: QRECT and QNOTIFYICONDATA (RC.EXE's records and errors), the system tray (Shell_NotifyIcon onto macOS' status items, Windows' notification area, Linux StatusNotifierItem, a strip on the web; a form's WndProc hears it), QBEVEL and QDIGDISPLAY built in (the include's own TYPE when included), QDIRLISTVIEW and QDOCKFORM as RapidR's own BASIC libraries, QGLASSFRAME; DIR$ / FileRec as RapidQ's (Unreleased)
-- [ ] The tray's Windows and Linux code built and clicked on those systems; a QDOCKFORM dragged with real input
-- [ ] The rest of `rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED`
-  - I/O and media lane (docs/io-media-plan.md): [x] QCGI and the ENVIRON statement · [x] QCOMPORT · [x] QDOWNLOAD · [x] QMIDI · [x] QWAVE · [x] QCDAUDIO (no drive) · [x] QVIDEO (AVI: DIB, RLE, Video 1, Cinepak, MJPEG; PCM sound) · [x] QMIDI's built-in synthesizer
-- [x] Native builds catch up: GOTO/GOSUB, STATIC, same compile errors as the VM (v2.23.0); function pointers (v2.24.0). Principle: native builds are compiled Rust only, never the embedded interpreter (v2.24.1)
-- [x] The Rust backend compiles OOP TYPEs (methods, CONSTRUCTOR, EVENT, EXTENDS, PROPERTY SET, composition, CREATE of a TYPE, object array fields) — objects.rs (v2.25.0)
-- [ ] Consider generating Rust from a shared, typed IR (one front end for both backends) so they can't drift
-
-- [ ] `$DIALECT RAPIDQ | VB6 | RAPIDR` (Q-aliases, ByRef default, `Me`/`This`, rounding rules)
-- [x] Built-in `RAPIDQ.INC` (colors, `mr*`, `MB_*`/`ID*`, `bs*`, `ws*`, `al*`, `mb*`, `fm*`, `VK_*`) as a single line (v2.13.0)
-- [x] Q→R type names via `rapidr_ast::canonical_type_name` + single `COMPONENT_TYPES` list (v2.13.0)
-- [ ] Backends' component list lacks some IDE toolbox components (RImageList, RIni, RLine, RIcon, RMemoryStream) — reconcile with lang-data
-- [x] `$INCLUDE` source map: errors in included code report the include file and line (CLI, v2.15.0); the IDE's multi-file mapping is separate
-- [x] Real RapidQ includes: `RAPIDR_INCLUDE_PATH`, `\` paths, case-insensitive names, absolute `c:\rapidq\…` paths, Windows-1252 source, `$DEFINE`s shared across includes, `WIN32` predefined, VB `#If/#Else/#End If/#Const` (v2.15.0)
-- [x] Errors in code the program can't reach don't block it: native-only features anywhere, unknown names/unsupported features only in `$INCLUDE`d libraries (v2.16.0)
-- [x] RAPIDQ2.INC compiles and runs (v2.16.0)
-- [x] `?` as PRINT (v2.13.0)
-- [x] `INC`/`DEC` (both backends, shared desugaring in rapidr-ast) and `PRINT` separators / 14-column zones (v2.11.0)
-- [x] `GOSUB`/`GOTO`/labels (line numbers too) and bare `END` in the VM (v2.12.0)
-- [x] Codegen: state-machine lowering for labels/GOTO/GOSUB (jumps.rs) (v2.23.0)
-- [x] Web: `END` stops the program in both web builds (forms close, timers stop, no more events) (v2.55.0); labels inside SELECT CASE in native builds (v2.54.0; WITH / CREATE: item above)
-- [x] `TYPE … EXTENDS` with `EVENT … END EVENT`, `CONSTRUCTOR`, methods, inheritance, `Sender`, implicit `This` members — VM (v2.14.0)
-- [x] Codegen: OOP TYPEs in the Rust backend (v2.25.0)
-- [x] RapidQ OOP per manual ch. 10 (VM): `PROPERTY SET`, type name as the instance (`TForm.Focus`, `WITH TForm`), `EXTENDS QObject`, `TYPE X AS QFORM`, `PUBLIC:/PRIVATE:/PROTECTED:`, `obj.Func` without parentheses (v2.15.0)
-- [x] Composition, nested object access, object arrays, component sub-objects (VM, v2.16.0)
-- [x] OOP: `Super.X`, `obj.Inherit<Event>`, custom events (`AS EVENT(Template)` fields given a SUB, fired with CALLFUNC), templates (`TYPE T<DataType, Size>`, one TYPE per set of arguments) on both backends (v2.81.0)
-- [ ] Runtimes: implement the remaining RapidQ objects (QFONT, QBITMAP, QIMAGELIST, QMEMORYSTREAM done in v2.20.0) and indexed sub-objects (`item.caption(i)` / `item.caption=(i, v)` method names emitted by the VM)
-- [x] `$OPTION ICON "app.ico"` (the program's icon, built in; a missing one leaves the default) and `$OPTION BYREF` on both backends; `$OPTION EXPLICIT` / BYTECODE / GTK / INKEY$ / VBDLL / WEAKTYPE accepted (v2.79.0)
-- [x] `$OPTION DIM type` (undeclared variables' type) and `$OPTION DECIMAL` (VAL's decimal character) — v2.82.0
-- [x] Undeclared variables are DOUBLE as RapidQ's; RapidQ's `Type mismatch` error for a string stored into a number (v2.84.0)
-- [x] `$TYPECHECK ON/OFF` and `$OPTION EXPLICIT`: RapidQ's `Undeclared identifier` (v2.85.0) for stores and `Undefined symbol` for reads (RC.EXE-checked)
-- [x] RapidQ's argument-count, duplicate-DIM and RESULT-outside-FUNCTION errors (v2.86.0); its other messages are in `.reference/rapidq-compiler-messages.txt`
-- [x] RapidQ's `Property X of Y is read-only.` for its components' read-only properties (v2.87.0)
-- [x] INKEY$ extended keys as CHR$(27) + scan code (RapidQ's manual) and `$OPTION INKEY$ TRAPALL/DEFAULT` (v2.88.0)
-- [x] RapidQ built-ins QUICKSORT, TAB, ATAN, GET$, SETCONSOLETITLE, CHDRIVE (v2.90.0); LPRINT / LFLUSH; bare property reads inside CREATE; an undeclared variable only read is 0 (v2.91.0)
-- [x] QSOCKET's numbered-socket API, QFORM Add/DelBorderIcons (v2.93.0); menus from a shared model: ShortCut, Checked, RadioItem, Enabled, MenuIndex, AddItems/Insert/DelItems/DelIndex, QPOPUPMENU Popup / AutoPopup (v2.94.0)
-- [x] RapidQ API audit (manual vs runtimes, `scratch` script): QEDIT / QRICHEDIT (v2.97.0), QTRACKBAR (v2.98.0), QTABCONTROL (v2.99.0), QFORM / QSCROLLBOX AutoScroll (v2.100.0), QREGISTRY (v2.101.0)
-- [x] QREGISTRY on Windows' own registry in native and interpreted Windows builds (the per-user store elsewhere; `RAPIDR_REGISTRY` still names a file): one set of TRegistry answers for both, checked on Windows 11 ARM (`tools/windows/registry_check.ps1`, an `--ignored` unit test) (v2.116.0)
-- [ ] First public release once RapidQ compatibility and the MDI IDE are done: release notes saying RapidR targets full RapidQ compatibility on all three runtimes (native compiler, interpreter, web), extends it (data-science stack, AI stack, …), and is not a clone of RapidQ — an original implementation written from the ground up in pure Rust
-  - [ ] Release binaries on a GitHub release, built locally (no remote CI): download, install, start working. macOS (universal: arm64 + x86_64, .dmg / .pkg), Windows (x64 + ARM64, an installer), Linux (x86_64 + aarch64: .deb, .tar.gz / AppImage); checksums + SBOM; the web IDE as a static bundle (tools: `tools/release/`, `docs/release-packaging.md` — every artifact built locally and smoke-tested: macOS universal on the Mac, Linux x86_64 + aarch64 (glibc 2.31 baseline, Zig) in the Ubuntu VM, Windows x64 + ARM64 in the Windows VM; original icons)
-  - [x] Programs built as proper apps with icons (B-PKG, Unreleased): `rapidr build` makes `Name.app` on macOS (Info.plist, `.icns`, signed ad hoc; the interpreted program's bytecode in Resources), the `.exe`'s icon and version resources on Windows (pure Rust, cross builds too), `Name.AppDir` on Linux (`rapidr install-app` for the menu); the icon from `--icon` / `.rrproj` / `$OPTION ICON` / RC.EXE's `-g` as .icns, .ico, .png or .svg, else RapidR's program icon (`design/brand`); Studio's Build, Reveal and Project Options; `tools/studio_app.sh` (RapidR Studio.app from a checkout). Checked in Finder (double-click), Windows 11's Explorer, Ubuntu's dock and app grid. Left: Developer ID signing / notarization and Authenticode signing of users' apps (their certificates); an AppImage packer
-  - [ ] A downloaded install builds programs on its own: interpreted standalone executables with no Rust installed; native builds with the runtime's sources shipped (vendored, offline) and the Rust toolchain set up by the installer or `rapidr setup` (done: `crates/rapidr-cli/src/home.rs`, vendored offline builds checked with an empty cargo home; Windows ships a trimmed LLVM-MinGW — no Visual Studio)
-    - [x] Studio builds apps without Rust (NO-RUST, Unreleased): Run > Build Native App (needs Rust) and Build Interpreted App (none), Ctrl+Shift+B = Project Options' choice; without Rust a native build asks "Build Interpreted Instead / Install Rust... / Cancel" (Install Rust runs `rapidr setup` on the Build page), new projects default to interpreted, Project Options says "(Rust not installed)"; `rapidr build` without Rust says to use `--interp` or `rapidr setup`; the log names the kind ("(interpreted)"). Tests: studio flows (RAPIDR_NO_RUST=1), unit tests. Left: a toolbar drop-down beside Build (the tool bar has none yet)
-  - [ ] A RapidR Runtime of its own (installable without the IDE, like a JRE) that registers the file types per user: `.rrbc` (compiled program) runs on double-click; `.rr` / `.bas` open in the IDE with a "Run" action; console vs windowed launcher chosen from the program's APPTYPE; the bytecode header carries its format and minimum runtime version (a clear "needs RapidR Runtime ≥ x.y" message); `#!/usr/bin/env rapidr` scripts on macOS/Linux; a downloaded file (quarantine / Mark of the Web) asks once before it runs; uninstall removes the associations. Standalone executables stay for programs that ship without the runtime (built: bytecode format 3, `rapidr run/open/info/ide`, `rapidrw`, per-OS registrations checked and removed in the smoke tests)
-  - [ ] Volunteer testing: a "Help test RapidR" section and badge in the README, and a pinned "Testing RC x.y" issue with a per-platform checklist, at each release candidate. The issue forms are in place: bug report, RapidQ compatibility, test report (`.github/ISSUE_TEMPLATE/`)
-  - [ ] **Release quality gates** — nothing ships until all are green: (1) fresh-user journeys on each platform from a clean account (download → install → RapidR Studio → run an example → design a form → native + web build → double-click a `.rrbc` → clean uninstall; the machine left as found — e.g. `rapidr setup` never changes an existing Rust's defaults); (2) compatibility: all suites on the three runtimes + the RapidQ corpus against RC.EXE; (3) security review of everything touching the user's system (installers, file types, setup, the IDE's MCP server, network) + fuzzing the parser and the bytecode loader; (4) accessibility with real screen readers (VoiceOver, Narrator/NVDA, Orca) and keyboard only; (5) performance budgets measured per platform (startup, typing latency, build times, sizes); (6) legal: the licence guard, notices in every output, LEGAL.md, and **RapidR's own names everywhere** (the user, 2026-10-08: RButton, RLabel, RForm… in Studio, docs, templates and examples; QBUTTON and the other RapidQ names stay accepted by the compiler silently, no flag; "Import RapidQ Project or File…" / `rapidr import-rapidq` converts a copy, originals untouched; `examples/rapidq/` stays RapidQ-style as the compatibility demo); (7) the "WOW" pass: first run, polish, docs, examples, a short demo (CSV → live chart in the designer, AI help, one source on desktop and web) — the checklist is [docs/studio-wow.md](docs/studio-wow.md): its 79 P0 items (5 done, 36 partial, 38 missing on 2026-10-08) all green *(The demo's CSV → chart part, DEMO-CSV 2026-10-08: `examples/data/csv_explorer.rr`, the first example on the Welcome page — drop a CSV on the window, a sortable, filterable table, column statistics, a live bar / line / scatter chart; `Form.OnDropFiles`; identical native, interpreted and in Studio on the web, where every example now runs with its data files. In the designer an RPLOT shows sample bars; live data at design time is still DES-15 / I7's core.)*
-  - [ ] Installers checked in the VMs (Windows 11 ARM incl. x64 emulation, Ubuntu ARM) and on this Mac; code signing / notarization (Apple Developer ID, Windows certificate) — the user's decision
-  - [x] The examples for newcomers: `examples/` by topic (26 programs and the IDE, all RapidR's own, media made by `tools/make_example_media.py`), indexed by `examples/README.md`; each one RUNS on every runtime it claims (`tests/examples_run.mjs`, the `examples` stage of `tools/regress.sh`); shipped in SDK installs, `rapidr examples` lists and copies them
-    - [x] …and work where RapidR is installed (EXAMPLES-DATA, 2026-10-16): RapidR Studio opens the user's copy in `Documents/RapidR/Examples/<name>` (made once with its include and data files by the one copier `rapidr examples copy` uses, `rapidr_project::program_files`; never overwritten; Copy Again from the Original asks first) from every way in; `rapidr build` puts the data files a program names with the app (macOS Contents/Resources, beside the `.exe`, an AppDir's usr/bin) and an app the desktop starts works there (Finder / `open` in `/`, a Linux launcher; terminals and console programs keep their folder); the data examples say when a write or a read failed (`RDataFrame.Error`, `RJson.Error`; `REdit.DataError` refuses letters in a number field); flows `example-readonly-home*`, `example-copy-again*`, examples cases `readOnly` / `without`, `app_bundle`'s data-app test, the release smoke (macOS, Linux, Windows). The web keeps an edited example in the page's store (no "copy again" there yet)
-- [x] Default component sizes as RapidQ's, the same on every runtime (the desktop's QBUTTON is 80 × 25, the web's 100 × 30; `tools/RQInclude.bi` lists RapidQ's: QBUTTON 75 × 25, QEDIT 120 × 25, QPANEL 150 × 100, …)
-- [x] `REPLACESUBSTR$`; string functions character-based and shared (`rapidr_value::strings`) (v2.11.0)
-- [x] Fix builtins per the manual (v2.55.0, shared `rapidr_value::format` / `builtins`): `INSERT$(insert, source, index)` ("hi","Hello",3 → "Hehillo"), `FORMAT$` = RapidQ's own `Format()` (`%.5d` zero-pads, `%05d` doesn't), `STRF$` = RapidQ's own `FloatToStrF(v, ffGeneral/ffExponent/ffFixed/ffNumber, precision, digits)` (+ audit all builtins vs `.reference/` docs)
-- [x] RapidQ syntax (v2.15.0): full `DIM`/`DEFxxx` grammar (per-name AS, untyped = VARIANT, `(a,b)(n)` groups, `= v` / `= {…}` initializers, `STRING * n`), `STATIC` (VM), `i++`/`x += y`, `s$[i]`, `"jello" - "l"`, `@var` by reference, `name()` array params, `CASE x: stmt`, `PUBLIC/PRIVATE/GLOBAL`, literal suffixes, lenient strings + `_` inside strings, keyword-named SUBs (`SUB Close`), RESULT, NOT/MOD precedence, `NOT=`, comparisons are -1/0, WITH in the VM
-- [x] Codegen: `STATIC` in SUB/FUNCTION (renamed to a per-routine global slot) (v2.23.0)
-- [x] `FUNCTIONI`/`SUBI`, `SHL`/`SHR`, `DATA`/`READ`/`RESTORE`, `SWAP`, `$ESCAPECHARS`, function pointers (VM) (v2.16.0)
-- [x] `INV`, empty arguments `INSTR(,a,b)`, console `LOCATE`/`CLS`/`COLOR`/`CSRLIN`, `REDIM` (keeps data) (verified v2.55.0). `VARPTR` / `MEMCPY` / `MEMSET`: memory-safe virtual memory (v2.56.0)
-- [x] Codegen: function pointers (v2.24.0)
-- [x] QMEMORYSTREAM / QFILESTREAM complete (C-SYS-2, RC.EXE-checked): MemCopyFrom / MemCopyTo on the program's own memory, SetSize, SaveUDTArray / LoadUDTArray, ReadByte / WriteByte
-- [x] `Form.Center` centres the window when it shows, as RC.EXE (centred forms opened at 0, 0 on every desktop)
-- [ ] OnResize when a form shows: RC.EXE fires Resize, Show, Resize, Paint (RapidR: Show, Paint), so programs that lay out in OnResize (SPYINFO3A's "Lock to" box) keep their CREATE positions — found by C-SYS-2's side-by-side run, for the GUI lane
-- [ ] Window regions (`SetWindowRgn`): set and read back, but RapidR's GPU-drawn windows aren't cut to them (forms/QrForm.bas, Qeform.bas)
-- [x] A form's WndProc hears its window's real Windows messages on Windows (WNDPROC, Unreleased; a user's report, 2026-10-18): every message Windows sends or posts to the form's window — the system's, `PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA — as RC.EXE hands them over (32-bit wParam / lParam, the result ignored, DOEVENTS inside lets the next one in), native and interpreted; RapidR's own control redraws are not handed over as WM_PAINT. comctl32's SetWindowSubclass on the form's window, only while a WndProc is bound; other systems unchanged (the tray icon's messages only). Examples in `examples/windows/` (a message list, PostMessageA, MIDI in); Windows smoke and examples suite check it with real windows
-- [ ] `Form.Handle` before the form's window exists (before it first shows) is RapidR's own number, so a program that hands it to Windows then (`midiInOpen(…, Form.Handle, …, CALLBACK_WINDOW)` before `ShowModal`, as RapidQ allows) gets no messages: make the window (hidden) when Handle is first read on Windows
-- [ ] SUB/FUNCTION pointers as Win32 callbacks (`CODEPTR` handed to a DLL: window procedures, enumeration callbacks) — the top remaining cause in the DLL corpus sweep (7 programs stopped, 15 use CODEPTR)
-- [ ] TYPEs passed to DLLs with pointer / handle fields declared LONG: 64-bit Windows reads them 8 bytes wide (TCITEM, SECURITY_ATTRIBUTES, NOTIFYICONDATA…); a layout translation by the SDK's field names, or a table of SDK structures — Robert's decision (docs/windows-dll-calls.md §1, §6)
-  - A program can lay such a structure out by hand in LONGs (pointers as two, padding as fields, array fields inline): `examples/windows/midi_sysex_out.rr` (winmm's MIDIHDR, 120 bytes, run on Windows 11 ARM64 and x64). Open for Robert: RC.EXE counts a TYPE's array field as one 4-byte slot (`SIZEOF` of a 32-bit MIDIHDR declared with `dwReserved(7) AS LONG` is 36 there; RapidR lays the array inline: 64), docs/rapidq-ground-truth.md
-  - [ ] A TYPE the DLL writes into after the call has returned (`MIDIHDR.dwFlags` MHDR_DONE, `OVERLAPPED`) is copied over from the program's model at the start of the next DLL call (`memory::materialize` writes every live block): only code-read, no driver tried it (Windows' GS synth is done before `midiOutLongMsg` returns); a block the program marks as the DLL's own, or a write only of what changed, would close it
-- [ ] Console output of bytes 128–255 in RapidQ's console code page (437: box drawing) — matches RapidQ's console and changes accented text in console programs; Robert's decision (docs/windows-dll-calls.md §6)
-- [ ] Native codegen gaps found by the DLL corpus sweep (not about DLLs; the VM runs them): a DECLAREd SUB with no body bound as an event (`grids/QStringGridsTwoLinesBitMap`), component-array fields (`QTabControl/QTabContol_add_del`), `Calendar/qcalendarTEST`, `Database/SQL_blobs/archive`, `Database/baseGG/baseGG3`, `graphics/jpeg_Blend`; also (CORPUS-WIN, 2026-10-15) the callback includes' `expected function, found &Value` (`QAnimate`, `QUpDown`, `QToolBar_vista`, `RQ_ResourceView`), `music/BDX-8` (a field of a Value), `QDerulantPanel_test` (its native build stops at start, 0xC000007B)
-- [x] ~~Win32 shim table~~ — not needed: the DLLs themselves are called on Windows; the hint table (`rapidr_value::dll::windows_api_hint`) names the portable way in the non-Windows error
-- [x] PEEK / POKE / PCOPY as RapidQ's console pages (checked on screen with RC.EXE) plus PEEK / POKE on the program's own memory (VARPTR), the same on every runtime; INP / OUT a run-time error; `&hHE` read as RC.EXE does
-- [x] COMPAT lane (2026-10-22, RC.EXE probes; docs/rapidq-ground-truth.md): `RINSTR`'s start, `VARPTR` of a parameter that has a global's name, a top-level `RUSTSTART` — fixed; FILEEXISTS, Rectangle / RoundRect / Circle, RAPIDQ.INC's names in a `.bas`, OnClick handlers with number parameters — confirmed equal. `True` in a `.bas` without the include reads 0 (follow-up). An event handler's STRING / number parameter gets "" / 0 (follow-up). FILEEXISTS with wildcards as RC.EXE (follow-up).
-- [x] CONFORM-QUIRKS lane (2026-10-30, RC.EXE probes; docs/rapidq-ground-truth.md, "FORMAT$, `&`, names and keys"): `FORMAT$` as RapidQ's Format (types count, 32-bit `%d` / `%x`, RapidQ's 18 digits, precision caps, `-0.0`, INF / NAN, a refused specifier stops the program), `&` / `&&` as `+`, a control and an array (or a SUB, CONST) with one name a compile error in RC.EXE's words, `SUB Step` / `To` / `Then` / `And` callable, a type's name (`Word`) as a name in RC.EXE's words, `L.TabStop` refused on a QLISTBOX — fixed; `ReadStr`'s n + 1, hex in DATA / VAL, a list's keys needing KeyPreview — confirmed equal. Open: a SUB's own `DIM Word AS INTEGER` (RC.EXE takes it), `&O17` / `&B101` (RapidR's own literals, RapidQ reads a name), the garbage RapidQ shows for a missing FORMAT$ argument.
-- [ ] VB6: `On Error GoTo/Resume Next`, `Optional`, `ParamArray`, `Property Get/Let/Set`, `Enum`, `Static`, `ReDim Preserve`, `For Each`, `_` continuation, `Select Case Is/To`, `Like`
-- [ ] Modern `TRY/CATCH`
-- [ ] Runtime errors carry source line on both backends
-- [x] **RapidQ importer, names** (R-NAMES phase 1, 2026-10-08): `rapidr import-rapidq <file | folder | .rrproj>` → a copy with RapidR's names (token-aware on the compiler's parse), `$INCLUDE`s followed (`.bas` / `.rqw` / `.rqb` / `.rq` / `.inc`), a report, each program proved to compile to identical bytecode (RapidQ's corpus: 175 / 175 of the programs RapidR compiles); `rapidr upgrade-names <file> [--dry-run]` (crates/rapidr-import, docs/q-and-r-components.md §6)
-- [x] **RapidQ importer in RapidR Studio** (R-NAMES phase 2, 2026-10-08): File ▸ Import RapidQ Project or File… / Import RapidQ Folder… — the same engine on the disk (desktop) and on the page's store (web: `rapidr_import::Memory`, the same copy byte for byte), the copy opened as a project with its report; `rapidr import-rapidq <src> [dest]`
-- [x] **RapidQ include files** (IMPORT-INC, 2026-10-15): `$INCLUDE` found as RC.EXE finds it (checked in the Windows VM: the program's folder for every include, nested ones too, then the `-I` folder), then RapidR's additions (beside the includer, above an include folder, any case, `\` or `/`, Windows paths by their ending) — one search for the compiler, the language service, Studio's project and the importer; include folders in Studio (Tools ▸ Settings), `--include-dir`, `RAPIDR_INCLUDE_PATH`; the import copies every include (rewriting lines that would find originals), never RAPIDQ.INC or another built-in include, reports each include and every missing one with its fix; `examples/rapidq/shapes`
-- [ ] **RapidQ importer, the rest**: zip input; FreeQ's `.QProj` project files (no sample yet); `CREATE` trees become designer forms; modules; a compatibility report (what RapidR doesn't run yet, by program); the report rendered (not raw Markdown)
-- [ ] **VB6 importer**: `.vbp` + `.frm` (`Begin VB.Form …`) + `.bas`
-- [ ] Imported projects with `RUSTSTART`/`DECLARE LIB` flagged native-privileged (SEC-10)
-- [x] Corpus: the original RapidQ distribution (386 example programs, 126 includes, manual) → `tools/rapidq_corpus.py` reports compile pass-rate and top blockers (v2.15.0: 82/386 compile, from 46)
-- [ ] Corpus: raise the compile rate; then run programs, not just compile them (golden outputs for console examples — started: `.reference/rapidq_golden/` (local only, never committed), RapidQ's own output of the deterministic console examples, `tools/rapidq_truth.py golden`). *Running them (C-RUN, 2026-10-08): `tools/corpus_run.py` runs every compiling example interpreted and native (console ones in a terminal too), GUI ones beside RC.EXE's windows (`tools/corpus_rc_shots.sh`), console ones against RC.EXE's output (`tools/rapidq_truth.py corpus`): the portable `.bas` programs run ok on both backends but for 8 of 106 that don't run or show anything in RC.EXE either (two more loop / wait for a key, as RC.EXE's builds do), and the portable `.rqb` / `.rq` ones too, what it found fixed at the root (`tools/corpus_run_notes.md`). Left: the console's code page for RapidQ's box characters (a decision for Robert), RC.EXE's frame sizes.* *On Windows (CORPUS-WIN, 2026-10-15): all 428 run side by side with RC.EXE in the Windows 11 VM — interpreted and native, windows captured (`tools/windows/corpus_win.py`) — each program's state in [docs/rapidq-corpus-status.md](docs/rapidq-corpus-status.md): interpreted 140 same, 51 differ, 32 fail, 128 where RC.EXE fails too; native 134 / 53 / 41 / 128; what it found fixed at the root (CHANGELOG). Left (that page, "What is left"): 64-bit pointers in LONGs, x86 code, callbacks, per-control HWNDs, native-only codegen gaps, frames and message-box fonts, and RapidQ's leniencies (misnested blocks, unknown names as 0, `COMMAND$(0)` under the interpreter) for Robert to decide.*
-- [x] The portable examples on macOS, Linux and the web (CORPUS-PORT, 2026-10-15; [docs/rapidq-corpus-status-unix.md](docs/rapidq-corpus-status-unix.md), `tools/corpus_status.py`): every portable program interpreted and native on macOS and in the Ubuntu ARM VM (case-sensitive ext4), and on the web against the desktop — of 138 that compile and use no Windows call, 114 run on the desktop: 105–106 ok and the rest as RC.EXE's own builds (0 problems on any of the four), the web the same as the desktop for all 121 it runs (11 vary by clock, random numbers or machine); macOS and Linux captures pixel-identical but for in-window menus. Found and fixed at the root: Windows file names (`\`, any case) on macOS and Linux (`rapidr_value::paths`), a variable-height owner-drawn list's drawing waiting for the mouse (interpreted), TYPE instances CREATEd inside a form's block made after it, QRICHEDIT positions counting CR LF as one (RC.EXE: two), RAPIDQ.INC's QBColor array; the sweep tools' Linux classification, native runs and the web harness. Left: 23 programs stop at a Windows call an include makes (`rapidq2.inc`'s GetVersion at start: Robert's decision), form frames sized for old Windows (scroll bars as on Windows 11's RC.EXE)
-- [x] **Rich text in RRichEdit / QRICHEDIT** (RICHEDIT, 2026-10-15; [docs/manual/rich-text.md](docs/manual/rich-text.md)): one shared model of the formats (`rapidr_value::objects::richtext`) for native, interpreted and web — SelAttributes (a QFONT or its members, at a caret the insertion format, read back), SelFont, Font, Alignment, Text / Clear / AddStrings / Line(i) / SelText and typing with RapidQ's format rules, all settled against RC.EXE by window probes that save RTF (compared byte for byte); RapidR's own RTF reader / writer (`rtf.rs`: SaveToFile / streams byte-identical to RapidQ's, any word processor's RTF read); the UI kernel draws styled runs, per-paragraph alignment, indents and bullets, keeps the formats while the user types, Ctrl+Z restores them; screen readers get formatted text runs (AccessKit) and the caret's format; RapidR's `Paragraph.*` and `TextRTF`; registry entries AI-complete; `richedit/syntax` highlights as under RapidQ (its RTF byte-identical). Left (RapidQ's display-line counting for LineCount with WordWrap, SelectAll's +2, a loaded document's header): in the manual's differences
-- [ ] **Needs from user:** real RapidQ programs and any RapidQ IDE project-file samples (format not yet confirmed)
-
-## Phase 1B — Modern foundations (high-DPI, accessibility, responsive)
-
-Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's are high-DPI and vector. Compatible *and* modern, transparently.
-
-**High-DPI (principle 6)**
-- [ ] Audit every runtime path against principle 6 at 1×, 1.5×, 2×, 3× (the web parity suite and, since v2.106.0, the desktop GUI events run at 2× in `tools/regress.sh`; next: screenshots compared per scale, 1.5× and 3×)
-- [ ] What programs read stays logical: Left / Top / Width / Height, ClientWidth, `Screen.Width` / `Height` (logical, as browsers' CSS pixels and macOS points), and `Screen.PixelsPerInch` stays 96 (programs that scale by `PixelsPerInch / 96` would otherwise scale twice)
-- [x] New, additive: `Screen.Scale` / `Form.Scale` (device pixels per logical pixel), `OnScaleChanged` (a form moved to a screen with another scale) (v2.106.0; OnScaleChanged not yet tried on a real two-screen setup)
-- [ ] Drawing surfaces (QCANVAS, a form's own, QBITMAP): the pixel API stays logical (`Pixel`, `PSET`, BMP in and out), vector drawing (Line, Circle, Rectangle, TextOut, fills) is drawn at device resolution — finish what `bitmap.rs`'s HiRes layer started, for every drawing method
-- [ ] Images: bitmaps drawn at their logical size, smoothly scaled; SVG accepted everywhere a picture is (QIMAGE, icons, QIMAGELIST, buttons' glyphs, `$RESOURCE`); `name@2x.png` / `@3x` picked automatically when present
-- [ ] `$OPTION SCALING LEGACY`: a program that needs exact pixels (pixel art, screen grabbing) draws at 1× and is enlarged as a whole, crisp (nearest neighbour)
-- [ ] Optional: follow the system text size (`Application.FollowSystemTextSize`, off by default: it changes layouts)
-
-**Accessibility (principle 8)**
-- [ ] Shared models describe themselves: role, name (Caption / Text / Hint), value, state, actions — one accessibility tree per form
-- [x] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree (v2.113.0); keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
-- [x] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme (v2.116.0: `$THEME highcontrast`)
-- [x] A11Y lane (2026-10-22), the gaps found by hand: menus drawn in the window are in the tree (an open menu as a `menu` with `menuitem` / `menuitemcheckbox` / `menuitemradio` items, states, keys, the chosen item focused); labels as links (`TabStop` on an RLabel: Tab, a focus ring, Enter / Space) — Studio's Welcome Recent links were mouse-only; the Output, Build and Problems pages wrap long lines (`WordWrap`, View > Wrap Long Output Lines); dock tabs keep their names whole (padding first, then the widest trimmed). Left: a real-screen-reader pass (VoiceOver / Narrator / NVDA / Orca) over all of it — release quality gate 4; an unchecked item of a menu whose other items are checked is a plain `menuitem` (RapidQ has no "checkable" flag)
-- [ ] No toolkit widgets are left on the desktop (FLTK removed): every component is the kernel's and gains accessibility through its model's description — track the ones whose description is still generic
-
-**Responsive layout (additive to Align)**
-- [x] `Anchors` (akLeft / akTop / akRight / akBottom) and `Constraints` (MinWidth …) on every component, in `rapidr_value::layout` (v2.107.0)
-- [ ] Flow and grid containers for layouts that reflow on small screens — the base for mobile
-- [ ] Constants, the modern way (decided 2026-10-16 — Robert left it to the lead; after Preview 2):
-  - `.bas` programs keep RapidQ's rule: `$INCLUDE "RAPIDQ.INC"` turns its constants on. They stay built in, no RapidQ file is shipped, and nothing changes for old programs.
-  - `.rr` programs get every library constant built in, no include needed. Only the constants used are compiled, and a program's own name wins.
-  - [x] `.bas` programs keep RapidQ's rule: `$INCLUDE "RAPIDQ.INC"` turns its constants on. They stay built in, no RapidQ file is shipped, and nothing changes for old programs.
-  - [x] `.rr` programs get RAPIDQ.INC's constants and `QBColor` built in, no include needed, like any modern BASIC's own constants. Only the constants used are compiled, and a program's own name wins (M0-CONST, rapidr_ast::builtin_constants; `True` stays -1). Left: the library includes' constants (`qmidi.inc`'s MD_PLAY …) still come with their include
-  - Optional topic names such as `Color.Red` and `MsgBox.YesNo` for autocomplete; the old names keep working.
-  - [x] The debugger never lists library constants as globals (a `.rr` program's built-in ones are no variables; an include's stay grouped under it)
-- [ ] A stack container (RStackPanel: children one under the other or side by side, gap and padding) where a hidden child takes no space — forms that hide rows (Studio's Settings > AI hides Workspace ID / Address per provider) close up by themselves, no hand-placed `y = y + row` code; easy enough for a school kid, live in the designer, in the registry (Robert, 2026-10-16; after Preview 2)
-
-**One UI kernel (principle 7)**
-- [ ] Move the remaining components to shared models: button / check box / radio button / label / panel / group box / combo box / status bar / tool bar / progress / up-down / date picker
-- [x] **New desktop host (decided direction 2026-10-03, after a prototype):** replace FLTK with RapidR's own UI kernel on permissive Rust crates — `winit` (windows and input; Windows / macOS / Linux / iOS / Android), `wgpu` + `vello` (GPU vector drawing; `tiny-skia` CPU fallback; wgpu is also the DirectX objects' layer), `AccessKit` (screen readers), `parley` / `cosmic-text` (text shaping, editing, IME), native where users notice: macOS menu bar (`muda`), file / colour / font dialogs (`rfd`), clipboard (`arboard`). Not native widgets (wxWidgets & co.): they look and measure differently per OS and don't exist on the web, against "the same everywhere". Steps: prototype host next to FLTK running a few fixtures → port component by component (text editing and QRICHEDIT last) → switch when the whole regression passes → FLTK removed. Timing: after the corpus push, before the IDE (the IDE is built on it). Themes: Windows-classic for old programs, a modern one for new
-  - [x] Prototype (`crates/rapidr-ui-proto`, its own lockfile; v2.105.0): a QFORM with QLABEL, QBUTTON, QEDIT (parley editing, IME commits, clipboard), QTRACKBAR and QTABCONTROL drawn by vello from the shared models' ops, logical pixels at the screen's scale (`RAPIDR_SCALE`), Tab focus, AccessKit tree (VoiceOver reads and presses it), muda menu bar, rfd dialog, offscreen `--capture`; 13 MB release binary, ~0.9 ms per frame. All 170 dependencies permissive
-  - [x] Stage 0 of the integration (v2.108.0): pump-driven event loop with nested modals, timers and live resize; CPU renderer (vello_cpu) within tolerance of the GPU one; headless host with byte-identical captures; wasm-bindgen aligned at 0.2.129 across the workspace; one font size rule (Windows' rounding) — results in the plan
-  - [x] Stage 1 (facade, host switch, deferred-handler safety net, shared test-hook parsing) and Stage 2 (`rapidr-ui-kernel`) (v2.109.0)
-  - [x] Stage 3: `rapidr-ui-host-winit` + the kernel glue; 16 of 54 GUI fixtures identical on FLTK and the kernel (native and interpreted, 1× and 2×); the hosts matrix in `tools/regress.sh` (v2.110.0) — next: the component lanes (Stage 5), surfaces, text, dialogs, platform
-  - [x] Stage 5 lanes — containers, buttons & menus, lists: 43 of 54 GUI fixtures identical on both hosts (v2.111.0) — next: surfaces, text, dialogs, platform
-  - [x] Stages 6–9 (surfaces, text, dialogs, platform): every GUI fixture identical on both hosts — 0 pending (v2.112.0). Before the switch (Stage 11): a hands-on check on an unlocked screen (GPU windows, a real drag, a held menu, IME, a real file sheet), then RDESIGNSURFACE / RCODEEDITOR (Stage 10)
-  - [x] Stage 10 (RDESIGNSURFACE / RCODEEDITOR as shared models; the IDE in RapidR runs on the kernel), Stage 12 (web ARIA from the same accessibility rules, `tests/web_a11y.mjs`), and the lanes' follow-ups: double clicks in RapidQ's order, real in-place editors, edit after a pause, F10 / Alt menus, size grip, message box icons, colour / font dialog options, QFORM.WindowState (v2.113.0). Left before the switch (Stage 11): the hands-on check on an unlocked screen
-  - [x] Stage 11: FLTK removed — the UI kernel is RapidR's only desktop host, with no fallback (`gui.rs`, the `fltk` / `fltk-theme` dependencies and `RAPIDR_HOST` gone; `rapidr build --host kernel` only notes it's no longer needed; the GUI suite runs every fixture native and interpreted on the one host, 1× and 2×); sizes and build times before / after in the plan
-  - [x] After the switch, checked by hand on a real Mac screen (GPU windows, IME, double clicks, the menu bar, a real Open panel, message boxes, VoiceOver's tree): timers keep firing while a native menu is held; console programs never start the windowing system and run without a display; Linux checked locally in Docker (`tools/linux/check.sh`: conformance 224, GUI events headless and on X11 windows) (v2.114.0). Next: Windows and Ubuntu desktops in VMs (Parallels), kernel themes beyond classic
-  - [x] The interpreter serves every wait for the user as it serves ShowModal: MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE / MSGBOX, the Open / Save / colour / font dialogs, INPUT$ and a kernel-drawn Popup — timers' handlers run during them (nested dialogs, a timer closing a modal form under a box), not in a burst afterwards, and the answer comes back as in a native build; a timer whose handler waits doesn't fire again until it returns, and none waits behind another handler that waits, in both builds; dialogs start the program's timers as ShowModal does (`dialog_timers` GUI case, `RAPIDR_TEST_DIALOG_HOLD` / `RAPIDR_TEST_MESSAGE_DIALOG`) (v2.116.0)
-- [ ] **The web on the same UI kernel** ([docs/web-host-plan.md](docs/web-host-plan.md)): the kernel drawn on a `<canvas>` (vello_cpu, wasm SIMD), input and IME through hidden text fields, an ARIA mirror of the kernel's accessibility tree, DOM overlays only for web-only components; the DOM runtime deleted once parity holds (no fallback). All licences permissive (fonts SIL OFL); Tailwind not needed
-  - [x] W0 spike: byte-identical pixels with the desktop at 1× and 2×, Chrome's accessibility tree equal to the kernel's, ~0.2–0.5 ms a form's frame; W1 `rapidr-ui-render` shared by both hosts (v2.114.0)
-  - [x] W2 `rapidr-ui-app`: the host-neutral half of the program glue behind `Program` / `Windows` (v2.115.0) — next: W3 (the web host proper; move the desktop's `Desktop` into the crate too), W4 (dialogs and ShowModal as waits the VM serves)
-  - [x] W3 the web host proper (`?host=kernel`; the DOM host stays the default). It covers:
-    - windows on the page with kernel-drawn frames, stacking, moving, sizing and WindowState;
-    - devicePixelRatio and canvas context loss;
-    - input, IME, the clipboard and autofill;
-    - the ARIA mirror in Rust;
-    - `WebStore` and the web runtime's `Program` / `Windows`;
-    - `Desktop` moved into `rapidr-ui-app`;
-    - the registry's shared defaults table (step 1);
-    - a wasm SIMD build.
-
-    64 of 68 browser GUI cases run on it, with windows byte-identical to the desktop's and equal accessibility trees. Next: W4 (the VM's waits, the kernel's dialogs and timers on the page), then W5–W9 in parallel lanes.
-  - [x] W4 the VM's waits (ShowModal, DOEVENTS, INPUT$), the kernel's message boxes, colour / font and Open / Save dialogs (W8 pulled forward), timers on the shared heap, native web builds on the kernel host; resize from every edge, minimized windows, autofill hints: 70 of 70 browser GUI cases on the kernel host
-  - [ ] The kernel host as the only web host (the user's direction, 2026-10-05). The HTML web IDE stays as the harness until the kernel-drawn MDI IDE runs in the page.
-    - [x] The default for the IDE preview, `bundle-bc` and `rapidr build --web` (`?host=dom` until deletion).
-    - [x] Every web suite on it (31 web_* suites, parity, a11y, conformance).
-    - [x] Web-only components as overlays, with the popup layer above them (W6).
-    - [x] The fallback fonts (W7): Noto symbols and CJK on demand beside the web runtime, shipped in bundles and installs (emoji next).
-    - [x] Then the DOM host and the `RAPIDR_WEB_HOST` switches deleted (W11): `gui_web`, `a11y_web`, `menu_web`, the DOM dialogs, `rapidr-rrcss`; the web API components in `webapi_web`.
-    - [x] Open / Save on the user's real files through the browser's own pickers (File System Access, a file input, a download where there's no save picker; the IDE shows them for its sandboxed preview); the last in-page dialog (the "Save As" list) gone, and with it the modal-focus bug it had; the modal rule checked with real input for every web dialog (`web_modal_focus`, `web_file_dialogs`).
-  - [x] The integration, staged in [docs/desktop-host-plan.md](docs/desktop-host-plan.md) (event loop via winit's `pump_app_events`, kernel / host crates behind `RAPIDR_HOST`, wasm-bindgen aligned so the host joins the workspace, a FLTK × kernel × native × interpreted matrix): Kernel crate (GUI-free: models, ops, focus, input, accessibility) + winit host behind a switch next to FLTK, starting with the components already drawn from shared models (tab control, track bar, scroll bars, list / tree / grid views, menus); then canvas / bitmaps on vello images, QEDIT / QMEMO on parley, QRICHEDIT last; CPU fallback (vello_cpu / tiny-skia); wgpu's wasm-bindgen pin aligned with the web build before it joins the workspace
-
-## Phase 2 — Debugger (~6 weeks)
-
-The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate window, conditional breakpoints / hit counts / logpoints / break on error and DAP in stage I6, edit-and-continue and "inspect element" in I5; reverse stepping, the event timeline and the line profiler stay here, after I6.
-
-
-- [x] Immediate window: evaluate expressions/statements in the paused frame (compile snippet against frame symbols) (S-DEBUG)
-- [ ] Edit & Continue: hot-swap recompiled function when signature unchanged
-- [x] Set Next Statement: the arrow dragged, or Ctrl+Shift+F10, within the routine; at a run-time error the line retried or skipped, the program going on (DEBUG-VM, 2026-10-15)
-- [x] Conditional breakpoints, hit counts, logpoints; break on runtime error (S-DEBUG)
-- [ ] Reverse stepping: ring buffer of VM state deltas + recorded host-call results
-- [ ] Event timeline (event → handler → duration)
-- [ ] "Inspect element": click widget in running preview → properties/handlers
-- [ ] Line profiler: per-line instruction counts → gutter heatmap
-- [ ] `rapidr dap` Debug Adapter Protocol server (VS Code extension + any DAP client)
-- [ ] Policy: debug on VM, ship on either backend (guaranteed by differential tests)
-
-## Phase 3 — IDE (stages I0–I9; planned in [docs/ide-plan.md](docs/ide-plan.md))
-
-**Direction (user, 2026-09-28): a professional IDE in the RapidQ tradition — an MDI workspace on the desktop and on the web alike.** Starts once RapidQ compatibility is complete across native, interpreter and web.
-
-**Planned 2026-10-05** ([docs/ide-plan.md](docs/ide-plan.md), with [docs/ide-components.md](docs/ide-components.md), [docs/ide-ai.md](docs/ide-ai.md), [docs/q-and-r-components.md](docs/q-and-r-components.md)): "pro" — a WYSIWYG designer with smart guides, a fast editor with real completion, a debugger, live editing, linked data components with the data-science stack first-class, and AI through MCP. One codebase on the UI kernel for the desktop and the web; every building block a public R component users can use in their own programs (the IDE is assembled from them); the IDE's shell a RapidR program; the program under development in its own process / sandboxed frame, driven by one session protocol. The HTML / Monaco web IDE and `examples/ide.rr` are deleted when I1 reaches parity (no fallback). Open decisions for the user: the plan's §9 (name, project format, how much is RapidR, default AI provider, extension sandboxing, …). Replaces this phase's earlier list: splitting the HTML IDE's `host.js` and a Tauri desktop shell are no longer needed (the HTML IDE goes; the kernel host is the desktop shell); the events tab, menu and tab-order editors, autosave and File System Access are in I1 / I4.
-
-**R-NAMES — RapidR's names everywhere** (decided by Robert 2026-10-08, for the first release; legal is a main reason: visibly original, "compatible with RapidQ", not a clone — [docs/q-and-r-components.md](docs/q-and-r-components.md), plan and results in [docs/ide-plan.md](docs/ide-plan.md#r-names-results-phase-1-and-the-plan-for-phase-2--rapidrs-names-everywhere-2026-10-08))
-- [x] Phase 1: RapidR's names (`RButton`) the default in the registry's exports, the manual, the language service (completion, hovers, "RapidQ name: QBUTTON"), the examples (but `examples/rapidq/`), the docs and the template; the compilers always accept both names; the importer and `upgrade-names` (crates/rapidr-import) with the corpus proof; `.rqw` / `.rqb` / `.rq` sources everywhere; a RapidQ-compatible project warns on RapidR's names of RapidQ's components
-- [x] Phase 2 (2026-10-08): RapidR Studio's toolbox (groups by purpose, no "RapidQ" / "RapidR" groups; RapidR's names; the card gives RapidQ's name), inspector header ("RButton (RapidQ name: QBUTTON)"), the designer's announcements, F1 Help and completion under RapidR's names; the designer and completion write new code in each file's style (`rapidr_lang::NameStyle`, never mixed); the templates (but "RapidQ program"), Add Form, Studio's own strings and `ide/` code under RapidR's names (proved: the same bytecode); File ▸ "Import RapidQ Project or File…" on desktop and web; `.rqw` / `.rqb` / `.rq` open, run and are read by the language service in Studio
-- [ ] Phase 2, the rest: "Upgrade this file to RapidR names" (Code menu, the palette, a code action: the diff, then one undoable edit)
-- [x] Decide (Robert): built-in RAPIDQ.INC constants without the `$INCLUDE` line for RapidR's own files — decided 2026-10-16 (Constants, the modern way), done in M0-CONST: built into `.rr`, `.bas` as in RapidQ
-
-**DESIGN-GUIDE — one design for Studio** (Robert, 2026-10-29: "That brown 'No questions asked' looks ugly … we need a design guideline so every agent sticks to it")
-- [x] [docs/design-guidelines.md](docs/design-guidelines.md): measured sizes (compact 24, dialog buttons 32), spacing, type, chips, pane anatomy, confirmations and consent, words, the checklist; CONTRIBUTING.md and docs/ide-plan.md point at it; `tools/check_design.py` in `tools/regress.sh` *(DESIGN-GUIDE, 2026-10-29)*
-- [x] Status tokens `status.info` / `success` / `warning` / `danger` (fill, `.text`, `.border`), contrast-tested; example gui/status_colors.rr *(DESIGN-GUIDE, 2026-10-29)*
-- [x] The AI Apps pane per the guide (soft chip, one-height header, the question strip), the first-time question as a consent dialog with rows (`ide/consent.inc`, reusable), Settings > AI Apps' rows, Copy / Copy All on the activity *(DESIGN-GUIDE, 2026-10-29)*
-- [ ] The other panes and dialogs brought to the guide (the offenders listed in docs/design-guidelines.md "Known gaps"; `tools/check_design.py --list`)
-  - [x] The design audit at 1280 × 720 (light / dark / high contrast, English and Spanish, the layout report): [docs/design-audit-2026-10.md](docs/design-audit-2026-10.md); Settings and Project Options fit a 1280 × 720 screen (content scrolls, buttons pinned), checked by `studio_flows` dialog-fits *(STUDIO-POLISH P4–P5, 2026-10-30; 200 % text waits for a text-size setting)*
-  - [ ] The Settings redesign (category list + search, folded lists, one-line descriptions) and the smoothness lane (frame times, flips: `RAPIDR_TEST_FRAMES`) — the audit's "Still to do"
-  - [x] Tabs with icons everywhere: Settings (General / AI / AI Apps), Output / Build / Problems, Properties / Events — each its icon and its name, the icons alone (named in a tooltip and for a screen reader) when a strip is too narrow, never a cut name; `RTabControl.TabIcons` for programs (example gui/tab_icons.rr) *(STUDIO-POLISH P3, 2026-10-30; the Versions footer and the RAI pane's strip: P1, P2)*
-
-**I0 — Foundations** (L, 12–16 sessions)
-- [ ] The language registry (`rapidr-lang`): every component (Q and R names, which RapidQ has), property (type, default, editor, origin), method, event, builtin, statement and directive, with docs in our words; tests tie it to both runtimes both ways; generates the IDE's completion data, the VS Code data, the manual's reference sections and the AI prompt; `COMPONENT_TYPES` and the runtimes' name lists generated (Phase 0's "single language registry")
-- [ ] Project format `.rrproj` v2 (`rapidr-project`), reading the web IDE's JSON v1; plain `.bas` / `.rr` files open without a project
-- [ ] The program session protocol (`rapidr-session`): run / stop / pause / breakpoints / stepping / variables / evaluate / set property / output / forms, over a pipe (desktop child process) and a `MessageChannel` (web sandboxed frame); today's `DebugSession` becomes one transport
-- [ ] VM: per-file breakpoints through the source map (the web compile path fills it too), pause on demand, an evaluator for a paused frame, writing variables, break on runtime error
-- [ ] Parser for tools: comments and directives kept as trivia (corpus files reproduce byte for byte), a byte-level origin map through `$INCLUDE`, lexer error recovery, a public semantic model from bcgen's scopes — no change to any program's meaning
-
-**I1 — Shell** (L, 16–22 sessions)
-- [ ] RDockManager: docked / tabbed / auto-hide / floating panels, layouts saved and restored, all by keyboard; the documents area an MDI client on `rapidr_value::mdi` (cascade / tile) or tabs
-- [x] RProjectTree, RToolbox (groups by purpose, RapidR's names — R-NAMES phase 2), RPropertyInspector (typed editors from the registry, RapidR extensions badged, Events tab), ROutputConsole (ANSI), RCommandPalette, a real RToolBar kind — in RapidR Studio, properties two-way with the designer and the code (S-PANELS, 2026-10-08)
-- [x] Markdown files shown formatted (MD-VIEW, 2026-10-08): RMarkdownView on the UI kernel (pulldown-cmark → parley; headings, lists, tables, code, quotes, links; select / copy; themes; Document / Heading / List / Table / Link accessibility roles), desktop and web; `.md` files open in Studio in Preview with a Preview | Source | Side by Side switch (F12 / F7 / Shift+F7), live preview of the source, links followed, headings in the Outline; manual: docs/manual/markdown.md; flows `markdown-preview`, `markdown-switch`. Left: the F1 Help pane's body and the editor's hovers as Markdown (help.rs writes plain lines today), Markdown colours in the source, pictures (shown as their description)
-- [ ] The shell (`ide/`, a RapidR program on public components only), commands and shortcuts (the usual scheme), settings, modern / dark / high-contrast themes with editor colours, vector icons, OFL fonts
-- [ ] Run / Stop / Build through `RProgramSession` / `RProject` on both hosts (Build: `RPROJECT.Build` makes the app for the desktop it runs on, B-PKG; the web shows the program instead)
-- [x] Build is the release build (`rapidr build` too; `--debug` asks for a quick one) into the project's output folder, which gets only the app: the generated Rust and cargo's files in the build cache, the Rust deleted unless "Keep the generated Rust source" (Project Options, `[build] keep_rust`, `--keep-rust`); its log on the Output panel's Build page with links (the app, Reveal in Finder / Explorer / Files; OSC 8 hyperlinks in the console). Save prompts as macOS asks: Save (Enter) / Don't Save / Cancel (Escape), on quitting with several documents Save All / Review Changes… / Discard Changes / Cancel, each verified to quit or stay on both hosts; `Form.Modified` (macOS' close-button dot, the web page's beforeunload); the web page says Studio closed (S-BUILD, 2026-10-08)
-- [ ] Web: the IDE page on the canvas host, IndexedDB / OPFS autosave, File System Access open / save, zip import / export, web bundle build
-- [x] The running program's windows on the web never cut off (WEB-FRAME, 2026-10-15; the Preview's known issue): a window is never placed or dragged above or left of the page's corner (its title bar always on the page; a form centred on a smaller page starts at the top), past the right and bottom edges the program's desktop scrolls (Studio's run frame draws a thin scroll bar along the page's edge while needed; the wheel over a title bar or the bar), maximized fits the visible page, a title bar's double click maximizes (it never did: a pointerdown's detail is 0); example `examples/gui/sales_dashboard.rr` (1200 × 800); flows `program-window-big`, `program-window-big-fits`; manual web.md "Windows bigger than the page"
-- [x] Studio's desktop and web captures byte-identical (WEB-FRAME, 2026-10-15): the desktop's CPU renderer runs vello_cpu's portable SIMD level, which never fuses a multiply and an add, as wasm SIMD 128 can't (Neon's and AVX2's fused ones rounded glyph edges one level apart; ~1.4× slower CPU rendering, still within every budget: captures and GPU-less windows only); the palette's options keep their accessibility ids from their command's id on every host; `studio_shell` no longer tolerates "SIMD rounding"
-- [x] Studio's own approved images (STUDIO-GOLDENS, 2026-10-16; Robert: "add new stuff without regressions… imagine a supporter finds it, not me"): `tools/visual/gallery.py studio check|approve <scene>` — 21 scenes (Welcome; the designer with a selected control and its anchor pins on dataframe.rr's live data, and after a drag; the editor's completion, hover and squiggle; the debugger paused on shop.rr: Variables, Call Stack, Watch with a changed value, Breakpoints, an expanded data tip, a run-time error; the AI panel and Settings > AI on the mock provider; Markdown; the rich-text example; an import; the save prompt; Project Options; Find in Files; the palette) in RapidR light, dark and high contrast at 1× (4 of them also 2×), 75 PNGs (12 MB) in `tests/visual/studio/`, compared to the pixel; any visual change to Studio fails until a person looks and approves it, naming a side-by-side, an enlarged crop of the change and a diff; `tools/regress.sh studio-goldens` (part of `studio`). Same pictures from another folder, another locale and time zone, twelve runs at once; a hidden pin fails it (tests/visual/README.md)
-- [x] The web inspector for screen readers (WEB-FRAME, 2026-10-15): a tree grid whose rows are named by their cells (a property's name as a row header, its value), a read-only property's row says "read-only" in its description and its value's cell is `aria-readonly` (ARIA has no read-only row); flow `inspector-read-only` reads Chrome's accessibility tree
-- [x] The HTML / Monaco web IDE and Monaco deleted (2026-10-08, Robert's decision: RapidR Studio on the UI kernel is the web IDE). Its `tests/web_ide_*.mjs` suites: the web runtime's re-pointed at its own page (`tests/web_run.mjs`) or Studio's run frame (`tests/studio_run_frame.mjs`), the IDE features' listed in docs/studio-wow.md §7, the old internals' deleted
-- [ ] Parity with `examples/ide.rr`, then `examples/ide.rr` deleted
-
-**I2 — Code editor** (L, 14–20 sessions)
-- [x] `rapidr-editor`: rope buffer (ropey, MIT), multi-cursor transactions, undo / redo history, find / replace (regex, in selection, in files), bracket matching, auto-indent, folding (S-EDITOR, 2026-10-08)
-- [x] Declarative language definitions (TOML: tokens, comments, strings, brackets, indentation, folding, snippets) and colour schemes; RapidQ / RapidR BASIC generated from the registry; no tree-sitter (S-EDITOR, 2026-10-08)
-- [x] RCodeEditor grown on the kernel (the current API kept): virtualized view, gutter, squiggles, completion / hover / signature popups, minimap; RDiffView (S-EDITOR, 2026-10-08)
-- [ ] IME on every host; accessibility with AccessKit text runs and the web mirror's window of lines
-- [ ] Performance targets met (plan §6.2: typing p99 ≤ 16 ms desktop / 33 ms web on a 100,000-line file; a 10 MB file opens in ≤ 300 ms)
-
-**I3 — Language service** (L, 14–20 sessions)
-- [x] `rapidr-langsvc` (native and wasm): semantic model, completion of locals / globals / SUBs / FUNCTIONs / TYPEs / components and members (Q and R names alike), hover, signature help, definition, references, rename, outline, live diagnostics in RapidQ's wording, code actions, formatting (S-EDITOR, 2026-10-08)
-- [ ] The "RapidQ-compatible project" diagnostics: every RapidR-only component, member, builtin, statement, directive and non-RapidQ Q name, with code actions
-- [ ] `rapidr lsp`; the VS Code extension an LSP client (its regex providers deleted)
-
-**I4 — Visual designer** (L, 16–22 sessions)
-- [x] RFormDesigner: real components drawn WYSIWYG, multi-select, rubber band, eight handles, keyboard nudging / resizing; RDESIGNSURFACE's API on the same model (S-DESIGN, S-DESIGN-2: zoom, the form on its scrolling canvas)
-- [x] Grid snapping and smart guides: edges, centres, baselines, parent centring, margins, equal spacing with distances
-- [x] Align / distribute / same size / z-order; anchors and constraints editor; containers and reparenting
-- [x] RComponentTray, RTabOrderEditor, RMenuEditor; double-click → event handler (S-DESIGN-2: the tray with the program's own dialogs, the menu and Tab-order editors on the form)
-- [x] Two-way CREATE-block sync with minimal text edits, one undo history with the editor, user code byte-identical; each file in its own names — RapidR's (RButton) in a RapidR file, RapidQ's (QBUTTON) in a RapidQ one, never mixed (Robert, 2026-10-08) — existing names kept
-- [x] The corpus round trip: every form of the 386 RapidQ examples and `examples/` opens and saves byte-identically (`crates/rapidr-designer/tests/corpus.rs`)
-- [x] New forms end to end: Project > Add Form / Add Module (the file in the program's names, `$INCLUDE`d by the main file, opened on its designer), names unique across the program, every toolbox component addable, the inspector's typed editors (font by its parts) writing code that runs; desktop and web (`tests/studio_add_form.mjs`, S-DESIGN-2)
-
-**I5 — Live** (M, 8–12 sessions; after the first release)
-- [ ] Remote forms: the program's forms as MDI windows in the workspace (display lists + accessibility trees through the session), "inspect element"
-- [ ] Live property preview into the running program
-- [ ] Hot reload of changed SUBs / FUNCTIONs; edit-and-continue while paused; "restart needed" with the reason otherwise
-
-**I6 — Debugger** (M, 8–12 sessions; the basic part in the first release)
-- [x] Basic: breakpoints in any file with conditions, step in / over / out, pause, run to cursor, call stack, locals / globals / watches evaluated by the VM, data tips, break on runtime error, the immediate window (S-DEBUG, 2026-10-08: desktop and web)
-- [x] Pause while the program waits for its events, breakpoints placed where the program stops, breakpoints and watches kept with the project, values set in place (S-DEBUG, 2026-10-08: desktop and web)
-- [x] Hit counts, logpoints (S-DEBUG)
-- [x] The values inspector (DEBUG-VM, 2026-10-15: desktop and web): data tips that open like a tree to any depth — arrays, nested TYPEs, components with their properties and the components they hold, an RDataFrame as a table (rows → cells), RNum's numbers, pages of 100 —, values changed since the last stop in bold blue (tips, Variables, Watch), copy (whole) / watch / view text from a tip or the panes' menu, nested fields set with F2, the program's Components in Variables; a hover never runs code
-- [x] Set Next Statement (the arrow dragged, Ctrl+Shift+F10; retry or skip a failed line) and Step Into Specific (Ctrl+Alt+F11); Step Over no longer stops twice on a line that calls a SUB (DEBUG-VM); `rapidr dap`: stepInTargets, gotoTargets / goto
-- [x] A step in ≤ 50 ms on both hosts, loaded machine included (WEB-FRAME, 2026-10-15): the program's process wakes Studio's window loop when it says something (`ProcessTransport::set_waker`; the headless host's pump parks until a waker), instead of Studio hearing it at its next 20 ms poll — three round trips (the stop, the stack and globals, the locals and watches): desktop 85 → 13–15 ms at load 20+
-- [x] Used as a person uses it (DEBUG-RUN, 2026-10-16, Robert's Preview 2 run: ▶ greyed while paused, the paused program's window unreachable): ▶ / F5 is Continue while paused, and every Run / Debug command enabled exactly when it can act — a state table (not running, running, stepping, paused at a breakpoint or an error, ended, closed) checked on the menus, the tool bar and the palette with real keys and clicks, desktop and web (`tests/studio_flows.mjs` debug-commands-*); a paused program keeps serving its window system (painted, raised, moved — no code of it runs, its input dropped), on the web too; Debug ▸ Show Program Window; the front handed between Studio and the program (its first window, a stop, Continue, a long step) on macOS, Windows and X11 — walked on the real macOS screen (`tools/macos/debug_walk.py`, 51 checks); the Windows and Linux builds checked, their desktops not yet walked (a GUI program can't run in the Windows VM's session 0, and the Ubuntu VM's desktop is Robert's). Robert's debugger scenarios: events 1–6 and control 18–21 as flows on both hosts (`debug-events-*`, `debug-commands-*`; a handler's breakpoint stops on every event, three times), Globals' own variables before an include's constants (15, `debug-globals-include`); scenarios 7–14, 16, 17 (stepping, breakpoints, values) for a second lane
-- [x] Events and the debugger's other scenarios (DEBUG-2, 2026-10-16, Robert: "debugging fully working, and also events, before pre-release"): RC.EXE asked in the Windows VM (SYSTEM's session, probes logging to a file) — focus events (only the lists' OnEnter exists, and never fires; no OnExit), the events a program's own sets fire (an edit's Text, a check box's Checked, a radio button turned on, a scroll bar's Position; not a combo's or list's ItemIndex, a track bar, a tab control), an error in a handler (the handler and those that fired it stop, the form goes on; a DOEVENTS passes it to its caller). RapidR now does the same on every runtime (`rapidr_value::events::program_set`, the VM's and native builds' waits) and adds OnEnter / OnExit on the 27 components that take the focus; Continue at an error in a handler goes on as the program would. Flows on both hosts for scenarios 7 (stepping in a handler), 9 (loops), 10 (recursion), 11 (breakpoints while running), 13 ($INCLUDE files), focus order and errors; 8, 12, 14, 16, 17 were already flows. Left: a QRICHEDIT's AddStrings and a QFILELISTBOX's first folder read fire OnChange in RapidQ, not yet in RapidR
-- [ ] Frames opened in the data preview (with I7) — shown as tables in data tips and Variables already (DEBUG-VM)
-- [ ] `rapidr dap` for VS Code and other DAP clients
-
-**I7 — Linked data and data science** (L, 18–26 sessions; the core in the first release)
-- [x] One data-science engine on every runtime (D7 decided: our own, `rapidr_value::datascience` — RNUM, RDATAFRAME and RPLOT's model shared by native, interpreted and web; polars and ndarray dropped; conformance cases `datascience_*` on all three runtimes)
-- [ ] RPlot drawn by the kernel (vector, accessible, identical on desktop and web) — replacing today's two renderers (plotters on the desktop, a canvas on the web) of the one chart model
-- [ ] Core: RDBConnection / RDBQuery / RDBTable (SQLite), RDataFile (CSV, JSON), `RDataFrame.Source`, RDFFilter / RDFSort / RDFGroup / RDFCompute, RDataSource, RDBGrid, RPlot's declarative binding — live at design time (read-only), with the tray, component-reference pickers and RDataPreview (schema, rows, quick stats) *(Phase 1, DATA-ARCH 2026-10-15 — [docs/data-science-plan.md](docs/data-science-plan.md) §12: RCSV (the plan's RDataFile for CSV), RJson's records as a source, `RDataFrame.Source`, RDataSource, RDBGrid, DataSource / DataField on REdit and RLabel — live in the designer, the tray and the inspector's pickers, on every runtime; RPlot's binding (DARK-FIX, 2026-10-15: `DataSource`, `Kind`, `X`, `Y`, live in the designer; `RCSV.FileName` naming a `$RESOURCE`; examples/data/dataframe.rr linked); left: SQLite datasets, the RDF transforms, RDataPreview)*
-- [ ] Later: Parquet, MySQL at design time, RDFJoin / RDFSelect / RDFLimit, editable datasets with RDBEdit & co. and RDBNavigator, lookups, column-name completion in expressions
-- [ ] **PRIORITY for the WOW 1.0 — "the World of WOW" for data-science users (Robert, 2026-10-11).** RDataFrame grows to what Polars covers (docs.rs/polars as the checklist), the RapidR way: our own engine (D7 stands — one model on every runtime), BASIC-friendly names, everything visual and live in Studio:
-  - **Sources as linked components** (linked components: drop them in the tray, point RDataFrame.Source at one, see the data at design time): RCSV, RJSON, RExcel, RParquet, RArrow (IPC/Feather), RAvro, RDeltaLake; RSQLite, RMySQL, RPostgres (also Redshift), RSQLServer; cloud files through RS3 / RAzureBlob / RAzureFile. Each reads and writes. Licence check per crate (permissive only; e.g. Oracle needs Oracle's own client — a legal and dependency review before any RDB for it). Web: what a browser can do (files, HTTP, cloud over HTTPS), the rest says so clearly.
-  - **The full DataFrame toolkit:** select, filter, sort, group by + aggregations, joins (inner/left/outer/cross/asof), pivot / melt, window functions, rolling and cumulative stats, dates and times, strings, missing values, lazy queries with an optimizer, large files streamed (out-of-core), and SQL over frames (`df.SQL("SELECT …")`).
-  - **Data-aware components** (the data-source idea): RDataSource with a current-row cursor; REdit/RLabel/RCheckBox/RComboBox/RDateTime with `DataSource` + `DataField` showing and editing the current row's column; RDBGrid fed straight from a frame (sorting, filtering, editing back); RDBNavigator (first/prev/next/last/insert/delete/post); RPlot bound to columns; master–detail between frames.
-  - **Live in the IDE:** the data visible in the designer as you connect it (grid rows, chart, stats), RDataPreview (schema, rows, quick stats, column profile), column-name completion and type checking in expressions, the Immediate window querying frames while paused.
-  - **Showcase:** the CSV Explorer grown into a data studio example; a manual chapter "Data science with RapidR" step by step with screenshots.
-  - **Fast at scale:** millions of rows in seconds — columnar storage, multithreaded and SIMD kernels, lazy plans with an optimizer, streaming for files bigger than memory; a benchmark suite against Polars and pandas on the same data, run with every release (budgets that fail the build when missed).
-  - **Easy enough for a school kid:** one obvious way to do each thing, plain-English names and errors, visual building first (connect, see, chart), guided examples and lessons — RapidR as the tool schools and universities hand to students for data-science apps. (Anything for schools that holds student data or accounts goes through the six legal checks first — COPPA above all.)
-  - **Kept in view on every connector:** permissive, commercial-friendly licences only (each crate checked; Oracle needs Oracle's own client — a legal and dependency review before any connector for it); on the web everything a browser can do (files, HTTP, cloud over HTTPS), and direct database connections say clearly they are desktop-only.
-  - **The best VM and debugger (Robert, 2026-10-11):** the VM robust, fast and lean — runs well on small, old computers (memory and CPU budgets measured, no busy loops, idle at ~0 % CPU); the debugger first-class: hover any variable or object and expand it (fields, arrays, frames, components with their properties, nested to any depth), the same tree in Variables / Watch, frames shown as tables, values editable, changes highlighted between steps, conditional / hit-count / log breakpoints, break on exceptions, run to cursor, set next statement.
-  - **Phase 1 done (DATA-ARCH, 2026-10-15):** the plan ([docs/data-science-plan.md](docs/data-science-plan.md): engine, connectors with each crate's licence, data-aware components, BASIC API, web limits, budgets, benchmarks, registry, phases 1–7, 35–46 sessions); the engine core typed, columnar and multithreaded (numbers in the plan's §12); RCSV / RJson as sources, `RDataFrame.Source`, RDataSource, RDBGrid (virtual rows), DataSource + DataField on REdit / RLabel, live at design time; examples (`linked_data`, `million_rows`, `json_source`), tools/bench/ against pandas / Polars, the manual's chapter "Data science with RapidR".
-    - Done (DEBUG-VM, 2026-10-15): the values inspector, Set Next Statement, Step Into Specific (I6 above); `tools/bench/vm_bench` with budgets (`tools/regress.sh perf`): start-up, memory, a 10 M-iteration loop with and without the debugger, strings, calls, arrays, idle CPU of a waiting form, under the debugger and with Studio running it (no polling while a program waits: the program's session wakes it on an interrupt, and Studio — woken by its program's replies, WEB-FRAME's waker — looks only once a second while one runs); the VM's hot paths (lazy errors, an opcode table, arithmetic in place, builtins resolved once); measured on a one-core, 2 GB Ubuntu (docs/manual/debugging.md "How fast it runs").
-  - **RapidQ compatibility never broken:** everything above is additive — RapidQ programs keep running unchanged (RC.EXE stays the ground truth, the corpus suite on every release).
-  - **AI-ready by design (every component, not only data):** the language registry stays the one machine-readable description of every component, property, method, event and function — the IDE's MCP server and the RAI component in users' programs read it to know what exists, and act through one introspection/command interface (create, connect, set, call, read results) that every component implements. So an AI agent can build full working programs in Studio and drive components inside users' running programs, under the user's permission tiers. Designed deeply (an architecture doc and review) before I8 starts; no component ships without its registry entry and that interface. *(AI-ARCH, 2026-10-15: designed in [docs/ai-architecture.md](docs/ai-architecture.md) — what every registry entry carries for AI (semantics, types, ranges and units, effects → six risk levels, examples, availability, secrets) and a completeness checker; one introspection / command interface (describe / list / get / set / call / create / connect / destroy / subscribe, transactions with previews, undo) answered alike by the project's source and the running program, ids = the components' own names; `rapidr mcp` and RAI as thin layers on it; permission tiers on the risk levels, prompt-injection defences, threat model T1–T14; phases 0–6 with the two acceptance tests. Phase 0 built: `rapidr lang ai-check` lists the gaps (a report, not yet a gate) and `rapidr-introspect`'s design-time describe / list / get behind its `design` feature. The review is Robert's.)*
-
-**I8 — Smart: AI through MCP** (L, 16–24 sessions; after the first release — a read-only MCP server is a stretch for it)
-- [ ] `rapidr-ai`: Anthropic, OpenAI-compatible (OpenAI, DeepSeek, xAI Grok, Ollama, LM Studio, custom) and Gemini over plain HTTPS, streaming and tool calls normalized, no vendor SDKs; `rapidr ai-proxy` for the web. *Built (AI-PROVIDERS, 2026-10-15): Anthropic and OpenAI-compatible (OpenAI, DeepSeek, compatible servers with Ollama / LM Studio / xAI / OpenRouter presets), streaming and tools normalized, retries, plain-language errors, live model lists (no model ID in code), `rapidr ai`; real calls verified on the three providers, desktop; browsers' CORS preflights accepted by all three. Left: Gemini, `rapidr ai-proxy`.*
-- [ ] `rapidr-secrets`: macOS Keychain, Windows Credential Manager, Linux Secret Service; web keys per session (opt-in passphrase-encrypted). *Built inside rapidr-ai (`keys.rs`, keyring-core and its stores): the three keychains, `APIKeySource = "keychain:|env:|ask"`, web keys for the tab or — opted in, with a warning — the page's storage (the passphrase: Robert's decision, ai-architecture.md §9). Programs' own secrets: RSecrets (DBA, 2026-10-22, one store with the keys'). Left: the keychain on Windows and Linux seen on the VMs (RSecrets too).*
-- [ ] The IDE's MCP server (`rapidr-mcp`, own implementation): `rapidr mcp` over a user-only local socket with a token, optional loopback HTTP; started / stopped from the IDE; tools for project, edits, forms, run, the running app, debug, data *(STUDIO-MCP, 2026-10-29: built in Studio itself on RMcpServer — loopback Streamable HTTP, the current revision 2026-07-28 and the initialize-based ones, a keychain token, off by default (Tools > AI Apps Settings…), the AI Apps pane watching every call, one permission menu per project (Read only / Ask before changes / Allow edits / Allow everything), the audit log; tools: RAI's own + studio_status, list_documents, get_problems, read_output, open_project, run_program, debug, set_property, layout_report, capture, ask_rai, get_rai_steps / transcript / audit ([docs/manual/ai-apps.md](docs/manual/ai-apps.md), tests/studio_mcp.mjs). Left: the stdio relay `rapidr mcp` (for clients that only start a command), data tools, the web's bridge (WebMCP))* *(APP-EYES-HANDS, 2026-10-29: the running program's eyes and hands — app_layout, app_screenshot, app_click, app_type, app_key, app_drag, app_scroll, app_wait — through the session's `app` request and the program's own runtime (desktop and web), a virtual pointer, looking and using asked once per run, the first-time question's version 2 asked once more; ide/mcpapp.inc included by mcp.inc; [docs/manual/app-eyes-and-hands.md](docs/manual/app-eyes-and-hands.md), tests/app_eyes.mjs)*
-- [ ] The floating AI button and assistant (RAIChat): context chips, diffs before apply, checkpoints, permission tiers (ask before edits / running), "what was sent". *Built: the Assistant pane (View > AI Assistant, Ctrl+I; a toolbar button once configured) on an RAI, desktop and web — tools on the project on demand, changes as diffs applied as one undo step, "Build me…" previewed, tiers propose / read-only, What Was Sent, the audit log, the token meter; Tools > AI Settings. Left: context chips, checkpoints and "Undo AI turn", the run tiers, RAIChat as a component.* *Small local models (AI-SMALL, 2026-10-18): replies capped by the model's window (the server's models list), usage read from compatible servers, the chat kept within 70% of the window, one nudge when an answer claims a change no tool made or ignores "go ahead", honest statuses (no change made; doesn't compile), edit misses show the closest lines, check_code names properties no component has, the last run's output shown as data; replayed headlessly against gemma-4 4B and MiMo 9B (`crates/rapidr-studio/examples/ai_eval.rs`, `tests/ai-eval/`). Left: a "test tool calling" button in Settings, Ollama's 2,048/4,096-token default window (its OpenAI-compatible API doesn't say it or take `num_ctx`).* *Small models, second pass (RAI2-SMALL-A, 2026-10-29, from `dist/ai-eval-2026-10-29/report.md` fixes 1, 2, 4, 6, 7, 10): hints for other languages' syntax under the compiler's message (`rapidr check`, Problems, `check_code`; docs/manual/language.md), RC.EXE's Missing NEXT/WEND/LOOP/END IF/END SELECT warnings, `&&` and `console.log` warned, Studio's MCP instructions = the recipe-first workflow + a language card (≤ 1,200 tokens), "empty project: call find_example first", the same refusal twice → start from the recipe, paths as models write them, one clear sentence per change, lower case `path`. Left: RAI retrying an empty reply (documented for AI apps).* *(Fix 3 done by LOCAL-AI, 2026-10-30: in the small-model mode a new program whose tries go wrong three times starts from its recipe, unchanged.)*
-- [ ] Data privacy levels per project (none / schema / sample / full) enforced in the tool layer, redaction, local models recommended; data tools build transforms and plots ("group sales by month and plot bars")
-- [ ] Components as AI tools in users' programs through RAI (the editor, the designer, data sources)
-- [x] **RAI**, one AI component for users' programs and Studio (Studio's assistant is an RAI with RAIProjectTools attached): providers, live model lists with "fast · low cost" hints from the names, streaming (`OnToken` / `OnMessage` / `OnDone`, `Cancel`), keys by reference only (designer: the key typed goes to the keychain, the code names it), builds warn about written keys, token economy (cached stable prefix, context on demand, trimmed history, summary, caps, meter); `examples/ai/rai_models.rr`, `examples/ai/ask.rr` on the four runtimes. *(AI-PROVIDERS, 2026-10-15: [docs/ai-architecture.md §10](docs/ai-architecture.md), [the manual](docs/manual/ai-assistant.md).)* *AI-REAL (2026-10-16): used as a person uses it — walked on the real screen with the three providers' real lists and answers; Fetch Models fills the list and comes back after any failure (30-second limit, the web's too), Settings has its own RAI (Cancel changes nothing), Anthropic's workspace in Studio and the example, the example's layout; a loopback-only test server (`RAPIDR_AI_TEST_SERVER`) and studio flows / example tests that click and type through it (§10).*
-- [x] AI-ARCH phase 0 ([docs/ai-architecture.md](docs/ai-architecture.md) §8): the registry's AI facets (`effects`, `risk`, `range`, `unit`, `example`, `secret`) validated by its build, `rapidr lang ai-check` (the gaps listed), the introspection interface's protocol and design-time describe / list / get (`rapidr-introspect`, feature `design`; `rapidr introspect` in a CLI built with `--features ai-introspect`)
-- [ ] AI-ARCH phase 1: every entry's facets filled (effects cited to the runtimes' code, examples compiled on both backends), the checker a ratchet in `regress.sh unit`, then `--strict` in the build
-- [ ] AI-ARCH phases 2–6: design-time commands and transactions; `rapidr mcp`; the run-time provider on the three runtimes; RAI's tool calling with `Expose` / `AIVisible` / `AIActions`; hardening — acceptance: an agent builds the CSV Explorer from a one-line request in Studio; an agent operates a running program's grid through RAI with the user's permission
-
-**I9 — Extensions** (M, 8–12 sessions)
-- [ ] `.rrext` packages: declarative contributions (languages, themes, snippets, templates) and RapidR code in a capability-filtered VM with fuel limits, talking through the `IDE` object
-- [ ] Permissions prompted at install, optional signatures, per-user install on both hosts
-
-- [x] The right mouse pointer everywhere, by default (C-CURSORS, 2026-10-08; Robert: the inspector's divider didn't say it drags): every component answers from its own hit test (`ComponentKind::pointer`) — col-/row-resize over splitters, grid / list view / header column edges, the inspector's divider and the dock's splitters; sizing arrows on MDI children and the status bar's grip; I-beam in every text field; the hand on links; the closed hand while a tab, file or toolbox item is carried; the designer's handles — on the desktop and the web alike, a program's own `Cursor` still winning; the dividers light up under the mouse; `comp.__cursor_X_Y` test hook (`studio_flows` case `pointers`). goRowSizing now works in `RStringGrid` (a fixed column's cell border sizes the row). Open: `RDBGrid` (not built yet)
-
-**First public release bar** (plan §8): I0–I4, I6's basic part and I7's core, the HTML IDE deleted, the accessibility and performance targets met. The experience bar, item by item with acceptance tests: [docs/studio-wow.md](docs/studio-wow.md).
-
-## Languages: RapidR in English, Spanish, Portuguese and Chinese (Robert, 2026-10-15; a release after Preview 2)
-- [ ] The manual and help in en (source), es, pt-BR and zh-Hans: `docs/manual/<lang>/`, a glossary that keeps code names (RButton, Caption, OnClick…) untranslated, translations generated from the English source and reviewed, a check that flags pages whose English changed since their translation (so no language falls behind)
-- [ ] RapidR Studio's own text (menus, dialogs, messages, Welcome) and the registry's hover / completion help in the four languages, following the OS language with a Settings override; compiler and runtime error messages too (RapidQ's own messages stay word for word where a program reads them)
-  - [x] I18N-STUDIO, the plumbing (2026-10-30; Spanish first, Preview 5): Settings > General > Language (System default / English / the catalogs', live, kept; `--lang`, `?lang=`); every Studio text through `TR$` (~1,200, `ide/lang/studio.pot`) and the kernel's own words through `tr_ui` (~320, `crates/rapidr-value/lang/runtime.pot`); the compiler's messages by stable ID (`RQ…`/`RR…`, `crates/rapidr-diagnostics/lang/`) in Problems and the CLI (`RAPIDR_LANG`, `rapidr check`); Help's `docs/manual/<lang>/` pages and the registry docs' sidecar (`crates/rapidr-lang/data/i18n/<lang>/`); `rapidr i18n` (extract, update, check, pseudo, coverage, manual-stamp); the pseudo-language `xx` and `tests/studio_lang.mjs` (desktop + web: no English left, nothing cut off in the main scenes). Samples only: ~22 Studio strings, 10 compiler messages, 4 registry docs, the start of Getting started, all marked review. [The manual](docs/manual/studio-languages.md)
-  - [x] ES-STUDIO (2026-10-30): Studio's Spanish, first pass, all of it — 1,334 + 320 texts, the compiler's 35 messages and the 69 hints under them (`hint.<id>` in the compiler catalog), the legal texts marked `# legal`; Robert reviews ([docs/i18n/review-es-studio.md](docs/i18n/review-es-studio.md)); `tests/studio_lang.mjs` walks it
-  - [x] The rest of the Spanish translation (the glossary lanes; complete 2026-10-30): ~~Studio (1,197 + 320 texts)~~ done above, the compiler's 35 messages and the rest of RC.EXE's / RapidR's not yet in the catalog, the manual (**batch 1 done 2026-10-30, ES-MANUAL-1: 9 of 37 pages, ~35,000 words** — index, Getting started, the code editor, Projects, Studio in your language, Versions, Debugging, the AI assistant, Troubleshooting; [review sheet](docs/i18n/review-es-manual-1.md); **batch 2 done 2026-10-30, ES-MANUAL-2: the other 28 pages, ~68,000 words, so all 37 of 37 pages** — the language, components, designing forms, data science, databases, networking, AI apps, the web and the rest, [review sheet](docs/i18n/review-es-manual-2.md); the reference pages are generated from the registry (the ES-REFERENCE lane)), the registry docs (**ES-REFERENCE part 1, 2026-10-30: 5,377 of 5,377** — every component, member, built-in, statement, keyword, directive, type and constant group, translated once per different text and shared, code checked against the English by script, *la persona* for *el usuario*; [review sheet](docs/i18n/review-es-reference.md)) — `rapidr i18n coverage es` (`--missing` lists the registry docs a language lacks, with their English)
-  - [x] The Help pane's own words around an entry and the rest of the Rust-side texts (ES-REFERENCE part 2, 2026-10-30): the Help pages' labels, the hover's, completion's and signature's words (and the registry's translated docs in completion and signature help, which only members had), the code editor's change box, the dock's drag words and screen-reader names, the diff view's hunk sentences, RAI's strip, steps, cards, statuses and the provider errors in plain words, Studio's project, versions and local-history errors, the Theme values in Properties — ~500 texts in `crates/rapidr-value/lang/es.po` (`rapidr i18n runtime`); `rapidr lsp` answers in the client's language (`initializationOptions.language`, `RAPIDR_LANG`, `locale`); `tests/studio_lang.mjs` walks the Help pages, a hover, the completion list, the change box and the Theme values in Spanish ([docs/i18n/review-es-reference.md](docs/i18n/review-es-reference.md))
-  - [x] RAI in Studio's language (ES-REFERENCE part 3, 2026-10-30, Robert's decision): the assistant's greeting, statuses, cards and answers are in the language Studio speaks, unless the person clearly writes in another (`rapidr_ai::lang::reply_language`, a pure function; `RAI.ReplyLanguage = "app"`, `"auto"` stays R10's), with RapidR's words in that language in the prompt (a table keyed by language: Spanish today, a row adds Portuguese or Chinese; English adds nothing), and the registry's docs and the manual's pages in it for `rapidr_describe` / `search_manual` (an English page is said to be English); **Tools > Settings > AI > "RAI answers in:"** — *Studio's language* (the default) or *The language I write in* (kept as `AIReplyIn`, an older file means Studio's); Settings > AI's labels and notes grow with a longer language, where a key is kept is said in Studio's language; flows `ai-es-*`, `ai-en-*`, `ai-settings-reply-language` ([review](docs/i18n/review-es-reference.md))
-  - [x] The sweep (ES-REFERENCE part 2b, 2026-10-30): `tests/studio_lang.mjs` walks every menu and submenu, dialog and bar, Settings' pages with a list open, the debugging panes with a program stopped, a run-time error, Versions' history and changes, the external-changes bar, the code helpers' editors, tooltips, the context menus there are, and the dialogs a program shows (colour, font, message box) in the pseudo-language and in Spanish; what it found is fixed at the root — the colour and font dialogs and message boxes, the helpers' colour names and line help, the language service's notes (compiler catalog RR0025 to RR0034), quick-fix titles and rename errors, Run in Browser's lines, the line a stopped program prints — and what did not fit now lays out by its words (Breakpoints' strip, the find bar's buttons, the font and colour dialogs, the local history's list, the caret's place in the status bar); the Theme values in Properties are short ([review](docs/i18n/review-es-reference.md))
-  - [ ] Run-time error messages of a running program: the mechanism is in (`rapidr_value::runtime_text`: a message found by its template and translated where a person reads it — a native program's last line, `rapidr run`, the line Studio's debugger prints where a program stops; `RAPIDR_LANG` or `Application.Language`), 40 message templates translated, 13 before (the common ones, events, strings, DLL calls, files, PEEK / POKE, a message under its object); still to route: the messages specific to one component (databases, sockets, printers, serial ports, streams, archives) and the `[WARN]` lines on stderr
-- [ ] The website, release notes and examples' comments in the four languages
-- [ ] Every new feature from then on lands in all four (the lane rules say so)
-- [ ] **Programs in every language** ([docs/program-languages-plan.md](docs/program-languages-plan.md), Robert 2026-10-21): `TR$`/`TRN$` with placeholders and plurals, forms whose captions translate themselves, PO files, `App.Language` + `OnLanguageChange`, `LFORMAT$`/`LDATE$`/`LMONEY$`, Studio's Translations editor, RAI drafts; Chinese input and fonts checked
-  - [x] T1 (2026-10-21): `TR$` / `TRN$` (contexts, `{name}` placeholders, plurals by the catalog's `Plural-Forms`), PO files read by RapidR's own parser from `lang/` beside the program, `Application.Language` (the system's or the browser's by default; `es-AR` → `es` → the source text) and `Application.OnLanguageChange`; the interpreter, native builds and the web; conformance `i18n_*`, examples/translations, [the manual](docs/manual/translations.md)
-  - [x] Captions that follow a change of language (I18N-STUDIO, 2026-10-30): a caption, hint or accessible name that is a catalog's text whole translates itself when `Application.Language` changes; `Application.LanguageFolder`, `Application.Languages`, `Application.LanguageName`; `rapidr i18n` for programs' catalogs and the pseudo-language (T2's forms that translate themselves without `TR$` still to come)
-  - [x] T1b (2026-10-22): builds take every file a program needs — the files below its folder that its source names (`art/logo.svg`, in their folders) and its `lang/*.po` — in native, interpreted and web builds, `bundle-bc`, RapidR Studio's builds and `rapidr examples copy` (`rapidr_project::ship`, `program_files::carried_of`: one implementation); `..` and absolute paths never copied, with a warning; web pages get `lang/index.txt` and ask only for listed catalogs (no failed request for a missing language); tests/web_bundle_lang.mjs, examples suite `elsewhere`
-  - [x] Chinese survives end to end (2026-10-29, Robert's Solar System 3D: `??` everywhere in Chinese): a stream writes a string with a character above 255 whole as UTF-8 and counts characters (`WriteStr(S, LEN(S))`), `WriteText` / `ReadAllText`; the editor, text boxes and designer saves never write a `?` (UTF-8 instead); catalogs, lists, `LINE INPUT #`, CSVs read non-UTF-8 text as Windows-1252; `RCanvas.TextOut` draws CJK with the label's font (system fonts on the desktop, Noto on the web, from the program's first line); conformance `stream_unicode_text`, `i18n_encodings`, `tests/native_gui_unicode.mjs`, `examples/basics/unicode.rr`. Open: a Studio status bar that still says Latin-1 after a save made the file UTF-8 (ide/editor.inc); printing Chinese to a PDF (the printer's PDF has WinAnsi text only)
-  - [x] Pictures (2026-10-22, Robert's decision): started in another folder, a built program reads the pictures it came with (RImage, BMP, Icon, RImageList files, toolbar, DirectX image lists and textures) when the current folder has none — the data links' rule, one helper (`command_line::read_or_programs_own`); the current folder still first; tests/built_elsewhere.mjs (native + interpreted)
-  - [x] The other loaded files (2026-10-22): sounds (PLAYWAV, PLAYSOUND, RWave/RMIDI/RVideo Open, DirectX sound FileName), `.X` models, list/grid/tree LoadFromFile — the same helper; FILEEXISTS/OPEN/streams unchanged; tests/built_elsewhere.mjs `loads.rr`
-  - [ ] Catalogs built into executables and web bundles (today they sit beside them)
-
-**Why RapidR (kept current in the manual and the README)** — [x] done for Preview 2 (DOCS-P2, 2026-10-15: [docs/manual/why-rapidr.md](docs/manual/why-rapidr.md), the README's "Why RapidR" block and "Coming next"; every number there with its conditions, to be re-measured with `tools/bench/` when the engine or the VM changes): a page that says what RapidR does best, with measured numbers only (conditions stated, scripts in tools/bench): its own multicore data engine (1M rows in 23 ms; pandas 372 ms on the same Mac), the lean VM, 15 ms debugger steps, one source for Windows / macOS / Linux / web, accessibility, security, RapidQ programs running unchanged.
-
-## Phase 3B — Look: one RapidR look (first release), OS looks, native widgets (after; the user, 2026-10-06)
-
-Programs choose how they look with `$THEME`.
-- [ ] **`$THEME rapidr` — the default, in the first release** (the user, 2026-10-06): RapidR Studio's own look for every program (one set of theme tokens shared by Studio and programs), pixel-identical on every OS and on the web, in light, dark and high contrast (following the system's setting unless the program picks one; contrast checked: WCAG AA everywhere, AAA in high contrast). Default font Inter (fonts a program names keep their face); RapidQ's system colours (clBtnFace …) follow the theme, RGB a program sets is painted as written. Compatibility is layout and behaviour, not 1998's paint: component sizes, positions and client areas stay RapidQ's in every theme (a test compares them); text measures in the real font (size chosen by a clipping audit over `examples/` and the RapidQ corpus). Today's `modern` / `dark` / `highcontrast` grow into it; the old names stay as aliases. `$THEME classic` gives RapidQ's exact Windows look (RapidR Sans, readable at every scale); RapidR Studio's "Preview in classic" shows a program in it without editing the source. *Built (L-THEME, 2026-10-08; docs/theme-tokens.md): the tokens from the brand palette, Inter 11 px by the audit (corpus: 26 more of 539 captions clip at 11 px, 56 at 12, 78 at 13), shadows, focus rings, the web frame on the kernel's with classic's own 16 × 14 buttons, sizes in RC.EXE's metrics in every theme (`tests/theme_geometry.mjs`), WCAG tests, Preview in Classic. Contrast checked on what's drawn (DARK-FIX, 2026-10-15, Robert's dark-theme screenshots): `rapidr_ui_kernel::contrast` judges every text run of a window's display list against the fill under it — Studio's shell and flows (the debugger paused, both hosts) fail below AA in light, dark and high contrast; a QFONT's clWindowText is the theme's text; secondary text (placeholders, defaults) 4.5:1. Left: seen on the Windows and Ubuntu VMs.*
-- [ ] **`$THEME native`**: drawn themes that follow the OS the program runs on: Windows 11, macOS and Linux (GNOME / Adwaita style), light and dark following the system. On the web the page detects the visitor's OS and uses its theme. A program can also name one directly (`$THEME macos`, `windows11`, `linux`). Our own drawings only, never the OS's images (as Flutter and Qt do).
-- [ ] **Native widgets — now Phase 8 below** ([docs/native-ui-plan.md](docs/native-ui-plan.md), 2026-10-19: adds iOS/iPadOS, Android and an opt-in DOM web backend; Linux decided: drawn). Original note (the user, 2026-10-08: first a working IDE and a working RapidQ out there, then this). A separate, reusable MIT Rust library (working name **Tela**; check the name is free on crates.io) with one backend per OS, called straight from Rust: **AppKit** on macOS and **UIKit** on iOS / iPadOS through the `objc2` crates (MIT), the **Win32 common controls** on Windows (RapidQ's own controls, so its behaviour comes nearly free; modern styles, dark mode, Windows 11 materials; WinUI later if wanted) through `windows-rs` (MIT / Apache). A declarative layer isn't used: RapidQ's model is imperative (a control at x, y, properties, events), which AppKit and UIKit match and a declarative layer doesn't. The UI kernel stays the brain (properties, events, layout, accessibility tree, RapidQ-exact behaviour); the native library only creates the real controls and reports input, so programs don't change. Linux and the web keep the drawn look (GTK and Qt are LGPL / GPL). `$THEME native` selects it; it becomes the default per OS only once a run over the 386 RapidQ examples shows layouts don't clip or overlap (native controls have their own metrics); new Studio projects can use it at once. First step after the release: a macOS proof of concept (a form with a button, a label and an edit in real AppKit, driven by a RapidQ program) to measure the cost. Note: the App Store doesn't require native widgets; store readiness is signing, notarization, the App Sandbox, privacy manifests and MSIX packaging, tracked under release packaging.
-
-## Phase 3C — RapidR on microcontrollers (**in 1.0 scope**, Robert 2026-10-19; the user, 2026-10-08; sequence: [docs/master-plan.md](docs/master-plan.md) M3)
-
-1.0 adds (Robert, 2026-10-19): motors (`RServo`, `RMotor` through an H-bridge, `RStepper`), `RRelay` for AC/DC loads (mains only through certified relay modules; low-voltage examples and clear safety warnings), analog sensing (`RAnalogIn` with calibration and smoothing), sensors and screens; both a link mode (the computer drives the board over USB through RapidR firmware) and the on-board runtime.
-
-RapidR BASIC running ON an ESP32 (and later other boards), not only talking to one over QCOMPORT.
-- [ ] **A target for `rapidr build`**: the ESP32 family through Espressif's official Rust support (esp-rs: `esp-hal`, MIT / Apache-2.0); the RISC-V chips (ESP32-C3 / C6) on stable Rust, the Xtensa ones (ESP32, S3) through Espressif's toolchain. RapidR's native path (BASIC → Rust) makes it a new target, not a new compiler; `no_std` runtime subset for the board.
-- [ ] **RapidR objects for the board**: pins (digital, analog, PWM), timers, I²C / SPI / UART, Wi-Fi, Bluetooth LE, deep sleep, sensors; displays (TFT, OLED, e-paper) through `embedded-graphics` and display drivers (MIT / Apache), with an RForm-like drawing model for small screens. Names are RapidR's own (R prefix), docs in our own words.
-- [ ] **RapidR Studio**: an "ESP32" target, Run = build + flash (espflash, MIT / Apache) + serial monitor (QCOMPORT's IoT extras), board picker, examples.
-- [ ] **BBC micro:bit (v2, nRF52833) — schools first** (Robert, 2026-10-16: kids in Uruguay use micro:bit a lot):
-  - The nRF52 through the embedded Rust HALs (`nrf52833-hal` / `embassy-nrf`, MIT / Apache-2.0) and `microbit-v2` (MIT / Apache-2.0).
-  - Objects: the 5×5 LED display, buttons A/B and touch logo, accelerometer and compass, the microphone and speaker, radio between micro:bits, and the edge-connector pins.
-  - Flashing by copying the .hex to the board's USB drive, with no tools to install.
-  - Studio: a micro:bit simulator panel, so the program runs on screen before flashing.
-  - Lessons built on the guided-tutorial format.
-- [ ] **M5Stack (ESP32 with a screen)**: its display, buttons and IMU as RapidR objects, and a small RForm-like GUI for tiny screens (labels, buttons, lists drawn for 320×240).
-- [ ] **Spike first**: blink + a display "Hello" + Wi-Fi on an ESP32 Robert has, measuring binary size and build time.
-
-## Showcase gaps (found 2026-10-16 while choosing showcase examples; after Preview 2)
-In order of how many showcase ideas each unlocks:
-- [x] **SHOWCASE lane (2026-10-17): eight programs written from ideas alone in `examples/showcase/`** (fireworks, spin3d, monte_carlo_pi, same_numbers, notes, snake, signal_lab, midi_visualizer + make_song and its song.mid), each tested on run / interp / native / web, in Studio's Open an Example (the palette), with a section and a picture in [the manual's Showcase page](docs/manual/showcase.md). Gaps they found:
-  - [ ] **weather.rr waits for RHttp request headers.** MET Norway's terms ask every request to carry an identifying User-Agent (the app or its domain), and `RHttp` can't set a header (ureq's own is sent). Needs `RHttp.UserAgent` / `SetHeader`, the response headers' `Expires` (to cache as the service asks), and the real HTTP status and an error text on failure (today any failure, a 403 or 404 too, reads status 0 with an empty body). The service is open (CC BY 4.0 / NLOD 2.0, no key, `access-control-allow-origin: *`); on the web the browser identifies the page with its Origin and the request mustn't carry a custom header (no CORS preflight). Terms and the quotes: the SHOWCASE report.
-  - [ ] A way to ask whether the program runs in a browser (`Application.Platform`): notes.rr tests `Application.ExeName` for `.html`, and `RWebStorage` on the desktop prints `[WARN] … not implemented` on every call instead of staying quiet.
-  - [ ] The program can't swallow a key: `Key = 0` in OnKeyDown (even with `KeyPreview`) doesn't stop a focused button or box from reacting to Space as well, and there is no `ActiveControl`. The showcase windows that use Space have no focusable controls.
-  - [ ] The system's reduce-motion setting isn't visible to programs (the visualizer has a Calm switch of its own).
-  - [ ] Drawing on an `RDXScreen` or `RCanvas` costs 3.5 to 5 microseconds a call (measured): ~2,000 sparks a frame is about the most that holds 30 fps; a bulk way to draw points (an array of points in one call) would take fireworks to tens of thousands.
-  - [ ] `RNum` has no mask / gather (select the elements where another array is true), and an `RPlot` `Hline`'s label isn't in the legend.
-- [ ] **RScope: live oscilloscope and spectrum analyzer from the microphone or line-in** (Robert, 2026-10-16; the next release's engineer WOW).
-  - Live audio input with sample blocks to the program: an RWave OnData event, or an RAudioIn. On the desktop `cpal` (MIT/Apache), on the web getUserMedia + AudioWorklet.
-  - A native `RNum.FFT` with windowing.
-  - Microphone permission done properly: macOS NSMicrophoneUsageDescription for Studio and built apps, the browser's prompt, and a visible "listening" indicator. Audio never leaves the device.
-  - Preview 2 ships signal_lab.rr (synthetic signals, an FFT written in BASIC) as the teaser.
-- [ ] RMIDI note events (OnNote: channel, note, velocity, on/off, as the song plays), so visualizers don't need to read the .mid file themselves (Preview 2's midi_visualizer.rr does it in BASIC).
-- [x] RMIDI heard on a Mac (Unreleased, a user's report, 2026-10-29): a song was sent to the first MIDI output, on a Mac a bus to other programs (silence). `rapidr_value::objects::midiout` chooses: a synthesizer by name, else (Windows) the first output that isn't a loop or a bus, else RapidR's own synthesizer; `RAPIDR_MIDI_OUT` names one or `builtin`; `RAPIDR_TEST_MIDI=capture:<prefix>` records where a song went and renders the synthesizer to a WAV (`tests/midi_output.mjs`). Open: a property (`RMIDI.Output`) and a list of the outputs, so a program can choose without the environment; not heard by a person yet on the web (Web MIDI) — the rule is shared and compiles.
-- [x] RUpDown's OnChange fires, and `Associate` / `Increment` / `Wrap` (Unreleased, a user's report, 2026-10-29): an edit beside the arrows now follows them with no code (`examples/gui/updown.rr`). Open: `AlignTo` (put the arrows against the edit), `Orientation`, and reading Position back from the edit's typed text without clicking an arrow.
-- [ ] **Music-reactive visuals** (Robert, 2026-10-16; built on RScope's audio analysis):
-  - Play MP3 / OGG / FLAC / WAV. Use permissive decoders only: minimp3 (CC0 core), lewton (MIT/Apache), claxon (Apache), hound (Apache). Symphonia is MPL-2.0, so it needs Robert's OK first. The MP3 patents have expired.
-  - While a song plays, the program gets its live spectrum, levels and beats, e.g. OnBeat / Levels / Spectrum on the player. The web uses decodeAudioData + AnalyserNode.
-  - A showcase where an RDXScreen 3D scene pulses, spins and colours to the music.
-- [ ] RHttp request headers (User-Agent and others), the response status code and headers (Expires): needed for services that ask callers to identify themselves (MET Norway), which unblocks the weather showcase on the desktop.
-- [ ] RPlot heat map / image kind (correlation heat map, Mandelbrot, cell-life grid).
-- [ ] RDataFrame pivot table (sales pivot, survival by class).
-- [ ] RPlot bubble size on scatter (bubble charts over time).
-- [ ] RPlot treemap (disk-usage map).
-- [x] Live sound generated from memory (synthesizer, drum machine). *(RAUDIOOUT, 2026-10-29: **RAudioOut** — samples written as the program makes them (INTEGER / BYTE arrays, binary strings, RMemoryStream, floats, one at a time), a lock-free queue the sound device reads on its own thread, OnNeedData on the program's thread, Queued / Underruns, 2 ms fades around gaps and Stop, gliding Volume; desktop through rodio (interpreted and native), the web through Web Audio after a click; a clocked test sink that checks exact samples on every runtime. Examples tone_generator, beeper (a one-bit speaker played as an emulator plays it, 50 frames a second from an RTimer), chiptune, and the recipe frame_audio. [Manual](docs/manual/directx-and-media.md#sound-made-sample-by-sample-raudioout).)*
-  - [ ] An RAudioOut scope helper (the last N samples played, for an oscilloscope without keeping a copy), and a sound-chip helper component (square / noise voices with envelopes, the emulator's registers) — ideas from the lane, not started.
-  - [ ] The web on an AudioWorklet (the audio thread, not the page's) when the page is cross-origin isolated; today a script processor between the page's tasks.
-- [x] Whole pictures from data, fast: an emulator's video memory, a filter, a heat map, a simulation at 50 frames a second. *(FAST-PIXELS, 2026-10-30: `SetPixels` / `SetPixels8` (colours, or palette numbers through a palette) / `GetPixels` on `RBitmap`, `RCanvas` and an `RImage`'s picture, one call a block; `StretchDraw x, y, w, h, Bitmap` and `Smooth`; `Draw` / `CopyRect` / `StretchDraw` in whole rows, high-DPI included; a 256 × 192 picture put in and drawn twice as large in 0.09 ms on the VM and native, 0.13 ms on the web (the `Pset` loop: 78, 62, 83 ms); the array-argument cost fixed (a millisecond a call for 50,000 elements, in every component's method). Example pixels_fast (plasma, Life), the video_memory recipe's repaint 7.7 → 0.1 ms. [Manual](docs/manual/graphics.md#drawing-many-pixels-fast).)*
-  - [ ] An `RImage` / canvas shown stretched with nearest sampling (a `Smooth` for the display, not only for `StretchDraw`): the GPU scales a small bitmap, no copy, and a Retina screen shows pixel art crisp at any size (today an `RImage` with `Stretch` is smoothed when it is enlarged).
-  - [ ] A frame-paced timer (`OnFrame`, or an `RTimer` that keeps a fixed rate): an `RTimer` ticks in 15.6 ms steps and again 15.6 ms after its handler, so `Interval = 20` is about 32 a second and a frame's own work above about 4 ms costs frames — the recipes' "50 Hz" timers and `pixels_fast.rr`'s due-time loop are the way round it today.
-- [ ] k-means and a scatter-matrix grid.
-- [x] System information (CPU, memory, OS version). *(LOCAL-AI, 2026-10-30: `RSystemInfo` — OS, CPU, cores, memory total and free, GPU and its memory, disk, battery, `Class`, `Summary`, `Unknown`; desktop and web; [the manual](docs/manual/local-ai.md#rsysteminfo-what-this-computer-has), examples/system_info.rr.)*
-- [ ] Saving a canvas as PNG.
-
-## Phase 3D — Speech and guided lessons (after Preview 2; Robert, 2026-10-16; plan: [docs/speech-and-tutorial-plan.md](docs/speech-and-tutorial-plan.md))
-- [ ] **RSpeech**: text to speech for every program, on the system's voices (macOS, Windows, Linux, the browser). Voice list with language, rate/pitch/volume, an event per word, nothing GPL.
-- [ ] Optional neural voices (Kokoro, Apache-2.0) as a download: English, plus Mandarin marked basic. Spanish and Portuguese wait for our own non-GPL pronunciation rules.
-- [ ] **Guided lessons in Studio**, in a Markdown lesson format:
-  - each step is a caption, a target, a demo with a ghost cursor and a check;
-  - Read, Watch and Try modes;
-  - WCAG 2.2: never uninvited, always resumable, captions, keyboard and screen reader;
-  - every lesson replayed as a test.
-  - First 8 lessons from Welcome to Data in 10 minutes.
-- [ ] **Assistant UX: apply, show, undo** (Robert, 2026-10-18; plan: [docs/ai-ux-plan.md](docs/ai-ux-plan.md)): a new program opens straight in the IDE with a "Run it / Undo" banner; edits as tracked changes in the editor buffers (Keep/Undo, checkpoints; disk untouched until Keep/Save); truthful chat cards and a live progress checklist; focus, live regions and keyboard for everyone; "Review first" stays as an option.
-  - [x] Step 1: a new program created in the projects folder and opened at once (folder named from its title, a project file keeping the title), the banner (Run It focused, Undo of exactly the files Studio wrote — asked when changed —, What Did It Do?, Run Anyway / Ask It to Fix with errors), Review first as a setting (2026-10-18).
-  - [x] Step 2: chat cards written by Studio, a claim made before the change collapsed to one muted line, one status (the progress checklist while it works, announced), the recipe labelled "not from the user", 1–2 sentence replies (2026-10-18).
-  - [ ] Step 3: tracked changes in the editor buffers, the Keep/Undo bar, per-turn checkpoints.
-  - [x] Undo on the web: KILL told the page's file sink nothing, so the browser's saved copy (OPFS) of the removed files came back at the next visit; it now says `RAPIDR_FILE_REMOVED` and Studio's page forgets the file (`tests/web_file_store.mjs`, with a reload; 2026-10-19).
-  - [x] The chat's card links (Open, Undo, Review) by the keyboard: a markdown view's links are Tab stops inside it, with a ring, Enter / Space, Shift+Tab back from the box, named for a screen reader (flows `ai-card-keys*` on both hosts; 2026-10-19).
-  - [x] The banner's "What Did It Do?" scrolls to the turn's first card and focuses the chat; the banner and status say a program has errors after a new program opens and after changes are applied, by Run's own count (2026-10-19).
-  - [x] Recipe choice: titles and keywords above code, generic words and repeats ignored, none when nothing is clear (2026-10-19).
-  - [x] UNLOADLIBRARY (interpreter, native; a no-op elsewhere and on the web; a Windows VM check pending: 2026-10-19).
-  - [x] A list box scrolls to what the program picks (found writing a message-list example): `ItemIndex` shows the item, `TopIndex` makes it the first row, `TopIndex` reads the first row shown — plain, Columns and owner-drawn lists, desktop, native and web (case `list_scroll`; 2026-10-19).
-- [ ] **Small local models that build real apps** (Robert, 2026-10-18; plan: [docs/small-models-plan.md](docs/small-models-plan.md)): Studio is the brain, the model the hands. Recipes pushed by Studio (BM25, optional EmbeddingGemma), `layout`/`check_layout` tools, friendly hints for other-language habits, spec-first with one handler at a time, click-tested evals; post only with measured numbers.
-  - [x] A proposed new project stays editable before Create; the Preview follows (2026-10-18).
-  - [x] Friendly hints in check_code (`crates/rapidr-studio/src/friendly.rs`), the component's members beside an unknown property (2026-10-18).
-  - [x] Ten recipes (`examples/recipes/`, click-tested on every runtime), pushed by BM25 with a new-program request; `find_example` (2026-10-18).
-  - [x] Ten systems recipes (`examples/recipes/`: memory as a byte array, bits and flags, a tiny CPU, the stack, a hex dump, a disassembler, a binary file, video memory on a canvas, a keyboard matrix, cycles per frame; one tiny computer of our own between them; [the manual page](docs/manual/recipes-systems.md); click-tested on every runtime; found by BM25 in English, Spanish and Portuguese) — so even a tiny model can handle memory, addresses and CPUs (Robert, 2026-10-29).
-  - [x] The eval suite with click tests, and the measured BEFORE / AFTER table ([Results](docs/small-models-plan.md#results), 2026-10-18).
-  - [x] The `layout` tool and the layout check in check_code (cut off, overlapping, a caption too long; 2026-10-18).
-  - [ ] Handler skeletons (an event's exact DECLARE SUB and SUB … END SUB).
-  - [ ] Small-model mode: spec first (`json_schema`), one handler at a time.
-  - [ ] Optional embeddings (EmbeddingGemma or any `/v1/embeddings`).
-  - [ ] Measure again (MiMo 9B too), then the post.
-- [ ] **Learn with RAI** (Robert, 2026-10-18; plan: [docs/learn-with-rai-plan.md](docs/learn-with-rai-plan.md)): the assistant that teaches. A Build / Pair / Coach / Quiz-me dial; a *why* per change; friendly errors with a hint before the fix; just-in-time tips on a budget; the infinite-loop catcher; Predict, then Run; marks for your code vs the AI's code; Teach-the-AI mode; a skill map with spaced review that stays local (COPPA: no accounts, nothing collected).
-  - [x] The dial with Build and Coach, Coach's hint ladder, friendly errors in Coach (a hint before the fix), the teacher lock (2026-10-30, lane COACH-MODE; Preview 5)
-
-## Phase 4 — AI in the IDE (~6 weeks)
-
-Planned as the IDE's stage I8 ([docs/ide-plan.md](docs/ide-plan.md), [docs/ide-ai.md](docs/ide-ai.md)): one provider layer over plain HTTPS (Anthropic, OpenAI-compatible incl. DeepSeek / xAI / Ollama / LM Studio, Gemini), keys in the OS keychain, the IDE's own MCP server (`rapidr mcp` over a user-only local socket + token), the floating assistant with diffs before apply, permission tiers, data privacy levels. The items below are kept as the checklist; where they differ, the plan wins (e.g. no Tauri: the kernel host is the desktop shell).
-
-
-- [x] Provider adapters: Anthropic Messages + OpenAI-compatible (OpenAI, DeepSeek, OpenRouter, Ollama, custom). Verify DeepSeek CORS; optional proxy fallback *(AI-PROVIDERS, 2026-10-15: [docs/ai-architecture.md §10](docs/ai-architecture.md), [the manual](docs/manual/ai-assistant.md).)* (the proxy: not built)
-- [ ] Tool registry (MCP-shaped): `read_file`, `apply_edit`, `add_form`, `add_widget`, `set_property`, `compile`, `run`, `inspect_component`, `get_variables`, `click`, `screenshot_preview`, `lookup_docs`
-- [x] System prompt generated from the language registry + examples; `lookup_docs` for details; prompt caching *(AI-PROVIDERS, 2026-10-15: [docs/ai-architecture.md §10](docs/ai-architecture.md), [the manual](docs/manual/ai-assistant.md).)* (`rapidr_describe` is the lookup)
-- [ ] Agent loop: plan → edit → compile → fix → run → verify; checkpoints + undo
-- [ ] `rapidr mcp` (stdio) + Tauri MCP server for external agents
-- [ ] The IDE's own MCP server, desktop (local socket / stdio) and web (a bridge from the page), so Claude, OpenAI, DeepSeek or any MCP client can drive the IDE: create forms and components, set properties, write handlers, build, run, debug, read diagnostics, take screenshots — with the same permission tiers as the built-in assistant *(desktop over loopback HTTP built, STUDIO-MCP 2026-10-29 — see I8; the web: WebMCP later)*
-- [ ] "Fix with AI" quick-fix, inline completions, screenshot → form, "Explain this crash"
-- [ ] Security model: keys only in IDE origin (requires SEC-02), optional WebCrypto passphrase, never in `.rrproj`/bundles/logs; permission tiers (read auto / edit auto+checkpoint / run sandboxed, network off by default / external = ask); imported content treated as data
-
-## Phase 5 — `RAI` component (~5 weeks)
-
-Built on I8's provider layer and tool providers ([docs/ide-ai.md](docs/ide-ai.md) §8): the IDE's components (editor, designer, data sources) can be attached to `RAI` as tools in users' programs, with the same data access levels.
-
-
-```basic
-CREATE AI AS RAI
-    Provider = "anthropic" : Model = "claude-sonnet-5"
-    Endpoint = "https://myapp.com/ai-proxy"   ' or ApiKey for local/dev
-    AutoTools = True
-    OnToken = AIToken : OnResponse = AIDone : OnToolCall = AIApprove
-END CREATE
-
-'@tool "Adds an item to the inventory"
-SUB AddItem(Name AS STRING, Qty AS INTEGER)
-```
-
-*Built (AI-PROVIDERS, 2026-10-15): RAI itself, as [the manual](docs/manual/ai-assistant.md#rai-in-your-own-programs) has it — `BaseURL` where this sketch says `Endpoint`, keys only by reference (`APIKeySource`), the model picked from the provider's list (`RefreshModels`; no model is named in code), streaming events, `Cancel`, `Usage`, an audit log, tool providers attached with `AttachComponent` (Studio's project tools). The `'@tool` SUBs, `OnToolCall` and the running app's tools below are still to come.*
-
-- [ ] Compiler emits tool manifest (JSON schema) for `'@tool` SUBs/FUNCTIONs into bytecode metadata
-- [ ] Runtime validates tool args against schema before `invoke_function`
-- [ ] Component tools read-only by default; `OnToolCall` veto; per-turn call cap; `AI.Log` audit trail. *Built: the per-turn cap (25), the audit log (`Audit`, `AuditLog`), tool providers' permission (Studio's: propose / read-only). Left: `OnToolCall`, components exposed read-only.*
-- [x] Async: `fetch` + event dispatch on web; background thread + UI-thread events on native *(AI-PROVIDERS, 2026-10-15; a console program's `DOEVENTS` hears the answer too)*
-- [ ] AI-written code tools behind `AllowCodeTools = True`, run in `SandboxHost` (capability-filtering `Host` wrapper: no file/net/DB/FFI/RJavaScript unless granted; fuel + memory limits)
-- [ ] Compiler warning on literal keys (`sk-`, `sk-ant-`, …); `Endpoint` proxy mode; open-source reference proxy (small Rust binary); CSP auto-allows provider host. *Built: builds warn about a key written in a program (all four kinds of build, Studio's included); `BaseURL` reaches a proxy; a program using RAI gets `connect-src https:` and this machine's servers. Left: the warning in the editor as a diagnostic, the reference proxy.*
-- [ ] `RAIChat` drop-in chat widget
-- [ ] **AI that uses the running app.** The UI kernel's description of a form (the accessibility tree, principle 7) as JSON: each component's type, role, name, text / value, state, bounds and the actions it allows. RAI gets tools on it — read, set text, click, pick, invoke a method, wait for an event — so a model can operate the program the user built (fill a form, edit a document, research on the web and put the result in a grid). The developer decides what's exposed (new `AIVisible` / `AIActions` properties; read-only by default; anything destructive asks through `OnToolCall` or the user)
-- [ ] The same as an opt-in, local-only MCP server of a running program (token-authenticated), so external agents can operate RapidR apps too
-
-## Phase 6 — Security audit (continuous + formal pre-3.0)
-
-- [ ] Threat model (`docs/THREAT_MODEL.md`), trust boundaries: untrusted source/projects → compiler/IDE; app ↔ users/data (XSS, SQLi); AI output / prompt injection; native (FFI, `RUSTSTART`, file ops); supply chain; network services (MCP, proxy)
-- [ ] `cargo-fuzz` targets: lexer, preprocessor (include recursion, macro blow-up limits), parser, bcgen, `Module::from_bytes`, VM execution with fuel — goal: no panics/hangs
-- [ ] Full `unsafe` review + Miri (SEC-08)
-- [ ] IDE: strict CSP + Trusted Types; self-host fonts
-- [ ] `SECURITY.md` + private disclosure process; Dependabot; release checksums + SBOM
-- [ ] Community security review call before 3.0
-
-## Phase 7 — Mobile (after both IDEs are complete)
-
-- [ ] Step 1: the web runtime in a native shell (Tauri 2's mobile targets, MIT / Apache) for iOS and Android — the same behaviour as the web from day one
-- [ ] Touch: tap = click, long press = right click, drag / pinch / swipe events (additive), safe areas, the on-screen keyboard
-- [ ] Device components (additive): camera, location, sensors, notifications, share, biometrics, files
-- [ ] Responsive layouts (Phase 1B) as the way forms fit phones; a phone / tablet preview in both IDEs' designers
-- [ ] Building, signing and running on devices from the IDE (iOS needs macOS and Xcode; Android its SDK)
-- [ ] Step 2, if needed for speed: the UI kernel's own renderer natively on mobile
-
----
-
-## Preview 4 — Studio, solid: find anything, never lose anything, RAI runs and fixes its own work (the next release; Robert, 2026-10-20; plan: [docs/preview4-plan.md](docs/preview4-plan.md))
-
-**Scope narrowed (Robert, 2026-10-22 evening; the train rule, budget):** Preview 4 ships what is merged plus S3, S5, the POLISH-2 and DB-D lanes and X1–X4. R7–R9, Versions G3–G10, S4, S7, K2, K5, K6, E3–E5, EXT1–EXT6 and SEC-24 (the test hooks behind a signed test mode) move to **Preview 5: "Never lose anything. RAI fixes its own work."** ([docs/preview4-plan.md](docs/preview4-plan.md) §5)
-
-★ = must-have; the rest boards the release only if it is ready (the train rule).
-
-**Studio essentials**
-- [x] ★ S1 Forms in any file (from the code; several per file) — 2026-10-22: the Project pane takes the kinds from the code (an `.inc` too), a file of several forms shows each, each opens in the designer (`SelectName` / `FormNames`); the `.rrproj` follows on Save (`RProject.FollowCode`); a file RAI writes is added by its code
-- [x] ★ S2 File ▸ Open Recent; reopen the last project and its tabs — 2026-10-22: ten projects and files, Clear Recent, gone ones taken off with a note, the palette's "Open Recent"; the Welcome page's offer (focused, Enter), a setting to turn it off
-- [x] ★ S3 Search you can see (a tab, scopes, `file:line:col`); Find References, Go to Definition
-- [ ] S4 RRegex for programs (Rust `regex`, linear time)
-- [x] ★ S5 Problems that tell the truth (project-aware; a Targets setting)
-- [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line` — the PATH done 2026-10-22 (the login shell read once, 3 s, a fallback; Run, Build, Run in Browser; Settings shows it with Refresh); the `file:line` links still open
-- [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
-- [ ] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes
-- [x] ★ S10 A debugger that looks as good as it works (2026-10-22: lanes S10 phase 1 and 2 merged): value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
-- [x] ★ S11 Change values while paused: edit numbers, text, true/false, constants, array elements, record fields and writable component properties in Variables/Watch (F2, double-click), with value editors, validation and undo; the web Studio and DAP setVariable too (typed input checked by kind, constants as a menu, long text in its own window, Ctrl+Z, Immediate `x = 5`, DAP setExpression; the colour and font editors plug in from the code helpers lane: `ValueEditorFor` in ide/debug.inc)
-  - [x] Phase 1: the icons (design/icons `debug/`, the hit-count breakpoint, add watch, copy and edit value, the changed mark; review sheets `debugger-new`, `debugger-family`) and the UI kernel's `value_view` (a value and its kind in, a drawn, accessible row out; `debug.*` theme tokens, contrast-tested); no raster icon in Studio's UI
-  - [x] Phase 2: Variables, Watch, Breakpoints, Call Stack and the data tips draw their rows with `value_view` (TreeView.SetItemValue, the session's property hints), the gutter's breakpoint marks from the icon set (hit count apart from a condition; not bound a dashed ring), Add Watch's icon, a pane header's tooltip above the header; walked in every look
-- [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line`
-- [x] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row) — the dock lays out every pane it gives a new size (and fires its OnResize), desktop and web
-- [x] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes — plus View ▸ Debug Panes (Ctrl+Shift+D, pinned), Settings' Debug panes (Automatic / Always / Never), a Problems row's tooltip; splitters you see (line and grip, 3:1), grab (8 px), reset (double click) and move by keyboard (Window ▸ Resize Panes, Ctrl+F6)
-- [x] SPLIT-3 Each pane keeps its thin edge all the way down (the pane inside its group's frame, the documents' groups framed too; a pane's component draws no second border), and in dark the gaps between panes show at rest (the edge 1.7:1 on the gutter); splitter accessible values in whole percents, the same on desktop and web
-- [x] POLISH-2 The small Studio bugs other lanes found, each walked on the real screen (2026-10-22): Go to Line keeps its `:` and the status bar's line follows every program jump; undo back to the saved text clears the changed mark (the text compared with the saved one); the designer shows `RGB(…)` colours and an RImage's picture by file; Call Stack and Variables say *Running…* while the program runs on; ⌘C copies in Variables / Watch (RTreeView.OnCopy); a form's Enabled is on / off in the registry; the status bar's state takes the room it needs; Set Up RAI's Finish lists the models at once; wrapped labels measured as drawn (2×); CJK text measured as wide as drawn (tabs "查询 1"); the gallery's AI mock on a free port when 18695 is taken; the `.rr` error cases in the diagnostics tests
-- [x] COPY-ANYWHERE Copy from Output, Build and Problems (2026-10-29, Robert: "There is no way to copy an error, or a message"): text selection in ROutputConsole (drag across lines with scrolling at the edges, double / triple click, Shift + click, Ctrl+A), Ctrl+C / ⌘C / Ctrl+Insert as plain text (no ANSI, a wrapped line whole), Problems rows (several with Shift) as `file:line:col: severity: message`; the pane's menu Copy / Copy Line / Copy All (Copy All Problems) / Select All / Wrap / Clear; Edit ▸ Copy / Select All on the focused pane; AccessKit text selection; members SelText, HasSelection, ClickedLine, SelectAll, CopySelection, CopyAll, CopyLine (desktop and web); Call Stack / Breakpoints Copy; Ctrl+C on a message box (Windows' text); test hook `__rightclick_x_y`; flows `copy-*`, example `studio/log_copy.rr`
-- [ ] S9b Problems: wrap a long row on demand (the tooltip shows it whole today)
-- [ ] S7 Responsive and beautiful pass, measured on a 4,500-line project
-
-**RAI**
-- [x] ★ R1 Chats kept, with a chat list (stored outside the project) (2026-10-22: per project in Studio's data folder — `chats/` beside the settings, the page's storage on the web —, keys and tokens redacted (`rapidr_ai::chats`, unit-tested); opening a project shows its newest chat; Chats: open, rename, delete with Undo, search titles and text; New Chat keeps the old one; the chat that made a new program goes with it; RAI.ChatState; flows ai-r1-*)
-- [x] R2 Edit a sent message; Retry (2026-10-22: Edit beside each question, a bar saying what Send will do, what followed moved to a saved copy "… (before the edit)"; Retry beside the last answer; RAI.Rewind/QuestionText; flows ai-r2-*)
-- [x] ★ R3 Messages queue while RAI works (2026-10-22: Send/Enter while it works shows *Queued: …* above the box, × takes it back, sent when the answer ends; Stop gives it back to the box; flows ai-r3-*, walked on the real screen with the mock and live with Haiku)
-- [x] ★ R4 A live status line (2026-10-22: what it does now from the stream — Thinking, Reading sites.rr, Searching the manual, Writing server.rr, Checking the code — the steps done after it, the seconds beside Stop, "No answer from the model for 30 s: wait, or Stop", "Waiting for you"; RAI.Activity/Elapsed/Quiet; flows ai-r4-*; "Running your program" comes with R7)
-- [x] R5 Context meter, Compact, `/` commands, reasoning effort (2026-10-22: the meter against where it compacts by itself, Compact and /compact; /new /chats /model /effort /undo /help listed as typed; Effort Low/Medium/High — Anthropic adaptive thinking (a budget on older models, stepping down on a refusal), OpenAI-compatible reasoning_effort, off for DeepSeek —; "Thought for N s", a link that opens it; flows ai-r5-*)
-- [x] ★ R6 One model picker with ↻; the Set up RAI wizard (2026-10-22: the provider row gone from the pane (Settings'), ↻ beside the model; Set Up RAI — free on this computer (finds Ollama, LM Studio, MLX Serve; never starts one) or a cloud key (a key found can be used; Test; a model) with cost and privacy in plain words; Tools, Ctrl+I before set-up, Settings > AI; flows ai-r6-*)
-- [ ] ★ R7 RAI runs and debugs (run, output, clicks, screenshots, debugger)
-  - [x] The running program's eyes and hands for RAI (APP-EYES-HANDS, 2026-10-29): app_layout, app_wait, app_click / app_type / app_key / app_drag / app_scroll, offered while the user's program runs (none when RAI reads only); RAI asks once per run (its chat's card: Allow for this run / Don't allow — the legal review's R2); a tool call that comes later (`ToolOutcome::later`, `waits_for_user`): the turn waits without blocking Studio; RWindowCapture and RAppHands for programs (names from the legal review, docs/legal/review-2026-10-29-app-eyes.md) (examples/gui/snapshot.rr, guided_tour.rr). Left: RAI runs the program itself (with R8's Allow once), pictures for models that see (image tool results), recording (WebM / WebP / GIF, a lawyer's look first)
-- [ ] ★ R8 Permissions (Allow once / for this chat / Not now)
-- [ ] ★ R9 Safe test runs and the red card for risky code
-- [x] ★ R10 Always the user's language (2026-10-22: RAI.ReplyLanguage "auto" in Studio — every request ends by naming the language of the latest message, the summary is written in it and says it; `UserLanguage`; flow ai-r10-language, walked with the mock and live in Spanish)
-- [x] ★ R11 Transcript fixes (apply/reject log, targeted edits, truncated writes, pending set) (2026-10-22: each decision said once — stale/failed/replaced/set aside said as such; a patch adding a SUB at a file's end applied nothing while saying "applied" — fixed; whole-file rewrites of 40+ lines refused for hunks; cut-off and syntax-error changes refused in every file; waiting changes kept across questions and checked together; one retry for DNS/connection failures; flows ai-r11-*)
-
-**Knowledge**
-- [x] ★ K1 The language card, generated (2026-10-22: `rapidr_lang::card`, ~1,300 tokens in every RAI chat, from `[[rule]]` entries whose programs `rapidr lang truth` compiles and runs, the registry's syntax, types, event parameters and names; tests: under 2,000 tokens, only the registry's names; `rapidr lang export --card`)
-- [ ] K2 A tested example for every method
-- [x] ★ K3 `search_manual`, `project_outline` (2026-10-22: the program as the compiler reads it — include order, forms, SUBs/FUNCTIONs with parameters, globals with types, lines; BM25 over the manual's guide pages; a mock-provider test checks every request offers both)
-- [x] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension) (2026-10-22: docs/rai-mistake-ledger.md, 12 entries; `FOR i AS INTEGER` in both compilers and the web — rapidr_ast::for_as, conformance for_as; a name declared again says where the first one is, in which file; an unknown SUB names the nearest; K4b: the `NOT FILEEXISTS` warning and its quick fix)
-- [ ] K5 Project notes for RAI
-- [ ] K8 Follow-ups from the KNOW lane — [x] the lite card and tool set for windows under 16K tokens (2026-10-22: short instructions, the card, eight tools: about 2,500 tokens instead of 7,800 at 3 characters a token — a live Claude Haiku first question with the full set counted 10,966 input tokens, project facts included —; an 8,192-token model starts and answers; RAI.Lite; flow ai-k8-lite); the web's preprocessed line numbers, `REDIM` without `AS`, the eval's click test and K6's run still open
-- [ ] K6 Evals and the "Which model?" report
-- [x] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`) *(K7, 2026-10-22: `rapidr lang truth` — syntax lines and examples compile, the new `expect` facet is run, in `regress.sh unit`; it found and fixed `Iloc`, `Select`, `GroupBy`, `Nlargest`, `Nsmallest`, `FromList`, `QUICKSORT` and more; docs/ai-architecture.md §2.)*
-
-**Helpers** ([docs/code-helpers-plan.md](docs/code-helpers-plan.md))
-- [x] ★ E0 The framework: `kind` in the registry, sites from the language service, marks, chips, line notes, popovers, Ctrl+., accessibility (2026-10-22: `rapidr_editor::service::HelperSite` from `rapidr-langsvc` — span, kind, value, write-back form; the model's `codehelp` — levels Off/Quiet/Helpful/Everything, a switch per helper, the line typed on keeping its decorations; marks and chips as blank columns of the row: no shift before them, the caret beside the text, word wrap counts them; the popover host `crate::value_edit`, Ctrl+. on a value, Ctrl+K H reads the line, Ctrl held shows every name; flows helpers-*)
-- [x] ★ E1 Value editors shared with Properties: colour, files and pictures, fonts, choices, links (2026-10-22: one colour editor — wheel and square, R/G/B/Hex, the name, old and new, the project's, standard and system colours —, a list for choices (ticks for flags), True/False, links and handlers (Create handler), the project's files with a preview, fonts with a sample; written back as one undo step in the code's form; the Properties panel's colours and fonts open the same editors, its old swatch grid gone)
-- [x] ★ E2 Argument names, the line note, values while running (2026-10-22: chips before a call's literal arguments, all while Ctrl is held; the caret line's note from the registry's doc; the paused routine's values at the lines' ends — RCodeEditor.ShowLineValues from Studio's pause, drawn by `value_view`)
-- [ ] E3 Sounds, numbers, shortcuts, positions, patterns, formats
-- [ ] E4 Live tweak while running
-- [ ] E5 `RValueEditor`: helpers written in RapidR
-- [x] ★ E6 `kind` across the registry (2026-10-22: properties by their type unless they say, method/builtin `arg_kinds`, builtins' `kind`, constant groups' `kind`/`set`/`flags`; tests/kinds.rs: every colour, file and font value has one)
-
-**The VS Code extension, current with Preview 4**
-- [x] ★ EXT1 Grammar and snippets for the new language (2026-10-29, lane VSCODE: the grammar's word lists generated from the registry by `scripts/grammar.js` — 108 names behind — and a test that fails on drift; every snippet checked against the language server)
-- [x] ★ EXT2 The language service's new features through the language server (2026-10-29: references and code actions were there; inlay hints, document colours and the picker, document highlights, and RapidR's Help pages `rapidr/helpPage` / `rapidr/helpSuggest`, shown beside the editor; the list of types after `AS `)
-- [ ] ★ EXT3 Debugging: set values, value kinds, exit codes (2026-10-29: conditional breakpoints, hit counts and logpoints advertised and tested end to end, stepping and launch arguments tested; open: `stopOnEntry` reports a line past the end of a `.bas` file, the debug console's completion, exception info)
-- [ ] ★ EXT4 Commands (translations, Open in RapidR Studio, examples, builds) (2026-10-29: Run / Debug / Build Project and Open the Project's Main File for `.rrproj`, Help; open: translations, Open in Studio, examples)
-- [ ] ★ EXT5 Notices, the trademark line, the sponsor link, a lawyer-agent review before publishing
-- [ ] ★ EXT6 The real walk in VS Code; publishing on Robert's go
-
-**Hotfix 2.121.1 (2026-10-24; what Robert found using 2.121.0)**
-- [x] The F1 Help pane is a page: a search box (suggestions, Enter / arrows / click), one scrolling Markdown page (what it is, the syntax with Insert, members as links under Properties / Methods / Events), the program's own names (declaration, a jump link, Find References, the type's help), a start page and "No entry for X" with the closest names; the Help body as Markdown (RMarkdownView) is the item the Markdown work left
-- [x] The Search tab's result rows have room (24 px, the chrome's font); every pane tab has its icon (Assistant, Help); `Font.Color` (any dotted path in a CREATE body) has its swatch and editor; Help > About reads the build's version (`RLanguageService.Version`); `REdit.Placeholder`
-
-**Security and legal**
-- [x] ★ X1 Threat model update (2026-10-23: docs/security/threat-model.md)
-- [x] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan (2026-10-22, lane X2: all four `cargo deny` checks and `cargo audit` pass, `zip` 9.0.5; fuzz tests for the lexer and parser, `.rrproj`, Find's patterns, `tools/check_secrets.py`; fuzzing Git objects comes with Versions G3, Preview 5)
-- [x] ★ X3 The audit (Fable with Robert's OK, or Opus), with a public report (2026-10-23: Fable; no Critical or High; docs/security/audit-preview4.md; fixes merged, SEC-24 accepted for Preview 4)
-  - [x] The fix pass (2026-10-23, lane SEC-FIX): SEC-21 (programs' RAI keys under their own keychain service, never Studio's), SEC-22 (RSecrets by the program's path or bundle id), SEC-23 (no link out of the project for RAI's tools), SEC-25/SEC-30 (registry and manual), SEC-26 (no `ai:`/`rai:` links in a model's text), SEC-27 (no redirects with the key), SEC-28 (chats and the audit log 0600/0700), SEC-29 (setVariable only while stopped); each with a test in tests/security/. SEC-24 accepted for Preview 4 (docs/security/audit-preview4.md)
-  - [x] (Preview 5) SEC-24: the GUI test hooks behind a signed test mode (no environment variable turns them on in a released runtime or Studio) (2026-10-30, lane SEC-24: crates/rapidr-testmode, the hooks act in development builds or with an Ed25519-signed token, RAPIDR_TEST_MODE; placeholder key until Robert runs `rapidr dev test-mode new-key` / `issue`; docs/security/test-mode.md; tests/security/test_mode_tokens.rs, test_mode_release.mjs)
-- [x] ★ X4 The six legal traps (2026-10-23: docs/legal/six-traps-preview4.md; gaps closed)
-
-### Versions — Git in RapidR Studio, reinvented (part of Preview 4; Robert, 2026-10-19; plan: [docs/versions-plan.md](docs/versions-plan.md))
-
-- [x] G0 Survey + spike: gitoxide's capabilities today, `cargo deny` with gix (no copyleft, no MPL), Studio's size impact, wasm check. Done 2026-10-22 ([docs/versions-g0.md](docs/versions-g0.md), `crates/rapidr-vcs`, 6 tests; the repositories they write are checked by the system's git):
-  - gix 0.89 does everything local; the licences pass (MPL uluru avoided);
-  - +5.1 MiB stripped for Studio, +3.3 MiB more with reqwest for the network;
-  - `gix` doesn't build for wasm, but its plumbing does;
-  - **no push in gitoxide**: building our own send-pack in G6 is Robert's decision.
-- [x] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests. Done 2026-10-22 (lane VERSIONS-1):
-  - save (all or some files), timeline, what changed, go back (a new version), restore a file, experiments rewriting only what differs, get latest from / share with a shared folder in-process;
-  - safety points `refs/rapidr/safety/<n>` before every risky action, the history `.git/rapidr/history.jsonl` with Undo (refuses when it would overwrite newer work), RAI checkpoints `refs/rapidr/checkpoints/<n>`;
-  - the secret check before a save (our own patterns, the line masked); another account's project refused with the reason, opened read-only on request; errors in plain words;
-  - 17 tests, every repository `git fsck --strict`-checked; 1,000 versions: timeline 49 ms, status 0.6 ms (release).
-  - Left for later lanes: Undo this version (revert) and cherry-pick (G7), the action history's pruning, packs instead of loose objects when sharing many.
-- [x] G2 The diff model and its kernel views (the docking into Studio is G3). Done 2026-10-22 (lane VERSIONS-1):
-  - `rapidr-diff`: RapidR's own Myers (from the paper), hunks, word marks, CSV tables, forms in words; a 4,500-line file in 0.25–16 ms;
-  - RDiffView `Kind` = text (word marks) / form (the form before and after as the designer draws it, changed components outlined, changes listed) / table (rows, cells, columns); `ChangeCount`, `Summary`, `HasHeader`; headless captures in light, dark, high contrast (rapidr-designer/tests/diff_capture.rs);
-  - the old GNU-diff-shaped Myers module in rapidr-value replaced.
-  - Left: the docked Diff tab (G3), side-by-side image diffs and onion skin, folding unchanged table rows, F7 through form and table changes.
-- [x] G3 The Versions panel, Timeline, Save a version, gutter marks, Project badges, status bar. Done 2026-10-29 (lane VERSIONS-G3; the manual's [Versions](docs/manual/versions.md)):
-  - the Versions pane (View > Versions, File > Versions, the palette; a tab beside Project, shown for a versioned project): Start Versioning (refused for a drive, the home folder and its Desktop/Documents/Downloads, a folder inside another repository), the changes not saved as a version (M/N/D), Save a Version... (Ctrl+Shift+V; the secret scan said in the dialog, saved only once "save anyway" is ticked), the Timeline (RAI's checkpoints lighter), What Changed? (a docked read-only diff tab), Go Back (project or one file: a new version, asked first), Undo;
-  - the editor's gutter marks against the last version (RCodeEditor.ChangeBase), a click shows the old lines with Undo This Change; the Project pane's badges (RProjectTree.FileBadge); the status bar's experiment and "N changes not saved as a version";
-  - **the local history**: every save keeps a copy (and the disk's text before Studio first wrote it) in `.rapidr/history`, versioned or not, desktop and web; Local History of This File compares and restores; `RRepository.Snapshot(…, "before-reload")` for the external-changes lane;
-  - the component **RRepository** (desktop: rapidr-vcs; web: local history only, `Available` False, said in the pane); rapidr-vcs gains `go_back_file`, `changes_in`, `write_ignore_file`, `.rapidr/` never versioned;
-  - tests: rapidr-vcs 18 (`git fsck --strict`), rapidr-studio's RRepository walk and local history, `tests/studio_flows.mjs` versions-* (desktop in light/dark/high contrast with contrast and a11y checks; web: the pane's note and the local history).
-  - [x] **Polished** (lane VERSIONS-POLISH, 2026-10-30, after Robert's walk on a real project): a tab beside Project and Search in every layout (an old layout's too; closed on purpose stays closed), a calm empty state, the design guide's header with chips, the changes grouped by folder (closed folders, a filter past 20, New / Changed / Deleted chips, names first), a timeline of dots on a line (the current version ringed), buttons that wrap, nothing cut off at 260 or 400 pixels (the layout report); the system's own files never listed; and at the root, for every owner-drawn list: no plain-text flash while a splitter is dragged (`tests/studio_flows.mjs` versions-splitter-stable), icon-only dock tabs when names don't fit, a list's rows the full width.
-  - Left for later lanes: a Settings > Versions page (name, email; Simple/Pro), the timeline's search and paging past 200, the form view in What Changed? for form files, the code's colours in the diff (the word marks' tints don't read at 4.5:1 with every token yet: plain ink for now), web versions on gitoxide's plumbing with a browser object store (versions-g0 §5), the action history's pruning.
-- [x] Files changed outside Studio (Preview 5, "never lose anything"; Robert 2026-10-29). Done 2026-10-30 (lane EXTERNAL-CHANGES; the manual's [When files change outside Studio](docs/manual/studio-projects.md#when-files-change-outside-studio)):
-  - the detector (`rapidr-studio/src/external.rs`, no new dependency): each open file and the `.rrproj` remembered by time, size and a hash (a racy stamp hashed, a touch no change); looked at when Studio is in front again (`Application.Active`, new) and every 2 s while it is; RPROJECT `Watch`, `Unwatch`, `UnwatchAll`, `ExternalChanges()`, `ChangedOnDisk`, `MissingOnDisk`; Studio's own writes (Save, Save As, RAI's Apply then Save, an AI app's changes, Build's project file, Versions' Go Back and Undo, rename) watched after they're written;
-  - nothing unsaved: loaded again as one undo step (the editor's text kept first: RRepository `KeepCopy`, "before reload"), the status bar and a screen reader say so; unsaved changes: the question strip above the editor and the designer (RDOCKMANAGER `DocumentBar`, new) — Compare (the disk's version beside yours, a docked tab), Use Disk Version, Keep Mine; Save, Save All, Run's and Build's saves ask before overwriting newer content (Cancel the default; the disk's version kept first); a file deleted outside keeps its tab, marked, its text kept (and copied); many at once: one note with Show; the `.rrproj` followed quietly; File > Reopen Project; File > Changed Outside Studio for the keyboard;
-  - the web: no disk to watch (files change only through Studio) — the checks find nothing;
-  - tests: rapidr-studio's detector (9: time/size/hash, racy stamps, own writes, deleted and back, twelve at once), the dock's bar, `tests/studio_flows.mjs` ext-* (another process changing the files between Studio's steps: `tests/ext_writer.mjs`; light, dark, high contrast, Spanish, contrast and screen-reader names), the web's no-op, `examples/studio/watch_file.rr`.
-  - Left: a file-system watcher (a crate, after the lawyer's review) for instant notices; a three-way merge for both sides' changes (G4's Merge tab).
-- [x] RapidR's own crash and hang reports (Preview 5, "never lose anything"; on 2026-10-29/30 a Studio freeze and a program's stack overflow had to be dug out of macOS's unsymbolicated, root-owned .ips/.hang files). Done 2026-10-30 (lane CRASH-REPORTS; the manual's [When RapidR crashes](docs/manual/troubleshooting.md#when-rapidr-crashes)):
-  - `crates/rapidr-crash` (a leaf crate, no new dependency): the panic hook (after std's, which still prints) and, on Unix, the fatal signals (SIGSEGV/SIGBUS — a stack overflow told by the main thread's guard page —, SIGILL, SIGFPE, SIGABRT) with a smaller report written by system calls only into a buffer set aside (no allocation, no lock), then on to std's handler; one report a crash (the abort after it writes none); reports on this computer only (no telemetry): `~/Library/Application Support/RapidR/crashes`, `%APPDATA%\RapidR\crashes`, `~/.local/share/rapidr/crashes` (`RAPIDR_CRASH_DIR`, else `RAPIDR_STUDIO_DATA`/`RAPIDR_REGISTRY`'s folder in tests), 0600, older than 30 days or past the newest 20 pruned;
-  - a report: what happened, the message, RapidR's version and git commit (build.rs; "unknown" outside a checkout), the system, where the RapidR program was — file, line, SUB/FUNCTION, the event and its component (the VM notes each call into the runtime, one relaxed store; the event stack; the program's map kept for a signal handler to read) —, what Studio was doing (its last command), the Rust backtrace with names (release builds keep them: checked), the last 12 AI and MCP calls by name, RapidR's last 50 log lines; scrubbed: the home folder as `~` (its resolved spelling too), keys and tokens by shape (RAI's chat redaction's and `tools/check_secrets.py`'s), `password=`, a URL's password, private-key blocks, JSON Web Tokens, the program's noted secrets (`rapidr_value::secrets::try_mask`);
-  - Studio: the strip under the tool bar after a Studio that ended unexpectedly — View Report (a tab), Copy Report, Save Report..., Report on GitHub... (the consent first: what opens, what it shows, a GitHub account and 13+, public; then the browser on a prefilled new-issue page, the whole report when the address is short enough, else copied to paste; nothing sent by RapidR), Dismiss; hidden with School Lock (`CrashSchoolLock`, the School Lock lane's hook); a program RapidR stopped: "Your program stopped: …, at main.rr line 24, in SUB Tick (OnTimer of Ticker)." with links to the line and the report; RPROJECT's Crash… methods (CrashPending, CrashText, CrashField, CrashSeen, CrashSave, CrashIssueURL, CrashForProgram, CrashNote, CrashCall, CrashDoing, CrashWatch, CrashList, CrashFolder, CrashTest);
-  - the hang watchdog: the UI hosts say when the window's thread waits for the system (winit's about_to_wait, the headless pump, a native menu's tracking); busy for 5 s: a hang report at once (the last command, the code and event, the threads by name) and a question in a window of its own — a separate RapidR process (`rapidr __dialog`), so it draws while Studio's can't, in Studio's language and look: Wait / Save Copies and Quit; Studio answering again closes it and the report says how long;
-  - tests: rapidr-crash (13: scrubber with fake keys and paths, the report's format and fields, names, pruning, pending, the issue address), rapidr-studio's crash (Where's parts, save, seen), `crates/rapidr-cli/tests/crash_reports.rs` (`rapidr run` of a panicking program: the report, the RapidR line, names, `~`; a real stack overflow: one report), `tests/studio_flows.mjs` crash-* (the strip in light/dark/high contrast and Spanish with contrast and screen-reader names, Copy, Save, Report on GitHub's address and question, Dismiss, School Lock, a hang within 6 s, a program's crash in English and Spanish); the test hook `RAPIDR_TEST_CRASH=panic|overflow|abort@[file:]line` (SEC-24's list); `examples/studio/crash_reports.rr`.
-  - Left: the web (a panic's report into the page's store, the strip there); Windows' stack overflow (std's handler ends it with no report: a vectored handler of our own); a backtrace of the stuck thread in a hang report; opt-in reports for users' own built apps (Application.CrashReports, later); the lawyer's look at the privacy texts (`# legal` in es.po) before the release.
-- [x] Local AI made easy (Preview 5; Robert 2026-10-29: "just test what they've downloaded and recommend what's the best match for the resources they have"; [docs/local-ai-plan.md](docs/local-ai-plan.md)). Done 2026-10-30 (lane LOCAL-AI; the manual's [AI on this computer](docs/manual/local-ai.md)):
-  - `RSystemInfo` (rapidr-value/src/sysinfo.rs; desktop from the system's tables, the web from what the browser tells); Set Up RAI › On this computer: the models of local AI apps on 127.0.0.1 (usual ports + a typed loopback address; anything else refused before it is sent), each as its app reports it; the fit check (weights + KV cache + overhead vs memory free: Fits / Fits if you close other apps / Too big / Size not known / Runs elsewhere; context 16K/8K/4K); Check My Models (speed, a tool call, the Hello task through RAI's real loop; one at a time on a thread, Stop Checking; kept per digest + Studio version + prompts); the best match in words; licences as reported with the note for apps to sell; RAI's small-model mode and context from the check (`RAI.SmallModel`, `RAI.ContextSize`), the recipe fallback after three errors; the web: the typed address; School Lock locks it; Spanish; RPROJECT `LocalAI…` (rapidr-studio/src/local_ai.rs).
-  - The legal review (docs/legal/local-ai-review.md, MERGE AFTER FIXES) fixed; open for Robert: MIT-0 for examples/recipes (item 11), product names left in older text (provider presets, ai-assistant.md's Settings and web sections).
-  - Left: a built-in runner and a model manager with licence acceptance (Preview 6, after the lawyer); checking one model at a time from its row; the browser's WebGPU runner; RAI's chat cards in Spanish (Rust-side texts).
-- [x] School Lock (Preview 5; Robert: "the professor locks/unlocks features — AI off unless a password is typed; not by default; for now just AI"). Done 2026-10-30 (lane SCHOOL-LOCK; the manual's [For teachers](docs/manual/for-teachers.md)):
-  - Tools > School Lock…: what to lock (AI in Studio (RAI), AI apps (MCP)), a password typed twice (6 characters at least, a strength hint); off by default. While it locks: RAI's pane shows *AI is turned off by your teacher* with Unlock…, nothing is sent; Set Up RAI, Settings > AI and AI Apps read-only with the same note; the MCP server can't start (and stops); the AI commands disabled with the reason (menu hints, palette titles); a *School Lock* chip in the status bar; said to a screen reader
-  - Unlock…: Unlock Until Studio Closes, Turn School Lock Off (the password too), Lock Again; 5 wrong passwords in a row: a one-minute wait, counted down, kept across restarts
-  - the password never kept: PBKDF2-HMAC-SHA256, 600,000 rounds, 16-byte salt, written on sha2's compression function (no new crate); the per-user setting in Studio's settings; `rapidr-studio/src/school_lock.rs`, RPROJECT's `SchoolLock…` members
-  - the computer's policy for IT (`/Library/Application Support/RapidR/policy.toml`, `%ProgramData%\RapidR\policy.toml`, `/etc/rapidr/policy.toml`): wins over the user's setting, only unlocked until Studio closes, fails closed when it can't be read; `rapidr school-lock hash` / `check`; `RAPIDR_SCHOOL_POLICY` (tests) can only add a lock
-  - the web: the lock in the page's storage (a reminder, said so in the manual); Spanish for every text; tests: 10 unit tests (hash vectors, the wait, the policy's precedence, failing closed), `tests/studio_flows.mjs` school-lock-* (keyboard, light/dark/high contrast with contrast and a11y checks, Spanish, restarts, the policy), `tests/studio_mcp.mjs` locked
-  - while it is on, RapidR's crash reports show no strip and no Report on GitHub (CRASH-REPORTS' `CrashSchoolLock`, called at the start and on every change; `school-lock-crash*` flows)
-  - Left: more features to lock (the design takes them: a feature name in `locked`); the lawyer's look at the teachers' and students' texts before the release
-- [x] Coach mode (Preview 5, "Pair with AI": Robert 2026-10-29, "Coach mode only"; the rest of the dial in Preview 6). Done 2026-10-30 (lane COACH-MODE; the manual's [Coach mode](docs/manual/ai-assistant.md#coach-mode) and [For teachers](docs/manual/for-teachers.md#keep-rai-in-coach-mode)):
-  - the dial in RAI's pane (Build / Coach, room for Pair and Quiz me), kept per user, keyboard and screen reader; the hint ladder kept in Studio (`rapidr-studio/src/coach.rs`: nudge → idea → shape → the code as text, only when asked a fourth time), the rung said to the model with every request (short in the small-model mode); the strip: *Hint 2 of 4*, Next Hint / Show the Code, I Got It; Help With This Error for a compiler or run-time error
-  - enforced in code: the change tools never offered in Coach and refused if called; Copy, never Insert; a first hint with code written again once, the code never shown; School Lock's *Keep RAI in Coach mode* and the policy's `coach_only = true` (failing closed); Spanish; legal review applied ([docs/legal/review-2026-10-30-coach-mode.md](docs/legal/review-2026-10-30-coach-mode.md))
-  - used with a real small local model (qwen3.5 2B, the small-model mode) on three problems: never a proposal or a changed file; the ladder followed loosely (a first hint with the whole answer — now asked again —, one empty fourth hint, its RapidR often wrong); tests: unit + `tests/studio_flows.mjs` coach-* (desktop and web)
-  - Left: Pair and Quiz me (Preview 6); RAI's chat cards and the redo's muted line in Spanish (Rust-side texts, as LOCAL-AI's); a small model's empty reply retried
-- [x] The inspector groups by purpose (Preview 5; Robert 2026-10-30: the "RapidR extensions" category "makes no sense… like we are copying something that comes from somewhere else"). Done 2026-10-30 (lane INSPECTOR-CATEGORIES; the manual's [The inspector](docs/manual/designing-forms.md#the-inspector)):
-  - every property under the heading of what it is for (`rapidr_lang::PROPERTY_CATEGORIES`: Accessibility, Appearance, Behavior, Data, Drawing, Font, Help, Layout, Media, Network, Window), the same for every component; the registry data fixed (94 properties had none, `Tag` & co. were in "Misc"); `crates/rapidr-lang/tests/categories.rs` fails on one without a category, in "Misc", or in a heading named after an origin
-  - the origin stays in the registry; only in a project kept classic-compatible a small soft "new" chip (tooltip and screen-reader description "Not in classic programs"; no "R"); `RPropertyInspector.MarkNonClassic` (alias `ShowRapidRExtensions`), Studio sets it from the project; AI prompts `[new]`, the manual's reference marks *(new)*; no "RapidR extensions" wording left
-  - names cut short: tooltip with the whole name (and value); the names' column 148 wide in a Properties pane 272 wide (narrower panes give the names 58 %); the divider's place kept between sessions
-  - Spanish (Accesibilidad …, nuevo, No está en los programas clásicos); tests: studio_flows `inspector-categories` / `-classic-marks` / `-classic-marks-es` / `-divider-remembered` (light, dark, high contrast), the kernel's and the model's; new manual pictures
-  - on the web too (the same flows pass there: `inspector-categories`, `-classic-marks`, `-classic-marks-es`, `-divider-remembered`, `pointers`, the screen reader's tree grid); found on the way and fixed in its own commit: the web Studio built from the SEC-24 merge panicked at start (`rapidr_testmode::today()` asked std's clock, which a browser lacks)
-  - Left, not this lane's: starting a program on the web Studio panics the same way (`Proj.CrashMark` → `rapidr_crash::report::now_secs`, std's clock, unguarded for wasm; CRASH-REPORTS): `helpers-values-paused`, `helpers-values-gone`, `layout-debug-paused`, `layout-debug-ends` time out on the web until it is guarded
-  - Left: the manual's reference pages call a member that classic programs lack *(new)* in 787 places (the same wording, mechanically); a project's classic-compatible setting is still only in its `.rrproj` (no switch in the Project properties yet)
-- [x] Demo mode + the video pipeline (Preview 5 launch videos; Robert 2026-10-30: narrated tutorials with the local voice). Done 2026-10-30 (lane DEMO-MODE; [docs/video-pipeline.md](docs/video-pipeline.md)):
-  - demo mode (`rapidr_ui_app::demo`, the kernel's `demo_overlay`, `ide/demo.inc`): a JSON script played in Studio's own windows, headless, recorded at 30 fps, 1920 x 1080; a pointer that glides to a control by name, clicks, double-clicks, drags, scrolls and types through the kernel's own input; highlight ring / spotlight, caption strip, title cards; gated as a test hook (SEC-24); not public in Preview 5
-  - `tools/video`: the local Qwen3-TTS narration (cached clips, one narrator a language, Spanish at 1.2x), an isolated take, ffmpeg (loudnorm, music-bed hook, captions burned + `.srt`, H.264 + optional VP9/Opus WebM, poster, description with the AI-voice disclosure); the sample "Your first app in RapidR Studio" in English and Spanish (`dist/video/`)
-  - the six launch videos as script skeletons for Robert's review (`tools/video/scripts/launch/`); legal review `docs/legal/review-2026-10-30-demo-mode.md`
-  - Left: RTutor + RCaptions as public components (Preview 6, the review's checklist); the program's own sound in a take (RAudioOut videos); a music bed (Robert picks the track)
-- [x] "RapidR Studio Tutorials", the Preview 5 launch playlist recorded in English and Spanish (lane RECORD-TUTORIALS, 2026-10-31; [docs/video-pipeline.md](docs/video-pipeline.md) § The sample and the launch videos): the trailer (RapidR Studio in 90 seconds), Your first app, a tip calculator, Run in the browser and build an app file, Pair with AI on your own computer, RAI builds an app (the review's hunks), Coach mode, Versions; voice only (no music yet: `--mux-only --music FILE` re-mixes without recording again), -14 LUFS / -1.5 dBTP, descriptions with chapters, the AI-voice disclosure, credits, links and tags, a contact sheet per take, the tests' mock AI (`studio.mock`) with made-up neutral model names; the demo app side no longer replays a restarted program's old requests (typing came out twice)
-  - Left: `4-spanish-and-school-lock`, `5-new-components`, `6-8bit-showcase` (skeletons); a web Studio cut and the browser's own page (the demo player records the desktop Studio's windows only); the Properties pane's description texts are English in Studio's Spanish
-- [ ] G4 Experiments (branches), Bring into main, the three-way form-aware Merge tab
-- [ ] G5 Blame on hover, line history
-- [ ] G6 Accounts in the keychain; GitHub device flow (needs Ruta Internet's OAuth App, created by Robert), Publish, Clone, Sync; GitLab / Bitbucket / self-hosted by token; SSH through the system
-- [ ] G7 Pro: hunk staging, amend, stash, cherry-pick, tags, rebase, force-with-lease
-- [ ] G8 RAI: message suggestions, explain changes, help me merge
-- [ ] G9 Security review (credentials, transport, clone safety: no hooks or filters from a repo)
-- [ ] G10 The manual chapter, accessibility, USE-AUDIT, the release and video
-- [ ] Next: the web Studio syncing with GitHub through its REST API; pull requests; interactive rebase; LFS; submodules; signed commits
-
-
-## Preview 5 — Pair with AI (2.122.0, built 2026-10-31; lane RELEASE-PREP; checks: [docs/release/2.122.0-checks.md](docs/release/2.122.0-checks.md))
-
-What shipped (each lane's detail is in the entries above and in [CHANGELOG.md](CHANGELOG.md)):
-- [x] ★ Never lose anything: Versions (RapidR's own, in plain words), the local history of every save, files changed outside Studio, unsaved work restored after a crash, RapidR's own crash and hang reports (local, scrubbed, no telemetry)
-- [x] ★ Pair with AI: Coach mode (the dial, the four-hint ladder, Help With This Error), School Lock (the teacher's password, the computer's policy file, Keep RAI in Coach mode), local AI made easy (the models you have, the fit check, Check My Models, the best match in words, `RSystemInfo`), small models succeed with RapidR (RAI2-SMALL-A), AI apps' and RAI's eyes and hands for a running program
-- [x] ★ In Spanish: Studio's whole interface, the compiler's messages and hints, the 5,377 docs of the reference and the manual (español neutro); the plumbing is language-neutral (any `.po`)
-- [x] ★ One design: the design guide, status colours, tabs with icons everywhere, the Properties pane grouped by purpose, dialogs that fit a 1280 × 720 screen (the design audit)
-- [x] ★ SEC-24: the GUI test hooks behind a signed test mode (the release scripts' smoke tests take the harness token: `tools/release/README.md`)
-- [x] For your programs: `RAudioOut`, `SetPixels` / `GetPixels` / `StretchDraw`, `RArchive`, `COMPRESS$` / `DECOMPRESS$`, `RWindowCapture`, `RAppHands`, `Application.OnError`, faster strings and file streams; the classic `FORMAT$`, `&`, one-line `IF ... ELSE` and name-clash rules
-- [x] Demo mode and the video pipeline (the launch videos are recorded by the RECORD-TUTORIALS lane)
-- [x] The release built (2026-10-31, lane RELEASE-PREP): macOS universal, Windows x64 and ARM64, Linux x86_64 and aarch64 (tar.gz and .deb), the web bundle, the VS Code extension, the SBOM, `SHA256SUMS`; the smoke tests on every package and Preview 5's checks (`tools/release/p5check.sh`, `windows/p5check.ps1`) on each system; the legal checks; the use-audit (headless, 182 pictures at 1x and 2x, light and dark, 0 failed); [the checks](docs/release/2.122.0-checks.md)
-- [ ] Robert: his look at the contact sheets (`dist/2.122.0/contact/`), the fresh-user journey on each system, `SHA256SUMS` signed (his minisign key), the notes and posts (`dist/2.122.0/release-notes.md`, `posts.md`), `gh release` on his go, `main` fast-forwarded to `development`
-- [ ] Found by the checks, for the next release: Windows' wording for a missing data file (`link.rs` `unreadable()`) and `examples_run.mjs` on Windows (read-only folders, slow-VM timing)
-
-Moves to Preview 6 (not started or only begun): Versions G4-G10 (experiments, blame, accounts and GitHub, Pro, RAI's help with messages and merges), RAI R8 / R9 (permissions, safe test runs and the red card), Coach's Pair and Quiz me, a built-in local model runner with licence acceptance, RTutor and RCaptions as public components, Portuguese and Chinese, the VS Code extension's last items (EXT3-EXT6), S4, S6's `file:line` links, K2, K5, K6, E3-E5.
-
----
-
-## Assembly (Robert's question, 2026-10-21; decided)
-- **No inline machine code and no 32→64-bit translation layer.**
-  - RapidQ never had assembly, and none of the 386 examples in its corpus run machine code. They use `VARPTR` and `CALLFUNC` only for DLL and COM calls, which RapidR has.
-  - A translation layer means writing a binary translator. Calling conventions and pointer sizes change between 32 and 64 bits, and ARM would need full emulation.
-  - It would also break safety and parity: the VM is `forbid(unsafe_code)`, the web can't run native code, and macOS/iOS forbid writable-and-executable memory.
-- **What people used assembly for is covered natively:**
-  - bytecode appended to an executable (`rapidr build --interp`, Export anywhere);
-  - function pointers (`CALLFUNC`, DLL calls);
-  - memory copies (`MEMCPY`);
-  - speed (native builds, the data engine).
-- [ ] Idea (after 1.0, with Learn with RAI): **an assembly lab.** A safe CPU simulator component (an x86-32 subset, ARM, RISC-V) with registers, flags and memory shown in the debugger, and stepping. It runs everywhere, the web included, and RAI explains each instruction. Later, the instructions a board really runs.
-- Only if users ask, after 1.0: real assembly blocks in **native builds only**, one block per architecture, assembled by Rust's own assembler, opt-in and marked unsafe.
-
-## Lean builds and Export anywhere (for 1.0; Robert, 2026-10-21; plan: [docs/lean-builds-and-export-plan.md](docs/lean-builds-and-export-plan.md))
-
-- [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set *(a first one, RZIP 2026-10-29: runtime-core's `archive` feature — RArchive, COMPRESS$, DECOMPRESS$ — is in a native build only when the program names them, as `studio` is (`uses_archive` in the CLI); a web build without them drops it too. A console "hello" native build has no archive code: 3.5 MB vs 5.0 MB debug.)*
-- [ ] L2 Native builds with only the features a program uses + the size profile; a size report in Studio
-- [ ] L3 Runner flavours (console, gui, gui+data, full) for desktop and wasm, built and signed with each release
-- [ ] L4 Export anywhere: Windows, macOS, Linux and the web from any Studio, the web one included (verified runner downloads)
-- [ ] L5 macOS export signing decision and the "first launch" manual pages
-
-## The company website: rutainternet.company (Robert, 2026-10-22)
-- [ ] A products section: RapidR, RapidR Database Studio and Visualmusicator X, with links, screenshots and the support links. It also helps Stripe's business review, since the site is the company's website there.
-- [ ] A privacy page (no telemetry; which AI providers, hosts and the stores see what). The legal review needs one for store builds and the MCP server.
-- [ ] Before publishing: the six legal checks (fonts self-hosted, no trackers without consent…) and a lawyer-agent review. Find out how the site is built and hosted first.
-
-## Requests from RapidR apps (built 100% in RapidR, in their own repos; Robert relays each request)
-
-- **RapidR Database Studio** (working name; `~/Programming/RapidR/DatabaseStudio`, MIT; scope now: SQLite, MySQL/MariaDB and CSV). REQUEST-001:
-  - [ ] SQL mode for RCodeEditor (with schema completion)
-  - [ ] Background queries with streaming and Cancel
-  - [ ] Virtual data grid
-  - [x] RSecrets (the OS keychain for programs) *(DBA, 2026-10-22: Save / Read / Delete / Exists on the keychain code Studio's keys use, each program under `rapidr-app:<program>:<service>`; values masked in the debugger (`rapidr_value::secrets`), the registry's method facet `secret`; the web fails with "not available in the browser"; the test keystore `RAPIDR_AI_KEYSTORE=memory` for programs; example data/secrets.rr, manual secrets.md)*
-  - [x] SQL mode for RCodeEditor (with schema completion) *(DBB, 2026-10-22: `SqlDialect` sqlite / mysql, completion of the dialect's words and the program's tables and columns — `SetSchema(json)`, `DB.Schema`, aliases —, statement folding, Ctrl+Enter's `OnRunStatement`, `CurrentStatement`; desktop and web)*
-  - [x] Background queries with streaming and Cancel *(DBB, 2026-10-22: `QueryAsync`, `OnRows`, `OnDone`, `Cancel`, `Busy` on RSQLite and RMySQL; a worker thread per connection on the desktop, 8 ms slices on the web; a million rows' first rows in 15-25 ms; also `ColName` / `ColType` from the result's metadata, MySQL's on read-only connections too)*
-  - [x] Virtual data grid *(DBB, 2026-10-22: RDBGrid bound to an RSQLite / RMySQL draws its rows as they stream, only those on screen; the program sorts with ORDER BY; Ctrl+C copies a row. Left: editing with undo — RDBGrid editing is data-science-plan phase 2)*
-  - [ ] RSecrets (the OS keychain for programs)
-  - [ ] RChat (RAI as a component)
-  - [x] RMcpServer (shared with Visualmusicator X W4 and the IDE's MCP: one implementation) *(STUDIO-MCP, 2026-10-29: `RMcpServer` on RHttpServer's listener and checks — both protocol eras, tools with SUB-style or JSON Schema arguments checked before the program sees a call, OnToolCall answered now or later, Progress, resources, clients; example network/mcp_tools.rr in the examples suite; RapidR Studio's AI apps use it)*
-  - [x] TLS for MySQL *(DBA, 2026-10-22: `SSLMode` Preferred (default) / Disabled / Required / VerifyCA / VerifyFull, `SSLCA`, `Encrypted`, on the system's TLS (mysql's native-tls feature, no new crate); live: Required encrypted against a local MySQL 8.0.33; a mock server without TLS gives the plain-words error)*
-  - [x] REQUEST-003 backlog: a parameter named `Result` *(DBC, 2026-10-22: inside a FUNCTION it is the FUNCTION's value on every runtime, as RC.EXE has it; `rapidr_ast::function_result`, an editor warning; conformance function_result_name)*
-  - [x] REQUEST-003: a server only this computer reaches *(DBC, 2026-10-22: RSocket's `Open(Port, Address)` and `BindAddress` (default 0.0.0.0, RapidQ's), RServerSocket's `Host` documented; manual network.md)*
-  - [x] REQUEST-003: RServerSocket's data arrives whole *(DBC, 2026-10-22: a byte buffer cut by `Mode` lines / bytes / http — a request whole by Content-Length or chunks, 100 Continue —, `Send`, `Disconnect`; curl's 1 MB comes back whole; example network/echo_server.rr)*
-  - [x] REQUEST-003: RHttpServer, a local HTTP server *(DBC, 2026-10-22: 127.0.0.1 by default, OnRequest on the program's thread, Respond now or later, Server-Sent Events, Token / AllowedOrigins / AllowedHosts / MaxRequestSize / Timeout / MaxConnections refusals by the server itself; std only; example network/local_api.rr in the examples suite with a client. RMcpServer on it: STUDIO-MCP, 2026-10-29)*
-  - [x] REQUEST-003: polite screen-reader announcements *(DBC, 2026-10-22: `Application.Announce(Text [, Assertive])`, AccessKit live regions on the desktop — status nodes are live there now —, the page's aria-live regions on the web)*
-  - [x] REQUEST-003: SQL colours in RMarkdownView *(DBC, 2026-10-22: a code block coloured by its fence's language — sql, sqlite, mysql, json, html … — with the code editor's definitions; example gui/markdown_code.rr)*
-  - [x] REQUEST-003 item 4: the list view's test hook `lv.__item_N` *(ad4aab8c, 2026-10-22: any view, a row below the fold brought into view, OnClick; parity case listview_item_pick)*
-  - [x] REQUEST-003 backlog: MESSAGEDLG's default button (a release blocker for the app) *(DB-D, 2026-10-22: the fifth argument `DefaultButton` (mrNo; mbNo when no button answers 2), focused as the box opens, Tab round from it, Escape unchanged; MESSAGEBOX's MB_DEFBUTTON2/3 as Windows has them; desktop and web; `RAPIDR_TEST_MESSAGE_DIALOG=__enter`; GUI case message_default)*
-  - [x] REQUEST-003 backlog: "Is a transaction open?" *(DB-D, 2026-10-22: `InTransaction` on RSQLite (SQLite's autocommit flag after every statement) and RMySQL (the server's session tracker, -1 when its answers couldn't say), `Autocommit` on RMySQL; live-tested on MySQL 8.0.33; example data/transactions.rr. Exact MySQL flag (SERVER_STATUS_IN_TRANS) needs the mysql crate to expose it: lead's call)*
-  - [x] REQUEST-003 backlog: the grid's sort cycle across new rows *(DB-D, 2026-10-22: DataSource set again to the same source keeps the sort; a grid's own data sorts new rows in)*
-  - [x] REQUEST-003 backlog: test hooks *(DB-D, 2026-10-22: a handler's modal dialog gets the next events and the captures in native builds; `__until_` compares its value as written; `__wait_N`; `__hold_ms` waits where a host can't hold)*
-  - [ ] REQUEST-003 backlog: the server's certificate and pinning it (`ServerFingerprint`, `ServerCertificate`, `SSLFingerprint`) *(DB-D investigated 2026-10-22: needs the mysql crate to check the pin on the real connection — a small patch or an upstream change; lead and lawyer decide)*
-  - [ ] RNodeGraph (shared with Visualmusicator X W4)
-  - [x] Translation for programs, first step (TR$, TRN$, Application.Language; merged 2026-10-21, 0905af73)
-  - [x] `RImageList.AddSVGFile`: an app's own SVG icons, themed and sharp at every scale (like RapidR's own icon set) *(DBA, 2026-10-22: drawn at the list's size and the screen's scale; example gui/svg_icons.rr, manual svg-icons.md)*
-  - [x] SVGs built into the program and loaded by `$RESOURCE` name (`RImage.Load`, a button's `BMP`, `AddSVGFile`). Today `RImage.Load RES` says "could not load '65536'", and a build drops SVGs whose names the program computes *(DBA, 2026-10-22: `objects::picture_bytes`; a native build started from another folder loads them)*
-  - [x] A loaded SVG follows the theme: colour tokens and `currentColor` (today `currentColor` comes out black, invisible on dark) *(DBA, 2026-10-22: `rapidr_icons::theme_svg` — tokens only when every colour is one, so illustrations keep theirs —, `Bitmap::follow_theme` draws it again when the theme changes)*
-  - [x] `END n` sets the exit code (an additive extension; RapidQ's END takes none), so console tools can fail a build. *(LANG-SMALL, 2026-10-22: `rapidr run`, interpreted and native builds, GUI programs; the web ends and ignores the number; conformance cases with a new `.expected-exit`.)*
-  - [x] Reference fixes, verified 2026-10-21 *(LANG-SMALL, 2026-10-22: the registry and the generated pages say `Cell(row, col)`, `SetCell(row, col, value)` (the same slip) and `CONST name [AS type] = expression`; a registry test keeps them right until K7)*:
-    - `RDataFrame.Cell` is `(row, col)` in the code and its tests, but the registry says `(col, row)`;
-    - `CONST`'s syntax claims `[, …]`, which RapidQ never had (one constant per CONST) and our parser rejects. Fix both docs; see K7
-- **A Z80 emulator for students** (Robert, 2026-10-29; an agent builds it in its own repo): it loads `.z80` snapshots, also zipped, as emulators do.
-  - [x] Archives in programs *(RZIP, 2026-10-29: `RArchive` — Open / OpenStream / OpenData / a `$RESOURCE`, the format from the first bytes; zip, tar, tar.gz, .gz read and made; 7z, xz / tar.xz, zstd / tar.zst read; Name / Size / CompressedSize / IsFolder / IsEncrypted / DateTime, Find, Extract / ExtractText / ExtractToStream / ExtractToFile / ExtractAll, Create / CreateStream / AddFile / AddText / AddData / AddStream / AddFolder / Close, FormatOf; MaxSize (1 GB, 256 MB on the web) and MaxRatio (1000) against zip bombs, zip-slip names / links / devices never written, encrypted entries refused, RAR refused in plain words; `COMPRESS$` / `DECOMPRESS$` (gzip, zlib, deflate; xz, zstd read). Engine: crate rapidr-archive (zip 9, flate2 + zlib-rs, lzma-rust2, ruzstd, sevenz-rust2; tar RapidR's own), fuzzed (tests/robustness.rs); conformance archive_read / archive_guard / archive_write on VM, native and web; example data/archives.rr; manual archives.md. Native builds carry it only when a program uses it.)*
-  - [ ] Archives, phase 2: bzip2 / tar.bz2 (the only pure-Rust reader, libbz2-rs-sys, is under the bzip2-1.0.6 licence: a lawyer check first); making 7z, xz and zstd; a `Comment`; extracting while unpacking (no whole-archive-in-memory) for archives past a few hundred MB; one format feature per program in native builds (needs L1).
-- **Visualmusicator X**: see the next section.
-
-Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.
-
-## RapidR for old PCs — Windows 7, 8 and 8.1, 32-bit and 64-bit (Robert, 2026-10-23; first after the Preview 4 launch)
-Asked on the RapidQ group by someone learning on a Windows 8.1 32-bit PC. Students and people on older PCs are who RapidR is for.
-- [ ] Spike: RapidR Studio and the interpreted runtime for `i686-win7-windows-msvc` / `x86_64-win7-windows-msvc` (Rust's Windows 7+ targets: tier 3, nightly + build-std; the standard targets need Windows 10 since Rust 1.78) — what builds, what each dependency needs (winit, AccessKit, the keychain, TLS through SChannel), a CPU-only drawing path for old graphics (as the web's)
-- WIN7-1 (2026-10-23): `rapidr.exe` for `i686-win7-windows-gnu` builds on the Mac (`tools/win7/`, LLVM-MinGW msvcrt); its start-up imports are all Windows 7 functions (the five Windows 8+ ones are delay-loaded, `crates/rapidr-cli/src/win7.rs`). Not yet run in the VM.
-- WIN7-ALPHA (2026-10-23): the alpha zip `RapidR-2.121.0-win7-x86-alpha1.zip` is built (`tools/win7/alpha.sh`: rapidr.exe with version info and a manifest, Studio launcher, examples, README-ALPHA.txt in EN/ES, all licence texts; legal review `docs/legal/review-2026-10-23-win7-alpha.md`, `tools/win7/link_audit.sh`). Not published; Robert's run in the Windows 7 VM comes first. Open: Microsoft-derived delay-load helper to replace before the proper download (the review, item 2).
-- [ ] Test machine: Windows 7 32-bit in UTM on the external SSD (Robert's own licence; the VM offline, files through a shared folder) — correctness there, speed on a real old PC
-- [ ] Ship it: an SDK for Windows 7/8.1 (Studio + interpreted builds, nothing else to install), in the release process beside the others
-- [ ] Native apps for those PCs through Export anywhere (M7): a ready-made 32-bit runner, no Rust on the old PC
-
-## After Preview 4 — RStage, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
-
-- [ ] W1 RStage core (RStageView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)
-- [ ] W2 Scene graph, geometry, materials, instancing, GPU compute, reflections, generated textures
-- [ ] W3 RSynth: patch voices, FX, sample-accurate sequencer, our own pattern notation, AudioWorklet, offline render
-- [ ] W4 RMcpServer (the IDE's MCP security) + RNodeGraph, RTimeline, RPianoRoll, curve/gradient editors, knobs, multi-window
-- [ ] W5 Single-file web export, the tiny profile, direct backends
-## Phase 8 — Truly native UI, `$UI native` (after 1.0; Robert, 2026-10-19; plan: [docs/native-ui-plan.md](docs/native-ui-plan.md))
-
-One component model with the real widgets of every OS: a UI "HAL", as wgpu is for graphics. Our layout, their widgets; drawn components (canvas, plot, grid, 3D) hosted inside native views; one conformance suite on every backend; drawn fallback per component. Published as a standalone MIT Rust crate. v1 keeps the drawn kernel with native-looking themes (`$THEME native`).
-- [ ] N1 The backend contract: the kernel moves behind it, becoming backend #1 and the reference
-- [ ] N2 macOS: AppKit (objc2)
-- [ ] N3 Windows: Win32 common controls (RapidQ programs back on real Win32), then WinUI 3
-- [ ] N4 iOS / iPadOS: UIKit (shares N2's Apple glue; Xcode project generated by `rapidr build --target ios`)
-- [ ] N5 Android: Views through JNI (Gradle project generated)
-- [x] N6 Linux: **decided 2026-10-19** — the drawn kernel with the GNOME (Adwaita) look; no GTK (LGPL), zero-risk rule; revisit only on demand, system-linked only, with Robert's approval
-- [ ] N7 The web: real DOM controls as an opt-in (re-decide the 2026 "canvas only" rule then)
-- [ ] Declarative magic: `BIND()` state binding, declarative layout panels, per-OS previews in the designer
-
-## Timeline (planned 2026-10-03; adjust as work lands)
-
-| When | Milestone |
-|------|-----------|
-| Q4 2026 | RapidQ compatibility complete (portable corpus programs compile and run alike on all three runtimes); Phase 1B foundations under way (high-DPI audit, accessibility tree, Anchors) |
-| Q1 2027 | IDE stages I0–I4, the basic debugger (I6) and linked data live at design time (I7's core) on the desktop and the web → **first public release** (see the release item in Phase 1 and docs/ide-plan.md §8) |
-| Q2 2027 | AI in the IDE and its MCP server (I8), live editing (I5), RAI with tool-calling and AI that uses the running app |
-| Q3 2027 | Mobile step 1; data-science / database / AI stacks polished (high-DPI charts, more databases) |
-| Q4 2027 | Security audit (Phase 6), documentation, examples, community |
-
-Risks to watch: the corpus' long tail (programs built on Win32 calls need a "portable corpus" definition, since there's no Win32 emulation); desktop accessibility of components whose models still describe themselves generically; the size of the IDE work; app-store tooling for mobile.
-
----
-
-## Appendix A — Reproduction programs
-
-Build/run with: `./rapidr build-bc file.bas -o file.rrbc && ./rapidr run-bc file.rrbc`
-
-**rq1.bas** — classic RapidQ GUI (fails: `RAPIDQ.INC`, Q-types, `DECLARE`)
-```basic
-$APPTYPE GUI
-$TYPECHECK ON
-$INCLUDE "RAPIDQ.INC"
-
-DECLARE SUB Button1Click (Sender AS QBUTTON)
-
-CREATE Form AS QFORM
-    Caption = "Hello"
-    Width = 320
-    Height = 240
-    Center
-    CREATE Button1 AS QBUTTON
-        Caption = "Click me"
-        Left = 10: Top = 10
-        OnClick = Button1Click
-    END CREATE
-END CREATE
-
-SUB Button1Click (Sender AS QBUTTON)
-    ShowMessage "Hi " + STR$(10)
-    Form.Caption = "Clicked"
-END SUB
-
-Form.ShowModal
-```
-
-**rq2.bas** — control flow (fails: `?`; GOSUB/GOTO silently dropped)
-```basic
-DEFINT i, j
-DIM A(1 TO 10) AS INTEGER
-i = 1: j = 2
-IF i = 1 THEN PRINT "one" ELSE PRINT "other"
-? "question mark print"
-GOSUB MySub
-PRINT "after gosub"
-GOTO Done
-MySub:
-  PRINT "in gosub"
-RETURN
-Done:
-PRINT IIF(i > 0, "pos", "neg")
-```
-Expected: `one` / `question mark print` / `in gosub` / `after gosub` / `pos`.
-Actual (without the `?` line): `one` / `after gosub` / `in gosub` then exits.
-
-**rq3.bas** — extended form type (EVENT unsupported, no error)
-```basic
-TYPE TMyForm EXTENDS QFORM
-    Counter AS INTEGER
-    EVENT OnClick
-        This.Counter = This.Counter + 1
-        This.Caption = STR$(This.Counter)
-    END EVENT
-    CONSTRUCTOR
-        Caption = "Custom"
-        Width = 200
-    END CONSTRUCTOR
-END TYPE
-DIM F AS TMyForm
-F.ShowModal
-```
-
-**rq4.bas** — builtins
-```basic
-DIM i AS INTEGER
-i = 5
-PRINT IIF(i > 0, "pos", "neg")                 ' pos        (ok)
-PRINT FIELD$("a,b,c", ",", 2)                  ' b          (ok)
-PRINT TALLY("banana", "a")                     ' 3          (ok)
-PRINT REPLACESUBSTR$("aXbX", "X", "-")         ' a-b-       (got: empty)
-PRINT RINSTR("hello", "l")                     ' 4          (ok)
-PRINT STRF$(3.14159, 0, 5, 2)                  ' formatted  (got: 3.14159)
-PRINT CONVBASE$("255", 10, 16)                 ' FF         (ok)
-PRINT LTRIM$("  x"), UCASE$("abc"), MID$("hello", 2, 3), HEX$(255), CHR$(65), ASC("A")
-                                               ' tab zones  (got: no separators)
-PRINT FORMAT$("%05d", 42)                      ' 00042      (got: 42)
-PRINT DELETE$("hello", 2, 2), INSERT$("XY", "hello", 2), REVERSE$("abc")
-                                               ' INSERT$ wrong
-INC i
-PRINT i                                        ' 6          (got: 5)
-```
+**RapidR is a modern BASIC with its own IDE, RapidR Studio.** One program runs
+as a native app on Windows, macOS and Linux, as a standalone app with nothing
+to install, or as a web app in any browser. Our aim for 1.0: the fastest, most
+secure and easiest BASIC there is, accessible to everyone, with AI that helps
+you build and helps you learn, on any computer, including old and cheap ones.
+
+This page says where RapidR is going, in order. There are no dates: each
+release ships when it's ready and has been checked on every system.
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
+
+## Where we are: Preview 5 (2.122.1)
+
+- [x] **RapidR Studio** on the desktop and in the browser: form designer, code
+  editor with completion and hover help, a debugger whose values open like
+  trees, Help (F1), and data shown live in the designer.
+- [x] **Three runtimes, one behaviour**: native code, the RapidR Runtime
+  (bytecode, and standalone apps) and the web, checked against each other.
+- [x] **RapidR's own UI kernel**: the same look on every system, sharp on
+  high-DPI screens, light, dark and high contrast, accessible to screen readers
+  and the keyboard.
+- [x] **Components** for windows, dialogs, grids, graphics, sound, MIDI, 2D and
+  3D, databases (SQLite, MySQL), networking, serial ports, archives, and data
+  science (`RNum`, `RDataFrame`, `RPlot`).
+- [x] **RAI**, the assistant: describe an app and it builds it, checks it and
+  fixes its own errors; **Coach mode** gives hints, not answers; **School
+  Lock** for teachers; free AI models on your own computer, found and tried
+  for you.
+- [x] **Versions**: save a version, see what changed, go back; local history;
+  crash-safe unsaved work; RapidR's own crash reports, kept on your computer.
+- [x] **Studio, the compiler and the manual in English and Spanish.**
+- [x] `INT64` / `UINT64`.
+- [x] **Old PCs (alpha)**: Windows 7, 8 and 8.1, 32-bit.
+
+## Next: the speed release
+
+Before any new feature, everything RapidR already does gets fast.
+
+- [ ] **Run in Studio at native-class speed**: a faster interpreter now, then
+  a compiler that turns your hottest code into machine code while it runs.
+- [ ] **Fast arrays and maths**: typed arrays as plain memory, quick `SIN`,
+  `COS` and friends, in every runtime.
+- [ ] **A real-time audio engine** on its own thread: synthesizers, effects and
+  music with no glitches; **`RAudioIn`** for the microphone and line-in.
+- [ ] **Big numbers**: a full check of `INT64` / `UINT64` everywhere, then
+  `INT128` / `UINT128` and whole numbers of any size.
+- [ ] **The best error messages**: "did you mean…?", suggested fixes, warnings
+  said once, clear for a student, an engineer and an AI agent alike.
+- [ ] **AI agents use RapidR the right way**: Studio's MCP server guides any
+  agent, even a small one, through RapidR's help, examples and checks.
+- [ ] **Speed is a release gate**: every component has a speed budget and a
+  benchmark, measured on old and cheap machines too.
+
+## Preview 6: Connected
+
+- [ ] **`RSpeech`, `RTutor` and `RCaptions`**: programs that speak, guided
+  tours with a virtual cursor, and captions.
+- [ ] **`RWebServer`**, security first: control a program from a phone's
+  browser.
+- [ ] **Boards over USB, Bluetooth and Wi-Fi** (ESP32, micro:bit, M5Stack), and
+  dashboard components: knobs, switches, gauges, displays.
+- [ ] **A lab kit for schools** that works with no board at all: oscilloscope,
+  signal generator, meters, LEDs, 7-segment displays, a logic analyser.
+- [ ] **More RAI**: asks permission in plain words, tests risky code safely,
+  Pair and Quiz modes next to Coach, and a chat component for your apps.
+- [ ] **More of Versions**: experiments, and publishing to GitHub.
+- [ ] **Portuguese and Chinese**: Studio, the messages and the manual.
+
+## Preview 7: On the board
+
+- [ ] **RapidR running on the board itself** (ESP32, micro:bit, M5Stack):
+  flashed from Studio, debugged on the board, live pins.
+
+## Preview 8: Science
+
+- [ ] A complete data-science stack of our own at full speed: data frames,
+  arrays, plots, statistics, machine learning.
+- [ ] More data sources as linked components: spreadsheets, Parquet,
+  PostgreSQL.
+- [ ] **`RInterpreter`**: RapidR as a safe, embeddable script engine.
+
+## Preview 9 and on to 1.0
+
+- [ ] Layout made easy: a stack panel, a grid panel, properties that follow
+  variables.
+- [ ] **A native look** (`$THEME native`): programs that look like the system
+  they run on.
+- [ ] Networking clients (SSH, SFTP), then servers.
+- [ ] **Lean builds**: each program carries only the components it uses.
+- [ ] **Export anywhere**: any Studio, even the web one, builds for Windows,
+  macOS, Linux and the web.
+- [ ] **Signed installers** for Windows and macOS.
+- [ ] **RapidR 1.0**: security, accessibility and hands-on audits on every
+  system, and the complete manual.
+
+## After 1.0
+
+- [ ] **Truly native controls** (`$UI native`) on macOS, Windows, iOS and
+  Android, and **mobile apps**.
+- [ ] Calls into native libraries on macOS and Linux, as DLL calls work on
+  Windows today.
+- [ ] Video courses in four languages.
+
+## Compatibility
+
+RapidR includes a **compatibility layer**: programs written for RapidQ, and
+much classic VB-style code, run as they are. `rapidr import-rapidq` converts a
+program to RapidR's own names, with a report of every change. Details:
+[compatibility](docs/manual/compatibility.md) and [importing older programs](docs/manual/importing-rapidq.md).
+
+## How we work
+
+- **Never silently wrong**: every program compiles correctly or gets a clear
+  message with its line.
+- **One behaviour** on native, the RapidR Runtime and the web.
+- **Secure by default**: programs, imported projects and AI output never get
+  more than they asked for. Your keys stay in your system's keychain.
+- **Accessible by default**: every program works with the keyboard and screen
+  readers without extra work.
+- **Fast, easy, beautiful, legal**: everything RapidR ships is open source
+  under licences that let you sell your apps.
+- **Seen working**: every feature is run by hand on every system before it
+  ships.
+
+Ideas and requests are welcome in
+[Discussions](https://github.com/iBobX/RapidR/discussions); bugs in
+[Issues](https://github.com/iBobX/RapidR/issues).
