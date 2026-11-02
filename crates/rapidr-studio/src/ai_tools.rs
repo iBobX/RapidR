@@ -194,6 +194,16 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
 /// always; clicks, typing, keys, drags and the wheel when `input` (the
 /// user allows changes). A picture isn't one of RAI's: its models get the
 /// layout in words.
+/// RAI's own Run (run_program): Studio starts or stops the open project's
+/// program as Run and Stop do, and says how it went.
+pub fn run_tool() -> Tool {
+    Tool {
+        name: "run_program".into(),
+        description: "Runs the open project's program in RapidR Studio, as the user's Run does (its files are saved first), lets it run up to wait seconds (5 by default, 30 at most) and says how it went and what it printed; then app_layout / app_screenshot look at it (the user is asked once a run). action: start (default), stop, or status (its state and last output). One run at a time. Example: {\"action\": \"start\", \"wait\": 5}.".into(),
+        input_schema: schema(json!({"action": {"type": "string", "enum": ["start", "stop", "status"], "description": "start (default), stop or status"}, "wait": {"type": "integer", "description": "seconds to let it run before answering, 1..30 (5 by default)"}}), &[]),
+    }
+}
+
 pub fn app_tools(input: bool) -> Vec<Tool> {
     let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
     let target = || json!({
@@ -322,6 +332,11 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         // capitalised, RAI's not)
         "app_layout" => tr_ui("Reading the running program's layout"),
         "app_screenshot" => tr_ui("Looking at the running program"),
+        "run_program" => match field("action").as_deref() {
+            Some("stop") => tr_ui("Stopping your program"),
+            Some("status") => tr_ui("Looking at your program's output"),
+            _ => tr_ui("Running your program"),
+        },
         "app_wait" => tr_ui("Letting the running program work"),
         "app_click" | "app_type" | "app_key" | "app_drag" | "app_scroll" => {
             let any = |k: &str| field(k).or_else(|| field(&k.to_ascii_lowercase()));

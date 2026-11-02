@@ -896,6 +896,12 @@ pub fn run_number() -> Option<u64> {
     running.then(|| RUNS.with(Cell::get))
 }
 
+/// How many runs of the user's program started in this Studio (each Run a
+/// new one): RAI's run_program sees a new run by it, even one that ended.
+pub fn runs_started() -> u64 {
+    RUNS.with(Cell::get)
+}
+
 /// Whether a session is running (the desktop's loop then looks at it now
 /// and then; its transport wakes it when the program says something).
 pub fn any_running() -> bool {

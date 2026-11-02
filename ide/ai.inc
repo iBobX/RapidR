@@ -30,6 +30,7 @@
 ' aisetup.inc).
 
 DECLARE SUB AIUpdate
+DECLARE SUB AIRunRequest
 DECLARE SUB AIShowNote
 DECLARE SUB AiLanguageChanged
 DECLARE SUB AIDone(Status AS STRING)
@@ -1303,6 +1304,7 @@ END FUNCTION
 ' word from the provider, the status says so once — wait, or Stop)
 SUB AIClockTick(Sender AS RTimer)
   DIM q AS INTEGER, e AS INTEGER
+  AIRunRequest
   IF AI.Busy = 0 THEN
     AIClock.Enabled = 0
     AIElapsed.Caption = ""
@@ -1866,7 +1868,22 @@ SUB AINewChat
   AIInput.SetFocus
 END SUB
 
+' RAI's own Run (its run_program tool): Studio starts or stops the
+' program with Run's and Stop's own commands, once (taken first).
+SUB AIRunRequest
+  DIM r AS STRING
+  r = AITools.RunRequest
+  IF r = "" THEN EXIT SUB
+  AITools.RunRequestTaken
+  IF r = "start" THEN
+    RunCommand "run.start"
+  ELSEIF RunState = "running" OR RunState = "paused" THEN
+    RunCommand "run.stop"
+  END IF
+END SUB
+
 SUB AIUpdate
+  AIRunRequest
   AIChat.Text = AI.Transcript
   AIEnableSend
   AIProgressShow

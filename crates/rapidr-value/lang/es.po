@@ -3874,3 +3874,12 @@ msgstr "Una pista mostró la solución completa demasiado pronto: Studio le pidi
 msgid "Asked for the hint without the solution"
 msgstr "Se pidió la pista sin la solución"
 
+
+msgid "Running your program"
+msgstr "Ejecutando el programa"
+
+msgid "Stopping your program"
+msgstr "Deteniendo el programa"
+
+msgid "Looking at your program's output"
+msgstr "Mirando la salida del programa"

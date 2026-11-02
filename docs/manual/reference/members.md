@@ -6055,6 +6055,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `CoachRung` | int |  | Coach mode's hint for the problem open now: 0 none, 1 a nudge (a question that points the way), 2 the concept (plain words and a tiny example that isn't the user's solution), 3 the shape of the code (a skeleton with blanks), 4 the code shown as text — the user types or copies it in. The model is told which to write with every request. |
 | `CoachError` (read-only) | bool |  | True when the problem open in Coach mode is an error (CoachForError): its first hint says what the error means, why it happens and how to fix it yourself. |
 | `CoachLocked` (read-only) | bool |  | True while School Lock keeps RAI in Coach mode (a teacher's lock or the computer's policy, coach_only = true): Mode reads "coach" whatever is set. |
+| `RunRequest` (read-only) | string |  | What RAI's run_program tool asks RapidR Studio to do with the open project's program: "start" (as Run does), "stop" (as Stop does) or "" nothing. Studio does it, then calls RunRequestTaken; RAI's tool then says how it went (whether it started, and what it printed). |
 | `ProgramUseAsked` (read-only) | bool |  | True while RAI waits for the user's answer to its card in the chat — it wants to look at or use the running program (once a run: "Allow for this run" or "Don't allow"); AllowProgramUse answers it. |
 | `CallFailed` (read-only) | bool |  | True when the last CallTool failed (its text says why: the AI app reads it and can try again). |
 | `CallNote` (read-only) | string |  | What the last CallTool did, in one line ("Read main.rr (40 lines)", "Proposed a change to main.rr"): for an activity log. |
@@ -6074,6 +6075,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `Decide(Index AS INTEGER, Decision AS STRING)` | Records the user's decision on proposal Index in the RAI's conversation and audit log, once: "applied", "partly", "rejected", "stale" (not applied: the file changed after the assistant read it) or "failed" (not applied: its editor refused the change). A proposal decided already is left as it was: nothing is said twice. |
 | `ClearDecided` | Forgets the proposals the user decided on (after a review is applied): what is left waits for a decision. |
 | `ClearProposals` | Forgets the proposals. |
+| `RunRequestTaken` | Says RapidR Studio took RunRequest (it is "" again), so it isn't done twice. |
 | `AllowProgramUse(Allowed AS INTEGER)` | The user's answer to RAI's card (ProgramUseAsked): True — RAI may look at, click and type in the running program until this run ends, and the calls that waited go on; False — not in this answer (RAI is told, and asks again in a later one). Without a question waiting it does nothing. |
 | `CoachAsk AS INTEGER` | A question typed in Coach mode: a new problem starts on hint 1; while one is open it stays on its hint (asking again in words never skips one). Returns the hint the answer writes (CoachRung). |
 | `CoachNext AS INTEGER` | Next Hint: one hint up, 4 (the code, shown as text) at most. Returns it. |
