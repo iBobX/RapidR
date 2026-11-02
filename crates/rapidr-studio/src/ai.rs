@@ -587,6 +587,9 @@ fn coach_refused(name: &str) -> ToolOutcome {
     ToolOutcome { content: coach::refusal(name), is_error: true, note: format!("{name}: not in Coach mode"), read: None, risk: "read", target: String::new() }
 }
 
+/// A turn's tool calls when RAI works on its own (25 otherwise).
+pub const AUTO_TOOL_CALLS: u32 = 250;
+
 /// What the model is told when its answer says it changed something and
 /// no tool did (sent once a turn: rapidr_ai::rai).
 pub const NUDGE: &str = "(RapidR Studio, not the user: your answer says you made or will make a change, but you called no tool, so nothing reached the user. Make the change now: call propose_edit, write_file or create_project with the complete code. If you can't, or no change was asked for, say so in one sentence.)";
@@ -869,6 +872,12 @@ impl ToolProvider for Handle {
             }
             out
         })
+    }
+
+    fn max_tool_calls(&self) -> Option<u32> {
+        // ("Work on its own": a long task — change, run, test, fix — goes on
+        // by itself; Stop ends it, and the user's spending cap holds)
+        with(&self.name, |t| t.permission.eq_ignore_ascii_case("auto") && !t.coach()).then_some(AUTO_TOOL_CALLS)
     }
 
     fn turn_status(&self) -> Option<String> {

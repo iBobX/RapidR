@@ -633,6 +633,11 @@ pub trait ToolProvider {
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome;
     /// One sentence on what the turn left (changes to review), if anything.
     fn turn_status(&self) -> Option<String>;
+    /// How many tool calls a turn may make with these tools ([`MAX_TOOL_CALLS`]
+    /// unless a provider says more: RapidR Studio's "Work on its own").
+    fn max_tool_calls(&self) -> Option<u32> {
+        None
+    }
     /// The turn's last answer, `answer` to the user's `question`, made no
     /// tool call: what to tell the model when it should have — the answer
     /// says it changed something nothing changed ("I am proposing the
@@ -2607,7 +2612,7 @@ impl Ai {
         while let Some((id, name, input)) = calls.next() {
             self.tool_calls += 1;
             let mut provider = None;
-            let out = if self.tool_calls > MAX_TOOL_CALLS {
+            let out = if self.tool_calls > self.tool_call_limit() {
                 ToolOutcome { content: "the turn's limit of tool calls was reached: answer with what you have".into(), is_error: true, note: String::new(), read: None, risk: "read", target: String::new() }
             } else if cut && input.get("_invalid_json").is_some() {
                 ToolOutcome { content: format!("your answer reached its length limit while writing this {name} call: its arguments were cut off, so nothing was done. Write it again in smaller parts (a smaller change, at most about 150 lines), and keep your explanation short."), is_error: true, note: format!("{name}: cut off, to be written again in smaller parts"), read: None, risk: "read", target: String::new() }
@@ -2668,12 +2673,18 @@ impl Ai {
         }
     }
 
+    /// A turn's limit of tool calls: the most any attached tools allow.
+    fn tool_call_limit(&self) -> u32 {
+        self.tools.iter().filter_map(|(_, _, t)| t.max_tool_calls()).max().unwrap_or(MAX_TOOL_CALLS).max(MAX_TOOL_CALLS)
+    }
+
     /// The tools' results to the model, and the next request.
     fn ask_after_tools(&mut self, results: Vec<Block>) {
         self.messages.push(Message { role: Role::User, content: results });
         self.refresh_cards();
-        if self.tool_calls > MAX_TOOL_CALLS {
-            self.note(&format!("Stopped after {MAX_TOOL_CALLS} tool calls (a safety limit). Ask again to go on."));
+        if self.tool_calls > self.tool_call_limit() {
+            let limit = self.tool_call_limit();
+            self.note(&format!("Stopped after {limit} tool calls (a safety limit). Ask again to go on."));
             self.end_turn();
             return;
         }
