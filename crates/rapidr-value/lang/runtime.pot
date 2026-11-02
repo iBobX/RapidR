@@ -1281,6 +1281,26 @@ msgid "Looking at the running program"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai_tools.rs
+msgid "Saving a version"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Saving the version “{message}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Stopping your program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking at your program's output"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Running your program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
 msgid "Letting the running program work"
 msgstr ""
 

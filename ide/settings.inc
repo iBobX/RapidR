@@ -17,6 +17,8 @@
 ' the assistant's until OK — Cancel leaves it exactly as it was. (Save Key
 ' and Remove act on the keychain at once, as their names say.)
 
+DECLARE SUB AIPermPicked
+DECLARE FUNCTION AIConfirmAuto AS INTEGER
 DECLARE SUB SettingsAddFolder
 DECLARE SUB SettingsRemoveFolder
 DECLARE SUB SettingsPicked
@@ -288,6 +290,7 @@ CREATE SettingsDialog AS RForm
     CREATE AIPermBox AS RComboBox
       Style = 2
       AccessibleName = TR$("What the assistant may do")
+      OnChange = AIPermPicked
     END CREATE
     CREATE AIReplyLabel AS RLabel
       Caption = TR$("&RAI answers in:")
@@ -1145,4 +1148,24 @@ END SUB
 ' (See prices: the provider's own page, in the browser)
 SUB AISetPricesClick
   IF SetAI.PricingURL <> "" THEN AISetLinks.OpenLink SetAI.PricingURL
+END SUB
+
+' (Work on its own chosen: what it means said in rows — consent.inc —,
+' Cancel the default; Cancel puts the choice back)
+FUNCTION AIConfirmAuto AS INTEGER
+  ConsentBegin TR$("Let RAI work on its own?"), TR$("Nothing waits for you: RAI changes the project's files, runs the program and tests it on its own, then reports what it did.")
+  ConsentRow "warning", TR$("Keep in mind"), TR$("A program RAI runs can do anything you can on this computer, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of.")
+  ConsentRow "visible", TR$("You still see"), TR$("Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run. Clicking and typing in your program still asks once a run.")
+  ConsentRow "lock", TR$("Never"), TR$("RAI never sees your keys, or files outside the project.")
+  ConsentYes.AccessibleDescription = TR$("RAI changes and runs the project without asking")
+  ConsentNo.AccessibleDescription = TR$("The permission stays as it was")
+  Result = ConsentAsk("", "", TR$("&Let RAI Work on Its Own"), TR$("Cancel"))
+END FUNCTION
+
+SUB AIPermPicked
+  IF AIPermBox.ItemIndex = 2 AND AIPermission <> "auto" THEN
+    IF AIConfirmAuto = 0 THEN
+      IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
+    END IF
+  END IF
 END SUB

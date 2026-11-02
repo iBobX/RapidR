@@ -537,6 +537,10 @@ msgid "Not edited: the chat is as it was."
 msgstr ""
 
 #: ide/ai.inc
+msgid "RAI saved the version “{message}” ({id})"
+msgstr ""
+
+#: ide/ai.inc
 msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
 msgstr ""
 
@@ -2805,7 +2809,7 @@ msgstr ""
 msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
 msgstr ""
 
-#: ide/crash.inc ide/mcp.inc
+#: ide/crash.inc ide/mcp.inc ide/settings.inc
 msgid "Keep in mind"
 msgstr ""
 
@@ -3765,7 +3769,7 @@ msgstr ""
 msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
 msgstr ""
 
-#: ide/mcp.inc
+#: ide/mcp.inc ide/settings.inc
 msgid "You still see"
 msgstr ""
 
@@ -3785,7 +3789,7 @@ msgstr ""
 msgid "AI apps change and run anything in this project without asking"
 msgstr ""
 
-#: ide/mcp.inc
+#: ide/mcp.inc ide/settings.inc
 msgid "The permission stays as it was"
 msgstr ""
 
@@ -5765,6 +5769,10 @@ msgid "Only read the project and answer"
 msgstr ""
 
 #: ide/settings.inc
+msgid "Work on its own: change files, run and test (you can undo every step)"
+msgstr ""
+
+#: ide/settings.inc
 msgid "Studio's language"
 msgstr ""
 
@@ -5874,6 +5882,34 @@ msgstr ""
 
 #: ide/settings.inc
 msgid "{status} {model} is still chosen."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Let RAI work on its own?"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Nothing waits for you: RAI changes the project's files, runs the program and tests it on its own, then reports what it did."
+msgstr ""
+
+#: ide/settings.inc
+msgid "A program RAI runs can do anything you can on this computer, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run. Clicking and typing in your program still asks once a run."
+msgstr ""
+
+#: ide/settings.inc
+msgid "RAI never sees your keys, or files outside the project."
+msgstr ""
+
+#: ide/settings.inc
+msgid "RAI changes and runs the project without asking"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Let RAI Work on Its Own"
 msgstr ""
 
 #: ide/shell.inc

@@ -3890,8 +3890,11 @@ msgstr "Guardando una versión"
 msgid "Saving the version “{message}”"
 msgstr "Guardando la versión «{message}»"
 
-msgid "RAI saved the version “{message}” ({id})"
-msgstr "RAI guardó la versión «{message}» ({id})"
 
-msgid "Work on its own: change files, run and test (you can undo every step)"
-msgstr "Trabajar por su cuenta: cambiar archivos, ejecutar y probar (puede deshacer cada paso)"
+
+
+
+
+
+
+
