@@ -93,8 +93,12 @@ struct Search<'a> {
 
 impl<'a> Search<'a> {
     fn new(a: &'a [u32], b: &'a [u32]) -> Search<'a> {
-        // diagonals of any box: k in −(N + M) − 1 ..= (N + M) + 1
-        let span = (a.len() + b.len()) as isize + 2;
+        // diagonals of any box: the forward search's k in −D ..= D, the
+        // reverse search's in Δ − D ..= Δ + D, with |Δ| up to N + M and D up
+        // to N + M: k in −2(N + M) − 1 ..= 2(N + M) + 1 (one N + M wide was
+        // too small when one side is much longer: the reverse search wrote
+        // past the end — a Studio crash reviewing a change, 2026-11-02)
+        let span = 2 * (a.len() + b.len()) as isize + 2;
         let size = (2 * span + 1) as usize;
         Search { a, b, del: vec![false; a.len()], ins: vec![false; b.len()], fwd: vec![NONE_FWD; size], rev: vec![NONE_REV; size], zero: span }
     }
