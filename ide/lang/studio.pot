@@ -2360,6 +2360,10 @@ msgid "Add &File..."
 msgstr ""
 
 #: ide/commands.inc
+msgid "Add Fol&der..."
+msgstr ""
+
+#: ide/commands.inc
 msgid "Add F&orm"
 msgstr ""
 
@@ -5934,6 +5938,18 @@ msgstr ""
 
 #: ide/shell.inc
 msgid "Add a File to the Project"
+msgstr ""
+
+#: ide/shell.inc
+msgid "Add a Folder to the Project"
+msgstr ""
+
+#: ide/shell.inc
+msgid "Added {n} files from {folder} to the project"
+msgstr ""
+
+#: ide/shell.inc
+msgid "{n} were in the project already or couldn't be added"
 msgstr ""
 
 #: ide/shell.inc

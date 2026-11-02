@@ -203,6 +203,7 @@ SUB DefineCommands
 
   ' ---- Project ----
   AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
+  AddCmd "project.addFolder", "Add Fol&der...", "Project", "", "", "project", "file.open"
   AddCmd "project.addForm", "Add F&orm", "Project", "", "", "addform", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
   AddCmd "designer.addForm", "Add a Form to This F&ile", "Project", "", "", "document", "RFORM"

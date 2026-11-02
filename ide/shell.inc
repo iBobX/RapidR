@@ -92,6 +92,51 @@ SUB AddFileToProject
   END IF
 END SUB
 
+' Project > Add Folder: every file in a folder and the folders inside it
+' (not hidden ones: .git, .rapidr…), each added as Add File does; at most
+' 500 files. The tree shows them at once.
+SUB AddFolderToProject
+  DIM todo(200) AS STRING, n AS INTEGER, top AS STRING, f AS STRING, names AS STRING
+  DIM k AS INTEGER, cnt AS INTEGER, added AS INTEGER, skipped AS INTEGER, p AS STRING
+  OpenDlg.Caption = TR$("Add a Folder to the Project")
+  OpenDlg.PickFolder = 1
+  IF OpenDlg.Execute = 0 THEN
+    OpenDlg.PickFolder = 0
+    EXIT SUB
+  END IF
+  OpenDlg.PickFolder = 0
+  n = 1
+  todo(1) = OpenDlg.FileName
+  DO WHILE n > 0 AND added < 500
+    top = todo(n)
+    n = n - 1
+    ' (the folder's names first: DIR$ keeps one listing at a time)
+    names = ""
+    f = DIR$(top + "/*", faDirectory OR faHidden)
+    DO WHILE f <> ""
+      IF LEFT$(f, 1) <> "." THEN names = names + f + CHR$(10)
+      f = DIR$
+    LOOP
+    cnt = TALLY(names, CHR$(10))
+    FOR k = 1 TO cnt
+      p = top + "/" + FIELD$(names, CHR$(10), k)
+      IF DIREXISTS(p) THEN
+        IF n < 200 THEN
+          n = n + 1
+          todo(n) = p
+        END IF
+      ELSEIF added < 500 THEN
+        IF Proj.AddFile(p) THEN added = added + 1 ELSE skipped = skipped + 1
+      END IF
+    NEXT
+  LOOP
+  ' (read again, so the new files show now)
+  ProjectTree.Project = ""
+  FillProjectTree
+  OutputLine TR$("Added {n} files from {folder} to the project", "n", STR$(added), "folder", OpenDlg.FileName)
+  IF skipped > 0 THEN OutputLine TR$("{n} were in the project already or couldn't be added", "n", STR$(skipped))
+END SUB
+
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   ' (what Studio is doing, for a crash or hang report: the command's id)
@@ -173,6 +218,7 @@ SUB RunCommand(Id AS STRING)
     CASE "tools.schoolLock": ShowSchoolLock
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
+    CASE "project.addFolder": AddFolderToProject
     CASE "project.addForm"
       ' (the file open makes no form: one added to it; else a new form file
       ' of the program, its main file including it — Project >

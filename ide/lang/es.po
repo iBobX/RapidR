@@ -6846,3 +6846,15 @@ msgstr "&Dejar que RAI trabaje por su cuenta"
 
 msgid "RAI saved the version “{message}” ({id})"
 msgstr "RAI guardó la versión «{message}» ({id})"
+
+msgid "Add Fol&der..."
+msgstr "Agregar &carpeta..."
+
+msgid "Add a Folder to the Project"
+msgstr "Agregar una carpeta al proyecto"
+
+msgid "Added {n} files from {folder} to the project"
+msgstr "Se agregaron {n} archivos de {folder} al proyecto"
+
+msgid "{n} were in the project already or couldn't be added"
+msgstr "{n} ya estaban en el proyecto o no se pudieron agregar"
