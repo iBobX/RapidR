@@ -1036,6 +1036,8 @@ impl Tools {
         let path = self.proposals[k].path.clone();
         let values = [("path", path.as_str())];
         let line = match decision.as_str() {
+            // ("Work on its own": RAI applied it, not the user)
+            "applied" if self.permission.eq_ignore_ascii_case("auto") => tr_ui_fill("RAI applied its change to {path} (working on its own).", &values),
             "applied" => tr_ui_fill("You applied the change to {path}.", &values),
             "partly" => tr_ui_fill("You applied part of the change to {path}.", &values),
             "rejected" => tr_ui_fill("You rejected the change to {path}.", &values),

@@ -1085,6 +1085,10 @@ msgid "The assistant proposed changes to {files} files that don't compile yet: r
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI applied its change to {path} (working on its own)."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "You applied the change to {path}."
 msgstr ""
 

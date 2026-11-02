@@ -3898,3 +3898,6 @@ msgstr "Guardando la versión «{message}»"
 
 
 
+
+msgid "RAI applied its change to {path} (working on its own)."
+msgstr "RAI aplicó su cambio a {path} (trabajando por su cuenta)."
