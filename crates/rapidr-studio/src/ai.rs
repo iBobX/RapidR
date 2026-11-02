@@ -260,6 +260,12 @@ impl Tools {
         if !self.permission_allows() || name == "app_wait" || run.is_none() || run == self.app_run {
             return ai_tools::app_call(name, input, self.permission_allows());
         }
+        // ("Work on its own": the user said yes to this in its consent
+        // dialog — no card each run)
+        if self.permission.eq_ignore_ascii_case("auto") {
+            self.app_run = run;
+            return ai_tools::app_call(name, input, true);
+        }
         if self.app_asked == Some(Some(false)) {
             return app_refused(name);
         }

@@ -5889,15 +5889,15 @@ msgid "Let RAI work on its own?"
 msgstr ""
 
 #: ide/settings.inc
-msgid "Nothing waits for you: RAI changes the project's files, runs the program and tests it on its own, then reports what it did."
+msgid "Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did."
 msgstr ""
 
 #: ide/settings.inc
-msgid "A program RAI runs can do anything you can on this computer, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of."
+msgid "A program RAI runs can do anything you can on this computer, what it clicks in it is real (Send, Pay, Delete), it sees whatever the program shows, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of, with test data."
 msgstr ""
 
 #: ide/settings.inc
-msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run. Clicking and typing in your program still asks once a run."
+msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run and RAI's answer."
 msgstr ""
 
 #: ide/settings.inc

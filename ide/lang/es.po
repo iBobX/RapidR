@@ -6826,14 +6826,14 @@ msgstr "Trabajar por su cuenta: cambiar archivos, ejecutar y probar (puede desha
 msgid "Let RAI work on its own?"
 msgstr "¿Dejar que RAI trabaje por su cuenta?"
 
-msgid "Nothing waits for you: RAI changes the project's files, runs the program and tests it on its own, then reports what it did."
-msgstr "Nada espera por usted: RAI cambia los archivos del proyecto, ejecuta el programa y lo prueba por su cuenta, y luego informa lo que hizo."
+msgid "Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did."
+msgstr "Nada espera por usted: RAI cambia los archivos del proyecto, ejecuta el programa, lo mira, hace clic y escribe en él para probarlo por su cuenta, y luego informa lo que hizo."
 
-msgid "A program RAI runs can do anything you can on this computer, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of."
-msgstr "Un programa que RAI ejecuta puede hacer todo lo que usted puede en esta computadora, y sus cambios se aplican sin su revisión. Puede costar dinero con un modelo de pago. Elija esto solo mientras observa, en un proyecto con Versiones."
+msgid "A program RAI runs can do anything you can on this computer, what it clicks in it is real (Send, Pay, Delete), it sees whatever the program shows, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of, with test data."
+msgstr "Un programa que RAI ejecuta puede hacer todo lo que usted puede en esta computadora, lo que hace clic en él es real (Enviar, Pagar, Eliminar), ve todo lo que el programa muestra, y sus cambios se aplican sin su revisión. Puede costar dinero con un modelo de pago. Elija esto solo mientras observa, en un proyecto con Versiones y con datos de prueba."
 
-msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run. Clicking and typing in your program still asks once a run."
-msgstr "Cada paso en el chat de RAI; Deshacer y Versiones revierten cualquier cambio; Detener termina una ejecución. Hacer clic y escribir en su programa sigue preguntando una vez por ejecución."
+msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run and RAI's answer."
+msgstr "Cada paso en el chat de RAI; Deshacer y Versiones revierten cualquier cambio; Detener termina una ejecución y la respuesta de RAI."
 
 msgid "RAI never sees your keys, or files outside the project."
 msgstr "RAI nunca ve sus claves ni archivos fuera del proyecto."
