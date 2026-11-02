@@ -88,7 +88,15 @@ SUB AddFileToProject
   OpenDlg.Caption = TR$("Add a File to the Project")
   OpenDlg.Filter = TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN
-    IF Proj.AddFile(OpenDlg.FileName) THEN FillProjectTree ELSE OutputLine Proj.Error
+    ' (saved at once, then read again: the tree reads the project file,
+    ' and an unsaved add didn't show until Studio was reopened)
+    IF Proj.AddFile(OpenDlg.FileName) THEN
+      Proj.Save
+      ProjectTree.Project = ""
+      FillProjectTree
+    ELSE
+      OutputLine Proj.Error
+    END IF
   END IF
 END SUB
 
@@ -130,7 +138,8 @@ SUB AddFolderToProject
       END IF
     NEXT
   LOOP
-  ' (read again, so the new files show now)
+  ' (saved, then read again, so the new files show now)
+  IF added > 0 THEN Proj.Save
   ProjectTree.Project = ""
   FillProjectTree
   OutputLine TR$("Added {n} files from {folder} to the project", "n", STR$(added), "folder", OpenDlg.FileName)
