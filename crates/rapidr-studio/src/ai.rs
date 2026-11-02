@@ -967,7 +967,10 @@ impl ToolProvider for Handle {
             if !t.may_propose() {
                 None
             } else if t.touched {
-                (t.broken && t.tries < 3).then(|| NUDGE_FIX.to_string())
+                // ("Work on its own": it keeps fixing until it compiles —
+                // more tries before the user is asked)
+                let tries = if t.permission.eq_ignore_ascii_case("auto") { 8 } else { 3 };
+                (t.broken && t.tries < tries).then(|| NUDGE_FIX.to_string())
             } else if rapidr_ai::claims::claims_change(answer) {
                 t.asked_again = true;
                 Some(format!("{NUDGE} {}", t.where_to()))
