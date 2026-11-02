@@ -1886,6 +1886,11 @@ SUB AIRunRequest
         END IF
       NEXT
       AIApplyProposals
+      ' (saved at once, and RAI's view of the project brought up to date:
+      ' its next change builds on these files as they are now — else it
+      ' was refused as made for an older text)
+      IF AITools.ProposalCount = 0 THEN RunCommand "file.saveAll"
+      AISyncProject
       AIAutoApplying = 0
     END IF
   END IF
@@ -2248,6 +2253,10 @@ SUB AIRevApplyClick
   AIRevKeep
   AIReview.Close
   AIApplyProposals
+  ' (Robert 2026-11-02: applied means saved — and RAI's view of the files
+  ' brought up to date, so its next change builds on them as they are)
+  IF AITools.ProposalCount = 0 THEN RunCommand "file.saveAll"
+  AISyncProject
 END SUB
 
 SUB AIRevCancel
