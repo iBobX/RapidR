@@ -47,6 +47,11 @@ Before any new feature, everything RapidR already does gets fast.
   `INT128` / `UINT128` and whole numbers of any size.
 - [ ] **The best error messages**: "did you mean…?", suggested fixes, warnings
   said once, clear for a student, an engineer and an AI agent alike.
+- [ ] **RAI connects to other apps' tools**: RAI and your programs can use
+  MCP servers (design tools, 3D apps, databases...), with what each one may
+  do chosen by you, and every call shown.
+- [ ] **RAI calls your app's own tools**: your program gives RAI its own
+  actions, checked before they run.
 - [ ] **AI agents use RapidR the right way**: Studio's MCP server guides any
   agent, even a small one, through RapidR's help, examples and checks.
 - [ ] **Speed is a release gate**: every component has a speed budget and a
