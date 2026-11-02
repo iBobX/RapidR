@@ -1912,7 +1912,7 @@ END SUB
 ' check for keys and passwords first: never saved "anyway"). What it says
 ' goes back to RAI.
 FUNCTION AISaveVersion(Message AS STRING) AS STRING
-  DIM fl AS STRING, id AS STRING, i AS INTEGER
+  DIM fl AS STRING, id AS STRING, i AS INTEGER, who AS STRING
   IF ProjectOpen = 0 THEN
     Result = "Not saved: no project is open."
     EXIT FUNCTION
@@ -1933,8 +1933,12 @@ FUNCTION AISaveVersion(Message AS STRING) AS STRING
   FOR i = 0 TO VerChCount - 1
     fl = fl + VerChPath(i) + CHR$(10)
   NEXT
-  IF Repo.Author = "" THEN Repo.Author = "RAI"
+  ' (a version RAI saves is RAI's: its name in the timeline and in a line's
+  ' history, never the user's — the user's own name is put back after)
+  who = Repo.Author
+  Repo.Author = "RAI"
   id = Repo.SaveVersion(Message, fl, 0)
+  Repo.Author = who
   IF id = "" THEN
     IF Repo.ErrorKind = "secrets" THEN
       Result = "Not saved: some lines look like keys or passwords (" + REPLACESUBSTR$(Repo.Secrets, CHR$(10), "; ") + "). Take them out, or ask the user."
