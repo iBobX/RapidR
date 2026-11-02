@@ -1872,7 +1872,23 @@ END SUB
 ' RAI's own Run (its run_program tool): Studio starts or stops the
 ' program with Run's and Stop's own commands, once (taken first).
 SUB AIRunRequest
-  DIM r AS STRING
+  DIM r AS STRING, i AS INTEGER
+  ' (Tools > Settings > AI: "Work on its own": RAI's changes to the open
+  ' project are applied at once — each one undoable, as Apply does — before
+  ' anything it asked Studio to do; a new program keeps its usual way)
+  IF AIPermission = "auto" AND AIAutoApplying = 0 AND AITools.ProposalCount > 0 THEN
+    IF AIProjectProposal = 0 THEN
+      AIAutoApplying = 1
+      FOR i = 0 TO AITools.ProposalCount - 1
+        IF i < AIMAXPROPS THEN
+          AIRevResult(i) = AITools.ProposalNew(i)
+          AIRevSeen(i) = 1
+        END IF
+      NEXT
+      AIApplyProposals
+      AIAutoApplying = 0
+    END IF
+  END IF
   r = AITools.RunRequest
   IF r = "" THEN EXIT SUB
   IF LEFT$(r, 8) = "version" + CHR$(9) THEN

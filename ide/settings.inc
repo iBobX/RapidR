@@ -749,7 +749,7 @@ SUB SettingsLanguageChanged
   p = AIPermBox.ItemIndex
   IF AIPermBox.ItemCount > 0 THEN
     AIPermBox.Clear
-    AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
+    AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer"), TR$("Work on its own: change files, run and test (you can undo every step)")
     AIPermBox.ItemIndex = p
   END IF
   p = AIReplyBox.ItemIndex
@@ -854,7 +854,7 @@ SUB AISettingsFill
       line = FIELD$(all, CHR$(10), i)
       IF line <> "" THEN AIBaseBox.AddItems FIELD$(line, CHR$(9), 2)
     NEXT
-    AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
+    AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer"), TR$("Work on its own: change files, run and test (you can undo every step)")
     AIReplyBox.AddItems TR$("Studio's language"), TR$("The language I write in")
   END IF
   ' (a list still coming from the last time the tab was open: not waited
@@ -875,7 +875,13 @@ SUB AISettingsFill
   AIMaxNoteFill
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
-  IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
+  IF AIPermission = "read-only" THEN
+    AIPermBox.ItemIndex = 1
+  ELSEIF AIPermission = "auto" THEN
+    AIPermBox.ItemIndex = 2
+  ELSE
+    AIPermBox.ItemIndex = 0
+  END IF
   IF AIReplyIn = "writer" THEN AIReplyBox.ItemIndex = 1 ELSE AIReplyBox.ItemIndex = 0
   AIReviewBox.Checked = AIReviewFirst
   AIWsEdit.Text = AIWorkspace
@@ -1119,7 +1125,13 @@ SUB AISettingsTake
   IF n < 256 THEN n = 256
   IF n > 128000 THEN n = 128000
   AIMaxTokens = n
-  IF AIPermBox.ItemIndex = 1 THEN AIPermission = "read-only" ELSE AIPermission = "propose"
+  IF AIPermBox.ItemIndex = 1 THEN
+    AIPermission = "read-only"
+  ELSEIF AIPermBox.ItemIndex = 2 THEN
+    AIPermission = "auto"
+  ELSE
+    AIPermission = "propose"
+  END IF
   IF AIReplyBox.ItemIndex = 1 THEN AIReplyIn = "writer" ELSE AIReplyIn = "studio"
   AIReviewFirst = Flag(AIReviewBox.Checked)
   AIPriceIn = VAL(AIPriceInEdit.Text)

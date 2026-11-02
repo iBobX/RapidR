@@ -534,6 +534,10 @@ fn facts(t: &Tools) -> String {
         let name = if t.project_name.is_empty() { "(unnamed)" } else { &t.project_name };
         format!("The open project: {name}; main file {}; files: {}.", t.main, t.files.join(", "))
     };
+    // (the user lets RAI work on its own: its changes are applied at once)
+    if t.permission.eq_ignore_ascii_case("auto") && !t.coach() {
+        f.push_str("\nThe user lets you work on your own: every change you propose is applied at once (Studio keeps each step in Undo and Versions), so you can go on and run_program to test it without waiting. Save a Version (save_version) before a big step and after a step that works, and report your results when you're done.");
+    }
     // (a new program proposed and not created yet: still the model's to fix)
     if let Some((name, main)) = ai_tools::pending(&t.proposals) {
         let files: Vec<&str> = t.proposals.iter().filter(|p| p.kind == "project" && p.project == name).map(|p| p.path.as_str()).collect();
@@ -1470,7 +1474,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "mainfile" => s(t.main.clone()),
             "compatmode" => s(t.compat.clone()),
             "projectname" => s(t.project_name.clone()),
-            "permission" => s(if t.permission_allows() { "propose" } else { "read-only" }),
+            "permission" => s(if !t.permission_allows() { "read-only" } else if t.permission.eq_ignore_ascii_case("auto") { "auto" } else { "propose" }),
             // (the dial — "coach" also while School Lock keeps it there)
             "mode" => s(if t.coach() { "coach" } else { "build" }),
             "coachlocked" => crate::flag(crate::school_lock::locked_now("coach")),
@@ -1503,7 +1507,15 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "mainfile" => x.main = crate::slashes(t.trim()),
             "compatmode" => x.compat = t.trim().to_string(),
             "projectname" => x.project_name = t.trim().to_string(),
-            "permission" => x.permission = if t.eq_ignore_ascii_case("read-only") { "read-only".into() } else { "propose".into() },
+            "permission" => {
+                x.permission = if t.eq_ignore_ascii_case("read-only") {
+                    "read-only".into()
+                } else if t.eq_ignore_ascii_case("auto") {
+                    "auto".into()
+                } else {
+                    "propose".into()
+                }
+            }
             "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "runrequest" | "callfailed" | "callnote" | "calltarget" | "callrisk" | "coachlocked" | "coacherror" => {}
             "mode" => {
                 let m = Mode::parse(&t);

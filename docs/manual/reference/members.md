@@ -6043,7 +6043,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `MainFile` | string |  | The project's main file, relative to ProjectFolder. |
 | `ProjectName` | string |  | The project's name, as the model is told it. |
 | `CompatMode` | string |  | "rapidq" for a project kept classic-compatible: the model is told to write only the classic language. |
-| `Permission` | string | `"propose"` | What the model may do: "propose" (read the project and propose changes, shown as diffs the user decides on) or "read-only" (read and answer; the proposing tools aren't offered). |
+| `Permission` | string | `"propose"` | What the model may do: "auto" (work on its own: its changes are applied at once, each undoable, and it runs and tests by itself), "propose" (read the project and propose changes, shown as diffs the user decides on) or "read-only" (read and answer; the proposing tools aren't offered). |
 | `ProposalCount` (read-only) | int |  | How many proposals there are: the changes to files that wait for the user's decision (proposed in the last answer or an earlier one; one whose file the user changed meanwhile is set aside at the next question, said), or a new project's files. |
 | `ReviewFirst` | bool | False | True: a new program waits to be previewed and created (RapidR Studio's "Ask before the assistant creates or changes files"); False: the program creates it as the answer ends, and the model is told so. |
 | `ProjectErrors` (read-only) | int |  | How many compile errors the new program proposed and not created yet has (0: it compiles). |

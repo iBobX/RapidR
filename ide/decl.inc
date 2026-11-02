@@ -408,6 +408,8 @@ DIM AIReplyIn AS STRING
 ' previewed before it is created; off — the default — it opens at once,
 ' with a Run it / Undo banner: docs/ai-ux-plan.md)
 DIM AIReviewFirst AS INTEGER
+' (applying RAI's changes by itself — "Work on its own" — now: not twice)
+DIM AIAutoApplying AS INTEGER
 DIM AIPriceIn AS DOUBLE
 DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)
