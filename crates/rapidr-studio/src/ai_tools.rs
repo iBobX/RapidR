@@ -194,6 +194,16 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
 /// always; clicks, typing, keys, drags and the wheel when `input` (the
 /// user allows changes). A picture isn't one of RAI's: its models get the
 /// layout in words.
+/// RAI saves a Version (save_version): every changed file of the project,
+/// as Save a Version does, keys and passwords checked first.
+pub fn version_tool() -> Tool {
+    Tool {
+        name: "save_version".into(),
+        description: "Saves a Version of the open project in RapidR Studio's Versions, as the user's Save a Version does: every changed file, under message (its name). Studio refuses when a line looks like a key or password, and says which. Save one before a step that changes many files, and after a step that works. Example: {\"message\": \"Step 1a - before bug fixes\"}.".into(),
+        input_schema: schema(json!({"message": {"type": "string", "description": "the version's name, in a few words"}}), &["message"]),
+    }
+}
+
 /// RAI's own Run (run_program): Studio starts or stops the open project's
 /// program as Run and Stop do, and says how it went.
 pub fn run_tool() -> Tool {
@@ -332,6 +342,7 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         // capitalised, RAI's not)
         "app_layout" => tr_ui("Reading the running program's layout"),
         "app_screenshot" => tr_ui("Looking at the running program"),
+        "save_version" => field("message").map_or_else(|| tr_ui("Saving a version"), |m| tr_ui_fill("Saving the version “{message}”", &[("message", &m)])),
         "run_program" => match field("action").as_deref() {
             Some("stop") => tr_ui("Stopping your program"),
             Some("status") => tr_ui("Looking at your program's output"),

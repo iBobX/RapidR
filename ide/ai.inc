@@ -31,6 +31,7 @@
 
 DECLARE SUB AIUpdate
 DECLARE SUB AIRunRequest
+DECLARE FUNCTION AISaveVersion(Message AS STRING) AS STRING
 DECLARE SUB AIShowNote
 DECLARE SUB AiLanguageChanged
 DECLARE SUB AIDone(Status AS STRING)
@@ -1874,6 +1875,10 @@ SUB AIRunRequest
   DIM r AS STRING
   r = AITools.RunRequest
   IF r = "" THEN EXIT SUB
+  IF LEFT$(r, 8) = "version" + CHR$(9) THEN
+    AITools.RunRequestTaken AISaveVersion(MID$(r, 9))
+    EXIT SUB
+  END IF
   AITools.RunRequestTaken
   IF r = "start" THEN
     RunCommand "run.start"
@@ -1881,6 +1886,46 @@ SUB AIRunRequest
     RunCommand "run.stop"
   END IF
 END SUB
+
+' RAI's save_version: every changed file, as Save a Version does (the
+' check for keys and passwords first: never saved "anyway"). What it says
+' goes back to RAI.
+FUNCTION AISaveVersion(Message AS STRING) AS STRING
+  DIM fl AS STRING, id AS STRING, i AS INTEGER
+  IF ProjectOpen = 0 THEN
+    Result = "Not saved: no project is open."
+    EXIT FUNCTION
+  END IF
+  IF Repo.Versioned = 0 THEN
+    Result = "Not saved: this project doesn't keep versions yet. Ask the user to start them (View > Versions > Start)."
+    EXIT FUNCTION
+  END IF
+  IF VerSaveOpenFiles = 0 THEN
+    Result = "Not saved: the open files couldn't be saved first."
+    EXIT FUNCTION
+  END IF
+  VerRefresh
+  IF VerChCount = 0 THEN
+    Result = "Nothing changed since the last version, so there is nothing to save."
+    EXIT FUNCTION
+  END IF
+  FOR i = 0 TO VerChCount - 1
+    fl = fl + VerChPath(i) + CHR$(10)
+  NEXT
+  IF Repo.Author = "" THEN Repo.Author = "RAI"
+  id = Repo.SaveVersion(Message, fl, 0)
+  IF id = "" THEN
+    IF Repo.ErrorKind = "secrets" THEN
+      Result = "Not saved: some lines look like keys or passwords (" + REPLACESUBSTR$(Repo.Secrets, CHR$(10), "; ") + "). Take them out, or ask the user."
+    ELSE
+      Result = "Not saved: " + Repo.Error
+    END IF
+    EXIT FUNCTION
+  END IF
+  OutputLine TR$("RAI saved the version “{message}” ({id})", "message", Message, "id", LEFT$(id, 7))
+  VerRefresh
+  Result = "Saved the version """ + Message + """ (" + LEFT$(id, 7) + "), " + STR$(VerChCount) + " file(s) changed before it."
+END FUNCTION
 
 SUB AIUpdate
   AIRunRequest

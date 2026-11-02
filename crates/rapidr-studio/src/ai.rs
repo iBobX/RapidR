@@ -135,6 +135,9 @@ struct Tools {
     /// action, the runs started before it, since when, the seconds to let
     /// it run.
     run_held: Option<(String, String, u64, Option<std::time::Instant>, u64)>,
+    /// What Studio said after doing a request that answers in words (a
+    /// version saved: RunRequestTaken's Result).
+    run_result: Option<String>,
     /// The dial: Build or Coach (Studio's pane sets it; School Lock may
     /// keep it on Coach whatever it says — [`Tools::coach`]).
     mode: Mode,
@@ -324,6 +327,28 @@ impl Tools {
         }
     }
 
+    /// RAI saves a Version of the project (Studio's Versions, as Save a
+    /// Version does: every changed file, the check for keys first).
+    fn version_call(&mut self, input: &Json) -> ToolOutcome {
+        let message = input.get("message").and_then(Json::as_str).unwrap_or("").trim().replace(['\t', '\n', '\r'], " ");
+        let answer = |content: String, is_error: bool| ToolOutcome { content, is_error, note: ai_tools::activity("save_version", input).unwrap_or_default(), read: None, risk: "ui", target: String::new() };
+        if !self.may_propose() || self.coach() {
+            return answer("You can't save versions here (RAI only reads, or Coach mode).".into(), true);
+        }
+        if message.is_empty() {
+            return answer("message: the version's name, in a few words (\"Step 1a - fixes applied\").".into(), true);
+        }
+        if self.run_held.is_some() {
+            return answer("Another request to Studio is still going on: wait for its answer.".into(), true);
+        }
+        self.run_request = format!("version\t{message}");
+        self.run_result = None;
+        self.app_next += 1;
+        let ticket = format!("run:{}", self.app_next);
+        self.run_held = Some((ticket.clone(), "version".into(), 0, Some(std::time::Instant::now()), 0));
+        ToolOutcome::later(ticket)
+    }
+
     /// The program's state and its last output, for the model.
     fn run_status(&self) -> String {
         let state = if crate::session::any_running() { "The program is running." } else { "The program isn't running." };
@@ -343,6 +368,13 @@ impl Tools {
         }
         let elapsed = since.map_or(0.0, |s| s.elapsed().as_secs_f64());
         let running = crate::session::any_running();
+        if action == "version" {
+            if let Some(said) = self.run_result.take() {
+                let failed = said.starts_with("Not saved");
+                return self.run_done(&action, said, failed);
+            }
+            return if elapsed > 20.0 { self.run_done(&action, "Studio didn't answer within 20 s.".into(), true) } else { None };
+        }
         if action == "stop" {
             if !running {
                 let said = format!("Stopped. {}", self.run_status());
@@ -586,6 +618,9 @@ impl ToolProvider for Handle {
             if t.permission_allows() {
                 tools.push(ai_tools::run_tool());
             }
+            if t.may_propose() && !t.coach() {
+                tools.push(ai_tools::version_tool());
+            }
             if t.permission_allows() && crate::session::any_running() {
                 tools.extend(ai_tools::app_tools(!t.coach()));
             }
@@ -716,6 +751,9 @@ impl ToolProvider for Handle {
         }
         if name == "run_program" {
             return with(&self.name, |t| t.run_call(input));
+        }
+        if name == "save_version" {
+            return with(&self.name, |t| t.version_call(input));
         }
         with(&self.name, |t| {
             let may = t.may_propose();
@@ -1533,7 +1571,13 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         // until this run ends, or not in this answer)
         // (Studio's pane did RAI's Run or Stop: taken, so it isn't done twice)
         "runrequesttaken" => {
-            with(name, |t| t.run_request.clear());
+            let said = arg(0);
+            with(name, |t| {
+                t.run_request.clear();
+                if !said.is_empty() {
+                    t.run_result = Some(said);
+                }
+            });
             Value::Null
         }
         "allowprogramuse" => {

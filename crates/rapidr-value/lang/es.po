@@ -3883,3 +3883,12 @@ msgstr "Deteniendo el programa"
 
 msgid "Looking at your program's output"
 msgstr "Mirando la salida del programa"
+
+msgid "Saving a version"
+msgstr "Guardando una versión"
+
+msgid "Saving the version “{message}”"
+msgstr "Guardando la versión «{message}»"
+
+msgid "RAI saved the version “{message}” ({id})"
+msgstr "RAI guardó la versión «{message}» ({id})"
