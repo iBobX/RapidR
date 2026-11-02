@@ -2047,6 +2047,9 @@ END SUB
 ' new program to look at; one button that says which)
 SUB AIShowReviewBar
   IF AITools.ProposalCount = 0 THEN EXIT SUB
+  ' ("Work on its own": nothing for the user to review — Studio applies
+  ' RAI's changes itself; a new program still opens its usual way)
+  IF AIPermission = "auto" AND AIProjectProposal = 0 THEN EXIT SUB
   IF AIProjectProposal THEN
     AIReviewBtn.Caption = TR$("Preview the New Program...")
     AIReviewBtn.AccessibleName = TR$("Preview the new program before it is created")
