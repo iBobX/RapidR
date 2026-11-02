@@ -102,7 +102,7 @@ SUB DefineCommands
   AddCmd "file.useDisk", "&Use Disk Version", "File/Outside", "", "", "extask", "-"
   AddCmd "file.keepMine", "&Keep Mine", "File/Outside", "", "", "extask", "-"
   AddSep "File"
-  AddCmd "file.close", "&Close Document", "File", "Ctrl+F4", "", "document", ""
+  AddCmd "file.close", "&Close Document", "File", "Ctrl+W", "", "document", ""
   AddCmd "file.reopenProject", "Reo&pen Project", "File", "", "", "project", "-"
   AddCmd "file.closeProject", "Close Pro&ject", "File", "", "", "project", "-"
   AddSep "File"
