@@ -331,6 +331,17 @@ pub fn models_request(ep: &Endpoint) -> HttpRequest {
     HttpRequest { method: "GET", url: format!("{}/models{query}", ep.base()), headers, body: None }
 }
 
+/// Ollama's loaded models (`/api/ps`, beside its OpenAI-style `/v1`):
+/// each with the window it runs with (`context_length`). `None` for a
+/// base that doesn't end in `/v1`.
+pub fn ollama_ps_request(ep: &Endpoint) -> Option<HttpRequest> {
+    let base = ep.base();
+    let root = base.strip_suffix("/v1")?;
+    let mut headers = ep.headers();
+    headers.retain(|(k, _)| k != "content-type");
+    Some(HttpRequest { method: "GET", url: format!("{root}/api/ps"), headers, body: None })
+}
+
 /// The models of a models list's answer, the ones a chat can use, newest
 /// first where the provider says when they came (OpenAI lists embeddings,
 /// voices, images … too: only chat models stay, and a dated snapshot only

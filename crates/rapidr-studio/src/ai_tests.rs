@@ -26,6 +26,13 @@ fn mock(answers: Vec<String>) -> (String, std::thread::JoinHandle<Vec<String>>) 
 /// as it is asked: GET /models) and a chat answer for each POST, in order;
 /// the POSTs' bodies are what the thread gives back.
 fn mock_with(models: &str, answers: Vec<String>) -> (String, std::thread::JoinHandle<Vec<String>>) {
+    mock_routes(models, None, answers)
+}
+
+/// [`mock_with`], and Ollama's `/api/ps` answered with `ps` (none: 404,
+/// as a server that isn't Ollama answers).
+fn mock_routes(models: &str, ps: Option<&str>, answers: Vec<String>) -> (String, std::thread::JoinHandle<Vec<String>>) {
+    let ps = ps.map(str::to_string);
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/v1", listener.local_addr().unwrap());
     let models = models.to_string();
@@ -52,7 +59,13 @@ fn mock_with(models: &str, answers: Vec<String>) -> (String, std::thread::JoinHa
                 }
             }
             if first.starts_with("GET ") {
-                let resp = format!("HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{models}", models.len());
+                let resp = if !first.contains("/api/ps") {
+                    format!("HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{models}", models.len())
+                } else if let Some(b) = &ps {
+                    format!("HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{b}", b.len())
+                } else {
+                    "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_string()
+                };
                 st.write_all(resp.as_bytes()).unwrap();
                 continue;
             }
@@ -101,7 +114,7 @@ fn wait(name: &str) {
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    panic!("no answer");
+    panic!("no answer: {} | {}\n{}", rapidr_ai::rai::get(name, "status").unwrap().to_string_val(), rapidr_ai::rai::get(name, "error").unwrap().to_string_val(), rapidr_ai::rai::peek(name).0);
 }
 
 #[test]
@@ -317,6 +330,15 @@ fn a_local_models_window_caps_the_reply_and_its_usage_is_counted() {
     wait(n);
     let sent: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
     assert_eq!(sent["max_tokens"], 4096);
+    // (Ollama: /v1/models says no window, its /api/ps says the loaded
+    // model's — 262,144, not the 16,384 assumed, Robert 2026-11-03)
+    let (url3, server3) = mock_routes(r#"{"data":[{"id":"mock-1"}]}"#, Some(r#"{"models":[{"name":"mock-1","model":"mock-1","context_length":262144}]}"#), vec![text_answer("Big window.")]);
+    rai_set(n, "baseurl", &url3);
+    assert_eq!(rai_call(n, "ask", &[s("And with Ollama?")]).to_i64(), -1);
+    wait(n);
+    server3.join().unwrap();
+    let audit = std::fs::read_to_string(dir.join("audit.jsonl")).unwrap();
+    assert!(audit.lines().last().is_some_and(|_| audit.contains("\"window\":262144")), "{audit}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

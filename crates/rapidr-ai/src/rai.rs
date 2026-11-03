@@ -897,6 +897,9 @@ struct Ai {
     /// the model asked to make the change it described; it still didn't;
     /// a too long conversation sent again, shorter.
     probes: u32,
+    /// (this turn) Ollama's loaded models asked too: its /v1/models
+    /// doesn't say a model's window, /api/ps does.
+    ollama_probed: bool,
     chats: u32,
     nudged: bool,
     /// How many times this turn went on after an answer reached its length limit.
@@ -1828,6 +1831,7 @@ impl Ai {
     fn start_chat(&mut self, ep: &Endpoint) -> Result<(), String> {
         if self.wants_probe() {
             self.probes += 1;
+            self.ollama_probed = false;
             self.start(Job::Probe, wire::models_request(ep), ep.provider.format)?;
             self.status = tr_ui("Answering…");
             return Ok(());
@@ -2213,7 +2217,22 @@ impl Ai {
                     self.learn_windows(&models);
                 }
             }
-            if !self.windows.contains_key(&self.model) && !self.unsaid.contains(&self.model) {
+            // (Ollama: its OpenAI-style list says no window — the loaded
+            // model's, 262,144 for qwen3.8, is in /api/ps; without it the
+            // window was taken as 16,384 and every file read was cut out
+            // before the next step, Robert 2026-11-03)
+            if !self.windows.get(&self.model).is_some_and(|(_, sure)| *sure) && !self.ollama_probed {
+                if let Some(req) = self.endpoint().ok().and_then(|ep| wire::ollama_ps_request(&ep)) {
+                    self.ollama_probed = true;
+                    let format = self.provider().map_or(crate::Format::OpenAi, |p| p.format);
+                    if self.start(Job::Probe, req, format).is_ok() {
+                        return;
+                    }
+                }
+            }
+            // (Ollama lists a model in /api/ps once it is loaded: asked again
+            // after the first reply, not given up on)
+            if !(self.ollama_probed && result.is_ok() && run.status == 200) && !self.windows.contains_key(&self.model) && !self.unsaid.contains(&self.model) {
                 self.unsaid.push(self.model.clone());
             }
             self.go_on();
