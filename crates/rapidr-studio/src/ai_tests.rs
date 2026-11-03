@@ -1490,3 +1490,22 @@ fn the_steps_follow_studios_language() {
     assert_eq!(crate::coach::hidden_words(1).1, "Se pidió la pista sin código");
     rapidr_value::i18n::set_language("");
 }
+
+/// A file read again in the same answer is "unchanged: its text is above"
+/// (a small model rereads in a loop) — until RAI cuts earlier results to
+/// fit the window: then the text is sent again (qwen3.8 asked for a file
+/// eight times and got "above" each time, Robert 2026-11-03).
+#[test]
+fn a_reread_after_results_were_cut_sends_the_text_again() {
+    let tools = "tools-reread";
+    install();
+    let dir = project_dir("reread");
+    set(tools, "projectfolder", &s(dir.to_str().unwrap()));
+    let mut h = Handle { name: tools.into() };
+    h.begin_turn();
+    let read = |h: &mut Handle| h.call("read_file", &json!({"path": "main.rr"})).content;
+    assert!(read(&mut h).contains("CREATE Form AS RForm"));
+    assert!(read(&mut h).contains("its text is above"));
+    h.results_trimmed();
+    assert!(read(&mut h).contains("CREATE Form AS RForm"));
+}

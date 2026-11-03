@@ -880,6 +880,12 @@ impl ToolProvider for Handle {
         with(&self.name, |t| t.permission.eq_ignore_ascii_case("auto") && !t.coach()).then_some(AUTO_TOOL_CALLS)
     }
 
+    fn results_trimmed(&mut self) {
+        // (the reads the model had were cut from its window: the next
+        // read_file sends the text again)
+        with(&self.name, |t| t.reads.clear());
+    }
+
     fn turn_status(&self) -> Option<String> {
         with(&self.name, |t| {
             // (nothing proposed in this answer: a new project from before,

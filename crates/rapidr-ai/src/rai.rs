@@ -638,6 +638,10 @@ pub trait ToolProvider {
     fn max_tool_calls(&self) -> Option<u32> {
         None
     }
+    /// Earlier tool results were cut to fit the model's window: what the
+    /// provider remembers the model has read, it no longer has (a file
+    /// read again must be sent whole, not "its text is above").
+    fn results_trimmed(&mut self) {}
     /// The turn's last answer, `answer` to the user's `question`, made no
     /// tool call: what to tell the model when it should have — the answer
     /// says it changed something nothing changed ("I am proposing the
@@ -1862,6 +1866,9 @@ impl Ai {
         let (before, after, cut) = self.compact(fixed);
         if cut > 0 {
             self.audit_log("compact", json!({"tokensBefore": before, "tokensAfter": after, "cut": cut, "window": self.budget_window()}));
+            for (_, _, t) in &mut self.tools {
+                t.results_trimmed();
+            }
         }
         let reasoning_effort = wire::reasoning_for(ep.provider, &self.model, !tools.is_empty(), self.reasoning.get(&self.model).copied(), &self.effort);
         // (an effort: the thinking counts in the reply's tokens — room for it)
@@ -2521,6 +2528,9 @@ impl Ai {
     /// ask again): a conversation's cost stays the size of what matters.
     /// Done as a new question comes, for everything before it.
     fn trim_tool_results(&mut self) {
+        for (_, _, t) in &mut self.tools {
+            t.results_trimmed();
+        }
         for m in &mut self.messages {
             // (earlier turns' thinking goes too: a provider binds it to the
             // history it was made with, which this edits)
