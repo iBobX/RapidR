@@ -837,11 +837,30 @@ fn post(name: &str, a: Arrived) {
         (None, Some(_)) => true,
         (None, None) => false,
     };
+    // (what the server is, asked whatever revision the header names — an
+    // app asks it first, with an earlier revision's header, and quit when
+    // refused (Goose, Robert 2026-11-03): the versions it can then pick)
+    if method == "server/discover" && !modern {
+        if let Some(id) = &id {
+            return discover(name, &a, id);
+        }
+    }
     if !modern {
         let idj = id.unwrap_or(Json::Null);
         return send_json(&a, 400, &[], &error_message(&idj, SESSION_REFUSED, "Start a session with initialize (then send its Mcp-Session-Id), or speak revision 2026-07-28: an MCP-Protocol-Version header and _meta on every request."));
     }
     modern_request(name, a, &body, header_version, meta_version);
+}
+
+/// server/discover's answer: the revisions served, the capabilities, who
+/// the server is.
+fn discover(name: &str, a: &Arrived, id: &Json) {
+    let (info, caps) = describe(name);
+    let mut r = json!({"resultType": "complete", "supportedVersions": supported(), "capabilities": caps, "_meta": {META_SERVER: server_info(&info)}});
+    if !info.instructions.trim().is_empty() {
+        r["instructions"] = json!(info.instructions);
+    }
+    send_json(a, 200, &[], &result_message(id, r));
 }
 
 /// The value of an Mcp-Name / Mcp-Param header, decoded from its Base64
@@ -898,14 +917,7 @@ fn modern_request(name: &str, a: Arrived, body: &Json, header_version: Option<St
     };
     heard(name, &client, &version_of, method == "tools/call");
     match method.as_str() {
-        "server/discover" => {
-            let (info, caps) = describe(name);
-            let mut r = json!({"resultType": "complete", "supportedVersions": supported(), "capabilities": caps, "_meta": {META_SERVER: server_info(&info)}});
-            if !info.instructions.trim().is_empty() {
-                r["instructions"] = json!(info.instructions);
-            }
-            send_json(&a, 200, &[], &result_message(&id, r));
-        }
+        "server/discover" => discover(name, &a, &id),
         "ping" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete"}))),
         "tools/list" => send_json(&a, 200, &[], &result_message(&id, with_type(tools_list(name), true))),
         "resources/list" => send_json(&a, 200, &[], &result_message(&id, with_type(resources_list(name), true))),
