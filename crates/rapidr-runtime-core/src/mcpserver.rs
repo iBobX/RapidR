@@ -51,7 +51,9 @@ use crate::value::{v_int, v_null, v_str, Value};
 /// The revision served statelessly (newest first).
 pub const MODERN: &[&str] = &["2026-07-28"];
 /// The initialize-based revisions served with a session (newest first).
-pub const LEGACY: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26"];
+/// 2024-11-05 too: some AI apps still ask only for it, and answered with a
+/// newer revision they misread the reply (Goose, Robert 2026-11-03).
+pub const LEGACY: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
 const META_VERSION: &str = "io.modelcontextprotocol/protocolVersion";
 const META_CLIENT: &str = "io.modelcontextprotocol/clientInfo";
@@ -1326,6 +1328,7 @@ mod tests {
     fn the_versions_answered() {
         assert_eq!(supported()[0], "2026-07-28");
         assert!(supported().contains(&"2025-03-26"));
+        assert!(supported().contains(&"2024-11-05"));
     }
 
     #[test]
