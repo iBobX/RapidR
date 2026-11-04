@@ -842,8 +842,7 @@ fn post(name: &str, a: Arrived) {
     // refused (Goose, Robert 2026-11-03): the versions it can then pick)
     if method == "server/discover" && !modern {
         if let Some(id) = &id {
-            let v = header_version.as_deref().filter(|v| LEGACY.contains(v)).unwrap_or(LEGACY[0]);
-            return discover(name, &a, id, v);
+            return discover(name, &a, id);
         }
     }
     if !modern {
@@ -854,15 +853,13 @@ fn post(name: &str, a: Arrived) {
 }
 
 /// server/discover's answer: the revisions served, the capabilities, who
-/// the server is — and an initialize answer's fields too (`version`: the
-/// revision the request named): an app that reads the answer as one
-/// (Goose's library does, with either header, and quit) finds
-/// protocolVersion and serverInfo.
-fn discover(name: &str, a: &Arrived, id: &Json, version: &str) {
+/// the server is, and how long it may be kept (`ttlMs`, `cacheScope`:
+/// required — without them Goose's library read the answer as another
+/// kind and quit, Robert 2026-11-04). Not kept (0), and only for this
+/// client: it is behind the token.
+fn discover(name: &str, a: &Arrived, id: &Json) {
     let (info, caps) = describe(name);
-    let mut r = json!({"resultType": "complete", "supportedVersions": supported(), "capabilities": caps, "_meta": {META_SERVER: server_info(&info)}});
-    r["protocolVersion"] = json!(version);
-    r["serverInfo"] = server_info(&info);
+    let mut r = json!({"resultType": "complete", "supportedVersions": supported(), "capabilities": caps, "ttlMs": 0, "cacheScope": "private", "_meta": {META_SERVER: server_info(&info)}});
     if !info.instructions.trim().is_empty() {
         r["instructions"] = json!(info.instructions);
     }
@@ -923,7 +920,7 @@ fn modern_request(name: &str, a: Arrived, body: &Json, header_version: Option<St
     };
     heard(name, &client, &version_of, method == "tools/call");
     match method.as_str() {
-        "server/discover" => discover(name, &a, &id, &version),
+        "server/discover" => discover(name, &a, &id),
         "ping" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete"}))),
         "tools/list" => send_json(&a, 200, &[], &result_message(&id, with_type(tools_list(name), true))),
         "resources/list" => send_json(&a, 200, &[], &result_message(&id, with_type(resources_list(name), true))),
