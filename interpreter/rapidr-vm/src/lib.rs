@@ -477,12 +477,24 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         // the other locals Null. Extra arguments (e.g. the Sender a host
         // passes to a handler that declares no parameters) are dropped
         // rather than overwriting the first locals.
+        // (plain pushes and pops: inlined, where Vec's resize, drain and a
+        // slice's drop are calls)
         let n_locals = f.n_locals as usize;
         let n_params = f.params.len().min(n_locals);
-        let at = self.stack.len().checked_sub(argc as usize).ok_or_else(|| VmError::StackUnderflow)?;
-        locals.extend(self.stack.drain(at..at + (argc as usize).min(n_params)));
-        self.stack.truncate(at);
-        locals.resize(n_locals, Value::Null);
+        if self.stack.len() < argc as usize {
+            return Err(VmError::StackUnderflow);
+        }
+        while locals.len() < n_locals {
+            locals.push(Value::Null);
+        }
+        for i in (0..argc as usize).rev() {
+            let v = self.stack.pop().unwrap_or(Value::Null);
+            match locals.get_mut(i).filter(|_| i < n_params) {
+                // (the slot holds Null: nothing to drop)
+                Some(slot) => std::mem::forget(std::mem::replace(slot, v)),
+                None => fast::discard(v),
+            }
+        }
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
         let stack_base = self.stack.len();
@@ -1918,10 +1930,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         // locals, moved — its other locals dropped — and the previous
         // ones' vector reused by the next call)
         let mut locals = std::mem::take(&mut frame.locals);
-        locals.truncate(n_params);
+        while locals.len() > n_params {
+            if let Some(v) = locals.pop() {
+                fast::discard(v);
+            }
+        }
         let mut spare = std::mem::replace(&mut self.arg_out, locals);
         if self.spare_locals.len() < 64 {
-            spare.clear();
+            while let Some(v) = spare.pop() {
+                fast::discard(v);
+            }
             self.spare_locals.push(spare);
         }
         if frame.stop {
