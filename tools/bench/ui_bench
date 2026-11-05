@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""The UI's and the editor's budgets (docs/speed-audit-2026-11.md), in the
+vm_bench style: measured with the `rapidr` given (./rapidr, or RAPIDR=…).
+
+  writes     tools/bench/ui/prop_writes.rr: RapidR Web Server's issue #12
+             (41 moves), 800 place writes and 200 caption writes on a
+             200-control form (the program's own TIMER)
+  resize     tools/bench/ui/resize200.rr: the 200-control form resized 120
+             times — each step's median (the GUI test's headless host: the
+             layout and the events, no paint; with --windows also a real
+             window: the paint too)
+  canvases   tools/bench/ui/resize_canvas12.rr: 12 canvases laid out by the
+             program's OnResize (its median) and painted (--windows)
+  check      `rapidr check` of a generated 5,000-line program with 1,000
+             $DEFINEs (CPU)
+  caret      RapidR Studio (headless) with a generated 5,000-line program:
+             a caret move's CPU, and an edit round's (a letter typed and
+             taken back, a pause, a move)
+
+Times are the fastest of --runs runs. `--check` compares with the budgets in
+tools/bench/ui_budgets.json and exits 1 when one is missed (the `perf` stage
+of tools/regress.sh).
+
+  tools/bench/ui_bench [--check] [--runs N] [--windows] [--json FILE] [only…]
+"""
+
+import json
+import os
+import platform
+import re
+import resource
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+UI = os.path.join(HERE, "ui")
+BUDGETS = os.path.join(HERE, "ui_budgets.json")
+WORK = os.path.join(ROOT, "tests", "results", "bench")
+
+
+def rapidr_binary():
+    exe = os.environ.get("RAPIDR") or os.path.join(ROOT, "rapidr" + (".exe" if os.name == "nt" else ""))
+    if not os.path.isfile(exe):
+        sys.exit(f"ui_bench: no rapidr at {exe} (cargo build --release -p rapidr-cli, then copy it, or RAPIDR=…)")
+    return exe
+
+
+def scratch_env(headless):
+    """Nothing a benchmark runs may reach a real printer, the user's
+    registry store or keychain; headless: the GUI test's host."""
+    env = dict(os.environ)
+    os.makedirs(os.path.join(WORK, "print"), exist_ok=True)
+    env.setdefault("RAPIDR_PRINT_TO", os.path.join(WORK, "print"))
+    env.setdefault("RAPIDR_REGISTRY", os.path.join(WORK, "registry.reg"))
+    env.setdefault("RAPIDR_AI_KEYSTORE", "memory")
+    # (SEC-24: a release build's test hooks need the test-mode token)
+    token = os.path.expanduser("~/.rapidr/test-mode.token")
+    if "RAPIDR_TEST_MODE" not in env and os.path.exists(token):
+        env["RAPIDR_TEST_MODE"] = token
+    if headless:
+        env["RAPIDR_CAPTURE"] = os.path.join(WORK, "ui-bench-cap")
+        env["RAPIDR_CAPTURE_DELAY"] = "600"
+    else:
+        env.pop("RAPIDR_CAPTURE", None)
+    return env
+
+
+def run(cmd, env):
+    before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    p = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
+    after = resource.getrusage(resource.RUSAGE_CHILDREN)
+    if p.returncode != 0:
+        raise RuntimeError(f"{' '.join(cmd)} exited with {p.returncode}: {(p.stderr or p.stdout).strip()[:300]}")
+    return p.stdout, (after.ru_utime - before.ru_utime) + (after.ru_stime - before.ru_stime)
+
+
+def number(out, pattern):
+    m = re.search(pattern, out)
+    if not m:
+        raise RuntimeError(f"no {pattern!r} in {out.strip()[:300]!r}")
+    return float(m.group(1))
+
+
+def best(runs, f):
+    """The fastest of `runs` measures of each value f gives (a dict)."""
+    out = {}
+    for _ in range(runs):
+        for k, v in f().items():
+            out[k] = min(out.get(k, v), v)
+    return out
+
+
+def main():
+    args = sys.argv[1:]
+    check = "--check" in args
+    windows = "--windows" in args
+    runs, json_out, only = 3, None, []
+    i = 0
+    while i < len(args):
+        if args[i] == "--runs":
+            runs = int(args[i + 1]); i += 1
+        elif args[i] == "--json":
+            json_out = args[i + 1]; i += 1
+        elif not args[i].startswith("--"):
+            only.append(args[i])
+        i += 1
+    want = lambda n: not only or n in only  # noqa: E731
+    exe = rapidr_binary()
+    os.makedirs(WORK, exist_ok=True)
+    version = subprocess.run([exe, "version"], capture_output=True, text=True).stdout.strip()
+    print(f"ui_bench: {version} on {platform.system()} {platform.machine()}, the fastest of {runs} runs")
+    results = {}
+    head = scratch_env(True)
+    if want("writes"):
+        def writes():
+            out, _ = run([exe, "run", os.path.join(UI, "prop_writes.rr")], head)
+            return {k: number(out, rf"{k} ([\d.]+)") for k in ("moves41_hidden", "moves41_shown", "geom200_shown", "caption200")}
+        results.update(best(runs, writes))
+    if want("resize"):
+        def resize(env, tag):
+            out, _ = run([exe, "run", os.path.join(UI, "resize200.rr")], env)
+            return {f"resize200_frame{tag}": number(out, r"resize200 frame .*?median=([\d.]+)"), f"resize200_writes{tag}": number(out, r"resize200 writes .*?median=([\d.]+)")}
+        results.update(best(runs, lambda: resize(head, "")))
+        if windows:
+            results.update(best(runs, lambda: resize(scratch_env(False), "_window")))
+    if want("canvases"):
+        def canvases(env, tag):
+            out, _ = run([exe, "run", os.path.join(UI, "resize_canvas12.rr")], env)
+            return {f"canvas12_onresize{tag}": number(out, r"canvas12 onresize .*?median=([\d.]+)"), f"canvas12_frame{tag}": number(out, r"canvas12 frame .*?median=([\d.]+)")}
+        results.update(best(runs, lambda: canvases(head, "")))
+        if windows:
+            results.update(best(runs, lambda: canvases(scratch_env(False), "_window")))
+    if want("check") or want("caret"):
+        gen = os.path.join(UI, "gen_source.py")
+        with open(os.path.join(WORK, "ui-bench-defines.rr"), "w") as f:
+            subprocess.run([sys.executable, gen, "5000", "--defines", "1000"], stdout=f, check=True)
+        with open(os.path.join(WORK, "ui-bench-5000.rr"), "w") as f:
+            subprocess.run([sys.executable, gen, "5000"], stdout=f, check=True)
+    if want("check"):
+        def checked():
+            _, cpu = run([exe, "check", os.path.join(WORK, "ui-bench-defines.rr")], head)
+            return {"check_defines": cpu * 1000}
+        results.update(best(runs, checked))
+    if want("caret"):
+        caret = os.path.join(UI, "studio_caret.py")
+        env = dict(os.environ, RAPIDR=exe)
+        for kind, n, key in (("moves", 40, "caret_move"), ("edits", 4, "edit_round")):
+            def studio():
+                out = subprocess.run([sys.executable, caret, os.path.join(WORK, "ui-bench-5000.rr"), kind, str(n)], cwd=ROOT, env=env, capture_output=True, text=True, timeout=900).stdout
+                return {key: number(out, r"CPU (-?[\d.]+) ms\s*$")}
+            # (Studio's runs are long: the fastest of two)
+            results.update(best(min(runs, 2), studio))
+
+    budgets = {}
+    if os.path.isfile(BUDGETS):
+        with open(BUDGETS) as f:
+            data = json.load(f)
+        budgets = dict(data.get("budgets", {}))
+        budgets.update(data.get("systems", {}).get(platform.system(), {}))
+    labels = {
+        "moves41_hidden": "#12: 41 moves, form never shown",
+        "moves41_shown": "#12: 41 moves, form shown",
+        "geom200_shown": "800 place writes, 200 controls",
+        "caption200": "200 caption writes",
+        "resize200_frame": "200-control resize step (headless)",
+        "resize200_writes": "… its two size writes",
+        "resize200_frame_window": "200-control resize frame (window)",
+        "resize200_writes_window": "… its two size writes (window)",
+        "canvas12_onresize": "12 canvases: OnResize (48 writes)",
+        "canvas12_frame": "12 canvases: resize step (headless)",
+        "canvas12_onresize_window": "12 canvases: OnResize (window)",
+        "canvas12_frame_window": "12 canvases: resize frame (window)",
+        "check_defines": "check, 5,000 lines + 1,000 $DEFINEs",
+        "caret_move": "Studio: a caret move (CPU)",
+        "edit_round": "Studio: an edit round (CPU)",
+    }
+    missed = []
+    for key, value in results.items():
+        b = budgets.get(key)
+        verdict = ""
+        if b is not None:
+            ok = value <= b
+            verdict = f"  (budget {b} ms{'' if ok else ': MISSED'})"
+            if not ok:
+                missed.append(key)
+        print(f"  {labels.get(key, key):40s}{value:9.2f} ms{verdict}")
+    if json_out:
+        with open(json_out, "w") as f:
+            json.dump({"version": version, "system": f"{platform.system()} {platform.machine()}", "results": results}, f, indent=2)
+    if check:
+        if missed:
+            print(f"ui_bench: {len(missed)} budget(s) MISSED: {', '.join(missed)}")
+            sys.exit(1)
+        print("ui_bench: every budget met")
+
+
+if __name__ == "__main__":
+    main()

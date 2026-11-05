@@ -216,6 +216,12 @@ if want perf; then echo "== perf"
   # windows for a few seconds each — RAPIDR_PERF_NO_WINDOWS=1 skips those)
   out=$(python3 tools/bench/vm_bench --check ${RAPIDR_PERF_NO_WINDOWS:+--no-windows} 2>&1) || echo "tools/bench/vm_bench: FAILED"
   echo "$out" | grep -E "MISSED|every budget met|Traceback|Error"
+  # (the UI's and the editor's budgets, docs/speed-audit-2026-11.md: a
+  # control's place written, a 200-control and a 12-canvas form resized —
+  # headless, and in a real window unless RAPIDR_PERF_NO_WINDOWS —, a check
+  # with 1,000 $DEFINEs, Studio's caret move and edit round)
+  out=$(python3 tools/bench/ui_bench --check $([ -n "${RAPIDR_PERF_NO_WINDOWS:-}" ] || echo --windows) 2>&1) || echo "tools/bench/ui_bench: FAILED"
+  echo "$out" | grep -E "MISSED|every budget met|Traceback|Error"
   cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
   cargo run -q --release -p rapidr-value --example frame_bench 2>&1 | grep -E "MISSED|missed|pipeline"
   cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"

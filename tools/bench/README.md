@@ -261,8 +261,10 @@ profiles and the ranked hot spots are in
 | `vm_vs_native.py` | every `vm/` program on `rapidr run` and built native, side by side: `python3 tools/bench/vm_vs_native.py [--runs N] [--only a,b]` |
 | `ui/prop_writes.rr` | what a control's Left / Top / Width / Height write costs (RapidR Web Server's issue #12: 41 moves), and 800 writes on a 200-control form |
 | `ui/resize200.rr`, `ui/resize_canvas12.rr` | a 200-control form, and 12 canvases laid out and painted by the program, resized step by step: each step's time (median, 95th percentile, worst); `RESIZE_BY_HAND=<seconds>`: the times between OnResize events while a person drags the corner |
-| `ui/gen_source.py` | a valid N-line RapidR program: `python3 tools/bench/ui/gen_source.py 5000 > big.rr` |
+| `ui/gen_source.py` | a valid N-line RapidR program: `python3 tools/bench/ui/gen_source.py 5000 [--defines 1000] > big.rr` |
 | `ui/studio_caret.py` | RapidR Studio (headless) with a big file: caret moves, or edit rounds (a letter typed and taken back, a pause, a move), against Studio's start alone |
 | `sample_profile.py` | macOS `sample` of a command, and reading a report: inclusive shares, what a function spends its time in, self time |
 
-They print numbers; budgets that fail come with the fixes (step 2).
+| `ui_bench` | the guard: `prop_writes.rr`, `resize200.rr`, `resize_canvas12.rr` (headless; `--windows`: real windows too), `rapidr check` of a generated program with 1,000 `$DEFINE`s, Studio's caret move and edit round — `tools/bench/ui_bench [--check] [--windows] [--runs N] [only…]`; `--check` exits 1 when a budget in `ui_budgets.json` is missed (the `perf` stage of `tools/regress.sh`) |
+
+`vm_bench` holds `dsp_sin`, `dsp_voices` and `fcalls` to budgets too.

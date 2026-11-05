@@ -4,11 +4,21 @@ form with controls, TYPEs, CONSTs, DECLAREs and many SUBs and FUNCTIONs
 with locals, loops, IFs, SELECT CASE and calls between them - the shape of
 a real program, about LINES lines (deterministic: the same file each time).
 
-  python3 tools/bench/ui/gen_source.py [LINES] > big.rr
+  python3 tools/bench/ui/gen_source.py [LINES] [--defines N] > big.rr
+
+--defines N puts N `$DEFINE`s first (a Win32 header's worth: 973 in
+RapidQ's windows.inc), some of them used by the code after: what the
+preprocessor substitutes on every line.
 """
 import sys
 
-LINES = int(sys.argv[1]) if len(sys.argv) > 1 else 5000
+args = [a for a in sys.argv[1:]]
+DEFINES = 0
+if "--defines" in args:
+    i = args.index("--defines")
+    DEFINES = int(args[i + 1])
+    del args[i:i + 2]
+LINES = int(args[0]) if args else 5000
 
 
 class Rng:
@@ -30,6 +40,10 @@ out = []
 out.append("' A big program for the editor benchmarks (tools/bench/ui/gen_source.py).")
 out.append("$APPTYPE GUI")
 out.append("")
+for d in range(DEFINES):
+    out.append(f"$DEFINE WM_THING_{d} {1000 + d}")
+if DEFINES:
+    out.append("")
 for i in range(40):
     out.append(f"CONST LIMIT_{i} = {100 + i * 7}")
 out.append("")
@@ -81,7 +95,7 @@ for r in range(routines):
         out.append("      total = -total")
         out.append("    END IF")
         out.append("  NEXT")
-        out.append("  text = \"total \" + STR$(total)")
+        out.append("  text = \"total \" + STR$(total)" + (f" + STR$(WM_THING_{r % DEFINES})" if DEFINES else ""))
         out.append("  SELECT CASE Value MOD 4")
         out.append("    CASE 0: total = total + LEN(text)")
         out.append("    CASE 1: total = total - 1")

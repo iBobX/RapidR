@@ -288,6 +288,31 @@ child process — with 12 sample sites, its own OnResize timed (`rapidr run`):
 (Its own layout code is now most of what's left of a frame: 12 ms of its
 35.)
 
+### The guard
+
+`tools/bench/ui_bench` (budgets in `tools/bench/ui_budgets.json`, run by
+`tools/regress.sh perf`; `--check` exits 1 on a miss — it does on the
+build before these fixes, on five of five measures tried) and three new
+`vm_bench` programs with budgets (`dsp_sin`, `dsp_voices`, `fcalls`).
+Fastest of the runs, milliseconds:
+
+| | before the fixes | after | budget |
+|---|--:|--:|--:|
+| #12: 41 moves, form never shown / shown | 12.5 / 11.5 | 0.16 / 0.11 | 5 / 5 |
+| 800 place writes, 200 controls | 1,067 | 1.9 | 40 |
+| 200 caption writes | 131 | 1.1 | 30 |
+| 200-control resize step, headless (its writes) | 4.0 (2.0) | 1.0 (0.66) | 2.5 (1.4) |
+| 200-control resize frame, real window (its writes) | 29.2 (2.0) | 10.7 (0.75) | 16 (1.4) |
+| 12 canvases: OnResize, headless / window | 8.5 / 8.4 | 0.39 / 0.42 | 3 / 3 |
+| 12 canvases: resize step headless / frame in a window | 14.6 / 28.7 | 5.2 / 18.8 | 10 / 25 |
+| `rapidr check`, 5,000 lines + 1,000 `$DEFINE`s (CPU) | 630 | 138 | 350 |
+| RapidR Studio: a caret move (CPU, headless) | 11.7 | 2.0 | 8 (the brief: 16 with the paint) |
+| RapidR Studio: an edit round (CPU, headless) | 372 | 52 | 200 |
+| `vm_bench dsp_sin` / `dsp_voices` / `fcalls` | 557 / 787 / 340 | 157 / 796 / 348 | 300 / 1,100 / 500 |
+
+The 12-canvas frame in a window stays above 16 ms: its OnPaints' text
+(hot spot 10) and its pixels, the next thing to fix for canvas-heavy apps.
+
 ### Fix 1: scroll bars worked out once, when that can't differ
 
 A write of a component's Left / Top / Width / Height / Visible made its
@@ -502,6 +527,7 @@ anything else takes the old path.
 | `tools/bench/ui/gen_source.py` | a valid N-line RapidR program for the editor benchmarks |
 | `tools/bench/ui/studio_caret.py` | Studio's caret moves and edit pauses in a big file (headless) |
 | `tools/bench/sample_profile.py` | `sample` a command; read a report (inclusive, callees, self time) |
+| `tools/bench/ui_bench`, `tools/bench/ui_budgets.json` (step 2) | the guard: the UI's and the editor's budgets |
 
 ## The pillars
 
