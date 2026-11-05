@@ -405,6 +405,45 @@ differences, quotes, dots, CREATE blocks, kept TYPE fields).
 Checked: the unit tests of rapidr-preprocessor, rapidr-parser,
 rapidr-langsvc, rapidr-lsp and rapidr-cli.
 
+### Fix 5 (first part): Studio's outline without quadratic loops
+
+After fixes 4 and 6, opening `windows.inc` still took 14 s: Studio's
+`Lang.Outline` placed each of its thousands of items by counting the
+newlines before it (`rapidr_studio::langsvc::line_col`, 37 % of the open),
+and Studio's own code read the outline a row at a time with
+`FIELD$(text, CHR$(10), i)` — which copied the whole text and cut every
+row out of it for each row (51 %). Now:
+
+- the outline's items get their lines from the text's line starts (a
+  binary search; the same line as `line_col` for every offset, a test
+  checks);
+- `FIELD$` finds the field where it is: no copy of the text, no list of
+  every field (the same answer for every text, delimiter and index, a test
+  compares with the old one) — every program's FIELD$ loops gain;
+- Studio's Outline and Quick Open read the rows one after the other
+  (`INSTR` from where the last row ended, `MID$`), as FIELD$ did, in
+  `ide/documents.inc` and `ide/panels.inc`.
+
+| RapidR Studio (headless, CPU) | before | after |
+|---|--:|--:|
+| opening `windows.inc` (17.8 k lines; Studio's start included) | 14.1 s (25.3 s before any fix) | **3.3 s** |
+| an edit round, 5,000-line program | 100 ms (388 before any fix) | **76 ms** |
+| an edit round, the program including RapidQ's big files | 185 ms (3.3 s before any fix) | **152 ms** |
+| a caret move, 5,000-line program | 4.0 ms (10.5 before any fix) | **3.0 ms** |
+
+**Not done, and why (stopped here as the brief says when a fix outgrows
+its share).** What an edit pause still costs on the UI thread is now mostly
+the compiler's own checks for the Problems pane and the squiggles
+(`rapidr_bcgen::semantic`, about 75 % of what's left; the ERRORS lane's
+crate), not the parse: the second analysis (Studio's Outline beside the
+editor's colours) is about a tenth of a pause, so sharing one analysis
+would save ~10 ms. Moving the analysis off the UI thread is what would make
+a pause free, but the editor's service is called synchronously from the
+kernel and its analysis lives in the UI thread's state: that is a lane of
+its own (an analysis worker with versioned results), proposed for the
+lead. Caching the preprocessing of unchanged include files gains little
+now that preprocessing is ~4 % of a check.
+
 ### Resize coalescing: measured, nothing to coalesce
 
 Before changing how a live resize is handled, a hand drag counted how the

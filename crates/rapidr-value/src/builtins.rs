@@ -587,14 +587,19 @@ pub fn rp_reverse(s: &Value) -> Value {
 
 /// FIELD$ — return the nth field (1-based) split by delimiter
 pub fn rp_field(s: &Value, delim: &Value, n: &Value) -> Value {
-    let s = s.to_string_val();
     let delim = delim.to_string_val();
     let n = n.to_i64();
-    let parts: Vec<&str> = s.split(&delim).collect();
-    if n < 1 || n > parts.len() as i64 {
-        v_str("")
-    } else {
-        Value::String(parts[(n - 1) as usize].to_string().into())
+    // (the field found where it is: the text not copied, nor every field
+    // after it cut out — FIELD$ over each line of a long text did both for
+    // every line, docs/speed-audit-2026-11.md)
+    let index = if n >= 1 { usize::try_from(n - 1).ok() } else { None };
+    let field = |text: &str| match index.and_then(|i| text.split(delim.as_str()).nth(i)) {
+        Some(part) => Value::String(part.to_string().into()),
+        None => v_str(""),
+    };
+    match s {
+        Value::String(text) => field(text.as_str()),
+        other => field(&other.to_string_val()),
     }
 }
 
@@ -759,6 +764,40 @@ mod trig_tests {
             assert!(same(&s, &o), "SIN({v:?}): {s:?} vs {o:?}");
             let (c, o) = (rp_cos(v), old(v, f64::cos));
             assert!(same(&c, &o), "COS({v:?}): {c:?} vs {o:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod field_tests {
+    use super::rp_field;
+    use crate::{v_dbl, v_int, v_str, Value};
+
+    /// FIELD$ as it was before: every field cut out, then the one asked for.
+    fn old(s: &Value, delim: &Value, n: &Value) -> Value {
+        let s = s.to_string_val();
+        let delim = delim.to_string_val();
+        let n = n.to_i64();
+        let parts: Vec<&str> = s.split(&delim).collect();
+        if n < 1 || n > parts.len() as i64 {
+            v_str("")
+        } else {
+            Value::String(parts[(n - 1) as usize].to_string().into())
+        }
+    }
+
+    #[test]
+    fn field_gives_what_it_gave() {
+        let texts = [v_str(""), v_str("a"), v_str("a,b,,c,"), v_str("x\ty\tz"), v_str("éa,ü,b"), v_str(",,"), v_int(12345), v_dbl(1.5), Value::Null, Value::Boolean(true), v_str("one\ntwo\n")];
+        let delims = [v_str(","), v_str(""), v_str("\t"), v_str("\n"), v_str("ab"), v_str("é"), v_int(3)];
+        let ns = [i64::MIN, -1, 0, 1, 2, 3, 4, 5, 9, i64::MAX];
+        for t in &texts {
+            for d in &delims {
+                for &n in &ns {
+                    let (a, b) = (rp_field(t, d, &v_int(n)), old(t, d, &v_int(n)));
+                    assert_eq!(a.to_string_val(), b.to_string_val(), "FIELD$({t:?}, {d:?}, {n})");
+                }
+            }
         }
     }
 }

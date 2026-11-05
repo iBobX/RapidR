@@ -163,11 +163,33 @@ fn clean(s: &str) -> String {
     s.replace(['\t', '\r', '\n'], " ")
 }
 
+/// Where each line of `text` starts (a binary search finds an offset's
+/// line: [`line_of`]).
+fn line_starts(text: &str) -> Vec<usize> {
+    std::iter::once(0).chain(text.match_indices('\n').map(|(i, _)| i + 1)).collect()
+}
+
+/// [`line_col`]'s line of `offset`, from `text`'s line starts (counting the
+/// newlines before every item was most of opening a big file's outline,
+/// docs/speed-audit-2026-11.md).
+fn line_of(text: &str, starts: &[usize], offset: usize) -> usize {
+    let offset = offset.min(text.len());
+    // (inside a character: as line_col reads it, the whole text)
+    if !text.is_char_boundary(offset) {
+        return line_col(text, offset).0;
+    }
+    starts.partition_point(|&s| s <= offset)
+}
+
 fn outline_lines(items: &[OutlineItem], text: &str, depth: usize, out: &mut String) {
+    outline_rows(items, text, &line_starts(text), depth, out);
+}
+
+fn outline_rows(items: &[OutlineItem], text: &str, starts: &[usize], depth: usize, out: &mut String) {
     for item in items {
-        let (line, _) = line_col(text, item.name_start);
+        let line = line_of(text, starts, item.name_start);
         out.push_str(&format!("{depth}\t{}\t{}\t{}\t{line}\n", kind_name(item.kind), clean(&item.name), clean(item.detail.as_deref().unwrap_or(""))));
-        outline_lines(&item.children, text, depth + 1, out);
+        outline_rows(&item.children, text, starts, depth + 1, out);
     }
 }
 
@@ -364,6 +386,13 @@ mod tests {
         call("update", &[Value::String("/w/b.rr".into()), Value::String("PRINT 1\n".into())]);
         assert_eq!(call("diagnostics", &[Value::String("/w/b.rr".into())]).to_string_val(), "");
         assert_eq!(line_col("ab\ncé d", 7), (2, 4));
+        // (the outline's lines from the line starts: as line_col's)
+        for text in ["", "\n", "ab\ncé d", "x\r\ny\r\n\nz", "é\nü\n"] {
+            let starts = super::line_starts(text);
+            for offset in 0..text.len() + 3 {
+                assert_eq!(super::line_of(text, &starts, offset), line_col(text, offset).0, "{text:?} at {offset}");
+            }
+        }
     }
 
     /// The Help pane's page: the caret on one of the program's own names,

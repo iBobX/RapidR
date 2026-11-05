@@ -66,6 +66,7 @@ END FUNCTION
 SUB FillOutline(d AS INTEGER)
   DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING
   DIM depth AS INTEGER, kind AS STRING, nm AS STRING, detail AS STRING, ln AS INTEGER, img AS INTEGER
+  DIM rowAt AS INTEGER, rowEnd AS INTEGER
   DIM parentNode(20) AS INTEGER
   OutlineTree.Clear
   SymbolIcons.Clear
@@ -73,8 +74,13 @@ SUB FillOutline(d AS INTEGER)
   IF d < 0 THEN EXIT SUB
   text = Lang.Outline(DocFile(d))
   n = TALLY(text, CHR$(10))
+  ' (each row where the last one ended: FIELD$ for row i looked through
+  ' every row before it — a big include's thousands of rows took seconds)
+  rowAt = 1
   FOR i = 1 TO n
-    row = FIELD$(text, CHR$(10), i)
+    rowEnd = INSTR(rowAt, text, CHR$(10))
+    row = MID$(text, rowAt, rowEnd - rowAt)
+    rowAt = rowEnd + 1
     depth = VAL(FIELD$(row, CHR$(9), 1))
     kind = FIELD$(row, CHR$(9), 2)
     nm = FIELD$(row, CHR$(9), 3)
