@@ -41,7 +41,7 @@ The zip a tester gets is checked before it ships by the release's build matrix
 (`tools/release/build-matrix.sh <ver> --only win7`, [docs/build-matrix.md](../../docs/build-matrix.md)):
 unzipped in the Windows 11 VM (x86 emulation), `rapidr run`, **Build (interpreted)** of a console and a GUI
 program on a PC with no Rust, the built programs started, Studio headless, and the import tables of
-`rapidr.exe` and both runners read for anything Windows 7 lacks. A real Windows 7 is still tested by hand.
+`rapidr.exe` and both runners read for anything Windows 7 lacks. The same checks run on the real Windows 7 VM (UTM) with `--only win7real` (below, "Automating the Windows 7 VM").
 
 ```
 tools/win7/build.sh i686                      # -> target/i686-win7-windows-gnu/release/rapidr.exe
@@ -90,10 +90,11 @@ What works from the Mac (checked 2026-10-23):
 | files to the guest, 1: the host-only share | `tools/win7/serve.sh` (in a second terminal), then in the guest Internet Explorer or `powershell -Command "(New-Object Net.WebClient).DownloadFile('http://192.168.128.1:8099/<file>','C:\<file>')"` |
 | files to the guest, 2: a disc | `tools/win7/alpha.sh` with `WIN7_ISO_DIR` makes `RAPIDR-ALPHA1.iso`; attach it with UTM's *Drives* button |
 
-What needs the **QEMU guest agent** (`utmctl exec`, `utmctl file push/pull`, `utmctl ip-address`) is **not set up yet**:
-`utmctl exec "Windows 7 x86" --cmd "cmd.exe /c ver"` answers *"The QEMU guest agent is not running or not installed on the guest."*
-Installing it needs the guest's keyboard once, because nothing can type into the VM's display from the Mac
-(UTM's AppleScript has no keystroke command; the display is a canvas that background automation cannot click).
+What needs the **QEMU guest agent** (`utmctl exec`, `utmctl file push/pull`, `utmctl ip-address`) **is set up and works**
+(checked 2026-11-05: `tools/win7/vm.sh exec ver` prints `Microsoft Windows [Version 6.1.7600]`). The install below
+is kept for making the VM again: it needs the guest's keyboard once, because nothing can type into the VM's display from
+the Mac (UTM's AppleScript has no keystroke command; the display is a canvas that background automation cannot click).
+Without the agent `utmctl exec "Windows 7 x86" --cmd "cmd.exe /c ver"` answers *"The QEMU guest agent is not running or not installed on the guest."*
 
 ### One-time install of the guest agent (about 3 minutes)
 
@@ -112,14 +113,32 @@ unpacked pieces in `/Volumes/RapidRBuild/win7-share/guest/`): the *VirtIO serial
    machines; if it did not, stop the VM and add it in UTM, *Edit, QEMU, Arguments*: `-device virtio-serial-pci`.
 4. Mac: `tools/win7/vm.sh exec ver` must print `Microsoft Windows [Version 6.1.7600]`. Stop `serve.sh`.
 
-### After that (written before the agent existed: untested, check each line the first time)
+### Using it (checked 2026-11-05, 6.1.7600 RTM, PowerShell 2.0, .NET 3.5)
+
+The build matrix drives it: `tools/release/build-matrix.sh <ver> --only win7real` (the row "Windows 7 (real, UTM VM)";
+[docs/build-matrix.md](../../docs/build-matrix.md)) through `tools/release/win7-vm.sh smoke <zip>`, which does everything below
+for the Windows 7 alpha zip and removes what it made (`C:\rapidr-matrix`, one scheduled task). By hand:
 
 ```sh
-tools/win7/vm.sh push dist/2.121.0-win7-alpha1/RapidR-2.121.0-win7-x86-alpha1.zip 'C:\alpha.zip'    # CAP=300 for big files
-tools/win7/vm.sh exec 'powershell -NoProfile -Command "$s=New-Object -ComObject Shell.Application; $s.NameSpace(\"C:\\\").CopyHere($s.NameSpace(\"C:\alpha.zip\").Items(),16)"'
-tools/win7/vm.sh exec 'cd /d C:\RapidR-2.121.0-win7-x86-alpha1\tests && run-tests.bat < nul'          # the tests pause at the end: `pause` needs input
-tools/win7/vm.sh pull 'C:\RapidR-2.121.0-win7-x86-alpha1\tests\results.txt' results.txt
+tools/win7/vm.sh exec 'dir C:\'                                  # cmd.exe /c; its output comes back, cut off after CAP s (default 60)
+CAP=1200 tools/win7/vm.sh push RapidR-2.122.1-win7-x86-alpha1.zip 'C:\alpha.zip'   # 84 MB takes 3 to 6 minutes
+tools/win7/vm.sh pull 'C:\rapidr-matrix\log.txt' log.txt           # binary files too (PNG pictures)
+tools/win7/vm.sh exec 'query user'                                # who is at the desktop (a window needs one)
 ```
-The agent runs as SYSTEM (session 0, no desktop): console programs work, windows and Studio need the logged-in user's
-desktop (start them through a scheduled task, `schtasks /create /ru <user> ... /it`, or look at them by hand). `utmctl` returns exit
-status 0 even when the guest agent is missing: read its text.
+
+What the first real run taught (so nobody rediscovers it):
+
+- The agent runs as **SYSTEM in session 0**: console programs work, a window has no desktop. A program that must show a
+  window is started as the user at the console through a scheduled task made with no password:
+  `schtasks /create /tn <name> /tr C:\x\run.cmd /sc once /st 23:59 /ru <user> /it /f`, then `schtasks /run /tn <name>`
+  ("Logon Mode: Interactive only"; delete the task after). The program then draws on the real desktop and a
+  `System.Drawing` `CopyFromScreen` picture of it works.
+- **PowerShell 2.0**: no `Expand-Archive`, no `Get-FileHash`, no `Get-ChildItem -Directory`; `Add-Type` with C# 2/3.5 works
+  (the matrix's script unzips with a 40-line C# reader: 170 files, 185 MB in 20 to 30 s). `Start-Process -WindowStyle`
+  cannot be combined with `-RedirectStandardOutput`. PowerShell names are case-insensitive: `$r` overwrote `$R`.
+- `vm.sh exec` takes one command line; put anything with quotes inside quotes (`powershell -Command "..."`) in a `.cmd`
+  or `.ps1` file, push it, and run the file. `for %f in (...) do ... %~zf` is answered with an OSStatus -2700 event error:
+  use `dir /-c`.
+- The VM is i386 QEMU emulation on the Apple Silicon Mac: slower than a real PC (the 54 MB runner is copied in 2 s, the
+  window needs a few seconds for its first paint), but it is a real Windows 7 and its loader is the real one.
+- `utmctl` returns exit status 0 even when the guest agent is missing: read its text.
