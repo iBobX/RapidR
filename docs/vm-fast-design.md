@@ -90,7 +90,7 @@ Operand modes: `L` u16 local slot, `G` u32 global (its name's string id),
 
 | Group | Opcodes | Expansion |
 |---|---|---|
-| Arithmetic with fused operands | `0xA0 + 16 × op + 4 × a + b` for `op` = Add, Sub, Mul, Div, `a`, `b` ∈ S L G K (`SS` is the plain op) | `<a>; <b>; op`, pushes the result |
+| Arithmetic with fused operands | `0xA0 + 16 × op + 4 × a + b` for `op` = Add, Sub, Mul, Div, `a`, `b` ∈ S L G K (`SS` is the plain op, `KK` none); MOD in seven forms (SL SK SG LL LK GG GK) | `<a>; <b>; op`, pushes the result |
 | Compare and branch | `JumpIfNot{Eq,Ne,Lt,Le,Gt,Ge}{SS,LL,LK,SL,SK,GG,GK,SG}` | `<a>; <b>; cmp; JumpIfNot t` |
 | Typed stores | `StoreLocalNum s, kind`, `StoreGlobalNum g, kind` | `ToNum kind; Store` |
 | In-place conversion | `ConvLocal s, kind`, `ConvArgLocal s, kind` | `LoadLocal s; [ToNum ARG_ROUND;] ToNum kind; StoreLocal s` |
@@ -119,7 +119,8 @@ was the way to it, not the element (§ the numbers).
 written to a file): for each string of its pool, whether it is a *pure
 maths builtin* — `ABS`, `INT`, `FIX`, `FRAC`, `SGN`, `SQR`, `SIN`, `COS`,
 `TAN`, `ATN`, `ASIN`, `ACOS`, `LOG`, `EXP`, `CEIL`, `FLOOR`, `ROUND`, `CINT`,
-`CLNG`, `CDBL`, `CSNG` — and its constants as `Value`s (a string literal is
+`CLNG`, `CDBL`, `CSNG`, and `SHL` / `SHR` with two arguments
+(`rapidr_bytecode::builtins::PURE_MATHS`) — and its constants as `Value`s (a string literal is
 shared, not copied each time; strings are copied on write). A pure builtin
 is called directly: the same `rapidr_value::builtins` function both hosts
 call, without the host, the name lookup, `catch_unwind` or the event check
@@ -129,12 +130,68 @@ do, a test host that answers SIN itself doesn't. A string added to the
 pool later (the debugger's snippets extend a copy of the module) is past
 the table's end and goes through the host as before.
 
+## The loop that runs them
+
+Fewer instructions were half of it; the other half was what each one
+costs once LLVM has compiled the loop. The profiles (`xctrace` Time
+Profiler, mapped onto the disassembly) showed the first version of the
+fused instructions inside the one big `exec_loop` *slower per instruction*
+than before: the function had tripled, LLVM had stopped inlining
+`Vec::push` (68 calls out of line) and `Value`'s drop (349), and the
+instruction pointer lived on the stack frame because one helper took its
+address. So:
+
+- **`run_hot`**: the instructions that compute (loads, stores,
+  arithmetic, comparisons, jumps, calls, arrays, all the fused ones) run in
+  a loop of their own, `#[inline(never)]`, small enough to compile tight;
+  it returns at an instruction it doesn't run (a host operation, the code's
+  end), which `exec_loop` runs. Under the debugger `run_hot::<true>` makes
+  the debugger's look itself before each instruction — exactly the check
+  `exec_loop` made (an evaluation's steps; `debug_point` outside the rest
+  of the line it last looked at, or when the interrupt is raised) — so it
+  too leaves only for a host operation. Each instruction is written once.
+- **Nothing in its own frame that every arm borrows**: the Null a
+  never-assigned global reads and the FOR test's 0 live in the `Vm`. As
+  locals of `run_hot`, LLVM stored their address into a stack slot per arm
+  at every entry (~150 stores) — invisible while the loop is entered once
+  per host operation, 3 × the cost of the 10 M loop under the debugger
+  while it was entered at every line.
+- **The opcode byte itself** is matched (`rapidr_bytecode::raw`), not
+  `Op::from_u8`'s table first: one load fewer on the way to the arm.
+- **No drop call for a number**: overwriting or popping a number, a
+  boolean or Null skips `Value`'s drop (`fast::put` / `discard`:
+  `mem::forget` of a value that owns nothing); a number over a number of
+  its kind writes only the payload.
+- **Slow paths out of line**: an Integer with a Double, text, Null,
+  conversions to the narrow types, errors — `#[cold]` functions, so each
+  arm inlines only its two fast cases.
+- **A typed store folded in**: an operation whose next instruction is a
+  `StoreLocalNum` stores its result there itself (a store is never a
+  statement's start; under the debugger only inside the rest of a line it
+  has looked at, never in an evaluation): the value is never pushed.
+- **Operands read with one range check** (an array of 2 or 4 bytes), and
+  `ip` kept in a register (the string append helper takes it by value).
+
 ## Calls
 
-`CallFunc` / `Ret`: arguments moved into the new frame in one go, the
-returned frame's parameters handed to `LoadArgOut` by moving them (they
-were cloned on every return), a typed parameter's conversion on entry one
-in-place instruction.
+`CallFunc` / `Ret`: arguments popped into the new frame and its locals
+dropped by plain pops (inlined; `Vec`'s drain, resize and a slice's drop
+are calls), the returned frame's parameters handed to `LoadArgOut` by
+moving them (they were cloned on every return), a typed parameter's
+conversion on entry one in-place instruction.
+
+## Typed arrays: not yet `TypedArray` in the interpreter
+
+NATIVE-ARRAYS gave native builds `rapidr_value::typed_array::TypedArray<T>`
+(plain `f64` / `u8` … storage) for arrays its analysis proves are used
+only by element. The interpreter keeps `BasicArray` for now, measured:
+`s = s + a(7)` costs 5 ns more than `s = s + x` per turn, two dispatches
+(the index, the read); the element's `Value` is a small part of that, so
+typed storage would save little while the instruction dispatch remains —
+and a `TypedArray` isn't a `Value`: the VM hands arrays whole to builtins,
+event handlers and the debugger. The JIT is where raw storage pays (its
+compiled code reads the `f64` directly): jit-design.md, tier 2, shares
+NATIVE-ARRAYS' analysis and type there.
 
 ## Old and new bytecode
 

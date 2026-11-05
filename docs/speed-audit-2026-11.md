@@ -761,3 +761,141 @@ took 13.7 %).
 - **Beautiful**: same output; smooth real-time audio instead of dropouts.
 - **Legal**: no new dependency; no `unsafe` (a `RefCell` and safe indexing);
   the corpus was only read locally.
+
+## Phase 2: the interpreter
+
+The VM-FAST lane (2026-11-05, hot spot 8): the bytecode interpreter runs
+typed code with fused, type-specialised instructions, the pure maths
+builtins resolved once, the computing instructions in a loop of their own,
+and calls that move instead of copy. How, and why each answer stays the
+same bit for bit: [vm-fast-design.md](vm-fast-design.md). What comes next
+(Cranelift for hot typed code): [jit-design.md](jit-design.md).
+
+### Before and after
+
+`python3 tools/bench/vm_vs_native.py --runs 5`: the fastest of 5 runs, CPU
+time of `rapidr run` and its own `ms` line where it prints one; release
+builds of `development` at 73bdf991 (before, 2.122.1 with the SIN fix) and
+of this lane's branch on 53c4869f (after; NATIVE-ARRAYS merged, so the
+native column has its typed arrays). An M4 Max busy with other lanes
+(load 7 to 30). The same answers in every row, on both runtimes.
+
+| Program | What | before | after | faster | native | after ÷ native |
+|---|---|--:|--:|--:|--:|--:|
+| `loop10m` | 10 M iterations, top level (INTEGER globals) | 553 | 120 | **4.6 ×** | 23 | 5.3 × |
+| `loop10m_sub` | the same in a SUB (locals) | 559 | 91 | **6.2 ×** | 14 | 6.6 × |
+| `top_double` | 5 M DOUBLE multiply-adds, globals (own ms) | 404 | 113 | **3.6 ×** | 17 | 6.6 × |
+| `dsp_scalars` | the synth on local DOUBLEs (own ms) | 310 | 123 | **2.5 ×** | 5 | 25 × |
+| `fcalls` | 2 M calls of a 3-argument DOUBLE FUNCTION (own ms) | 355 | 133 | **2.7 ×** | 13 | 10 × |
+| `dsp_voices` | the synth's voices in global DOUBLE arrays (own ms) | 787 | 241 | **3.3 ×** | 8 | 30 × |
+| `dsp_params` | the same on array parameters (own ms) | 763 | 243 | 3.1 × | 8 | 30 × |
+| `arrays` | 2 M INTEGER elements written, read, summed | 315 | 84 | **3.7 ×** | 12 | 7.3 × |
+| `calls` | recursive Fib(27) | 54 | 33 | 1.6 × | 6 | 5.3 × |
+| `byte_array` | 1 M BYTE reads with AND / SHR / SHL (own ms) | 218 | 65 | 3.4 × | 2 | 32 × |
+| `dsp_sin` | 705,600 SINs into a global DOUBLE array (own ms) | 151 | 36 | 4.2 × | 7 | 5.1 × |
+| `strings` | 1 M rounds of MID$ / UCASE$ / + / LEN / = | 412 | 405 | — | 222 | 1.8 × |
+| `concat_build`, `mid_scan`, `stream_read`, `stream_write`, `binary_read` (own ms) | text and I/O: the work is in the runtime | 33, 13, 49, 95, 58 | 33, 14, 44, 87, 57 | — | | 1.2–3.5 × |
+
+Under the debugger (`tools/bench/vm_bench`: Studio's F5, a breakpoint on a
+line it never reaches, every statement watched): the 10 M loop **646 →
+232 ms** (2.8 ×).
+
+The brief's bar: `loop10m`, `loop10m_sub`, `top_double` at least 3 × — met;
+`dsp_voices` and `arrays` at least 2 × — met (3.3 ×, 3.7 ×); **`dsp_scalars`
+(2.5–2.8 ×) and `fcalls` (2.7 ×) short of 3 ×**, why below.
+
+RapidR Music Studio's `repro/synth_bench.rr` (a copy) in the interpreter,
+ms per 10 ms block of 441 samples at 32 voices (the same peaks before and
+after):
+
+| 32 voices, `rapidr run` | before | after | faster |
+|---|--:|--:|--:|
+| Mode A: per-voice oscillator, ADSR and SVF | 7.89 (worst 8.18) | 2.48 (2.64) | 3.2 × |
+| Mode B: 8 track-bus SVFs | 7.25 (8.81) | 2.35 (2.48) | 3.1 × |
+| Mode C: scalars hoisted | 2.84 (2.94) | 0.99 (1.09) | 2.9 × |
+
+The interpreted synth went from 79 % of its real-time budget to 25 %.
+
+### What the profiles said, step by step
+
+Instruction-level profiles (`xctrace` Time Profiler exported, each sample's
+program counter mapped onto `otool`'s disassembly) at each step:
+
+1. **Fused instructions in the old loop**: 3–6 × fewer instructions, but
+   only 1.5–2 × faster: the loop had tripled to 25,000 instructions and
+   LLVM had stopped inlining `Vec::push` (68 calls) and `Value`'s drop (349
+   calls) into it. → `run_hot`: the computing instructions in a loop of
+   their own, the host operations in `exec_loop`; no drop call for a
+   number (`fast::put` / `discard`); `push` inlined again.
+2. **`ip` on the stack**: one helper (the string append) took its address,
+   so every instruction reloaded and stored it. → the helper takes it by
+   value. Operands read with one range check instead of one per byte.
+3. **The dispatch chain** (opcode byte → `Op` table → jump table): ~35 %
+   of the samples. → match the byte itself (one load fewer).
+4. **`Value` and `Result` through the stack frame**: the conversion of a
+   typed store built a large `Result` in memory. → a store of a Double into
+   a DOUBLE (an INTEGER into a LONG) writes the payload in place; slow
+   paths `#[cold]` and out of line; a typed store folded into the
+   operation before it.
+5. **Under the debugger**: `run_hot` was entered at every line, and every
+   entry stored the address of its local Null into ~150 stack slots. →
+   the debugger's look made inside `run_hot`; Null and 0 kept in the `Vm`.
+
+**`dsp_scalars` and `fcalls`**: `dsp_scalars`' inner loop went from ~60
+instructions to 18 a voice step; at ~4–5 ns an instruction what is left is
+the dispatch (the jump table's indirect branch and its loads), the `Value`
+loads and stores of each operand, and the frame lookup of each local.
+`fcalls` spends about a third in the call itself (a 100-byte frame pushed,
+a locals vector taken from the pool, three typed parameters converted on
+entry, the parameters handed back for BYREF) — the rest is the loop. Both
+need what an interpreter can't remove: the JIT's tier 1 (registers, no
+dispatch, machine calls) — jit-design.md, where these numbers are its
+starting point.
+
+### Checked
+
+- Every fused instruction against its expansion on edge values (0, ±1,
+  32- and 64-bit bounds, ±2^53 ± 1, -0, NaN, ±∞, 1E300, halves, booleans,
+  text, Null): 60,000+ arithmetic pairs, every compare-and-branch, every
+  conversion kind, FOR test and step on every (counter, end, step), one-index
+  array reads and writes on six kinds of arrays — kinds, bits and errors
+  compared (rapidr-vm `fast_tests`); a deliberate NaN bug fails it. The
+  shared operations against `Value`'s own; the direct builtins against the
+  desktop host on every value (rapidr-vm-host-native `direct_maths`).
+- Conformance: 334/334 on the interpreter; 5 new cases (`vm_fast_*`: typed
+  arithmetic, FOR loops, typed parameters and BYREF text, one-index arrays,
+  the maths builtins with SHL / SHR) with the 2.122 interpreter's output as
+  their expectation, native builds giving the same; the web 285 passed, 3
+  known failures, `system_info` failing as on `development` (a page has no
+  free-memory reading).
+- The examples: 981 checks on `run`, `interp` and the web; `snake.rr` on the
+  web once (it seeds RND with TIMER: 3 reruns passed).
+- The debugger: a scripted walk through the session protocol (a breakpoint
+  in `dsp_scalars`' FOR loop, 27 Step Overs, the stack, the typed locals,
+  evaluations, Set Value on a DOUBLE, run to the end) gives 2.122's
+  transcript line for line; the session tests (25), the web debugger,
+  session and yield tests pass. In Studio (captures by its own `--do` and
+  capture hooks): F5 on `dsp_voices.rr`, the debugger paused on a typed FOR
+  loop with its Variables and inline values, a GUI example (the
+  calculator) running.
+- Old bytecode: every old instruction is unchanged; a module using a fused
+  one says it needs RapidR Runtime 2.123.0 in its header.
+
+### Found, not changed
+
+- `IF x THEN PRINT "a" ELSE PRINT "b"` (one line) prints "a" without its
+  newline — on 2.122 too: a separate task.
+- The web build fetched its fallback fonts (the cache is per checkout,
+  `target/fonts-src`): copy a checkout's cache into a new worktree first.
+
+### The pillars
+
+- **Fast**: typed code 2.5–6 × faster in `rapidr run` and 2.8 × under the
+  debugger; Music Studio's interpreted synth from 79 % to 25 % of its
+  real-time budget.
+- **Easy to use**: nothing to change in a program; declared types make it
+  faster.
+- **Accessible**: the debugger's views are what they were.
+- **Beautiful**: the same output; audio and animation with room to spare.
+- **Legal**: no new dependency; no `unsafe`; Cranelift's licence and tree
+  listed for the lawyer in jit-design.md before it is added.
