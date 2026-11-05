@@ -45,12 +45,11 @@ if [ "${1:-}" = clean ] || [ "${1:-}" = --clean ]; then
     exit 0
 fi
 if [ "${1:-}" = smoke ]; then
-    bash "$VM" send tools/release/smoke.sh /tmp/rapidr-release-smoke.sh
-    bash "$VM" send tools/release/p5check.sh /tmp/rapidr-release-p5check.sh
+    # (straight into the user's home: ubuntu-vm.sh sends as root while nobody is logged in at the VM's desktop)
+    bash "$VM" send tools/release/smoke.sh "~/rapidr-release/smoke.sh"
+    bash "$VM" send tools/release/p5check.sh "~/rapidr-release/p5check.sh"
     cat > "$SCRIPT" <<'EOF'
 B="$HOME/rapidr-release"
-mv /tmp/rapidr-release-smoke.sh "$B/smoke.sh"
-mv /tmp/rapidr-release-p5check.sh "$B/p5check.sh"
 rm -f "$B/smoke.done"
 setsid nohup bash -c '
   export PATH="$HOME/.cargo/bin:$PATH"; B="$1"; host="$(uname -m)"; fail=0

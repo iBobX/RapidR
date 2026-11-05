@@ -12,11 +12,12 @@
 # only when every cell that can be checked here is green: wire it in front of "publish"
 # (tools/release/README.md, docs/build-matrix.md says how to read it).
 #
-#   tools/release/build-matrix.sh <ver> [--quick] [--only mac,linux,windows,win7] [--shots] [--serial] [--table-only]
+#   tools/release/build-matrix.sh <ver> [--quick] [--only mac,linux,windows,win7,win7real] [--shots] [--serial] [--table-only]
 #
 #   --quick     no native builds (the interpreted side only, minutes instead of an hour)
 #   --only      some lanes: mac (the two dmgs, here), linux (the Ubuntu VM), windows (the Windows 11 VM:
-#               x64 and arm64 installers), win7 (the alpha zip, in the Windows 11 VM)
+#               x64 and arm64 installers), win7 (the alpha zip, in the Windows 11 VM: emulation), win7real (the
+#               alpha zip on a REAL Windows 7, the UTM VM "Windows 7 x86": tools/release/win7-vm.sh)
 #   --shots     also keep the pictures the test programs captured (Windows lanes), as PNGs under
 #               dist/<ver>/build-matrix/shots/
 #   --serial    one lane after the other (default: the three machines work at the same time)
@@ -38,7 +39,8 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 die() { echo "error: $*" >&2; exit 1; }
 step() { echo "== $*"; }
 
-VER=""; QUICK=0; ONLY="mac,linux,windows,win7"; SHOTS=0; SERIAL=0; TABLE_ONLY=0
+ALL_LANES="mac,linux,windows,win7,win7real"
+VER=""; QUICK=0; ONLY="$ALL_LANES"; SHOTS=0; SERIAL=0; TABLE_ONLY=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --quick) QUICK=1 ;;
@@ -52,7 +54,7 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-[ -n "$VER" ] || die "usage: $0 <ver> [--quick] [--only mac,linux,windows,win7] [--shots] [--serial] [--table-only]"
+[ -n "$VER" ] || die "usage: $0 <ver> [--quick] [--only mac,linux,windows,win7,win7real] [--shots] [--serial] [--table-only]"
 
 # Where the release's files are: dist/<ver> of this checkout, else of the main checkout (a worktree
 # has none: dist/ is not in git).
@@ -160,24 +162,29 @@ lane_linux() {
     [ -n "$names" ] || { record Linux "(no Linux packages in SHA256SUMS)" sdk yes 0 "" "" linux; return; }
     script="$(mktemp "${TMPDIR:-/tmp}/matrix-linux.XXXXXX")"
     # Which of them the VM has already (the release build leaves them in ~/rapidr-release/dist/out), by checksum.
-    : > "$script"
+    printf 'mkdir -p "$HOME/rapidr-release/dist/out"\n' > "$script"
     for f in $names; do printf 'printf "%%s  %%s\\n" "$(sha256sum "$HOME/rapidr-release/dist/out/%s" 2>/dev/null | cut -d" " -f1)" "%s"\n' "$f" "$f" >> "$script"; done
     local have; have="$(bash "$ubu" run "$script" 2>/dev/null)"
+    if [ -z "$have" ]; then
+        echo "[linux] not run: the VM did not answer (ubuntu-vm.sh run)"
+        record "Linux (aarch64 and x86_64)" "the Linux packages (.tar.gz and .deb, SDK and Runtime)" sdk yes 0 "" "not run: the VM \"$vm\" did not answer (tools/release/ubuntu-vm.sh run)" linux
+        rm -f "$script"; return
+    fi
+    # (files go straight into the user's home: ubuntu-vm.sh also works while nobody is logged in at the VM's
+    # desktop, when it sends as root, and /tmp files root makes could not be moved by the user)
     for f in $names; do
         if ! grep -q "^$(sum_of "$f")  $f\$" <<<"$have"; then
             echo "[linux] $f is not in the VM (or differs): sending it (slow, base64 over prlctl)"
-            printf 'mkdir -p "$HOME/rapidr-release/dist/out"\nmv /tmp/matrix-in-%s "$HOME/rapidr-release/dist/out/%s"\n' "$f" "$f" > "$script"
-            bash "$ubu" send "$OUT/$f" "/tmp/matrix-in-$f" && bash "$ubu" run "$script" > /dev/null
+            bash "$ubu" send "$OUT/$f" "~/rapidr-release/dist/out/$f"
         fi
     done
-    bash "$ubu" send "$HERE/smoke.sh" /tmp/rapidr-release-smoke.sh
-    bash "$ubu" send "$HERE/p5check.sh" /tmp/rapidr-release-p5check.sh
+    bash "$ubu" send "$HERE/smoke.sh" "~/rapidr-release/smoke.sh"
+    bash "$ubu" send "$HERE/p5check.sh" "~/rapidr-release/p5check.sh"
     for f in $names; do list="$list $f"; done
     # One detached job in the VM; each package has its log, exit code and seconds in ~/rapidr-release/matrix/.
     # (x86_64 packages run by Rosetta here: there is no x86_64 Rust toolchain host, so no native build for them.)
     cat > "$script" <<EOF
 B="\$HOME/rapidr-release"; M="\$B/matrix"
-mv /tmp/rapidr-release-smoke.sh "\$B/smoke.sh"; mv /tmp/rapidr-release-p5check.sh "\$B/p5check.sh"
 rm -rf "\$M"; mkdir -p "\$M"
 setsid nohup bash -c '
   export PATH="\$HOME/.cargo/bin:\$PATH"; B="\$1"; M="\$2"; NATIVE="\$3"; shift 3
@@ -186,7 +193,7 @@ setsid nohup bash -c '
   for n in "\$@"; do
     case "\$n" in *"\$host"*|*_\$(dpkg --print-architecture).deb) nat="\$NATIVE" ;; *) nat=0 ;; esac
     s=\$(date +%s)
-    SMOKE_NATIVE=\$nat RAPIDR_AI_KEYSTORE=memory bash "\$B/smoke.sh" "\$B/dist/out/\$n" > "\$M/\$n.log" 2>&1
+    SMOKE_NATIVE=\$nat RAPIDR_AI_KEYSTORE=memory P5_DELAY=$P5_DELAY bash "\$B/smoke.sh" "\$B/dist/out/\$n" > "\$M/\$n.log" 2>&1
     echo \$? > "\$M/\$n.rc"; echo \$(( \$(date +%s) - s )) > "\$M/\$n.secs"
   done
   rm -rf /tmp/rapidr-smoke.* "\$TMPDIR"
@@ -206,7 +213,12 @@ EOF
     done
     for f in $names; do
         printf 'cat "$HOME/rapidr-release/matrix/%s.secs" 2>/dev/null\n' "$f" > "$script"
-        secs="$(bash "$ubu" run "$script" 2>/dev/null | tail -1)"
+        # (a call Parallels drops answers nothing: asked again, so a time is never recorded as 0:00)
+        secs=""
+        for try in 1 2 3 4; do
+            secs="$(bash "$ubu" run "$script" 2>/dev/null | tail -1)"
+            case "$secs" in ""|*[!0-9]*) secs="" ;; *) break ;; esac
+        done
         bash "$ubu" fetch "~/rapidr-release/matrix/$f.log" "$LOGS/linux-$f.log" || echo "(could not fetch the log of $f)" > "$LOGS/linux-$f.log"
         local why=yes
         case "$f" in *aarch64*|*arm64*) ;; *) why="no:x86_64 here runs by Rosetta; there is no x86_64 Rust host to build for it" ;; esac
@@ -292,6 +304,31 @@ lane_win7() {
     echo "[win7] $name done in ${secs}s"
 }
 
+# --- lane win7real: the alpha zip on a REAL Windows 7 (UTM) -------------------------------------
+# The Windows 11 lane above proves the package; this one proves Windows 7: its loader starts rapidr.exe, both
+# runner programs and the programs Build made, the six functions it lacks are answered by RapidR's stand-ins,
+# and a built window shows on its desktop. Driven through UTM's guest agent (tools/win7/vm.sh); the VM must
+# be started by Robert, with somebody logged in at its desktop. windows/smoke-win7-real.ps1 is the test.
+lane_win7real() {
+    local zip="${MATRIX_WIN7_ZIP:-}" log t0 secs name st sys="Windows 7 (real, UTM VM)"
+    if [ -z "$zip" ]; then zip="$(ls "$OUT"/RapidR-"$VER"-win7-x86-alpha*.zip 2>/dev/null | tail -1)"; fi
+    if [ -z "$zip" ] || [ ! -f "$zip" ]; then record "$sys" "(no win7 zip in $OUT)" zip "no:" 0 "" "no Windows 7 package for this release" win7real; return; fi
+    name="$(basename "$zip")"; log="$LOGS/win7real-$name.log"
+    st="$("$ROOT/tools/win7/vm.sh" status 2>/dev/null | tr -d '\r' | head -1)"
+    if [ "$st" != started ]; then
+        NOT_RUN="the Windows 7 VM (UTM) is '${st:-not found}' (this script never starts or stops a VM: ask Robert)"
+        echo "[win7real] not run: $NOT_RUN"
+        record "$sys" "$name" zip "no:Windows 7 has no Rust to build for it" 0 "" "not run: $NOT_RUN" win7real
+        return
+    fi
+    echo "[win7real] $name: on the real Windows 7 ..."
+    t0=$(now)
+    bash "$HERE/win7-vm.sh" smoke "$zip" "$REPORT/shots" > "$log" 2>&1
+    secs=$(( $(now) - t0 ))
+    record "$sys" "$name" zip "no:Windows 7 has no Rust to build for it" "$secs" "$log" "" win7real
+    echo "[win7real] $name done in ${secs}s"
+}
+
 # --- run the lanes ------------------------------------------------------------------------------
 run_lane() {   # <lane>
     local l="$1"
@@ -309,6 +346,7 @@ if want windows || want win7; then
         ( want windows && lane_windows; want win7 && lane_win7 ) & LANE_PIDS="$LANE_PIDS $!"
     fi
 fi
+want win7real && run_lane win7real
 for p in $LANE_PIDS; do wait "$p" || true; done
 fi
 
@@ -316,7 +354,7 @@ fi
 cellof() { sed -n "s/.*[ ]$2=\([A-Za-z-]*\).*/\1/p" <<<"$1" | head -1; }
 mm() { printf '%d:%02d' $(($1 / 60)) $(($1 % 60)); }
 # (the gate is a run of every lane; a run of some writes build-matrix.partial.txt and leaves the full one)
-if [ "$ONLY" = "mac,linux,windows,win7" ]; then TXT="$DIST/build-matrix.txt"; else TXT="$DIST/build-matrix.partial.txt"; fi
+if [ "$ONLY" = "$ALL_LANES" ]; then TXT="$DIST/build-matrix.txt"; else TXT="$DIST/build-matrix.partial.txt"; fi
 TABLE="$REPORT/table.tmp"; DETAILS="$REPORT/details.tmp"; : > "$TABLE"; : > "$DETAILS"
 RED=0
 # show <value> <how it counts when it is "-">: ok | FAIL | n/a (with the reason) | skipped
@@ -371,7 +409,7 @@ printrow() {
     [ -n "$why" ] && echo "- $package: Build Native: $why" >> "$DETAILS.notes"
 }
 : > "$DETAILS.notes"
-for lane in mac linux windows win7; do
+for lane in mac linux windows win7 win7real; do
     want "$lane" || continue
     [ -f "$RES/$lane.tsv" ] || continue
     while IFS=$'\t' read -r system package kind native secs logf note; do
