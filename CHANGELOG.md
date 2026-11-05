@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **RAI and AI apps share one tool set** ([docs/ai-tools.md](docs/ai-tools.md)): every tool of RapidR Studio is defined once and both get it, decided by the same permission rules. RAI can now look at what Studio has open, read the program's output, debug, set a property and keep versions; AI apps get the Versions tools RAI had. New for both: `save_version`, `list_versions`, `compare_versions`, `restore_version`, `start_versions`, `how_do_i` (the steps for a task, with the tools) and `report_gap` (a line in the project's `RAPIDR-ISSUES.md` when a tool or an answer is missing).
+- **AI agents are told the RapidR way, even small ones**: twelve numbered rules on connect and in RAI's instructions ("never git or a shell for the user's project: the Versions tools"), two ready-made MCP prompts and three guides to read.
+- **`RMcpServer.AddAlias` and `AddPrompt`**: a renamed tool keeps answering its old name; a program offers ready-made instructions to an AI app's person.
+
+### Changed
+- **`run_program` doesn't run code with errors**: the AI is told the first ones and that Problems must be 0; with warnings it runs and says them first.
+- **`find_example` also finds RapidR's examples** by their file name, the components and builtins they use and their words (`RJson` names `rapidr_describe` and the examples that use it).
+- **A message box's buttons** can be clicked by their short name (`b0`) as `app_layout` lists them, or their caption; **`app_screenshot`** says in words what the picture shows.
+- **`set_property`** is a change like the others: under Ask before changes the user sees it as a diff. Old tool names (`get_problems`, `layout`, `recipe`) keep working.
+
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed
 
 ### Added

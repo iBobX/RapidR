@@ -703,7 +703,9 @@ pub const TOOLS: &[Spec] = &[
         description: "What the running program shows, in words: its windows, each control's name, type, caption or text and place, and what looks wrong. The names it lists are the ones the tools take. Example: {}.",
         lite: "",
         schema: app_layout_args,
-        mcp_hint: "read",
+        // (not read-only for AI apps: looking at the program shows what it
+        // shows, private data too — the pane asks once a run)
+        mcp_hint: "change",
     },
     Spec {
         name: "app_screenshot",
@@ -715,7 +717,7 @@ pub const TOOLS: &[Spec] = &[
         description: "A picture (PNG) of the running program's own windows, and beside it in words what they show (windows, controls, captions, values) for a model without vision. Example: {} or {\"window\": \"Form1\"}.",
         lite: "",
         schema: app_screenshot_args,
-        mcp_hint: "read",
+        mcp_hint: "change",
     },
     Spec {
         name: "app_click",

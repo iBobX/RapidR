@@ -536,7 +536,9 @@ impl Tools {
             return;
         }
         self.app_asked = Some(Some(allowed));
-        if allowed {
+        // (a card about the program — using it, running or stopping it —
+        // allows this run; one about the versions allows that call only)
+        if allowed && !self.app_ask_run.contains("version") {
             self.app_run = crate::session::run_number();
         }
     }

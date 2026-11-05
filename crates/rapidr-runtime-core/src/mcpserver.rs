@@ -747,7 +747,7 @@ fn argument(name: &str, key: &str, id: i64) -> String {
             // tool whose schema says `Path`, and BASIC names don't care)
             v = match v.get(part) {
                 Some(found) => found,
-                None => v.as_object()?.iter().find(|(k, _)| k.eq_ignore_ascii_case(part))?.1,
+                None => v.as_object()?.iter().find(|(k, _)| same_name(k, part))?.1,
             };
         }
         Some(match v {
@@ -1270,6 +1270,13 @@ fn property_words(key: &str, p: &Json) -> String {
     format!("`{key}` ({t}{choices}{what})")
 }
 
+/// Two argument names that are the same but for case and underscores
+/// (`Path` and `path`, `ToX` and `to_x`: an older tool list's spelling).
+fn same_name(a: &str, b: &str) -> bool {
+    let bare = |s: &str| s.chars().filter(|c| *c != '_').map(|c| c.to_ascii_lowercase()).collect::<String>();
+    a.eq_ignore_ascii_case(b) || bare(a) == bare(b)
+}
+
 /// What a small model sends for a list or an object is often that value as a JSON *string*
 /// (`"edits": "[{\"old_text\": …}]"`), a whole number as `"20"`, a flag as `"true"`: the AI
 /// app's own tool-call layer didn't parse it. The tool's schema says what it wants, so a
@@ -1287,7 +1294,7 @@ fn coerce_args(def: &ToolDef, args: &mut Json) {
         if props.contains_key(&key) {
             continue;
         }
-        if let Some(spelled) = props.keys().find(|p| p.eq_ignore_ascii_case(&key)).filter(|p| !obj.contains_key(*p)) {
+        if let Some(spelled) = props.keys().find(|p| same_name(p, &key)).filter(|p| !obj.contains_key(*p)) {
             if let Some(v) = obj.remove(&key) {
                 obj.insert(spelled.clone(), v);
             }
@@ -1418,6 +1425,12 @@ mod tests {
         coerce_args(&d, &mut both);
         assert_eq!(both["path"], json!("a"));
         assert!(check_args(&d, &both).is_err());
+        // (`ToX` for `to_x`: an older tool list's spelling, underscores aside)
+        let d = def(json!({"type": "object", "properties": {"to_x": {"type": "integer"}, "to_y": {"type": "integer"}}, "required": ["to_x", "to_y"], "additionalProperties": false}));
+        let mut a = json!({"ToX": 180, "ToY": "20"});
+        coerce_args(&d, &mut a);
+        assert_eq!(a, json!({"to_x": 180, "to_y": 20}));
+        assert!(check_args(&d, &a).is_ok());
     }
 
     #[test]

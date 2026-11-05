@@ -1,17 +1,9 @@
-//! The assistant's tools (docs/ide-ai.md §4.2, docs/ai-architecture.md
-//! §3–5): what a model may call while it answers, all on the project open
-//! in Studio and nothing beyond it.
-//!
-//! | Tool | Risk | What |
-//! |---|---|---|
-//! | `list_files` | read | the project's files |
-//! | `read_file` | read | a file's text (the editor's when it is open), inside the project only |
-//! | `rapidr_describe` | read | a component type's or builtin's registry entry (the introspection interface) |
-//! | `rapidr_list`, `rapidr_get` | read | the forms' components and their properties, from the source (design time) |
-//! | `check_code` | read | RapidR's compiler on a file, or on text as that file would be |
-//! | `propose_edit` | proposal | a change to a file — only the parts that change (search and replace, each old text once in the file) — shown to the user as a diff: nothing is written until they apply it |
-//! | `write_file` | proposal | a new file's text (or a file rewritten almost entirely), shown the same way |
-//! | `create_project` | proposal | a new program's files, previewed before anything is created |
+//! The project's tools (docs/ide-ai.md §4.2, docs/ai-architecture.md
+//! §3–5, docs/ai-tools.md): the handlers of RapidR Studio's one tool set
+//! that need only the project and RapidR's knowledge — files, the compiler,
+//! the forms, Help, examples, proposals —, the same for RAI and AI apps.
+//! The tools themselves (names, descriptions, schemas, who gets them) are
+//! [`crate::toolset`]'s; whether a call may run, [`crate::policy`]'s.
 //!
 //! What a tool returns from the project (a file, a property's value) goes
 //! back to the model as data, marked untrusted with where it came from
