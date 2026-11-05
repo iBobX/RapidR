@@ -1,0 +1,14 @@
+{
+  "about": "The UI's budgets on the web (node tools/bench/web_ui_bench.mjs --check; tools/regress.sh perf). Milliseconds, the fastest of the runs' medians: the writes by the program's own TIMER, each case repeated 50 times (one pass's time); the drags by Chromium's TaskDuration (a step's main-thread work: the input, the layout, the events, the paint) and the host's probe (the frame's paint). Measured 2026-11-05 (WEB-PARITY-SPEED, docs/speed-audit-2026-11.md \"Web parity\") in headless Chromium on an Apple-silicon Mac, before the parity fixes / after: #12's 41 moves 1.48 / 0.08 (form shown 1.90 / 0.08), 800 place writes 120.5 / 2.7, 200 caption writes 4.06 / 1.52, the 200-control form dragged 30.3 / 13.4 a step (its paint 15.5 / 6.0), 12 canvases' OnResize 1.0 / 0.0, dragged 13.4 / 11.7 a step, Studio for the web's caret move in 5,000 lines 64.9 / 18.7. A step's budget is a frame (16 ms): the 200-control form's is the parity lane's acceptance.",
+  "budgets": {
+    "moves41_hidden": 0.75,
+    "moves41_shown": 0.75,
+    "geom200_shown": 25,
+    "caption200": 3,
+    "resize200_drag_step": 16,
+    "resize200_drag_paint": 9,
+    "canvas12_onresize": 0.5,
+    "canvas12_drag_step": 16,
+    "studio_caret_step": 30
+  }
+}

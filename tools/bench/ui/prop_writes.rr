@@ -8,6 +8,10 @@
 '   geom200_shown   the same 200 controls, all four of Left/Top/Width/Height
 '                   set (800 writes), as an OnResize relayout does
 '   caption200      200 Caption writes (a property that is not a place)
+' A count on the command line repeats each case that many times (a pixel
+' apart each pass, so every write changes something) and prints one pass's
+' time: the web's TIMER counts whole milliseconds
+' (tools/bench/web_ui_bench.mjs passes 50). Without it, each case once.
 $APPTYPE CONSOLE
 
 CREATE F AS RForm
@@ -24,8 +28,11 @@ DIM b(49) AS RButton
 DIM l(49) AS RLabel
 DIM e(49) AS REdit
 DIM p(49) AS RPanel
-DIM k AS INTEGER
+DIM k AS INTEGER, r AS INTEGER, d AS INTEGER, reps AS INTEGER
 DIM t AS DOUBLE
+
+reps = VAL(COMMAND$(1))
+IF reps < 1 THEN reps = 1
 
 FOR k = 0 TO 40
   c(k).Parent = F
@@ -33,17 +40,23 @@ FOR k = 0 TO 40
 NEXT
 
 t = TIMER
-FOR k = 0 TO 40
-  c(k).Left = 20 + k * 10
+FOR r = 1 TO reps
+  d = (r - 1) MOD 2
+  FOR k = 0 TO 40
+    c(k).Left = 20 + k * 10 + d
+  NEXT
 NEXT
-PRINT "moves41_hidden "; FORMAT$("%.3f", (TIMER - t) * 1000)
+PRINT "moves41_hidden "; FORMAT$("%.3f", (TIMER - t) * 1000 / reps)
 
 F.Show
 t = TIMER
-FOR k = 0 TO 40
-  c(k).Left = 30 + k * 10
+FOR r = 1 TO reps
+  d = (r - 1) MOD 2
+  FOR k = 0 TO 40
+    c(k).Left = 30 + k * 10 + d
+  NEXT
 NEXT
-PRINT "moves41_shown "; FORMAT$("%.3f", (TIMER - t) * 1000)
+PRINT "moves41_shown "; FORMAT$("%.3f", (TIMER - t) * 1000 / reps)
 F.Close
 
 FOR k = 0 TO 49
@@ -55,30 +68,39 @@ NEXT
 G.Show
 
 t = TIMER
-FOR k = 0 TO 49
-  b(k).Left = (k MOD 10) * 95 + 2
-  l(k).Left = (k MOD 10) * 95 + 2
-  e(k).Left = (k MOD 10) * 95 + 2
-  p(k).Left = (k MOD 10) * 95 + 2
+FOR r = 1 TO reps
+  d = (r - 1) MOD 2
+  FOR k = 0 TO 49
+    b(k).Left = (k MOD 10) * 95 + 2 + d
+    l(k).Left = (k MOD 10) * 95 + 2 + d
+    e(k).Left = (k MOD 10) * 95 + 2 + d
+    p(k).Left = (k MOD 10) * 95 + 2 + d
+  NEXT
 NEXT
-PRINT "moves200_shown "; FORMAT$("%.3f", (TIMER - t) * 1000)
+PRINT "moves200_shown "; FORMAT$("%.3f", (TIMER - t) * 1000 / reps)
 
 t = TIMER
-FOR k = 0 TO 49
-  b(k).Left = (k MOD 10) * 96: b(k).Top = (k \ 10) * 31: b(k).Width = 90: b(k).Height = 26
-  l(k).Left = (k MOD 10) * 96: l(k).Top = 160 + (k \ 10) * 31: l(k).Width = 90: l(k).Height = 26
-  e(k).Left = (k MOD 10) * 96: e(k).Top = 320 + (k \ 10) * 31: e(k).Width = 90: e(k).Height = 26
-  p(k).Left = (k MOD 10) * 96: p(k).Top = 480 + (k \ 10) * 31: p(k).Width = 90: p(k).Height = 26
+FOR r = 1 TO reps
+  d = (r - 1) MOD 2
+  FOR k = 0 TO 49
+    b(k).Left = (k MOD 10) * 96 + d: b(k).Top = (k \ 10) * 31 + d: b(k).Width = 90 + d: b(k).Height = 26 + d
+    l(k).Left = (k MOD 10) * 96 + d: l(k).Top = 160 + (k \ 10) * 31 + d: l(k).Width = 90 + d: l(k).Height = 26 + d
+    e(k).Left = (k MOD 10) * 96 + d: e(k).Top = 320 + (k \ 10) * 31 + d: e(k).Width = 90 + d: e(k).Height = 26 + d
+    p(k).Left = (k MOD 10) * 96 + d: p(k).Top = 480 + (k \ 10) * 31 + d: p(k).Width = 90 + d: p(k).Height = 26 + d
+  NEXT
 NEXT
-PRINT "geom200_shown "; FORMAT$("%.3f", (TIMER - t) * 1000)
+PRINT "geom200_shown "; FORMAT$("%.3f", (TIMER - t) * 1000 / reps)
 
 t = TIMER
-FOR k = 0 TO 49
-  b(k).Caption = "B" + STR$(k)
-  l(k).Caption = "L" + STR$(k)
-  p(k).Caption = "P" + STR$(k)
-  e(k).Text = "E" + STR$(k)
+FOR r = 1 TO reps
+  d = (r - 1) MOD 2
+  FOR k = 0 TO 49
+    b(k).Caption = "B" + STR$(k + d)
+    l(k).Caption = "L" + STR$(k + d)
+    p(k).Caption = "P" + STR$(k + d)
+    e(k).Text = "E" + STR$(k + d)
+  NEXT
 NEXT
-PRINT "caption200 "; FORMAT$("%.3f", (TIMER - t) * 1000)
+PRINT "caption200 "; FORMAT$("%.3f", (TIMER - t) * 1000 / reps)
 G.Close
 END
