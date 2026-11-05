@@ -2883,6 +2883,17 @@ const CASES = [
     dump: {},
     files: { "main.rr": /^(?![\s\S]*"ONE lost")[\s\S]*PRINT "ONE"/ },
   },
+  // (Close Document: Ctrl+W, and Ctrl+F4 too on Windows and Linux, as it
+  // was — macOS keeps Cmd+W only: the review of 2026-11-05)
+  {
+    name: "close-ctrl-f4",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    events: "studio.__key_115_16",
+    delay: 4,
+    dump: { "dock.documentcount": process.platform === "darwin" ? /^1$/ : /^0$/ },
+  },
   {
     name: "quit-cancel",
     open: "tests/fixtures/studio_save/main.rr",

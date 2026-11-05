@@ -380,11 +380,16 @@ SUB StudioClose(Action AS INTEGER)
   McpShutdown
 END SUB
 
-' (keys the menus don't hold: F8 stepping beside F11 / F10)
+' (keys the menus don't hold: F8 stepping beside F11 / F10; Ctrl+F4 beside
+' Ctrl+W for Close Document on Windows and Linux, as it was — not on macOS,
+' where Cmd+W is the one, nor in a browser, which keeps both for its tabs)
 SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
   IF Key = 119 THEN
     IF Shift = 0 THEN RunCommand "debug.stepInto"
     IF Shift = 256 THEN RunCommand "debug.stepOver"
+  END IF
+  IF Key = 115 AND Shift = 16 THEN
+    IF Proj.FileManager <> "" AND Proj.FileManager <> "Finder" THEN RunCommand "file.close"
   END IF
 END SUB
 
