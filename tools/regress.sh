@@ -216,6 +216,11 @@ if want perf; then echo "== perf"
   # windows for a few seconds each — RAPIDR_PERF_NO_WINDOWS=1 skips those)
   out=$(python3 tools/bench/vm_bench --check ${RAPIDR_PERF_NO_WINDOWS:+--no-windows} 2>&1) || echo "tools/bench/vm_bench: FAILED"
   echo "$out" | grep -E "MISSED|every budget met|Traceback|Error"
+  # (native builds' budgets, docs/speed-audit-2026-11.md "Native typed
+  # arrays": a synth's voices in typed global arrays, INTEGER and BYTE
+  # arrays — each built with `rapidr build`, its answer the interpreter's)
+  out=$(python3 tools/bench/native_bench --check 2>&1) || echo "tools/bench/native_bench: FAILED"
+  echo "$out" | grep -E "MISSED|every budget met|Traceback|Error|failed"
   # (the UI's and the editor's budgets, docs/speed-audit-2026-11.md: a
   # control's place written, a 200-control and a 12-canvas form resized —
   # headless, and in a real window unless RAPIDR_PERF_NO_WINDOWS —, a check

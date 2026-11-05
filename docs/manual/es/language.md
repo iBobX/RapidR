@@ -180,6 +180,25 @@ Se pueden pasar arreglos (array) completos (`Fill M()`,
 `SUB Fill (list() AS STRING)`), y los `TYPE` pueden contener arreglos
 (`Names(2) AS STRING`, `vertex(9, 2) AS SINGLE`).
 
+### Arreglos rápidos en los programas nativos
+
+Un arreglo de números —declarado `AS BYTE`, `WORD`, `SHORT`, `INTEGER`,
+`LONG`, `DWORD`, `SINGLE`, `DOUBLE`, `INT64` o `UINT64`— es memoria simple
+en un programa nativo (`rapidr build`) cuando el programa lo usa por sus
+elementos: `a(i)`, `grid(i, j) = x`, `LBOUND` / `UBOUND`, `REDIM`, y al
+pasarlo completo a un `SUB` o `FUNCTION` cuyo parámetro es un arreglo del
+mismo tipo (`SUB Mix (voices() AS DOUBLE)`). Un bucle sobre esos arreglos
+va casi tan rápido como el mismo bucle con variables simples: un
+sintetizador que guarda 32 voces en arreglos `DOUBLE` calcula un bloque de
+10 ms de sonido en menos de 0,1 ms.
+
+Un arreglo que se usa de otra forma —pasado completo a una función
+incorporada, copiado (`b = a`), con su dirección tomada (`VARPTR`), o
+pasado a un parámetro de otro tipo o sin tipo— funciona igual, a la
+velocidad de los demás valores. En los dos casos el programa hace lo mismo
+en todos los entornos de ejecución; vea
+[examples/basics/fast_arrays.rr](../../../examples/basics/fast_arrays.rr).
+
 ## Operadores
 
 De la precedencia más baja a la más alta: `OR`, `XOR` · `AND` · `NOT` ·

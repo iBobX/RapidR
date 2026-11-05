@@ -71,6 +71,8 @@ pub mod datascience;
 // (Stage W3) What both runtimes' component registries give a new
 // component, and what the UI kernel reads as unset.
 pub mod component_defaults;
+// (the speed release) Native builds' typed arrays: plain vectors of numbers.
+pub mod typed_array;
 
 #[derive(Debug, Clone)]
 pub enum Value {

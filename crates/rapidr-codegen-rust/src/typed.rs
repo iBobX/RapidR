@@ -468,6 +468,33 @@ impl RustCodegen {
                     _ => return None,
                 })
             }
+            // A typed array's element (`typed_arrays`); LBOUND / UBOUND of one.
+            Expression::FunctionCall(fc) if self.typed_array_of(&fc.callee).is_some() => {
+                let (kind, array) = self.typed_array_of(&fc.callee)?;
+                self.typed_element(kind, &array, &fc.args)
+            }
+            Expression::ArrayAccess(aa) => {
+                let (kind, array) = self.typed_array_of(&aa.array)?;
+                self.typed_element(kind, &array, &aa.indices)
+            }
+            Expression::FunctionCall(fc) if matches!(fc.callee.as_ref(), Expression::Identifier(id) if self.typed_bound_call(&id.name.to_lowercase(), &fc.args).is_some()) => {
+                let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+                let (array, upper) = self.typed_bound_call(&id.name.to_lowercase(), &fc.args)?;
+                self.typed_bound_i64(&array, fc.args.get(1), upper)
+            }
+            // `a SHL n` / `a SHR n` on integers, as `rp_shl` / `rp_shr`: the
+            // 32-bit value shifted by the count's low 5 bits, as a LONG (so
+            // an emulator's opcode decoding stays native).
+            Expression::FunctionCall(fc) if fc.args.len() == 2 && matches!(fc.callee.as_ref(), Expression::Identifier(id) if matches!(id.name.to_ascii_lowercase().as_str(), "shl" | "shr") && !self.defined_functions.contains(&id.name.to_ascii_lowercase())) => {
+                let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
+                let (a, ta) = self.typed_expr(&fc.args[0])?;
+                let (n, tn) = self.typed_expr(&fc.args[1])?;
+                if ta != Ty::Int || tn != Ty::Int {
+                    return None;
+                }
+                let op = if id.name.eq_ignore_ascii_case("shl") { "<<" } else { ">>" };
+                Some((format!("((((numeric::int32_of({a}) as u32) {op} ((numeric::int32_of({n}) & 31) as u32)) as i32) as i64)"), Ty::Int))
+            }
             // `__to_long(e)` & co. (rapidr_ast::numeric) on a typed value.
             Expression::FunctionCall(fc) if fc.args.len() == 1 => {
                 let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
@@ -488,6 +515,13 @@ impl RustCodegen {
     pub(crate) fn boxed_typed(&self, e: &Expression) -> Option<String> {
         if matches!(e, Expression::Literal(_)) || (self.typed_locals.is_empty() && self.typed_globals.is_empty() && !matches!(e, Expression::Binary(_))) {
             return None;
+        }
+        // (an element alone reads as the array's `Value`: one not DIMmed
+        // yet is empty — `typed_arrays`)
+        match e {
+            Expression::FunctionCall(fc) if self.typed_array_of(&fc.callee).is_some() => return None,
+            Expression::ArrayAccess(aa) if self.typed_array_of(&aa.array).is_some() => return None,
+            _ => {}
         }
         let (code, ty) = self.typed_expr(e)?;
         Some(match ty {

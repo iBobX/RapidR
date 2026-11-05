@@ -268,3 +268,11 @@ profiles and the ranked hot spots are in
 | `ui_bench` | the guard: `prop_writes.rr`, `resize200.rr`, `resize_canvas12.rr` (headless; `--windows`: real windows too), `rapidr check` of a generated program with 1,000 `$DEFINE`s, Studio's caret move and edit round — `tools/bench/ui_bench [--check] [--windows] [--runs N] [only…]`; `--check` exits 1 when a budget in `ui_budgets.json` is missed (the `perf` stage of `tools/regress.sh`) |
 
 `vm_bench` holds `dsp_sin`, `dsp_voices` and `fcalls` to budgets too.
+
+Native builds' guard (typed arrays, docs/speed-audit-2026-11.md "Native
+typed arrays"): `tools/bench/native_bench [--check] [--runs N] [only…]`
+builds `dsp_voices`, `dsp_params` (the same synth with its voices passed as
+`DOUBLE` array parameters), `dsp_scalars`, `arrays` and `byte_array` with
+`rapidr build` and runs each (CPU time, its answer the interpreter's); `--check`
+exits 1 when a budget in `native_budgets.json` is missed (the `perf` stage
+of `tools/regress.sh`).

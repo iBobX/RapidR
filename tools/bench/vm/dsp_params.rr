@@ -1,0 +1,65 @@
+' vm_bench: typed array parameters and a routine's own arrays - dsp_voices'
+' synthesizer with its voices passed to the SUB as DOUBLE array parameters
+' and its output buffer the SUB's own array: 32 voices x 441 samples x 100
+' blocks (about 13 million element accesses), the same answer as
+' dsp_voices.
+$APPTYPE CONSOLE
+CONST VOICES = 32
+CONST BLOCK = 441
+CONST BLOCKS = 100
+DIM VPhase(VOICES - 1) AS DOUBLE
+DIM VInc(VOICES - 1) AS DOUBLE
+DIM VEnv(VOICES - 1) AS DOUBLE
+DIM VGain(VOICES - 1) AS DOUBLE
+DIM VLp(VOICES - 1) AS DOUBLE
+DIM VBp(VOICES - 1) AS DOUBLE
+DIM t AS DOUBLE
+
+SUB Init(pPhase() AS DOUBLE, pInc() AS DOUBLE, pEnv() AS DOUBLE, pGain() AS DOUBLE, pLp() AS DOUBLE, pBp() AS DOUBLE)
+  DIM v AS INTEGER
+  FOR v = 0 TO VOICES - 1
+    pPhase(v) = (v * 0.17) - INT(v * 0.17)
+    pInc(v) = (110.0 * (2.0 ^ ((v MOD 24) / 12.0))) / 44100.0
+    pEnv(v) = 0.01
+    pGain(v) = 0.15
+    pLp(v) = 0.0
+    pBp(v) = 0.0
+  NEXT
+END SUB
+
+FUNCTION Synth(pPhase() AS DOUBLE, pInc() AS DOUBLE, pEnv() AS DOUBLE, pGain() AS DOUBLE, pLp() AS DOUBLE, pBp() AS DOUBLE) AS DOUBLE
+  DIM outbuf(BLOCK - 1) AS DOUBLE
+  DIM blk AS INTEGER, i AS INTEGER, v AS INTEGER
+  DIM ph AS DOUBLE, osc AS DOUBLE, env AS DOUBLE, lp AS DOUBLE, bp AS DOUBLE, hp AS DOUBLE
+  DIM mix AS DOUBLE, peak AS DOUBLE
+  peak = 0.0
+  FOR blk = 1 TO BLOCKS
+    FOR i = 0 TO BLOCK - 1
+      mix = 0.0
+      FOR v = 0 TO VOICES - 1
+        ph = pPhase(v) + pInc(v)
+        IF ph >= 1.0 THEN ph = ph - 1.0
+        pPhase(v) = ph
+        osc = 2.0 * ph - 1.0
+        env = pEnv(v) + 0.0005 * (0.80 - pEnv(v))
+        pEnv(v) = env
+        lp = pLp(v)
+        bp = pBp(v)
+        lp = lp + 0.28 * bp
+        hp = (osc * env * pGain(v)) - lp - 0.55 * bp
+        bp = 0.28 * hp + bp
+        pLp(v) = lp
+        pBp(v) = bp
+        mix = mix + lp
+      NEXT
+      outbuf(i) = mix
+      IF ABS(mix) > peak THEN peak = ABS(mix)
+    NEXT
+  NEXT
+  Synth = peak
+END FUNCTION
+
+t = TIMER
+Init VPhase, VInc, VEnv, VGain, VLp, VBp
+PRINT "dsp_params "; INT(Synth(VPhase, VInc, VEnv, VGain, VLp, VBp) * 1000000)
+PRINT "ms "; INT((TIMER - t) * 1000)

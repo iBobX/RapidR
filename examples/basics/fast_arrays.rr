@@ -1,0 +1,66 @@
+' Fast arrays: an array declared with a number type (BYTE, INTEGER, DOUBLE…)
+' and used by its elements is plain memory in a native build — as fast as
+' the numbers themselves (the manual: Arrays). Here a sieve finds the primes
+' below a million in a BYTE array, a SUB smooths a DOUBLE signal it is
+' passed, and a two-dimensional INTEGER table is filled and summed.
+'
+'   rapidr run basics/fast_arrays.rr      (the RapidR Runtime)
+'   rapidr build basics/fast_arrays.rr    (native: much faster)
+$APPTYPE CONSOLE
+
+CONST LIMIT = 1000000
+CONST SAMPLES = 4096
+
+DIM composite(LIMIT) AS BYTE
+DIM signal(SAMPLES - 1) AS DOUBLE
+DIM smooth(SAMPLES - 1) AS DOUBLE
+DIM table(1 TO 12, 1 TO 12) AS INTEGER
+DIM i AS INTEGER, j AS INTEGER, primes AS INTEGER, total AS LONG
+DIM started AS DOUBLE
+
+' The average of each sample and the `width` before it.
+SUB Smoothen(source() AS DOUBLE, result() AS DOUBLE, width AS INTEGER)
+  DIM k AS INTEGER, n AS INTEGER, sum AS DOUBLE
+  FOR k = LBOUND(source) TO UBOUND(source)
+    sum = 0
+    FOR n = 0 TO width
+      IF k - n >= 0 THEN sum = sum + source(k - n)
+    NEXT
+    result(k) = sum / (width + 1)
+  NEXT
+END SUB
+
+started = TIMER
+
+' The sieve: every multiple of a prime is marked.
+FOR i = 2 TO LIMIT
+  IF composite(i) = 0 THEN
+    primes = primes + 1
+    FOR j = i * 2 TO LIMIT STEP i
+      composite(j) = 1
+    NEXT
+  END IF
+NEXT
+PRINT "Primes below "; LIMIT; ": "; primes
+
+' A square wave, smoothed: its corners round off.
+FOR i = 0 TO SAMPLES - 1
+  IF (i \ 64) MOD 2 = 0 THEN signal(i) = 1 ELSE signal(i) = -1
+NEXT
+Smoothen signal, smooth, 7
+PRINT "Smoothed: "; FORMAT$("%.3f %.3f %.3f", smooth(60), smooth(64), smooth(70))
+
+' A multiplication table, by row and column.
+FOR i = 1 TO 12
+  FOR j = 1 TO 12
+    table(i, j) = i * j
+  NEXT
+NEXT
+FOR i = 1 TO 12
+  FOR j = 1 TO 12
+    total = total + table(i, j)
+  NEXT
+NEXT
+PRINT "7 x 8 = "; table(7, 8); ", the whole table adds up to "; total
+
+PRINT "Done in "; INT((TIMER - started) * 1000); " ms"

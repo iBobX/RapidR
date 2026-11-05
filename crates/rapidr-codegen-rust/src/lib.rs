@@ -10,6 +10,7 @@ use rapidr_ast::*;
 
 mod jumps;
 mod typed;
+mod typed_arrays;
 
 /// Target platform for code generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,6 +270,10 @@ struct RustCodegen {
     /// Main-program variables kept as Rust numbers in atomic statics
     /// (`typed::analyze_globals`).
     typed_globals: HashMap<String, typed::Kind>,
+    /// Arrays kept as plain vectors of numbers (`typed_arrays::analyze`).
+    typed_arrays: typed_arrays::TypedArrays,
+    /// The current routine's own typed arrays and typed array parameters.
+    ta_scope: HashMap<String, (typed_arrays::ArrKind, typed_arrays::Place)>,
     /// Names (lowercase) that appear in CREATE blocks — DIM for these should not emit rp_create_component.
     create_declared_names: HashSet<String>,
     /// Set while a routine with GOTO/GOSUB is emitted as a state machine.
@@ -314,6 +319,8 @@ impl RustCodegen {
             assigned_routine: HashSet::new(),
             typed_locals: HashMap::new(),
             typed_globals: HashMap::new(),
+            typed_arrays: Default::default(),
+            ta_scope: HashMap::new(),
             create_declared_names: HashSet::new(),
             state_machine: None,
             current_routine_name: None,
@@ -724,6 +731,11 @@ impl RustCodegen {
             let atomic = if kind == typed::Kind::Double { "AtomicU64" } else { "AtomicI64" };
             self.line(&format!("static {}: std::sync::atomic::{atomic} = std::sync::atomic::{atomic}::new(0);", typed::global_static(&name)));
         }
+        // Typed arrays (`typed_arrays::analyze`): the main program's in
+        // thread-local statics.
+        let typed_arrays = typed_arrays::analyze(&program.statements, &|n| self.defined_functions.contains(n));
+        self.typed_arrays = typed_arrays;
+        self.emit_typed_array_statics();
         self.blank();
 
         // Emit subs/functions/declares before main
@@ -749,6 +761,7 @@ impl RustCodegen {
             self.line("fn main() {");
         }
         self.indent += 1;
+        self.emit_typed_array_locals("", &[]);
         let runtime = if self.target == AppTarget::Web { "rapidr_runtime_web" } else { "rapidr_runtime_core" };
         if self.target == AppTarget::Web {
             self.line("rapidr_runtime_web::object_web::install_object_hooks();");
@@ -1009,6 +1022,12 @@ impl RustCodegen {
                         ),
                     })
                     .collect();
+                // A typed array (`typed_arrays`): DIMmed or resized in place.
+                if let Some(stmt) = self.typed_dim(&decl.name, &bounds, d.is_redim) {
+                    self.write_indent();
+                    let _ = writeln!(self.output, "{stmt}");
+                    continue;
+                }
                 let default = dim_default(d);
                 // REDIM in a SUB resizes the module-level array unless the
                 // SUB declares its own (as in the VM).
@@ -1313,6 +1332,13 @@ impl RustCodegen {
             _ => None,
         };
         if let Some((id, indices)) = element {
+            // A typed array's element (`typed_arrays`): stored as its number.
+            if let Some((kind, array)) = self.typed_array(&id.name) {
+                let store = self.element_store(kind, &array, indices, &a.value);
+                self.write_indent();
+                let _ = writeln!(self.output, "{store}");
+                return;
+            }
             let stripped = strip_type_suffix(&id.name).to_lowercase();
             if self.array_vars.contains(&stripped) {
                 let base = self.array_base(&stripped);
@@ -1556,7 +1582,11 @@ impl RustCodegen {
             }
         }
         let call = match &c.callee {
-            Expression::Identifier(id) => self.fitted_call(&strip_type_suffix(&id.name).to_lowercase(), &callee, args),
+            Expression::Identifier(id) => {
+                let name = strip_type_suffix(&id.name).to_lowercase();
+                let args = self.routine_args(&name, &c.args);
+                self.fitted_call(&name, &callee, args)
+            }
             _ => format!("{callee}({})", args.join(", ")),
         };
         self.write_indent();
@@ -1577,6 +1607,12 @@ impl RustCodegen {
         }
         let full = format!("{}.{}", o.name, ma.member);
         self.defined_functions.contains(&full.to_lowercase()).then_some(full)
+    }
+
+    /// The arguments of a call to the program's routine `callee`: each an
+    /// owned `Value`, or the typed array a typed array parameter takes.
+    fn routine_args(&self, callee: &str, args: &[Expression]) -> Vec<String> {
+        args.iter().enumerate().map(|(i, a)| self.typed_argument(callee, i, a).unwrap_or_else(|| self.owned_expr(a))).collect()
     }
 
     /// `f(args)` for the program's routine `name`, with the arguments fitted
@@ -1829,7 +1865,8 @@ impl RustCodegen {
 
     fn emit_sub_body(&mut self, s: &SubroutineStatement) {
         let name = to_snake(&s.name);
-        let params = self.emit_params(&s.params);
+        self.enter_typed_arrays(&s.name, &s.params);
+        let params = self.emit_params(&s.name, &s.params);
         self.write_indent();
         let _ = writeln!(self.output, "fn {name}({params}) {{");
         self.indent += 1;
@@ -1838,9 +1875,10 @@ impl RustCodegen {
         self.shadowed = shadowing_names(&s.params, &s.body);
         self.plain_locals = plain_local_names(&s.params, &s.body);
         self.assigned_routine = assigned_names(&s.body);
-        let byref = self.byref_prologue(&s.params, false);
+        let byref = self.byref_prologue(&s.name, &s.params, false);
         let body = self.prepare_statics(&s.name, &s.body);
         self.typed_locals = typed::analyze(&s.params, &body, None, &|n| self.defined_functions.contains(n));
+        self.emit_typed_array_locals(&s.name, &s.params);
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&body, &s.params);
 
@@ -1855,6 +1893,7 @@ impl RustCodegen {
         self.plain_locals.clear();
         self.assigned_routine.clear();
         self.typed_locals.clear();
+        self.ta_scope.clear();
         self.indent -= 1;
         self.line("}");
     }
@@ -1883,6 +1922,11 @@ impl RustCodegen {
         self.indent += 1;
         for (i, (name, byref, returns)) in self.routine_pointers.clone().iter().enumerate() {
             let n = byref.len();
+            // (a routine taking a typed array is never named as a pointer:
+            // `typed_arrays`)
+            if (0..n).any(|k| self.typed_param(name, k).is_some()) {
+                continue;
+            }
             let names: Vec<String> = (0..n).map(|k| format!("p{k}")).collect();
             let args: Vec<String> =
                 names.iter().zip(byref).map(|(p, r)| if *r { p.clone() } else { format!("{p}.clone()") }).collect();
@@ -2008,7 +2052,8 @@ impl RustCodegen {
 
     fn emit_function_body(&mut self, f: &FunctionStatement) {
         let name = to_snake(&f.name);
-        let params = self.emit_params(&f.params);
+        self.enter_typed_arrays(&f.name, &f.params);
+        let params = self.emit_params(&f.name, &f.params);
         self.write_indent();
         let _ = writeln!(self.output, "fn {name}({params}) -> Value {{");
         self.indent += 1;
@@ -2026,9 +2071,10 @@ impl RustCodegen {
         self.shadowed = shadowing_names(&f.params, &f.body);
         self.plain_locals = plain_local_names(&f.params, &f.body);
         self.assigned_routine = assigned_names(&f.body);
-        let byref = self.byref_prologue(&f.params, true);
+        let byref = self.byref_prologue(&f.name, &f.params, true);
         let body = self.prepare_statics(&f.name, &f.body);
         self.typed_locals = typed::analyze(&f.params, &body, Some(&f.name), &|n| self.defined_functions.contains(n));
+        self.emit_typed_array_locals(&f.name, &f.params);
         // Auto-declare local variables for refs in body that aren't params
         self.emit_local_vars(&body, &f.params);
 
@@ -2044,6 +2090,7 @@ impl RustCodegen {
         self.plain_locals.clear();
         self.assigned_routine.clear();
         self.typed_locals.clear();
+        self.ta_scope.clear();
 
         self.write_indent();
         let _ = writeln!(self.output, "_{name}");
@@ -2095,7 +2142,7 @@ impl RustCodegen {
             };
             let _ = writeln!(self.output, "let mut {snake}: {} = {init};", kind.rust_type());
         }
-        locals.retain(|l| self.typed_local(l).is_none());
+        locals.retain(|l| self.typed_local(l).is_none() && !self.ta_scope.contains_key(l));
         for local in &locals {
             let snake = to_snake(local);
             self.write_indent();
@@ -2115,12 +2162,16 @@ impl RustCodegen {
     /// BYVAL parameters are `mut` (BASIC may assign to them); BYREF ones
     /// arrive as `name__ref: &mut Value` and are copied in/out around the
     /// body (see [`Self::byref_prologue`]), matching the bytecode VM.
-    fn emit_params(&self, params: &[Parameter]) -> String {
+    fn emit_params(&self, routine: &str, params: &[Parameter]) -> String {
         params
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(i, p)| {
                 let name = to_snake(&p.name);
-                if p.by_ref {
+                // A typed array parameter (`typed_arrays`): the caller's array.
+                if let Some(kind) = self.typed_param(routine, i) {
+                    format!("{name}: &TypedArray<{}>", kind.elem())
+                } else if p.by_ref {
                     format!("{name}__ref: &mut Value")
                 } else {
                     format!("mut {name}: Value")
@@ -2133,8 +2184,9 @@ impl RustCodegen {
     /// Copies BYREF arguments into locals of the parameter's name and opens
     /// a closure around the body, so `RETURN` / `EXIT SUB` still reach the
     /// copy-out in [`Self::byref_epilogue`]. Returns the BYREF names.
-    fn byref_prologue(&mut self, params: &[Parameter], returns_value: bool) -> Vec<String> {
-        let names: Vec<String> = params.iter().filter(|p| p.by_ref).map(|p| to_snake(&p.name)).collect();
+    fn byref_prologue(&mut self, routine: &str, params: &[Parameter], returns_value: bool) -> Vec<String> {
+        let names: Vec<String> =
+            params.iter().enumerate().filter(|(i, p)| p.by_ref && self.typed_param(routine, *i).is_none()).map(|(_, p)| to_snake(&p.name)).collect();
         if names.is_empty() {
             return names;
         }
@@ -2170,6 +2222,10 @@ impl RustCodegen {
         let (mut out, mut pre, mut post) = (Vec::new(), Vec::new(), Vec::new());
         let promoted = self.promoted_byref.get(callee_lower).cloned().unwrap_or_default();
         for (i, arg) in args.iter().enumerate() {
+            if let Some(array) = self.typed_argument(callee_lower, i, arg) {
+                out.push(array);
+                continue;
+            }
             if !flags.get(i).copied().unwrap_or(false) {
                 out.push(self.owned_expr(arg));
                 continue;
@@ -2635,6 +2691,11 @@ impl RustCodegen {
                     _ => {
                         let name = strip_type_suffix(&id.name);
                         let snake = to_snake(&name);
+                        // (a typed array is only ever named by element, by
+                        // LBOUND / UBOUND or to a typed parameter: never here)
+                        if self.typed_array(&name).is_some() {
+                            return format!("compile_error!(\"RapidR internal error: the typed array {snake} used as a value (rapidr-codegen-rust typed_arrays)\")");
+                        }
                         // Component var used as bare expression → emit its name as a string value
                         if self.is_component_var(&name) {
                             return format!("v_str(\"{snake}\")");
@@ -2724,6 +2785,15 @@ impl RustCodegen {
                 if let Expression::Identifier(id) = fc.callee.as_ref() {
                     let name_stripped = strip_type_suffix(&id.name).to_lowercase();
 
+                    // A typed array's element (`typed_arrays`), as a Value.
+                    if let Some((_, array)) = self.typed_array(&id.name) {
+                        return self.element_value(&array, &fc.args);
+                    }
+                    // LBOUND / UBOUND of a typed array.
+                    if let Some((array, upper)) = self.typed_bound_call(&name_stripped, &fc.args) {
+                        return self.typed_bound(&array, fc.args.get(1), upper);
+                    }
+
                     // Check if this is an array access (DIM'd with dimensions)
                     if self.array_vars.contains(&name_stripped) {
                         let base = self.array_base(&name_stripped);
@@ -2747,6 +2817,7 @@ impl RustCodegen {
                                 pre.join(" "), args.join(", "), post.join(" ")
                             );
                         }
+                        let args = self.routine_args(&name_stripped, &fc.args);
                         return self.fitted_call(&name_stripped, &fname, args);
                     }
                     // Not a known function: a variable's element (variant
@@ -2916,6 +2987,10 @@ impl RustCodegen {
                 }
             }
             Expression::ArrayAccess(aa) => {
+                // A typed array's element (`typed_arrays`), as a Value.
+                if let Some((_, array)) = self.typed_array_of(&aa.array) {
+                    return self.element_value(&array, &aa.indices);
+                }
                 let arr = self.expr_to_string(&aa.array);
                 let is_array = if let Expression::Identifier(id) = aa.array.as_ref() {
                     self.array_vars.contains(&strip_type_suffix(&id.name).to_lowercase())
