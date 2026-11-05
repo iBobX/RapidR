@@ -192,3 +192,37 @@ Recommended, not blocking: a short note in `docs/licensing.md` §5 ("Machine-cod
 - Microsoft: App capability declarations (the `codeGeneration` row; restricted capabilities), https://learn.microsoft.com/windows/uwp/packaging/app-capability-declarations (source in MicrosoftDocs/windows-dev-docs)
 - RustSec advisory database (local copy, 2026-10-30): RUSTSEC-2021-0067 (cranelift-codegen), RUSTSEC-2026-0186 (memmap2).
 - RapidR: `docs/jit-design.md`, `docs/build-for-every-platform-plan.md`, `docs/licensing.md`, `LEGAL.md`, `deny.toml`, `crates/rapidr-cli/src/notices.rs`, `tools/release/home.py`, `tools/check_notices.py`; earlier reviews `docs/legal/review-2026-10-29-rarchive.md` (format and the "superset notices" reasoning) and `docs/legal/review-2026-10-22.md`.
+
+## Addendum, 2026-11-05 afternoon: C1 closed (the lead, on Robert's delegation)
+
+Robert asked the lead to decide C1. Accepting an MPL-2.0 file (option 2) was ruled out:
+`LEGAL.md` promises users "Nothing in your program is copyleft (no GPL, LGPL, MPL or
+similar)" and the dependency policy ships no MPL. So the question was only whether
+`src/lib.rs` is really MPL-2.0 today. The upstream record answers it, read-only
+(`gh api`, nothing posted):
+
+- Issue bytecodealliance/regalloc2#7, "Relicense fully under Apache-2.0 WITH
+  LLVM-exception" (closed).
+- PR bytecodealliance/regalloc2#15, "Relicense fully to Apache-2.0 WITH
+  LLVM-exception", merged 2021-11-18 (merge commit c7bc6c94), after sign-off from
+  Mozilla Corp and the other contributor named in it. Its description lists the
+  Firefox sources the derived code came from, including `js/src/jit/LIR.h` and
+  `BacktrackingAllocator.{cpp,h}` - exactly the files `src/lib.rs`'s header cites.
+- The same PR changed `README.md`. Before: "Files in the `src/ion/` directory ...
+  Parts of `src/lib.rs` are also definitions that are directly translated from this
+  original code ... covered by the Mozilla Public License (MPL) 2.0". After: "This
+  crate is licensed under the Apache 2.0 License with LLVM Exception." It removed
+  `src/ion/LICENSE` (the MPL text) and changed `Cargo.toml` from
+  "Apache-2.0 WITH LLVM-exception AND MPL-2.0" to "Apache-2.0 WITH LLVM-exception".
+- `src/lib.rs` already carried its MPL header at that merge commit, and the PR did not
+  edit it: the header is a leftover comment, not a licence grant still in force. The
+  licensors' own statements (the README naming `src/lib.rs`, the crate metadata, the
+  PR) relicensed it.
+
+**Verdict on C1: closed.** Cranelift's tree is Apache-2.0 WITH LLVM-exception / MIT /
+BSD / Zlib with no MPL; the "no MPL" promise in LEGAL.md holds. Keep in the notices a
+short line for regalloc2 citing PR #15 as the relicensing record (so anyone who reads
+the stale header finds the answer), pin regalloc2 to a version from that history
+(0.15.x reviewed here), and re-check this file if a regalloc2 update changes it.
+Optional courtesy, only with Robert's OK (a public post): tell upstream the header is
+stale. C2-C8 stand.
