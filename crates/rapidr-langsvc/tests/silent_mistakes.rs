@@ -159,6 +159,10 @@ fn a_file_that_isnt_utf8_is_said_with_its_line() {
     assert!(d.iter().any(|x| x.3 == Severity::Warning && x.4 == "main.rr isn't UTF-8: byte 0xF1 on line 1 is read as Windows-1252 (ñ) — save the file as UTF-8 (in a text editor: Save with Encoding, UTF-8)"), "{d:?}");
     let d = check("ansi-bas", &[("main.bas", b"PRINT \"Espa\xf1ol\"\n")]);
     assert!(d.is_empty(), "{d:?}");
+    // (a DOS box's corner and line, C4 BF, are valid UTF-8 by chance: no mix —
+    // tests/conformance/cases/rapidq_console_cp437.bas)
+    let d = check("ansi-box", &[("main.bas", b"PRINT \"\xda\xc4\xbf \xb0\xb1\xb2 \xdb\"\n")]);
+    assert!(d.is_empty(), "{d:?}");
     let d = check("mixed-inc", &[("main.bas", b"$INCLUDE \"t.inc\"\nPRINT T$\n"), ("t.inc", b"' \xe4\xb8\xad\nCONST T$ = \"Espa\xf1ol\"\n")]);
     assert!(d.iter().any(|x| x.0 == "t.inc" && x.1 == 2 && x.3 == Severity::Warning && x.4.starts_with("t.inc mixes two encodings: byte 0xF1 on line 2")), "{d:?}");
 }

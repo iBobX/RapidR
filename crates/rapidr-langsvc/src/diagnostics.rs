@@ -131,12 +131,16 @@ pub fn encodings(parsed: &Parsed) -> Vec<FileDiagnostic> {
     out
 }
 
-/// Whether `bytes` hold a UTF-8 character of two bytes or more.
+/// Whether `bytes` hold UTF-8 text: a character of three or four bytes
+/// (Chinese, a symbol, an emoji), or a Latin letter or sign of two (`é`
+/// is C3 A9, `·` C2 B7). Other pairs that happen to be valid UTF-8 are
+/// common in ANSI text — a DOS box's corner and line, C4 BF — and don't
+/// count.
 fn has_utf8_sequence(bytes: &[u8]) -> bool {
     let mut i = 0;
     while i < bytes.len() {
         let n = match bytes[i] {
-            0xC2..=0xDF => 2,
+            0xC2 | 0xC3 => 2,
             0xE0..=0xEF => 3,
             0xF0..=0xF4 => 4,
             _ => {
@@ -144,7 +148,9 @@ fn has_utf8_sequence(bytes: &[u8]) -> bool {
                 continue;
             }
         };
-        if bytes.get(i + 1..i + n).is_some_and(|rest| std::str::from_utf8(&bytes[i..i + n]).is_ok() && rest.len() == n - 1) {
+        let latin = n == 2 && bytes.get(i + 1).is_some_and(|&b| if bytes[i] == 0xC2 { (0xA0..=0xBF).contains(&b) } else { (0x80..=0xBF).contains(&b) });
+        let wide = n > 2 && bytes.get(i..i + n).is_some_and(|s| std::str::from_utf8(s).is_ok());
+        if latin || wide {
             return true;
         }
         i += 1;
