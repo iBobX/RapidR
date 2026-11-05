@@ -84,30 +84,96 @@ pub struct SourceFile {
     /// `None` for a text preprocessed without a file name; RapidR's own
     /// libraries are `<RapidR>/<name>`.
     pub path: Option<PathBuf>,
-    /// The decoded text (offsets in [`Segment`]s count its bytes).
+    /// The decoded text (offsets in [`Segment`]s count its bytes). Not
+    /// changed once read: [`SourceFile::line_col`] keeps its lines' starts.
     pub text: String,
     pub encoding: SourceEncoding,
     /// One entry per line (`text.split('\n')`), from the file's first
     /// inclusion.
     pub lines: Vec<LineKind>,
+    /// Where each line starts, worked out the first time a place is asked
+    /// for ([`SourceFile::line_col`]).
+    pub(crate) starts: LineStarts,
+}
+
+/// A file's line starts, made once ([`SourceFile::line_col`]): not part of
+/// what the file is (two files with the same text are equal, asked or not).
+#[derive(Clone, Default)]
+pub struct LineStarts(std::sync::OnceLock<Vec<usize>>);
+
+impl PartialEq for LineStarts {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for LineStarts {}
+
+impl std::fmt::Debug for LineStarts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("LineStarts")
+    }
 }
 
 impl SourceFile {
+    /// A file as read (its text decoded): every line code until the
+    /// preprocessor says otherwise.
+    pub fn new(path: Option<PathBuf>, text: String, encoding: SourceEncoding) -> Self {
+        let lines = vec![LineKind::Code; text.split('\n').count()];
+        SourceFile { path, text, encoding, lines, starts: LineStarts::default() }
+    }
+
     /// Byte offset of the start of each line.
     pub fn line_starts(&self) -> Vec<usize> {
-        std::iter::once(0).chain(self.text.match_indices('\n').map(|(i, _)| i + 1)).collect()
+        self.starts().to_vec()
+    }
+
+    fn starts(&self) -> &[usize] {
+        self.starts.0.get_or_init(|| std::iter::once(0).chain(self.text.match_indices('\n').map(|(i, _)| i + 1)).collect())
     }
 
     /// 1-based (line, column) of a byte offset; the column counts bytes.
+    /// (A binary search of the lines' starts: counting the newlines before
+    /// every place asked for — each span the outline, the colours and the
+    /// problems place — was most of an analysis of a big file,
+    /// docs/speed-audit-2026-11.md.)
     pub fn line_col(&self, offset: usize) -> (usize, usize) {
         let offset = offset.min(self.text.len());
-        let line_start = self.text[..offset].rfind('\n').map_or(0, |i| i + 1);
-        (self.text[..offset].matches('\n').count() + 1, offset - line_start + 1)
+        let starts = self.starts();
+        // (the lines starting at or before it: the last of them is its line)
+        let n = starts.partition_point(|&s| s <= offset);
+        (n, offset - starts[n - 1] + 1)
     }
 
     /// The file's bytes as they are on disk.
     pub fn bytes(&self) -> Vec<u8> {
         encode_source(&self.text, self.encoding)
+    }
+}
+
+#[cfg(test)]
+mod line_col_tests {
+    use super::{SourceEncoding, SourceFile};
+
+    /// What `line_col` answered before its index: the newlines counted.
+    fn counted(text: &str, offset: usize) -> (usize, usize) {
+        let offset = offset.min(text.len());
+        let line_start = text[..offset].rfind('\n').map_or(0, |i| i + 1);
+        (text[..offset].matches('\n').count() + 1, offset - line_start + 1)
+    }
+
+    #[test]
+    fn every_offset_answers_as_counting_the_newlines() {
+        for text in ["", "\n", "\n\n", "a", "ab\ncd", "ab\ncd\n", "\nx\n\ny", "PRINT 1\r\nPRINT \"é ü\"\r\n' ñ\n\nEND", "one line, no newline"] {
+            let f = SourceFile::new(None, text.to_string(), SourceEncoding::Utf8);
+            for offset in 0..=text.len() + 3 {
+                if offset <= text.len() && !text.is_char_boundary(offset) {
+                    continue;
+                }
+                assert_eq!(f.line_col(offset), counted(text, offset), "{text:?} at {offset}");
+            }
+            assert_eq!(f.line_starts(), std::iter::once(0).chain(text.match_indices('\n').map(|(i, _)| i + 1)).collect::<Vec<_>>());
+        }
     }
 }
 

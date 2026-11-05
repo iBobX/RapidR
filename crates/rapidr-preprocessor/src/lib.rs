@@ -195,12 +195,7 @@ impl PpState {
                 return (id, false);
             }
         }
-        self.files.push(SourceFile {
-            path: path.clone(),
-            text: text.to_string(),
-            encoding,
-            lines: vec![LineKind::Code; text.split('\n').count()],
-        });
+        self.files.push(SourceFile::new(path.clone(), text.to_string(), encoding));
         (self.files.len() - 1, true)
     }
 

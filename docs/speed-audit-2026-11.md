@@ -364,6 +364,25 @@ stays.
 | #12's 41 moves, native | 10.4–11.5 ms | **0.16–0.31 ms** |
 | 800 place writes, native | 949–973 ms | **1.7–1.8 ms** |
 
+### Fix 4: a file's line starts, kept
+
+`SourceFile::line_col` counted the newlines from the file's start for every
+place it was asked for; every span the outline, the colours and the
+problems place asks for one. Now each file keeps where its lines start
+(made the first time, a binary search after). The same line and column
+for every offset (a test checks every offset of nine texts against the
+old count, CR LF and UTF-8 included).
+
+| RapidR Studio (headless, CPU) | before | after |
+|---|--:|--:|
+| an edit round in the 5,000-line program (with fixes 2–3) | 280 ms | **100 ms** |
+| an edit round in the program that includes RapidQ's big files | 2,910 ms | **220 ms** |
+| opening that program (Studio's start included) | 21.0 s | **16.1 s** |
+| `rapidr check` of it | 5.0 s | 5.0 s (its cost is the `$DEFINE`s: fix 6) |
+
+Checked: the unit tests of rapidr-preprocessor, rapidr-parser,
+rapidr-langsvc and rapidr-lsp (25 test programs, all passed).
+
 ### Resize coalescing: measured, nothing to coalesce
 
 Before changing how a live resize is handled, a hand drag counted how the
