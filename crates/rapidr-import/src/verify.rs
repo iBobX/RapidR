@@ -45,7 +45,7 @@ pub fn bytecode_with(files: &dyn Files, main: &Path, include_dirs: &[PathBuf], r
     let label = main.display().to_string();
     let remap = |e: String| pre.remap_messages(&label, &e);
     let tokens = rapidr_lexer::Lexer::new(&pre.source, Some(label.clone())).tokenize().map_err(|e| remap(e.to_string()))?;
-    let program = rapidr_parser::parse_tokens(&tokens).map_err(|e| remap(e.to_string()))?;
+    let program = rapidr_parser::parse_tokens_in_files(&tokens, &pre.file_ends()).map_err(|e| remap(e.to_string()))?;
     let library_lines: Vec<bool> = pre.line_map.iter().map(|(file, _)| file.as_deref().is_some_and(|f| f != main)).collect();
     let mut compiled = rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines)
         .map_err(|e| remap(e.lines().map(|l| format!("{label}:{l}")).collect::<Vec<_>>().join("\n")))?;

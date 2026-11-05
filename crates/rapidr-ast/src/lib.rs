@@ -2461,6 +2461,184 @@ fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
     out
 }
 
+/// The names RapidQ's RC.EXE keeps for its own built-ins and refuses for a
+/// program's global variable, CONST, SUB, FUNCTION or component —
+/// `Identifier TIMER already used, try another name` — written as RC.EXE
+/// compares them (the `$` counts: LEFT is free, LEFT$ isn't; RND, TAB,
+/// FILEEXISTS and SIZEOF are free). Every name was tried with `DIM name AS
+/// …` in the Windows VM (2026-11-05); its keywords and type names are
+/// here too, though the parser stops those first.
+pub const RAPIDQ_RESERVED_NAMES: &[&str] = &[
+    "ABS", "ACOS", "APPLICATION", "ASC", "ASIN", "ATAN", "ATN", "BIN$", "BIND", "BYTE", "CALLBACK", "CALLFUNC", "CASE", "CEIL", "CHDIR", "CHDRIVE",
+    "CHR$", "CINT", "CLIPBOARD", "CLNG", "CLS", "CODEPTR", "COLOR", "COMMAND$", "COMMANDCOUNT", "CONST", "CONVBASE$", "COS", "CREATE", "CSRLIN",
+    "CURDIR$", "DATA", "DATE$", "DEC", "DECLARE", "DEFBYTE", "DEFDBL", "DEFDWORD", "DEFINT", "DEFLNG", "DEFSHORT", "DEFSNG", "DEFSTR", "DEFWORD",
+    "DELETE$", "DIM", "DIR$", "DO", "DOEVENTS", "DOUBLE", "DWORD", "ELSE", "ELSEIF", "END", "ENVIRON", "ENVIRON$", "EVENT", "EXIT", "EXP",
+    "EXTRACTRESOURCE", "FIELD$", "FIX", "FLOOR", "FOR", "FORMAT$", "FRAC", "FUNCTION", "FUNCTIONI", "GET$", "GOSUB", "GOTO", "HEX$", "IF", "INC",
+    "INITARRAY", "INKEY$", "INP", "INPUT", "INPUT$", "INSERT$", "INSTR", "INT", "INTEGER", "IS", "ISCONSOLE", "KILL", "KILLMESSAGE", "LBOUND",
+    "LCASE$", "LEFT$", "LEN", "LFLUSH", "LIBRARYINST", "LOCATE", "LOG", "LONG", "LOOP", "LPRINT", "LTRIM$", "MEMCMP", "MESSAGEBOX", "MESSAGEDLG",
+    "MID$", "MKDIR", "MOUSEX", "MOUSEY", "NEXT", "OUT", "PARAMSTR$", "PARAMSTRCOUNT", "PARAMVAL", "PARAMVALCOUNT", "PCOPY", "PEEK", "PLAYWAV",
+    "POKE", "POS", "POSTMESSAGE", "PRINT", "PRINTER", "QBITMAP", "QBUTTON", "QCANVAS", "QCHECKBOX", "QCOMBOBOX", "QCOOLBTN", "QD3DANIMATION",
+    "QD3DANIMATIONSET", "QD3DFACE", "QD3DFRAME", "QD3DLIGHT", "QD3DMESH", "QD3DMESHBUILDER", "QD3DTEXTURE", "QD3DVECTOR", "QD3DVISUAL", "QD3DWRAP",
+    "QDIRTREE", "QDXIMAGELIST", "QDXSCREEN", "QDXTIMER", "QEDIT", "QFILELISTBOX", "QFILESTREAM", "QFONT", "QFONTDIALOG", "QFORM", "QGAUGE",
+    "QGLASSFRAME", "QGROUPBOX", "QHEADER", "QIMAGE", "QIMAGELIST", "QLABEL", "QLISTBOX", "QLISTVIEW", "QMAINMENU", "QMEMORYSTREAM", "QMENUITEM",
+    "QMYSQL", "QNOTIFYICONDATA", "QOBJECT", "QOLECONTAINER", "QOLEOBJECT", "QOPENDIALOG", "QOUTLINE", "QOVALBTN", "QPANEL", "QPOPUPMENU",
+    "QRADIOBUTTON", "QRECT", "QREGISTRY", "QRICHEDIT", "QSAVEDIALOG", "QSCROLLBAR", "QSCROLLBOX", "QSOCKET", "QSPLITTER", "QSTATUSBAR",
+    "QSTRINGGRID", "QSTRINGLIST", "QTABCONTROL", "QTIMER", "QTRACKBAR", "QTREEVIEW", "QUICKSORT", "RANDOMIZE", "READ", "REDIM", "RENAME",
+    "REPLACE$", "REPLACESUBSTR$", "RESTORE", "RETURN", "REVERSE$", "RGB", "RIGHT$", "RINSTR", "RMDIR", "ROUND", "RTRIM$", "RUN", "SCREEN",
+    "SELECT", "SENDMESSAGE", "SETCONSOLETITLE", "SGN", "SHELL", "SHORT", "SHOWMESSAGE", "SIN", "SINGLE", "SLEEP", "SOUND", "SPACE$", "SQR",
+    "STATIC", "STR$", "STRF$", "STRING", "STRING$", "SUB", "SUBI", "SWAP", "TALLY", "TAN", "TIME$", "TIMER", "UBOUND", "UCASE$", "UNLOADLIBRARY",
+    "VAL", "VARIANT", "VARPTR", "VARPTR$", "VARTYPE", "WEND", "WHILE", "WITH", "WORD",
+];
+
+/// A global name — a component (one a CREATE makes inside another too),
+/// a SUB, FUNCTION or CONST, or a variable — that is a built-in's: RapidR
+/// can't tell the two apart (`CREATE Timer AS RTimer` made every TIMER of
+/// the program the component, 0 in sums: RapidR Web Server's issue 11; a
+/// `FUNCTION Rnd` is never called, RND is).
+///
+/// A RapidR program (`rapidr`): the built-ins RapidR has (`is_builtin`,
+/// the bytecode compiler's table — `MID$`, `Mid` and `mid` are one, as
+/// RapidR reads them) and its objects (Screen, Application, Clipboard,
+/// Printer); the error names the built-in and a name to use instead. A
+/// classic program: RC.EXE's own error for the names it refuses
+/// ([`RAPIDQ_RESERVED_NAMES`], as written), the same explanation after it.
+///
+/// A variable is one only when the program reads the built-in through it:
+/// a built-in written bare (`TIMER`, `RND`: `is_bare`), or called with
+/// arguments (`LEN(s)` beside `DIM Len AS INTEGER`, which isn't an array).
+/// Otherwise it stays as it always was, though RC.EXE refused it too
+/// (`DIM Log AS STRING` keeps a text; LOG(x) isn't used) — and so do a
+/// SUB's own variables and parameters, and a CONST PI or E (the same number
+/// under the same name).
+pub fn builtin_name_clashes(program: &Program, rapidr: bool, is_builtin: &dyn Fn(&str) -> bool, is_bare: &dyn Fn(&str) -> bool) -> Vec<(TextSpan, String)> {
+    #[derive(Clone, Copy, PartialEq)]
+    enum Kind {
+        Variable { array: bool },
+        Component,
+        Constant,
+        Sub,
+        Function,
+    }
+    fn visit(stmts: &[Statement], into: &mut Vec<(String, Kind, TextSpan)>) {
+        for s in stmts {
+            match s {
+                Statement::Dim(d) if !d.is_redim => {
+                    let component = is_rapidq_object_type(&d.type_name) || is_component_type_name(&d.type_name);
+                    into.extend(d.declarators.iter().map(|v| (v.name.clone(), if component { Kind::Component } else { Kind::Variable { array: !v.dimensions.is_empty() } }, v.span)));
+                }
+                Statement::Const(c) => into.push((c.name.clone(), Kind::Constant, c.span)),
+                Statement::Subroutine(r) => into.push((r.name.clone(), Kind::Sub, r.span)),
+                Statement::Function(f) => into.push((f.name.clone(), Kind::Function, f.span)),
+                Statement::Create(c) => {
+                    into.push((c.name.clone(), Kind::Component, c.span));
+                    children(&c.body, into);
+                }
+                Statement::If(i) => {
+                    visit(&i.then_body, into);
+                    for b in &i.elseif_branches {
+                        visit(&b.body, into);
+                    }
+                    visit(&i.else_body, into);
+                }
+                _ => {}
+            }
+        }
+    }
+    fn children(body: &[Statement], into: &mut Vec<(String, Kind, TextSpan)>) {
+        for s in body {
+            if let Statement::Create(c) = s {
+                into.push((c.name.clone(), Kind::Component, c.span));
+                children(&c.body, into);
+            }
+        }
+    }
+    let mut names = Vec::new();
+    let top: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Type(_))).cloned().collect();
+    visit(&top, &mut names);
+    if names.is_empty() {
+        return Vec::new();
+    }
+    // (the names the program calls with arguments, anywhere: `LEN(s)`)
+    let mut called: std::collections::HashSet<String> = std::collections::HashSet::new();
+    walk(&program.statements, &mut |_| {}, &mut |e| {
+        let callee = match e {
+            Expression::FunctionCall(c) => &*c.callee,
+            Expression::ArrayAccess(a) => &*a.array,
+            _ => return,
+        };
+        if let Expression::Identifier(i) = callee {
+            called.insert(strip_type_suffix(&i.name).to_ascii_lowercase());
+        }
+    });
+    let mut out = Vec::new();
+    for (name, kind, span) in names {
+        // (a dotted method of a built-in object — RAPIDQ2.INC's `FUNCTION
+        // Screen.MousePresent` — names no global)
+        if name.is_empty() || name.contains(['.', '(']) || name.starts_with("__") {
+            continue;
+        }
+        let up = name.to_ascii_uppercase();
+        let key = strip_type_suffix(&name).to_ascii_lowercase();
+        let builtin = if rapidr {
+            // (a function or statement RapidR has, or one of its objects —
+            // not a keyword such as DATA, which a name can't be mistaken for)
+            let object = ["screen", "application", "clipboard", "printer"].contains(&key.as_str());
+            if !(object || (!key.contains('_') && is_builtin(&key))) {
+                continue;
+            }
+            // (written as RapidQ wrote it: LEFT$, not LEFT)
+            RAPIDQ_RESERVED_NAMES.iter().find(|r| strip_type_suffix(r).eq_ignore_ascii_case(&key)).map_or_else(|| key.to_ascii_uppercase(), |r| r.to_string())
+        } else if RAPIDQ_RESERVED_NAMES.contains(&up.as_str()) {
+            up.clone()
+        } else {
+            continue;
+        };
+        let read_through = match kind {
+            Kind::Variable { array } => is_bare(&key) || (!array && called.contains(&key)),
+            Kind::Constant => !["pi", "e"].contains(&key.as_str()),
+            _ => true,
+        };
+        if !read_through || key == "e" {
+            continue;
+        }
+        let what = match kind {
+            Kind::Variable { .. } => "variable",
+            Kind::Component => "component",
+            Kind::Constant => "constant",
+            Kind::Sub => "SUB",
+            Kind::Function => "FUNCTION",
+        };
+        let written = strip_type_suffix(&name);
+        let cap = {
+            let mut c = written.chars();
+            c.next().map(|f| f.to_ascii_uppercase().to_string() + c.as_str()).unwrap_or_default()
+        };
+        let suggestion = match (key.as_str(), kind) {
+            ("timer", Kind::Component) => "PollTimer".to_string(),
+            ("timer", _) => "StartTime".to_string(),
+            ("len", _) => "Length".to_string(),
+            ("screen", _) => "MainScreen".to_string(),
+            ("date", _) => "Today".to_string(),
+            ("time", _) => "Clock".to_string(),
+            ("log", Kind::Component) => "LogView".to_string(),
+            (_, Kind::Component) => format!("{cap}1"),
+            _ => format!("My{cap}"),
+        };
+        let detail = format!("{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the {what} {suggestion}"); // (rapidr_diagnostics::messages RR0039–RR0043)
+        let message = if rapidr {
+            detail
+        } else {
+            match kind {
+                Kind::Variable { .. } | Kind::Component => format!("Identifier {up} already used, try another name — {detail}"),
+                Kind::Sub | Kind::Function => format!("{up} identifier already in use, try another name — {detail}"),
+                Kind::Constant => format!("CONST variable {up} already defined — {detail}"),
+            }
+        };
+        out.push((span, message));
+    }
+    out
+}
+
 /// `matrix(1) = 5` where `matrix` is a component (CREATEd or DIMmed as
 /// one), not an array: RC.EXE stops at the `(` — `Expected = but got "("` —
 /// where RapidR found out when the program ran (`not an array`). A SUB or

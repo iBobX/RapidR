@@ -21,16 +21,16 @@ DIM vx(MAXBALLS) AS DOUBLE, vy(MAXBALLS) AS DOUBLE
 DIM balls AS INTEGER
 DIM frames AS LONG
 
-DIM Timer AS RDXTimer
-Timer.Interval = 16          ' about 60 frames a second
-Timer.OnTimer = Frame
+DIM FrameTimer AS RDXTimer
+FrameTimer.Interval = 16          ' about 60 frames a second
+FrameTimer.OnTimer = Frame
 
 CREATE Form AS RForm
     Caption = "DirectX sprites"
     ClientWidth = W + 20
     ClientHeight = H + 60
     Center
-    CREATE Screen AS RDXScreen
+    CREATE Display AS RDXScreen
         Left = 10: Top = 10: Width = W: Height = H
         Init(W, H)
         OnMouseDown = AddBall
@@ -61,8 +61,8 @@ SUB Frame
     frames = frames + 1
     ' the sky, the ground, and stars that twinkle (Fill takes DirectDraw's
     ' &HRRGGBB; the other drawing methods take &HBBGGRR)
-    Screen.Fill(&H101830)
-    Screen.FillRect(0, H - 20, W, H, &H306020)
+    Display.Fill(&H101830)
+    Display.FillRect(0, H - 20, W, H, &H306020)
     FOR k = 0 TO 5
         IF (frames \ 20 + k) MOD 3 > 0 THEN Sprites.Draw(1, 20 + k * 50, 12 + (k MOD 2) * 18, 0)
     NEXT
@@ -75,18 +75,18 @@ SUB Frame
         IF bx(i) < 0 OR bx(i) > W - 16 THEN vx(i) = -vx(i)
         Sprites.Draw(0, bx(i), by(i), 0)
     NEXT
-    Screen.TextOut(6, H - 16, "frame " + STR$(frames), &HFFFFFF, -1)
-    Screen.Flip
+    Display.TextOut(6, H - 16, "frame " + STR$(frames), &HFFFFFF, -1)
+    Display.Flip
 END SUB
 
 SUB PauseGo
-    Timer.Enabled = IIF(Timer.Enabled, 0, 1)
-    PauseBtn.Caption = IIF(Timer.Enabled, "&Pause", "&Go")
+    FrameTimer.Enabled = IIF(FrameTimer.Enabled, 0, 1)
+    PauseBtn.Caption = IIF(FrameTimer.Enabled, "&Pause", "&Go")
 END SUB
 
 RANDOMIZE TIMER
 AddBall 0, 60, 60
 AddBall 0, 160, 40
 AddBall 0, 260, 80
-Timer.Enabled = 1
+FrameTimer.Enabled = 1
 Form.ShowModal

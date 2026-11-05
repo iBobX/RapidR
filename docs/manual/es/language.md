@@ -18,6 +18,11 @@ RapidR también acepta algo de sintaxis que el lenguaje clásico no tiene (el
   compilan, se abren en RapidR Studio y se incluyen con `$INCLUDE` como un
   `.bas`). Un archivo se lee como UTF-8; uno que no es UTF-8 válido se lee como
   Windows-1252 (ANSI), como suele ser el caso de los programas anteriores.
+  Un archivo `.rr` leído así, y cualquier archivo que mezcle UTF-8 con esos
+  bytes (sus acentos y su chino en UTF-8 se ven mal: `中文` como `ä¸­æ–‡`),
+  recibe una advertencia en el primero de esos bytes, con la solución:
+  `ui_logic.rr mezcla dos codificaciones: el byte 0xF1 de la línea 498 no es
+  UTF-8 …`.
 - **Las mayúsculas y minúsculas no importan** en las palabras clave, los
   nombres, los componentes y las funciones integradas.
 - `:` separa instrucciones en una línea; `_` al final de una línea la continúa
@@ -689,6 +694,21 @@ Un error en el código incluido señala el archivo incluido y la línea.
   globals.rr:12 already`. Una `SUB` o `FUNCTION` que ningún archivo tiene nombra
   las más cercanas: `Unknown SUB or FUNCTION 'ShowNumbr' — did you mean
   ShowNumber?`.
+- Un bloque que no se cierra es un error en la línea que lo abre, con la
+  solución: `SUB StartApp (ui_logic.rr:487) no tiene END SUB: un END solo
+  (ui_logic.rr:512) termina el programa; escribe END SUB ahí`. En un programa
+  `.rr` un bloque termina en el archivo donde empieza: uno que queda abierto en
+  un archivo incluido con `$INCLUDE` nunca sigue en el archivo que lo incluye.
+  Un programa `.bas` recibe primero las palabras del compilador clásico
+  (`Missing END SUB or END FUNCTION — …`) y, como allí, no se construye ningún
+  programa.
+- Un nombre global igual al de algo que RapidR ya trae —`CREATE Timer AS
+  RTimer`, `SUB Left$`, `CONST Len = 3`— es un error, porque el programa no
+  podría distinguirlos (cada `TIMER` sería el componente): `Timer es el nombre
+  de TIMER, que RapidR ya trae: el programa no puede distinguirlos, así que
+  llama al componente PollTimer`. Una variable lo es solo cuando el programa
+  usa a través de ella lo que RapidR trae: `DIM Len AS INTEGER` junto a un
+  `LEN(s)`, o algo escrito sin paréntesis como `TIMER`.
 - El editor también avisa de código que se compila pero no puede estar bien:
   `IF NOT FILEEXISTS(f) THEN` siempre es verdadero, porque `FILEEXISTS` da 1 para
   sí y `NOT 1` es -2. La corrección rápida de la advertencia (Ctrl+.) escribe
@@ -766,10 +786,11 @@ lugar para sus palabras, así que se pueden traducir como cualquier mensaje.
 | `a && b` (se compila, pero une texto: una advertencia) | `a AND b` | `hint.and-and` |
 | `for i in range(10)`, `for (i = 0; i < 10; i++)`, `FOR EACH x IN list` | `FOR i = 1 TO 10 … NEXT i`; una lista: `FOR i = 0 TO List.ItemCount - 1` | `hint.for-foreign` |
 | `END FOR`, `END WHILE`, `END DO` | `NEXT`, `WEND`, `LOOP` | `hint.end-loop` |
-| un `FOR`, `WHILE`, `DO`, `IF` o `SELECT` que nunca se cierra (el *Missing NEXT statement* del compilador clásico …, una advertencia) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
+| un `FOR`, `WHILE`, `DO`, `IF` o `SELECT` que nunca se cierra (un error; en un `.bas`, primero el *Missing NEXT statement* … del compilador clásico) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
 | `ELSE IF c THEN` (un segundo `IF` que necesita su propio `END IF`) | `ELSEIF c THEN` | `hint.else-if` |
 | `elif c THEN` | `ELSEIF c THEN` | `hint.elseif` |
 | `ENDIF` | `END IF` | `hint.endif` |
+| un nombre global declarado dos veces, a menudo en dos archivos incluidos con `$INCLUDE` (`CONST variable ANSI_CHARSET already defined`) | uno de los dos con otro nombre, o el segundo borrado (o solo uno de los dos archivos incluido) | `hint.duplicate` |
 | `ENDSUB`, `ENDFUNCTION`, `ENDSELECT`, `ENDWITH` | `END SUB`, `END FUNCTION`, `END SELECT`, `END WITH` | `hint.endword` |
 | `IF a = 1` sin `THEN` | `IF a = 1 THEN` | `hint.if-then` |
 | `IF a THEN x` en una línea, y luego `ELSE y` en la siguiente | `IF a THEN x ELSE y` en una línea, o un bloque `IF a THEN` … `ELSE` … `END IF` | `hint.else-line` |

@@ -3187,7 +3187,7 @@ mod tests {
         let console = check("console.log(\"hi\")\n");
         assert!(console.contains("error main.rr:1:1: console.log is not RapidR") && console.contains("hint main.rr:1: use PRINT"), "{console}");
         let next = check("DIM i AS INTEGER\nFOR i = 1 TO 3\n  PRINT i\n");
-        assert!(next.contains("error main.rr:2:1: Missing NEXT statement") && next.contains("hint main.rr:2: every FOR needs its NEXT"), "{next}");
+        assert!(next.contains("error main.rr:2:1: FOR i (main.rr:2) has no NEXT: write NEXT where it ends") && next.contains("hint main.rr:2: every FOR needs its NEXT"), "{next}");
         // (a valid program, and what RapidQ compiles on purpose: nothing said)
         assert_eq!(check("DIM x AS INTEGER\nx += 1\nx++\nIF x == 2 THEN PRINT x\nprint(x)\n"), "No problems: it compiles.");
     }

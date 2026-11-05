@@ -15,7 +15,7 @@ CREATE Form AS QFORM
     CREATE Surface AS RDESIGNSURFACE
         Left = 300: Top = 8: Width = 320: Height = 300
     END CREATE
-    CREATE Log AS QLABEL
+    CREATE Trace AS QLABEL
         Left = 300: Top = 320: Width = 320
         Visible = 0
     END CREATE
@@ -26,11 +26,11 @@ CREATE Form AS QFORM
 END CREATE
 
 SUB Changed (Prop AS STRING, Value AS STRING)
-    Log.Caption = Log.Caption + Prop + "=" + Value + " | "
+    Trace.Caption = Trace.Caption + Prop + "=" + Value + " | "
 END SUB
 
 SUB Report
-    Log.Caption = Log.Caption + "[" + Insp.TargetType + " " + Surface.GetProp(0, "Caption") + " " + Surface.GetProp(0, "Anchors") + " " + Surface.GetProp(1, "Hint") + " " + Insp.Value("Speed") + "]"
+    Trace.Caption = Trace.Caption + "[" + Insp.TargetType + " " + Surface.GetProp(0, "Caption") + " " + Surface.GetProp(0, "Anchors") + " " + Surface.GetProp(1, "Hint") + " " + Insp.Value("Speed") + "]"
 END SUB
 
 Surface.AddComponent "QBUTTON", "OkButton", 16, 16, 80, 24

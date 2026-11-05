@@ -65,7 +65,7 @@ CREATE Form AS RForm
         Enabled = 0
         OnClick = ResetClick
     END CREATE
-    CREATE Log AS RRichEdit
+    CREATE LogView AS RRichEdit
         Left = 10: Top = 42: Width = 690: Height = 340
         PlainText = 1
         ReadOnly = 1
@@ -134,21 +134,21 @@ SUB ResetClick
     Board.RTS = 1
     SLEEP 0.1
     Board.RTS = 0
-    Log.AddStrings "--- reset ---"
+    LogView.AddStrings "--- reset ---"
     ShowState
 END SUB
 
 SUB ClearClick
-    Log.Clear
+    LogView.Clear
 END SUB
 
 SUB GotLine(Received AS STRING)
-    Log.AddStrings Received
+    LogView.AddStrings Received
 END SUB
 
 SUB PortsChanged(Added AS STRING, Removed AS STRING)
-    IF Added <> "" THEN Log.AddStrings "--- plugged in: " + Added + " ---"
-    IF Removed <> "" THEN Log.AddStrings "--- unplugged: " + Removed + " ---"
+    IF Added <> "" THEN LogView.AddStrings "--- plugged in: " + Added + " ---"
+    IF Removed <> "" THEN LogView.AddStrings "--- unplugged: " + Removed + " ---"
     IF Board.Connected AND INSTR(Removed, Board.Port) > 0 THEN Board.Close
     Refresh
 END SUB
@@ -158,7 +158,7 @@ SUB Opened
     ResetBtn.Enabled = 1
     Ports.Enabled = 0
     Speed.Enabled = 0
-    Log.AddStrings "--- connected to " + Board.Port + " ---"
+    LogView.AddStrings "--- connected to " + Board.Port + " ---"
     ShowState
     Refresh
 END SUB
@@ -168,7 +168,7 @@ SUB Closed
     ResetBtn.Enabled = 0
     Ports.Enabled = 1
     Speed.Enabled = 1
-    Log.AddStrings "--- disconnected ---"
+    LogView.AddStrings "--- disconnected ---"
     ShowState
 END SUB
 

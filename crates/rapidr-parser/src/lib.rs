@@ -4,7 +4,7 @@ use std::path::Path;
 
 use rapidr_ast::*;
 use rapidr_diagnostics::{Diagnostic, Severity, SourceLocation, TextSpan};
-use rapidr_lexer::{lex_file, Token, TokenType};
+use rapidr_lexer::{Token, TokenType};
 
 pub mod tools;
 pub use tools::{parse_file_for_tools, parse_source_for_tools, Location, ToolsParse};
@@ -32,8 +32,9 @@ impl Error for ParseError {}
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Program, ParseError> {
     let path = path.as_ref();
-    let tokens = lex_file(path).map_err(|e| ParseError { diagnostics: vec![e.diagnostic] })?;
-    parse_tokens(&tokens).map_err(|mut e| {
+    let pre = rapidr_preprocessor::preprocess_file(path, rapidr_preprocessor::PreprocessOptions::default()).map_err(|e| ParseError { diagnostics: vec![e.diagnostic] })?;
+    let tokens = rapidr_lexer::Lexer::new(&pre.source, Some(path.display().to_string())).tokenize().map_err(|e| ParseError { diagnostics: vec![e.diagnostic] })?;
+    parse_tokens_in_files(&tokens, &pre.file_ends()).map_err(|mut e| {
         for d in &mut e.diagnostics {
             d.file_path.get_or_insert_with(|| path.display().to_string());
         }
@@ -44,7 +45,18 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<Program, ParseError> {
 /// Parses a token stream, failing if any statement could not be parsed.
 /// Nothing is ever silently skipped: an unparseable line is an error.
 pub fn parse_tokens(tokens: &[Token]) -> Result<Program, ParseError> {
-    let (program, diagnostics) = parse_tokens_recovering(tokens);
+    parse_tokens_in_files(tokens, &[])
+}
+
+/// [`parse_tokens`] of a preprocessed program whose files' ends are known
+/// (`file_ends`: `rapidr_preprocessor::PreprocessResult::file_ends`, a
+/// line's last line of its file's text): in a RapidR program a block that
+/// starts in a file ends in it — one left open there is an error at the
+/// end of that file, and the file that `$INCLUDE`d it goes on as its own
+/// code. (A classic program's blocks may run on, as RC.EXE's do.) Empty:
+/// no files known.
+pub fn parse_tokens_in_files(tokens: &[Token], file_ends: &[usize]) -> Result<Program, ParseError> {
+    let (program, diagnostics, _) = parse_tokens_with_type_names_in_files(tokens, file_ends);
     if diagnostics.iter().any(|d| d.severity == Severity::Error) {
         Err(ParseError { diagnostics })
     } else {
@@ -64,6 +76,11 @@ pub fn parse_tokens_recovering(tokens: &[Token]) -> (Program, Vec<Diagnostic>) {
 /// FUNCTION's `AS QFORM`, a TYPE field's type), in token order: what a tool
 /// that rewrites type names (the RapidQ importer) changes, and nothing else.
 pub fn parse_tokens_with_type_names(tokens: &[Token]) -> (Program, Vec<Diagnostic>, Vec<TextSpan>) {
+    parse_tokens_with_type_names_in_files(tokens, &[])
+}
+
+/// [`parse_tokens_with_type_names`] with its files' ends ([`parse_tokens_in_files`]).
+pub fn parse_tokens_with_type_names_in_files(tokens: &[Token], file_ends: &[usize]) -> (Program, Vec<Diagnostic>, Vec<TextSpan>) {
     let structs = retag_structs(tokens);
     let tokens = structs.as_deref().unwrap_or(tokens);
     let retagged = retag_routine_names(tokens);
@@ -72,6 +89,9 @@ pub fn parse_tokens_with_type_names(tokens: &[Token]) -> (Program, Vec<Diagnosti
     let type_names: Vec<String> = tokens.windows(2).filter(|w| w[0].kind == TokenType::Type && w[1].kind == TokenType::Identifier).map(|w| w[1].lexeme.clone()).collect();
     rapidr_ast::set_program_types(&type_names);
     let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
+    if parser.rapidr {
+        parser.file_ends = file_ends.to_vec();
+    }
     let program = parser.parse_program();
     parser.check_end_codes(&program);
     let mut type_names = parser.type_names;
@@ -104,6 +124,13 @@ fn retag_structs(tokens: &[Token]) -> Option<Vec<Token>> {
         out[i].lexeme = "TYPE".to_string();
     }
     Some(out)
+}
+
+/// Whether token `t` is the preprocessor's mark of a RapidR program
+/// (`rapidr_preprocessor::RAPIDR_PROGRAM`, `$OPTION RAPIDR`).
+fn is_rapidr_mark(t: &Token) -> bool {
+    let value = rapidr_preprocessor::RAPIDR_PROGRAM.trim_start_matches("$OPTION").trim();
+    t.kind == TokenType::Directive && t.lexeme.eq_ignore_ascii_case("$OPTION") && t.trailing.as_deref().is_some_and(|v| v.trim().eq_ignore_ascii_case(value))
 }
 
 /// Whether token `t` is a word as the program wrote it: a name or a
@@ -264,6 +291,21 @@ struct Parser<'a> {
     type_scope: usize,
     /// How RC.EXE pairs the ELSEs of a single-line IF ([`Parser::parse_if`]).
     line_else: LineElse,
+    /// A RapidR program (the preprocessor's `$OPTION RAPIDR` mark): its
+    /// blocks end in their own file, and one left open is RapidR's error
+    /// (a classic program keeps RC.EXE's words: [`Parser::missing_closer`]).
+    rapidr: bool,
+    /// Where the statement being parsed must end: the end of the tokens, or
+    /// of the file its first token is in ([`Parser::parse_statement`]).
+    /// Tokens from here on aren't seen ([`Parser::peek`]): a block left open
+    /// ends there as at the end of the program.
+    end_pos: usize,
+    /// Per preprocessed line (index = line - 1), the last line of its file's
+    /// text ([`parse_tokens_in_files`]); empty: the program is one text.
+    file_ends: Vec<usize>,
+    /// The last statement parsed stopped at the end of its file's text
+    /// (a block left open there): what follows is the next file's line.
+    at_file_boundary: bool,
 }
 
 /// RC.EXE's bookkeeping for the ELSEs of one line of single-line IFs: one
@@ -282,7 +324,22 @@ struct LineElse {
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0, line_else: LineElse::default() }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0, line_else: LineElse::default(), rapidr: tokens.iter().any(is_rapidr_mark), end_pos: tokens.len(), file_ends: Vec::new(), at_file_boundary: false }
+    }
+
+    /// The token index where a statement starting at token `at` must end:
+    /// past the last line of its file's text (RapidR programs whose files
+    /// are known), else the end.
+    fn file_limit(&self, at: usize) -> usize {
+        let Some(tok) = self.tokens.get(at) else { return self.tokens.len() };
+        let Some(&last_line) = self.file_ends.get(tok.line.wrapping_sub(1)) else { return self.tokens.len() };
+        at + self.tokens[at..].partition_point(|t| t.line <= last_line)
+    }
+
+    /// Whether the cursor stands at the end of a file's text that isn't the
+    /// end of the program ([`Self::end_pos`]).
+    fn at_file_end(&self) -> bool {
+        self.pos >= self.end_pos && self.tokens.get(self.end_pos).is_some_and(|t| t.kind != TokenType::Eof)
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -339,19 +396,68 @@ impl<'a> Parser<'a> {
         ));
     }
 
-    /// RC.EXE's warning for a block that was never closed — `! WARNING:
-    /// Missing NEXT statement` (also WEND, LOOP, END IF and END SELECT; the
-    /// program still compiles, as it does there): at the token that opened
-    /// the block, which RC.EXE's report doesn't give.
-    fn warn_missing(&mut self, opener: usize, closer: &str) {
+    /// A block that was never closed — its closer (`END SUB`, `NEXT` …) not
+    /// found before the end of the program or, in a RapidR program, of the
+    /// file it starts in: an error at the token that opened it (`opener`),
+    /// naming the block (`what`: `SUB StartApp`, `FOR i`), where it starts
+    /// and the fix — the bare END that ends the program where `END SUB` was
+    /// meant, the SUB that begins inside it, the file it had to end in.
+    ///
+    /// A classic program's starts with RC.EXE's words (`! WARNING: Missing
+    /// NEXT statement`, `Missing END SUB or END FUNCTION`, `Missing END
+    /// STRUCT before end of file.`): RC.EXE says them as warnings but builds
+    /// no program (an empty .exe: probes in the Windows VM, 2026-11-05), so
+    /// they are errors here too. It leaves a WITH or a CREATE open without a
+    /// word (and runs the program): so does a classic program here.
+    fn missing_closer(&mut self, opener: usize, what: &str, closer: &str, body: &[Statement]) {
         let Some(tok) = self.tokens.get(opener) else { return };
-        self.diagnostics.push(Diagnostic::new(
-            Severity::Warning,
-            format!("Missing {closer} statement"),
-            tok.span,
-            SourceLocation::new(tok.line, tok.column),
-            None,
-        ));
+        let classic = match closer {
+            "END SUB" | "END FUNCTION" => Some("Missing END SUB or END FUNCTION".to_string()),
+            "END TYPE" => Some("Missing END STRUCT before end of file.".to_string()),
+            "END CREATE" | "END WITH" => None,
+            c => Some(format!("Missing {c} statement")),
+        };
+        if !self.rapidr && classic.is_none() {
+            return;
+        }
+        // (`END SUBB`: a typo of the closer, which check_end_codes names —
+        // "did you mean END SUB?" — the one error to fix)
+        // (`ENDIF`, `ENDSUB`: the closer in one word — the compiler's
+        // "Unknown SUB or FUNCTION 'ENDIF'" and its hint, "it's END IF, two
+        // words", say that one)
+        let one_word = closer.replace(' ', "");
+        let typo = body.iter().any(|s| {
+            matches!(s, Statement::Call(c) if matches!(&c.callee, Expression::Identifier(i) if i.name == "END")
+                && matches!(c.args.as_slice(), [Expression::Identifier(w)] if rapidr_ast::end_codes::closer_suggestion(&w.name).is_some()))
+                || (closer.contains(' ') && matches!(s, Statement::Call(c) if matches!(&c.callee, Expression::Identifier(i) if i.name.eq_ignore_ascii_case(&one_word))))
+        });
+        if typo {
+            return;
+        }
+        let place = rapidr_diagnostics::own_place_mark(tok.span.start);
+        let is_end = |s: &Statement| matches!(s, Statement::Call(c) if c.args.is_empty() && matches!(&c.callee, Expression::Identifier(i) if i.name == "END"));
+        let routine = |s: &Statement| match s {
+            Statement::Subroutine(r) => Some(("SUB", r.name.clone(), r.span)),
+            Statement::Function(f) => Some(("FUNCTION", f.name.clone(), f.span)),
+            _ => None,
+        };
+        let nested = body.iter().position(|s| routine(s).is_some());
+        let before_nested = &body[..nested.unwrap_or(body.len())];
+        let bare_end = if matches!(closer, "END SUB" | "END FUNCTION") { before_nested.iter().rev().find(|s| is_end(s)) } else { None };
+        let detail = if let Some(Statement::Call(end)) = bare_end {
+            format!("{what} ({place}) has no {closer}: a bare END ({}) ends the program; write {closer} there", rapidr_diagnostics::own_place_mark(end.span.start))
+        } else if let Some((kind, name, span)) = nested.and_then(|i| routine(&body[i])) {
+            format!("{what} ({place}) has no {closer} before {kind} {name} ({}): write {closer} above it", rapidr_diagnostics::own_place_mark(span.start))
+        } else if self.at_file_end() {
+            format!("{what} ({place}) has no {closer} in its file: a block ends in the file it starts in — write {closer} there")
+        } else {
+            format!("{what} ({place}) has no {closer}: write {closer} where it ends")
+        };
+        let message = match classic {
+            Some(head) if !self.rapidr => format!("{head} — {detail}"),
+            _ => detail,
+        };
+        self.error_at(opener, message);
     }
 
     /// Explains why the statement starting at token `start` failed to parse.
@@ -436,6 +542,9 @@ impl<'a> Parser<'a> {
     // --- token helpers ---
 
     fn peek(&self) -> Option<&'a Token> {
+        if self.pos >= self.end_pos {
+            return None;
+        }
         self.tokens.get(self.pos)
     }
 
@@ -444,6 +553,9 @@ impl<'a> Parser<'a> {
     }
 
     fn peek_kind_at(&self, offset: usize) -> Option<TokenType> {
+        if self.pos + offset >= self.end_pos {
+            return None;
+        }
         self.tokens.get(self.pos + offset).map(|t| t.kind)
     }
 
@@ -478,6 +590,7 @@ impl<'a> Parser<'a> {
 
     fn at_end(&self) -> bool {
         self.pos >= self.tokens.len()
+            || self.pos >= self.end_pos
             || self.peek_kind() == Some(TokenType::Eof)
     }
 
@@ -658,10 +771,11 @@ impl<'a> Parser<'a> {
             // Anything left on the line was not consumed by the statement
             // (e.g. `x = 1 y = 2`): report it instead of re-parsing it as a
             // new statement, then recover at the next line.
-            if self.is_at_terminator(terminators) {
+            if self.is_at_terminator(terminators) || std::mem::take(&mut self.at_file_boundary) {
                 continue;
             }
-            if !self.at_eol() {
+            // (a RapidR program's mark after a TYPE left open is the next line)
+            if !self.at_eol() && !self.peek().is_some_and(is_rapidr_mark) {
                 let tok = &self.tokens[self.pos];
                 let message = format!("Expected end-of-line but got {}", tok.lexeme); // (RapidQ's compiler's words)
                 self.error_at(self.pos, message);
@@ -698,7 +812,13 @@ impl<'a> Parser<'a> {
     /// then skip ahead, but the program will not compile.
     fn parse_statement(&mut self) -> Option<Statement> {
         let start = self.pos;
+        // (a statement — a block too — ends in the file it starts in)
+        let outer = self.end_pos;
+        self.end_pos = outer.min(self.file_limit(start));
         let stmt = self.parse_statement_inner();
+        // (a block left open at its file's end: the line ends there)
+        self.at_file_boundary = self.at_file_end();
+        self.end_pos = outer;
         if stmt.is_none() {
             let message = self.describe_failure(start);
             self.error_at(start, message);
@@ -1955,7 +2075,8 @@ impl<'a> Parser<'a> {
         // consume END IF
         let (had_end, had_if) = (self.expect(TokenType::End).is_some(), self.expect(TokenType::If).is_some());
         if !(had_end && had_if) {
-            self.warn_missing(start, "END IF");
+            let last = if !else_body.is_empty() { &else_body } else { elseif_branches.last().map_or(&then_body, |b| &b.body) };
+            self.missing_closer(start, "IF", "END IF", last);
         }
 
         Some(IfStatement {
@@ -1995,7 +2116,7 @@ impl<'a> Parser<'a> {
         let body = self.parse_body(&[Terminator::Keyword("NEXT")]);
         // consume NEXT [var]
         if self.expect(TokenType::Next).is_none() {
-            self.warn_missing(start, "NEXT");
+            self.missing_closer(start, &format!("FOR {variable}"), "NEXT", &body);
         }
         // optional variable name after NEXT
         if self.peek_kind() == Some(TokenType::Identifier) {
@@ -2028,7 +2149,8 @@ impl<'a> Parser<'a> {
         self.consume_eol();
         let mut body = self.parse_body(&[Terminator::Keyword("NEXT")]);
         if self.expect(TokenType::Next).is_none() {
-            self.warn_missing(start, "NEXT");
+            let counter: String = self.tokens[start + 1..].iter().take_while(|t| t.kind != TokenType::Eq).map(|t| t.lexeme.as_str()).collect();
+            self.missing_closer(start, &format!("FOR {counter}"), "NEXT", &body);
         }
         if !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
             self.parse_postfix_expression();
@@ -2070,7 +2192,7 @@ impl<'a> Parser<'a> {
         self.consume_eol();
         let body = self.parse_body(&[Terminator::Keyword("WEND")]);
         if self.expect(TokenType::Wend).is_none() {
-            self.warn_missing(start, "WEND");
+            self.missing_closer(start, "WHILE", "WEND", &body);
         }
         Some(WhileStatement {
             span: self.span_from(start),
@@ -2096,7 +2218,7 @@ impl<'a> Parser<'a> {
         self.consume_eol();
         let body = self.parse_body(&[Terminator::Keyword("LOOP")]);
         if self.expect(TokenType::Loop).is_none() {
-            self.warn_missing(start, "LOOP");
+            self.missing_closer(start, "DO", "LOOP", &body);
         }
 
         // LOOP WHILE / LOOP UNTIL (post-condition)
@@ -2226,7 +2348,8 @@ impl<'a> Parser<'a> {
 
         let (had_end, had_select) = (self.expect(TokenType::End).is_some(), self.expect(TokenType::Select).is_some());
         if !(had_end && had_select) {
-            self.warn_missing(start, "END SELECT");
+            let last = if !case_else.is_empty() { &case_else } else { cases.last().map_or(&case_else, |c: &CaseBranch| &c.body) };
+            self.missing_closer(start, "SELECT CASE", "END SELECT", last);
         }
 
         Some(SelectCaseStatement {
@@ -2299,7 +2422,7 @@ impl<'a> Parser<'a> {
 
     /// Whether the token `n` ahead is a word (an identifier or a keyword).
     fn peek_is_word_at(&self, n: usize) -> bool {
-        self.tokens.get(self.pos + n).is_some_and(is_word)
+        self.pos + n < self.end_pos && self.tokens.get(self.pos + n).is_some_and(is_word)
     }
 
     fn parse_sub(&mut self) -> Option<SubroutineStatement> {
@@ -2317,6 +2440,9 @@ impl<'a> Parser<'a> {
         self.consume_eol();
         // RapidQ accepted a SUB closed by END FUNCTION and vice versa (RAPIDQ2.INC does it).
         let body = self.parse_body(&[Terminator::EndPair("SUB"), Terminator::EndPair("FUNCTION")]);
+        if !(self.peek_is_end_followed_by("SUB") || self.peek_is_end_followed_by("FUNCTION")) {
+            self.missing_closer(start, &format!("SUB {name}"), "END SUB", &body);
+        }
         self.expect(TokenType::End);
         if !self.match_kind(TokenType::Sub) {
             self.expect(TokenType::Function);
@@ -2348,6 +2474,9 @@ impl<'a> Parser<'a> {
         };
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("FUNCTION"), Terminator::EndPair("SUB")]);
+        if !(self.peek_is_end_followed_by("FUNCTION") || self.peek_is_end_followed_by("SUB")) {
+            self.missing_closer(start, &format!("FUNCTION {name}"), "END FUNCTION", &body);
+        }
         self.expect(TokenType::End);
         if !self.match_kind(TokenType::Function) {
             self.expect(TokenType::Sub);
@@ -2400,7 +2529,9 @@ impl<'a> Parser<'a> {
 
         loop {
             self.skip_newlines();
-            if self.peek_is_end_followed_by("TYPE") || self.at_end() {
+            // (a RapidR program's mark after its last line: the TYPE was left
+            // open — missing_closer says so — and the mark is no member)
+            if self.peek_is_end_followed_by("TYPE") || self.at_end() || self.peek().is_some_and(is_rapidr_mark) {
                 break;
             }
             // `WITH TypeName` … `END WITH` around the members (RAPIDQ2.INC):
@@ -2646,6 +2777,9 @@ impl<'a> Parser<'a> {
             self.consume_eol();
         }
 
+        if !self.peek_is_end_followed_by("TYPE") {
+            self.missing_closer(start, &format!("TYPE {name}"), "END TYPE", &[]);
+        }
         self.expect(TokenType::End);
         self.expect(TokenType::Type);
 
@@ -2712,6 +2846,9 @@ impl<'a> Parser<'a> {
         let type_name = self.expect_type()?;
         self.consume_eol();
         let body = self.parse_body(&[Terminator::EndPair("CREATE")]);
+        if !self.peek_is_end_followed_by("CREATE") {
+            self.missing_closer(start, &format!("CREATE {name}"), "END CREATE", &body);
+        }
         self.expect(TokenType::End);
         self.expect(TokenType::Create);
         Some(Statement::Create(CreateStatement {
@@ -2737,6 +2874,9 @@ impl<'a> Parser<'a> {
         if self.peek_is_end_followed_by("WITH") {
             self.expect(TokenType::End);
             self.expect(TokenType::With);
+        } else if !(self.peek_is_end_followed_by("SUB") || self.peek_is_end_followed_by("FUNCTION")) {
+            let object: String = self.tokens[start + 1..].iter().take_while(|t| !matches!(t.kind, TokenType::Newline | TokenType::Colon | TokenType::Eof)).map(|t| t.lexeme.as_str()).collect();
+            self.missing_closer(start, &format!("WITH {object}"), "END WITH", &body);
         }
         Some(WithStatement {
             span: self.span_from(start),

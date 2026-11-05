@@ -48,7 +48,7 @@ CREATE Form AS RForm
         Left = 16: Top = 66: Width = 480: ReadOnly = 1
         AccessibleName = "Try it in a terminal"
     END CREATE
-    CREATE Log AS RListBox
+    CREATE LogList AS RListBox
         Left = 16: Top = 100: Width = 480: Height = 170
         AccessibleName = "Requests"
     END CREATE
@@ -68,8 +68,8 @@ END CREATE
 SUB Answer (Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING)
     DIM kind AS STRING
     Served = Served + 1
-    Log.AddItems Method + " " + Path + "  (" + Web.Peer + ")"
-    Log.ItemIndex = Log.ItemCount - 1
+    LogList.AddItems Method + " " + Path + "  (" + Web.Peer + ")"
+    LogList.ItemIndex = LogList.ItemCount - 1
     IF Method = "GET" AND Path = "/hello" THEN
         Web.Respond 200, "Content-Type: text/plain; charset=utf-8", "Hello from RapidR" + CHR$(10)
     ELSEIF Method = "POST" AND Path = "/echo" THEN

@@ -172,7 +172,7 @@ export const cases = [
   { file: "gui/tab_icons.rr", runtimes: ["run", "interp", "native", "web"], events: "widthbtn.onclick,pages.__mousedown_100_12,pages.__mouseup_100_12", dump: "form.width,pages.width,widthbtn.caption,note.caption",
     expect: ["form.width=220", "pages.width=188", "widthbtn.caption=&Wider", "note.caption=The Settings page."] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
-    dump: "laps.itemcount,state.caption,time.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "time.caption=0:0"] },
+    dump: "laps.itemcount,state.caption,timelabel.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "timelabel.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
@@ -369,10 +369,10 @@ export const cases = [
   // tests never write /Library, %ProgramData% or /etc — and the strength hints)
   { file: "studio/school_lock.rr", runtimes: ["run"],
     expect: ["School Lock as RapidR Studio sees it:", "abc12: too short", "123456: weak", "maestra1: fair", "Maestra-2026!: strong"] },
-  { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "log.__wait_300,log.__dblclick_150_40,copybtn.onclick", dump: "log.seltext,log.hasselection,status.simpletext",
-    expect: ["log.seltext=orders", "log.hasselection=1", "status.simpletext=Copied: orders"] },
-  { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "log.linecount,status.simpletext",
-    expect: ["log.linecount=4", "status.simpletext=Copied the whole log (4 lines)"] },
+  { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "logview.__wait_300,logview.__dblclick_150_40,copybtn.onclick", dump: "logview.seltext,logview.hasselection,status.simpletext",
+    expect: ["logview.seltext=orders", "logview.hasselection=1", "status.simpletext=Copied: orders"] },
+  { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "logview.linecount,status.simpletext",
+    expect: ["logview.linecount=4", "status.simpletext=Copied the whole log (4 lines)"] },
   // (VERSIONS-G3: RRepository, `rapidr run`'s — the copy runs where the
   // tests keep their work: inside this repository's checkout Start refuses,
   // said in words (versions are kept in a project's own folder only),
@@ -394,9 +394,9 @@ export const cases = [
   // and the time of each step), Life with the slow Pset method, a click on the picture, Pause
   { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: wait("hint", 50), dump: "info.caption,effectbtn.caption,methodbtn.caption",
     expect: [" fps  work", "effectbtn.caption=&Life", "methodbtn.caption=&Method: SetPixels8"] },
-  { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: `effectbtn.onclick,methodbtn.onclick,screen.__mousedown_100_100,screen.__mouseup_100_100,${wait("hint", 50)},pausebtn.onclick`, dump: "info.caption,effectbtn.caption,methodbtn.caption,pausebtn.caption",
+  { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: `effectbtn.onclick,methodbtn.onclick,display.__mousedown_100_100,display.__mouseup_100_100,${wait("hint", 50)},pausebtn.onclick`, dump: "info.caption,effectbtn.caption,methodbtn.caption,pausebtn.caption",
     expect: [" fps  work", "effectbtn.caption=&Plasma", "methodbtn.caption=&Method: Pset", "pausebtn.caption=&Resume"] },
-  { file: "directx/sprites.rr", runtimes: ["run", "interp", "native", "web"], events: `screen.__mousedown_100_100,${wait("info", 8)},pausebtn.onclick`, dump: "info.caption,pausebtn.caption",
+  { file: "directx/sprites.rr", runtimes: ["run", "interp", "native", "web"], events: `display.__mousedown_100_100,${wait("info", 8)},pausebtn.onclick`, dump: "info.caption,pausebtn.caption",
     expect: ["info.caption=4 balls", "pausebtn.caption=&Go"] },
   { file: "directx/d3d_cube.rr", runtimes: ["run", "interp", "native", "web"], events: `fasterbtn.onclick,${wait("info", 4)}`, dump: "info.caption",
     expect: ["info.caption=6 faces"] },
@@ -424,10 +424,10 @@ export const cases = [
   // (RAudioOut: the tests' clocked sink takes the samples in real time
   // and keeps what it heard — `__heard`: how many, their sum, the first
   // ones as 16-bit numbers —, so these check exact samples on every runtime)
-  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 20)}`, dump: "info.caption,sound.__heard",
+  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 20)}`, dump: "info.caption,speaker.__heard",
     expect: ["info.caption=440.0 Hz sine, playing: ", " 0 160 320 479 635 789 940 1088 1231 1369 1502 1629 1749 1863 1969 2068 2158 2240"] },
-  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,freqbar.__key_34,startbtn.onclick,${wait("info", 6)},startbtn.onclick`, dump: "info.caption,sound.playing",
-    expect: ["info.caption=880.0 Hz square, stopped", "sound.playing=0"] },
+  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,freqbar.__key_34,startbtn.onclick,${wait("info", 6)},startbtn.onclick`, dump: "info.caption,speaker.playing",
+    expect: ["info.caption=880.0 Hz square, stopped", "speaker.playing=0"] },
   // (the timing test: the interpreter makes 50 frames a second from an
   // RTimer, 882 samples each, and the sound never gaps; the first frame's
   // samples exact)
@@ -626,8 +626,8 @@ export const cases = [
     expect: ["2 models; asking mock-small (fast · low cost):", "Hello, friend, nice meeting you.", "1,000 tokens sent, 20 received"] },
   // iot/: a scripted ESP32 (RAPIDR_TEST_COMPORT's `esp32`: DTR / RTS reset it, it prints a boot log)
   { file: "iot/esp32_monitor.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_COMPORT: "COM5:esp32" },
-    events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
-    expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "log.linecount=9"] },
+    events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,logview.linecount",
+    expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "logview.linecount=9"] },
   // showcase/: the release post's programs (docs/manual/showcase.md)
   // (make_song.rr writes song.mid with a file stream: the same bytes as
   // the one shipped, which midi_visualizer.rr plays)

@@ -274,7 +274,7 @@ DIM Rig AS RD3DFrame                          ' the ring turns with this one
 DIM Gem AS RD3DFrame                          ' the crystal's turning
 DIM GemPulse AS RD3DFrame                     ' and its pulsing (a frame of its own: a scale
 DIM GemMesh AS RD3DMeshBuilder                ' replaces the frame's turn, so the two are apart)
-DIM Floor AS RD3DFrame
+DIM FloorFrame AS RD3DFrame
 DIM FloorMesh AS RD3DMeshBuilder
 DIM SunFrame AS RD3DFrame
 DIM Glow AS RD3DLight                         ' a point light that drifts to the colour of the last tone
@@ -391,12 +391,12 @@ SUB Setup
     GlowFrame.AddLight(Glow)
     GlowFrame.SetPosition(0, 4, -2)
     ' the floor: a dark disc the ring stands on
-    DX.CreateFrame(Floor)
+    DX.CreateFrame(FloorFrame)
     DX.CreateMeshBuilder(FloorMesh)
     BuildDisc FloorMesh, 5.6, 40
     FloorMesh.SetRGB(0.13, 0.14, 0.30)
-    Floor.AddVisual(FloorMesh)
-    Floor.SetPosition(0, -1.4, 0)
+    FloorFrame.AddVisual(FloorMesh)
+    FloorFrame.SetPosition(0, -1.4, 0)
     ' the rig the ring and the crystal sit in; it turns
     DX.CreateFrame(Rig)
     Rig.SetPosition(0, 0, 0)
@@ -429,7 +429,7 @@ SUB Setup
         sparkFrame(i).AddScale(0, 0.001, 0.001, 0.001)
         sparkFrame(i).SetPosition(0, -50, 0)
     NEXT
-    Floor.SetBackgroundRGB(0.02, 0.02, 0.06)
+    FloorFrame.SetBackgroundRGB(0.02, 0.02, 0.06)
     DX.SetCameraPosition(0, CAMY, CAMZ)
     DX.SetCameraOrientation(0, -0.36, 1, 0, 1, 0)
     lastTime = TIMER
@@ -557,7 +557,7 @@ SUB Frame
     f = 1 - EXP(-dt * 3)
     glowR = glowR + (wantR - glowR) * f: glowG = glowG + (wantG - glowG) * f: glowB = glowB + (wantB - glowB) * f
     Glow.SetLightRGB(D3DRMLIGHT_POINT, glowR, glowG, glowB)
-    Floor.SetBackgroundRGB(0.02 + 0.05 * bgGlow, 0.02 + 0.04 * bgGlow, 0.06 + 0.07 * bgGlow)
+    FloorFrame.SetBackgroundRGB(0.02 + 0.05 * bgGlow, 0.02 + 0.04 * bgGlow, 0.06 + 0.07 * bgGlow)
     DX.Render
     ' the corner: song and speed
     DX.TextOut(10, 8, songName, &HFFFFFF, -1)

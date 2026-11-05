@@ -37,7 +37,7 @@ celular, un plasma. La manera obvia es un ciclo de `Pset`:
 ```basic
 FOR y = 0 TO 191
     FOR x = 0 TO 255
-        Screen.Pset x, y, colour(y * 256 + x)       ' 49 152 llamadas
+        Display.Pset x, y, colour(y * 256 + x)       ' 49 152 llamadas
     NEXT
 NEXT
 ```
@@ -126,7 +126,7 @@ máquina y luego dibuja ese mapa de bits en el lienzo, más grande:
 
 ```basic
 Frame.SetPixels8 Indexes, Palette, 256, 192
-Screen.StretchDraw 0, 0, 512, 384, Frame        ' x, y, ancho, alto, imagen
+Display.StretchDraw 0, 0, 512, 384, Frame        ' x, y, ancho, alto, imagen
 ```
 
 `StretchDraw` toma el rectángulo como cuatro números (el de RapidR; la forma

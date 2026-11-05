@@ -2,12 +2,12 @@
 ' (`DEFSTR return`, qcgi.inc), an array field without bounds (`Hint() AS
 ' STRING`, QtoolBar.inc), and a component's own Panel(i) inside its CREATE
 ' while the program has a Panel array of its own.
-FUNCTION Get$ (n AS INTEGER) AS STRING
+FUNCTION Fetch$ (n AS INTEGER) AS STRING
   DEFSTR return
   return = "v" + STR$(n)
-  Get$ = return
+  Fetch$ = return
 END FUNCTION
-PRINT Get$(3)
+PRINT Fetch$(3)
 TYPE TB
   Hint() AS STRING
   N AS INTEGER

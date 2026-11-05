@@ -64,9 +64,9 @@ added at the caret next — until the caret moves. So a log can colour each
 line it adds:
 
 ```basic
-Log.SelStart = LEN(Log.Text)
-Log.SelAttributes.Color = &H008000
-Log.AddStrings "Connected."
+LogView.SelStart = LEN(LogView.Text)
+LogView.SelAttributes.Color = &H008000
+LogView.AddStrings "Connected."
 ```
 
 `AddStrings` adds its lines at the end of the text and leaves the caret

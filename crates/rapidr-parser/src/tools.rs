@@ -143,7 +143,7 @@ pub fn parse_source_for_tools(source: &str, base_dir: impl AsRef<Path>, file_pat
 
 fn finish(preprocessed: PreprocessResult, errors: Vec<rapidr_preprocessor::PreprocessError>, label: Option<String>) -> ToolsParse {
     let (tokens, lex_errors) = Lexer::new(&preprocessed.source, label).tokenize_recovering();
-    let (program, parse_diagnostics, type_names) = crate::parse_tokens_with_type_names(&tokens);
+    let (program, parse_diagnostics, type_names) = crate::parse_tokens_with_type_names_in_files(&tokens, &preprocessed.file_ends());
     let mut diagnostics: Vec<Diagnostic> = errors.into_iter().map(|e| e.diagnostic).collect();
     let preprocessor_diagnostics = diagnostics.len();
     diagnostics.extend(lex_errors.into_iter().map(|e| e.diagnostic));

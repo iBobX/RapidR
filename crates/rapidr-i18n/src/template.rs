@@ -62,8 +62,9 @@ pub fn match_from(parts: &[Part], k: usize, text: &str, values: &mut Vec<(String
                     Some(text.len() - end)
                 }
                 Some(Part::Lit(next)) => {
-                    // (the shortest value the rest matches with)
-                    let mut from = 1;
+                    // (the shortest value the rest matches with — one
+                    // character at least, a whole one: `ñ` is two bytes)
+                    let mut from = text.chars().next().map_or(1, char::len_utf8);
                     while from <= text.len() {
                         let Some(at) = text.get(from..).and_then(|t| t.find(next)).map(|i| i + from) else { return None };
                         values.push((name.to_string(), text[..at].to_string()));

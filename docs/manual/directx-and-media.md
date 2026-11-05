@@ -89,20 +89,20 @@ never waits for the program.
 ![The tone generator playing A4: wave buttons, frequency and volume sliders and a Stop button on the left; on the right an oscilloscope screen with three cycles of a sine wave and the readout "440.0 Hz sine, playing: 60 ms queued, 0 gaps"](images/media/tone-generator.png)
 
 ```basic
-DIM Sound AS RAudioOut
+DIM Speaker AS RAudioOut
 DIM phase AS DOUBLE
 
 SUB Feed (Count AS INTEGER)                 ' the stream asks for Count samples
     DIM buf(Count - 1) AS INTEGER, i AS INTEGER
     FOR i = 0 TO Count - 1
         buf(i) = SIN(phase) * 6000          ' a quiet 440 Hz tone
-        phase = phase + 2 * 3.14159265 * 440 / Sound.SampleRate
+        phase = phase + 2 * 3.14159265 * 440 / Speaker.SampleRate
     NEXT
-    Sound.Write buf, Count
+    Speaker.Write buf, Count
 END SUB
 
-Sound.OnNeedData = Feed
-Sound.Start
+Speaker.OnNeedData = Feed
+Speaker.Start
 ```
 
 - **Samples.** By default a sample is a 16-bit number from -32768 to 32767,

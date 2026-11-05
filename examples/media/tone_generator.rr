@@ -34,10 +34,10 @@ DIM readout AS STRING
 
 freq = 440
 
-DIM Sound AS RAudioOut
-Sound.SampleRate = RATE
-Sound.BufferMs = 60
-Sound.OnNeedData = Feed
+DIM Speaker AS RAudioOut
+Speaker.SampleRate = RATE
+Speaker.BufferMs = 60
+Speaker.OnNeedData = Feed
 
 CREATE Form AS RForm
     Caption = "Tone generator"
@@ -122,16 +122,16 @@ SUB Feed (Count AS INTEGER)
         phase = phase + stepSize
         IF phase >= 1 THEN phase = phase - 1
     NEXT
-    Sound.Write buf, Count
+    Speaker.Write buf, Count
 END SUB
 
 SUB StartStop
-    IF Sound.Playing THEN
-        Sound.Stop
+    IF Speaker.Playing THEN
+        Speaker.Stop
         Frames.Enabled = 0
         StartBtn.Caption = "&Start"
     ELSE
-        Sound.Start
+        Speaker.Start
         Frames.Enabled = 1
         StartBtn.Caption = "&Stop"
     END IF
@@ -158,7 +158,7 @@ SUB ControlsChanged
         kind = 0
     END IF
     freq = 440 * 2 ^ ((FreqBar.Position - 48) / 12)
-    Sound.Volume = VolBar.Position
+    Speaker.Volume = VolBar.Position
     FreqLabel.Caption = "Frequency: " + FORMAT$("%.1f", freq) + " Hz (" + NoteName(FreqBar.Position) + ")"
     VolLabel.Caption = "Volume: " + FORMAT$("%d", VolBar.Position) + " %"
     ScopeTick
@@ -168,12 +168,12 @@ END SUB
 
 SUB ScopeTick
     readout = FORMAT$("%.1f", freq) + " Hz " + RTRIM$(MID$("sine    square  sawtoothnoise   ", kind * 8 + 1, 8))
-    IF Sound.Playing THEN
-        readout = readout + ", playing: " + FORMAT$("%d", Sound.Queued) + " ms queued, " + FORMAT$("%d", Sound.Underruns) + " gaps"
+    IF Speaker.Playing THEN
+        readout = readout + ", playing: " + FORMAT$("%d", Speaker.Queued) + " ms queued, " + FORMAT$("%d", Speaker.Underruns) + " gaps"
     ELSE
         readout = readout + ", stopped"
     END IF
-    IF Sound.Error <> "" THEN readout = readout + ". " + Sound.Error
+    IF Speaker.Error <> "" THEN readout = readout + ". " + Speaker.Error
     Info.Caption = readout
     Scope.AccessibleDescription = readout
     Scope.Repaint

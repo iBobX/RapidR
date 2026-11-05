@@ -15,13 +15,13 @@ $INCLUDE "QVideo.inc"
 $RESOURCE CINEPAK AS "video_files/video_cinepak.avi"
 $RESOURCE RLE8 AS "video_files/video_rle8.avi"
 $RESOURCE MJPEG AS "video_files/video_mjpeg.avi"
-$RESOURCE SOUND AS "video_files/video_audio.avi"
+$RESOURCE AUDIO_AVI AS "video_files/video_audio.avi"
 $RESOURCE NOTE AS "resource_files/hello.txt"
 DIM v AS QVIDEO
 EXTRACTRESOURCE CINEPAK, "video_c.tmp.avi"
 EXTRACTRESOURCE RLE8, "video_r.tmp.avi"
 EXTRACTRESOURCE MJPEG, "video_m.tmp.avi"
-EXTRACTRESOURCE SOUND, "video_a.tmp.avi"
+EXTRACTRESOURCE AUDIO_AVI, "video_a.tmp.avi"
 EXTRACTRESOURCE NOTE, "video_n.tmp.avi"
 PRINT "closed "; v.State; " "; v.FileOpen; " "; v.Lenght; " "; v.Handle; " "; v.BorderStyle; " "; v.Timer.Interval
 PRINT v.Open("video_c.tmp.avi"); " "; v.Lenght; " "; v.LenghtTime; " "; v.ImgWidth; "x"; v.ImgHeight; " "; v.Width; "x"; v.Height; " "; v.State; " "; v.FileOpen; " ["; v.Caption; "] "; v.Handle <> 0; " "; v.Left; " "; v.Top

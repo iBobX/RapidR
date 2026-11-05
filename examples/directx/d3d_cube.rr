@@ -23,9 +23,9 @@ DIM Cube AS RD3DMeshBuilder
 DIM speed AS DOUBLE
 DIM turns AS LONG
 
-DIM Timer AS RDXTimer
-Timer.Interval = 20
-Timer.OnTimer = Spin
+DIM SpinTimer AS RDXTimer
+SpinTimer.Interval = 20
+SpinTimer.OnTimer = Spin
 
 CREATE Form AS RForm
     Caption = "Direct3D cube"
@@ -72,7 +72,7 @@ SUB Setup
     DX.SetCameraPosition(0, 0, 0)
     speed = 0.03
     Info.Caption = STR$(Cube.FaceCount) + " faces"
-    Timer.Enabled = 1
+    SpinTimer.Enabled = 1
 END SUB
 
 SUB Spin

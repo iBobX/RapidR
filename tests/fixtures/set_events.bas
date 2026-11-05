@@ -48,7 +48,7 @@ CREATE Form AS QFORM
     Left = 230: Top = 40: Width = 150
     OnChange = TBChange
   END CREATE
-  CREATE Log AS QLABEL
+  CREATE Trace AS QLABEL
     Left = 10: Top = 200: Width = 380
   END CREATE
 END CREATE
@@ -81,6 +81,6 @@ SUB SetAll
   SB.Position = 5: SB.Position = 5
   CB.ItemIndex = 1
   TB.Position = 3
-  Log.Caption = "log" + trail
+  Trace.Caption = "log" + trail
 END SUB
 Form.ShowModal

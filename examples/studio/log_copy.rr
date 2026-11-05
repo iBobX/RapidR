@@ -71,7 +71,7 @@ CREATE Form AS RForm
             Caption = "&Select All": ShortCut = "Ctrl+A": OnClick = SelectEverything
         END CREATE
     END CREATE
-    CREATE Log AS ROutputConsole
+    CREATE LogView AS ROutputConsole
         Align = alClient
         EmptyText = "Press Add Lines to write to the log."
         PopupMenu = LogMenu
@@ -88,46 +88,46 @@ SUB AddLines
     DIM esc AS STRING
     esc = CHR$(27)
     Count = Count + 1
-    Log.WriteLine "Run " + STR$(Count) + ": reading orders.csv"
-    Log.WriteLine "Read 1204 orders in 0.3 s"
-    Log.WriteLine esc + "[33mwarning:" + esc + "[0m 3 orders have no date (orders.csv:17)"
-    Log.WriteLine esc + "[32mTotal: 48113.50" + esc + "[0m"
+    LogView.WriteLine "Run " + STR$(Count) + ": reading orders.csv"
+    LogView.WriteLine "Read 1204 orders in 0.3 s"
+    LogView.WriteLine esc + "[33mwarning:" + esc + "[0m 3 orders have no date (orders.csv:17)"
+    LogView.WriteLine esc + "[32mTotal: 48113.50" + esc + "[0m"
 END SUB
 
 SUB CopySel
-    IF Log.CopySelection THEN
-        Status.SimpleText = "Copied: " + Log.SelText
-        LastSel = Log.SelText
+    IF LogView.CopySelection THEN
+        Status.SimpleText = "Copied: " + LogView.SelText
+        LastSel = LogView.SelText
     ELSE
         Status.SimpleText = "Select some text first"
     END IF
 END SUB
 
 SUB CopyEverything
-    IF Log.CopyAll THEN Status.SimpleText = "Copied the whole log (" + STR$(Log.LineCount) + " lines)"
+    IF LogView.CopyAll THEN Status.SimpleText = "Copied the whole log (" + STR$(LogView.LineCount) + " lines)"
 END SUB
 
 SUB SelectEverything
-    Log.SelectAll
+    LogView.SelectAll
 END SUB
 
 ' (the menu as it opens: Copy only with a selection, Copy Line on a line)
 SUB MenuOpening
-    MenuCopy.Enabled = Log.HasSelection
-    MenuLine.Enabled = (Log.ClickedLine >= 0)
+    MenuCopy.Enabled = LogView.HasSelection
+    MenuLine.Enabled = (LogView.ClickedLine >= 0)
 END SUB
 
 SUB CopyClickedLine
-    IF Log.CopyLine THEN Status.SimpleText = "Copied line " + STR$(Log.ClickedLine + 1) + ": " + Log.Line(Log.ClickedLine)
+    IF LogView.CopyLine THEN Status.SimpleText = "Copied line " + STR$(LogView.ClickedLine + 1) + ": " + LogView.Line(LogView.ClickedLine)
 END SUB
 
 SUB Watch
-    CopyBtn.Enabled = Log.HasSelection
+    CopyBtn.Enabled = LogView.HasSelection
     ' (a copy's message stays until the selection changes)
-    IF Log.SelText = LastSel THEN EXIT SUB
-    LastSel = Log.SelText
-    IF Log.HasSelection THEN
-        Status.SimpleText = "Selected " + STR$(LEN(Log.SelText)) + " characters"
+    IF LogView.SelText = LastSel THEN EXIT SUB
+    LastSel = LogView.SelText
+    IF LogView.HasSelection THEN
+        Status.SimpleText = "Selected " + STR$(LEN(LogView.SelText)) + " characters"
     ELSE
         Status.SimpleText = "Nothing selected"
     END IF

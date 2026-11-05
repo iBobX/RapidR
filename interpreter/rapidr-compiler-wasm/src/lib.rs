@@ -6,7 +6,7 @@
 //! execution.
 
 use rapidr_lexer::Lexer;
-use rapidr_parser::parse_tokens;
+
 use rapidr_preprocessor::{preprocess_source, PreprocessOptions};
 use wasm_bindgen::prelude::*;
 
@@ -32,8 +32,8 @@ pub fn compile_inner(source: &str) -> Result<Vec<u8>, String> {
         .tokenize()
         .map_err(|e| format!("lex error: {e}"))?;
 
-    let program = parse_tokens(&tokens)
-        .map_err(|e| e.to_string())?;
+    let program = rapidr_parser::parse_tokens_in_files(&tokens, &pre.file_ends())
+        .map_err(|e| pre.resolve_places("main", None, &e.to_string()))?;
 
     let mut compiled = rapidr_bcgen::compile_program_with_source(&program, Some(&pre.source))
         .map_err(|e| format!("bcgen error: {e}"))?;

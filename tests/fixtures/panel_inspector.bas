@@ -30,7 +30,7 @@ CREATE Form AS QFORM
     CREATE Button2 AS QBUTTON
         Left = 330: Top = 60: Width = 120: Caption = "Button2"
     END CREATE
-    CREATE Log AS QLABEL
+    CREATE Trace AS QLABEL
         Left = 330: Top = 100: Width = 270
         Visible = 0
         Caption = ""
@@ -54,20 +54,20 @@ CREATE Form AS QFORM
 END CREATE
 
 SUB Changed (Prop AS STRING, Value AS STRING)
-    Log.Caption = Log.Caption + "change " + Prop + "=" + Value + " | "
+    Trace.Caption = Trace.Caption + "change " + Prop + "=" + Value + " | "
     Status.Caption = Prop + " = " + Value
 END SUB
 
 SUB Picked (Prop AS STRING)
-    Log.Caption = Log.Caption + "sel " + Prop + " | "
+    Trace.Caption = Trace.Caption + "sel " + Prop + " | "
 END SUB
 
 SUB Dbl (Event AS STRING)
-    Log.Caption = Log.Caption + "dbl " + Event + " | "
+    Trace.Caption = Trace.Caption + "dbl " + Event + " | "
 END SUB
 
 SUB AskEditor (Prop AS STRING)
-    Log.Caption = Log.Caption + "editor " + Prop + " | "
+    Trace.Caption = Trace.Caption + "editor " + Prop + " | "
 END SUB
 
 SUB InspectForm
@@ -79,11 +79,11 @@ SUB InspectBoth
 END SUB
 
 SUB Report
-    Log.Caption = Log.Caption + "[" + Insp.TargetType + " caption=" + Insp.Value("Caption") + " anchors=" + Insp.Value("Anchors") + STR$(Insp.IsDefault("Anchors")) + " page=" + Insp.Page + " filter=" + Insp.Filter + " rows=" + STR$(Insp.RowCount) + " " + Insp.Row(1) + " nw=" + STR$(Insp.NameWidth) + "] | "
+    Trace.Caption = Trace.Caption + "[" + Insp.TargetType + " caption=" + Insp.Value("Caption") + " anchors=" + Insp.Value("Anchors") + STR$(Insp.IsDefault("Anchors")) + " page=" + Insp.Page + " filter=" + Insp.Filter + " rows=" + STR$(Insp.RowCount) + " " + Insp.Row(1) + " nw=" + STR$(Insp.NameWidth) + "] | "
 END SUB
 
 SUB Button1Click (Sender AS QBUTTON)
-    Log.Caption = Log.Caption + "clicked | "
+    Trace.Caption = Trace.Caption + "clicked | "
 END SUB
 
 SUB AnyClick

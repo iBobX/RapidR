@@ -12,7 +12,7 @@ DIM busy AS INTEGER, overlaps AS INTEGER, ticks AS INTEGER, inside AS INTEGER
 CREATE Form AS QFORM
   Width = 200
   Height = 150
-  CREATE Screen AS QCANVAS
+  CREATE Board AS QCANVAS
     Width = 160
     Height = 100
     OnPaint = Paint
@@ -25,8 +25,8 @@ END CREATE
 
 SUB Paint
   IF busy THEN inside = inside + 1
-  Screen.FillRect 0, 0, 160, 100, &H202020
-  Screen.TextOut 4, 4, "tick " + STR$(ticks), &HFFFF, &H202020
+  Board.FillRect 0, 0, 160, 100, &H202020
+  Board.TextOut 4, 4, "tick " + STR$(ticks), &HFFFF, &H202020
 END SUB
 
 SUB Tick
@@ -37,9 +37,9 @@ SUB Tick
   DIM t AS DOUBLE
   t = TIMER
   WHILE TIMER - t < 0.03
-    Screen.Pset 1, 1, &HFF
+    Board.Pset 1, 1, &HFF
   WEND
-  Screen.Repaint
+  Board.Repaint
   busy = 0
   IF ticks = 5 THEN
     Clock.Enabled = 0

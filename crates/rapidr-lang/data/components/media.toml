@@ -176,18 +176,18 @@ visual = false
 default_event = "OnNeedData"
 doc = "Plays sound the program makes sample by sample, as it comes: an emulator's beeper or sound chip, a synthesizer, a tone for a science lesson. Write puts samples in its queue (16-bit numbers, -32768 to 32767, from an INTEGER array, a binary string or an RMemoryStream; WriteFloat takes -1 to 1); the sound device plays them on a thread of its own and never waits for the program. Keep about BufferMs of sound queued: write in OnNeedData (raised on the program's thread when the queue drops under BufferMs, with how many samples fill it again) or check Queued from a timer, one frame at a time. When the queue runs dry it plays silence after a 2 ms fade (no click) and Underruns counts it. Stereo samples are interleaved, left then right. In a browser sound starts only after a click or a key on the page: call Start from a button's OnClick (Error says so otherwise). Without a sound device it plays silently, in time (Error says why). RapidR's own."
 example = """
-DIM Sound AS RAudioOut
+DIM Speaker AS RAudioOut
 DIM phase AS DOUBLE
 SUB Feed (Count AS INTEGER)
     DIM buf(Count - 1) AS INTEGER, i AS INTEGER
     FOR i = 0 TO Count - 1
         buf(i) = SIN(phase) * 6000              ' a quiet 440 Hz tone
-        phase = phase + 2 * 3.14159265 * 440 / Sound.SampleRate
+        phase = phase + 2 * 3.14159265 * 440 / Speaker.SampleRate
     NEXT
-    Sound.Write buf, Count
+    Speaker.Write buf, Count
 END SUB
-Sound.OnNeedData = Feed
-Sound.Start
+Speaker.OnNeedData = Feed
+Speaker.Start
 """
 properties = [
   { name = "SampleRate", type = "int", default = 44100, range = "8000..96000", unit = "hz", category = "Media", doc = "Samples a second (a frame of each channel). 44100 is a CD's; 22050, 11025 and 8000 are lighter for small machines. The sound device converts it to its own. Changing it while playing starts the stream again, what waited dropped." },

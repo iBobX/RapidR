@@ -139,6 +139,7 @@ DECLARE FUNCTION McpOpenProject(Path AS STRING) AS STRING
 DECLARE FUNCTION McpOpenCheck(Path AS STRING) AS STRING
 DECLARE FUNCTION McpErrorOutcome(Answer AS STRING) AS STRING
 DECLARE FUNCTION McpRunWords AS STRING
+DECLARE FUNCTION McpRunSeconds AS STRING
 DECLARE FUNCTION McpOutputFrom(At AS LONG) AS STRING
 DECLARE FUNCTION McpReadOutput(All AS INTEGER) AS STRING
 DECLARE SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
@@ -202,7 +203,7 @@ DIM McpWaitWhat(MCPWAITS) AS STRING
 DIM McpWaitCount AS INTEGER
 ' (run_program waiting for the program: its call, until when, what it was
 ' asked; ask_rai waiting for RAI)
-DIM McpRunCall AS INTEGER, McpRunUntil AS DOUBLE, McpRunFrom AS LONG, McpRunAction AS STRING
+DIM McpRunCall AS INTEGER, McpRunUntil AS DOUBLE, McpRunFrom AS LONG, McpRunAction AS STRING, McpRunClient AS STRING
 DIM McpRaiCall AS INTEGER, McpRaiUntil AS DOUBLE, McpRaiSaid AS STRING
 ' (debug waiting for the program to stop: its call, until when, the stops
 ' seen before it, then a moment for the variables to arrive)
@@ -1836,9 +1837,30 @@ FUNCTION McpRunWords AS STRING
   SELECT CASE RunState
     CASE "running": Result = "The program is running."
     CASE "paused": Result = "The program is paused in the debugger at " + FileTitle(PausedFile) + ":" + Num(PausedLine) + "."
-    CASE "error": Result = "The program isn't running: " + StateText + "."
-    CASE ELSE: Result = "The program isn't running."
+    CASE ELSE
+      ' (it ran and ended by itself — at once, maybe: said so, how long it
+      ' ran, its exit code and whether it printed anything; "isn't running"
+      ' made an agent think it never started)
+      IF RunStarted > 0 AND RunEndedAt >= RunStarted THEN
+        Result = "The program started and ended after " + McpRunSeconds + " s (exit code " + Num(RunExitCode) + ")"
+        IF McpOutput = "" AND McpOutputDropped = 0 THEN
+          Result = Result + ", with no output. If it should have opened a window or printed something: check_code shows what the compiler sees in it (a SUB that ends with END instead of END SUB swallows the lines after it), and read_output everything it printed."
+        ELSE
+          Result = Result + "."
+        END IF
+      ELSEIF RunState = "error" THEN
+        Result = "The program isn't running: " + StateText + "."
+      ELSE
+        Result = "The program isn't running."
+      END IF
   END SELECT
+END FUNCTION
+
+' (how long the last run took, in seconds with one decimal: "0.2")
+FUNCTION McpRunSeconds AS STRING
+  DIM tenths AS LONG
+  tenths = INT((RunEndedAt - RunStarted) * 10 + 0.5)
+  Result = LTRIM$(STR$(tenths \ 10)) + "." + LTRIM$(STR$(tenths MOD 10))
 END FUNCTION
 
 FUNCTION McpOutputFrom(At AS LONG) AS STRING
@@ -1894,6 +1916,7 @@ SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
       McpRunCall = CallId
       McpRunUntil = TIMER + w
       McpRunAction = action
+      McpRunClient = Client
       McpLogLine Client, "run_program", TR$("Running the program"), "", "started"
     CASE ELSE
       Mcp.Reply CallId, "Action is start, stop, restart or status.", 1
@@ -2142,6 +2165,14 @@ SUB McpTickTimer(Sender AS RTimer)
       IF RunState = "running" THEN t = t + CHR$(10) + "(It still runs: read_output for more, run_program Action stop to end it.)"
       IF RunState = "paused" THEN t = t + CHR$(10) + McpDebugState
       Mcp.Reply McpRunCall, t, Flag(RunState = "error")
+      ' (ended by itself before the wait was over: the pane says so too)
+      IF RunState <> "running" AND RunState <> "paused" AND RunEndedAt >= RunStarted AND RunStarted > 0 THEN
+        IF McpOutput = "" AND McpOutputDropped = 0 THEN
+          McpLogLine McpRunClient, "run_program", TR$("The program started and ended after {seconds} s (exit code {code}), with no output", "seconds", McpRunSeconds, "code", RunExitCode), "", ""
+        ELSE
+          McpLogLine McpRunClient, "run_program", TR$("The program started and ended after {seconds} s (exit code {code})", "seconds", McpRunSeconds, "code", RunExitCode), "", ""
+        END IF
+      END IF
       McpRunCall = 0
     END IF
   END IF

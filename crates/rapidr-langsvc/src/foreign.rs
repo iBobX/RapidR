@@ -84,6 +84,7 @@ pub const HINTS: &[Hint] = &[
     h("missing-end-if", "every block IF needs its END IF: IF a THEN, the lines, END IF (a one-line IF needs none)"),
     h("else-if", "ELSE IF starts a second IF that needs an END IF of its own: write ELSEIF, one word — IF … THEN … ELSEIF … THEN … ELSE … END IF"),
     h("missing-end-select", "every SELECT CASE needs its END SELECT"),
+    h("duplicate", "a global name is declared once in a whole program: rename one of the two, or delete the second (when two $INCLUDEd files both declare it, $INCLUDE only one of them)"),
     h("and-and", "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` is `&`: it joins text and adds numbers, so such a test is never what you meant)"),
     h("else-line","a one-line IF takes its ELSE on the same line (IF a THEN x ELSE y); for several lines write IF a THEN, the lines, ELSE, the lines, END IF"),
     h("colon", "no `:` after IF, ELSE, FOR, WHILE or SUB: write IF a = 1 THEN, the statements on the lines below, then END IF"),
@@ -212,7 +213,10 @@ pub fn habits(line: &str) -> Vec<&'static Hint> {
         }
     }
     // (a routine written the other languages' way: said before its braces)
-    if lower.starts_with("function ") && (t.contains('{') || t.contains("=>")) || lower.starts_with("def ") || lower.starts_with("void ") || lower.starts_with("public ") || lower.starts_with("private sub") {
+    // (`Public Const X = 1`, `Private Sub F`: VB's scope words, which
+    // RapidR and RC.EXE take — no habit; `public void f()` is one)
+    let other_routine = ["public ", "private ", "protected "].iter().any(|p| lower.strip_prefix(p).is_some_and(|r| ["void ", "static ", "int ", "string ", "async ", "function ", "func ", "def ", "fn "].iter().any(|w| r.trim_start().starts_with(w))));
+    if lower.starts_with("function ") && (t.contains('{') || t.contains("=>")) || lower.starts_with("def ") || lower.starts_with("void ") || other_routine {
         add("function");
     }
     if t.contains('{') || t.contains('}') {
@@ -401,8 +405,9 @@ pub fn for_error(message: &str, line: &str, above: &[&str], below: &[&str]) -> O
         }
     } else if let Some(name) = message.strip_prefix("Unknown SUB or FUNCTION '").and_then(|r| r.split('\'').next()) {
         unknown_name(name)
-    } else if let Some(closer) = message.strip_prefix("Missing ").and_then(|r| r.strip_suffix(" statement")) {
-        // (RC.EXE's warnings for a block never closed; the line is the opener's)
+    } else if let Some(closer) = block_closer(message) {
+        // (a block never closed — RC.EXE's `Missing NEXT statement …`,
+        // RapidR's `FOR i (a.rr:3) has no NEXT …`; the line is the opener's)
         match closer {
             "NEXT" => Some(id("missing-next")),
             "WEND" => Some(id("missing-wend")),
@@ -412,10 +417,40 @@ pub fn for_error(message: &str, line: &str, above: &[&str], below: &[&str]) -> O
             "END IF" => Some(id(if below.iter().take(80).any(|l| code_of(l).trim().to_ascii_uppercase().starts_with("ELSE IF ")) { "else-if" } else { "missing-end-if" })),
             _ => None,
         }
+    } else if declared_twice(message) {
+        Some(id("duplicate"))
     } else {
         None
     };
-    by_message.or_else(|| habits(line).into_iter().next())
+    // (a message that says its own fix — a name declared twice, a builtin's
+    // name, a block left open — gets no habit of the line under it: `Public
+    // Const` is no routine)
+    by_message.or_else(|| if says_its_fix(message) { None } else { habits(line).into_iter().next() })
+}
+
+/// The closer of a block left open that `message` is about: RC.EXE's
+/// `Missing NEXT statement` (maybe with RapidR's words after it), RapidR's
+/// `FOR i (a.rr:3) has no NEXT …`.
+fn block_closer(message: &str) -> Option<&'static str> {
+    const CLOSERS: &[&str] = &["NEXT", "WEND", "LOOP", "END SELECT", "END IF"];
+    let head = message.split(" — ").next().unwrap_or(message);
+    CLOSERS.iter().copied().find(|c| head == format!("Missing {c} statement") || message.contains(&format!(") has no {c}:")) || message.contains(&format!(") has no {c} in its file")) || message.contains(&format!(") has no {c} before ")))
+}
+
+/// Whether `message` is one of a name declared a second time (RC.EXE's
+/// three wordings, with RapidR's `— it is declared in …` after them).
+fn declared_twice(message: &str) -> bool {
+    message.contains(" — it is declared in ") && (message.starts_with("Identifier ") || message.starts_with("CONST variable ") || message.contains(" identifier already in use, try another name"))
+}
+
+/// Whether `message` says how to fix it itself (no habit of the line is
+/// added under it).
+fn says_its_fix(message: &str) -> bool {
+    declared_twice(message)
+        || message.contains(" is the name of the builtin ")
+        || message.starts_with("Missing END SUB or END FUNCTION")
+        || message.starts_with("Missing END STRUCT")
+        || [") has no ", " isn't UTF-8"].iter().any(|m| message.contains(m))
 }
 
 /// A name the compiler doesn't know that another language writes.

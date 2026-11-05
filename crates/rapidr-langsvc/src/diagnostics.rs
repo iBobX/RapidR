@@ -65,8 +65,101 @@ pub fn compiler_options(base: &PreprocessOptions) -> PreprocessOptions {
     options
 }
 
-/// What compiling the parsed program reports, as a build would.
+/// What compiling the parsed program reports, as a build would, and the
+/// files read as Windows-1252 that show wrong so ([`encodings`]).
 pub fn compile(parsed: &Parsed) -> Vec<FileDiagnostic> {
+    let mut out = stages(parsed);
+    out.extend(encodings(parsed));
+    out
+}
+
+/// A file of the program whose bytes aren't UTF-8: RapidR reads it as
+/// Windows-1252 (RapidQ's ANSI files), and says so — a warning at the
+/// first byte that isn't UTF-8, with the byte, what it reads as and the
+/// fix. Said for a RapidR file (`.rr`: RapidR's files are UTF-8), and for
+/// any file that mixes the two — UTF-8 characters beside such a byte,
+/// which then read as two or three wrong characters each (`中文` as
+/// `ä¸­æ–‡`: ShopInvoices, 2026-11-04). A classic program's ANSI files are
+/// read as RapidQ read them, without a word.
+pub fn encodings(parsed: &Parsed) -> Vec<FileDiagnostic> {
+    use rapidr_preprocessor::SourceEncoding;
+    let mut out = Vec::new();
+    for f in &parsed.tools.preprocessed.origins.files {
+        let Some(path) = f.path.as_ref() else { continue };
+        if path.starts_with("<RapidR>") || f.text.is_ascii() {
+            continue;
+        }
+        // (an editor's open file comes as text: its bytes are the file's
+        // on disk — what Save writes back, in the encoding it was read in)
+        let (text, encoding) = if matches!(f.encoding, SourceEncoding::Windows1252 | SourceEncoding::Windows1252Bom) {
+            (f.text.clone(), f.encoding)
+        } else {
+            match rapidr_preprocessor::read_source_with_encoding(path) {
+                Ok(read) => read,
+                Err(_) => continue,
+            }
+        };
+        if !matches!(encoding, SourceEncoding::Windows1252 | SourceEncoding::Windows1252Bom) {
+            continue;
+        }
+        let f = rapidr_preprocessor::SourceFile { path: Some(path.clone()), text, encoding, lines: Vec::new() };
+        let bom = usize::from(f.encoding == SourceEncoding::Windows1252Bom) * 3;
+        let bytes = f.bytes();
+        let body = &bytes[bom.min(bytes.len())..];
+        let Err(e) = std::str::from_utf8(body) else { continue };
+        let at = e.valid_up_to();
+        let mixed = has_utf8_sequence(body);
+        let rr = rapidr_preprocessor::is_rapidr_program_path(path);
+        if !(rr || mixed) {
+            continue;
+        }
+        // (read as Windows-1252, each byte is one character of the text —
+        // a UTF-8 character before it two or three)
+        let start = f.text.char_indices().nth(at).map_or(f.text.len(), |(i, _)| i);
+        let line = f.text[..start].matches('\n').count() + 1;
+        let shown = f.text[start..].chars().next().unwrap_or('?');
+        let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().to_string());
+        let byte = format!("0x{:02X}", body[at]);
+        let message = if mixed {
+            format!("{name} mixes two encodings: byte {byte} on line {line} isn't UTF-8 (Windows-1252 reads it as {shown}), so the whole file is read as Windows-1252 and its UTF-8 characters show wrong — retype that character and save the file as UTF-8")
+        } else {
+            format!("{name} isn't UTF-8: byte {byte} on line {line} is read as Windows-1252 ({shown}) — save the file as UTF-8 (in a text editor: Save with Encoding, UTF-8)")
+        };
+        let end = start + shown.len_utf8();
+        out.push(FileDiagnostic { file: path.clone(), start, end: end.min(f.text.len()).max(start), severity: Severity::Warning, message, code: Some("encoding".to_string()), hint: None });
+    }
+    out
+}
+
+/// Whether `bytes` hold UTF-8 text: a character of three or four bytes
+/// (Chinese, a symbol, an emoji), or a Latin letter or sign of two (`é`
+/// is C3 A9, `·` C2 B7). Other pairs that happen to be valid UTF-8 are
+/// common in ANSI text — a DOS box's corner and line, C4 BF — and don't
+/// count.
+fn has_utf8_sequence(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytes.len() {
+        let n = match bytes[i] {
+            0xC2 | 0xC3 => 2,
+            0xE0..=0xEF => 3,
+            0xF0..=0xF4 => 4,
+            _ => {
+                i += 1;
+                continue;
+            }
+        };
+        let latin = n == 2 && bytes.get(i + 1).is_some_and(|&b| if bytes[i] == 0xC2 { (0xA0..=0xBF).contains(&b) } else { (0x80..=0xBF).contains(&b) });
+        let wide = n > 2 && bytes.get(i..i + n).is_some_and(|s| std::str::from_utf8(s).is_ok());
+        if latin || wide {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// The stages a build runs, each stopping as the build does.
+fn stages(parsed: &Parsed) -> Vec<FileDiagnostic> {
     let tools = &parsed.tools;
     // 1. The preprocessor stops at its first error.
     if tools.preprocessor_diagnostics > 0 {
@@ -135,7 +228,7 @@ fn at_pre(parsed: &Parsed, d: &Diagnostic) -> Option<FileDiagnostic> {
     // (a message naming another place of the program — `already declared
     // in globals.rr:12` —: its file and line, rapidr_diagnostics::place_mark)
     let resolved;
-    let d = if d.message.contains("{{at:") {
+    let d = if rapidr_diagnostics::has_place_marks(&d.message) {
         let main = parsed.root.display().to_string();
         let own = Some(d.location.line).filter(|l| *l > 0);
         resolved = Diagnostic { message: parsed.tools.preprocessed.resolve_places(&main, own, &d.message), ..d.clone() };

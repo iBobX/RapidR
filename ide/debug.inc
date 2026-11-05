@@ -805,6 +805,7 @@ SUB StartProgram(WithDebugger AS INTEGER)
   RunOutputSeen = 0
   ' (F5 to the first form: docs/studio-wow.md PERF-8)
   RunStarted = TIMER
+  RunEndedAt = 0
   PerfForm = -1
   ' (VB's way: what is being run is saved first — not run when a save was
   ' declined: its file changed outside Studio)
@@ -1245,6 +1246,9 @@ SUB ProgramContinued
 END SUB
 
 SUB ProgramExited(Code AS INTEGER)
+  RunEndedAt = TIMER
+  IF RunEndedAt < RunStarted THEN RunEndedAt = RunEndedAt + 86400
+  RunExitCode = Code
   StepRaise.Enabled = 0
   StaleTimer.Enabled = 0
   DebugStale = 0

@@ -108,7 +108,7 @@ O deja que las líneas lleguen a ti:
 ```basic
 Board.OnLine = GotLine
 SUB GotLine(Received AS STRING)
-    Log.AddStrings Received
+    LogView.AddStrings Received
 END SUB
 ```
 

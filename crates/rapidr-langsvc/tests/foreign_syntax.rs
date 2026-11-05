@@ -2,10 +2,10 @@
 //! "Coming from another language?"): a program is analysed as Studio's
 //! Problems pane analyses it, and each habit's error carries its hint —
 //! an ADDITIONAL line, the compiler's own message unchanged. What RapidQ
-//! compiles (`+=`, `++`, `==`, `print(x)`) has no error and no hint; what
-//! RC.EXE only warns about (a block never closed) is a warning here, and
-//! `&&` and `console.log`, which compile and run wrongly, are warnings with
-//! a hint too.
+//! compiles (`+=`, `++`, `==`, `print(x)`) has no error and no hint; a
+//! block never closed (RC.EXE warns, and builds no program) is an error
+//! with its hint, and `&&` and `console.log`, which compile and run
+//! wrongly, are warnings with a hint too.
 
 use std::path::Path;
 
@@ -132,21 +132,27 @@ fn console_log_compiles_so_it_is_a_warning_with_the_hint() {
 }
 
 #[test]
-fn a_block_never_closed_is_rc_exes_warning_and_the_program_compiles() {
-    let cases: &[(&str, &str, &str)] = &[
-        ("DIM i AS INTEGER\nFOR i = 1 TO 3\n  PRINT i\n", "Missing NEXT statement", "missing-next"),
-        ("DIM i AS INTEGER\nWHILE i < 3\n  i = i + 1\n", "Missing WEND statement", "missing-wend"),
-        ("DIM i AS INTEGER\nDO\n  i = i + 1\n", "Missing LOOP statement", "missing-loop"),
-        ("DIM a AS INTEGER\nIF a THEN\n  PRINT 1\n", "Missing END IF statement", "missing-end-if"),
-        ("DIM a AS INTEGER\nSELECT CASE a\n  CASE 1\n    PRINT 1\n", "Missing END SELECT statement", "missing-end-select"),
-        ("DIM a AS INTEGER\nIF a THEN\n  PRINT 1\nELSE IF a = 2 THEN\n  PRINT 2\nEND IF\n", "Missing END IF statement", "else-if"),
+fn a_block_never_closed_is_an_error_with_its_hint() {
+    // (RC.EXE says "! WARNING: Missing NEXT statement" and builds no
+    // program — an empty .exe, in the Windows VM — so it is an error: RC.EXE's
+    // words first in a classic program, RapidR's in a .rr one)
+    let cases: &[(&str, &str, &str, &str)] = &[
+        ("DIM i AS INTEGER\nFOR i = 1 TO 3\n  PRINT i\n", "Missing NEXT statement — FOR i (main.bas:2) has no NEXT: write NEXT where it ends", "FOR i (main.rr:2) has no NEXT: write NEXT where it ends", "missing-next"),
+        ("DIM i AS INTEGER\nWHILE i < 3\n  i = i + 1\n", "Missing WEND statement — WHILE (main.bas:2) has no WEND: write WEND where it ends", "WHILE (main.rr:2) has no WEND: write WEND where it ends", "missing-wend"),
+        ("DIM i AS INTEGER\nDO\n  i = i + 1\n", "Missing LOOP statement — DO (main.bas:2) has no LOOP: write LOOP where it ends", "DO (main.rr:2) has no LOOP: write LOOP where it ends", "missing-loop"),
+        ("DIM a AS INTEGER\nIF a THEN\n  PRINT 1\n", "Missing END IF statement — IF (main.bas:2) has no END IF: write END IF where it ends", "IF (main.rr:2) has no END IF: write END IF where it ends", "missing-end-if"),
+        ("DIM a AS INTEGER\nSELECT CASE a\n  CASE 1\n    PRINT 1\n", "Missing END SELECT statement — SELECT CASE (main.bas:2) has no END SELECT: write END SELECT where it ends", "SELECT CASE (main.rr:2) has no END SELECT: write END SELECT where it ends", "missing-end-select"),
+        ("DIM a AS INTEGER\nIF a THEN\n  PRINT 1\nELSE IF a = 2 THEN\n  PRINT 2\nEND IF\n", "Missing END IF statement — IF (main.bas:2) has no END IF: write END IF where it ends", "IF (main.rr:2) has no END IF: write END IF where it ends", "else-if"),
     ];
-    for (program, message, hint) in cases {
-        let d = problems(program);
-        assert!(d.iter().all(|d| d.severity != Severity::Error), "{program:?} compiles (RC.EXE only warns): {d:?}");
-        let w = d.iter().find(|d| d.message == *message).unwrap_or_else(|| panic!("{program:?}: {d:?}"));
-        assert_eq!(w.severity, Severity::Warning);
-        assert_eq!(w.hint.map(|h| h.id), Some(*hint), "{program:?}");
+    for (program, classic, rr, hint) in cases {
+        for (file, message) in [("/project/main.bas", classic), ("/project/main.rr", rr)] {
+            let mut a = Analysis::new(Options::default());
+            a.update(Path::new(file), *program);
+            let d = a.diagnostics(Path::new(file));
+            let e = d.iter().find(|d| d.message == *message).unwrap_or_else(|| panic!("{file} {program:?}: {d:?}"));
+            assert_eq!(e.severity, Severity::Error, "{file} {program:?}");
+            assert_eq!(e.hint.map(|h| h.id), Some(*hint), "{file} {program:?}");
+        }
     }
     // (closed blocks, one-line IFs and one-line loops: nothing)
     let ok = "DIM i AS INTEGER\nFOR i = 1 TO 3 : PRINT i : NEXT i\nIF i THEN PRINT 1 ELSE PRINT 2\nWHILE i < 5 : i = i + 1 : WEND\nSELECT CASE i\n  CASE 5\n    PRINT 5\nEND SELECT\n";
@@ -176,7 +182,7 @@ fn the_examples_and_conformance_programs_have_no_missing_warnings() {
                     let mut a = Analysis::new(Options::default());
                     a.update(p.clone(), text);
                     for d in a.diagnostics(&p) {
-                        if d.message.starts_with("Missing ") && d.message.ends_with(" statement") && d.file == p {
+                        if (d.message.starts_with("Missing ") || d.message.contains(") has no ")) && d.file == p {
                             bad.push(format!("{}: {}", p.display(), d.message));
                         }
                     }
@@ -184,5 +190,5 @@ fn the_examples_and_conformance_programs_have_no_missing_warnings() {
             }
         }
     }
-    assert!(bad.is_empty(), "false 'Missing … statement' warnings:\n{}", bad.join("\n"));
+    assert!(bad.is_empty(), "false 'Missing … statement' / 'has no …' errors:\n{}", bad.join("\n"));
 }

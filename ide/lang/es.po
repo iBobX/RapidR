@@ -4179,6 +4179,14 @@ msgid "Asking RAI: {prompt}"
 msgstr "Preguntando a RAI: {prompt}"
 
 #: ide/mcp.inc
+msgid "The program started and ended after {seconds} s (exit code {code}), with no output"
+msgstr "El programa empezó y terminó a los {seconds} s (código de salida {code}), sin mostrar nada"
+
+#: ide/mcp.inc
+msgid "The program started and ended after {seconds} s (exit code {code})"
+msgstr "El programa empezó y terminó a los {seconds} s (código de salida {code})"
+
+#: ide/mcp.inc
 msgid "(turn AI apps on: a token is made)"
 msgstr "(activa las aplicaciones de IA: se crea un token)"
 
