@@ -96,12 +96,19 @@ SUB CanvasPaint(Sender AS RCanvas)
 END SUB
 
 SUB ByHandEnd
-  DIM i AS INTEGER
+  DIM i AS INTEGER, n AS INTEGER
   Ender.Enabled = 0
+  ' (the times between OnResize events while the corner moves: a gap of
+  ' half a second or more is the hand at rest - the window showing, before
+  ' and after the drag - not a frame)
+  n = 0
   FOR i = 1 TO SeenCount - 1
-    Took(i - 1) = (Seen(i) - Seen(i - 1)) * 1000
+    IF (Seen(i) - Seen(i - 1)) < 0.5 THEN
+      Took(n) = (Seen(i) - Seen(i - 1)) * 1000
+      n = n + 1
+    END IF
   NEXT
-  IF SeenCount > 2 THEN Report "canvas12 byhand", SeenCount - 1 ELSE PRINT "canvas12 byhand: no resize seen"
+  IF n > 1 THEN Report "canvas12 byhand", n ELSE PRINT "canvas12 byhand: no resize seen"
   PRINT "canvas12 byhand paints="; Paints; FORMAT$(" onpaint total=%.1f ms, onresize total=%.1f ms", InPaint, InResize)
   F.Close
   END

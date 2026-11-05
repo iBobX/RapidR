@@ -1129,6 +1129,9 @@ fn comp_is_panel(name: &str) -> bool {
 /// property (`UpDown.Max`) — rapidr_value::members, the same rule for native
 /// builds, the interpreter and the web.
 pub fn rp_comp_value(name: &str, member: &str) -> Value {
+    // (the program reads: what waits to be worked out is done first —
+    // scroll.rs)
+    crate::scroll::flush();
     let lower = member.to_ascii_lowercase();
     // (a Boolean reads 1, as RapidQ's: rapidr_value::property_read)
     if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
@@ -1139,6 +1142,7 @@ pub fn rp_comp_value(name: &str, member: &str) -> Value {
 
 /// `Obj.Sub.Prop` read by a program (codegen): as [`rp_comp_value`]'s.
 pub fn rp_comp_read(name: &str, prop: &str) -> Value {
+    crate::scroll::flush();
     if prop.eq_ignore_ascii_case("color") {
         return program_color(name);
     }
@@ -1245,6 +1249,8 @@ fn form_is_built(name: &str) -> bool {
 /// Call a method on a registered component.
 /// Dispatches to the appropriate backend based on component type.
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
+    // (a method sees the components as they are once worked out — scroll.rs)
+    crate::scroll::flush();
     let v = comp_method(name, method, args);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();

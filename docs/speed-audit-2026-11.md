@@ -242,7 +242,62 @@ new VM programs in `vm_bench` with budgets of their own.
 **New dependencies**: none so far. A hasher crate (`rustc-hash`,
 MIT/Apache-2.0) only if the lead prefers it to a small one of our own.
 
-## Benchmarks and tools added (no runtime code changed)
+## 6. Step 2: the fixes, before and after
+
+Each fix is its own commit; "before" is the commit before it, measured
+back to back with it on the same Mac (shared with other lanes: load
+average 15–55), `rapidr run` unless it says native.
+
+### Hand resizes, before any fix
+
+A real drag of the window's bottom-right corner (macOS, real mouse events:
+120 steps at 60 Hz, 240 × 160 pixels out and back, ~2.4 s), the program's
+own count of the times between its OnResize events (`RESIZE_BY_HAND`;
+gaps of half a second or more — the hand at rest — left out). Two runs
+each where they differed:
+
+| Form | `rapidr run`: events, median / p95 ms | native: events, median / p95 ms |
+|---|--:|--:|
+| 200 controls (`resize200.rr`) | 71 and 60 events; 28.7 and 48.5 / 52.9 and 51.5 | 120 events; 20.7 / 29.6 |
+| 12 canvases (`resize_canvas12.rr`) | 98 events; 24.3 / 26.9 (OnPaint 1,192 ms, OnResize 422 ms in all) | 100 events; 25.3 / 28.7 |
+
+A frame every 16.7 ms would give one event per mouse step (120) at about
+16.7 ms each.
+
+### Fix 1: scroll bars worked out once, when that can't differ
+
+A write of a component's Left / Top / Width / Height / Visible made its
+parent work its scroll bars out again from all of its components, at once
+(`scroll::update`). Now the parent is marked and its bars are worked out
+once, before anything reads them: the program's next read or method call
+(`rp_comp_value`, `rp_comp_read`, `rp_comp_method`), a read or set of the
+bars or of ClientWidth / ClientHeight, the container's first aligned
+component, and the window loop's turn (before the windows take the
+components' places and paint).
+
+Only when that gives exactly what working them out after each write gave:
+nothing in the container is scrolled (so no component moves when a range
+shrinks) and it has no aligned component (laid out again, when a bar comes
+or goes, from the ranges of that moment). Otherwise the bars are worked out
+at once, as before — a first version that put them off always gave other
+answers in a scrolled form and beside an alClient panel; the new
+conformance case `scroll_batched_writes` (its `.expected` is the output of
+the build before) holds both kinds to what they were.
+
+| `prop_writes.rr` | before | after |
+|---|--:|--:|
+| #12's repro: 41 moves, form never shown | 12.4 ms | **0.25 ms** |
+| 41 moves, form shown | 11.1 ms | **0.22 ms** |
+| 200 Left writes on a 200-control form | 251 ms | **1.0 ms** |
+| 800 Left / Top / Width / Height writes | 1,016 ms | **3.7 ms** |
+| 200 Caption / Text writes | 130 ms | **3.0 ms** |
+
+Checked: the unit tests of rapidr-runtime-core, rapidr-value and
+rapidr-ui-app; the conformance suite on the interpreter (325 cases) and
+`scroll_batched_writes` built native too; the GUI events suite, native and
+interpreted (123 cases, all checks passed).
+
+## Benchmarks and tools added in step 1
 
 | File | What |
 |---|---|

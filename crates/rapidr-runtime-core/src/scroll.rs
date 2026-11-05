@@ -4,10 +4,10 @@
 //! RapidQ's ScrollBy; the UI kernel draws the bars and passes them the
 //! mouse.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use rapidr_value::layout::Align;
-use rapidr_value::scrollbars::{self, Child, Shift};
+use rapidr_value::scrollbars::{self, Child, Scroller, Shift};
 
 use crate::object::{get_children_of, rp_comp_get, rp_comp_set, rp_comp_type};
 use crate::value::v_int;
@@ -16,6 +16,65 @@ thread_local! {
     /// Set while the bars are worked out (moving components mustn't start
     /// it again).
     static UPDATING: Cell<bool> = const { Cell::new(false) };
+    /// The containers whose bars wait to be worked out again, in the order
+    /// their components (or they) changed ([`changed`], [`flush`]).
+    static STALE: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// `name`'s components moved or resized, or it did: its bars are worked
+/// out again — at once, or (when that can't make a difference) once before
+/// anything reads them ([`flush`]), however many changes came first. Each
+/// write of a component's place worked them out from all of its parent's
+/// components: an OnResize placing 200 controls did it 800 times, 1.3 ms
+/// each (docs/speed-audit-2026-11.md).
+///
+/// Put off only when the result is the same as working them out after
+/// each change: nothing is scrolled (no position to keep in range, so no
+/// component moves) and the container has no aligned component (laid out
+/// again when a bar comes or goes, from the ranges of that moment). Then
+/// the ranges and the bars are those of the components as they end up,
+/// whatever order they changed in. Else at once, as always — the bars put
+/// off before first, in order.
+pub fn changed(name: &str) {
+    // (as `update`: nothing while the bars are being worked out — what
+    // they move doesn't start it again)
+    if UPDATING.with(Cell::get) || !scrolls(name) {
+        return;
+    }
+    let later = !crate::layout::has_aligned_children(name) && scrollbars::with(name, Scroller::unscrolled).unwrap_or(true);
+    if !later {
+        flush();
+        update(name);
+        return;
+    }
+    let key = name.to_lowercase();
+    STALE.with(|s| {
+        let mut s = s.borrow_mut();
+        if !s.contains(&key) {
+            s.push(key);
+        }
+    });
+}
+
+/// The bars put off ([`changed`]) worked out now, in order: before the
+/// program reads anything (`rp_comp_value`, a method), before the bars or
+/// the client area are read or set, before a container gets its first
+/// aligned component (`layout`'s `mark_aligned`), and before the windows
+/// are synced and drawn.
+pub fn flush() {
+    if UPDATING.with(Cell::get) || STALE.with(|s| s.borrow().is_empty()) {
+        return;
+    }
+    while let Some(name) = STALE.with(|s| {
+        let mut s = s.borrow_mut();
+        (!s.is_empty()).then(|| s.remove(0))
+    }) {
+        update(&name);
+    }
+}
+
+fn stale() -> bool {
+    STALE.with(|s| !s.borrow().is_empty())
 }
 
 /// Whether `name` scrolls (a QFORM, a QSCROLLBOX — not a QFORMMDI: its
@@ -48,6 +107,7 @@ pub fn area(name: &str) -> (i64, i64) {
 
 /// The client area: the area less the bars shown (ClientWidth / Height).
 pub fn client(name: &str) -> (i64, i64) {
+    flush();
     let (w, h) = area(name);
     scrollbars::with(name, |s| s.client(w, h)).unwrap_or((w, h))
 }
@@ -84,6 +144,11 @@ fn children(name: &str) -> Vec<(String, Child)> {
 pub fn update(name: &str) {
     if !scrolls(name) || UPDATING.with(Cell::get) {
         return;
+    }
+    // (worked out now: no longer waiting)
+    if stale() {
+        let key = name.to_lowercase();
+        STALE.with(|s| s.borrow_mut().retain(|n| *n != key));
     }
     UPDATING.with(|u| u.set(true));
     for _ in 0..2 {
@@ -133,6 +198,7 @@ pub fn move_children(name: &str, (dx, dy): Shift) {
 /// The user scrolled (`shift` from the model): the components move, the
 /// bars are drawn again.
 pub fn user_scrolled(name: &str, shift: Shift) {
+    flush();
     move_children(name, shift);
     #[cfg(feature = "gui")]
     crate::ui::redraw_widget(name);
@@ -143,12 +209,26 @@ pub fn get(name: &str, prop: &str) -> Option<crate::value::Value> {
     if !scrolls(name) {
         return None;
     }
-    scrollbars::with_mut(name, |s| s.get(prop))
+    let v = scrollbars::with_mut(name, |s| s.get(prop));
+    // (one of the bars' properties: as they are once worked out)
+    if v.is_some() && stale() {
+        flush();
+        return scrollbars::with_mut(name, |s| s.get(prop));
+    }
+    v
 }
 
 /// The program setting one: the bars and the components follow.
 pub fn set(name: &str, prop: &str, val: &crate::value::Value) -> bool {
-    if !scrolls(name) || scrollbars::with_mut(name, |s| s.set(prop, val)).is_none() {
+    if !scrolls(name) {
+        return false;
+    }
+    // (one of the bars' properties — AutoScroll, Horz…, Vert…: the change
+    // on the bars as they are once worked out)
+    if prop == "autoscroll" || prop.starts_with("horz") || prop.starts_with("vert") {
+        flush();
+    }
+    if scrollbars::with_mut(name, |s| s.set(prop, val)).is_none() {
         return false;
     }
     update(name);

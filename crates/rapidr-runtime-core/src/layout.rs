@@ -115,7 +115,7 @@ pub fn reanchor(parent: &str) {
     engine::reanchor(&mut Rt, &parent.to_lowercase());
 }
 
-fn has_aligned_children(name: &str) -> bool {
+pub(crate) fn has_aligned_children(name: &str) -> bool {
     ALIGNED_PARENTS.with(|a| a.borrow().contains(&name.to_lowercase()))
 }
 
@@ -201,6 +201,11 @@ impl engine::LayoutStore for Rt {
         has_aligned_children(parent)
     }
     fn mark_aligned(&mut self, parent: &str) {
+        // (bars put off while it had no aligned component are worked out
+        // first, as they were then: scroll.rs)
+        if !has_aligned_children(parent) {
+            crate::scroll::flush();
+        }
         ALIGNED_PARENTS.with(|a| a.borrow_mut().insert(parent.to_lowercase()));
     }
     fn has_anchored(&self, parent: &str) -> bool {
@@ -214,7 +219,9 @@ impl engine::LayoutStore for Rt {
         crate::ui::gui_apply_geometry(_name);
     }
     fn scroll_update(&mut self, name: &str) {
-        crate::scroll::update(name);
+        // (at once, or once before anything reads them when that can't
+        // differ: scroll.rs)
+        crate::scroll::changed(name);
     }
     // (RapidQ aligns nothing before the form's first Show: rapidr_value::
     // layout's align_controls_unshown; ui-app's forms mark the first Show)

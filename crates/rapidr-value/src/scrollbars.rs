@@ -244,6 +244,13 @@ impl Scroller {
         if vertical { &mut self.vert } else { &mut self.horz }
     }
 
+    /// Nothing scrolled, nor a position waiting to be applied: working the
+    /// bars out moves no component ([`Scroller::update`] keeps positions in
+    /// range — at 0 there is nothing to keep).
+    pub fn unscrolled(&self) -> bool {
+        self.horz.position == 0 && self.vert.position == 0 && self.horz.pending.is_none() && self.vert.pending.is_none()
+    }
+
     /// The client area of a `w` × `h` area once the shown bars are taken
     /// off (ClientWidth / ClientHeight).
     pub fn client(&self, w: i64, h: i64) -> (i64, i64) {
