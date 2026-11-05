@@ -7,10 +7,13 @@
 #   tools/release/ubuntu-vm.sh send <src.tar> /tmp/rapidr-jit-src.tar
 #   tools/release/ubuntu-vm.sh run tools/release/linux/jit-check.sh /tmp/rapidr-jit-src.tar [name]
 #
+# (A build takes longer than one prlctl call lasts: start it detached and read its log; with
+# nobody logged in at the VM's desktop, as root through `runuser -u <user>`.)
+#
 # Its own folder, kept for the next run's incremental build; nothing of the release's folders
 # is touched. Nothing here prints, touches the user's registry store or settings.
 set -uo pipefail
-SRC_TAR="${1:?the sources' tar}"
+SRC_TAR="${1:?usage: jit-check.sh <sources tar> [name]}"
 NAME="${2:-host}"
 W="$HOME/rapidr-jit/$NAME"
 rm -rf "$W/src" && mkdir -p "$W/src" "$W/prints"
