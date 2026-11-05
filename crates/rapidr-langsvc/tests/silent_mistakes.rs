@@ -114,6 +114,13 @@ fn a_global_named_like_a_builtin_is_an_error() {
     let form = b"CREATE F AS RForm\n    CREATE Timer AS RTimer: Interval = 100: END CREATE\nEND CREATE\nDIM t AS DOUBLE\nt = TIMER\nPRINT t; TIMER\n";
     let d = check("timer-rr", &[("main.rr", form)]);
     assert_eq!(errors(&d), [("main.rr".to_string(), 2, "Timer is the name of the builtin TIMER: the program can't tell them apart, so name the component PollTimer".to_string())], "{d:?}");
+    // (a component used only through its members hides nothing: RapidR Music
+    // Studio's `DIM Sound AS RAudioOut`, SOUND never called)
+    let d = check("sound-members", &[("main.rr", b"DIM Sound AS RAudioOut\nSound.SampleRate = 44100\nIF Sound.Playing = 0 THEN PRINT \"idle\"\n")]);
+    assert!(errors(&d).is_empty(), "{d:?}");
+    // (… but one the program also calls as the built-in does)
+    let d = check("sound-called", &[("main.rr", b"DIM Sound AS RAudioOut\nSound.SampleRate = 44100\nSOUND 440, 100\n")]);
+    assert_eq!(errors(&d), [("main.rr".to_string(), 1, "Sound is the name of the builtin SOUND: the program can't tell them apart, so name the component Sound1".to_string())], "{d:?}");
     // (a classic program: RC.EXE's words — it refuses the name — then RapidR's)
     let d = check("timer-bas", &[("main.bas", b"CREATE Timer AS QTIMER\n  Interval = 100\nEND CREATE\nPRINT TIMER\n")]);
     assert_eq!(errors(&d), [("main.bas".to_string(), 1, "Identifier TIMER already used, try another name — Timer is the name of the builtin TIMER: the program can't tell them apart, so name the component PollTimer".to_string())], "{d:?}");

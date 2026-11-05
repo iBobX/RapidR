@@ -2560,7 +2560,15 @@ pub fn builtin_name_clashes(program: &Program, rapidr: bool, is_builtin: &dyn Fn
     }
     // (the names the program calls with arguments, anywhere: `LEN(s)`)
     let mut called: std::collections::HashSet<String> = std::collections::HashSet::new();
-    walk(&program.statements, &mut |_| {}, &mut |e| {
+    // (and as a statement: `SOUND 440, 100`)
+    let mut stmt_called: Vec<String> = Vec::new();
+    walk(&program.statements, &mut |s| {
+        if let Statement::Call(c) = s {
+            if let Expression::Identifier(i) = &c.callee {
+                stmt_called.push(strip_type_suffix(&i.name).to_ascii_lowercase());
+            }
+        }
+    }, &mut |e| {
         let callee = match e {
             Expression::FunctionCall(c) => &*c.callee,
             Expression::ArrayAccess(a) => &*a.array,
@@ -2570,6 +2578,7 @@ pub fn builtin_name_clashes(program: &Program, rapidr: bool, is_builtin: &dyn Fn
             called.insert(strip_type_suffix(&i.name).to_ascii_lowercase());
         }
     });
+    called.extend(stmt_called);
     let mut out = Vec::new();
     for (name, kind, span) in names {
         // (a dotted method of a built-in object — RAPIDQ2.INC's `FUNCTION
@@ -2596,6 +2605,12 @@ pub fn builtin_name_clashes(program: &Program, rapidr: bool, is_builtin: &dyn Fn
         let read_through = match kind {
             Kind::Variable { array } => is_bare(&key) || (!array && called.contains(&key)),
             Kind::Constant => !["pi", "e"].contains(&key.as_str()),
+            // (a component is used through its members, `Sound.Start`: it hides
+            // the built-in only when the built-in is a value written bare
+            // (TIMER, RND) or the program also calls it (`SOUND 440, 100`) —
+            // RapidR Music Studio's `DIM Sound AS RAudioOut` never does; one of
+            // RapidR's objects (Screen, Application …) always)
+            Kind::Component => !rapidr || ["screen", "application", "clipboard", "printer"].contains(&key.as_str()) || is_bare(&key) || called.contains(&key),
             _ => true,
         };
         if !read_through || key == "e" {
