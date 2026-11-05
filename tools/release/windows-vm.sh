@@ -21,6 +21,10 @@
 #   tools/release/windows-vm.sh regress [Prefix=<folder>] [Source=<folder>]
 #                                            the conformance suite (bytecode VM) and the examples (`rapidr run`)
 #                                            with the build's staged ARM64 SDK (or another install), windows/regress.ps1
+#   tools/release/windows-vm.sh jit [Target=<rust target>]
+#                                            the JIT on Windows: this checkout's committed sources built
+#                                            in the VM, its tests, conformance with and without it
+#                                            (windows/jit-check.ps1; %USERPROFILE%\rapidr-jit)
 #   tools/release/windows-vm.sh stop         stop the release jobs running in the VM
 #   tools/release/windows-vm.sh clean [--dry-run] [--keep-out]
 #                                            remove everything the release and smoke scripts left in
@@ -126,6 +130,15 @@ case "${1:-}" in
         wps put.ps1 -From "\\\\Mac\\Home\\${rel//\//\\}" -Name "${3:-$(basename "$src")}" ${PUT_SUM:+-Sum $PUT_SUM}
         ;;
     regress) shift; awake; profile; job regress.ps1 "$@" ;;
+    jit)
+        shift
+        # (the committed sources, as an archive the VM extracts: no build caches, no work folders)
+        rm -rf "$ROOT/.release-share" && mkdir -p "$ROOT/.release-share/jit"
+        trap 'rm -rf "$ROOT/.release-share"' EXIT
+        git -C "$ROOT" archive --format=tar HEAD > "$ROOT/.release-share/jit/src.tar"
+        awake; profile
+        job jit-check.ps1 -Prep "$SHARE\\.release-share\\jit" "$@"
+        ;;
     stop) awake; wps stop.ps1 ;;
     clean)
         shift; flags=(-Delete)
