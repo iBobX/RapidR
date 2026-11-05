@@ -251,8 +251,11 @@ comparison!(ge, ge_other, |x: i64, y: i64| x >= y, |x: f64, y: f64| !(x.is_nan()
 #[inline(always)]
 pub fn to_num(v: Value, operand: u8) -> Result<Value, VmError> {
     const DOUBLE: u8 = NumKind::Double as u8;
+    const LONG: u8 = NumKind::Long as u8;
     match (operand, v) {
         (DOUBLE, v @ Value::Double(_)) => Ok(v),
+        // (a 32-bit Integer into an INTEGER / LONG: already what it holds)
+        (LONG, Value::Integer(n)) if (i32::MIN as i64..=i32::MAX as i64).contains(&n) => Ok(Value::Integer(n)),
         (operand, v) => to_num_other(v, operand),
     }
 }
@@ -372,35 +375,53 @@ const DIRECT: [(&str, Pure); 22] = {
     ]
 };
 
+type Pure2 = fn(&Value, &Value) -> Value;
+
+/// The two-argument ones (RapidQ's SHL and SHR): codes from [`TWO`] on.
+const DIRECT2: [(&str, Pure2); 2] = [("shl", rapidr_value::rp_shl), ("shr", rapidr_value::rp_shr)];
+
+/// The first code of [`DIRECT2`]'s builtins.
+const TWO: u8 = 128;
+
 /// A pool string's builtin code: the [`DIRECT`] builtin it names (its
-/// index + 1), or 0.
+/// index + 1), a [`DIRECT2`] one ([`TWO`] + its index), or 0.
 pub fn direct_code(name: &str) -> u8 {
     if !rapidr_bytecode::builtins::is_builtin(name) {
         return 0;
     }
     let key = rapidr_bytecode::builtins::builtin_key(name);
-    DIRECT.iter().position(|(k, _)| *k == key).map_or(0, |i| i as u8 + 1)
+    if let Some(i) = DIRECT.iter().position(|(k, _)| *k == key) {
+        return i as u8 + 1;
+    }
+    DIRECT2.iter().position(|(k, _)| *k == key).map_or(0, |i| TWO + i as u8)
 }
 
 /// Runs direct builtin `code` (non-zero, from [`direct_code`]) on its
 /// arguments, as the hosts do (a missing argument is Null).
 #[inline(always)]
 pub fn call_direct(code: u8, args: &[Value]) -> Value {
-    let f = DIRECT[code as usize - 1].1;
-    match args.first() {
-        Some(a) => f(a),
-        None => f(&Value::Null),
+    let null = Value::Null;
+    let arg = |i: usize| args.get(i).unwrap_or(&null);
+    if code >= TWO {
+        return DIRECT2[(code - TWO) as usize].1(arg(0), arg(1));
     }
+    DIRECT[code as usize - 1].1(arg(0))
 }
 
-/// The direct builtin for a name, if it is one (tests compare it with the
-/// hosts).
+/// The direct builtin for a name, if it is one with one argument (tests
+/// compare it with the hosts).
 pub fn direct_builtin(name: &str) -> Option<fn(&Value) -> Value> {
     let code = direct_code(name);
-    (code != 0).then(|| DIRECT[code as usize - 1].1)
+    (code != 0 && code < TWO).then(|| DIRECT[code as usize - 1].1)
+}
+
+/// The direct builtin for a name, if it is one with two arguments.
+pub fn direct_builtin2(name: &str) -> Option<fn(&Value, &Value) -> Value> {
+    let code = direct_code(name);
+    (code >= TWO).then(|| DIRECT2[(code - TWO) as usize].1)
 }
 
 /// The names of the direct builtins.
 pub fn direct_names() -> impl Iterator<Item = &'static str> {
-    DIRECT.iter().map(|(k, _)| *k)
+    DIRECT.iter().map(|(k, _)| *k).chain(DIRECT2.iter().map(|(k, _)| *k))
 }

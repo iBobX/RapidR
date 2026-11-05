@@ -614,8 +614,20 @@ fn direct_builtins_are_named_as_the_hosts_name_them() {
         ("CDBL", b::rp_cdbl),
         ("CSNG", b::rp_csng),
     ];
-    assert_eq!(fast::direct_names().count(), table.len());
+    assert_eq!(fast::direct_names().count(), table.len() + 2);
     assert_eq!(fast::direct_names().collect::<Vec<_>>(), rapidr_bytecode::builtins::PURE_MATHS, "the compiler's list is the VM's");
+    // (SHL and SHR take two)
+    for (name, f) in [("SHL", rapidr_value::rp_shl as fn(&Value, &Value) -> Value), ("shr", rapidr_value::rp_shr)] {
+        let direct = fast::direct_builtin2(name).unwrap_or_else(|| panic!("{name}"));
+        assert!(fast::direct_builtin(name).is_none());
+        for a in edge_values() {
+            for b in edge_values() {
+                assert_eq!(exact(&direct(&a, &b)), exact(&f(&a, &b)), "{name}({a:?}, {b:?})");
+            }
+        }
+        let code = fast::direct_code(name);
+        assert_eq!(exact(&fast::call_direct(code, &[Value::Integer(-1)])), exact(&f(&Value::Integer(-1), &Value::Null)), "a missing argument is Null");
+    }
     for (name, f) in table {
         let direct = fast::direct_builtin(name).unwrap_or_else(|| panic!("{name}"));
         for v in edge_values() {

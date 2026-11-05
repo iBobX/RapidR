@@ -76,11 +76,11 @@ pub const BARE_BUILTINS: &[&str] = &["command", "commandcount", "csrlin", "curdi
 
 /// Hosts dispatch on the lowercased name with one BASIC type suffix
 /// (`$ % # & !`) removed, so `MID$`, `Mid` and `mid` are the same builtin.
-/// The pure maths builtins (by key): one argument, a number back, no
-/// state, no events, no error. The VM runs them itself (`rapidr_vm`'s
+/// The pure maths builtins (by key): one argument (two for SHL and SHR),
+/// a number back, no state, no events, no error. The VM runs them itself (`rapidr_vm`'s
 /// direct table, docs/vm-fast-design.md) and the compiler counts a call of
 /// one as reading nothing that can change.
-pub const PURE_MATHS: &[&str] = &["abs", "int", "fix", "frac", "sgn", "sqr", "sin", "cos", "tan", "atn", "atan", "asin", "acos", "log", "exp", "ceil", "floor", "round", "cint", "clng", "cdbl", "csng"];
+pub const PURE_MATHS: &[&str] = &["abs", "int", "fix", "frac", "sgn", "sqr", "sin", "cos", "tan", "atn", "atan", "asin", "acos", "log", "exp", "ceil", "floor", "round", "cint", "clng", "cdbl", "csng", "shl", "shr"];
 
 /// Whether `name` (as a program writes it) is one of [`PURE_MATHS`].
 pub fn is_pure_maths(name: &str) -> bool {

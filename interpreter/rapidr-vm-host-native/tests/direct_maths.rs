@@ -33,8 +33,18 @@ fn the_host_answers_every_direct_builtin_as_the_vm_does() {
     let names: Vec<&str> = rapidr_vm::direct_names().collect();
     assert_eq!(names, rapidr_bytecode::builtins::PURE_MATHS);
     for name in names {
-        let direct = rapidr_vm::direct_builtin(name).unwrap();
         for spelled in [name.to_string(), name.to_ascii_uppercase()] {
+            if let Some(direct) = rapidr_vm::direct_builtin2(name) {
+                // (SHL and SHR: two arguments)
+                for a in &values {
+                    for b in &values {
+                        let by_host = host.call_builtin(&spelled, &[a.clone(), b.clone()]).unwrap_or_else(|e| panic!("{spelled}({a:?}, {b:?}): {e}"));
+                        assert_eq!(exact(&by_host), exact(&direct(a, b)), "{spelled}({a:?}, {b:?})");
+                    }
+                }
+                continue;
+            }
+            let direct = rapidr_vm::direct_builtin(name).unwrap();
             for v in &values {
                 let by_host = host.call_builtin(&spelled, std::slice::from_ref(v)).unwrap_or_else(|e| panic!("{spelled}({v:?}): {e}"));
                 assert_eq!(exact(&by_host), exact(&direct(v)), "{spelled}({v:?})");

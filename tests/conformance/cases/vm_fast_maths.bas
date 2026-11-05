@@ -1,6 +1,6 @@
 ' The pure maths builtins the interpreter calls itself (docs/vm-fast-design.md:
 ' ABS, INT, FIX, FRAC, SGN, SQR, SIN, COS, TAN, ATN, LOG, EXP, CEIL, FLOOR,
-' ROUND, CINT, CLNG, CDBL, CSNG) at the edges: halves, negatives, -0,
+' ROUND, CINT, CLNG, CDBL, CSNG, SHL, SHR) at the edges: halves, negatives, -0,
 ' beyond 32 bits, text, a comma-separated list to SIN, and in typed
 ' expressions. The answers are the interpreter's before (2.122) and native
 ' builds'.
@@ -23,3 +23,7 @@ t = ABS(d) * i + INT(d) - SGN(d): PRINT "expr "; t
 t = 0
 FOR i = 1 TO 100: t = t + ABS(SIN(i)) + SQR(i): NEXT
 PRINT "loop "; INT(t * 1000)
+PRINT "shift "; 1 SHL 31; " "; -1 SHR 28; " "; 5 SHL 33; " "; 2.5 SHL 1; " "; (-8) SHR 1; " "; 3 SHL -1; " "; 2147483648 SHR 4
+t = 0
+FOR i = 0 TO 255: t = t + ((i SHR 3) AND 7) + ((i AND 7) SHL 1): NEXT
+PRINT "bits "; t
