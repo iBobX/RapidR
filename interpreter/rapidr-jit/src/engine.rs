@@ -490,6 +490,38 @@ impl Compiled {
         Ok(exits)
     }
 
+    /// Whether the exits compiled code left describe frames the VM can
+    /// take: each record known, as many values as it names, every frame
+    /// above the entry frame called from the one below it, slots inside
+    /// their function. Checked before anything is written back.
+    fn exits_sound(&self, view: &JitView<'_>, exits: &[(u32, Vec<u64>)]) -> Result<(), String> {
+        let (r0, _) = exits.last().ok_or("no exit")?;
+        let top = view.frames.last().ok_or("no frame")?;
+        let mut caller: Option<&ExitRecord> = None;
+        for (i, (r, vs)) in exits.iter().enumerate().rev() {
+            let rec = self.records.get(*r as usize).ok_or_else(|| format!("exit record {r} unknown"))?;
+            let func = view.module.functions.get(rec.fn_index as usize).ok_or("a routine unknown")?;
+            let named = rec.locals.iter().filter(|l| l.1 != K::Null).count() + rec.stack.iter().filter(|&&k| k != K::Null).count();
+            if named != vs.len() {
+                return Err(format!("exit record {r}: {} values for {named}", vs.len()));
+            }
+            let room = if i == exits.len() - 1 { top.locals.len() } else { func.n_locals as usize };
+            if rec.locals.iter().any(|l| l.0 as usize >= room) || rec.ip as usize > func.code.len() {
+                return Err(format!("exit record {r}: outside its routine"));
+            }
+            if i == exits.len() - 1 && (rec.fn_index != top.fn_index || *r0 != *r) {
+                return Err("the entry frame's exit is another routine's".into());
+            }
+            if let Some(c) = caller {
+                if !matches!(c.why, Why::AfterCall { .. }) {
+                    return Err("a frame above one that made no call".into());
+                }
+            }
+            caller = Some(rec);
+        }
+        Ok(())
+    }
+
     /// Puts back the frames compiled code left (innermost first in
     /// `exits`; the last one is the entry frame's).
     fn apply(&self, view: &mut JitView<'_>, exits: &[(u32, Vec<u64>)]) -> Option<Why> {
@@ -561,6 +593,12 @@ impl Engine {
             }
         };
         st.forms[form].runs += 1;
+        // (compiled code ran: what it changed is changed. Exits that don't
+        // describe the frames would be the JIT's own bug — the program
+        // stops there with it, never goes on from frames half written)
+        if let Err(bug) = st.exits_sound(view, &exits) {
+            panic!("RapidR's JIT left the program in a state it can't describe ({bug}): please report it; RAPIDR_JIT=off runs it without the JIT");
+        }
         let why = st.apply(view, &exits);
         // (compiled code always leaves through an exit; one that names no
         // frame would be the JIT's own bug: the run is reported, and the

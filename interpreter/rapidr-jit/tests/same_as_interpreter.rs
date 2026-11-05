@@ -129,6 +129,52 @@ fn an_index_out_of_range_in_a_hot_loop() {
     same("DIM a(9) AS INTEGER\nDIM i AS INTEGER\nFOR i = 0 TO 20\n  a(i) = i\nNEXT\nPRINT a(9)\n");
 }
 
+// ---- going back to the interpreter at each kind of place ----
+
+#[test]
+fn deep_recursion_goes_on_in_the_interpreter_beyond_the_nesting_limit() {
+    // (5,000 deep: compiled calls 256 at a time, the interpreter makes the
+    // next call each time — every frame put back on the way)
+    let r = same("FUNCTION Depth(n AS INTEGER) AS INTEGER\n  IF n = 0 THEN\n    Result = 0\n  ELSE\n    Result = Depth(n - 1) + 1\n  END IF\nEND FUNCTION\nPRINT Depth(5000)\n");
+    assert!(r.contains("deep calls"), "{r}");
+}
+
+#[test]
+fn runaway_recursion_is_the_interpreters_stack_overflow() {
+    let src = "FUNCTION Down(n AS INTEGER) AS INTEGER\n  Result = Down(n + 1)\nEND FUNCTION\nPRINT Down(1)\n";
+    let (off, _) = run(src, Mode::Off);
+    assert!(off.contains("stack overflow"), "{off}");
+    same(src);
+}
+
+#[test]
+fn a_variable_that_changes_kind_in_a_hot_loop() {
+    // (x untyped: an Integer, then a Double from the 50,000th turn on)
+    same("DIM i AS INTEGER\nx = 0\nFOR i = 1 TO 100000\n  IF i = 50000 THEN x = x + 0.5\n  x = x + 1\nNEXT\nPRINT x\n");
+}
+
+#[test]
+fn an_array_element_of_another_kind() {
+    same("DIM a(9)\nDIM i AS INTEGER\nDIM s AS DOUBLE\nFOR i = 0 TO 9\n  a(i) = i\nNEXT\na(3) = \"7\"\nFOR i = 1 TO 30000\n  s = s + a(i MOD 5)\nNEXT\nPRINT s\n");
+}
+
+#[test]
+fn byref_write_back_in_a_hot_loop() {
+    same("SUB Bump(BYREF n AS INTEGER)\n  n = n + 1\nEND SUB\nDIM i AS INTEGER, c AS INTEGER\nFOR i = 1 TO 20000\n  Bump c\nNEXT\nPRINT c\n");
+}
+
+#[test]
+fn gosub_and_text_in_a_hot_loop() {
+    same("DIM i AS INTEGER, t AS STRING\nFOR i = 1 TO 3000\n  GOSUB addone\nNEXT\nPRINT LEN(t)\nEND\naddone:\n  t = t + \"ab\"\n  RETURN\n");
+}
+
+#[test]
+fn a_compiled_call_into_a_routine_that_prints() {
+    // (always: the callee compiled though it PRINTs — it leaves at its
+    // PRINT, its caller at the call, both frames put back)
+    same("SUB Say(n AS INTEGER)\n  IF n MOD 1000 = 0 THEN PRINT \"at \"; n\nEND SUB\nDIM i AS INTEGER\nFOR i = 1 TO 5000\n  Say i\nNEXT\n");
+}
+
 /// `cargo test -p rapidr-jit --test same_as_interpreter show -- --ignored --nocapture`
 #[test]
 #[ignore]
