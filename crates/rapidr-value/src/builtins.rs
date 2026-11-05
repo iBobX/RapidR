@@ -295,7 +295,10 @@ fn round_half_up(val: &Value) -> Value {
 
 pub fn rp_abs(val: &Value) -> Value {
     match val {
-        Value::Integer(n) => v_int(n.abs()),
+        // (the smallest INT64 stays itself, as a release build has always
+        // answered — wrapping, never a panic in a debug build; the big-numbers
+        // lane decides whether it should be an overflow error)
+        Value::Integer(n) => v_int(n.wrapping_abs()),
         _ => v_dbl(val.to_f64().abs()),
     }
 }

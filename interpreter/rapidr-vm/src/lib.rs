@@ -3045,7 +3045,10 @@ mod tests {
         // a module holds the values it prepared, which stay on one thread)
         let bytes = m.to_bytes();
         let message = std::thread::Builder::new()
-            .stack_size(4 << 20)
+            // (a release build fits the 200 inside 512 KB, measured 2026-11-05
+            // after VM-FAST — Windows gives a program's main thread 1 MB; a
+            // debug build's unoptimised hot loop takes several times that)
+            .stack_size(if cfg!(debug_assertions) { 32 << 20 } else { 4 << 20 })
             .spawn(move || {
                 let m = Module::from_bytes(&bytes).unwrap();
                 let mut h = PaintHost::default();
