@@ -5,7 +5,7 @@ whether a person on **every system RapidR ships** can install the package, press
 **Build (interpreted)** and **Build Native**, and get a program that runs.
 
 ```
-tools/release/build-matrix.sh <ver> [--quick] [--only mac,linux,windows,win7] [--shots] [--serial]
+tools/release/build-matrix.sh <ver> [--quick] [--only mac,linux,windows,win7,win7real] [--shots] [--serial]
 ```
 
 It uses the finished files in `dist/<ver>/out/` (checked against `SHA256SUMS` first, in
@@ -21,7 +21,7 @@ green, or every red explained.
 
 | Column | What it means (and which checks fill it) |
 |---|---|
-| system | where the package ran: this Mac, the Ubuntu VM (aarch64 natively; x86_64 by Rosetta), the Windows 11 ARM VM (arm64 natively; x64 and the 32-bit Windows 7 zip by emulation) |
+| system | where the package ran: this Mac, the Ubuntu VM (aarch64 natively; x86_64 by Rosetta), the Windows 11 ARM VM (arm64 natively; x64 and the 32-bit Windows 7 zip by emulation), the real Windows 7 (Robert's UTM VM: a real Windows 7 on an emulated PC) |
 | package | the artifact's file name |
 | **run** | `rapidr run` of a console program and of a GUI program (a headless capture of its window) works from the installed package |
 | **Build (interp)** | `rapidr build --interp` makes a standalone executable **with no Rust reachable** (PATH narrowed, `CARGO_HOME` pointing nowhere). This is what Studio's *Run > Build Interpreted App* does. Also: an installed example built, a data example built with its data file. Runtime-only packages show `n/a (Runtime)`: they refuse to build by design (and the smoke test checks that they say so) |
@@ -65,12 +65,14 @@ Preview 5's headless Studio checks more time on a busy Mac.
 | Lane | Runs | Where | Needs |
 |---|---|---|---|
 | `mac` | `smoke.sh` on both dmgs (native build included) | this Mac; scratch in `MATRIX_TMP` (default `/Volumes/RapidRBuild/build-matrix-tmp`) | Rust installed (the user's, only read) for the native build |
-| `linux` | `smoke.sh` on every `.tar.gz` and `.deb` of both architectures, in one detached job in the Ubuntu VM | the VM's `~/rapidr-release/dist/out` (sent by base64 if missing or different: slow) | the VM running; `test-mode.token`; tools from `linux/setup-tools.sh` |
+| `linux` | `smoke.sh` on every `.tar.gz` and `.deb` of both architectures, in one detached job in the Ubuntu VM | the VM's `~/rapidr-release/dist/out` (sent by base64 if missing or different: slow) | the VM running (nobody needs to be logged in at its desktop: `ubuntu-vm.sh` then works as root and hands the scripts to the VM's user); `test-mode.token`; tools from `linux/setup-tools.sh`. `P5_DELAY` (10 s by default) reaches the VM job: Preview 5's headless checks of the x86_64 packages, run by Rosetta, need it |
 | `windows` | `smoke.ps1` on the x64 and arm64 SDK installers (with `Native`) and Runtime installers | the Windows 11 VM, as the user, headless (`windows-vm.sh smoke`); an installer is copied into `…\rapidr-release\out` from the home share unless the VM has it with the same SHA-256 | the VM; `rapidr-release\src` (the release's conformance cases: run the matrix **before** `windows-vm.sh clean`, which removes it); the token |
 | `win7` | `smoke-win7.ps1` on the Windows 7 alpha zip | the same VM (x86 emulation) | the zip in `dist/<ver>/out/` or `MATRIX_WIN7_ZIP=<zip under your home>` |
+| `win7real` | `smoke-win7-real.ps1` on the same zip, through `tools/release/win7-vm.sh smoke` | Robert's UTM VM "Windows 7 x86": a **real Windows 7** (build 7600), run as the user at its desktop by a scheduled task; everything it makes is in `C:\rapidr-matrix` and removed at the end | the VM started by Robert with somebody logged in at its desktop; the guest agent (`tools/win7/vm.sh exec ver`); the zip as for `win7`; the test-mode token (copied into `C:\rapidr-matrix` only). About 6 minutes: most of it is sending the 84 MB zip |
 
-The three machines work at the same time (`--serial` for one after the other). The script never
-starts, stops or reboots a VM (it resumes a paused one); a stopped VM is a red lane with the reason.
+The four machines (this Mac, the Ubuntu VM, the Windows 11 VM, the Windows 7 VM) work at the same time (`--serial`
+for one after the other). The script never starts, stops or reboots a VM (it resumes a paused Parallels one); a stopped
+VM is a red lane with the reason. The default run includes `win7real`, so a release gate needs Robert's Windows 7 VM up too.
 Everything a program writes goes to a temporary registry file, printer folder and settings folder, and
 `RAPIDR_AI_KEYSTORE=memory`: nothing touches the user's keychain or settings. `windows-vm.sh clean` and
 `linux-vm.sh clean` remove what the runs leave (`--dry-run` first).
@@ -79,15 +81,15 @@ Everything a program writes goes to a temporary registry file, printer folder an
 
 These are known, so a green matrix is not read as more than it is:
 
-- **Windows 7, 8, 8.1 and XP themselves.** No Windows 7 or XP VM can be driven from the Mac (Robert's UTM
-  machines have no guest agent: `tools/win7/README.md`). The Windows 7 zip is used for real in the
-  Windows 11 VM (x86 emulation), which proves the package: the files are right, Build works, the
-  built program starts. It does not prove Windows 7 accepts the program. Instead the matrix reads the
-  **import tables** of `rapidr.exe` and of both runner programs on the Mac (`tools/win7/imports.py`) and
-  calls any function Windows 7 lacks a red `other`: a program Windows 7 refuses to start is not a
-  program that runs. That check would have caught the six WinRT/COM functions of the runner stubs (below).
-  The last word is still starting the zip in the Windows 7 VM by hand (`tools/win7/alpha/VM-STEPS.txt`).
-  XP is not shipped (the XP *os error 123* is a separate lane).
+- **Windows 7 on real hardware; Windows 7 SP1 and updated; Windows 8, 8.1 and XP.** The `win7real` row runs the
+  zip on a real Windows 7 (build 7600, RTM, no updates) in UTM: its own loader, system DLLs and window manager, so a
+  missing function or a program Windows 7 refuses to start is seen for real (the same row on the zip as shipped
+  failed with the same Build error users saw). The PC around it is emulated (QEMU i386 on an Apple Silicon Mac: slow,
+  3 GB, no GPU driver, software drawing), so graphics drivers and speed are not tested. Windows 7 SP1 / updated,
+  8 and 8.1 (the same binary) have no VM; XP is not shipped (the XP *os error 123* is a separate lane). The `win7`
+  row keeps the **import-table check** on the Mac (`tools/win7/imports.py`: any function Windows 7 lacks is a red
+  `other`, and it names the function); the real row confirms it, and the Windows 11 row still proves the package
+  where Robert's Windows 7 VM is not running.
 - **Build Native on Linux x86_64.** The packages run by Rosetta in an aarch64 VM; there is no x86_64 Rust host
   there, and a native build through Rosetta would quietly build for the VM's own architecture. Needs a
   real x86_64 PC (or the user adding an x86_64 Ubuntu VM): the aarch64 rows cover the code path.
@@ -263,6 +265,64 @@ Windows 7 package, running by x86 emulation), `RapidR-2.122.1-windows-x64-gui-1.
 `RapidR-2.122.1-windows-x64-lk-cap-1.png` (an interpreted build that reads its data file) and
 `RapidR-2.122.1-windows-arm64-ide-1.png` (Studio).
 
+## Results: 2.122.1, part 2: the Linux rows and the real Windows 7 (2026-11-05, evening)
+
+`build-matrix.sh 2.122.1 --only linux,win7real` (with `MATRIX_WIN7_ZIP` the fixed zip, `P5_DELAY=15`), appended to
+`dist/2.122.1/build-matrix.txt`; the run itself is `build-matrix.partial.txt`, the logs `build-matrix/logs/`, and the
+real Windows 7 run on the zip *as shipped* (the "before") is `build-matrix/before-win7-fix/win7real-…log`. **ALL GREEN.**
+
+| system | package | run | Build (interp) | Build Native | built exe runs | other | time |
+|---|---|---|---|---|---|---|---|
+| Linux aarch64 | rapidr-2.122.1-linux-aarch64.tar.gz | ok | ok | ok | interp ok / native ok | ok | 4:38 |
+| Linux x86_64 (Rosetta) | rapidr-2.122.1-linux-x86_64.tar.gz | ok | ok | n/a | interp ok | ok | 1:39 |
+| Linux aarch64 | rapidr-runtime-2.122.1-linux-aarch64.tar.gz | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:01 |
+| Linux x86_64 (Rosetta) | rapidr-runtime-2.122.1-linux-x86_64.tar.gz | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:02 |
+| Linux x86_64 (Rosetta) | rapidr-runtime_2.122.1_amd64.deb | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:02 |
+| Linux aarch64 | rapidr-runtime_2.122.1_arm64.deb | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:01 |
+| Linux x86_64 (Rosetta) | rapidr_2.122.1_amd64.deb | ok | ok | n/a | interp ok | ok | 1:38 |
+| Linux aarch64 | rapidr_2.122.1_arm64.deb | ok | ok | ok | interp ok / native ok | ok | 4:41 |
+| Windows 7 (real, UTM VM) | RapidR-2.122.1-win7-x86-alpha1.zip (fixed) | ok | ok | n/a | interp ok | ok | 6:00 |
+| Windows 7 (real, UTM VM) | the zip as shipped | ok | **FAIL** | n/a | interp FAIL | ok | 3:03 |
+
+The shipped zip fails on the real Windows 7 with the first error users met: `could not build or find
+rapidrintr-runner.exe (cargo build -p rapidr-runner-stub)`. Build Native is `n/a` for the x86_64 rows (no x86_64 Rust host
+behind Rosetta) and for Windows 7 (no Rust for it): the aarch64 rows cover the native code path.
+
+**What was real and what was emulated**
+
+| Row | Ran on | Real or emulated |
+|---|---|---|
+| macOS (part 1) | this Mac, Apple Silicon | real hardware, native arm64; the universal x86_64 slice was not run |
+| Linux aarch64 | Ubuntu 24.04.3 ARM64 in Parallels | virtualised, not emulated: a real arm64 Linux on the Mac's CPU; native builds are real aarch64 builds |
+| Linux x86_64 | the same VM, Rosetta for Linux | translated: a real Linux kernel, but Apple's Rosetta runs the x86_64 programs, no x86 CPU; so run, Build (interpreted) and the built programs are real, no native build |
+| Windows ARM64 / x64 (part 1) | Windows 11 Pro ARM64 in Parallels | arm64 virtualised; x64 by Windows 11's own emulation |
+| Windows 7, `win7` (part 1) | the same Windows 11 VM | x86 emulation by Windows 11: proves the package, Windows 7 not involved |
+| **Windows 7, `win7real`** | Robert's UTM VM, **Windows 7 Ultimate x86 build 7600** (RTM, no updates, PowerShell 2.0, .NET 3.5) | **a real Windows 7** (its loader, DLLs, window manager) on an **emulated PC** (QEMU i386: slow, no GPU) |
+
+**What the real Windows 7 said** (log `build-matrix/logs/win7real-RapidR-2.122.1-win7-x86-alpha1.zip.log`):
+
+- Its loader starts `rapidr.exe`, `rapidrintr-runner.exe` and `rapidrintr-runnerw.exe`: no missing DLL, no missing entry
+  point. The static import check of the Mac (the `win7` row) is confirmed by the real loader.
+- `rapidr.exe __win7_check`: `RoGetActivationFactory`, `RoOriginateErrorW`, `PathCchStripPrefix` and `CoIncrementMTAUsage`
+  **are not on this Windows** and RapidR's stand-ins answer (`0x80040154`, `0`, `0x80004001`, `0x80004001`);
+  `CoCreateFreeThreadedMarshaler` and `CoTaskMemFree` are found in `ole32.dll`.
+- `rapidr run` of a console and a GUI program; **Build (interpreted)** of both with PATH and `CARGO_HOME` pointing nowhere
+  (a 54 MB program in 2 s); `hello.exe` prints; `gui.exe` shows its window (headless capture) and, started on the
+  desktop, stays up with a window; Studio starts headless.
+- The picture: `build-matrix/shots/win7-gui-hello.png` is the built program's window on the real desktop (Aero frame,
+  "RapidR on Windows 7") and `win7-desktop.png` the whole desktop (1728x1004, taskbar, the VM's clock).
+
+**What the Linux lane had wrong** (it had never run; commit `c14c6216`):
+
+- Nobody was logged in at the Ubuntu VM's desktop (it had just been started), and `prlctl exec --current-user` then answers
+  *"Unable to authenticate the user"* to every call. `tools/release/ubuntu-vm.sh` probes the user's own session three times and
+  otherwise works as root and hands the script to the VM's user (`runuser`). That needed three more things: Ubuntu's
+  `fs.protected_regular=2` (root cannot write a user-owned file in `/tmp`, the user cannot write a root-owned one: the root
+  calls have names of their own, and files for the user go straight into its home), root's `~` being `/`, and root's umask 077.
+- The x86_64 package's Preview 5 *Versions* check read its picture too early under Rosetta (`vertimeline.itemcount=2`, wanted 3)
+  at the 5 s default, once, in a run with both machines busy: `P5_DELAY` is now passed into the VM job (15 s: green).
+- A time Parallels dropped was recorded as `0:00`; it is asked again.
+
 ## What this lane found, for the lead
 
 - The Windows 7 runner programs, built as they were, **linked mingw-w64's Cephes-derived `cbrt` and `cbrtf`** (the project
@@ -276,3 +336,7 @@ Windows 7 package, running by x86 emulation), `RapidR-2.122.1-windows-x64-gui-1.
 - The zip grew from 34 MB to 84 MB: the two runner programs are 54 MB each (stripped), and every program Build makes is about
   that size.
 - `windows-vm.sh clean` must come after the matrix: it removes the release source the Windows native check reads.
+- The Ubuntu VM is shared with other lanes (the JIT's `~/rapidr-jit` and `/tmp/rapidr-jit-*` were there): `linux-vm.sh clean`
+  touches only `~/rapidr-release`, the build cache and the smoke tests' `/tmp` files, and lists the other folders without removing them.
+- The permanent fix of the shipped Windows 7 zip is `tools/win7/alpha.sh` (the stubs and the layout); the zip in `dist/2.122.1/out/` is
+  still the broken alpha1 (the matrix's `win7` and `win7real` rows on it are red until it is replaced: `MATRIX_WIN7_ZIP` points at the fixed one).
