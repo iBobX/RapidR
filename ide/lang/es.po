@@ -4137,6 +4137,11 @@ msgstr "{client} quiere mirar o usar tu programa en ejecución: {what}. Permitir
 msgid "{client} wants to ask RAI: {prompt}"
 msgstr "{client} quiere preguntarle a RAI: {prompt}"
 
+# legal
+#: ide/mcp.inc
+msgid "RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program."
+msgstr "RAI trabaja por su cuenta para ti, pero ante la pregunta de una aplicación de IA propone cambios para que los revises y pregunta antes de ejecutar tu programa."
+
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
 msgstr "{question} (esperan {n} más)"

@@ -148,7 +148,7 @@ The tools are the ones RAI, Studio's own assistant, uses, plus Studio's:
 | `open_project` | Opens a project or a program | change |
 | `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused) | run |
 | `debug` | Breakpoints, continue, step over / into / out, pause, the call stack and the variables | run |
-| `ask_rai` | Asks RAI as you would in its panel, and gives back its answer and steps | run (it may cost money: it uses your AI provider) |
+| `ask_rai` | Asks RAI as you would in its panel, and gives back its answer and steps. RAI only proposes for an AI app, even when you let it work on its own: its changes wait for your review, a run for your yes in its chat | run (it may cost money: it uses your AI provider) |
 | `app_layout`, `app_screenshot` | The running program's windows and controls in words (and what looks wrong), a picture of its windows | run (looking at or using the running program) |
 | `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks, types, presses keys, drags and scrolls in the running program, with a pointer you see | run (looking at or using the running program) |
 | `app_wait` | Lets the running program work on its own a moment, or until it is idle | look |

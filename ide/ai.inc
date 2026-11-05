@@ -31,6 +31,7 @@
 
 DECLARE SUB AIUpdate
 DECLARE SUB AIRunRequest
+DECLARE FUNCTION AIPermissionNow AS STRING
 DECLARE FUNCTION AISaveVersion(Message AS STRING) AS STRING
 DECLARE SUB AIShowNote
 DECLARE SUB AiLanguageChanged
@@ -1070,7 +1071,7 @@ SUB AIApplySettings
   IF AIMaxTokens > 0 THEN AI.MaxTokens = AIMaxTokens ELSE AI.MaxTokens = 32000
   AI.PriceIn = AIPriceIn
   AI.PriceOut = AIPriceOut
-  AITools.Permission = AIPermission
+  AITools.Permission = AIPermissionNow
   AITools.ReviewFirst = AIReviewFirst
   AIApplyReplyLanguage
   ' (the dial: Build or Coach, as the user left it — School Lock may keep
@@ -1603,6 +1604,16 @@ END SUB
 
 ' (a question to the assistant now: typed in the box, or the one queued)
 SUB AISendNow(T AS STRING, FromBox AS INTEGER)
+  ' (who asks it: an AI app's question — McpAskRai — is answered at
+  ' "propose" level, and RAI's changes it leads to are reviewed by the user
+  ' before RAI works on its own again — AIPermissionNow)
+  AIForApp = AIAskedByApp
+  AIAskedByApp = 0
+  IF AIForApp THEN
+    AIAppReview = 1
+  ELSEIF AITools.ProposalCount = 0 THEN
+    AIAppReview = 0
+  END IF
   ' (School Lock: nothing goes to an AI while it is off)
   IF LockOffAI THEN
     AIStatus.SimpleText = LockTitleText
@@ -1613,6 +1624,7 @@ SUB AISendNow(T AS STRING, FromBox AS INTEGER)
   AISyncProject
   AIReviewBar.Visible = 0
   AIProgressSaid = ""
+  AITools.Permission = AIPermissionNow
   IF AI.Ask(T) THEN
     IF FromBox THEN AIInput.Text = ""
   ELSE
@@ -1869,6 +1881,20 @@ SUB AINewChat
   AIInput.SetFocus
 END SUB
 
+' The permission RAI works with now: the user's (Tools > Settings > AI >
+' It may), but "Work on its own" is never an AI app's — the user said yes to
+' it for RAI, not for every app allowed to ask RAI once (the review of
+' 2026-11-05): a question an AI app asked (ask_rai) is answered at "propose"
+' level — its changes wait for the user's review, its runs for RAI's card —,
+' and so is every question until the user has decided on the changes it
+' left.
+FUNCTION AIPermissionNow AS STRING
+  Result = AIPermission
+  IF AIPermission <> "auto" THEN EXIT FUNCTION
+  IF AIForApp THEN Result = "propose"
+  IF AIAppReview AND AITools.ProposalCount > 0 THEN Result = "propose"
+END FUNCTION
+
 ' RAI's own Run (its run_program tool): Studio starts or stops the
 ' program with Run's and Stop's own commands, once (taken first).
 SUB AIRunRequest
@@ -1876,7 +1902,7 @@ SUB AIRunRequest
   ' (Tools > Settings > AI: "Work on its own": RAI's changes to the open
   ' project are applied at once — each one undoable, as Apply does — before
   ' anything it asked Studio to do; a new program keeps its usual way)
-  IF AIPermission = "auto" AND AIAutoApplying = 0 AND AITools.ProposalCount > 0 THEN
+  IF AIPermissionNow = "auto" AND AIAutoApplying = 0 AND AITools.ProposalCount > 0 THEN
     IF AIProjectProposal = 0 THEN
       AIAutoApplying = 1
       FOR i = 0 TO AITools.ProposalCount - 1
@@ -2052,8 +2078,9 @@ END SUB
 SUB AIShowReviewBar
   IF AITools.ProposalCount = 0 THEN EXIT SUB
   ' ("Work on its own": nothing for the user to review — Studio applies
-  ' RAI's changes itself; a new program still opens its usual way)
-  IF AIPermission = "auto" AND AIProjectProposal = 0 THEN EXIT SUB
+  ' RAI's changes itself; a new program still opens its usual way. Never
+  ' for an AI app's question: AIPermissionNow)
+  IF AIPermissionNow = "auto" AND AIProjectProposal = 0 THEN EXIT SUB
   IF AIProjectProposal THEN
     AIReviewBtn.Caption = TR$("Preview the New Program...")
     AIReviewBtn.AccessibleName = TR$("Preview the new program before it is created")

@@ -410,6 +410,13 @@ DIM AIReplyIn AS STRING
 DIM AIReviewFirst AS INTEGER
 ' (applying RAI's changes by itself — "Work on its own" — now: not twice)
 DIM AIAutoApplying AS INTEGER
+' ("Work on its own" is never an AI app's — ai.inc AIPermissionNow —: the
+' question being answered came from an AI app (ask_rai); the next one sent
+' does — set just before it is sent —; changes such a question led to still
+' wait for the user's review)
+DIM AIForApp AS INTEGER
+DIM AIAskedByApp AS INTEGER
+DIM AIAppReview AS INTEGER
 DIM AIPriceIn AS DOUBLE
 DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)

@@ -374,6 +374,15 @@ function script(first, results, system, messages = []) {
     }
     return { text: "I proposed three changes: review them and apply them." };
   }
+  // (an AI app's question through ask_rai while the user lets RAI work on
+  // its own: a change, then a run — tests/studio_mcp.mjs rai-auto. The last
+  // answer says what each tool answered, so the AI app's reply shows it)
+  if (q.startsWith("change and run")) {
+    if (step === 0) return { text: "Reading it first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: "Greets from RAI", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Changed by RAI"' }] } }] };
+    if (step === 2) return { tools: [{ name: "run_program", input: { action: "start", wait: 3 } }] };
+    return { text: "What happened: " + results.slice(1).map((r) => `${r.name}: ${String(r.content).replace(/\s+/g, " ").slice(0, 400)}`).join(" | ") };
+  }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
     if (step === 1) {

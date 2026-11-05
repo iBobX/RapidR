@@ -1,4 +1,4 @@
-<!-- translated-from: ai-apps.md 02d868f52aaf6157 -->
+<!-- translated-from: ai-apps.md ecefd7c985467294 -->
 # Deja que las aplicaciones de IA trabajen en Studio
 
 <!-- legal -->
@@ -170,7 +170,7 @@ Studio:
 | `open_project` | Abre un proyecto o un programa | cambiar |
 | `run_program` | Guarda, ejecuta el programa, espera unos segundos y devuelve su salida (o dónde se pausó) | ejecutar |
 | `debug` | Puntos de interrupción, continuar, pasar por encima / entrar en la llamada / salir de la llamada, pausar, la pila de llamadas y las variables | ejecutar |
-| `ask_rai` | Le pregunta a RAI como lo harías en su panel, y devuelve su respuesta y sus pasos | ejecutar (puede costar dinero: usa tu proveedor de IA) |
+| `ask_rai` | Le pregunta a RAI como lo harías en su panel, y devuelve su respuesta y sus pasos. Para una aplicación de IA, RAI solo propone, incluso si lo dejas trabajar por su cuenta: sus cambios esperan tu revisión, y una ejecución, tu sí en su chat | ejecutar (puede costar dinero: usa tu proveedor de IA) |
 | `app_layout`, `app_screenshot` | Las ventanas y los controles del programa en ejecución en palabras (y lo que se ve mal), una imagen de sus ventanas | ejecutar (mirar o usar el programa en ejecución) |
 | `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Hace clic, escribe, presiona teclas, arrastra y se desplaza en el programa en ejecución, con un puntero que ves | ejecutar (mirar o usar el programa en ejecución) |
 | `app_wait` | Deja que el programa en ejecución trabaje por su cuenta un momento, o hasta que esté inactivo | mirar |

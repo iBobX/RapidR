@@ -1,4 +1,4 @@
-<!-- translated-from: app-eyes-and-hands.md 6e34ee11c79e5336 -->
+<!-- translated-from: app-eyes-and-hands.md ffc2ce4f7accd152 -->
 # Los ojos y las manos de un programa: RWindowCapture y RAppHands
 
 Un programa de RapidR puede ver sus propias ventanas y usarlas como lo haría una
@@ -215,8 +215,10 @@ con la misma tarjeta, **RAI quiere ejecutar tu programa**, una vez por cada
 ejecución: **Permitir en esta ejecución** lo inicia y le deja mirar, hacer clic y
 escribir en esa ejecución; **No permitir** le responde que no. Si lo dejas
 trabajar por su cuenta (Herramientas > Configuración > IA > Puede hacer), no
-pregunta: ya dijiste que sí una vez, en la pregunta de esa opción. En el modo
-Coach y con solo lectura, RAI no ejecuta tu programa.
+pregunta: ya dijiste que sí una vez, en la pregunta de esa opción. Una pregunta
+que una aplicación de IA le hace a RAI (`ask_rai`) igual pregunta primero, y los
+cambios que deja esperan tu revisión. En el modo Coach y con solo lectura, RAI
+no ejecuta tu programa.
 
 <!-- legal -->
 **Lo que ve la IA.** Una imagen o el informe de disposición muestra todo lo que
