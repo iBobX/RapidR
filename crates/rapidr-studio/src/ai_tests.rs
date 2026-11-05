@@ -1576,7 +1576,7 @@ fn run_program_asks_first_while_rai_proposes() {
     assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
     assert!(!h.waits_for_user(&ticket));
     call(t, "runrequesttaken", &[]);
-    crate::session::test_run_started();
+    crate::session::tests::test_run_started();
     let out = h.finish_call("run_program", &ticket).expect("answered once the run started");
     assert!(!out.is_error && out.content.contains("It ran and ended"), "{}", out.content);
     assert!(app_card(&h).contains("You allowed RAI to run and use your program"), "{}", app_card(&h));
@@ -1701,7 +1701,7 @@ fn auto_permission_and_its_tool_calls() {
     set(t, "mode", &s("build"));
     set(t, "permission", &s("propose"));
     assert_eq!(h.max_tool_calls(), None);
-    assert!(AUTO_TOOL_CALLS > rapidr_ai::rai::MAX_TOOL_CALLS);
+    const { assert!(AUTO_TOOL_CALLS > rapidr_ai::rai::MAX_TOOL_CALLS) };
 }
 
 /// "Work on its own": Studio tries each set of waiting changes once

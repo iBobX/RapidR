@@ -1026,8 +1026,14 @@ mod browser {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    /// A run of the user's program started (and ended at once, as a short
+    /// console program does): RAI's run_program sees it (ai_tests.rs).
+    pub(crate) fn test_run_started() {
+        RUNS.with(|n| n.set(n.get() + 1));
+    }
 
     /// A picture a Studio left behind (a crash, a kill) goes at the next
     /// start once it is a minute old; anything else in the folder stays.
@@ -1128,13 +1134,4 @@ mod tests {
         assert_eq!(split_args(r#""""#), [""]);
         assert!(split_args("  ").is_empty());
     }
-}
-
-// (after the code: the translators' extractor reads up to the first
-// test-only item)
-/// Tests: a run of the user's program started (and ended at once, as a
-/// short console program does).
-#[cfg(test)]
-pub(crate) fn test_run_started() {
-    RUNS.with(|n| n.set(n.get() + 1));
 }
