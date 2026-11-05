@@ -53,8 +53,13 @@ foreach ($p in @("loop10m", "fcalls", "dsp_scalars", "calls")) {
 if (Test-Path $node) {
     Write-Host "== conformance (the interpreter, and RAPIDR_JIT=always)"
     try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
-    & $node tests\conformance\run.mjs --backend vm,vm-jit *> "$W\conformance.txt"
-    $c = Get-Content "$W\conformance.txt"
+    # (each run its own file and work folder: a run left behind by a VM that was paused
+    # mid-way holds the last one's)
+    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $env:CONFORMANCE_WORK = "$W\conformance-work-$stamp"
+    & $node tests\conformance\run.mjs --backend vm,vm-jit *> "$W\conformance-$stamp.txt"
+    $c = Get-Content "$W\conformance-$stamp.txt"
+    cmd /c "rmdir /s /q `"$env:CONFORMANCE_WORK`" 2>nul" | Out-Null
     $c | Where-Object { $_ -match "^FAIL|^XPASS|passed," } | Select-Object -First 60 | Write-Host
     $c | Where-Object { $_ -match "^\s+\|" } | Select-Object -First 40 | Write-Host
     if (-not (($c -join "`n") -match "\d+ passed, \d+ known failures \(xfail\), 0 failed")) { $fail = 1 }

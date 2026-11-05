@@ -471,10 +471,15 @@ a copy run interpreted, 32 voices, the share of a 10 ms block):
 - x86-64: the JIT's tests (every edge value) and the whole conformance
   suite both ways pass with an x86-64 build run under Rosetta on this Mac —
   the code generator's x86-64 backend, not only its ARM one.
-- Windows 11 ARM64 VM: `tools/release/windows-vm.sh jit` (and
-  `Target=x86_64-pc-windows-msvc`) builds the branch there and runs the
-  JIT's tests and conformance both ways — the VM was suspended by the host
-  during the lane's run (not resumed: the lane doesn't start VMs); to be
-  run when it is up. The Ubuntu VM was stopped: Linux untested (its
-  SELinux-style refusal of executable memory is the probe's error case,
-  not a kill — to be seen there).
+- Linux ARM64 (the Ubuntu 24.04 VM, `tools/release/linux/jit-check.sh`):
+  built there from the branch, the JIT's tests (every edge value) pass, the
+  conformance suite both ways (668 runs) passes; wall time with / without
+  the JIT: `loop10m` 54 / 327 ms, `fcalls` 21 / 460, `dsp_scalars` 26 /
+  313, `calls` 15 / 87. The code generator's own memory (read + write, then
+  read + execute) is what runs there. A system that refuses executable
+  memory (SELinux's execmem) is the start-up probe's error case, not a
+  kill — not seen on Ubuntu's defaults.
+- Windows (`tools/release/windows-vm.sh jit`, and
+  `jit Target=x86_64-pc-windows-msvc` for x86-64 under Windows' own
+  emulation): see the lane's report for the runs; the commands build the
+  branch in the VM and run the same checks.
