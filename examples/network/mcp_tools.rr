@@ -52,7 +52,7 @@ CREATE Form AS RForm
     CREATE LogLabel AS RLabel
         Caption = "What AI apps did": Left = 286: Top = 76
     END CREATE
-    CREATE Log AS RListBox
+    CREATE LogList AS RListBox
         Left = 286: Top = 96: Width = 250: Height = 220
         AccessibleName = "What AI apps did"
     END CREATE
@@ -85,8 +85,8 @@ END FUNCTION
 SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
     DIM t AS STRING
     Calls = Calls + 1
-    Log.AddItems Mcp.ClientName + ": " + Tool
-    Log.ItemIndex = Log.ItemCount - 1
+    LogList.AddItems Mcp.ClientName + ": " + Tool
+    LogList.ItemIndex = LogList.ItemCount - 1
     SELECT CASE Tool
         CASE "list_notes"
             t = NotesText("")
@@ -111,11 +111,11 @@ SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
 END SUB
 
 SUB ClientIn (Client AS STRING)
-    Log.AddItems Client + " connected"
+    LogList.AddItems Client + " connected"
 END SUB
 
 SUB ClientOut (Client AS STRING)
-    Log.AddItems Client + " left"
+    LogList.AddItems Client + " left"
 END SUB
 
 SUB StartClick

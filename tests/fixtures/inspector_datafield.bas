@@ -16,7 +16,7 @@ CREATE Form AS RFORM
     CREATE Surface AS RDESIGNSURFACE
         Left = 300: Top = 8: Width = 320: Height = 300
     END CREATE
-    CREATE Log AS RLABEL
+    CREATE Trace AS RLABEL
         Left = 300: Top = 320: Width = 320
         Visible = 0
     END CREATE
@@ -27,11 +27,11 @@ CREATE Form AS RFORM
 END CREATE
 
 SUB Changed (Prop AS STRING, Value AS STRING)
-    Log.Caption = Log.Caption + Prop + "=" + Value + " | "
+    Trace.Caption = Trace.Caption + Prop + "=" + Value + " | "
 END SUB
 
 SUB Report
-    Log.Caption = Log.Caption + "[" + Insp.TargetType + " " + Insp.Value("DataField") + "]"
+    Trace.Caption = Trace.Caption + "[" + Insp.TargetType + " " + Insp.Value("DataField") + "]"
 END SUB
 
 ' (the designed form made through the surface's API, as a build without

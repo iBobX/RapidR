@@ -34,7 +34,7 @@ DIM Frame AS RBitmap                      ' the screen as the machine makes it: 
 CREATE Form AS RForm
     Caption = "Video Memory": ClientWidth = 512 + 32: ClientHeight = 384 + 72
     Center
-    CREATE Screen AS RCanvas: Left = 16: Top = 20: Width = 512: Height = 384: OnPaint = Present: AccessibleName = "Screen": AccessibleDescription = "The video memory drawn as pixels": END CREATE
+    CREATE Display AS RCanvas: Left = 16: Top = 20: Width = 512: Height = 384: OnPaint = Present: AccessibleName = "Screen": AccessibleDescription = "The video memory drawn as pixels": END CREATE
     CREATE RunBtn AS RButton: Caption = "&Run": Left = 16: Top = 412: Width = 100: Height = 30: OnClick = RunClick: END CREATE
     CREATE FrameBtn AS RButton: Caption = "&Frame": Left = 124: Top = 412: Width = 100: Height = 30: OnClick = NextFrame: END CREATE
     CREATE RepaintBtn AS RButton: Caption = "Re&paint": Left = 232: Top = 412: Width = 100: Height = 30: OnClick = RepaintClick: END CREATE
@@ -75,7 +75,7 @@ END SUB
 ' --- the screen: the whole decoded copy, in two calls ---
 SUB Present                                        ' (also the canvas's OnPaint: the window needs all of it)
     Frame.SetPixels8 pix, palette, 256, 192                      ' colour numbers -> colours
-    Screen.StretchDraw 0, 0, 256 * SCALE, 192 * SCALE, Frame     ' twice as large, every pixel crisp
+    Display.StretchDraw 0, 0, 256 * SCALE, 192 * SCALE, Frame     ' twice as large, every pixel crisp
 END SUB
 
 SUB RepaintClick                                  ' how long a full repaint takes: 50, timed

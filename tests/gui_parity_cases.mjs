@@ -59,16 +59,16 @@ export const cases = [
   // fit; the form inspected (QFORM), then both buttons (their Captions
   // differ: blank); the search "cap"; the columns' line dragged 30 right.
   { name: "panel_inspector", events: "insp.__mousedown_200_237,insp.__mouseup_200_237,insp.__enter,insp.__key_68,insp.__key_69,insp.__key_70,insp.__mousedown_164_404,insp.__mouseup_164_404,insp.__mousedown_60_206,insp.__mouseup_60_206,insp.__mousedown_270_206,insp.__mouseup_270_206,insp.__key_40,insp.__key_40,insp.__key_13,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__mousedown_196_352,insp.__mouseup_196_352,insp.__key_67,insp.__key_85,insp.__key_46,insp.__mousedown_140_46,insp.__mouseup_140_46,insp.__dblclick_60_104,insp.__mousedown_285_104,insp.__mouseup_285_104,insp.__key_40,insp.__key_13,bform.onclick,breport.onclick,bboth.onclick,insp.__mousedown_40_46,insp.__mouseup_40_46,insp.__mousedown_100_76,insp.__mouseup_100_76,insp.__key_67,insp.__key_65,insp.__key_80,insp.__mousedown_150_126,insp.__mousemove_180_126,insp.__mouseup_180_126,breport.onclick",
-    dump: "log.caption",
-    expect: ["log.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=18 OnClose= nw=148] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=178] | "] },
+    dump: "trace.caption",
+    expect: ["trace.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=18 OnClose= nw=148] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=178] | "] },
   // RPROPERTYINSPECTOR following an RDESIGNSURFACE (its designer model):
   // Caption typed, NameEdit picked on the surface (the inspector follows),
   // its Hint typed, OkButton picked again, its top anchor pin turned off,
   // the program's own Speed (AddProperty) typed; the surface's GetProp
   // reads what the inspector wrote.
   { name: "panel_inspector_designer", events: "insp.__mousedown_200_237,insp.__mouseup_200_237,insp.__enter,surface.__mousedown_52_120,surface.__mouseup_52_120,insp.__key_72,insp.__key_73,insp.__key_113,insp.__enter,surface.__mousedown_52_82,surface.__mouseup_52_82,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__key_83,insp.__key_80,insp.__key_69,insp.__key_113,insp.__key_57,insp.__key_13,breport.onclick",
-    dump: "log.caption",
-    expect: ["log.caption=Caption=Renamed | Hint=Renamed | Anchors=akLeft | Speed=9 | [QBUTTON Renamed akLeft Renamed 9]"] },
+    dump: "trace.caption",
+    expect: ["trace.caption=Caption=Renamed | Hint=Renamed | Anchors=akLeft | Speed=9 | [QBUTTON Renamed akLeft Renamed 9]"] },
   // RPROJECTTREE (I1 / L-PANELS, rapidr_value::panels::project_tree): a
   // project given as text (LoadText, SetFileText). Form1.rr opened by its
   // chevron, Button1 double-clicked (OnSelect, OnOpen "Form1.rr#Button1"),
@@ -405,8 +405,8 @@ export const cases = [
   // the designer hears its form's (the timer is in the tray strip).
   { name: "design_surface",
     events: "ds.__mousedown_55_84,ds.__mousemove_68_90,ds.__mouseup_68_90,ds.__mousedown_138_101,ds.__mousemove_155_114,ds.__mouseup_155_114,ds.__mousedown_275_154,ds.__mouseup_275_154,ds.__dblclick_175_74,btn.onclick",
-    dump: "lbl.caption,log.caption",
-    expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "log.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"] },
+    dump: "lbl.caption,trace.caption",
+    expect: ["lbl.caption=4|Main|Label1|RCHECKBOX|Button1||3|Tick|32,24,96,40|208|&H00FFFF|Label1|Other|300", "trace.caption=s0/m0:32,24,80,24/m0:32,24,96,40/b250,100/s2/d2/"] },
   { name: "code_editor", events: "btn.onclick", dump: "lbl.caption",
     expect: ['lbl.caption=7|SUB Hello(x AS INTEGER)|118|0|Hello/Twice|4,70|  PRINT|  BEEP "hi" \' greet|37|33|0'] },
   // (S-EDITOR) the debugger's markers drawn in the gutter and over the
@@ -566,8 +566,8 @@ export const cases = [
   // (name, age, city): NameEdit selected on the surface, the DataField row
   // (Down twice, under its category), F4, Down, Enter — "age".
   { name: "inspector_datafield", events: "insp.__key_40,insp.__key_40,insp.__key_115,insp.__key_40,insp.__key_13,breport.onclick",
-    dump: "log.caption",
-    expect: ["log.caption=DataField=age | [REDIT age]"] },
+    dump: "trace.caption",
+    expect: ["trace.caption=DataField=age | [REDIT age]"] },
   // (DEBUG-2) RapidR's OnEnter / OnExit: the form shown (the name entered),
   // Tab three times round (each leaving, then the next entered; Other has
   // no handlers), a click on Greet (left, entered, then its OnClick)
@@ -580,7 +580,7 @@ export const cases = [
     dump: "steps.caption",
     expect: ["steps.caption= oops fine outer changed oops fine"] },
   // (DEBUG-2) The events a program's own sets fire on a shown form (RC.EXE's)
-  { name: "set_events", events: "go.onclick", dump: "log.caption", expect: ["log.caption=log e r r c b s"] },
+  { name: "set_events", events: "go.onclick", dump: "trace.caption", expect: ["trace.caption=log e r r c b s"] },
   { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
     dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
     expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },

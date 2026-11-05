@@ -29,7 +29,7 @@ CREATE Form AS QFORM
   CREATE Lbl AS QLABEL
     Top = 256: Width = 440
   END CREATE
-  CREATE Log AS QLABEL
+  CREATE Trace AS QLABEL
     Top = 280: Width = 440
   END CREATE
   CREATE Btn AS QBUTTON
@@ -47,23 +47,23 @@ Lbl.Caption = STR$(DS.CompCount) + "|" + DS.FormCaption + "|" + DS.GetName(1) + 
 Form.ShowModal
 
 SUB Sel(Index AS INTEGER)
-  Log.Caption = Log.Caption + "s" + STR$(Index) + "/"
+  Trace.Caption = Trace.Caption + "s" + STR$(Index) + "/"
 END SUB
 
 SUB Moved(Index AS INTEGER, X AS INTEGER, Y AS INTEGER, W AS INTEGER, H AS INTEGER)
-  Log.Caption = Log.Caption + "m" + STR$(Index) + ":" + STR$(X) + "," + STR$(Y) + "," + STR$(W) + "," + STR$(H) + "/"
+  Trace.Caption = Trace.Caption + "m" + STR$(Index) + ":" + STR$(X) + "," + STR$(Y) + "," + STR$(W) + "," + STR$(H) + "/"
 END SUB
 
 SUB Dbl(Index AS INTEGER)
-  Log.Caption = Log.Caption + "d" + STR$(Index) + "/"
+  Trace.Caption = Trace.Caption + "d" + STR$(Index) + "/"
 END SUB
 
 SUB Bg(X AS INTEGER, Y AS INTEGER)
-  Log.Caption = Log.Caption + "b" + STR$(X) + "," + STR$(Y) + "/"
+  Trace.Caption = Trace.Caption + "b" + STR$(X) + "," + STR$(Y) + "/"
 END SUB
 
 SUB Down(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
-  Log.Caption = Log.Caption + "DOWN/"
+  Trace.Caption = Trace.Caption + "DOWN/"
 END SUB
 
 SUB Report

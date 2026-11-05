@@ -34,7 +34,7 @@ CREATE Form AS RForm
     Width = 300
     Height = 280
     Center
-    CREATE Time AS RLabel
+    CREATE TimeLabel AS RLabel
         Caption = "0:00.0": Left = 20: Top = 12: Width = 260: Height = 50
         Font.Size = 28
         Alignment = 2        ' centred
@@ -65,7 +65,7 @@ CREATE Form AS RForm
 END CREATE
 
 SUB Tick
-    Time.Caption = Shown(Elapsed)
+    TimeLabel.Caption = Shown(Elapsed)
 END SUB
 
 SUB StartStop

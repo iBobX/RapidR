@@ -310,6 +310,10 @@ pub(crate) struct Output {
     pub text: String,
     pub segs: Vec<Segment>,
     pub line_map: Vec<crate::LineOrigin>,
+    /// The lines of each file's text put in (the program's, each file it
+    /// `$INCLUDE`s, each RapidR library), nested ones too: (first line,
+    /// count), indices of `line_map`.
+    pub file_regions: Vec<(usize, usize)>,
     entries: usize,
     /// Where the `\n` after the last entry comes from: (file, offset of the
     /// source `\n`), or the end of its file when it had none.
@@ -345,6 +349,9 @@ impl Output {
         let base = self.text.len();
         self.text.push_str(&nested.text);
         self.segs.extend(nested.segs.into_iter().map(|s| Segment { pp_start: s.pp_start + base, pp_end: s.pp_end + base, ..s }));
+        let first = self.line_map.len();
+        self.file_regions.push((first, nested.line_map.len()));
+        self.file_regions.extend(nested.file_regions.into_iter().map(|(at, n)| (first + at, n)));
         self.line_map.extend(nested.line_map);
         self.pending_newline = Some(newline);
     }

@@ -389,6 +389,10 @@ pub struct PreprocessResult {
     /// Every `$INCLUDE` followed (in an `$IFDEF` branch this build
     /// compiles), in the order read, and what each found.
     pub includes: Vec<IncludeUse>,
+    /// Where each file's text is in `source`: the program's, each file it
+    /// `$INCLUDE`s (nested ones too), each RapidR library — (first line,
+    /// number of lines), as indices of `line_map`. [`Self::file_ends`].
+    pub file_regions: Vec<(usize, usize)>,
 }
 
 /// One `$INCLUDE` of a program and what it read.
@@ -597,6 +601,7 @@ fn finish(out: Output, state: PpState) -> PreprocessResult {
         resources: state.resources,
         origins: OriginMap { files: state.files, segments: out.segs },
         includes: state.includes,
+        file_regions: out.file_regions,
     }
 }
 
@@ -656,7 +661,11 @@ fn preprocess_program(source: &str, encoding: SourceEncoding, base_dir: &Path, f
     }
     let rapidr_program = file_path.as_deref().is_some_and(is_rapidr_program_path);
     let (main, main_id) = preprocess_with_state(source, encoding, base_dir, file_path.clone(), state)?;
+    // (the program's own text is no region of its own: its blocks end where
+    // the program does — PreprocessResult::file_ends)
+    let own = out.file_regions.len();
     out.push_output(main, (main_id, source.len(), false));
+    out.file_regions.remove(own);
     // A RapidR program's mark (RAPIDR_PROGRAM): a last line no file has,
     // as `$OPTION CONSOLE CP437` is (preprocess_file).
     if rapidr_program {
@@ -1070,6 +1079,27 @@ fn preprocess_with_state(
 }
 
 impl PreprocessResult {
+    /// For each line of `source` (index = line - 1), the last line (from 1)
+    /// of the text of the file it is in, this time it was put in: where a
+    /// block that starts on the line must end (a block never runs on into
+    /// the file that `$INCLUDE`d it — rapidr_parser). A file's own
+    /// `$INCLUDE`s are inside it; lines no file's text holds (a RapidR
+    /// program's mark) end at the last line.
+    pub fn file_ends(&self) -> Vec<usize> {
+        let n = self.line_map.len();
+        let mut ends = vec![n; n];
+        // (outer regions first: a nested one, later, overwrites its lines)
+        let mut regions = self.file_regions.clone();
+        regions.sort_by_key(|&(first, count)| (first, std::cmp::Reverse(count)));
+        for (first, count) in regions {
+            let last = (first + count).min(n);
+            for end in &mut ends[first.min(n)..last] {
+                *end = last;
+            }
+        }
+        ends
+    }
+
     /// Rewrites `main:LINE:COL: …` positions in compiler messages (whose
     /// LINE counts preprocessed lines) to the file and line the code really
     /// came from, e.g. `windows.inc:120:5: …` for code in an include.
@@ -1116,6 +1146,7 @@ impl PreprocessResult {
     /// file, that file is included twice, and the message says so.
     pub fn resolve_places(&self, main: &str, own: Option<usize>, text: &str) -> String {
         let own = own.and_then(|l| self.origin_of_line(main, l));
+        let text = &rapidr_diagnostics::resolve_own_place_marks(text, |offset| self.origin_of(main, offset).map(|(file, line)| format!("{file}:{line}")));
         rapidr_diagnostics::resolve_place_marks(text, |offset| {
             let (file, line) = self.origin_of(main, offset)?;
             if own.as_ref() == Some(&(file.clone(), line)) {

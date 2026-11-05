@@ -64,6 +64,16 @@ pub const MESSAGES: &[Message] = &[
     m("RQ0015", "Too many actual parameters for {name}"),
     m("RQ0016", "Expected end-of-line"),
     m("RQ0017", "Expected {expected}"),
+    // (a block left open: RC.EXE says these as warnings and builds no
+    // program — the parser's Parser::missing_closer; RapidR's words follow
+    // them, after ` — `)
+    m("RQ0018", "Missing {closer} statement"),
+    m("RQ0019", "Missing END SUB or END FUNCTION"),
+    m("RQ0020", "Missing END STRUCT before end of file."),
+    // (a global named twice, or named like a built-in: rapidr_ast's
+    // global_name_clashes and builtin_name_clashes)
+    m("RQ0021", "{name} identifier already in use, try another name"),
+    m("RQ0022", "CONST variable {name} already defined"),
     // ---- RapidR's ----
     m("RR0001", "Syntax error in {word} statement (did you mean {fix}?)"),
     m("RR0002", "Syntax error in {word} statement"),
@@ -105,6 +115,25 @@ pub const MESSAGES: &[Message] = &[
     m("RR0032", "&& is not a logical AND in RapidR (& joins text), so this test is never what was meant"),
     m("RR0033", "{name} is not RapidR: nothing is printed"),
     m("RR0034", "{name} is a {inc} constant — add $INCLUDE \"{inc}\""),
+    // (a block left open, in RapidR's words: the parser's
+    // Parser::missing_closer — after RC.EXE's words in a classic program)
+    m("RR0035", "{block} ({place}) has no {closer}: a bare END ({end}) ends the program; write {closer} there"),
+    m("RR0036", "{block} ({place}) has no {closer} before {next} ({at}): write {closer} above it"),
+    m("RR0037", "{block} ({place}) has no {closer} in its file: a block ends in the file it starts in — write {closer} there"),
+    m("RR0038", "{block} ({place}) has no {closer}: write {closer} where it ends"),
+    // (a global named like a built-in: rapidr_ast::builtin_name_clashes —
+    // after RC.EXE's words in a classic program)
+    m("RR0039", "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the variable {other}"),
+    m("RR0040", "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the component {other}"),
+    m("RR0041", "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the constant {other}"),
+    m("RR0042", "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the SUB {other}"),
+    m("RR0043", "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the FUNCTION {other}"),
+    // (a file that isn't UTF-8: rapidr_langsvc::diagnostics::encodings)
+    m("RR0044", "{file} mixes two encodings: byte {byte} on line {line} isn't UTF-8 (Windows-1252 reads it as {char}), so the whole file is read as Windows-1252 and its UTF-8 characters show wrong — retype that character and save the file as UTF-8"),
+    m("RR0045", "{file} isn't UTF-8: byte {byte} on line {line} is read as Windows-1252 ({char}) — save the file as UTF-8 (in a text editor: Save with Encoding, UTF-8)"),
+    // (what follows RC.EXE's words for a global named twice: rapidr_ast's
+    // global_name_clashes)
+    m("RR0046", "it is declared in {place} already: a global name — a variable, CONST, SUB, FUNCTION or component, in any capitals — is the program's once; a SUB's own variables and parameters may reuse it"),
 ];
 
 /// The message with ID `id`.
@@ -128,7 +157,10 @@ pub fn identify(text: &str) -> Option<(&'static Message, Vec<(String, String)>, 
     for m in MESSAGES {
         let ps = parts(m.en);
         let mut values = Vec::new();
-        if match_from(&ps, 0, text, &mut values, false).is_some() {
+        // (a value never holds a clause of its own: `Missing END SUB or END
+        // FUNCTION — SUB Go (…) has no END SUB …` is RC.EXE's message with
+        // RapidR's after it, not RapidR's with a block named all that)
+        if match_from(&ps, 0, text, &mut values, false).is_some() && !values.iter().any(|(_, v)| v.contains(" — ")) {
             return Some((m, values, String::new()));
         }
     }
@@ -261,6 +293,11 @@ pub fn localized(text: &str, tag: &str) -> Option<(String, &'static Message)> {
     let (m, values, tail) = identify(text)?;
     let t = translation(m.id, &tag)?;
     let filled = rapidr_i18n::fill(&t, |name| values.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| v.clone()));
+    // (RapidR's words after RC.EXE's, ` — ` between: a message too)
+    let tail = match tail.strip_prefix(" — ").and_then(|rest| localized(rest, &tag)) {
+        Some((rest, _)) => format!(" — {rest}"),
+        None => tail,
+    };
     Some((format!("{filled}{tail}"), m))
 }
 
@@ -282,7 +319,7 @@ pub fn localize_report(report: &str, tag: &str) -> String {
                 if let Some(i) = line.find(mark) {
                     let (head, msg) = line.split_at(i + mark.len());
                     return match localized(msg, tag) {
-                        Some((t, m)) if m.rapidq() => format!("{head}{t} [{msg}]"),
+                        Some((t, m)) if m.rapidq() => format!("{head}{t} [{}]", msg.split(" — ").next().unwrap_or(msg)),
                         Some((t, _)) => format!("{head}{t}"),
                         None => line.to_string(),
                     };
@@ -354,6 +391,27 @@ mod tests {
         assert_eq!(identify("EXIT FOR is not inside a FOR loop").unwrap().0.id, "RR0009");
         assert!(identify("EXIT FOR is not inside a DO loop").is_none_or(|(m, _, _)| m.id != "RR0009"));
         assert!(identify("Something nobody says").is_none());
+    }
+
+    #[test]
+    fn rapidr_words_after_rcexes_are_identified_and_translated_too() {
+        let classic = "Missing END SUB or END FUNCTION — SUB Go (b.inc:2) has no END SUB: a bare END (b.inc:4) ends the program; write END SUB there";
+        let (m, _, tail) = identify(classic).unwrap();
+        assert_eq!((m.id, tail.starts_with(" — SUB Go")), ("RQ0019", true));
+        let (m, v, _) = identify("SUB Go (b.rr:2) has no END SUB: a bare END (b.rr:4) ends the program; write END SUB there").unwrap();
+        assert_eq!((m.id, v[0].1.as_str(), v[1].1.as_str()), ("RR0035", "SUB Go", "b.rr:2"));
+        assert_eq!(identify("FOR i (a.rr:3) has no NEXT: write NEXT where it ends").unwrap().0.id, "RR0038");
+        assert_eq!(identify("IF (inc.rr:1) has no END IF in its file: a block ends in the file it starts in — write END IF there").unwrap().0.id, "RR0037");
+        assert_eq!(identify("Missing NEXT statement — FOR K (quest.bas:16) has no NEXT: write NEXT where it ends").unwrap().0.id, "RQ0018");
+        assert_eq!(identify("Timer is the name of the builtin TIMER: the program can't tell them apart, so name the component PollTimer").unwrap().0.id, "RR0040");
+        let ansi = "ansi.rr isn't UTF-8: byte 0xF1 on line 1 is read as Windows-1252 (ñ) — save the file as UTF-8 (in a text editor: Save with Encoding, UTF-8)";
+        let (m, v, tail) = identify(ansi).unwrap();
+        assert_eq!((m.id, v.len(), tail.as_str()), ("RR0045", 4, ""), "{v:?}");
+        assert!(localize(ansi, "es").starts_with("ansi.rr no es UTF-8"), "{}", localize(ansi, "es"));
+        let es = localize(classic, "es");
+        assert!(!es.contains("Missing") && !es.contains("has no") && es.contains("SUB Go") && es.contains("b.inc:4"), "{es}");
+        let report = localize_report(&format!("b.inc:2:1: error: {classic}"), "es");
+        assert!(report.ends_with("[Missing END SUB or END FUNCTION]"), "{report}");
     }
 
     #[test]

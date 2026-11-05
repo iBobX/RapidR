@@ -27,7 +27,7 @@ DECLARE SUB Louder
 DECLARE SUB Moved (Position AS LONG)
 
 DIM Midi AS RMIDI
-DIM Out AS RFileStream
+DIM OutFile AS RFileStream
 DIM Song(1023) AS INTEGER     ' the file's bytes
 DIM SongLen AS LONG, LastTick AS LONG
 
@@ -127,11 +127,11 @@ END SUB
 ' The song in a file RMIDI can open.
 FUNCTION WriteSong (path AS STRING) AS INTEGER
     DIM k AS LONG
-    Out.Open path, fmCreate
+    OutFile.Open path, fmCreate
     FOR k = 0 TO SongLen - 1
-        Out.WriteByte Song(k)
+        OutFile.WriteByte Song(k)
     NEXT
-    Out.Close
+    OutFile.Close
     WriteSong = FILEEXISTS(path)
 END FUNCTION
 

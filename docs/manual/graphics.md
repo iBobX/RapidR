@@ -34,7 +34,7 @@ obvious way is a loop of `Pset`:
 ```basic
 FOR y = 0 TO 191
     FOR x = 0 TO 255
-        Screen.Pset x, y, colour(y * 256 + x)       ' 49,152 calls
+        Display.Pset x, y, colour(y * 256 + x)       ' 49,152 calls
     NEXT
 NEXT
 ```
@@ -119,7 +119,7 @@ that bitmap on the canvas, larger:
 
 ```basic
 Frame.SetPixels8 Indexes, Palette, 256, 192
-Screen.StretchDraw 0, 0, 512, 384, Frame        ' x, y, width, height, picture
+Display.StretchDraw 0, 0, 512, 384, Frame        ' x, y, width, height, picture
 ```
 
 `StretchDraw` takes the rectangle as four numbers (RapidR's; the older

@@ -1198,7 +1198,9 @@ fn check_files(args: &[String]) -> ExitCode {
     let lang = rapidr_diagnostics::messages::cli_language();
     let mut errors = 0;
     for path in files {
-        let text = match fs::read_to_string(path) {
+        // (as the compiler reads a program: UTF-8, else Windows-1252 — the
+        // language service says when a file is read so)
+        let text = match rapidr_preprocessor::read_source(Path::new(path)) {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("{path}: {e}");
@@ -1245,7 +1247,7 @@ fn compile_to_bytecode_plain(path: &str) -> Result<rapidr_bcgen::Compiled, Strin
     let tokens = rapidr_lexer::Lexer::new(&pre.source, Some(path.to_string()))
         .tokenize()
         .map_err(|e| remap(e.to_string()))?;
-    let program = rapidr_parser::parse_tokens(&tokens).map_err(|mut e| {
+    let program = rapidr_parser::parse_tokens_in_files(&tokens, &pre.file_ends()).map_err(|mut e| {
         for d in &mut e.diagnostics {
             d.file_path.get_or_insert_with(|| path.to_string());
         }

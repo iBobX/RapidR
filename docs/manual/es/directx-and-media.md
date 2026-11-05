@@ -100,20 +100,20 @@ reproduce en un hilo propio y nunca espera al programa.
 ![El generador de tonos tocando La4: botones de onda, controles deslizantes de frecuencia y volumen y un botón Stop a la izquierda; a la derecha, la pantalla de un osciloscopio con tres ciclos de una onda senoidal y la lectura “440.0 Hz sine, playing: 60 ms queued, 0 gaps”](../images/media/tone-generator.png)
 
 ```basic
-DIM Sound AS RAudioOut
+DIM Speaker AS RAudioOut
 DIM phase AS DOUBLE
 
 SUB Feed (Count AS INTEGER)                 ' el flujo pide Count muestras
     DIM buf(Count - 1) AS INTEGER, i AS INTEGER
     FOR i = 0 TO Count - 1
         buf(i) = SIN(phase) * 6000          ' un tono suave de 440 Hz
-        phase = phase + 2 * 3.14159265 * 440 / Sound.SampleRate
+        phase = phase + 2 * 3.14159265 * 440 / Speaker.SampleRate
     NEXT
-    Sound.Write buf, Count
+    Speaker.Write buf, Count
 END SUB
 
-Sound.OnNeedData = Feed
-Sound.Start
+Speaker.OnNeedData = Feed
+Speaker.Start
 ```
 
 - **Muestras.** De forma predeterminada una muestra es un número de 16 bits de

@@ -15,7 +15,11 @@ RapidR also accepts some syntax the classic language doesn't (VB's `#If`, `ON ER
   are accepted too: `.rqw`, `.rqb` and
   `.rq` (run, built, opened in RapidR Studio and `$INCLUDE`d like a `.bas`).
   A file is read as UTF-8; one that isn't valid UTF-8 is read as
-  Windows-1252 (ANSI), as older programs usually are.
+  Windows-1252 (ANSI), as older programs usually are. A `.rr` file read
+  so, and any file that mixes UTF-8 with such bytes (its UTF-8 accents
+  and Chinese then show wrong: `中文` as `ä¸­æ–‡`), gets a warning at the
+  first such byte, with the fix: `ui_logic.rr mixes two encodings: byte
+  0xF1 on line 498 isn't UTF-8 …`.
 - **Case doesn't matter** in keywords, names, components and builtins.
 - `:` separates statements on a line; `_` at the end of a line continues it
   (a string may continue too).
@@ -664,6 +668,20 @@ An error in included code points at the include file and line.
   globals.rr:12 already`. A SUB or FUNCTION that no file has names the
   nearest ones: `Unknown SUB or FUNCTION 'ShowNumbr' — did you mean
   ShowNumber?`.
+- A block that isn't closed is an error at the line that opens it, with
+  the fix: `SUB StartApp (ui_logic.rr:487) has no END SUB: a bare END
+  (ui_logic.rr:512) ends the program; write END SUB there`. In a `.rr`
+  program a block ends in the file it starts in: one left open in an
+  `$INCLUDE`d file never runs on into the file that includes it. A
+  `.bas` program gets the classic compiler's words first (`Missing END
+  SUB or END FUNCTION — …`) and, as there, no program is built.
+- A global named like a builtin — `CREATE Timer AS RTimer`, `SUB Left$`,
+  `CONST Len = 3` — is an error, because the program couldn't tell the
+  two apart (every `TIMER` would be the component): `Timer is the name of
+  the builtin TIMER: the program can't tell them apart, so name the
+  component PollTimer`. A variable is one only when the program reads the
+  builtin through it: `DIM Len AS INTEGER` beside a `LEN(s)`, or a builtin
+  written bare such as `TIMER`.
 - The editor also warns about code that compiles but can't be right:
   `IF NOT FILEEXISTS(f) THEN` is always true, because FILEEXISTS gives 1
   for yes and `NOT 1` is -2. The warning's quick fix (Ctrl+.) writes
@@ -736,10 +754,11 @@ be translated like any message.
 | `a && b` (compiles, but joins text: a warning) | `a AND b` | `hint.and-and` |
 | `for i in range(10)`, `for (i = 0; i < 10; i++)`, `FOR EACH x IN list` | `FOR i = 1 TO 10 … NEXT i`; a list: `FOR i = 0 TO List.ItemCount - 1` | `hint.for-foreign` |
 | `END FOR`, `END WHILE`, `END DO` | `NEXT`, `WEND`, `LOOP` | `hint.end-loop` |
-| a FOR, WHILE, DO, IF or SELECT never closed (the classic compiler's *Missing NEXT statement* …, a warning) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
+| a FOR, WHILE, DO, IF or SELECT never closed (an error; the classic compiler's *Missing NEXT statement* … first in a `.bas`) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
 | `ELSE IF c THEN` (a second IF that needs its own `END IF`) | `ELSEIF c THEN` | `hint.else-if` |
 | `elif c THEN` | `ELSEIF c THEN` | `hint.elseif` |
 | `ENDIF` | `END IF` | `hint.endif` |
+| a global declared twice, often in two `$INCLUDE`d files (`CONST variable ANSI_CHARSET already defined`) | one of the two renamed, or the second one deleted (or only one of the two files `$INCLUDE`d) | `hint.duplicate` |
 | `ENDSUB`, `ENDFUNCTION`, `ENDSELECT`, `ENDWITH` | `END SUB`, `END FUNCTION`, `END SELECT`, `END WITH` | `hint.endword` |
 | `IF a = 1` without `THEN` | `IF a = 1 THEN` | `hint.if-then` |
 | `IF a THEN x` on one line, then `ELSE y` on the next | `IF a THEN x ELSE y` on one line, or a block `IF a THEN` … `ELSE` … `END IF` | `hint.else-line` |

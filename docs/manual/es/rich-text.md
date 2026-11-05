@@ -68,9 +68,9 @@ añade a continuación en el cursor — hasta que el cursor se mueve. Así un
 registro puede dar color a cada línea que añade:
 
 ```basic
-Log.SelStart = LEN(Log.Text)
-Log.SelAttributes.Color = &H008000
-Log.AddStrings "Conectado."
+LogView.SelStart = LEN(LogView.Text)
+LogView.SelAttributes.Color = &H008000
+LogView.AddStrings "Conectado."
 ```
 
 `AddStrings` añade sus líneas al final del texto y deja el cursor después de
