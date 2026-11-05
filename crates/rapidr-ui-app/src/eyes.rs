@@ -424,7 +424,10 @@ pub fn layout_text(report: &Json) -> String {
         out.push_str(&head);
         out.push('\n');
         for c in w["components"].as_array().into_iter().flatten() {
-            let mut line = format!("  {} ({})", c["name"].as_str().unwrap_or(""), c["type"].as_str().unwrap_or(""));
+            // (a part of a dialog RapidR made by its short name — b0 —, the
+            // one the tools take)
+            let name = c["name"].as_str().unwrap_or("");
+            let mut line = format!("  {} ({})", crate::hands::short_name(name).unwrap_or(name), c["type"].as_str().unwrap_or(""));
             if let Some(cap) = c["caption"].as_str() {
                 line.push_str(&format!(" \"{cap}\""));
             }

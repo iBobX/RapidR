@@ -1,0 +1,3 @@
+# A message box's button pressed through the running program's hands
+# (app_click by the name app_layout shows, or the caption). One turn.
+Make a program with a button Greet that shows a message box saying Hi there. Run it, click Greet, then press OK on the message box, and tell me what the message box said.

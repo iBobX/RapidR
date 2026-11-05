@@ -17,16 +17,17 @@
 ' Paused in the debugger, the program can be looked at but not used: the
 ' program's runtime says where it is paused and to continue it first.
 '
-' Included by mcp.inc after its globals (mcp.inc lists its tools — once
-' the user confirmed the first-time question's version 2, which names them
-' —, decides, asks and runs them: the lines marked "mcpapp.inc" there).
+' The tools themselves — names, descriptions, schemas — are RapidR
+' Studio's one tool set (crates/rapidr-studio/src/toolset.rs), the same
+' RAI uses; the request to the program is built once, for both
+' (McpTools.AppRequest). Included by mcp.inc after its globals (mcp.inc
+' lists the tools — once the user confirmed the first-time question's
+' version 2, which names them —, decides, asks and runs them: the lines
+' marked "mcpapp.inc" there).
 
-DECLARE SUB McpAppTools
 DECLARE SUB McpAppSetUp
-DECLARE SUB McpAppRun(Tool AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
-DECLARE SUB McpAppArg(CallId AS INTEGER, Arg AS STRING, Key AS STRING)
+DECLARE SUB McpAppRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE SUB McpAppReplied(Id AS INTEGER, Ok AS INTEGER, Text AS STRING, Picture AS STRING)
-DECLARE FUNCTION McpAppQ(Text AS STRING) AS STRING
 
 ' (the calls waiting for the program's answer: the session's request id,
 ' the AI app's call, what it was)
@@ -43,65 +44,21 @@ DIM McpAppSending AS INTEGER
 ' (the run in which the user allowed an AI app to use the program — its
 ' RunStarted: Allow Once lasts the run)
 DIM McpAppRunAllowed AS DOUBLE
-' (the request being made)
-DIM McpAppJ AS RJson
-
-' A description with ` for each double quote (a BASIC string can't hold one).
-FUNCTION McpAppQ(Text AS STRING) AS STRING
-  Result = REPLACESUBSTR$(Text, "`", CHR$(34))
-END FUNCTION
-
-' The tools, said for small models: what each does, an example call.
-SUB McpAppTools
-  Mcp.AddTool "app_layout", McpAppQ("What the running program shows now, in words: each of its windows, then each control's name, type, caption or text, and place (at x,y size w×h, inside the window), and what a person would see wrong (text cut off, controls on top of each other). Call it before app_click. Example: {} for every window, or {`Window`: `Form1`}."), "[Window AS STRING]", "change"
-  Mcp.AddTool "app_screenshot", McpAppQ("A picture (PNG) of the running program's windows — only the program's own, never the screen or other apps. Example: {} for all its windows side by side; {`Window`: `Form1`, `Scale`: `1x`} for one window at its own pixel size; Frame: false without its title bar; Cursor: true with the pointer an AI app moves."), "[Window AS STRING], [Scale AS STRING], [Frame AS BOOLEAN], [Cursor AS BOOLEAN]", "change"
-  Mcp.AddTool "app_click", McpAppQ("Clicks in the running program as a person would (the user sees a pointer do it). Name the control by Caption (the text on it), by Name, by the Label beside it, or give a point (x, y from app_layout). Example: {`Caption`: `7`}; also {`Name`: `btnSave`}, {`Label`: `Name`}, {`Window`: `Form1`, `X`: 30, `Y`: 55}. Double: true double-clicks; Button: `right` right-clicks. Says what it clicked — or, when nothing matches, what there is."), "[Caption AS STRING], [Name AS STRING], [Label AS STRING], [Window AS STRING], [X AS INTEGER], [Y AS INTEGER], [Double AS BOOLEAN], [Button AS STRING]", "change"
-  Mcp.AddTool "app_type", McpAppQ("Types text into the running program: clicks the control first, then types it key by key. Example: {`Label`: `Name`, `Text`: `Ada`} or {`Name`: `txtSearch`, `Text`: `cats`}; without a control, into what has the keyboard."), "Text AS STRING, [Label AS STRING], [Name AS STRING], [Caption AS STRING], [Window AS STRING]", "change"
-  Mcp.AddTool "app_key", McpAppQ("Presses keys in the running program: Enter, Tab, Escape, Backspace, Up, Down, F5, Ctrl+S, Shift+Tab … several separated by spaces. Example: {`Keys`: `Ctrl+A Backspace`}. Name, Caption or Label gives that control the keyboard first."), "Keys AS STRING, [Name AS STRING], [Caption AS STRING], [Label AS STRING]", "change"
-  Mcp.AddTool "app_drag", McpAppQ("Drags in the running program: presses on a control (or at X, Y), moves to ToX, ToY in the same window, lets go. Example: {`Name`: `Slider1`, `ToX`: 180, `ToY`: 20}."), "ToX AS INTEGER, ToY AS INTEGER, [Name AS STRING], [Caption AS STRING], [Label AS STRING], [Window AS STRING], [X AS INTEGER], [Y AS INTEGER]", "change"
-  Mcp.AddTool "app_scroll", McpAppQ("Turns the mouse wheel over a control of the running program: Notches down (3 by default), negative for up. Example: {`Name`: `List1`, `Notches`: 5}."), "[Name AS STRING], [Caption AS STRING], [Label AS STRING], [Window AS STRING], [X AS INTEGER], [Y AS INTEGER], [Notches AS INTEGER]", "change"
-  Mcp.AddTool "app_wait", McpAppQ("Lets the running program work on its own: Ms milliseconds (its timers, a download), or with Idle: true until it has nothing left to run (at most Ms). Example: {`Ms`: 500}."), "[Ms AS INTEGER], [Idle AS BOOLEAN]", "read"
-END SUB
 
 SUB McpAppSetUp
   Session.OnApp = McpAppReplied
 END SUB
 
-' An argument of the AI app's call, when given, into the request (McpAppJ).
-SUB McpAppArg(CallId AS INTEGER, Arg AS STRING, Key AS STRING)
-  DIM v AS STRING
-  v = Mcp.Argument(Arg, CallId)
-  IF v <> "" THEN McpAppJ.Set Key, v
-END SUB
-
 ' A call allowed: the request to the program; its answer comes as
 ' Session's OnApp (McpAppReplied).
-SUB McpAppRun(Tool AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
-  DIM id AS INTEGER, n AS INTEGER, k AS INTEGER
+SUB McpAppRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
+  DIM id AS INTEGER, n AS INTEGER, k AS INTEGER, req AS STRING
   IF McpAppCount >= MCPAPPWAITS THEN
     Mcp.Reply CallId, "Too many calls to the program are waiting for its answer: wait for them first.", 1
     EXIT SUB
   END IF
-  McpAppJ.Parse "{}"
-  McpAppJ.Set "do", MID$(Tool, 5)
-  McpAppArg CallId, "Window", "window"
-  McpAppArg CallId, "Name", "name"
-  McpAppArg CallId, "Caption", "caption"
-  McpAppArg CallId, "Label", "label"
-  McpAppArg CallId, "X", "x"
-  McpAppArg CallId, "Y", "y"
-  McpAppArg CallId, "Text", "text"
-  McpAppArg CallId, "Keys", "keys"
-  McpAppArg CallId, "ToX", "to_x"
-  McpAppArg CallId, "ToY", "to_y"
-  McpAppArg CallId, "Notches", "dy"
-  McpAppArg CallId, "Ms", "ms"
-  McpAppArg CallId, "Idle", "idle"
-  McpAppArg CallId, "Double", "double"
-  McpAppArg CallId, "Button", "button"
-  McpAppArg CallId, "Scale", "scale"
-  McpAppArg CallId, "Frame", "frame"
-  McpAppArg CallId, "Cursor", "cursor"
+  ' (the program's request, the same RAI's calls make)
+  req = McpTools.AppRequest(Tool, Arguments)
   n = McpAppCount
   McpAppId(n) = 0
   McpAppCall(n) = CallId
@@ -112,7 +69,7 @@ SUB McpAppRun(Tool AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRIN
   ' (an answer at once — the program isn't running — comes before App
   ' returns: McpAppReplied knows it by McpAppSending)
   McpAppSending = CallId
-  id = Session.App(McpAppJ.Stringify)
+  id = Session.App(req)
   McpAppSending = 0
   FOR k = 0 TO McpAppCount - 1
     IF McpAppCall(k) = CallId AND McpAppId(k) = 0 THEN

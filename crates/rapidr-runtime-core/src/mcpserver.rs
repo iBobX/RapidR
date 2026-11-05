@@ -100,6 +100,21 @@ struct ResourceDef {
 struct Defs {
     tools: Vec<ToolDef>,
     resources: Vec<ResourceDef>,
+    /// Old names still answered, never listed (AddAlias): (alias, tool).
+    aliases: Vec<(String, String)>,
+    /// The program's prompts (AddPrompt): ready-made instructions an AI
+    /// app's person can pick (prompts/list, prompts/get).
+    prompts: Vec<PromptDef>,
+}
+
+/// A prompt the program offers: its name, title, what it is for, and the
+/// text it gives (one user message).
+#[derive(Clone, Debug)]
+struct PromptDef {
+    name: String,
+    title: String,
+    description: String,
+    text: String,
 }
 
 /// An earlier revision's session (initialize's Mcp-Session-Id).
@@ -205,7 +220,16 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Value {
             d.tools.len() != n
         }) as i64),
         "cleartools" => {
-            with_defs(&name, |d| d.tools.clear());
+            with_defs(&name, |d| {
+                d.tools.clear();
+                d.aliases.clear();
+            });
+            v_null()
+        }
+        "addalias" => v_int(add_alias(&name, &text(0), &text(1)) as i64),
+        "addprompt" => v_int(add_prompt(&name, &text(0), &text(1), &text(2), &text(3)) as i64),
+        "clearprompts" => {
+            with_defs(&name, |d| d.prompts.clear());
             v_null()
         }
         "toolcount" => v_int(with_defs(&name, |d| d.tools.len()) as i64),
@@ -341,6 +365,70 @@ fn params_schema(text: &str) -> Result<Json, String> {
         }
     }
     Ok(json!({"type": "object", "properties": props, "required": required, "additionalProperties": false}))
+}
+
+/// AddAlias: calls of `alias` (an old name a connected AI app may still
+/// use) are calls of `tool`, which the program gets under the tool's own
+/// name; the alias is never listed. False (Error says why) when either
+/// isn't a tool name.
+fn add_alias(name: &str, alias: &str, tool: &str) -> bool {
+    let (alias, tool) = (alias.trim(), tool.trim());
+    let good = |t: &str| !t.is_empty() && t.len() <= 128 && t.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'));
+    if !good(alias) || !good(tool) || alias == tool {
+        rp_comp_set(name, "error", v_str(&format!("AddAlias: \"{alias}\" for \"{tool}\" isn't an old name for a tool")));
+        return false;
+    }
+    with_defs(name, |d| {
+        d.aliases.retain(|(a, _)| a != alias);
+        d.aliases.push((alias.to_string(), tool.to_string()));
+    });
+    true
+}
+
+/// AddPrompt: a ready-made instruction the AI app's person can pick (MCP's
+/// prompts) — its name (letters, digits, _ - .), title, what it is for, and
+/// its text, given as one user message. Added again: replaced.
+fn add_prompt(name: &str, prompt: &str, title: &str, description: &str, text: &str) -> bool {
+    let prompt = prompt.trim();
+    if prompt.is_empty() || prompt.len() > 128 || !prompt.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')) {
+        rp_comp_set(name, "error", v_str(&format!("AddPrompt: \"{prompt}\" isn't a prompt name (1 to 128 letters, digits, _ - .)")));
+        return false;
+    }
+    if text.trim().is_empty() {
+        rp_comp_set(name, "error", v_str(&format!("AddPrompt {prompt}: its text is empty")));
+        return false;
+    }
+    let def = PromptDef { name: prompt.to_string(), title: title.trim().to_string(), description: description.to_string(), text: text.to_string() };
+    with_defs(name, |d| match d.prompts.iter_mut().find(|p| p.name == def.name) {
+        Some(p) => *p = def,
+        None => d.prompts.push(def),
+    });
+    true
+}
+
+fn prompts_list(name: &str) -> Json {
+    let list: Vec<Json> = with_defs(name, |d| {
+        d.prompts
+            .iter()
+            .map(|p| {
+                let mut j = json!({"name": p.name, "description": p.description, "arguments": []});
+                if !p.title.is_empty() {
+                    j["title"] = json!(p.title);
+                }
+                j
+            })
+            .collect()
+    });
+    json!({"prompts": list})
+}
+
+/// prompts/get: the prompt's text as one user message, or why not.
+fn prompts_get(name: &str, body: &Json) -> Result<Json, String> {
+    let wanted = body.pointer("/params/name").and_then(Json::as_str).unwrap_or("");
+    match with_defs(name, |d| d.prompts.iter().find(|p| p.name == wanted).cloned()) {
+        Some(p) => Ok(json!({"description": p.description, "messages": [{"role": "user", "content": {"type": "text", "text": p.text}}]})),
+        None => Err(format!("Unknown prompt: {wanted}. The prompts are: {}.", with_defs(name, |d| d.prompts.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ")))),
+    }
 }
 
 fn add_resource(name: &str, uri: &str, title: &str, description: &str, mime: &str) -> bool {
@@ -933,7 +1021,11 @@ fn modern_request(name: &str, a: Arrived, body: &Json, header_version: Option<St
         "tools/list" => send_json(&a, 200, &[], &result_message(&id, with_type(tools_list(name), true))),
         "resources/list" => send_json(&a, 200, &[], &result_message(&id, with_type(resources_list(name), true))),
         "resources/templates/list" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete", "resourceTemplates": []}))),
-        "prompts/list" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete", "prompts": []}))),
+        "prompts/list" => send_json(&a, 200, &[], &result_message(&id, with_type(prompts_list(name), true))),
+        "prompts/get" => match prompts_get(name, &body) {
+            Ok(r) => send_json(&a, 200, &[], &result_message(&id, with_type(r, true))),
+            Err(why) => send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &why)),
+        },
         "logging/setLevel" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete"}))),
         "tools/call" | "resources/read" => call(name, a, body, id, client, true),
         _ => send_json(&a, 404, &[], &error_message(&id, METHOD_NOT_FOUND, &format!("Method not found: {method}"))),
@@ -966,6 +1058,9 @@ fn describe(name: &str) -> (Info, Json) {
     let mut caps = json!({"tools": {}, "logging": {}});
     if with_defs(name, |d| !d.resources.is_empty()) {
         caps["resources"] = json!({});
+    }
+    if with_defs(name, |d| !d.prompts.is_empty()) {
+        caps["prompts"] = json!({});
     }
     (info, caps)
 }
@@ -1037,7 +1132,11 @@ fn legacy(name: &str, a: Arrived, body: &Json, sid: &str) {
         "tools/list" => send_json(&a, 200, &[], &result_message(&id, tools_list(name))),
         "resources/list" => send_json(&a, 200, &[], &result_message(&id, resources_list(name))),
         "resources/templates/list" => send_json(&a, 200, &[], &result_message(&id, json!({"resourceTemplates": []}))),
-        "prompts/list" => send_json(&a, 200, &[], &result_message(&id, json!({"prompts": []}))),
+        "prompts/list" => send_json(&a, 200, &[], &result_message(&id, prompts_list(name))),
+        "prompts/get" => match prompts_get(name, body) {
+            Ok(r) => send_json(&a, 200, &[], &result_message(&id, r)),
+            Err(why) => send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &why)),
+        },
         "tools/call" | "resources/read" => call(name, a, body, id, client, false),
         _ => send_json(&a, 200, &[], &error_message(&id, METHOD_NOT_FOUND, &format!("Method not found: {method}"))),
     }
@@ -1056,7 +1155,9 @@ fn call(name: &str, a: Arrived, body: &Json, id: Json, client: String, modern: b
         }
         (Kind::Resource, uri, json!({}))
     } else {
-        let tool = params.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+        let asked = params.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+        // (an old name: its tool's call, under the tool's own name)
+        let tool = with_defs(name, |d| d.aliases.iter().find(|(a, _)| a.eq_ignore_ascii_case(&asked)).map(|(_, t)| t.clone())).unwrap_or(asked);
         let Some(def) = with_defs(name, |d| d.tools.iter().find(|t| t.name == tool).cloned()) else {
             let known = with_defs(name, |d| d.tools.iter().map(|t| t.name.clone()).collect::<Vec<_>>().join(", "));
             return send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &format!("Unknown tool: {tool}. The tools are: {known}.")));
@@ -1440,6 +1541,56 @@ mod tests {
         assert_eq!(answer["result"], json!({}));
         assert_eq!(clients_of(name), vec!["old-app".to_string()]);
         stop(name);
+    }
+
+    /// An old name (AddAlias) is its tool's call, never listed; prompts
+    /// (AddPrompt) are listed and given, the capability said — on the
+    /// current revision as on the earlier ones.
+    #[test]
+    fn aliases_and_prompts() {
+        let name = "mcp-test-aliases";
+        test_server(name);
+        assert!(add_tool(name, "check_code", "Compiles.", "", "read"));
+        assert!(add_alias(name, "get_problems", "check_code"));
+        assert!(!add_alias(name, "check_code", "check_code"), "a tool isn't its own alias");
+        assert!(add_prompt(name, "rapidr-way", "Work the RapidR way", "How to work on this project", "1. studio_status\n2. find_example"));
+        assert!(!add_prompt(name, "bad name", "", "", "x"));
+        let modern = |method: &str, id: i64, params: Json, named: Option<&str>| {
+            let mut p = params;
+            p["_meta"] = json!({META_VERSION: MODERN[0], META_CLIENT: {"name": "alias-test", "version": "1"}});
+            let mut headers = vec![("MCP-Protocol-Version", MODERN[0]), ("Mcp-Method", method)];
+            if let Some(n) = named {
+                headers.push(("Mcp-Name", n));
+            }
+            posted(name, &headers, &json!({"jsonrpc": "2.0", "id": id, "method": method, "params": p}))
+        };
+        let (status, answer, _) = modern("tools/list", 1, json!({}), None);
+        assert_eq!(status, 200, "{answer}");
+        let names: Vec<&str> = answer["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
+        assert_eq!(names, ["check_code"], "the alias isn't listed");
+        let (_, answer, _) = modern("server/discover", 2, json!({}), None);
+        assert_eq!(answer["result"]["capabilities"]["prompts"], json!({}), "{answer}");
+        let (_, answer, _) = modern("prompts/list", 3, json!({}), None);
+        assert_eq!(answer["result"]["prompts"][0]["name"], json!("rapidr-way"), "{answer}");
+        assert_eq!(answer["result"]["prompts"][0]["title"], json!("Work the RapidR way"));
+        let (_, answer, _) = modern("prompts/get", 4, json!({"name": "rapidr-way"}), Some("rapidr-way"));
+        assert_eq!(answer["result"]["messages"][0]["content"]["text"], json!("1. studio_status\n2. find_example"), "{answer}");
+        assert_eq!(answer["result"]["messages"][0]["role"], json!("user"));
+        let (_, answer, _) = modern("prompts/get", 5, json!({"name": "nope"}), Some("nope"));
+        assert_eq!(answer["error"]["code"], json!(INVALID_PARAMS), "{answer}");
+        // (the old name's call: kept for the program as the tool's own)
+        let (status, answer, _) = modern("tools/call", 6, json!({"name": "get_problems", "arguments": {}}), Some("get_problems"));
+        assert_eq!(status, 0, "kept for the program, not answered yet: {answer}");
+        let kept: Vec<String> = with_server(name, |s| s.calls.values().map(|c| c.name.clone()).collect()).unwrap_or_default();
+        assert_eq!(kept, ["check_code"]);
+        // (an earlier revision lists them too)
+        let (_, answer, head) = posted(name, &[], &json!({"jsonrpc": "2.0", "id": 7, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "old", "version": "1"}}}));
+        assert_eq!(answer["result"]["capabilities"]["prompts"], json!({}), "{answer}");
+        let sid = head.lines().find_map(|l| l.strip_prefix("Mcp-Session-Id: ")).map(str::trim).unwrap_or("").to_string();
+        let (_, answer, _) = posted(name, &[("Mcp-Session-Id", &sid)], &json!({"jsonrpc": "2.0", "id": 8, "method": "prompts/get", "params": {"name": "rapidr-way"}}));
+        assert!(answer["result"]["messages"][0]["content"]["text"].as_str().unwrap_or("").contains("studio_status"), "{answer}");
+        stop(name);
+        DEFS.with(|d| d.borrow_mut().remove(name));
     }
 
     #[test]

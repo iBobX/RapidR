@@ -18,7 +18,10 @@
 //   "say one louder"   read the main file, then propose_edit PRINT "ONE" → "ONE!"
 //   "change and run …" read the main file, propose_edit its greeting, run_program,
 //                      and say what each tool answered (ask_rai: studio_mcp.mjs)
-//   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
+//   "keep versions …"  studio_status, start_versions, save_version, propose_edit,
+//                      check_code, run_program, save_version, list_versions,
+//                      how_do_i, and say what each answered (studio_mcp.mjs rai-versions)
+//   "rename …"        read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "break …"          read_file the main file, then propose_edit: a `DIM … AS BOOLEAN`
 //                      (a type RapidR doesn't have) before its form: a change that leaves an error
 //   "build me …"       create_project: a hello-form program (it compiles)
@@ -398,6 +401,24 @@ function script(first, results, system, messages = []) {
     if (step === 1) return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: "Greets from RAI", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Changed by RAI"' }] } }] };
     if (step === 2) return { tools: [{ name: "run_program", input: { action: "start", wait: 3 } }] };
     return { text: "What happened: " + results.slice(1).map((r) => `${r.name}: ${String(r.content).replace(/\s+/g, " ").slice(0, 400)}`).join(" | ") };
+  }
+  // (RAI keeps versions with Studio's own tools — the one tool set AI apps
+  // use too, docs/ai-tools.md: tests/studio_mcp.mjs rai-versions. The last
+  // answer says what each tool answered)
+  if (q.startsWith("keep versions")) {
+    const plan = [
+      { name: "studio_status", input: {} },
+      { name: "start_versions", input: {} },
+      { name: "save_version", input: { message: "Before RAI's change" } },
+      { name: "propose_edit", input: { path: mainFile, summary: "Greets from RAI", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Changed by RAI"' }] } },
+      { name: "check_code", input: {} },
+      { name: "run_program", input: { action: "start", wait: 3 } },
+      { name: "save_version", input: { message: "RAI's change works" } },
+      { name: "list_versions", input: {} },
+      { name: "how_do_i", input: { task: "versions" } },
+    ];
+    if (step < plan.length) return { tools: [plan[step]] };
+    return { text: "What happened: " + results.map((r) => `${r.name}: ${String(r.content).replace(/\s+/g, " ").slice(0, 900)}`).join(" | ") };
   }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };

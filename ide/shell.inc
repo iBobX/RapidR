@@ -558,6 +558,7 @@ SUB StartStudio
   SetUpVersions
   SetUpExternal
   SetUpMcp
+  SetUpTools
   SetUpSchoolLock
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (a layout saved before Versions was a tab of its own: it is put back)

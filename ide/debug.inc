@@ -1121,8 +1121,8 @@ SUB ProgramOutput(Text AS STRING)
   IF Text <> "" THEN RunOutputSeen = 1
   OutputBox.Write Text
   AITools.AddRunOutput Text
-  ' (AI apps' read_output: mcp.inc)
-  McpProgramOutput Text
+  ' (read_output and run_program, RAI's and AI apps': tools.inc)
+  ToolsProgramOutput Text
   IF Text <> "" THEN OutputUnendedLine = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 

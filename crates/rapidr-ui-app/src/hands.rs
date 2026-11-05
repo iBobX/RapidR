@@ -406,6 +406,15 @@ pub fn find(desk: &mut Desktop, store: &dyn Store, t: &Target) -> Result<Found, 
                 return Ok(Found { form: f.clone(), comp: Some(n.id.clone()), at: center(n), what: said_comp(store, &n.id, &n.type_name) });
             }
         }
+        // (a part of a dialog RapidR made — a message box's button
+        // `rapidr:dlg1:b0` — by its short name, b0, as app_layout lists
+        // it: the front window's first)
+        for f in &forms {
+            let ui = &desk.forms[f].ui;
+            if let Some(n) = ui.nodes.iter().find(|n| n.shown && short_name(&n.id).is_some_and(|s| s.eq_ignore_ascii_case(name))) {
+                return Ok(Found { form: f.clone(), comp: Some(n.id.clone()), at: center(n), what: said_comp(store, &n.id, &n.type_name) });
+            }
+        }
     }
     // (by caption: buttons first, then whatever shows that caption)
     if let Some(cap) = t.caption.as_deref().map(clean).filter(|c| !c.is_empty()) {
@@ -435,6 +444,13 @@ pub fn find(desk: &mut Desktop, store: &dyn Store, t: &Target) -> Result<Found, 
     Err(not_found(desk, store, t, &forms))
 }
 
+/// The short name of a part of a dialog RapidR made (`rapidr:dlg1:b0` →
+/// `b0`): what app_layout shows and the tools take; `None` for the
+/// program's own components.
+pub fn short_name(id: &str) -> Option<&str> {
+    id.strip_prefix("rapidr:").and_then(|rest| rest.rsplit_once(':')).map(|(_, s)| s).filter(|s| !s.is_empty())
+}
+
 /// What to say when nothing matches: what was asked for, and what there is
 /// (the buttons' captions, the names), so the next call can be right.
 fn not_found(desk: &Desktop, store: &dyn Store, t: &Target, forms: &[String]) -> String {
@@ -453,7 +469,7 @@ fn not_found(desk: &Desktop, store: &dyn Store, t: &Target, forms: &[String]) ->
             } else if !cap.is_empty() {
                 others.push(cap.clone());
             }
-            names.push(n.id.clone());
+            names.push(short_name(&n.id).unwrap_or(&n.id).to_string());
         }
     }
     let list = |v: &[String]| {

@@ -50,7 +50,10 @@ pub mod recipes;
 pub mod recovery;
 pub mod repository;
 pub mod school_lock;
+pub mod policy;
 pub mod session;
+pub mod tools_core;
+pub mod toolset;
 
 pub use rapidr_session::Transport;
 

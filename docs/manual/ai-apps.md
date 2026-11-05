@@ -128,7 +128,8 @@ Changes an AI app makes go into Studio's editors, unsaved, as yours would:
 
 ## The tools
 
-The tools are the ones RAI, Studio's own assistant, uses, plus Studio's:
+The tools are RapidR Studio's one tool set — the same RAI, Studio's own
+assistant, uses (only the last group is AI apps' alone):
 
 | Tool | What it does | Kind |
 |---|---|---|
@@ -136,22 +137,30 @@ The tools are the ones RAI, Studio's own assistant, uses, plus Studio's:
 | `list_files`, `read_file` | The project's files, a file's text (the editor's, unsaved changes included) | look |
 | `project_outline` | Files in include order, forms, SUBs and FUNCTIONs, globals | look |
 | `rapidr_list`, `rapidr_get` | The forms' components and their properties, from the source | look |
-| `rapidr_describe`, `search_manual`, `find_example` | RapidR's help: a component or builtin, the manual, a working example | look |
-| `check_code`, `get_problems` | The compiler's errors and warnings, and the forms' layout problems | look |
+| `rapidr_describe`, `search_manual`, `find_example` | RapidR's help: a component or builtin, the manual, working code — a recipe, or RapidR's examples found by their file name, the components they use or their words | look |
+| `how_do_i` | The steps, with the exact tools, for a task: change code, fix an error, debug a crash, add a form, learn a component, start a new app, test the running app, versions | look |
+| `check_code` | The compiler's errors and warnings, each with a hint in RapidR's form | look |
 | `layout_report` | Each form's components with their places and sizes, and what looks wrong (cut off, on top of each other, a caption too long) | look |
-| `capture` | A picture (PNG) of Studio's window as you see it — Studio's own window only, and never while a dialog is open (Settings and Set Up RAI can show your token or a key): the AI app is told to ask again later | look |
+| `button_grid` | A grid of buttons laid out (a keypad): the code to paste, nothing changed | look |
 | `list_documents` | The documents open, the active one, unsaved changes | look |
 | `read_output` | What the program printed since the last read | look |
-| `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | RAI's work: its steps, its chat, its audit log | look |
+| `list_versions`, `compare_versions` | The project's saved versions (Versions), and what changed between two of them or since one | look |
 | `propose_edit`, `write_file`, `create_project` | A change to a file (only the parts that change), a new file, a new program — checked by the compiler first | change |
-| `set_property` | A component's property set in the form designer, as in the Properties pane | change |
-| `open_project` | Opens a project or a program | change |
-| `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused) | run |
+| `set_property` | A component's property set as the Properties pane sets it — a change like the others: under **Ask before changes** you see it as a diff | change |
+| `save_version`, `restore_version`, `start_versions` | Save a Version (the open files saved first; the version is the AI app's, not yours), go back to a version (a new version: nothing is lost, Undo in Versions takes it back), start Versions in a project | change |
+| `report_gap` | Writes one short line in the project's `RAPIDR-ISSUES.md`: a tool the AI app missed, a question the manual didn't answer. Nothing else is written | change (a note: allowed in every choice but Read only) |
+| `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused). Not while the code has errors: the AI app is told the first ones, and that Problems must be 0 | run |
 | `debug` | Breakpoints, continue, step over / into / out, pause, the call stack and the variables | run |
-| `ask_rai` | Asks RAI as you would in its panel, and gives back its answer and steps. RAI only proposes for an AI app, even when you let it work on its own: its changes wait for your review, a run for your yes in its chat | run (it may cost money: it uses your AI provider) |
-| `app_layout`, `app_screenshot` | The running program's windows and controls in words (and what looks wrong), a picture of its windows | run (looking at or using the running program) |
-| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks, types, presses keys, drags and scrolls in the running program, with a pointer you see | run (looking at or using the running program) |
+| `app_layout`, `app_screenshot` | The running program's windows and controls in words (and what looks wrong), a picture of its windows with the same in words beside it | run (looking at or using the running program) |
+| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks, types, presses keys, drags and scrolls in the running program, with a pointer you see; a message box's buttons by their caption or short name (b0) | run (looking at or using the running program) |
 | `app_wait` | Lets the running program work on its own a moment, or until it is idle | look |
+| `open_project` | Opens a project or a program (AI apps only) | change |
+| `capture` | A picture (PNG) of Studio's window as you see it — Studio's own window only, and never while a dialog is open (Settings and Set Up RAI can show your token or a key): the AI app is told to ask again later (AI apps only) | look |
+| `ask_rai` | Asks RAI as you would in its panel, and gives back its answer and steps. RAI only proposes for an AI app, even when you let it work on its own: its changes wait for your review, a run for your yes in its chat (AI apps only) | run (it may cost money: it uses your AI provider) |
+| `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | RAI's work: its steps, its chat, its audit log (AI apps only) | look |
+
+Older names keep working for AI apps that still call them: `get_problems` is
+`check_code`, `recipe` is `find_example`. They aren't listed.
 
 A call with a missing or wrong argument is answered at once with what the
 tool needs ("Call read_file again: it needs `path` (a string)…"), so even a
@@ -160,20 +169,33 @@ small model can correct itself.
 ## What Studio tells your AI app
 
 When an AI app connects, Studio hands it a short text (under about 1,200
-tokens) with the way to work — the same for every AI app, small or large:
+tokens) with the way to work — the same for every AI app, small or large, and
+the same rules RAI follows: twelve numbered one-line rules, each naming its
+tool. Among them:
 
-1. `studio_status` says what is open. On an empty project it ends with
-   *This project is empty: call find_example first*.
-2. `find_example` for what the user wants: a working program to start from.
-3. `write_file` for a new file, `propose_edit` for a few lines of an
-   existing one. **The open project is the user's program**: `create_project`
-   only makes a separate new project.
-4. `check_code` after every write. An error that is another language's
-   habit has a **hint** line under it with the RapidR form
+1. `studio_status` first. On an empty project it ends with *This project is
+   empty: call find_example first*.
+2. Learn with `rapidr_describe`, `find_example` and `search_manual` — never
+   RapidR's own source code, never a member `rapidr_describe` didn't list.
+3. To change code: `save_version`, `read_file`, `propose_edit` (only the lines
+   that change), `check_code`, `run_program`, `app_screenshot` or
+   `app_layout`, `save_version`. **The open project is the user's program**:
+   `create_project` only makes a separate new project.
+4. `check_code` after every change: **Problems must be 0** before running,
+   measuring or reporting. An error that is another language's habit has a
+   **hint** line under it with the RapidR form
    ([Coming from another language?](language.md#coming-from-another-language)).
-5. The same error twice in a row for a file: the refusal changes to *Same
+   The same error twice in a row for a file: the refusal changes to *Same
    error again. Stop rewriting the whole file. Call find_example(…) and start
    from that recipe*, with the nearest recipe's first lines.
+5. **Never git or a shell** for your project: the Versions tools.
+6. Not sure what comes next: `how_do_i`. A tool or an answer is missing:
+   `report_gap`, then go on.
+
+AI apps that use them also get two ready-made instructions (MCP prompts) —
+*Work on this project the RapidR way* and *Start a new RapidR app* — and
+three guides to read (MCP resources): the core rules, every task's steps,
+and this manual's page on designing forms.
 
 …and a language card of about 25 lines: the rules small models break most
 (`x = 1` and not `SET x = 1`, `<>` and not `!=`, `MOD` and not `%`, `FOR i =
@@ -255,5 +277,8 @@ same protocol and the same protections: see
 - The pictures here are made by `node tools/manual/shots.mjs ai-apps`
   (Studio with the tests' AI app, `tests/http_client_probe.mjs`); the
   behaviour is checked by `node tests/studio_mcp.mjs`.
-- RAI's own permission choices (Settings > AI) are still their own; using
-  these four words for RAI too is planned.
+- RAI's permission choices (Settings > AI) and the four choices here are
+  decided by the same rules: Read only is RAI's *Only read the project and
+  answer*, Ask before changes its *Read the project, propose changes you
+  review*, Allow everything its *Work on its own*. Showing RAI the same four
+  words is planned.

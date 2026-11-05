@@ -293,6 +293,12 @@ and a box that stops it adding.
   `Instructions` (a few sentences for the AI on how to use your tools).
 - **Resources.** `AddResource Uri, Name` offers something to read;
   `OnReadResource` asks for it, and `Reply` gives its text.
+- **Prompts.** `AddPrompt Name, Title, Description, Text` offers a
+  ready-made instruction the AI app's person can pick ("Work on my notes
+  step by step"); the AI app sends its text as the person's message.
+- **A renamed tool.** `AddAlias "old_name", "new_name"` keeps an AI app that
+  still calls the old name working: its call is the new tool's (your
+  `OnToolCall` gets the new name), and the old name isn't listed.
 
 What the server does by itself: it listens on `127.0.0.1` only (another
 `Host` opens your tools to the network: don't, unless you know every

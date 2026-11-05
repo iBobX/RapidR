@@ -83,19 +83,23 @@ pub fn screenshot<R: Windows>(rt: R, j: &Json) -> Json {
     let mut out = None;
     let ok = rt.with_desk(&mut |desk, store| {
         out = Some((|| -> Result<Json, String> {
-            let (px, said) = if which.eq_ignore_ascii_case("all") {
+            let (px, said, only) = if which.eq_ignore_ascii_case("all") {
                 let px = eyes::capture_all(desk, store, scale, frame, cursor)?;
-                (px, format!("The program's windows ({}), side by side, back to front", eyes::window_list(desk)))
+                (px, format!("The program's windows ({}), side by side, back to front", eyes::window_list(desk)), None)
             } else {
                 let form = eyes::find_window(desk, &which)?;
                 let px = eyes::capture(desk, store, &form, scale, frame, cursor)?;
                 let title = desk.forms.get(&form).map(|w| w.spec.title.clone()).unwrap_or_default();
-                (px, format!("{form} (\"{title}\")"))
+                (px, format!("{form} (\"{title}\")"), Some(form))
             };
             let png = eyes::png(&px)?;
+            // (beside the picture, what it shows in words — the windows,
+            // their controls, captions and values: a model that can't see
+            // pictures, or an app that passes only the text, isn't blind)
+            let words = eyes::layout_text(&eyes::layout(desk, store, only.as_deref()));
             Ok(json!({
                 "ok": true,
-                "text": format!("{said}: a {} × {} pixel picture{}.", px.width, px.height, if matches!(scale, Scale::Screen) { " at the screen's scale" } else { "" }),
+                "text": format!("{said}: a {} × {} pixel picture{}. What it shows, in words:\n{}", px.width, px.height, if matches!(scale, Scale::Screen) { " at the screen's scale" } else { "" }, words.trim_end()),
                 "png": rapidr_value::objects::codec::base64_encode(&png),
                 "width": px.width, "height": px.height,
             }))

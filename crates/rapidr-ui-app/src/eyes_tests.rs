@@ -321,6 +321,43 @@ fn a_disabled_button_or_a_modal_window_in_the_way_says_so() {
     assert!(!d.ok && d.text.starts_with("ask (\"Sure?\") is open in front and waits for an answer"), "{}", d.text);
 }
 
+/// A message box RapidR made (its parts named `rapidr:dlg1:…`): app_layout
+/// lists its button by the short name the tools take (b0), and a click by
+/// that name — or its caption — presses it (an agent's {"name": "b0"} was
+/// refused on 11-04); a screenshot says in words what it shows.
+#[test]
+fn a_message_boxs_button_by_its_short_name() {
+    world();
+    store(|s| {
+        s.add("rapidr:dlg1", "RFORM", None).set("rapidr:dlg1", "caption", v_str("Hello")).set("rapidr:dlg1", "clientwidth", v_int(160)).set("rapidr:dlg1", "clientheight", v_int(80));
+        s.add("rapidr:dlg1:t0", "RLABEL", Some("rapidr:dlg1")).set("rapidr:dlg1:t0", "left", v_int(10)).set("rapidr:dlg1:t0", "top", v_int(10)).set("rapidr:dlg1:t0", "width", v_int(140)).set("rapidr:dlg1:t0", "height", v_int(16)).set("rapidr:dlg1:t0", "caption", v_str("Saved."));
+        s.add("rapidr:dlg1:b0", "RBUTTON", Some("rapidr:dlg1")).set("rapidr:dlg1:b0", "left", v_int(50)).set("rapidr:dlg1:b0", "top", v_int(40)).set("rapidr:dlg1:b0", "width", v_int(60)).set("rapidr:dlg1:b0", "height", v_int(26)).set("rapidr:dlg1:b0", "caption", v_str("OK"));
+        s.set("rapidr:dlg1", "visible", v_int(1));
+    });
+    desk(|d, s| {
+        d.ensure_form(s, "rapidr:dlg1", true, WindowSpec { title: "Hello".into(), size: (160, 80), border: true, ..WindowSpec::default() });
+        d.show("rapidr:dlg1");
+        d.modal = vec!["rapidr:dlg1".into()];
+    });
+    let text = desk(|d, s| eyes::layout_text(&eyes::layout(d, s, None)));
+    assert!(text.contains("  b0 (RButton) \"OK\"") && !text.contains("rapidr:dlg1:b0 ("), "{text}");
+    hands::submit(Owner::Link(1), Act::Click { target: Target { name: Some("b0".into()), ..Target::default() }, button: rapidr_value::input::Button::Left, double: false });
+    let d = run_until_done();
+    assert!(d.ok && d.text.contains("rapidr:dlg1:b0"), "{}", d.text);
+    hands::submit(Owner::Link(2), Act::Click { target: Target { caption: Some("OK".into()), ..Target::default() }, button: rapidr_value::input::Button::Left, double: false });
+    let d = run_until_done();
+    assert!(d.ok, "{}", d.text);
+    // (a name that isn't there: the short names listed)
+    hands::submit(Owner::Link(3), Act::Click { target: Target { name: Some("b9".into()), ..Target::default() }, button: rapidr_value::input::Button::Left, double: false });
+    let d = run_until_done();
+    assert!(!d.ok && d.text.contains("Names: ") && d.text.contains("b0"), "{}", d.text);
+    // (a picture, and what it shows in words beside it)
+    let shot = crate::link::screenshot(K, &serde_json::json!({"window": "rapidr:dlg1"}));
+    let words = shot["text"].as_str().unwrap_or("");
+    assert!(shot["ok"] == true && shot["png"].as_str().is_some_and(|p| !p.is_empty()), "{shot}");
+    assert!(words.contains("What it shows, in words:") && words.contains("b0 (RButton) \"OK\"") && words.contains("\"Saved.\""), "{words}");
+}
+
 #[test]
 fn reduced_motion_jumps_and_a_hidden_cursor_draws_nothing() {
     world();

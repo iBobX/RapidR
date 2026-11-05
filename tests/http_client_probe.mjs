@@ -129,6 +129,11 @@ if (!(await listening())) {
   say(`discover ${d.supportedVersions?.join(",")} ${d._meta?.["io.modelcontextprotocol/serverInfo"]?.name} ${d.resultType}`);
   say(`list ${text(await modern(11, "tools/call", { name: "list_notes", arguments: {} }))}`);
   say(`find ${text(await modern(12, "tools/call", { name: "find_notes", arguments: { Word: "PLANTS" } }))}`);
+  // (an old name — AddAlias —: the tool's own answer; a prompt — AddPrompt —: listed and given)
+  say(`alias ${text(await modern(17, "tools/call", { name: "search_notes", arguments: { Word: "milk" } }))}`);
+  const prompts = parse(await modern(18, "prompts/list")).result?.prompts || [];
+  say(`prompts ${prompts.map((p) => `${p.name}:${p.title}`).join(",")}`);
+  say(`prompt ${(parse(await modern(19, "prompts/get", { name: "tidy" })).result?.messages?.[0]?.content?.text || "").slice(0, 32)}`);
   const mm = await modern(13, "tools/call", { name: "list_notes", arguments: {} }, { "Mcp-Name": "find_notes" });
   say(`header mismatch ${mm.status} ${parse(mm).error?.code}`);
   const old = await post({ jsonrpc: "2.0", id: 14, method: "tools/list", params: { _meta: { ...meta, "io.modelcontextprotocol/protocolVersion": "1900-01-01" } } }, { "MCP-Protocol-Version": "1900-01-01", "Mcp-Method": "tools/list" });
