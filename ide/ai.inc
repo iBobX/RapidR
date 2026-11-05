@@ -167,7 +167,11 @@ DIM AIApAct(AIMAXPROPS) AS INTEGER
 DIM AIApFull(AIMAXPROPS) AS STRING
 DIM AIApDoc(AIMAXPROPS) AS INTEGER
 DIM AIApBefore(AIMAXPROPS) AS STRING
+' (the last Apply that went in: how many proposals it had — AIApAct and
+' AIApDoc say what it changed, AISaveApplied saves those)
+DIM AIApN AS INTEGER
 DECLARE SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
+DECLARE SUB AISaveApplied
 ' (the panel's lists being filled: their OnChange isn't the user's)
 DIM AIFilling AS INTEGER
 ' (Set Up RAI's Finish asked for the models: when they come, the status
@@ -1918,10 +1922,11 @@ SUB AIRunRequest
       AIApplyProposals
       IF AITools.ProposalCount = 0 THEN
         AITools.AutoApplyTried ""
-        ' (saved at once, and RAI's view of the project brought up to date:
-        ' its next change builds on these files as they are now — else it
-        ' was refused as made for an older text)
-        RunCommand "file.saveAll"
+        ' (saved at once — the files RAI changed, never the user's others —,
+        ' and RAI's view of the project brought up to date: its next change
+        ' builds on these files as they are now — else it was refused as
+        ' made for an older text)
+        AISaveApplied
       ELSE
         IF AIApplyWhy = "" THEN AIApplyWhy = TR$("some changes weren't applied")
         AITools.AutoApplyTried AIApplyWhy
@@ -2298,10 +2303,27 @@ SUB AIRevApplyClick
   AIRevKeep
   AIReview.Close
   AIApplyProposals
-  ' (Robert 2026-11-02: applied means saved — and RAI's view of the files
+  ' (Robert 2026-11-02: applied means saved — the files RAI changed only,
+  ' never the user's other unsaved work —, and RAI's view of the files
   ' brought up to date, so its next change builds on them as they are)
-  IF AITools.ProposalCount = 0 THEN RunCommand "file.saveAll"
+  IF AITools.ProposalCount = 0 THEN AISaveApplied
   AISyncProject
+END SUB
+
+' (an Apply that went in, saved: the files it changed in their editors —
+' the new ones are written already, the project file too —; the user's
+' other unsaved documents stay theirs, as they left them: the review of
+' 2026-11-05)
+SUB AISaveApplied
+  DIM i AS INTEGER, d AS INTEGER, ok AS INTEGER
+  FOR i = 0 TO AIApN - 1
+    IF AIApAct(i) = 2 THEN
+      d = AIApDoc(i)
+      IF d >= 0 THEN
+        IF DocOpen(d) AND DocDirty(d) THEN ok = SaveDocument(d)
+      END IF
+    END IF
+  NEXT
 END SUB
 
 SUB AIRevCancel
@@ -2324,6 +2346,7 @@ SUB AIApplyProposals
   DIM i AS INTEGER, n AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
   DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, why AS STRING, current AS STRING
   DIM undoN AS INTEGER, k AS INTEGER, failed AS STRING
+  AIApN = 0
   n = AITools.ProposalCount
   IF n > AIMAXPROPS THEN n = AIMAXPROPS
   ' ---- 1. checked, nothing changed yet (act: 0 nothing, 1 new file, 2 change) ----
@@ -2416,6 +2439,7 @@ SUB AIApplyProposals
     EXIT SUB
   END IF
   ' ---- all in: what was decided ----
+  AIApN = n
   FOR i = 0 TO n - 1
     newText = AIRevResult(i)
     IF AIApAct(i) = 0 THEN
@@ -3351,6 +3375,12 @@ SUB AIStep(Stp AS STRING)
       ShowAIReviewQuietly
       AIRevAcceptAll
       AIApplyProposals
+    CASE "applyclick"
+      ' (the Review dialog's Apply, all accepted — its own handler: what it
+      ' saves after; the dialog itself not shown)
+      ShowAIReviewQuietly
+      AIRevAcceptAll
+      AIRevApplyClick
     CASE "create"
       AINewFolder.Text = arg
       AINewCreate

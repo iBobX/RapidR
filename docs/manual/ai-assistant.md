@@ -486,8 +486,9 @@ button under it show them:
 Each change has **Accept** and **Reject** (F7 goes to the next one; Enter
 accepts it, Backspace rejects it); **Accept All**, **Reject All**, then
 **Apply**. What you applied is one step in each file's undo: **Edit >
-Undo** takes it back. **Tools > Review the AI's Changes…** opens the review
-again.
+Undo** takes it back. The files it changed are saved at once; your other
+unsaved documents stay as you left them. **Tools > Review the AI's
+Changes…** opens the review again.
 
 The chat says each decision once, as it happened: *You applied the change
 to server.rr*, *You rejected the change to main.rr*, or — when you edited the

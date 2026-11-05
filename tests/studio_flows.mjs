@@ -4770,6 +4770,30 @@ const CASES = [
     },
   },
   {
+    // ("Work on its own" saves the file RAI changed, not the user's other
+    // unsaved ones: other.inc's change stays theirs, unsaved)
+    name: "ai-auto-saves-its-own",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    do: 'wait,open:other.inc,wait,code:"TWO"=>"TWO mine",ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:permission=auto,ai:ask=say one louder,wait,wait,wait,wait,wait',
+    delay: 8,
+    dump: { "aitools.proposalcount": /^0$/, "aireviewbar.__shown": /^0$/ },
+    files: { "main.rr": /PRINT "ONE!"/, "other.inc": /^(?![\s\S]*TWO mine)[\s\S]*PRINT "TWO"/ },
+  },
+  {
+    // (the same through the Review dialog's Apply: saves the file it
+    // changed, not other.inc's unsaved change)
+    name: "ai-apply-saves-its-own",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    do: 'wait,open:other.inc,wait,code:"TWO"=>"TWO mine",ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=say one louder,wait,wait,wait,wait,ai:applyclick,wait',
+    delay: 8,
+    dump: { "aitools.proposalcount": /^0$/, "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/ },
+    files: { "main.rr": /PRINT "ONE!"/, "other.inc": /^(?![\s\S]*TWO mine)[\s\S]*PRINT "TWO"/ },
+  },
+  {
     // (changes left waiting are kept with the chat: Studio started again —
     // the project's chat opened —, they are still there to apply)
     name: "ai-proposals-kept",
