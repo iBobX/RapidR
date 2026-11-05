@@ -6873,5 +6873,27 @@ msgstr "No se agregó nada: agregar hace de este programa un proyecto, y su arch
 msgid "Nothing was added: {file} is there already"
 msgstr "No se agregó nada: {file} ya existe"
 
+#: ide/shell.inc
+msgid "{n} more file was left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgid_plural "{n} more files were left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgstr[0] "Quedó fuera {n} archivo más: Agregar carpeta agrega como máximo 500 por vez (agrega después una carpeta de adentro)"
+msgstr[1] "Quedaron fuera {n} archivos más: Agregar carpeta agrega como máximo 500 por vez (agrega después una carpeta de adentro)"
+
+#: ide/shell.inc
+msgid "{n} folder inside it wasn't looked in: too many at once (add it on its own)"
+msgid_plural "{n} folders inside it weren't looked in: too many at once (add them one by one)"
+msgstr[0] "No se miró dentro de {n} carpeta: demasiadas a la vez (agrégala por separado)"
+msgstr[1] "No se miró dentro de {n} carpetas: demasiadas a la vez (agrégalas una por una)"
+
+#: ide/shell.inc
+msgid "{n} link was skipped: Add Folder doesn't follow links"
+msgid_plural "{n} links were skipped: Add Folder doesn't follow links"
+msgstr[0] "Se omitió {n} enlace: Agregar carpeta no sigue los enlaces"
+msgstr[1] "Se omitieron {n} enlaces: Agregar carpeta no sigue los enlaces"
+
+#: ide/shell.inc
+msgid "Not everything was added: the Output says what was left out"
+msgstr "No se agregó todo: la Salida dice qué quedó fuera"
+
 msgid "{n} were in the project already or couldn't be added"
 msgstr "{n} ya estaban en el proyecto o no se pudieron agregar"

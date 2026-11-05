@@ -138,10 +138,13 @@ END SUB
 
 ' Project > Add Folder: every file in a folder and the folders inside it
 ' (not hidden ones: .git, .rapidr…), each added as Add File does; at most
-' 500 files. The tree shows them at once.
+' 500 files, at most 200 folders waiting to be looked in. A link inside it
+' (to the folder itself, to elsewhere) is never followed. What was left
+' out is said, with how many. The tree shows them at once.
 SUB AddFolderToProject
   DIM todo(200) AS STRING, n AS INTEGER, top AS STRING, f AS STRING, names AS STRING
   DIM k AS INTEGER, cnt AS INTEGER, added AS INTEGER, skipped AS INTEGER, p AS STRING
+  DIM links AS INTEGER, leftFiles AS INTEGER, leftFolders AS INTEGER
   OpenDlg.Caption = TR$("Add a Folder to the Project")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute = 0 THEN
@@ -152,7 +155,7 @@ SUB AddFolderToProject
   IF AddKeepsProjectFile = 0 THEN EXIT SUB
   n = 1
   todo(1) = OpenDlg.FileName
-  DO WHILE n > 0 AND added < 500
+  DO WHILE n > 0
     top = todo(n)
     n = n - 1
     ' (the folder's names first: DIR$ keeps one listing at a time)
@@ -165,20 +168,33 @@ SUB AddFolderToProject
     cnt = TALLY(names, CHR$(10))
     FOR k = 1 TO cnt
       p = top + "/" + FIELD$(names, CHR$(10), k)
-      IF DIREXISTS(p) THEN
-        IF n < 200 THEN
+      IF Proj.IsLink(p) THEN
+        ' (never followed: a loop, or files from outside the project)
+        links = links + 1
+      ELSEIF DIREXISTS(p) THEN
+        ' (500 files in: the folders still waiting are looked in only to
+        ' count what is left out — none more are taken)
+        IF n < 200 AND added < 500 THEN
           n = n + 1
           todo(n) = p
+        ELSE
+          leftFolders = leftFolders + 1
         END IF
       ELSEIF added < 500 THEN
         IF Proj.AddFile(p) THEN added = added + 1 ELSE skipped = skipped + 1
+      ELSE
+        leftFiles = leftFiles + 1
       END IF
     NEXT
   LOOP
   ' (saved, then read again, so the new files show now)
   IF added > 0 THEN AddSaved
-  OutputLine TR$("Added {n} files from {folder} to the project", "n", STR$(added), "folder", OpenDlg.FileName)
-  IF skipped > 0 THEN OutputLine TR$("{n} were in the project already or couldn't be added", "n", STR$(skipped))
+  OutputLine TR$("Added {n} files from {folder} to the project", "n", LTRIM$(STR$(added)), "folder", OpenDlg.FileName)
+  IF skipped > 0 THEN OutputLine TR$("{n} were in the project already or couldn't be added", "n", LTRIM$(STR$(skipped)))
+  IF leftFiles > 0 THEN OutputLine TRN$("{n} more file was left out: Add Folder adds at most 500 at a time (add a folder inside it next)", "{n} more files were left out: Add Folder adds at most 500 at a time (add a folder inside it next)", leftFiles)
+  IF leftFolders > 0 THEN OutputLine TRN$("{n} folder inside it wasn't looked in: too many at once (add it on its own)", "{n} folders inside it weren't looked in: too many at once (add them one by one)", leftFolders)
+  IF links > 0 THEN OutputLine TRN$("{n} link was skipped: Add Folder doesn't follow links", "{n} links were skipped: Add Folder doesn't follow links", links)
+  IF leftFiles > 0 OR leftFolders > 0 THEN AddSay TR$("Not everything was added: the Output says what was left out")
 END SUB
 
 SUB RunCommand(Id AS STRING)

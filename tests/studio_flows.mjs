@@ -789,6 +789,43 @@ const CASES = [
     dump: { "proj.kind": /^file$/, "outputbox.text": /Nothing was added: adding makes this program a project, and its project file \S*main\.rrproj is there already/ },
     files: { "main.rrproj": /^# another project's file: never written over\n$/ },
   },
+  // (Project > Add Folder never follows a link — one back to the folder
+  // looped, one elsewhere added files from outside the project —, and says
+  // what its limits left out: the review of 2026-11-05)
+  {
+    name: "project-add-folder-links",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => {
+      mkdirSync(join(p, "stuff", "b"), { recursive: true });
+      writeFileSync(join(p, "stuff", "a.txt"), "a\n");
+      writeFileSync(join(p, "stuff", "b", "c.txt"), "c\n");
+      symlinkSync(join(p, "stuff"), join(p, "stuff", "b", "back"));
+      symlinkSync(dirname(p), join(p, "stuff", "out"));
+      symlinkSync(join(dirname(p), "ai-audit.jsonl"), join(p, "stuff", "elsewhere.txt"));
+    },
+    folder: "{dir}/project/stuff",
+    do: "wait,project.addFolder,wait,wait",
+    delay: 6,
+    dump: { "proj.filecount": /^3$/, "outputbox.text": /Added 2 files from \S*stuff to the project\n3 links were skipped: Add Folder doesn't follow links/ },
+    files: { "Hello.rrproj": /^(?![\s\S]*(back|out|elsewhere))[\s\S]*path = "stuff\/a\.txt"[\s\S]*path = "stuff\/b\/c\.txt"/ },
+  },
+  {
+    name: "project-add-folder-many",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => {
+      mkdirSync(join(p, "many", "deeper"), { recursive: true });
+      for (let i = 0; i < 505; i++) writeFileSync(join(p, "many", `f${String(i).padStart(3, "0")}.txt`), `${i}\n`);
+      writeFileSync(join(p, "many", "deeper", "last.txt"), "last\n");
+    },
+    folder: "{dir}/project/many",
+    do: "wait,project.addFolder,wait,wait",
+    delay: 8,
+    dump: { "proj.filecount": /^501$/, "outputbox.text": /Added 500 files from \S*many to the project\n(6 more files were left out: Add Folder adds at most 500 at a time|5 more files were left out: Add Folder adds at most 500 at a time \(add a folder inside it next\)\n1 folder inside it wasn't looked in: too many at once)/ },
+  },
   {
     name: "open-folder",
     open: "",

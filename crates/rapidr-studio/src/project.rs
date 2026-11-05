@@ -361,6 +361,31 @@ fn exists(path: &str) -> bool {
     rapidr_value::objects::read_file(path).is_ok()
 }
 
+/// Whether `path` is a symbolic link (or, on Windows, a junction or any
+/// other reparse point): Project > Add Folder never follows one — a link to
+/// the folder itself loops, one to elsewhere adds files from outside the
+/// project. The web's store has none.
+fn is_link(path: &str) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let Ok(m) = std::fs::symlink_metadata(path.trim_end_matches(['/', '\\'])) else { return false };
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            // (FILE_ATTRIBUTE_REPARSE_POINT: junctions too)
+            if m.file_attributes() & 0x400 != 0 {
+                return true;
+            }
+        }
+        m.file_type().is_symlink()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = path;
+        false
+    }
+}
+
 /// Project file `rel` of `folder` — its names in any case, as `$INCLUDE`
 /// finds it (`Inc\MyLib.INC` → `inc/mylib.inc`) — : its project path as
 /// the files name it, and its text.
@@ -723,6 +748,8 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let kind = kind_parse(&s(1)).unwrap_or_else(|| read_text(&join(&m.folder, &rel)).map_or_else(|_| kind_for_path(&rel), |t| kind_for_source(&rel, &t)));
             if m.project.add_file(&rel, kind) { Ok(()) } else { Err(tr_ui_fill("{file} is in the project already", &[("file", &rel)])) }
         }),
+        // (Add Folder: a link is never followed)
+        "islink" => flag(is_link(&s(0))),
         "removefile" => changing(&|m| {
             let rel = project_path(&m.folder, &s(0));
             if m.project.remove_file(&rel) { Ok(()) } else { Err(tr_ui_fill("{file} isn't in the project", &[("file", &rel)])) }
@@ -1123,6 +1150,27 @@ mod tests {
         }
         assert_eq!(join_args(&["--dry".into(), "a b".into()]), "--dry \"a b\"");
         assert_eq!(crate::session::split_args(&join_args(&["--dry".into(), "a b".into()])), ["--dry", "a b"]);
+    }
+
+    /// A link (to the folder itself, to a file) is known as one, a real
+    /// folder or file isn't; a path that isn't there isn't either.
+    #[cfg(unix)]
+    #[test]
+    fn links_are_known() {
+        let base = std::env::temp_dir().join(format!("rapidr-links-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("real")).unwrap();
+        std::fs::write(base.join("real/a.txt"), "a").unwrap();
+        std::os::unix::fs::symlink(&base, base.join("real/loop")).unwrap();
+        std::os::unix::fs::symlink(base.join("real/a.txt"), base.join("b.txt")).unwrap();
+        let p = |rel: &str| slashes(&base.join(rel).to_string_lossy());
+        assert!(is_link(&p("real/loop")));
+        assert!(is_link(&format!("{}/", p("real/loop"))), "a trailing slash is still the link");
+        assert!(is_link(&p("b.txt")));
+        assert!(!is_link(&p("real")));
+        assert!(!is_link(&p("real/a.txt")));
+        assert!(!is_link(&p("nothing")));
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// New Project's default folder is never inside an installed RapidR
