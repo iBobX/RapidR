@@ -114,6 +114,10 @@ CONST MAXRECENT = 10
 DIM SavedLayout AS STRING
 DIM DefaultFolder AS STRING
 DIM RunStarted AS DOUBLE
+' (when the last run ended — 0 while one runs — and its exit code: what
+' MCP's run_program says of a program that ended at once, mcp.inc)
+DIM RunEndedAt AS DOUBLE
+DIM RunExitCode AS INTEGER
 DIM DoList AS STRING
 DIM ProjectOpen AS INTEGER
 DIM RunState AS STRING

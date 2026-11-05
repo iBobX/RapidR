@@ -276,7 +276,7 @@ if (want("all")) {
   r = await tool("studio_status");
   check("…and Studio is still on the same project", r.text.includes("Project: Hello") && !r.text.includes("Project: Second"), r.text);
   r = await tool("read_output");
-  check("read_output: nothing new", r.text.includes("(no new output)") && r.text.includes("isn't running"), r.text);
+  check("read_output: nothing new; the program ran and ended", r.text.includes("(no new output)") && r.text.includes("The program started and ended after") && r.text.includes("(exit code 0)."), r.text);
   r = await tool("get_problems");
   check("get_problems: none", !r.error, r.text);
   r = await tool("open_project", { Path: "examples/../../etc/hosts" });
@@ -288,11 +288,18 @@ if (want("all")) {
   r = await tool("run_program", { Action: "start", Debug: true, Wait: 20 });
   check("run_program with the debugger: paused at the breakpoint, the variables", r.text.includes("paused") && r.text.includes("main.rr:6") && r.text.includes("Variables:"), r.text);
   r = await tool("debug", { Action: "continue", Wait: 10 });
-  check("debug continue: stops again in the loop", r.text.includes("paused") || r.text.includes("isn't running"), r.text);
+  check("debug continue: stops again in the loop", r.text.includes("paused") || r.text.includes("ended after"), r.text);
   r = await tool("debug", { Action: "breakpoint", File: "main.rr", Line: 6, Remove: true });
   check("debug breakpoint removed", r.text.includes("Breakpoints: none"), r.text);
   r = await tool("debug", { Action: "continue", Wait: 10 });
-  check("debug continue: the program ends", r.text.includes("isn't running"), r.text);
+  check("debug continue: the program ends", r.text.includes("ended after"), r.text);
+  // (a program that ends at once and prints nothing — a SUB ended with END
+  // swallowed the rest, ShopInvoices 2026-11-04: "The program isn't running"
+  // made an agent think it never started — is said so, with what to try)
+  r = await tool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from an AI app"', new_text: "n = 0" }, { old_text: 'PRINT "Line "; n', new_text: "n = n + 1" }], summary: "Prints nothing." });
+  check("propose_edit: the program prints nothing now", !r.error, r.text);
+  r = await tool("run_program", { Action: "start", Wait: 20 });
+  check("run_program: a program that ends at once and prints nothing is said so, with its exit code and what to try", !r.error && r.text.includes("The program started and ended after") && r.text.includes("(exit code 0), with no output") && r.text.includes("check_code") && r.text.includes("read_output") && !r.text.includes("isn't running"), r.text);
 
   r = await tool("layout_report");
   check("layout_report: this program makes no form", r.text.includes("no form"), r.text);
