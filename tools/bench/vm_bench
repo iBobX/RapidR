@@ -27,6 +27,9 @@ tools/bench/vm/ with the `rapidr` given (./rapidr, or RAPIDR=…).
   dsp_voices   32 synth voices kept in global DOUBLE arrays, 441 samples x
                100 blocks
   fcalls       2,000,000 calls of a 3-argument DOUBLE FUNCTION
+  top_double   5,000,000 DOUBLE multiply-adds on main-program variables
+  dsp_scalars  the dsp_voices synth with each voice's state in local
+               DOUBLEs (1,411,200 voice steps)
   idle         a form waiting in ShowModal with a 1-second timer: CPU used
                over 3 seconds (a real window: skipped with --no-windows)
 
@@ -266,6 +269,12 @@ def main():
         results["dsp_voices"] = {"ms": bench("dsp_voices", [exe, "run", prog("dsp_voices.rr")], env, runs, expect="dsp_voices 1823146")["ms"]}
     if want("fcalls"):
         results["fcalls"] = {"ms": bench("fcalls", [exe, "run", prog("fcalls.rr")], env, runs, expect="fcalls 124492600")["ms"]}
+    # (the interpreter's typed paths, VM-FAST: DOUBLE globals at the top
+    # level, the synth's arithmetic on local DOUBLEs)
+    if want("top_double"):
+        results["top_double"] = {"ms": bench("top_double", [exe, "run", prog("top_double.rr")], env, runs, expect="top_double 5999")["ms"]}
+    if want("dsp_scalars"):
+        results["dsp_scalars"] = {"ms": bench("dsp_scalars", [exe, "run", prog("dsp_scalars.rr")], env, runs, expect="dsp_scalars 1904054")["ms"]}
     if want("idle") and windows:
         results["idle"] = {"cpu_pct": idle_cpu([exe, "run", prog("idle_form.rr")], env)}
     if want("idle_debug") and windows:
@@ -311,6 +320,8 @@ def main():
         "dsp_sin": "SIN DSP, 705,600 SINs",
         "dsp_voices": "synth voices in global DOUBLE arrays",
         "fcalls": "2 M DOUBLE FUNCTION calls",
+        "top_double": "5 M DOUBLE multiply-adds, globals",
+        "dsp_scalars": "the synth on local DOUBLEs",
         "idle": "idle form (ShowModal + timer)",
         "idle_debug": "idle form, under the debugger",
         "studio_idle": "Studio, idle",
