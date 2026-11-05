@@ -1,0 +1,13 @@
+sum 3.750000000
+elems 0.250000000 1.250000000 0.500000000
+bytes 0 100 200 44
+wrap 44
+strings a ab aba
+dbl idx 0.500000000
+text idx 0.750000000
+outside 4.500000000 0
+two dims 7 21
+chain 2.500000000
+local 0 2 10 sum 25
+dbl index 99
+expr 10

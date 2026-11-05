@@ -1,6 +1,6 @@
 //! Binary (de)serialization for [`Module`].
 
-use crate::{parse_version, AppType, Const, Function, Header, Module, Param, MAGIC, MIN_RUNTIME, OLDEST_VERSION, RELEASES_URL, RUNTIME_VERSION, VERSION};
+use crate::{parse_version, AppType, Const, Function, Header, Module, Param, MAGIC, OLDEST_VERSION, RELEASES_URL, RUNTIME_FEATURES, RUNTIME_VERSION, VERSION};
 
 #[derive(Debug)]
 pub enum Error {
@@ -75,7 +75,9 @@ impl Header {
 
     /// An error saying which runtime to get when this one is too old for it.
     pub fn check_runtime(&self) -> Result<(), Error> {
-        let have = parse_version(RUNTIME_VERSION);
+        // (what this runtime runs: its version, or what it has that the
+        // release bringing it will be numbered — RUNTIME_FEATURES)
+        let have = parse_version(RUNTIME_VERSION).max(RUNTIME_FEATURES);
         if self.min_runtime > have {
             return Err(Error::NeedsRuntime { needs: Some(self.min_runtime), format: self.format });
         }
@@ -98,7 +100,7 @@ impl Module {
         let has_resources = !self.resources.is_empty();
         out.extend_from_slice(&(u16::from(has_map) | u16::from(has_resources) << 1 | u16::from(self.rapidr_program) << 2).to_le_bytes());
         out.extend_from_slice(&HEADER_LEN.to_le_bytes());
-        for part in MIN_RUNTIME {
+        for part in self.min_runtime() {
             out.extend_from_slice(&part.to_le_bytes());
         }
         out.push(self.app_type as u8);
@@ -191,7 +193,7 @@ impl Module {
                 resources.push((name, r.read_n(len)?.to_vec()));
             }
         }
-        Ok(Module { consts, strings, functions, entry, source_map, resources, app_type: header.app_type, rapidr_program: flags & 4 != 0 })
+        Ok(Module { consts, strings, functions, entry, source_map, resources, app_type: header.app_type, rapidr_program: flags & 4 != 0, prepared: Default::default() })
     }
 }
 
@@ -355,6 +357,25 @@ mod tests {
         assert_eq!(h, Header { format: VERSION, min_runtime: MIN_RUNTIME, app_type: AppType::Console });
         assert!(h.check_runtime().is_ok(), "this runtime runs what its compiler writes");
         assert_eq!(Module::from_bytes(&bytes).unwrap().app_type, AppType::Console);
+    }
+
+    /// A module with one of 2.123's fused instructions says it needs
+    /// 2.123 (a 2.122 runtime names the version to get), one without keeps
+    /// the old minimum (older runtimes still run it), and this runtime
+    /// runs both.
+    #[test]
+    fn fused_instructions_raise_the_runtime_a_module_needs() {
+        let plain = Module { functions: vec![Function { code: vec![crate::Op::LoadNull as u8, crate::Op::Halt as u8], ..Default::default() }], ..Module::new() };
+        let mut fused = plain.clone();
+        fused.functions.push(Function { code: vec![crate::Op::MoveLocal as u8, 1, 0, 0, 0, crate::Op::Halt as u8], ..Default::default() });
+        for (m, needs) in [(&plain, MIN_RUNTIME), (&fused, crate::FAST_OPS_SINCE)] {
+            let bytes = m.to_bytes();
+            let h = Header::read(&bytes).unwrap();
+            assert_eq!(h.min_runtime, needs);
+            assert!(h.check_runtime().is_ok());
+            assert_eq!(Module::from_bytes(&bytes).unwrap().functions.len(), m.functions.len());
+        }
+        assert!(crate::FAST_OPS_SINCE > MIN_RUNTIME && crate::FAST_OPS_SINCE > [2, 122, 1], "2.122's runtimes must refuse them");
     }
 
     #[test]

@@ -35,7 +35,7 @@ pub mod builtins;
 pub mod io;
 pub mod op;
 
-pub use op::Op;
+pub use op::{raw, Bin, Cmp, Mode, Op, Operand, NO_KIND};
 
 use rapidr_value::Value;
 
@@ -121,6 +121,37 @@ pub struct Module {
     /// Immediate and Watch need to know to give them too
     /// (`rapidr_ast::builtin_constants`).
     pub rapidr_program: bool,
+    /// What the VM works out from the module the first time it runs it
+    /// ([`Prepared`]); never written to a file. The pools above only grow
+    /// once the module has run (the debugger's snippets add to a copy):
+    /// an entry past what was prepared is worked out as before.
+    pub prepared: Prepared,
+}
+
+/// A module's constants as values and its names' builtins, worked out once
+/// by the VM (docs/vm-fast-design.md): a string literal is shared, not
+/// copied each time it runs (strings copy on write), and a pure maths
+/// builtin is found by its index, not looked up by name at every call.
+#[derive(Debug, Clone, Default)]
+pub struct Prepared {
+    values: std::cell::OnceCell<Vec<Value>>,
+    builtins: std::cell::OnceCell<Vec<u8>>,
+}
+
+impl Prepared {
+    /// The module's constants as values (made the first time).
+    #[inline]
+    pub fn values(&self, consts: &[Const]) -> &[Value] {
+        self.values.get_or_init(|| consts.iter().map(Const::to_value).collect())
+    }
+
+    /// The VM's code for each string of the pool (made the first time by
+    /// `resolve`, for every string): which builtin it names, 0 for none
+    /// the VM runs itself.
+    #[inline]
+    pub fn builtins(&self, strings: &[String], resolve: impl Fn(&str) -> u8) -> &[u8] {
+        self.builtins.get_or_init(|| strings.iter().map(|s| resolve(s)).collect())
+    }
 }
 
 /// What kind of program a module is: `$APPTYPE CONSOLE | GUI | CGI` (and
@@ -290,6 +321,27 @@ impl Module {
         self.functions.push(f);
         (self.functions.len() - 1) as u32
     }
+
+    /// The oldest RapidR Runtime that runs this module: [`FAST_OPS_SINCE`]
+    /// when its code has one of 2.123's fused instructions, else
+    /// [`MIN_RUNTIME`] (what the header says).
+    pub fn min_runtime(&self) -> [u16; 3] {
+        let fused = self.functions.iter().any(|f| {
+            let mut ip = 0;
+            while let Some(op) = f.code.get(ip).copied().and_then(Op::from_u8) {
+                if op.is_fused() {
+                    return true;
+                }
+                ip += 1 + op.operand_len();
+            }
+            false
+        });
+        if fused {
+            FAST_OPS_SINCE.max(MIN_RUNTIME)
+        } else {
+            MIN_RUNTIME
+        }
+    }
 }
 
 pub const MAGIC: &[u8; 4] = b"RRBC";
@@ -306,6 +358,15 @@ pub const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// starts writing something older runtimes don't know (an opcode, a
 /// builtin, a header field); format 3 came with 2.117.
 pub const MIN_RUNTIME: [u16; 3] = [2, 117, 0];
+/// The release whose runtime first runs the fused instructions
+/// (docs/vm-fast-design.md): a module that uses one says it needs it
+/// ([`Module::min_runtime`]), so an older runtime names the version to
+/// get instead of failing at an unknown opcode.
+pub const FAST_OPS_SINCE: [u16; 3] = [2, 123, 0];
+/// What this runtime runs, whatever its version number says until the
+/// release that brings it bumps it: every module a compiler of that
+/// release writes ([`Header::check_runtime`]).
+pub const RUNTIME_FEATURES: [u16; 3] = FAST_OPS_SINCE;
 /// Where a newer runtime is.
 pub const RELEASES_URL: &str = "https://github.com/iBobX/RapidR/releases";
 
