@@ -297,6 +297,19 @@ rapidr-ui-app; the conformance suite on the interpreter (325 cases) and
 `scroll_batched_writes` built native too; the GUI events suite, native and
 interpreted (123 cases, all checks passed).
 
+### Fix 7: SIN and COS of a number make no text
+
+`SIN` and `COS` turned every argument into text to look for a comma (a
+list of numbers). A number's text never has one: an Integer or a Double now
+goes straight to the maths, the result bit for bit the same (a test
+compares both ways over every kind of value and a sweep of 2,900 phases);
+anything else takes the old path.
+
+| `dsp_sin.rr` (705,600 `SIN`s) | before | after |
+|---|--:|--:|
+| `rapidr run` | 561–582 ms | **150 ms** |
+| native | 429–436 ms | **17 ms** |
+
 ## Benchmarks and tools added in step 1
 
 | File | What |
