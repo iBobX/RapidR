@@ -109,6 +109,8 @@ export const cases = [
   { file: "basics/int64_uint64.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Total size: 16106127360 bytes = 15 GB", "INT64: -9223372036854775808 to 9223372036854775807", "UINT64: 0 to 18446744073709551615 (HEX$ FFFFFFFFFFFFFFFF)",
       "FNV-1a hash of RapidR: 6B9404F5B9C8FD81", "Mask FFFF0000FFFF0000 AND &H123456789ABCDEF0 = 123400009ABC0000", "Mask SHR 16 = 281470681808895", "UINT64 max is greater than INT64 max"] },
+  { file: "basics/fast_arrays.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["Primes below 1000000: 78498", "Smoothed: 1.000 0.750 -0.750", "7 x 8 = 56, the whole table adds up to 6084", "Done in "] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
   // debugging/ (the debugger's example: here it runs on its own)

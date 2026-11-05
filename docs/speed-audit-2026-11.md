@@ -601,3 +601,163 @@ anything else takes the old path.
 - **Beautiful**: same pixels; smooth resizing instead of stutter.
 - **Legal**: no new dependency yet; RapidQ's include files were only read
   locally, never copied into the repository.
+
+## Native typed arrays
+
+The NATIVE-ARRAYS lane (2026-11-05, hot spot 9): an array declared with a
+numeric type is, in a native build, a plain vector of its numbers with
+typed reads and writes — `TypedArray<f64>`, `<u8>`, … (`rapidr_value::
+typed_array`), chosen by `crates/rapidr-codegen-rust/src/typed_arrays.rs`
+— instead of a `Value` holding a `BasicArray` of boxed `Value`s. The
+interpreter is untouched.
+
+### What is typed, and what stays a `Value`
+
+- **Which arrays**: every DIM / REDIM of the name declares the same numeric
+  type (BYTE, WORD, SHORT, INTEGER / LONG, DWORD, SINGLE, DOUBLE, INT64,
+  UINT64; stored as `u8`, `u16`, `i16`, `i32`, `f32`, `f64`, `i64`: each
+  store is already converted to the type by `rapidr_ast::numeric`, so the
+  native width holds it exactly), and every use is by element (`a(i)`,
+  `g(i, j) = x`, SWAP / INC / INPUT of an element), LBOUND / UBOUND, or the
+  whole array passed to a parameter that is itself typed — a fixed point
+  over the program: a parameter `x() AS DOUBLE` is typed when every call
+  passes a typed DOUBLE array there, and an array is dropped as soon as one
+  use isn't one of these.
+- **Stays a `Value`, as before** (so nothing ever meets a second copy that
+  could go stale): an array passed whole to a builtin or a DLL, assigned
+  or swapped whole, its address taken (VARPTR, `@`), passed to a parameter
+  of another type or of none, STATIC arrays, a routine's own arrays and
+  parameters when it has GOTO / GOSUB / labels (it still uses typed
+  main-program arrays), the parameters of a routine named as a pointer
+  (CODEPTR / CALLBACK / BIND / an event: those are called with `Value`s)
+  or with a dotted name (`SUB Draw.Box`, called in a member's form),
+  everything when the program has inline Rust. Arrays of TYPEs and arrays
+  inside TYPEs are objects (`rapidr_ast::objects`): unchanged.
+- **Where they live**: a main-program array in a thread-local static
+  (`TA_<NAME>`, made once, `&'static`), which each routine using it takes
+  into a local at its start (`__ta_<name>`); a routine's own array is a
+  local `TypedArray`; a parameter is `&TypedArray<T>`. An element access is
+  a borrow flag check, a subtraction, a bounds check and a load. DIM and
+  REDIM change the array in place, so whoever holds it (a SUB it was passed
+  to) sees the new one, as with a shared `Value` array; a main-program DIM
+  runs while no routine is active, so nothing else holds it then.
+- **The same behaviour**: `TypedArray` does what `BasicArray` does, and its
+  tests compare the two: RapidQ's unchecked subscripts (a place is worked
+  out from all the indices; `g(1, 5)` is the next row's first element), a
+  store outside the whole array kept apart and read back (at most 65,536
+  places), a place never written reads 0, the same errors word for word
+  (wrong number of indices, bounds below each other, too large), REDIM
+  keeping each element whose indices are still inside (one now outside is
+  kept apart, as a store there would be), an array whose DIM hasn't run
+  yet read as an empty variable (`[]`, LEN 0) and written with the
+  interpreter's error. An element read alone is the array's `Value` (so an
+  empty one prints as empty); inside arithmetic it is a Rust number, so
+  `ph = VPhase(v) + VInc(v)` is two loads and an add. INT64 / UINT64
+  elements are stored as `i64` but read as `Value`s (their arithmetic is
+  `rapidr_value::wide`'s).
+- **One more native operator**: `a SHL n` / `a SHR n` on typed integers are
+  plain Rust (`rp_shl` / `rp_shr`'s rule: the 32-bit value shifted by the
+  count's low five bits, as a LONG), so a BYTE array's decoding loop stays
+  native end to end.
+- **Not changed**: a scalar's typing (a FOR counter with a variable STEP
+  stays a `Value`, `typed.rs`), the bytecode compiler and the VM, the
+  debugger (it runs programs in the VM; a native build has no variable
+  view to keep in step).
+
+### Before and after
+
+The fastest of 5 runs, CPU time of the built program (start-up included),
+and its own `ms` line where it prints one; release builds of `development`
+at 73bdf991 (before) and this lane's branch (after), an M4 Max busy with
+other lanes' builds (load 15 to 70). The answers are the interpreter's in
+every row. (`dsp_voices`, `dsp_scalars` and `fcalls` had a FUNCTION named
+`Run`, which the compiler now refuses — RUN is a builtin: renamed `MyRun`.)
+
+| Program | What | before CPU / own ms | after CPU / own ms | faster |
+|---|---|--:|--:|--:|
+| `dsp_voices` | 32 synth voices in global DOUBLE arrays, ~13 M element accesses (step 2) | 135.0 / 131 | 12.4 / 8 | 11 × CPU, 16 × own |
+| `dsp_params` (new) | the same synth with the voices passed as `() AS DOUBLE` parameters, its buffer its own array (step 3) | 102.2 / 98 | 12.6 / 8 | 8 × CPU, 12 × own |
+| `dsp_scalars` | the same synth on local DOUBLEs: the aim | 9.9 / 5 | 9.0 / 5 | — |
+| `arrays` | 2 M INTEGER elements written, read, summed (main program) | 42.3 | 12.2 | 3.5 × |
+| `byte_array` | 1 M BYTE reads with AND / SHR / SHL: typed arrays alone | 22.8 / 18 | 14.6 / 10 | 1.6 × CPU, 1.8 × own |
+| `byte_array` | … and SHL / SHR native | 22.8 / 18 | 6.4 / 2 | 3.6 × CPU, 9 × own |
+
+The interpreter's times are unchanged (`dsp_voices` 785 ms, `arrays` 315,
+`byte_array` 218): native is now 98 × the interpreter on `dsp_voices`
+(was 6 ×), 26 × on `arrays` (was 7.4 ×), 108 × on `byte_array` (was 12 ×).
+
+RapidR Music Studio's `repro/synth_bench.rr` (a copy, built native; ms per
+10 ms block of 441 samples, 200 blocks, three runs; the same peaks before
+and after at 1, 8, 16 and 32 voices):
+
+| 32 voices | before | after | faster |
+|---|--:|--:|--:|
+| Mode A: per-voice oscillator, ADSR and SVF (sample-major) | 1.344 – 1.368 ms | 0.087 – 0.088 ms | 15 × |
+| Mode B: 8 track-bus SVFs | 1.335 – 1.367 ms | 0.143 – 0.145 ms | 9 × |
+| Mode C: scalars hoisted out of the array lookups | 0.236 – 0.238 ms | 0.030 ms | 8 × |
+
+At 32 voices the synth now takes under 1 % of its real-time budget (it
+took 13.7 %).
+
+### Checked
+
+- `cargo test -p rapidr-value typed_array` (7: `TypedArray` against
+  `BasicArray` — reads, writes, unchecked subscripts in 2 and 3
+  dimensions, the overflow and its cap, REDIM in every direction, bounds and
+  errors, an array not DIMmed yet) and `-p rapidr-codegen-rust` (17, 5 new:
+  what is typed and what stays a `Value`).
+- Conformance, both backends: 329 / 329 cases each (four new:
+  `typed_arrays_shapes` — every type and its conversion, elements in every
+  kind of expression, SWAP / INC / DEC, 2-D and 3-D, unchecked subscripts,
+  past the end, LBOUND / UBOUND, REDIM up, down and to other dimensions, a
+  DIM in a loop; `typed_arrays_routines` — main-program arrays in SUBs and
+  FUNCTIONs, parameters passed on, a parameter REDIMmed, a FUNCTION's own
+  array in recursion, a DIM in a loop, a parameter of another type and of
+  none, one array by its name and as a parameter, GOTO, a local of a
+  global's name, a global REDIMmed in a SUB, elements as arguments, a
+  routine with a dotted name, a SUB called as `Name:`;
+  `typed_arrays_index_count` and `typed_arrays_redim_error` — the run-time
+  errors and an array not DIMmed yet).
+- The generated Rust of every example (111) and every RapidQ corpus program
+  (386) compared before and after: 36 examples and 179 corpus programs
+  changed (the corpus mostly by the library's QBCOLOR table, now typed).
+  The changed examples run on `rapidr run` and native
+  (`tests/examples_run.mjs`): every expected line, the same as before; the
+  corpus (`tools/corpus_native.sh .reference/corpus26.json`): 114 checked,
+  none failing, the same 2 refused before and after (their resource files
+  are missing).
+- Built as Studio's Build Native App builds (`rapidr build`, the binary of
+  a dev Studio app made from this branch; clicking through Studio's window
+  wasn't possible: this lane was given no screen control): `dsp_voices`
+  prints its answer in 8 ms, three runs out of three; the showcase
+  `signal_lab.rr` (an FFT in BASIC on DOUBLE arrays), on the headless host
+  for 60 frames, three runs each — its own caption: FFT of 1024 points 0.9 –
+  1.1 ms a frame before, 0.2 ms after; a frame 2.8 – 3.2 ms before, 2.0 ms
+  after; the same peaks (438 and 683 Hz) and window.
+- The guard: `tools/bench/native_bench --check` (budgets in
+  `tools/bench/native_budgets.json`, in `tools/regress.sh perf`): it fails
+  on the build before this lane (dsp_voices 136 ms, arrays 42, byte_array
+  22 against budgets of 40, 28 and 15) and passes after.
+
+### Found, not changed
+
+- A native build doesn't write a BYREF parameter back into an array
+  element passed to it (`Show Wave(2), Wave(3)` with `BYREF r`: the
+  interpreter's `Wave(3)` changes, native's doesn't) — the same before this
+  lane, for every array: for its own lane.
+- `tools/check_words.py` fails on `development` with unused allowlist
+  entries for ROADMAP.md lines that changed (not this lane's files).
+
+### The pillars
+
+- **Fast**: the synth's voices in arrays 11–16 × faster native, within
+  2 × of plain variables; INTEGER and BYTE arrays 3.5–9 ×; Music Studio's
+  32-voice block from 1.36 ms to 0.09 ms.
+- **Easy to use**: nothing to learn or change: a typed array is fast as
+  written; the manual's Arrays section (English and Spanish) says which uses
+  keep it so, and `examples/basics/fast_arrays.rr` shows it.
+- **Accessible**: nothing on screen changes; a program that answers sooner
+  keeps screen readers and keyboard users in step.
+- **Beautiful**: same output; smooth real-time audio instead of dropouts.
+- **Legal**: no new dependency; no `unsafe` (a `RefCell` and safe indexing);
+  the corpus was only read locally.

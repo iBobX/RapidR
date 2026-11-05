@@ -1,0 +1,19 @@
+{
+  "about": "Native builds' budgets (tools/bench/native_bench --check; tools/regress.sh perf). Times: the fastest of the runs' CPU time of the built program, start-up included; a budget missed fails. \"budgets\" were measured on an Apple M4 Max busy with other lanes' builds, \"systems\" holds a system's own (by platform.system()). Measured 2026-11-05 (NATIVE-ARRAYS, docs/speed-audit-2026-11.md \"Native typed arrays\"): before typed arrays (every element a boxed Value) dsp_voices 135 ms, dsp_params 102 ms, arrays 42 ms, byte_array 23 ms, dsp_scalars 10 ms; after 12, 13, 12, 6, 10 ms. The budgets leave room for a busy machine and fail when an array goes back to Values. Linux's are the Mac's times 2.5 (the ratio vm_budgets.json measured for a one-core Ubuntu VM), not measured yet.",
+  "budgets": {
+    "dsp_voices": { "ms": 40 },
+    "dsp_params": { "ms": 40 },
+    "dsp_scalars": { "ms": 25 },
+    "arrays": { "ms": 28 },
+    "byte_array": { "ms": 15 }
+  },
+  "systems": {
+    "Linux": {
+      "dsp_voices": { "ms": 100 },
+      "dsp_params": { "ms": 100 },
+      "dsp_scalars": { "ms": 63 },
+      "arrays": { "ms": 70 },
+      "byte_array": { "ms": 38 }
+    }
+  }
+}

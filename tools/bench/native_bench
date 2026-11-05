@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""Native builds' budgets (docs/speed-audit-2026-11.md, "Native typed
+arrays"): how fast a program built with `rapidr build` (generated Rust,
+optimized) runs the programs in tools/bench/vm/ whose work is in typed
+arrays and typed numbers, with the `rapidr` given (./rapidr, or RAPIDR=…).
+
+  dsp_voices   32 synth voices kept in global DOUBLE arrays, 441 samples x
+               100 blocks (about 13 million element reads and writes)
+  dsp_params   the same synth with the voices passed to it as DOUBLE array
+               parameters, its output buffer its own array
+  dsp_scalars  the same synth on local DOUBLEs: what dsp_voices aims at
+  arrays       2,000,000 INTEGER elements written, read and summed
+  byte_array   a 64 KB BYTE array decoded with AND / SHR / SHL, 16 passes
+
+Each program is built once per run (release, into tests/results/bench/
+native-bench/; the build cache is RAPIDR_BUILD_CACHE's, else the system's)
+and run --runs times (3): its time is the fastest CPU time (what the
+program itself costs, steady on a machine busy with other work, start-up
+included). Its answer must be the interpreter's. `--check` compares with the
+budgets in tools/bench/native_budgets.json and exits 1 when one is missed
+(the `perf` stage of tools/regress.sh); `--json FILE` writes the numbers.
+
+  tools/bench/native_bench [--check] [--runs N] [--json FILE] [only…]
+"""
+
+import json
+import os
+import platform
+import resource
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+PROGRAMS = os.path.join(HERE, "vm")
+BUDGETS = os.path.join(HERE, "native_budgets.json")
+WORK = os.path.join(ROOT, "tests", "results", "bench", "native-bench")
+
+# (program, the answer its output holds: the interpreter's)
+BENCHES = [
+    ("dsp_voices", "dsp_voices 1823146"),
+    ("dsp_params", "dsp_params 1823146"),
+    ("dsp_scalars", "dsp_scalars 1904054"),
+    ("arrays", "999000000"),
+    ("byte_array", "byte_array 11010048"),
+]
+
+LABELS = {
+    "dsp_voices": "synth voices in global DOUBLE arrays",
+    "dsp_params": "the same as DOUBLE array parameters",
+    "dsp_scalars": "the same synth on local DOUBLEs",
+    "arrays": "arrays, 2 M INTEGER elements",
+    "byte_array": "BYTE array decode, 1 M reads",
+}
+
+
+def rapidr_binary():
+    exe = os.environ.get("RAPIDR") or os.path.join(ROOT, "rapidr" + (".exe" if os.name == "nt" else ""))
+    if not os.path.isfile(exe):
+        sys.exit(f"native_bench: no rapidr at {exe} (cargo build --release -p rapidr-cli, then copy it, or RAPIDR=…)")
+    return exe
+
+
+def scratch_env():
+    """Nothing a benchmark runs may reach a real printer, the user's
+    registry store or keychain."""
+    env = dict(os.environ)
+    os.makedirs(os.path.join(WORK, "print"), exist_ok=True)
+    env.setdefault("RAPIDR_PRINT_TO", os.path.join(WORK, "print"))
+    env.setdefault("RAPIDR_REGISTRY", os.path.join(WORK, "registry.reg"))
+    env.setdefault("RAPIDR_AI_KEYSTORE", "memory")
+    return env
+
+
+def build(exe, name, env):
+    out = os.path.join(WORK, name)
+    os.makedirs(out, exist_ok=True)
+    binary = os.path.join(out, name + (".exe" if os.name == "nt" else ""))
+    if os.path.exists(binary):
+        os.remove(binary)
+    r = subprocess.run([exe, "build", os.path.join(PROGRAMS, name + ".rr"), "--output", out, "--no-bundle"], env=env, cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0 or not os.path.exists(binary):
+        sys.exit(f"native_bench: building {name} failed:\n{r.stdout[-600:]}\n{r.stderr[-1200:]}")
+    # (a fresh macOS binary's first launch costs ~0.2 s: once before timing)
+    subprocess.run([binary], env=env, cwd=ROOT, capture_output=True)
+    return binary
+
+
+def cpu_ms(cmd, env, expect):
+    before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    p = subprocess.run(cmd, env=env, cwd=ROOT, capture_output=True, text=True)
+    after = resource.getrusage(resource.RUSAGE_CHILDREN)
+    if p.returncode != 0:
+        sys.exit(f"native_bench: {cmd[0]} exited {p.returncode}: {p.stderr[-400:]}")
+    if expect not in p.stdout:
+        sys.exit(f"native_bench: {os.path.basename(cmd[0])} printed {p.stdout.strip()[:200]!r}, not {expect!r} (the interpreter's answer)")
+    return ((after.ru_utime - before.ru_utime) + (after.ru_stime - before.ru_stime)) * 1000
+
+
+def main():
+    args = sys.argv[1:]
+    check = "--check" in args
+    runs, json_out, only = 3, None, []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--runs":
+            runs = int(args[i + 1])
+            i += 1
+        elif a == "--json":
+            json_out = args[i + 1]
+            i += 1
+        elif not a.startswith("--"):
+            only.append(a)
+        i += 1
+    exe = rapidr_binary()
+    env = scratch_env()
+    results = {}
+    for name, expect in BENCHES:
+        if only and name not in only:
+            continue
+        binary = build(exe, name, env)
+        results[name] = {"ms": round(min(cpu_ms([binary], env, expect) for _ in range(runs)), 1)}
+
+    budgets = {}
+    if os.path.isfile(BUDGETS):
+        with open(BUDGETS) as f:
+            data = json.load(f)
+        budgets = dict(data.get("budgets", {}))
+        budgets.update(data.get("systems", {}).get(platform.system(), {}))
+    missed = []
+    for name, r in results.items():
+        budget = budgets.get(name, {}).get("ms")
+        mark = ""
+        if budget is not None:
+            ok = r["ms"] <= budget
+            mark = f"  (budget {budget} ms{'' if ok else ': MISSED'})"
+            if not ok:
+                missed.append(name)
+        print(f"{LABELS.get(name, name):40} {r['ms']:8.1f} ms{mark}")
+    if json_out:
+        with open(json_out, "w") as f:
+            json.dump(results, f, indent=1)
+    if check:
+        if missed:
+            print(f"native_bench: MISSED {', '.join(missed)}")
+            sys.exit(1)
+        print("native_bench: every budget met")
+
+
+if __name__ == "__main__":
+    main()

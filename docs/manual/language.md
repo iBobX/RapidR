@@ -168,6 +168,24 @@ QUICKSORT a(1), a(5), 0       ' sorts a(1) … a(5); 0 ascending
 Whole arrays can be passed (`Fill M()`, `SUB Fill (list() AS STRING)`), and
 TYPEs can hold arrays (`Names(2) AS STRING`, `vertex(9, 2) AS SINGLE`).
 
+### Fast arrays in native builds
+
+An array of numbers — declared `AS BYTE`, `WORD`, `SHORT`, `INTEGER`,
+`LONG`, `DWORD`, `SINGLE`, `DOUBLE`, `INT64` or `UINT64` — is plain memory
+in a native build (`rapidr build`) when the program uses it by its
+elements: `a(i)`, `grid(i, j) = x`, `LBOUND` / `UBOUND`, `REDIM`, and
+passing it whole to a `SUB` or `FUNCTION` whose parameter is an array of
+the same type (`SUB Mix (voices() AS DOUBLE)`). A loop over such arrays
+runs about as fast as the same loop on plain variables: a synthesizer
+keeping 32 voices in `DOUBLE` arrays computes a 10 ms block of sound in
+under 0.1 ms.
+
+An array used another way — passed whole to a built-in function, copied
+(`b = a`), its address taken (`VARPTR`), or passed to a parameter of
+another type or of none — works just the same, at the speed of other
+values. Either way the program does the same in every runtime; see
+[examples/basics/fast_arrays.rr](../../examples/basics/fast_arrays.rr).
+
 ## Operators
 
 From the loosest: `OR`, `XOR` · `AND` · `NOT` · comparisons (`=`, `<>`,
