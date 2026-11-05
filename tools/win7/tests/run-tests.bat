@@ -4,10 +4,15 @@ rem first (the disc is read-only), then double-click this file in C:\rapidr\test
 rem Everything goes to results.txt in this folder, and is shown at the end.
 setlocal
 cd /d "%~dp0"
-for %%i in ("%~dp0..") do set "RAPIDR_HOME=%%~fi"
+for %%i in ("%~dp0..") do set "TOP=%%~fi"
 set RAPIDR_AI_KEYSTORE=memory
 set OUT=%~dp0results.txt
-set RR=%RAPIDR_HOME%\rapidr.exe
+rem The alpha zip is an install (bin\rapidr.exe finds lib\rapidr\ by itself); tools/win7/stage.sh's test drop
+rem has rapidr.exe beside ide\ and examples\, which RAPIDR_HOME names.
+set RAPIDR_HOME=
+set "RR=%TOP%\bin\rapidr.exe"
+if not exist "%TOP%\bin\rapidr.exe" set "RR=%TOP%\rapidr.exe"
+if not exist "%TOP%\bin\rapidr.exe" set "RAPIDR_HOME=%TOP%"
 
 echo RapidR on Windows 7: smoke tests > "%OUT%"
 date /t >> "%OUT%"
@@ -49,6 +54,17 @@ set RAPIDR_RENDERER=cpu
 "%RR%" run form_auto.rr >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
 set RAPIDR_RENDERER=
+
+echo [6/6] Build (interpreted): hello.rr and form_auto.rr become programs of their own, and run
+echo --- 6. Build (interpreted): hello.exe, then form_auto.exe (closes by itself after 20 s) >> "%OUT%"
+"%RR%" build hello.rr --interp >> "%OUT%" 2>&1
+echo exit=%errorlevel% >> "%OUT%"
+if exist hello.exe hello.exe >> "%OUT%" 2>&1
+echo exit=%errorlevel% >> "%OUT%"
+"%RR%" build form_auto.rr --interp >> "%OUT%" 2>&1
+echo exit=%errorlevel% >> "%OUT%"
+if exist form_auto.exe form_auto.exe >> "%OUT%" 2>&1
+echo exit=%errorlevel% >> "%OUT%"
 
 echo.
 echo ================ results.txt ================

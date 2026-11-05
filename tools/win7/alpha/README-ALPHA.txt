@@ -1,4 +1,4 @@
-RapidR 2.121.0 for Windows 7, 8 and 8.1 (32-bit) - ALPHA 1
+RapidR @VERSION@ for Windows 7, 8 and 8.1 (32-bit) - ALPHA @ALPHA@
 ===========================================================
 
 English first. Español más abajo (after the line of equal signs).
@@ -14,7 +14,7 @@ Use it at your own risk and keep a copy of anything you care about.
 What it is
 ----------
 RapidR is a free (MIT licence) programming language and editor, compatible
-with RapidQ. This folder is RapidR 2.121.0 built for Windows 7, 8 and 8.1,
+with RapidQ. This folder is RapidR @VERSION@ built for Windows 7, 8 and 8.1,
 32-bit, so that older PCs can use it. (On Windows 10 and 11 please use the
 normal download from https://github.com/iBobX/RapidR instead.)
 Windows 7, 8 and 8.1 no longer receive security updates from Microsoft. Use
@@ -31,14 +31,25 @@ How to start
    black window stays open behind Studio: that is normal in this alpha, and
    it shows any error text. Closing it closes Studio.
    The first start is slow on an old PC (up to a minute). Please wait.
-3. In Studio, open a program from the  examples  folder and press Run.
-4. Optional check (about 1 minute):  tests\run-tests.bat  runs five small
-   tests and writes the answers to  tests\results.txt . If something goes
-   wrong, send us that file.
+3. In Studio, open an example (the Welcome page lists them; they are in
+   lib\rapidr\examples ) and press Run.
+4. Optional check (about 2 minutes):  tests\run-tests.bat  runs a few small
+   tests, builds two programs and runs them, and writes the answers to
+   tests\results.txt . If something goes wrong, send us that file.
 
-The program itself is  rapidr.exe . For example, in a Command Prompt:
-    rapidr.exe version
-    rapidr.exe run examples\basics\hello.rr
+The program itself is  bin\rapidr.exe . For example, in a Command Prompt:
+    bin\rapidr.exe version
+    bin\rapidr.exe run lib\rapidr\examples\basics\hello.rr
+
+
+Make a program of your own
+--------------------------
+In Studio:  Run > Build Interpreted App . Or in a Command Prompt:
+    bin\rapidr.exe build myprogram.rr --interp
+This makes  myprogram.exe : one file with RapidR's runner and your program in
+it. It runs on Windows 7 and later and needs nothing installed (no Rust). It
+is made with  THIRD-PARTY-NOTICES.txt  beside it: keep them together when you
+give the program to somebody.
 
 
 What works
@@ -46,6 +57,7 @@ What works
  - RapidR Studio: the editor, the examples, the debugger and its panels.
  - Running programs (console programs and windows), including programs
    written for RapidQ.
+ - Build Interpreted App: your program as one .exe (see above).
  - It does not need a modern graphics card: the processor (the CPU) does
    the drawing.
 It has run on Windows 7 (32-bit, no updates) in a virtual machine. We have
@@ -54,9 +66,8 @@ NOT yet tried it on real old PCs: that is what this test is for.
 
 Known limits of this alpha
 --------------------------
- - Making a stand-alone .exe from your program (the Build command,
-   "rapidr build") is not in this alpha. Run your programs from Studio or
-   with "rapidr.exe run".
+ - Build Native App (compiling your program with Rust) is not in this
+   alpha: Rust does not run on Windows 7. Build Interpreted App works.
  - Console programs: text colours, CLS and LOCATE may not work on Windows 7,
    8 and 8.1 (their console does not understand the codes RapidR sends).
    The text still appears.
@@ -116,7 +127,7 @@ GitHub or Buy Me a Coffee, never by RapidR.
 
 =============================================================================
 
-RapidR 2.121.0 para Windows 7, 8 y 8.1 (32 bits) - ALFA 1
+RapidR @VERSION@ para Windows 7, 8 y 8.1 (32 bits) - ALFA @ALPHA@
 =========================================================
 
 ESTA ES UNA VERSIÓN ALFA DE PRUEBA.
@@ -130,7 +141,7 @@ que le importe.
 Qué es
 ------
 RapidR es un lenguaje de programación y editor gratuito (licencia MIT),
-compatible con RapidQ. Esta carpeta es RapidR 2.121.0 compilado para
+compatible con RapidQ. Esta carpeta es RapidR @VERSION@ compilado para
 Windows 7, 8 y 8.1 de 32 bits, para que lo usen los PCs más viejos. (En
 Windows 10 y 11 use mejor la descarga normal de
 https://github.com/iBobX/RapidR.)
@@ -149,14 +160,25 @@ Cómo empezar
    esta alfa, y muestra el texto de cualquier error. Si la cierra, se cierra
    Studio. El primer arranque es lento en un PC viejo (hasta un minuto).
    Espere, por favor.
-3. En Studio abra un programa de la carpeta  examples  y pulse Run.
-4. Comprobación opcional (1 minuto aprox.):  tests\run-tests.bat  hace cinco
-   pruebas pequeñas y guarda el resultado en  tests\results.txt . Si algo
-   falla, envíenos ese archivo.
+3. En Studio abra un ejemplo (la página de bienvenida los lista; están en
+   lib\rapidr\examples ) y pulse Run.
+4. Comprobación opcional (2 minutos aprox.):  tests\run-tests.bat  hace unas
+   pruebas pequeñas, crea dos programas y los ejecuta, y guarda el resultado
+   en  tests\results.txt . Si algo falla, envíenos ese archivo.
 
-El programa en sí es  rapidr.exe . Por ejemplo, en una ventana de comandos:
-    rapidr.exe version
-    rapidr.exe run examples\basics\hello.rr
+El programa en sí es  bin\rapidr.exe . Por ejemplo, en una ventana de comandos:
+    bin\rapidr.exe version
+    bin\rapidr.exe run lib\rapidr\examples\basics\hello.rr
+
+
+Haga un programa suyo
+---------------------
+En Studio:  Run > Build Interpreted App . O en una ventana de comandos:
+    bin\rapidr.exe build miprograma.rr --interp
+Esto crea  miprograma.exe : un solo archivo con el runner de RapidR y su
+programa dentro. Funciona en Windows 7 y posteriores y no necesita nada
+instalado (ni Rust). Se crea con  THIRD-PARTY-NOTICES.txt  al lado: guárdelos
+juntos cuando entregue el programa a alguien.
 
 
 Qué funciona
@@ -164,6 +186,7 @@ Qué funciona
  - RapidR Studio: el editor, los ejemplos, el depurador y sus paneles.
  - Ejecutar programas (de consola y con ventanas), también los escritos para
    RapidQ.
+ - Build Interpreted App: su programa como un solo .exe (vea arriba).
  - No necesita una tarjeta gráfica moderna: el procesador (la CPU) hace el
    dibujo.
 Ha funcionado en Windows 7 (32 bits, sin actualizaciones) dentro de una
@@ -173,9 +196,8 @@ eso es esta prueba.
 
 Límites conocidos de esta alfa
 ------------------------------
- - Crear un .exe independiente de su programa (el comando Build,
-   "rapidr build") no está en esta alfa. Ejecute sus programas desde Studio
-   o con "rapidr.exe run".
+ - Build Native App (compilar su programa con Rust) no está en esta alfa:
+   Rust no funciona en Windows 7. Build Interpreted App sí funciona.
  - Programas de consola: los colores del texto, CLS y LOCATE pueden no
    funcionar en Windows 7, 8 y 8.1 (su consola no entiende los códigos que
    envía RapidR). El texto sí aparece.

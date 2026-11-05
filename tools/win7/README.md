@@ -8,11 +8,13 @@ nightly Rust and the `*-win7-windows-gnu` targets, which run on Windows 7 and la
 |---|---|
 | `build.sh [i686\|x86_64] [cargo args]` | builds `rapidr.exe` (default `-p rapidr-cli`) |
 | `imports.py rapidr.exe [--against older.exe]` | lists the DLL functions the .exe needs at start, flags what Windows 7 lacks; `--against` lists what is new since an .exe known to start there. The Windows 7 .exe has no delay-loaded section any more |
+| `runners.sh [i686\|x86_64]` | builds the two **runner programs** (`rapidrintr-runner.exe`, `rapidrintr-runnerw.exe`) that `rapidr build --interp` copies into a person's program, and checks their import tables for functions Windows 7 lacks. They get `shim/win7_stand_ins.c` (below) because the runner stub is a crate without `win7.rs` |
+| `shim/` | `win7_stand_ins.c`: the six Windows 8-only functions (`RoGetActivationFactory`, `RoOriginateErrorW`, `PathCchStripPrefix`, `CoIncrementMTAUsage`, `CoCreateFreeThreadedMarshaler`, `CoTaskMemFree`) answered the way `crates/rapidr-cli/src/win7.rs` answers them, linked into the two runners only; `test_stand_ins.c` + `test.sh` check it (run the .exe in the Windows 11 VM with and without the argument `absent`) |
 | `stage.sh [i686\|x86_64]` | the test drop: stripped exe, Studio's files, tests, READ-ME, a `.zip`, and the disc image (ISO) |
 | `serve.sh` | serves the drop to the VM over the **host-only** network only (HTTP, read-only) |
-| `alpha.sh [N]` | the **alpha download**: `RapidR-<version>-win7-x86-alpha<N>.zip` + `.sha256` in `dist/<version>-win7-alpha<N>/` (`alpha/` holds its README-ALPHA.txt and launcher, `licenses/` the toolchain's licence texts; `THIRD-PARTY-NOTICES.txt` is made by `rapidr notices tools-windows` from any rapidr built for the Mac: `HOST_RAPIDR`, default `/Volumes/RapidRBuild/main/target/release/rapidr`) |
+| `alpha.sh [N]` | the **alpha download**: `RapidR-<version>-win7-x86-alpha<N>.zip` + `.sha256` in `dist/<version>-win7-alpha<N>/`, laid out **as an install** (`bin\rapidr.exe`, `lib\rapidr\{release.toml, ide, examples, runners\windows-x86, notices}`: `rapidr.exe` finds its home from any Command Prompt, and Build works with no Rust). Needs `build.sh i686` and `runners.sh i686` first, and a `HOST_RAPIDR` of the same version (`alpha/` holds its README-ALPHA.txt and launcher, `licenses/` the toolchain's licence texts; `THIRD-PARTY-NOTICES.txt` is made by `rapidr notices tools-windows` from any rapidr built for the Mac: `HOST_RAPIDR`, default `/Volumes/RapidRBuild/main/target/release/rapidr`) |
 | `link_audit.sh <mingw-w64 source>` | relinks with a map and traces every toolchain object in the .exe to its source and licence (review: `docs/legal/review-2026-10-23-win7-alpha.md`) |
-| `tests/` | `run-tests.bat` (console + window smoke tests), `run-studio.bat`, `form_auto.rr` |
+| `tests/` | `run-tests.bat` (console + window smoke tests, and Build interpreted), `run-studio.bat`, `form_auto.rr` (both batch files also run in `stage.sh`'s flat test drop) |
 
 ## One-time setup (nothing system-wide, no sudo)
 
@@ -34,6 +36,12 @@ nightly Rust and the `*-win7-windows-gnu` targets, which run on Windows 7 and la
      or link. Nothing from the tree ships in RapidR's downloads except what the linker copies into the .exe.
 
 ## Build, check, test
+
+The zip a tester gets is checked before it ships by the release's build matrix
+(`tools/release/build-matrix.sh <ver> --only win7`, [docs/build-matrix.md](../../docs/build-matrix.md)):
+unzipped in the Windows 11 VM (x86 emulation), `rapidr run`, **Build (interpreted)** of a console and a GUI
+program on a PC with no Rust, the built programs started, Studio headless, and the import tables of
+`rapidr.exe` and both runners read for anything Windows 7 lacks. A real Windows 7 is still tested by hand.
 
 ```
 tools/win7/build.sh i686                      # -> target/i686-win7-windows-gnu/release/rapidr.exe

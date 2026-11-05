@@ -1,7 +1,9 @@
 Licence texts for the pieces of the C/C++ toolchain inside rapidr.exe
+and the runner programs
 =====================================================================
 
-rapidr.exe for Windows 7 is built with the LLVM-MinGW toolchain (version
+rapidr.exe and the runner programs (lib\rapidr\runners: every program that
+Build makes starts from one of them) for Windows 7 are built with the LLVM-MinGW toolchain (version
 20261020, "msvcrt" flavour, which uses the C runtime Windows 7 has:
 msvcrt.dll). The linker copies a few small pieces of the toolchain's own
 runtime into the program. This folder has their licence texts. RapidR's own
