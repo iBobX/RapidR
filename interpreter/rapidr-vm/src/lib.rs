@@ -35,12 +35,16 @@
 #![forbid(unsafe_code)]
 
 pub mod host;
+mod fast;
+#[cfg(test)]
+mod fast_tests;
 
+pub use fast::{direct_builtin, direct_names};
 pub use host::{Host, StubHost};
 pub use rapidr_bytecode as bytecode;
 pub use rapidr_value::Value;
 
-use rapidr_bytecode::{Module, Op};
+use rapidr_bytecode::{raw, Module, Op, NO_KIND};
 use rapidr_value::events::QueuedEvent;
 use rapidr_value::{v_array, v_bool, v_int, v_null, v_str};
 
@@ -261,6 +265,17 @@ enum WaitTurn {
     Ended,
 }
 
+/// Where [`Vm::run_hot`] stopped.
+enum Hot {
+    /// At an instruction it doesn't run (a host operation, the end of the
+    /// code).
+    Cold,
+    /// After its one instruction (`ONE`).
+    Done,
+    /// The frame that was entered returned: the VM stops.
+    Stopped,
+}
+
 /// How a returning frame leaves the VM.
 #[derive(PartialEq, Eq)]
 enum Returned {
@@ -458,17 +473,16 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             .ok_or_else(|| VmError::BadFunctionIndex(fn_index))?;
         let mut locals = self.spare_locals.pop().unwrap_or_default();
         locals.clear();
-        locals.resize(f.n_locals as usize, Value::Null);
-        // Pop args off the stack into the parameter slots. Extra arguments
-        // (e.g. the Sender a host passes to a handler that declares no
-        // parameters) are dropped rather than overwriting the first locals.
-        let n_params = f.params.len().min(locals.len());
-        for i in (0..argc as usize).rev() {
-            let v = self.pop()?;
-            if i < n_params {
-                locals[i] = v;
-            }
-        }
+        // The arguments, moved off the stack into the parameter slots, then
+        // the other locals Null. Extra arguments (e.g. the Sender a host
+        // passes to a handler that declares no parameters) are dropped
+        // rather than overwriting the first locals.
+        let n_locals = f.n_locals as usize;
+        let n_params = f.params.len().min(n_locals);
+        let at = self.stack.len().checked_sub(argc as usize).ok_or_else(|| VmError::StackUnderflow)?;
+        locals.extend(self.stack.drain(at..at + (argc as usize).min(n_params)));
+        self.stack.truncate(at);
+        locals.resize(n_locals, Value::Null);
         let ret_ip = self.frames.last().map(|fr| fr.locals.len() /* unused */ ).unwrap_or(0);
         // ret_ip placeholder — replaced by exec() loop's saved ip on push.
         let stack_base = self.stack.len();
@@ -702,6 +716,672 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         };
     }
 
+    /// The instructions that compute — loads, stores, arithmetic,
+    /// comparisons, jumps, calls, arrays, the fused instructions — in a loop
+    /// of their own, small enough to compile tight (docs/vm-fast-design.md):
+    /// it runs from `ip` until an instruction it doesn't run (a host
+    /// operation, the end of the code: [`Hot::Cold`], `ip` at it) or the
+    /// frame that was entered returns ([`Hot::Stopped`]); with `ONE`, one
+    /// instruction only (the debugger looks before each). `code` follows the
+    /// calls and returns.
+    #[inline(never)]
+    fn run_hot<'m, const ONE: bool>(&mut self, module: &'m Module, code_out: &mut &'m [u8], ip_out: &mut usize, values: &[Value], direct: &[u8]) -> Result<Hot, VmError> {
+        let mut code: &'m [u8] = code_out;
+        let mut ip = *ip_out;
+        // (what a global never assigned reads, and the FOR test's 0)
+        let null = Value::Null;
+        let zero = Value::Integer(0);
+        macro_rules! out {
+            ($hot:expr) => {{
+                *ip_out = ip;
+                *code_out = code;
+                return Ok($hot);
+            }};
+        }
+        macro_rules! refresh {
+            () => {
+                code = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
+                // (another function: the debugger looks again)
+                self.quiet = (0, 0);
+            };
+        }
+        // Where a loop or a recursion can run on (a jump, a call): a host
+        // that yields ([`Host::YIELDS`], compiled out elsewhere) is asked
+        // every so often whether the program has had its time slice; then
+        // the VM stops here, ready to continue at `ip`.
+        macro_rules! tick {
+            () => {
+                if H::YIELDS && self.eval_fuel.is_none() {
+                    self.ticks -= 1;
+                    if self.ticks == 0 {
+                        self.ticks = YIELD_CHECK_EVERY;
+                        if self.host.yield_now() {
+                            self.frames.last_mut().unwrap().ip = ip;
+                            return Err(VmError::Yielded);
+                        }
+                    }
+                }
+            };
+        }
+        // A fused instruction's operand (rapidr_bytecode::Mode), borrowed:
+        // a local's value, a global's (Null never assigned) or a constant.
+        macro_rules! leaf {
+            (L) => {{
+                let s = read_u16(code, &mut ip)?;
+                self.frames.last().unwrap().locals.get(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?
+            }};
+            (G) => {{
+                let g = read_u32(code, &mut ip)? as usize;
+                match self.globals.get(g) {
+                    Some(Some(v)) => v,
+                    _ => &null,
+                }
+            }};
+            (K) => {{
+                let k = read_u32(code, &mut ip)?;
+                values.get(k as usize).ok_or_else(|| VmError::BadConstIndex(k))?
+            }};
+        }
+        // `<a>; <b>; op` in one instruction (docs/vm-fast-design.md): the
+        // operation `$f` on the operands, pushed — or replacing the value on
+        // the stack when one of them is it.
+        // An operation's result, where the next instruction would take it:
+        // a typed store of a local there (`StoreLocalNum`) is done here, the
+        // value never pushed — the same as running it, one dispatch less
+        // (never under the debugger, which looks at each instruction; and
+        // a store is never a statement's start). `None`: stored; else the
+        // value to push.
+        macro_rules! stored {
+            ($r:expr) => {{
+                let r = $r;
+                match code.get(ip..ip + 4) {
+                    Some(&[raw::StoreLocalNum, lo, hi, kind]) if !ONE => {
+                        let slot = u16::from_le_bytes([lo, hi]);
+                        let local = self.frames.last_mut().unwrap().locals.get_mut(slot as usize).ok_or_else(|| VmError::BadLocalSlot(slot))?;
+                        fast::store_num(local, r, kind)?;
+                        ip += 4;
+                        None
+                    }
+                    _ => Some(r),
+                }
+            }};
+        }
+        // The result of an operation on the value on top, in its place —
+        // or stored (`stored!`), the top taken off.
+        macro_rules! replace_top {
+            ($r:expr) => {{
+                match stored!($r) {
+                    None => {
+                        if let Some(old) = self.stack.pop() {
+                            fast::discard(old);
+                        }
+                    }
+                    Some(r) => {
+                        let top = self.stack.last_mut().ok_or_else(|| VmError::StackUnderflow)?;
+                        fast::put(top, r);
+                    }
+                }
+            }};
+        }
+        macro_rules! fused {
+            ($f:path, S, $b:ident) => {{
+                let b = leaf!($b);
+                let top = self.stack.last().ok_or_else(|| VmError::StackUnderflow)?;
+                let r = $f(top, b)?;
+                replace_top!(r);
+            }};
+            ($f:path, $a:ident, S) => {{
+                let a = leaf!($a);
+                let top = self.stack.last().ok_or_else(|| VmError::StackUnderflow)?;
+                let r = $f(a, top)?;
+                replace_top!(r);
+            }};
+            ($f:path, $a:ident, $b:ident) => {{
+                let a = leaf!($a);
+                let b = leaf!($b);
+                let r = $f(a, b)?;
+                if let Some(r) = stored!(r) {
+                    self.stack.push(r);
+                }
+            }};
+        }
+        // `<a>; <b>; cmp; JumpIfNot target` in one instruction.
+        macro_rules! cmp_jump {
+            ($f:path, S, S) => {{
+                let t = read_u32(code, &mut ip)?;
+                let b = self.stack.pop().ok_or_else(|| VmError::StackUnderflow)?;
+                let a = self.stack.pop().ok_or_else(|| VmError::StackUnderflow)?;
+                let go = $f(&a, &b);
+                fast::discard(a);
+                fast::discard(b);
+                if !go {
+                    ip = t as usize;
+                    tick!();
+                }
+            }};
+            ($f:path, S, $b:ident) => {{
+                let b = leaf!($b);
+                let t = read_u32(code, &mut ip)?;
+                let a = self.stack.pop().ok_or_else(|| VmError::StackUnderflow)?;
+                let go = $f(&a, b);
+                fast::discard(a);
+                if !go {
+                    ip = t as usize;
+                    tick!();
+                }
+            }};
+            ($f:path, $a:ident, $b:ident) => {{
+                let a = leaf!($a);
+                let b = leaf!($b);
+                let t = read_u32(code, &mut ip)?;
+                let go = $f(a, b);
+                if !go {
+                    ip = t as usize;
+                    tick!();
+                }
+            }};
+        }
+
+
+        loop {
+            let Some(&opbyte) = code.get(ip) else { out!(Hot::Cold) };
+            self.fault_ip = ip;
+            let at = ip;
+            ip += 1;
+            // (the byte itself: one table less on the way to the arm)
+            match opbyte {
+                raw::Nop => {}
+                // ----- constants / stack -----
+                raw::LoadConst => {
+                    let i = read_u32(code, &mut ip)?;
+                    // (a string literal shared, not copied: strings copy on write)
+                    let c = values.get(i as usize).ok_or_else(|| VmError::BadConstIndex(i))?;
+                    self.stack.push(c.clone());
+                }
+                raw::LoadNull => self.stack.push(v_null()),
+                raw::LoadTrue => self.stack.push(v_bool(true)),
+                raw::LoadFalse => self.stack.push(v_bool(false)),
+                raw::Pop => { self.pop()?; }
+                raw::Dup => {
+                    let v = self.peek()?.clone();
+                    self.stack.push(v);
+                }
+
+                // ----- locals / globals -----
+                raw::LoadLocal => {
+                    let s = read_u16(code, &mut ip)?;
+                    let frame = self.frames.last().unwrap();
+                    let v = frame.locals.get(s as usize).cloned()
+                        .ok_or_else(|| VmError::BadLocalSlot(s))?;
+                    self.stack.push(v);
+                }
+                raw::StoreLocal => {
+                    let s = read_u16(code, &mut ip)?;
+                    let v = self.pop()?;
+                    let frame = self.frames.last_mut().unwrap();
+                    let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
+                    fast::put(slot, v);
+                }
+                raw::LoadGlobal => {
+                    let i = read_u32(code, &mut ip)? as usize;
+                    let v = self.globals.get(i).and_then(|v| v.clone()).unwrap_or(Value::Null);
+                    self.stack.push(v);
+                }
+                raw::StoreGlobal => {
+                    let i = read_u32(code, &mut ip)? as usize;
+                    if i >= module.strings.len() {
+                        return Err(VmError::BadStringIndex(i as u32));
+                    }
+                    let v = self.pop()?;
+                    self.store_global(module, i, v)?;
+                }
+
+                // ----- arithmetic -----
+                raw::Add => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    if !matches!((&*a, &b), (Value::String(_), Value::String(_))) {
+                        let r = fast::add(a, &b);
+                        fast::discard(b);
+                        replace_top!(r);
+                    } else {
+                        // (two strings: `x = x + y` appended in place)
+                        ip = self.join_strings(code, ip, b, true)?;
+                    }
+                }
+                raw::Sub => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    let r = fast::sub(a, &b);
+                    fast::discard(b);
+                    replace_top!(r);
+                }
+                raw::Mul => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    let r = fast::mul(a, &b);
+                    fast::discard(b);
+                    replace_top!(r);
+                }
+                raw::Div => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    let r = fast::div(a, &b);
+                    fast::discard(b);
+                    replace_top!(r);
+                }
+                raw::IDiv => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_int_div(&b).map_err(|e| VmError::Runtime(e.into()))?); }
+                raw::Mod => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    let r = fast::modulo(a, &b)?;
+                    fast::discard(b);
+                    replace_top!(r);
+                }
+                raw::Pow => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.power(&b)); }
+                raw::Neg => { let a = self.pop()?; self.stack.push(-&a); }
+                raw::Concat => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    if matches!((&*a, &b), (Value::String(_), Value::String(_))) {
+                        ip = self.join_strings(code, ip, b, false)?;
+                    } else {
+                        *a = a.concat(&b);
+                    }
+                }
+
+                // ----- comparison -----
+                raw::Eq => self.compare(fast::eq)?,
+                raw::Ne => self.compare(fast::ne)?,
+                raw::Lt => self.compare(fast::lt)?,
+                raw::Le => self.compare(fast::le)?,
+                raw::Gt => self.compare(fast::gt)?,
+                raw::Ge => self.compare(fast::ge)?,
+
+                // ----- logical -----
+                raw::And => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.and(&b)); }
+                raw::Or  => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.or(&b)); }
+                raw::Xor => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.xor(&b)); }
+                raw::Not => { let a = self.pop()?; self.stack.push(a.not()); }
+
+                // ----- bitwise -----
+                raw::BAnd => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a & b)); }
+                raw::BOr  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a | b)); }
+                raw::BXor => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a ^ b)); }
+                raw::BNot => { let a = self.pop()?.to_i64(); self.stack.push(v_int(!a)); }
+                raw::Shl  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a.wrapping_shl(b as u32))); }
+                raw::Shr  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a.wrapping_shr(b as u32))); }
+
+                // ----- control flow -----
+                raw::Jump => { let t = read_u32(code, &mut ip)?; ip = t as usize; tick!(); }
+                raw::JumpIf => {
+                    let t = read_u32(code, &mut ip)?;
+                    let v = self.pop()?;
+                    let go = v.to_bool();
+                    fast::discard(v);
+                    if go { ip = t as usize; tick!(); }
+                }
+                raw::JumpIfNot => {
+                    let t = read_u32(code, &mut ip)?;
+                    let v = self.pop()?;
+                    let go = v.to_bool();
+                    fast::discard(v);
+                    if !go { ip = t as usize; tick!(); }
+                }
+
+                // ----- calls -----
+                raw::CallSub => {
+                    let fi = read_u32(code, &mut ip)?;
+                    let argc = read_u8(code, &mut ip)?;
+                    self.frames.last_mut().unwrap().ip = ip;
+                    self.frames.last_mut().unwrap().ret_ip = ip;
+                    self.call(module, fi, argc, false)?;
+                    ip = 0;
+                    refresh!();
+                    tick!();
+                }
+                raw::CallFunc => {
+                    let fi = read_u32(code, &mut ip)?;
+                    let argc = read_u8(code, &mut ip)?;
+                    self.frames.last_mut().unwrap().ip = ip;
+                    self.frames.last_mut().unwrap().ret_ip = ip;
+                    self.call(module, fi, argc, true)?;
+                    ip = 0;
+                    refresh!();
+                    tick!();
+                }
+                raw::Ret => {
+                    if self.return_frame(module, false)? == Returned::Stop { out!(Hot::Stopped); }
+                    ip = self.frames.last().unwrap().ip;
+                    refresh!();
+                }
+                raw::RetVal => {
+                    if self.return_frame(module, true)? == Returned::Stop { out!(Hot::Stopped); }
+                    ip = self.frames.last().unwrap().ip;
+                    refresh!();
+                }
+                raw::Gosub => {
+                    let target = read_u32(code, &mut ip)? as usize;
+                    self.frames.last_mut().unwrap().gosub.push(ip);
+                    ip = target;
+                    tick!();
+                }
+                raw::GosubRet => {
+                    if let Some(back) = self.frames.last_mut().unwrap().gosub.pop() {
+                        ip = back;
+                    }
+                }
+                raw::LoadArgOut => {
+                    let k = read_u8(code, &mut ip)? as usize;
+                    self.stack.push(self.arg_out.get(k).cloned().unwrap_or_else(v_null));
+                }
+                raw::CallBuiltin => {
+                    let name_i = read_u32(code, &mut ip)?;
+                    let argc = read_u8(code, &mut ip)? as usize;
+                    // (a pure maths builtin: called here, as the host would —
+                    // docs/vm-fast-design.md)
+                    if let Some(&f) = direct.get(name_i as usize).filter(|&&f| f != 0) {
+                        let args = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
+                        if argc == 1 {
+                            let arg = &mut self.stack[args];
+                            let r = fast::call_direct(f, std::slice::from_ref(arg));
+                            fast::put(arg, r);
+                        } else {
+                            let r = fast::call_direct(f, &self.stack[args..]);
+                            self.stack.truncate(args);
+                            self.stack.push(r);
+                        }
+                    } else {
+                        // (a builtin of the host's: the caller runs it)
+                        ip = at;
+                        out!(Hot::Cold);
+                    }
+                }
+                raw::GetField => {
+                    let slot = read_u16(code, &mut ip)? as usize;
+                    match self.pop()? {
+                        Value::Object(o) => self.stack.push(o.get(slot)),
+                        other => return Err(VmError::Runtime(format!("this variable does not refer to an object (reading a field of {:?})", other.to_string_val()))),
+                    }
+                }
+                raw::SetField => {
+                    let slot = read_u16(code, &mut ip)? as usize;
+                    let value = self.pop()?;
+                    match self.pop()? {
+                        Value::Object(o) => o.set(slot, value),
+                        other => return Err(VmError::Runtime(format!("this variable does not refer to an object (setting a field of {:?})", other.to_string_val()))),
+                    }
+                }
+                raw::ToNum => {
+                    let operand = read_u8(code, &mut ip)?;
+                    let v = self.pop()?;
+                    self.stack.push(fast::to_num(v, operand)?);
+                }
+                raw::AGet => {
+                    let n = read_u8(code, &mut ip)? as usize;
+                    let (buf, n) = self.pop_indices(n)?;
+                    let indices = &buf[..n];
+                    let target = self.pop()?;
+                    let v = match &target {
+                        Value::Array(a) => a.borrow().get(indices).map_err(VmError::Runtime)?,
+                        // Legacy: indexing a comma-separated string.
+                        other if n == 1 => other.rp_index(&v_int(indices[0])),
+                        _ => return Err(VmError::Runtime("indexing a value that is not an array".into())),
+                    };
+                    self.stack.push(v);
+                }
+                raw::ASet => {
+                    let n = read_u8(code, &mut ip)? as usize;
+                    let val = self.pop()?;
+                    let (buf, n) = self.pop_indices(n)?;
+                    match self.pop()? {
+                        Value::Array(a) => a.borrow_mut().set(&buf[..n], val).map_err(VmError::Runtime)?,
+                        _ => return Err(VmError::Runtime(
+                            "assigning to an element of a variable that is not an array (DIM it with a size first)".into(),
+                        )),
+                    }
+                }
+                // ----- 2.123: fused instructions (docs/vm-fast-design.md);
+                // each is its expansion, given in rapidr_bytecode::Op -----
+                raw::StoreLocalNum => {
+                    let s = read_u16(code, &mut ip)?;
+                    let kind = read_u8(code, &mut ip)?;
+                    let v = self.pop()?;
+                    let slot = self.frames.last_mut().unwrap().locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
+                    fast::store_num(slot, v, kind)?;
+                }
+                raw::StoreGlobalNum => {
+                    let i = read_u32(code, &mut ip)? as usize;
+                    let kind = read_u8(code, &mut ip)?;
+                    let v = fast::to_num(self.pop()?, kind)?;
+                    self.store_global(module, i, v)?;
+                }
+                raw::ConvLocal | raw::ConvArgLocal => {
+                    let s = read_u16(code, &mut ip)?;
+                    let kind = read_u8(code, &mut ip)?;
+                    if rapidr_value::numeric::NumKind::from_code(kind).is_none() {
+                        return Err(VmError::BadOperand);
+                    }
+                    let slot = self.frames.last_mut().unwrap().locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
+                    let mut v = std::mem::replace(slot, Value::Null);
+                    if opbyte == raw::ConvArgLocal {
+                        v = fast::to_num(v, rapidr_value::numeric::ARG_ROUND)?;
+                    }
+                    // (the slot holds Null meanwhile: nothing to drop)
+                    std::mem::forget(std::mem::replace(slot, fast::to_num(v, kind)?));
+                }
+                raw::MoveLocal => {
+                    let d = read_u16(code, &mut ip)?;
+                    let s = read_u16(code, &mut ip)?;
+                    let locals = &mut self.frames.last_mut().unwrap().locals;
+                    let v = locals.get(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?.clone();
+                    fast::put(locals.get_mut(d as usize).ok_or_else(|| VmError::BadLocalSlot(d))?, v);
+                }
+                raw::ForTestL | raw::ForTestG => {
+                    // (the step's sign, then the counter against the end)
+                    let var = if opbyte == raw::ForTestL { leaf!(L) } else { leaf!(G) };
+                    let end = leaf!(L);
+                    let step = leaf!(L);
+                    let exit = read_u32(code, &mut ip)?;
+                    let go = if fast::lt(step, &zero) { fast::ge(var, end) } else { fast::le(var, end) };
+                    if !go {
+                        ip = exit as usize;
+                        tick!();
+                    }
+                }
+                raw::ForStepL => {
+                    let var = read_u16(code, &mut ip)?;
+                    let step = read_u16(code, &mut ip)?;
+                    let top = read_u32(code, &mut ip)?;
+                    let locals = &mut self.frames.last_mut().unwrap().locals;
+                    let v = locals.get(var as usize).ok_or_else(|| VmError::BadLocalSlot(var))?;
+                    let next = fast::add(v, locals.get(step as usize).ok_or_else(|| VmError::BadLocalSlot(step))?);
+                    fast::put(&mut locals[var as usize], next);
+                    ip = top as usize;
+                    tick!();
+                }
+                raw::ForStepG => {
+                    let var = read_u32(code, &mut ip)? as usize;
+                    let v = match self.globals.get(var) {
+                        Some(Some(v)) => v,
+                        _ => &null,
+                    };
+                    let step = leaf!(L);
+                    let top = read_u32(code, &mut ip)?;
+                    let next = fast::add(v, step);
+                    self.store_global(module, var, next)?;
+                    ip = top as usize;
+                    tick!();
+                }
+                raw::AGetLS | raw::AGetGS => {
+                    let at = self.pop()?;
+                    let i = fast::index(&at);
+                    fast::discard(at);
+                    let arr = if opbyte == raw::AGetLS { leaf!(L) } else { leaf!(G) };
+                    let v = fast::aget1(arr, i)?;
+                    if let Some(v) = stored!(v) {
+                        self.stack.push(v);
+                    }
+                }
+                raw::AGetLL | raw::AGetLG | raw::AGetGL | raw::AGetGG => {
+                    let arr = if matches!(opbyte, raw::AGetLL | raw::AGetLG) { leaf!(L) } else { leaf!(G) };
+                    let i = fast::index(if matches!(opbyte, raw::AGetLL | raw::AGetGL) { leaf!(L) } else { leaf!(G) });
+                    let v = fast::aget1(arr, i)?;
+                    if let Some(v) = stored!(v) {
+                        self.stack.push(v);
+                    }
+                }
+                raw::ASetLS | raw::ASetGS => {
+                    // (the value below its index: the compiler works the value
+                    // out first)
+                    let at = self.pop()?;
+                    let i = fast::index(&at);
+                    fast::discard(at);
+                    let mut v = self.pop()?;
+                    let arr = if opbyte == raw::ASetLS { leaf!(L) } else { leaf!(G) };
+                    let kind = read_u8(code, &mut ip)?;
+                    if kind != NO_KIND {
+                        v = fast::to_num(v, kind)?;
+                    }
+                    fast::aset1(arr, i, v)?;
+                }
+                raw::ASetLL | raw::ASetLG | raw::ASetGL | raw::ASetGG => {
+                    let mut v = self.pop()?;
+                    let arr = if matches!(opbyte, raw::ASetLL | raw::ASetLG) { leaf!(L) } else { leaf!(G) };
+                    let i = fast::index(if matches!(opbyte, raw::ASetLL | raw::ASetGL) { leaf!(L) } else { leaf!(G) });
+                    let kind = read_u8(code, &mut ip)?;
+                    if kind != NO_KIND {
+                        v = fast::to_num(v, kind)?;
+                    }
+                    fast::aset1(arr, i, v)?;
+                }
+                raw::AddSL => fused!(fast::try_add, S, L),
+                raw::AddSG => fused!(fast::try_add, S, G),
+                raw::AddSK => fused!(fast::try_add, S, K),
+                raw::AddLS => fused!(fast::try_add, L, S),
+                raw::AddLL => fused!(fast::try_add, L, L),
+                raw::AddLG => fused!(fast::try_add, L, G),
+                raw::AddLK => fused!(fast::try_add, L, K),
+                raw::AddGS => fused!(fast::try_add, G, S),
+                raw::AddGL => fused!(fast::try_add, G, L),
+                raw::AddGG => fused!(fast::try_add, G, G),
+                raw::AddGK => fused!(fast::try_add, G, K),
+                raw::AddKS => fused!(fast::try_add, K, S),
+                raw::AddKL => fused!(fast::try_add, K, L),
+                raw::AddKG => fused!(fast::try_add, K, G),
+                raw::SubSL => fused!(fast::try_sub, S, L),
+                raw::SubSG => fused!(fast::try_sub, S, G),
+                raw::SubSK => fused!(fast::try_sub, S, K),
+                raw::SubLS => fused!(fast::try_sub, L, S),
+                raw::SubLL => fused!(fast::try_sub, L, L),
+                raw::SubLG => fused!(fast::try_sub, L, G),
+                raw::SubLK => fused!(fast::try_sub, L, K),
+                raw::SubGS => fused!(fast::try_sub, G, S),
+                raw::SubGL => fused!(fast::try_sub, G, L),
+                raw::SubGG => fused!(fast::try_sub, G, G),
+                raw::SubGK => fused!(fast::try_sub, G, K),
+                raw::SubKS => fused!(fast::try_sub, K, S),
+                raw::SubKL => fused!(fast::try_sub, K, L),
+                raw::SubKG => fused!(fast::try_sub, K, G),
+                raw::MulSL => fused!(fast::try_mul, S, L),
+                raw::MulSG => fused!(fast::try_mul, S, G),
+                raw::MulSK => fused!(fast::try_mul, S, K),
+                raw::MulLS => fused!(fast::try_mul, L, S),
+                raw::MulLL => fused!(fast::try_mul, L, L),
+                raw::MulLG => fused!(fast::try_mul, L, G),
+                raw::MulLK => fused!(fast::try_mul, L, K),
+                raw::MulGS => fused!(fast::try_mul, G, S),
+                raw::MulGL => fused!(fast::try_mul, G, L),
+                raw::MulGG => fused!(fast::try_mul, G, G),
+                raw::MulGK => fused!(fast::try_mul, G, K),
+                raw::MulKS => fused!(fast::try_mul, K, S),
+                raw::MulKL => fused!(fast::try_mul, K, L),
+                raw::MulKG => fused!(fast::try_mul, K, G),
+                raw::DivSL => fused!(fast::try_div, S, L),
+                raw::DivSG => fused!(fast::try_div, S, G),
+                raw::DivSK => fused!(fast::try_div, S, K),
+                raw::DivLS => fused!(fast::try_div, L, S),
+                raw::DivLL => fused!(fast::try_div, L, L),
+                raw::DivLG => fused!(fast::try_div, L, G),
+                raw::DivLK => fused!(fast::try_div, L, K),
+                raw::DivGS => fused!(fast::try_div, G, S),
+                raw::DivGL => fused!(fast::try_div, G, L),
+                raw::DivGG => fused!(fast::try_div, G, G),
+                raw::DivGK => fused!(fast::try_div, G, K),
+                raw::DivKS => fused!(fast::try_div, K, S),
+                raw::DivKL => fused!(fast::try_div, K, L),
+                raw::DivKG => fused!(fast::try_div, K, G),
+                raw::ModSL => fused!(fast::modulo, S, L),
+                raw::ModSK => fused!(fast::modulo, S, K),
+                raw::ModSG => fused!(fast::modulo, S, G),
+                raw::ModLL => fused!(fast::modulo, L, L),
+                raw::ModLK => fused!(fast::modulo, L, K),
+                raw::ModGG => fused!(fast::modulo, G, G),
+                raw::ModGK => fused!(fast::modulo, G, K),
+                raw::JumpIfNotEqSS => cmp_jump!(fast::eq, S, S),
+                raw::JumpIfNotEqLL => cmp_jump!(fast::eq, L, L),
+                raw::JumpIfNotEqLK => cmp_jump!(fast::eq, L, K),
+                raw::JumpIfNotEqGG => cmp_jump!(fast::eq, G, G),
+                raw::JumpIfNotEqGK => cmp_jump!(fast::eq, G, K),
+                raw::JumpIfNotEqSL => cmp_jump!(fast::eq, S, L),
+                raw::JumpIfNotEqSK => cmp_jump!(fast::eq, S, K),
+                raw::JumpIfNotEqSG => cmp_jump!(fast::eq, S, G),
+                raw::JumpIfNotNeSS => cmp_jump!(fast::ne, S, S),
+                raw::JumpIfNotNeLL => cmp_jump!(fast::ne, L, L),
+                raw::JumpIfNotNeLK => cmp_jump!(fast::ne, L, K),
+                raw::JumpIfNotNeGG => cmp_jump!(fast::ne, G, G),
+                raw::JumpIfNotNeGK => cmp_jump!(fast::ne, G, K),
+                raw::JumpIfNotNeSL => cmp_jump!(fast::ne, S, L),
+                raw::JumpIfNotNeSK => cmp_jump!(fast::ne, S, K),
+                raw::JumpIfNotNeSG => cmp_jump!(fast::ne, S, G),
+                raw::JumpIfNotLtSS => cmp_jump!(fast::lt, S, S),
+                raw::JumpIfNotLtLL => cmp_jump!(fast::lt, L, L),
+                raw::JumpIfNotLtLK => cmp_jump!(fast::lt, L, K),
+                raw::JumpIfNotLtGG => cmp_jump!(fast::lt, G, G),
+                raw::JumpIfNotLtGK => cmp_jump!(fast::lt, G, K),
+                raw::JumpIfNotLtSL => cmp_jump!(fast::lt, S, L),
+                raw::JumpIfNotLtSK => cmp_jump!(fast::lt, S, K),
+                raw::JumpIfNotLtSG => cmp_jump!(fast::lt, S, G),
+                raw::JumpIfNotLeSS => cmp_jump!(fast::le, S, S),
+                raw::JumpIfNotLeLL => cmp_jump!(fast::le, L, L),
+                raw::JumpIfNotLeLK => cmp_jump!(fast::le, L, K),
+                raw::JumpIfNotLeGG => cmp_jump!(fast::le, G, G),
+                raw::JumpIfNotLeGK => cmp_jump!(fast::le, G, K),
+                raw::JumpIfNotLeSL => cmp_jump!(fast::le, S, L),
+                raw::JumpIfNotLeSK => cmp_jump!(fast::le, S, K),
+                raw::JumpIfNotLeSG => cmp_jump!(fast::le, S, G),
+                raw::JumpIfNotGtSS => cmp_jump!(fast::gt, S, S),
+                raw::JumpIfNotGtLL => cmp_jump!(fast::gt, L, L),
+                raw::JumpIfNotGtLK => cmp_jump!(fast::gt, L, K),
+                raw::JumpIfNotGtGG => cmp_jump!(fast::gt, G, G),
+                raw::JumpIfNotGtGK => cmp_jump!(fast::gt, G, K),
+                raw::JumpIfNotGtSL => cmp_jump!(fast::gt, S, L),
+                raw::JumpIfNotGtSK => cmp_jump!(fast::gt, S, K),
+                raw::JumpIfNotGtSG => cmp_jump!(fast::gt, S, G),
+                raw::JumpIfNotGeSS => cmp_jump!(fast::ge, S, S),
+                raw::JumpIfNotGeLL => cmp_jump!(fast::ge, L, L),
+                raw::JumpIfNotGeLK => cmp_jump!(fast::ge, L, K),
+                raw::JumpIfNotGeGG => cmp_jump!(fast::ge, G, G),
+                raw::JumpIfNotGeGK => cmp_jump!(fast::ge, G, K),
+                raw::JumpIfNotGeSL => cmp_jump!(fast::ge, S, L),
+                raw::JumpIfNotGeSK => cmp_jump!(fast::ge, S, K),
+                raw::JumpIfNotGeSG => cmp_jump!(fast::ge, S, G),
+
+                // (a host operation: the caller runs it)
+                _ => {
+                    if Op::from_u8(opbyte).is_none() {
+                        return Err(VmError::BadOpcode(opbyte));
+                    }
+                    ip = at;
+                    out!(Hot::Cold);
+                }
+            }
+            if ONE {
+                out!(Hot::Done);
+            }
+        }
+    }
+
     fn exec_loop(&mut self, module: &Module) -> Result<(), VmError> {
         if self.frames.is_empty() {
             return Ok(());
@@ -713,6 +1393,21 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         self.quiet = (0, 0);
         // The currently executing function's code, refreshed on call/ret.
         let mut code: &[u8] = &module.functions[self.frames.last().unwrap().fn_index as usize].code;
+        // The module's constants as values and its pure maths builtins'
+        // codes, worked out the first time it runs (docs/vm-fast-design.md);
+        // a copy of the module with constants added since (the debugger's
+        // snippet) has them all made here.
+        let made: Vec<Value>;
+        let values: &[Value] = {
+            let prepared = module.prepared.values(&module.consts);
+            if prepared.len() == module.consts.len() {
+                prepared
+            } else {
+                made = module.consts.iter().map(rapidr_bytecode::Const::to_value).collect();
+                &made
+            }
+        };
+        let direct: &[u8] = if H::DIRECT_MATHS { module.prepared.builtins(&module.strings, fast::direct_code) } else { &[] };
 
         macro_rules! refresh {
             () => {
@@ -796,12 +1491,27 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
             }
 
+            // (what computes runs in run_hot: under the debugger one
+            // instruction at a time, after its look; else on until a host
+            // operation)
+            let hot = if self.debug_mode {
+                self.run_hot::<true>(module, &mut code, &mut ip, values, direct)?
+            } else {
+                self.run_hot::<false>(module, &mut code, &mut ip, values, direct)?
+            };
+            match hot {
+                Hot::Done => continue,
+                Hot::Stopped => return Ok(()),
+                Hot::Cold if ip >= code.len() => continue,
+                Hot::Cold => {}
+            }
+
+            // A host operation.
             self.fault_ip = ip;
             let opbyte = code[ip];
             ip += 1;
             let op = Op::from_u8(opbyte).ok_or_else(|| VmError::BadOpcode(opbyte))?;
             match op {
-                Op::Nop => {}
                 // END (and the main program's last instruction): the whole
                 // program stops, including code an event handler interrupted.
                 Op::Halt => {
@@ -814,184 +1524,6 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     return Ok(());
                 }
 
-                // ----- constants / stack -----
-                Op::LoadConst => {
-                    let i = read_u32(code, &mut ip)?;
-                    let c = module.consts.get(i as usize).ok_or_else(|| VmError::BadConstIndex(i))?;
-                    self.stack.push(c.to_value());
-                }
-                Op::LoadNull => self.stack.push(v_null()),
-                Op::LoadTrue => self.stack.push(v_bool(true)),
-                Op::LoadFalse => self.stack.push(v_bool(false)),
-                Op::Pop => { self.pop()?; }
-                Op::Dup => {
-                    let v = self.peek()?.clone();
-                    self.stack.push(v);
-                }
-
-                // ----- locals / globals -----
-                Op::LoadLocal => {
-                    let s = read_u16(code, &mut ip)?;
-                    let frame = self.frames.last().unwrap();
-                    let v = frame.locals.get(s as usize).cloned()
-                        .ok_or_else(|| VmError::BadLocalSlot(s))?;
-                    self.stack.push(v);
-                }
-                Op::StoreLocal => {
-                    let s = read_u16(code, &mut ip)?;
-                    let v = self.pop()?;
-                    let frame = self.frames.last_mut().unwrap();
-                    let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
-                    *slot = v;
-                }
-                Op::LoadGlobal => {
-                    let i = read_u32(code, &mut ip)? as usize;
-                    let v = self.globals.get(i).and_then(|v| v.clone()).unwrap_or(Value::Null);
-                    self.stack.push(v);
-                }
-                Op::StoreGlobal => {
-                    let i = read_u32(code, &mut ip)? as usize;
-                    if i >= module.strings.len() {
-                        return Err(VmError::BadStringIndex(i as u32));
-                    }
-                    let v = self.pop()?;
-                    if i >= self.globals.len() {
-                        self.globals.resize(module.strings.len(), None);
-                    }
-                    self.globals[i] = Some(v);
-                }
-
-                // ----- arithmetic -----
-                Op::Add => {
-                    let b = self.pop()?;
-                    let a = self.top_mut()?;
-                    if let (Value::Integer(x), Value::Integer(y)) = (&*a, &b) {
-                        *a = Value::Integer(x.wrapping_add(*y));
-                        continue;
-                    }
-                    // (two strings: `x = x + y` appended in place)
-                    if matches!((&*a, &b), (Value::String(_), Value::String(_)))
-                        && (a.append_in_place_if_unique(&b, true) || self.append_to_variable(code, &mut ip, &b, true))
-                    {
-                        continue;
-                    }
-                    let a = self.top_mut()?;
-                    *a = &*a + &b;
-                }
-                Op::Sub => {
-                    let b = self.pop()?;
-                    let a = self.top_mut()?;
-                    *a = match (&*a, &b) {
-                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_sub(*y)),
-                        _ => &*a - &b,
-                    };
-                }
-                Op::Mul => {
-                    let b = self.pop()?;
-                    let a = self.top_mut()?;
-                    *a = match (&*a, &b) {
-                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_mul(*y)),
-                        _ => &*a * &b,
-                    };
-                }
-                Op::Div => { let b = self.pop()?; let a = self.pop()?; self.stack.push(&a / &b); }
-                Op::IDiv => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_int_div(&b).map_err(|e| VmError::Runtime(e.into()))?); }
-                Op::Mod => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_mod(&b).map_err(|e| VmError::Runtime(e.into()))?); }
-                Op::Pow => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.power(&b)); }
-                Op::Neg => { let a = self.pop()?; self.stack.push(-&a); }
-                Op::Concat => {
-                    let b = self.pop()?;
-                    let a = self.top_mut()?;
-                    if matches!((&*a, &b), (Value::String(_), Value::String(_)))
-                        && (a.append_in_place_if_unique(&b, false) || self.append_to_variable(code, &mut ip, &b, false))
-                    {
-                        continue;
-                    }
-                    let a = self.top_mut()?;
-                    *a = a.concat(&b);
-                }
-
-                // ----- comparison -----
-                Op::Eq => self.compare(|o| o.is_eq(), Value::rp_eq)?,
-                Op::Ne => self.compare(|o| o.is_ne(), Value::rp_ne)?,
-                Op::Lt => self.compare(|o| o.is_lt(), Value::rp_lt)?,
-                Op::Le => self.compare(|o| o.is_le(), Value::rp_le)?,
-                Op::Gt => self.compare(|o| o.is_gt(), Value::rp_gt)?,
-                Op::Ge => self.compare(|o| o.is_ge(), Value::rp_ge)?,
-
-                // ----- logical -----
-                Op::And => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.and(&b)); }
-                Op::Or  => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.or(&b)); }
-                Op::Xor => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.xor(&b)); }
-                Op::Not => { let a = self.pop()?; self.stack.push(a.not()); }
-
-                // ----- bitwise -----
-                Op::BAnd => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a & b)); }
-                Op::BOr  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a | b)); }
-                Op::BXor => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a ^ b)); }
-                Op::BNot => { let a = self.pop()?.to_i64(); self.stack.push(v_int(!a)); }
-                Op::Shl  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a.wrapping_shl(b as u32))); }
-                Op::Shr  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a.wrapping_shr(b as u32))); }
-
-                // ----- control flow -----
-                Op::Jump => { let t = read_u32(code, &mut ip)?; ip = t as usize; tick!(); }
-                Op::JumpIf => {
-                    let t = read_u32(code, &mut ip)?;
-                    let v = self.pop()?;
-                    if v.to_bool() { ip = t as usize; tick!(); }
-                }
-                Op::JumpIfNot => {
-                    let t = read_u32(code, &mut ip)?;
-                    let v = self.pop()?;
-                    if !v.to_bool() { ip = t as usize; tick!(); }
-                }
-
-                // ----- calls -----
-                Op::CallSub => {
-                    let fi = read_u32(code, &mut ip)?;
-                    let argc = read_u8(code, &mut ip)?;
-                    self.frames.last_mut().unwrap().ip = ip;
-                    self.frames.last_mut().unwrap().ret_ip = ip;
-                    self.call(module, fi, argc, false)?;
-                    ip = 0;
-                    refresh!();
-                    tick!();
-                }
-                Op::CallFunc => {
-                    let fi = read_u32(code, &mut ip)?;
-                    let argc = read_u8(code, &mut ip)?;
-                    self.frames.last_mut().unwrap().ip = ip;
-                    self.frames.last_mut().unwrap().ret_ip = ip;
-                    self.call(module, fi, argc, true)?;
-                    ip = 0;
-                    refresh!();
-                    tick!();
-                }
-                Op::Ret => {
-                    if self.return_frame(module, false)? == Returned::Stop { return Ok(()); }
-                    ip = self.frames.last().unwrap().ip;
-                    refresh!();
-                }
-                Op::RetVal => {
-                    if self.return_frame(module, true)? == Returned::Stop { return Ok(()); }
-                    ip = self.frames.last().unwrap().ip;
-                    refresh!();
-                }
-                Op::Gosub => {
-                    let target = read_u32(code, &mut ip)? as usize;
-                    self.frames.last_mut().unwrap().gosub.push(ip);
-                    ip = target;
-                    tick!();
-                }
-                Op::GosubRet => {
-                    if let Some(back) = self.frames.last_mut().unwrap().gosub.pop() {
-                        ip = back;
-                    }
-                }
-                Op::LoadArgOut => {
-                    let k = read_u8(code, &mut ip)? as usize;
-                    self.stack.push(self.arg_out.get(k).cloned().unwrap_or_else(v_null));
-                }
                 Op::CallBuiltin => {
                     let name_i = read_u32(code, &mut ip)?;
                     let argc = read_u8(code, &mut ip)? as usize;
@@ -1100,31 +1632,6 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                     after_host!(false);
                 }
-                Op::GetField => {
-                    let slot = read_u16(code, &mut ip)? as usize;
-                    match self.pop()? {
-                        Value::Object(o) => self.stack.push(o.get(slot)),
-                        other => return Err(VmError::Runtime(format!("this variable does not refer to an object (reading a field of {:?})", other.to_string_val()))),
-                    }
-                }
-                Op::SetField => {
-                    let slot = read_u16(code, &mut ip)? as usize;
-                    let value = self.pop()?;
-                    match self.pop()? {
-                        Value::Object(o) => o.set(slot, value),
-                        other => return Err(VmError::Runtime(format!("this variable does not refer to an object (setting a field of {:?})", other.to_string_val()))),
-                    }
-                }
-                Op::ToNum => {
-                    let operand = read_u8(code, &mut ip)?;
-                    let v = self.pop()?;
-                    if operand == rapidr_value::numeric::ARG_ROUND {
-                        self.stack.push(rapidr_value::numeric::arg_round(&v));
-                    } else {
-                        let kind = rapidr_value::numeric::NumKind::from_code(operand).ok_or_else(|| VmError::BadOperand)?;
-                        self.stack.push(rapidr_value::numeric::convert(&v, kind));
-                    }
-                }
                 Op::CallIndirect => {
                     let argc = read_u8(code, &mut ip)?;
                     let at = self.stack.len().checked_sub(argc as usize + 1).ok_or_else(|| VmError::StackUnderflow)?;
@@ -1183,30 +1690,6 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let arr = v_array(bounds, fill).map_err(VmError::Runtime)?;
                     self.stack.push(arr);
                 }
-                Op::AGet => {
-                    let n = read_u8(code, &mut ip)? as usize;
-                    let (buf, n) = self.pop_indices(n)?;
-                    let indices = &buf[..n];
-                    let target = self.pop()?;
-                    let v = match &target {
-                        Value::Array(a) => a.borrow().get(indices).map_err(VmError::Runtime)?,
-                        // Legacy: indexing a comma-separated string.
-                        other if n == 1 => other.rp_index(&v_int(indices[0])),
-                        _ => return Err(VmError::Runtime("indexing a value that is not an array".into())),
-                    };
-                    self.stack.push(v);
-                }
-                Op::ASet => {
-                    let n = read_u8(code, &mut ip)? as usize;
-                    let val = self.pop()?;
-                    let (buf, n) = self.pop_indices(n)?;
-                    match self.pop()? {
-                        Value::Array(a) => a.borrow_mut().set(&buf[..n], val).map_err(VmError::Runtime)?,
-                        _ => return Err(VmError::Runtime(
-                            "assigning to an element of a variable that is not an array (DIM it with a size first)".into(),
-                        )),
-                    }
-                }
                 Op::Redim => {
                     let s = read_u16(code, &mut ip)?;
                     let n = read_i32(code, &mut ip)?.max(0) as usize;
@@ -1242,6 +1725,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.stack.push(v_str(&s));
                     after_host!(true);
                 }
+                // (run_hot runs every other instruction)
+                _ => return Err(VmError::BadOpcode(opbyte)),
             }
         }
     }
@@ -1259,7 +1744,10 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// code that is still running: they wait for the program's next wait
     /// (ShowModal, DOEVENTS, a dialog) or for the running handler to end
     /// and the loop to take them ([`Self::hold_async`]).
-    #[inline]
+    // (out of the loop's code: a host operation costs far more than the
+    // call, and the loop stays small enough for its own pushes and drops to
+    // be inlined)
+    #[inline(never)]
     fn after_host(&mut self, module: &Module, ip: usize, has_result: bool) -> Result<bool, VmError> {
         let mut waiting = self.host.wait_started();
         // (a wait's own turns — ShowModal's, DOEVENTS', a dialog's — are
@@ -1420,16 +1908,19 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// handler's — the VM must stop.
     fn return_frame(&mut self, module: &Module, with_value: bool) -> Result<Returned, VmError> {
         let ret = if with_value { self.pop()? } else { v_null() };
-        let frame = self.frames.pop().ok_or_else(|| VmError::StackUnderflow)?;
+        let mut frame = self.frames.pop().ok_or_else(|| VmError::StackUnderflow)?;
         let n_params = module
             .functions
             .get(frame.fn_index as usize)
             .map_or(0, |f| f.params.len())
             .min(frame.locals.len());
-        self.arg_out.clear();
-        self.arg_out.extend_from_slice(&frame.locals[..n_params]);
+        // (its parameters' last values for `LoadArgOut`: the frame's own
+        // locals, moved — its other locals dropped — and the previous
+        // ones' vector reused by the next call)
+        let mut locals = std::mem::take(&mut frame.locals);
+        locals.truncate(n_params);
+        let mut spare = std::mem::replace(&mut self.arg_out, locals);
         if self.spare_locals.len() < 64 {
-            let mut spare = frame.locals;
             spare.clear();
             self.spare_locals.push(spare);
         }
@@ -1532,24 +2023,55 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         true
     }
 
+    /// `Add` (`plus`) or `Concat` of two strings, `right` popped and the
+    /// left one on top: appended in place when nothing else holds the text,
+    /// or into the variable the next instruction stores in
+    /// ([`Self::append_to_variable`]), else joined. Returns where the code
+    /// goes on (past that store, when it was done here). Out of the hot
+    /// loop's code: it keeps `ip` in a register there.
+    #[inline(never)]
+    fn join_strings(&mut self, code: &[u8], ip: usize, right: Value, plus: bool) -> Result<usize, VmError> {
+        let mut ip = ip;
+        let a = self.top_mut()?;
+        if a.append_in_place_if_unique(&right, plus) || self.append_to_variable(code, &mut ip, &right, plus) {
+            return Ok(ip);
+        }
+        let a = self.top_mut()?;
+        *a = if plus { &*a + &right } else { a.concat(&right) };
+        Ok(ip)
+    }
+
     /// The value on the stack's top, to replace in place.
     #[inline(always)]
     fn top_mut(&mut self) -> Result<&mut Value, VmError> {
         self.stack.last_mut().ok_or_else(|| VmError::StackUnderflow)
     }
 
-    /// A comparison of the two values on top: two whole numbers that a
-    /// Double holds exactly (what `rp_lt` & co. compare them as) by
-    /// `int_case`, the rest by `general` — the same answers.
+    /// A comparison of the two values on top (`fast::lt` & co.: what
+    /// `Value::rp_lt` & co. answer).
     #[inline(always)]
-    fn compare(&mut self, int_case: fn(std::cmp::Ordering) -> bool, general: fn(&Value, &Value) -> Value) -> Result<(), VmError> {
-        const EXACT: i64 = 1 << 53;
+    fn compare(&mut self, f: fn(&Value, &Value) -> bool) -> Result<(), VmError> {
         let b = self.pop()?;
         let a = self.top_mut()?;
-        *a = match (&*a, &b) {
-            (Value::Integer(x), Value::Integer(y)) if (-EXACT..=EXACT).contains(x) && (-EXACT..=EXACT).contains(y) => Value::Boolean(int_case(x.cmp(y))),
-            _ => general(a, &b),
-        };
+        let r = Value::Boolean(f(a, &b));
+        fast::put(a, r);
+        fast::discard(b);
+        Ok(())
+    }
+
+    /// `StoreGlobal i` of `v`.
+    #[inline(always)]
+    fn store_global(&mut self, module: &Module, i: usize, v: Value) -> Result<(), VmError> {
+        if i >= module.strings.len() {
+            return Err(VmError::BadStringIndex(i as u32));
+        }
+        if i >= self.globals.len() {
+            self.globals.resize(module.strings.len(), None);
+        }
+        match &mut self.globals[i] {
+            Some(old) => fast::put(old, v),
+            none => *none = Some(v),
+        }
         Ok(())
     }
 
@@ -2064,15 +2586,16 @@ fn read_u8(code: &[u8], ip: &mut usize) -> Result<u8, VmError> {
 }
 #[inline(always)]
 fn read_u16(code: &[u8], ip: &mut usize) -> Result<u16, VmError> {
-    if *ip + 2 > code.len() { return Err(VmError::Truncated); }
-    let v = u16::from_le_bytes([code[*ip], code[*ip + 1]]);
-    *ip += 2; Ok(v)
+    // (one check of the range, then the bytes as an array: no check each)
+    let b: [u8; 2] = code.get(*ip..*ip + 2).and_then(|b| b.try_into().ok()).ok_or_else(|| VmError::Truncated)?;
+    *ip += 2;
+    Ok(u16::from_le_bytes(b))
 }
 #[inline(always)]
 fn read_u32(code: &[u8], ip: &mut usize) -> Result<u32, VmError> {
-    if *ip + 4 > code.len() { return Err(VmError::Truncated); }
-    let v = u32::from_le_bytes([code[*ip], code[*ip + 1], code[*ip + 2], code[*ip + 3]]);
-    *ip += 4; Ok(v)
+    let b: [u8; 4] = code.get(*ip..*ip + 4).and_then(|b| b.try_into().ok()).ok_or_else(|| VmError::Truncated)?;
+    *ip += 4;
+    Ok(u32::from_le_bytes(b))
 }
 #[inline(always)]
 fn read_i32(code: &[u8], ip: &mut usize) -> Result<i32, VmError> {
@@ -2483,10 +3006,13 @@ mod tests {
             fn input(&mut self) -> Result<String, String> { self.inner.input() }
         }
         // (on a thread with a small stack: well under what MAX_EVENT_DEPTH
-        // handlers inside each other take)
+        // handlers inside each other take; the module goes there as bytes —
+        // a module holds the values it prepared, which stay on one thread)
+        let bytes = m.to_bytes();
         let message = std::thread::Builder::new()
             .stack_size(4 << 20)
             .spawn(move || {
+                let m = Module::from_bytes(&bytes).unwrap();
                 let mut h = PaintHost::default();
                 let mut vm = Vm::new(&mut h);
                 let error = vm.run(&m).unwrap_err();

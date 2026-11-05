@@ -40,6 +40,8 @@ pub struct WebHost {
 
 impl Host for WebHost {
     const YIELDS: bool = true;
+    // (ABS, SIN … are the rapidr_value functions call_builtin_web calls)
+    const DIRECT_MATHS: bool = true;
 
     fn yield_now(&mut self) -> bool {
         rapidr_runtime_web::dialog_web::should_yield()

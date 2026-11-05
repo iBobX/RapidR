@@ -201,28 +201,23 @@ fn canonical(m: &rapidr_bytecode::Module) -> Vec<u8> {
                 ip += 4;
                 continue;
             }
-            let layout: &[u8] = match op {
-                Op::Jump | Op::JumpIf | Op::JumpIfNot | Op::Gosub => &[4],
-                Op::LoadLocal | Op::StoreLocal | Op::GetField | Op::SetField => &[2],
-                Op::LoadGlobal | Op::StoreGlobal | Op::GetPropDyn | Op::SetPropDyn => b"S",
-                Op::CallSub | Op::CallFunc => &[4, 1],
-                Op::CallBuiltin | Op::CallMethodDyn => &[b'S', 1],
-                Op::LoadArgOut | Op::CallIndirect | Op::ToNum | Op::NewArray | Op::AGet | Op::ASet => &[1],
-                Op::CreateComp | Op::SetProp | Op::GetProp => b"SS",
-                Op::CallMethod => &[b'S', b'S', 1],
-                Op::RegisterEvent => &[b'S', b'S', 4],
-                Op::Redim => &[2, 4],
-                _ => &[],
-            };
-            for &w in layout {
-                if w == b'S' {
-                    let id = u32::from_le_bytes(code[ip..ip + 4].try_into().unwrap());
-                    out.extend(format!("<{}>", name(id)).bytes());
-                    ip += 4;
-                } else {
-                    out.extend_from_slice(&code[ip..ip + w as usize]);
-                    ip += w as usize;
+            // (every operand: a name or a constant by what it is, the
+            // rest byte for byte)
+            for operand in op.layout() {
+                use rapidr_bytecode::Operand;
+                let w = operand.width();
+                match operand {
+                    Operand::Global | Operand::Str => {
+                        let id = u32::from_le_bytes(code[ip..ip + 4].try_into().unwrap());
+                        out.extend(format!("<{}>", name(id)).bytes());
+                    }
+                    Operand::Const => {
+                        let id = u32::from_le_bytes(code[ip..ip + 4].try_into().unwrap());
+                        out.extend(format!("<{}>", constant(id)).bytes());
+                    }
+                    _ => out.extend_from_slice(&code[ip..ip + w]),
                 }
+                ip += w;
             }
         }
         out.push(b'\n');

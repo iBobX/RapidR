@@ -103,6 +103,9 @@ impl NativeHost {
 }
 
 impl Host for NativeHost {
+    // (ABS, SIN … are the rapidr_value functions call_builtin_key calls)
+    const DIRECT_MATHS: bool = true;
+
     fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
         // (a run-time error the runtime raises in a call of the program's:
         // the program's, at its line — a ShowModal's loop goes on after it

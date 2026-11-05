@@ -1101,8 +1101,8 @@ fn global_origins(module: &Module) -> Origins {
     let mut ip = 0;
     while ip < code.len() {
         let Some(op) = rapidr_bytecode::Op::from_u8(code[ip]) else { break };
-        if op == rapidr_bytecode::Op::StoreGlobal && ip + 5 <= code.len() {
-            let slot = u32::from_le_bytes([code[ip + 1], code[ip + 2], code[ip + 3], code[ip + 4]]);
+        // (StoreGlobal, and a typed store or a FOR step into a global)
+        if let Some(slot) = op.stored_global(code.get(ip + 1..).unwrap_or(&[])) {
             if let Some(line) = main_fn.get_line_for_ip(ip) {
                 first.entry(slot).or_insert(line);
             }

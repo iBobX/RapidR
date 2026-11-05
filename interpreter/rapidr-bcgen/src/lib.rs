@@ -35,7 +35,9 @@ use rapidr_ast::{
 use rapidr_bytecode::{builtins, Const, Function, Module, Op, Param};
 use rapidr_diagnostics::{Diagnostic, SourceLocation, TextSpan};
 
+mod fuse;
 pub mod semantic;
+use rapidr_value::numeric::NumKind;
 use semantic::{Access, DimTarget, NameFacts, NameUse, SymbolKind};
 
 /// Result of compilation: the produced module plus any non-fatal warnings.
@@ -336,8 +338,14 @@ fn name_key(name: &str) -> String {
 }
 
 /// Map keyed case-insensitively by BASIC identifier (see [`name_key`]).
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct NameMap<V>(HashMap<String, V>);
+
+impl<V> Default for NameMap<V> {
+    fn default() -> Self {
+        NameMap(HashMap::new())
+    }
+}
 
 impl<V> NameMap<V> {
     fn get(&self, name: &str) -> Option<&V> {
@@ -371,6 +379,10 @@ struct Scope {
     /// component of that name is hidden in this routine (`b` while a
     /// QBITMAP `B` exists).
     shadows: std::collections::HashSet<String>,
+    /// The declared numeric type of locals and parameters (`DIM n AS
+    /// INTEGER`, `x AS DOUBLE`; arrays by their elements'): what the
+    /// fused instructions are picked by (docs/vm-fast-design.md).
+    kinds: NameMap<NumKind>,
 }
 
 impl Scope {
@@ -431,6 +443,8 @@ struct Bcgen {
     scope: Scope,
     /// Set of declared global variables (keys from [`name_key`])
     globals: HashSet<String>,
+    /// The main program's variables' declared numeric types ([`Scope::kinds`]).
+    global_kinds: NameMap<NumKind>,
     /// Global variable spelling as first seen, by [`name_key`]. The VM keys
     /// globals by string, so every access must use the same spelling.
     global_spelling: HashMap<String, String>,
@@ -520,6 +534,7 @@ impl Bcgen {
             global_object_arrays: NameMap::default(),
             scope: Scope::default(),
             globals: HashSet::new(),
+            global_kinds: NameMap::default(),
             global_spelling: HashMap::new(),
             _with_object: None,
             loop_stack: Vec::new(),
@@ -747,6 +762,9 @@ impl Bcgen {
         // Pre-declare parameter slots (slots 0..N).
         for p in params {
             self.scope.declare(&p.name);
+            if let Some(kind) = NumKind::of_type(&p.type_name) {
+                self.scope.kinds.insert(p.name.clone(), kind);
+            }
             if is_component_type_name(&p.type_name) {
                 self.scope.types.insert(p.name.clone(), p.type_name.clone());
             } else {
@@ -850,16 +868,29 @@ impl Bcgen {
                         DimTarget::Global => self.note_decl(SymbolKind::Global, &decl.name, Some(&d.type_name), decl.span),
                         DimTarget::Local => self.note_decl(SymbolKind::Local, &decl.name, Some(&d.type_name), decl.span),
                     }
+                    let kind = NumKind::of_type(&d.type_name);
                     match target {
                         DimTarget::Local => {
                             self.scope.declare(&decl.name);
                             if !is_component_type_name(&d.type_name) && !rapidr_ast::is_rapidq_object_type(&d.type_name) {
                                 self.scope.shadows.insert(decl.name.to_lowercase());
                             }
+                            match kind {
+                                Some(k) => self.scope.kinds.insert(decl.name.clone(), k),
+                                None => {
+                                    self.scope.kinds.0.remove(&name_key(&decl.name));
+                                }
+                            }
                         }
                         DimTarget::ResizeGlobal => {}
                         DimTarget::Global => {
                             self.globals.insert(name_key(&decl.name));
+                            match kind {
+                                Some(k) => self.global_kinds.insert(decl.name.clone(), k),
+                                None => {
+                                    self.global_kinds.0.remove(&name_key(&decl.name));
+                                }
+                            }
                         }
                     }
                     if d.is_redim && !decl.dimensions.is_empty() {
@@ -1687,8 +1718,84 @@ impl Bcgen {
             }
         }
         // Normal assignment.
+        let start = code.len();
         self.lower_expr(&a.value, code)?;
-        self.store_target(&a.target, code)
+        let store = code.len();
+        self.store_target(&a.target, code)?;
+        fuse::store(code, start, store, is_conversion(&a.value), &self.module);
+        Ok(())
+    }
+
+    /// The declared numeric type of the variable `name` reads here (a local
+    /// or parameter, else the main program's), if any.
+    fn numeric_kind_of(&self, name: &str) -> Option<NumKind> {
+        if self.scope.get(name).is_some() {
+            return self.scope.kinds.get(name).copied();
+        }
+        if self.scope.statics.contains_key(name) {
+            return None;
+        }
+        self.global_kinds.get(name).copied()
+    }
+
+    /// Whether `e` is known to give a number (what `+` is fused for): a
+    /// numeric literal, a variable declared numeric or named so (`n%`,
+    /// `x#`), a product, quotient or power, a conversion, a pure maths
+    /// builtin. Only the choice of instruction depends on it: a fused `+`
+    /// gives what `Add` gives whatever it meets.
+    fn is_numeric_expr(&self, e: &Expression) -> bool {
+        match e {
+            Expression::Literal(l) => matches!(l.value, LiteralValue::Integer(_) | LiteralValue::Float(_)),
+            Expression::Identifier(id) => self.numeric_kind_of(&id.name).is_some() || matches!(id.name.chars().last(), Some('%' | '&' | '!' | '#')),
+            Expression::Binary(b) => match b.operator {
+                BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::IntegerDivide | BinaryOperator::Modulo | BinaryOperator::Power => true,
+                BinaryOperator::Add | BinaryOperator::Subtract => self.is_numeric_expr(&b.left) && self.is_numeric_expr(&b.right),
+                _ => false,
+            },
+            Expression::Unary(u) => u.operator == UnaryOperator::Negate,
+            Expression::FunctionCall(fc) => match fc.callee.as_ref() {
+                Expression::Identifier(id) => {
+                    numeric_kind(fc).is_some()
+                        || (!self.fn_indices.contains_key(&id.name) && builtins::is_pure_maths(&id.name))
+                        || ((self.scope.get(&id.name).is_some() || self.is_known_global(&id.name)) && self.numeric_kind_of(&id.name).is_some())
+                }
+                _ => false,
+            },
+            Expression::ArrayAccess(a) => matches!(a.array.as_ref(), Expression::Identifier(id) if self.numeric_kind_of(&id.name).is_some()),
+            _ => false,
+        }
+    }
+
+    /// `IF NOT cond THEN GOTO …`: the condition, then the jump (a
+    /// comparison and its branch in one instruction); the place of the
+    /// jump's target, to fill in.
+    fn emit_jump_if_not(&mut self, cond: &Expression, code: &mut Vec<u8>) -> Result<usize, String> {
+        if let Expression::Binary(b) = cond {
+            let cmp = match b.operator {
+                BinaryOperator::Equal => Some(rapidr_bytecode::Cmp::Eq),
+                BinaryOperator::NotEqual => Some(rapidr_bytecode::Cmp::Ne),
+                BinaryOperator::LessThan => Some(rapidr_bytecode::Cmp::Lt),
+                BinaryOperator::LessThanOrEqual => Some(rapidr_bytecode::Cmp::Le),
+                BinaryOperator::GreaterThan => Some(rapidr_bytecode::Cmp::Gt),
+                BinaryOperator::GreaterThanOrEqual => Some(rapidr_bytecode::Cmp::Ge),
+                _ => None,
+            };
+            if let Some(cmp) = cmp {
+                let start = code.len();
+                self.lower_expr(&b.left, code)?;
+                let mid = code.len();
+                self.lower_expr(&b.right, code)?;
+                fuse::cmp_jump(code, start, mid, cmp);
+                let hole = code.len();
+                push_u32(code, 0);
+                return Ok(hole);
+            }
+        }
+        self.lower_expr(cond, code)?;
+        emit(code, Op::JumpIfNot);
+        let hole = code.len();
+        push_u32(code, 0);
+        Ok(hole)
     }
 
     fn store_target(&mut self, target: &Expression, code: &mut Vec<u8>) -> Result<(), String> {
@@ -1962,10 +2069,7 @@ impl Bcgen {
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
         // condition
-        self.lower_expr(&i.condition, code)?;
-        emit(code, Op::JumpIfNot);
-        let mut next_branch_patch = code.len();
-        push_u32(code, 0);
+        let mut next_branch_patch = self.emit_jump_if_not(&i.condition, code)?;
 
         // then body
         for s in &i.then_body {
@@ -1981,10 +2085,7 @@ impl Bcgen {
         for branch in &i.elseif_branches {
             let here = code.len() as u32;
             patch_u32(code, next_branch_patch, here);
-            self.lower_expr(&branch.condition, code)?;
-            emit(code, Op::JumpIfNot);
-            next_branch_patch = code.len();
-            push_u32(code, 0);
+            next_branch_patch = self.emit_jump_if_not(&branch.condition, code)?;
             for s in &branch.body {
                 self.lower_stmt(s, code, lines)?;
             }
@@ -2007,16 +2108,6 @@ impl Bcgen {
         Ok(())
     }
 
-    fn emit_load_for_var(&mut self, f: &ForStatement, is_global: bool, code: &mut Vec<u8>) {
-        if is_global {
-            let s = self.global_str(&f.variable);
-            emit(code, Op::LoadGlobal); push_u32(code, s);
-        } else {
-            let slot = self.scope.get(&f.variable).unwrap();
-            emit(code, Op::LoadLocal); push_u16(code, slot);
-        }
-    }
-
     fn lower_for(
         &mut self,
         f: &ForStatement,
@@ -2029,15 +2120,20 @@ impl Bcgen {
         self.note_use(&f.variable, f.span, target, Access::Write);
 
         // var = start
+        let start_at = code.len();
         if is_global {
             self.globals.insert(name_key(&f.variable));
             self.lower_expr(&f.start, code)?;
+            let store = code.len();
             let s = self.global_str(&f.variable);
             emit(code, Op::StoreGlobal); push_u32(code, s);
+            fuse::store(code, start_at, store, is_conversion(&f.start), &self.module);
         } else {
             let var_slot = self.scope.declare(&f.variable);
             self.lower_expr(&f.start, code)?;
+            let store = code.len();
             emit(code, Op::StoreLocal); push_u16(code, var_slot);
+            fuse::store(code, start_at, store, is_conversion(&f.start), &self.module);
         }
 
         // end and step into temp slots so they evaluate once.
@@ -2055,29 +2151,18 @@ impl Bcgen {
         emit(code, Op::StoreLocal); push_u16(code, step_slot);
 
         // loop start. Continue while var <= end for a step >= 0, or
-        // var >= end for a negative step (`FOR i = 10 TO 1 STEP -1`).
+        // var >= end for a negative step (`FOR i = 10 TO 1 STEP -1`): one
+        // instruction, ForTest (docs/vm-fast-design.md).
         let loop_top = code.len() as u32;
-        let zero = self.module.add_const(Const::Int(0));
-        emit(code, Op::LoadLocal); push_u16(code, step_slot);
-        emit(code, Op::LoadConst); push_u32(code, zero);
-        emit(code, Op::Lt);
-        emit(code, Op::JumpIfNot);
-        let to_ascending = code.len();
-        push_u32(code, 0);
-        self.emit_load_for_var(f, is_global, code);
-        emit(code, Op::LoadLocal); push_u16(code, end_slot);
-        emit(code, Op::Ge);
-        emit(code, Op::Jump);
-        let to_test = code.len();
-        push_u32(code, 0);
-        let ascending = code.len() as u32;
-        patch_u32(code, to_ascending, ascending);
-        self.emit_load_for_var(f, is_global, code);
-        emit(code, Op::LoadLocal); push_u16(code, end_slot);
-        emit(code, Op::Le);
-        let test = code.len() as u32;
-        patch_u32(code, to_test, test);
-        emit(code, Op::JumpIfNot);
+        if is_global {
+            let s = self.global_str(&f.variable);
+            emit(code, Op::ForTestG); push_u32(code, s);
+        } else {
+            let slot = self.scope.get(&f.variable).unwrap();
+            emit(code, Op::ForTestL); push_u16(code, slot);
+        }
+        push_u16(code, end_slot);
+        push_u16(code, step_slot);
         let exit_patch = code.len();
         push_u32(code, 0);
 
@@ -2085,21 +2170,15 @@ impl Bcgen {
         for s in &f.body {
             self.lower_stmt(s, code, lines)?;
         }
-        // var = var + step
+        // var = var + step, then the test again: one instruction, ForStep
         if is_global {
             let s = self.global_str(&f.variable);
-            emit(code, Op::LoadGlobal); push_u32(code, s);
-            emit(code, Op::LoadLocal); push_u16(code, step_slot);
-            emit(code, Op::Add);
-            emit(code, Op::StoreGlobal); push_u32(code, s);
+            emit(code, Op::ForStepG); push_u32(code, s);
         } else {
             let var_slot = self.scope.get(&f.variable).unwrap();
-            emit(code, Op::LoadLocal); push_u16(code, var_slot);
-            emit(code, Op::LoadLocal); push_u16(code, step_slot);
-            emit(code, Op::Add);
-            emit(code, Op::StoreLocal); push_u16(code, var_slot);
+            emit(code, Op::ForStepL); push_u16(code, var_slot);
         }
-        emit(code, Op::Jump);
+        push_u16(code, step_slot);
         push_u32(code, loop_top);
 
         let after = code.len() as u32;
@@ -2116,10 +2195,7 @@ impl Bcgen {
         lines: &mut Vec<(u32, u32)>,
     ) -> Result<(), String> {
         let top = code.len() as u32;
-        self.lower_expr(&w.condition, code)?;
-        emit(code, Op::JumpIfNot);
-        let exit_patch = code.len();
-        push_u32(code, 0);
+        let exit_patch = self.emit_jump_if_not(&w.condition, code)?;
         self.loop_stack.push(LoopCtx { kind: "WHILE", breaks: Vec::new() });
         for s in &w.body {
             self.lower_stmt(s, code, lines)?;
@@ -2145,10 +2221,14 @@ impl Bcgen {
         let mut exit_patch: Option<usize> = None;
         if d.pre_condition {
             if let Some(cond) = &d.condition {
-                self.lower_expr(cond, code)?;
-                emit(code, if d.is_until { Op::JumpIf } else { Op::JumpIfNot });
-                exit_patch = Some(code.len());
-                push_u32(code, 0);
+                if d.is_until {
+                    self.lower_expr(cond, code)?;
+                    emit(code, Op::JumpIf);
+                    exit_patch = Some(code.len());
+                    push_u32(code, 0);
+                } else {
+                    exit_patch = Some(self.emit_jump_if_not(cond, code)?);
+                }
             }
         }
         for s in &d.body {
@@ -2157,9 +2237,14 @@ impl Bcgen {
         // post-condition test (DO ... LOOP WHILE / UNTIL)
         if !d.pre_condition {
             if let Some(cond) = &d.condition {
-                self.lower_expr(cond, code)?;
-                emit(code, if d.is_until { Op::JumpIfNot } else { Op::JumpIf });
-                push_u32(code, top);
+                if d.is_until {
+                    let hole = self.emit_jump_if_not(cond, code)?;
+                    patch_u32(code, hole, top);
+                } else {
+                    self.lower_expr(cond, code)?;
+                    emit(code, Op::JumpIf);
+                    push_u32(code, top);
+                }
             } else {
                 emit(code, Op::Jump);
                 push_u32(code, top);
@@ -2511,7 +2596,9 @@ impl Bcgen {
                 Ok(())
             }
             Expression::Binary(b) => {
+                let start = code.len();
                 self.lower_expr(&b.left, code)?;
+                let mid = code.len();
                 self.lower_expr(&b.right, code)?;
                 let op = match b.operator {
                     BinaryOperator::Add => Op::Add,
@@ -2532,6 +2619,14 @@ impl Bcgen {
                     BinaryOperator::Or => Op::Or,
                     BinaryOperator::Xor => Op::Xor,
                 };
+                // (a variable's or a constant's operand fused into the
+                // operation; `+` only for numbers — two strings keep `Add`,
+                // which appends `x = x + y` in place)
+                if let Some(bin) = fuse::bin_of(op) {
+                    if (bin != rapidr_bytecode::Bin::Add || self.is_numeric_expr(&b.left) || self.is_numeric_expr(&b.right)) && fuse::arith(code, start, mid, bin, &self.module) {
+                        return Ok(());
+                    }
+                }
                 emit(code, op);
                 Ok(())
             }
@@ -2766,9 +2861,14 @@ impl Bcgen {
                 Ok(())
             }
             Expression::ArrayAccess(a) => {
+                let start = code.len();
                 self.lower_expr(&a.array, code)?;
+                let idx = code.len();
                 for i in &a.indices {
                     self.lower_expr(i, code)?;
+                }
+                if a.indices.len() == 1 && fuse::aget(code, start, idx, &self.module) {
+                    return Ok(());
                 }
                 emit(code, Op::AGet); code.push(a.indices.len() as u8);
                 Ok(())
@@ -2941,6 +3041,12 @@ fn field_slot(fc: &rapidr_ast::FunctionCallExpression, name: &str, argc: usize) 
 }
 
 /// The conversion `fc` is, when it's `__to_long(v)` & co.
+/// Whether `e` is a conversion `__to_<kind>(…)` (rapidr_ast::numeric):
+/// its code ends with that `ToNum`.
+fn is_conversion(e: &Expression) -> bool {
+    matches!(e, Expression::FunctionCall(fc) if fc.args.len() == 1 && numeric_kind(fc).is_some())
+}
+
 fn numeric_kind(fc: &rapidr_ast::FunctionCallExpression) -> Option<rapidr_value::numeric::NumKind> {
     let Expression::Identifier(id) = fc.callee.as_ref() else { return None };
     rapidr_value::numeric::NumKind::from_builtin(&id.name)
