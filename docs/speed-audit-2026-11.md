@@ -383,6 +383,28 @@ old count, CR LF and UTF-8 included).
 Checked: the unit tests of rapidr-preprocessor, rapidr-parser,
 rapidr-langsvc and rapidr-lsp (25 test programs, all passed).
 
+### Fix 6: `$DEFINE`s tried only where their name is a word
+
+For every line the preprocessor sorted all the defines by length, then
+lower-cased and searched the line once per define (973 in `windows.inc`).
+Now the defines' order is made once while they don't change (a `$DEFINE`,
+`#Const` or `$UNDEF` makes it again), and a line tries, in that same
+order, only the defines whose name is one of its words — plus those a
+substitution's value brings in, and any whose name isn't a plain word.
+The same text and the same origin map: a test runs both ways on 3,000
+random lines and define sets (values that bring other names in, case
+differences, quotes, dots, CREATE blocks, kept TYPE fields).
+
+| | before | after |
+|---|--:|--:|
+| `rapidr check` of the 5,000-line program including `rapidq2.inc` + `windows.inc` (CPU) | 5.0 s | **0.87 s** (the same output; what's left is the compiler's own checks — `rapidr_bcgen::semantic`, the ERRORS lane's) |
+| RapidR Studio opening that program (Studio's start included) | 16.1 s | **3.9 s** |
+| an edit round in it | 220 ms | **185 ms** |
+| opening `windows.inc` itself | 17.7 s | 14.1 s (the rest: fix 5) |
+
+Checked: the unit tests of rapidr-preprocessor, rapidr-parser,
+rapidr-langsvc, rapidr-lsp and rapidr-cli.
+
 ### Resize coalescing: measured, nothing to coalesce
 
 Before changing how a live resize is handled, a hand drag counted how the
