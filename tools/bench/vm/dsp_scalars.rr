@@ -1,0 +1,39 @@
+' vm_bench: the same work as dsp_voices.rr with each voice's state in
+' local DOUBLE scalars (the loop turned voice-major): what the arithmetic
+' costs without the global arrays - 1,411,200 voice steps.
+$APPTYPE CONSOLE
+CONST VOICES = 32
+CONST BLOCK = 441
+CONST BLOCKS = 100
+DIM t AS DOUBLE
+
+FUNCTION Run AS DOUBLE
+  DIM blk AS INTEGER, i AS INTEGER, v AS INTEGER
+  DIM ph AS DOUBLE, inc AS DOUBLE, osc AS DOUBLE, env AS DOUBLE, lp AS DOUBLE, bp AS DOUBLE, hp AS DOUBLE
+  DIM total AS DOUBLE
+  total = 0.0
+  FOR v = 0 TO VOICES - 1
+    ph = (v * 0.17) - INT(v * 0.17)
+    inc = (110.0 * (2.0 ^ ((v MOD 24) / 12.0))) / 44100.0
+    env = 0.01
+    lp = 0.0
+    bp = 0.0
+    FOR blk = 1 TO BLOCKS
+      FOR i = 0 TO BLOCK - 1
+        ph = ph + inc
+        IF ph >= 1.0 THEN ph = ph - 1.0
+        osc = 2.0 * ph - 1.0
+        env = env + 0.0005 * (0.80 - env)
+        lp = lp + 0.28 * bp
+        hp = (osc * env * 0.15) - lp - 0.55 * bp
+        bp = 0.28 * hp + bp
+      NEXT
+    NEXT
+    total = total + ABS(lp)
+  NEXT
+  Result = total
+END FUNCTION
+
+t = TIMER
+PRINT "dsp_scalars "; INT(Run * 1000000)
+PRINT "ms "; INT((TIMER - t) * 1000)

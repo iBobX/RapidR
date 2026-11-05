@@ -1,0 +1,15 @@
+' vm_bench: DOUBLE arithmetic at the program's top level (global
+' scalars): 5,000,000 rounds of a multiply-add, as a script without SUBs
+' does.
+$APPTYPE CONSOLE
+DIM i AS INTEGER
+DIM x AS DOUBLE, y AS DOUBLE, t AS DOUBLE
+t = TIMER
+x = 0.0
+y = 1.0
+FOR i = 1 TO 5000000
+  x = x * 0.999 + y
+  y = y + 0.000001
+NEXT
+PRINT "top_double "; INT(x)
+PRINT "ms "; INT((TIMER - t) * 1000)

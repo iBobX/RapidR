@@ -1,0 +1,84 @@
+' ui bench: what a control's Left / Top / Width / Height write costs
+' (RapidR Web Server's RAPIDR-ISSUES #12: 41 moves should take under 5 ms).
+' Each case prints "<case> <ms>" (TIMER around the writes alone):
+'   moves41_hidden  41 buttons on a form never shown, Left set once each
+'   moves41_shown   the same 41 buttons on a shown form
+'   moves200_shown  200 controls (buttons, labels, edits, panels) on a shown
+'                   form, Left set once each
+'   geom200_shown   the same 200 controls, all four of Left/Top/Width/Height
+'                   set (800 writes), as an OnResize relayout does
+'   caption200      200 Caption writes (a property that is not a place)
+$APPTYPE CONSOLE
+
+CREATE F AS RForm
+  ClientWidth = 800
+  ClientHeight = 600
+END CREATE
+CREATE G AS RForm
+  ClientWidth = 1000
+  ClientHeight = 700
+END CREATE
+
+DIM c(40) AS RButton
+DIM b(49) AS RButton
+DIM l(49) AS RLabel
+DIM e(49) AS REdit
+DIM p(49) AS RPanel
+DIM k AS INTEGER
+DIM t AS DOUBLE
+
+FOR k = 0 TO 40
+  c(k).Parent = F
+  c(k).Caption = "x"
+NEXT
+
+t = TIMER
+FOR k = 0 TO 40
+  c(k).Left = 20 + k * 10
+NEXT
+PRINT "moves41_hidden "; FORMAT$("%.3f", (TIMER - t) * 1000)
+
+F.Show
+t = TIMER
+FOR k = 0 TO 40
+  c(k).Left = 30 + k * 10
+NEXT
+PRINT "moves41_shown "; FORMAT$("%.3f", (TIMER - t) * 1000)
+F.Close
+
+FOR k = 0 TO 49
+  b(k).Parent = G: b(k).Caption = "b": b(k).Left = (k MOD 10) * 95: b(k).Top = (k \ 10) * 30
+  l(k).Parent = G: l(k).Caption = "l": l(k).Left = (k MOD 10) * 95: l(k).Top = 160 + (k \ 10) * 30
+  e(k).Parent = G: e(k).Text = "e": e(k).Left = (k MOD 10) * 95: e(k).Top = 320 + (k \ 10) * 30
+  p(k).Parent = G: p(k).Caption = "p": p(k).Left = (k MOD 10) * 95: p(k).Top = 480 + (k \ 10) * 30: p(k).Height = 25
+NEXT
+G.Show
+
+t = TIMER
+FOR k = 0 TO 49
+  b(k).Left = (k MOD 10) * 95 + 2
+  l(k).Left = (k MOD 10) * 95 + 2
+  e(k).Left = (k MOD 10) * 95 + 2
+  p(k).Left = (k MOD 10) * 95 + 2
+NEXT
+PRINT "moves200_shown "; FORMAT$("%.3f", (TIMER - t) * 1000)
+
+t = TIMER
+FOR k = 0 TO 49
+  b(k).Left = (k MOD 10) * 96: b(k).Top = (k \ 10) * 31: b(k).Width = 90: b(k).Height = 26
+  l(k).Left = (k MOD 10) * 96: l(k).Top = 160 + (k \ 10) * 31: l(k).Width = 90: l(k).Height = 26
+  e(k).Left = (k MOD 10) * 96: e(k).Top = 320 + (k \ 10) * 31: e(k).Width = 90: e(k).Height = 26
+  p(k).Left = (k MOD 10) * 96: p(k).Top = 480 + (k \ 10) * 31: p(k).Width = 90: p(k).Height = 26
+NEXT
+PRINT "geom200_shown "; FORMAT$("%.3f", (TIMER - t) * 1000)
+
+t = TIMER
+FOR k = 0 TO 49
+  b(k).Caption = "B" + STR$(k)
+  l(k).Caption = "L" + STR$(k)
+  p(k).Caption = "P" + STR$(k)
+  e(k).Text = "E" + STR$(k)
+NEXT
+PRINT "caption200 "; FORMAT$("%.3f", (TIMER - t) * 1000)
+G.Close
+END

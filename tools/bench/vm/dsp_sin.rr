@@ -1,0 +1,37 @@
+' vm_bench: SIN-heavy DSP - an additive oscillator bank: 8 partials, each
+' a SIN, for 88,200 samples (two seconds at 44.1 kHz: 705,600 SIN calls),
+' summed into a global DOUBLE array, as a synthesizer's inner loop does.
+$APPTYPE CONSOLE
+CONST SAMPLES = 88200
+CONST PARTIALS = 8
+DIM OutBuf(SAMPLES - 1) AS DOUBLE
+DIM t AS DOUBLE
+
+SUB Render
+  DIM i AS INTEGER, k AS INTEGER
+  DIM ph AS DOUBLE, inc AS DOUBLE, amp AS DOUBLE, x AS DOUBLE
+  FOR k = 1 TO PARTIALS
+    inc = 2.0 * 3.14159265358979 * 220.0 * k / 44100.0
+    amp = 1.0 / k
+    ph = 0.0
+    FOR i = 0 TO SAMPLES - 1
+      x = OutBuf(i) + amp * SIN(ph)
+      OutBuf(i) = x
+      ph = ph + inc
+    NEXT
+  NEXT
+END SUB
+
+FUNCTION Energy AS DOUBLE
+  DIM i AS INTEGER, e AS DOUBLE
+  e = 0.0
+  FOR i = 0 TO SAMPLES - 1
+    e = e + OutBuf(i) * OutBuf(i)
+  NEXT
+  Result = e
+END FUNCTION
+
+t = TIMER
+Render
+PRINT "dsp_sin "; INT(Energy)
+PRINT "ms "; INT((TIMER - t) * 1000)
