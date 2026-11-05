@@ -1958,13 +1958,13 @@ SUB AIUpdate
   AIEnableSend
   AIProgressShow
   AILiveRefresh
-  ' (RAI's card asks to use the running program: seen and heard, even
-  ' when an AI app asked RAI — the answer is the user's)
+  ' (RAI's card asks to run the program or use the running one: seen and
+  ' heard, even when an AI app asked RAI — the answer is the user's)
   IF AITools.ProgramUseAsked THEN
     IF AIProgramAskSaid = 0 THEN
       AIProgramAskSaid = 1
       Dock.ShowPane("aipanel")
-      Application.Announce TR$("RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat.")
+      Application.Announce TR$("RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat.")
     END IF
   ELSE
     AIProgramAskSaid = 0

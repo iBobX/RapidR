@@ -527,8 +527,8 @@ msgstr "Sin editar: el chat sigue como estaba."
 
 # legal
 #: ide/ai.inc
-msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
-msgstr "RAI quiere hacer clic y escribir en tu programa en ejecución: elige Permitir en esta ejecución, o No permitir, en su chat."
+msgid "RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat."
+msgstr "RAI pide ejecutar tu programa o usarlo: elige Permitir en esta ejecución, o No permitir, en su chat."
 
 #: ide/ai.inc
 msgid "Waiting for you — {status}"

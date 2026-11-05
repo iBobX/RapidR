@@ -1206,6 +1206,31 @@ msgstr "Permitiste que RAI use tu programa en ejecución durante esta ejecución
 msgid "You didn't allow RAI to use your running program"
 msgstr "No permitiste que RAI use tu programa en ejecución"
 
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data."
+msgstr "RAI quiere ejecutar tu programa, y luego mirarlo, hacer clic y escribir en él. El programa puede hacer todo lo que tú puedes en esta computadora, y RAI ve todo lo que muestra, incluso datos privados."
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to stop your running program."
+msgstr "RAI quiere detener tu programa en ejecución."
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to run and use your program for this run"
+msgstr "Permitiste que RAI ejecute y use tu programa durante esta ejecución"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to run your program"
+msgstr "No permitiste que RAI ejecute tu programa"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to stop your program"
+msgstr "No permitiste que RAI detenga tu programa"
+
 #: crates/rapidr-studio/src/ai.rs
 msgid "1 error left"
 msgstr "queda 1 error"

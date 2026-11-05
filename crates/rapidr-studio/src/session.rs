@@ -1129,3 +1129,12 @@ mod tests {
         assert!(split_args("  ").is_empty());
     }
 }
+
+// (after the code: the translators' extractor reads up to the first
+// test-only item)
+/// Tests: a run of the user's program started (and ended at once, as a
+/// short console program does).
+#[cfg(test)]
+pub(crate) fn test_run_started() {
+    RUNS.with(|n| n.set(n.get() + 1));
+}

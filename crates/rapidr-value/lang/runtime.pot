@@ -1161,6 +1161,14 @@ msgid "Fixed {n} errors"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to stop your running program."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "RAI wants to click and type in your running program. It sees whatever the program shows, including private data."
 msgstr ""
 
@@ -1173,7 +1181,19 @@ msgid "Don't allow"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to run and use your program for this run"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "You allowed RAI to use your running program for this run"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to run your program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to stop your program"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs

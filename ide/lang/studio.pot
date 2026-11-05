@@ -541,7 +541,7 @@ msgid "RAI saved the version “{message}” ({id})"
 msgstr ""
 
 #: ide/ai.inc
-msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
+msgid "RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat."
 msgstr ""
 
 #: ide/ai.inc

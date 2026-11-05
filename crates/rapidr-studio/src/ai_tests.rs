@@ -1531,3 +1531,86 @@ fn a_reread_after_results_were_cut_sends_the_text_again() {
     h.results_trimmed();
     assert!(read(&mut h).contains("CREATE Form AS RForm"));
 }
+
+/// The tools a turn offers, by name.
+fn offered(h: &Handle) -> Vec<String> {
+    h.tools().into_iter().map(|t| t.name).collect()
+}
+
+/// The chat's card about the program, as the turn shows it ("" none).
+fn app_card(h: &Handle) -> String {
+    h.turn_cards().into_iter().find(|(k, _)| k == "app").map(|(_, c)| c).unwrap_or_default()
+}
+
+/// RAI's own Run (run_program) while it proposes: held behind the chat's
+/// card, once a run — never asked of Studio before the user allows it —;
+/// "Don't allow" refuses it; "Work on its own" asks Studio at once. Coach
+/// and reading only never offer it, and a call anyway is refused.
+#[test]
+fn run_program_asks_first_while_rai_proposes() {
+    install();
+    let t = "tools-run-card";
+    let mut h = Handle { name: t.into() };
+    set(t, "permission", &s("propose"));
+    h.begin_turn();
+    assert!(offered(&h).contains(&"run_program".to_string()));
+    // (status: answered at once, nothing asked)
+    let out = h.call("run_program", &json!({"action": "status"}));
+    assert!(!out.is_error && out.content.contains("isn't running"), "{}", out.content);
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    // (start: the card, nothing asked of Studio yet, no time limit)
+    let out = h.call("run_program", &json!({"action": "start", "wait": 1}));
+    assert_eq!(out.risk, rapidr_ai::rai::LATER);
+    let ticket = out.target.clone();
+    assert!(ticket.starts_with("run:"), "{ticket}");
+    assert_ne!(get(t, "programuseasked").unwrap().to_i64(), 0, "the card asks");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "Studio isn't asked before the user allows it");
+    assert!(h.waits_for_user(&ticket));
+    assert!(h.finish_call("run_program", &ticket).is_none());
+    let card = app_card(&h);
+    assert!(card.contains("RAI wants to run your program") && card.contains("ai:app-allow") && card.contains("ai:app-deny"), "{card}");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (allowed: Studio asked to start it once; the run seen, answered)
+    call(t, "allowprogramuse", &[Value::Integer(1)]);
+    assert!(h.finish_call("run_program", &ticket).is_none());
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    assert!(!h.waits_for_user(&ticket));
+    call(t, "runrequesttaken", &[]);
+    crate::session::test_run_started();
+    let out = h.finish_call("run_program", &ticket).expect("answered once the run started");
+    assert!(!out.is_error && out.content.contains("It ran and ended"), "{}", out.content);
+    assert!(app_card(&h).contains("You allowed RAI to run and use your program"), "{}", app_card(&h));
+
+    // ("Don't allow": refused, told; asked of Studio never)
+    h.begin_turn();
+    let out = h.call("run_program", &json!({"action": "start"}));
+    let ticket = out.target.clone();
+    call(t, "allowprogramuse", &[Value::Integer(0)]);
+    let out = h.finish_call("run_program", &ticket).expect("refused");
+    assert!(out.is_error && out.content.contains("didn't allow you to run"), "{}", out.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    assert!(app_card(&h).contains("You didn't allow RAI to run your program"), "{}", app_card(&h));
+    // (… and the next start in that answer is refused at once)
+    let out = h.call("run_program", &json!({"action": "start"}));
+    assert!(out.is_error && out.content.contains("didn't allow you to run"), "{}", out.content);
+
+    // ("Work on its own": its consent dialog covered running — Studio asked at once)
+    set(t, "permission", &s("auto"));
+    h.begin_turn();
+    let out = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(out.risk, rapidr_ai::rai::LATER);
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0, "no card");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    assert!(!h.waits_for_user(&out.target));
+
+    // (Coach, reading only: not offered, and refused)
+    for (permission, mode, why) in [("propose", "coach", "Coach mode"), ("read-only", "build", "reading only")] {
+        set(t, "permission", &s(permission));
+        set(t, "mode", &s(mode));
+        h.begin_turn();
+        assert!(!offered(&h).contains(&"run_program".to_string()), "{permission} {mode}");
+        let out = h.call("run_program", &json!({"action": "start"}));
+        assert!(out.is_error && out.content.contains(why), "{}", out.content);
+        assert_ne!(out.risk, rapidr_ai::rai::LATER);
+    }
+}
