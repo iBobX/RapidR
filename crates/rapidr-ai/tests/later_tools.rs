@@ -23,6 +23,8 @@ thread_local! {
     /// The answer the fake program gives (None: not yet).
     static ANSWER: RefCell<Option<String>> = const { RefCell::new(None) };
     static ASKED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    /// How often the provider was told the answer was stopped.
+    static CANCELLED: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
 struct Later;
@@ -44,6 +46,9 @@ impl ToolProvider for Later {
     }
     fn turn_status(&self) -> Option<String> {
         None
+    }
+    fn cancelled(&mut self) {
+        CANCELLED.with(|c| c.set(c.get() + 1));
     }
     fn finish_call(&mut self, _name: &str, ticket: &str) -> Option<ToolOutcome> {
         assert_eq!(ticket, "ticket-1");
@@ -229,8 +234,11 @@ fn a_call_that_comes_later_holds_the_turn_then_goes_on_and_stop_answers_it() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert!(busy(n));
+    let before = CANCELLED.with(std::cell::Cell::get);
     rai::call(n, "cancel", &[], |v| v.to_string_val()).unwrap();
     assert!(!busy(n), "stopped");
+    // (the provider told: what it asked its app to do is dropped)
+    assert_eq!(CANCELLED.with(std::cell::Cell::get), before + 1);
     assert_eq!(rai::get(n, "status").unwrap().to_string_val(), "Stopped.");
     let seen = server.join().unwrap();
     // (the second request carried the click's result)

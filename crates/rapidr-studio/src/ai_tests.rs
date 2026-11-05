@@ -1604,6 +1604,7 @@ fn run_program_asks_first_while_rai_proposes() {
     assert!(!h.waits_for_user(&out.target));
 
     // (Coach, reading only: not offered, and refused)
+    set(t, "mode", &s("build"));
     for (permission, mode, why) in [("propose", "coach", "Coach mode"), ("read-only", "build", "reading only")] {
         set(t, "permission", &s(permission));
         set(t, "mode", &s(mode));
@@ -1613,4 +1614,92 @@ fn run_program_asks_first_while_rai_proposes() {
         assert!(out.is_error && out.content.contains(why), "{}", out.content);
         assert_ne!(out.risk, rapidr_ai::rai::LATER);
     }
+}
+
+/// Stop (or a new question) while a run_program or save_version call waits
+/// for Studio: the request is dropped — Studio never starts the program or
+/// saves the version after it —, and the next call isn't refused as "still
+/// going on".
+#[test]
+fn stop_drops_a_waiting_run_or_version() {
+    install();
+    let t = "tools-run-stop";
+    let mut h = Handle { name: t.into() };
+    set(t, "permission", &s("auto"));
+    h.begin_turn();
+    let out = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(out.risk, rapidr_ai::rai::LATER);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    let again = h.call("run_program", &json!({"action": "start"}));
+    assert!(again.is_error && again.content.contains("still going on"), "{}", again.content);
+    // (Stop: nothing left for Studio to do, the call answered by no one)
+    h.cancelled();
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    assert!(h.finish_call("run_program", &out.target).is_none());
+    let next = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(next.risk, rapidr_ai::rai::LATER, "{}", next.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    // (a new question drops it too)
+    h.begin_turn();
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (save_version: the same)
+    let v = h.call("save_version", &json!({"message": "Step 1"}));
+    assert_eq!(v.risk, rapidr_ai::rai::LATER, "{}", v.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "version\tStep 1");
+    h.cancelled();
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    let v = h.call("save_version", &json!({"message": "Step 1"}));
+    assert_eq!(v.risk, rapidr_ai::rai::LATER, "{}", v.content);
+    // (a card still asking when Stop came asks nothing any more)
+    set(t, "permission", &s("propose"));
+    h.begin_turn();
+    let _ = h.call("run_program", &json!({"action": "start"}));
+    assert_ne!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    h.cancelled();
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    call(t, "allowprogramuse", &[Value::Integer(1)]);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "an answer after Stop starts nothing");
+}
+
+/// save_version is RAI's only while it may change files: refused in Coach
+/// and when it only reads (and never offered there).
+#[test]
+fn save_version_is_refused_in_coach_and_reading_only() {
+    install();
+    let t = "tools-version-refused";
+    let mut h = Handle { name: t.into() };
+    for (permission, mode) in [("propose", "coach"), ("read-only", "build"), ("auto", "coach")] {
+        set(t, "permission", &s(permission));
+        set(t, "mode", &s(mode));
+        h.begin_turn();
+        assert!(!offered(&h).contains(&"save_version".to_string()), "{permission} {mode}");
+        let out = h.call("save_version", &json!({"message": "Mine"}));
+        assert!(out.is_error && out.content.contains("can't save versions"), "{permission} {mode}: {}", out.content);
+        assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    }
+    set(t, "mode", &s("build"));
+    set(t, "permission", &s("propose"));
+    h.begin_turn();
+    assert!(offered(&h).contains(&"save_version".to_string()));
+}
+
+/// "Work on its own": the Permission property reads it back as set; a
+/// turn may make up to AUTO_TOOL_CALLS calls — only then, not in Coach.
+#[test]
+fn auto_permission_and_its_tool_calls() {
+    install();
+    let t = "tools-auto-limit";
+    let h = Handle { name: t.into() };
+    for (given, read) in [("auto", "auto"), ("AUTO", "auto"), ("read-only", "read-only"), ("propose", "propose"), ("anything", "propose")] {
+        assert!(set(t, "permission", &s(given)));
+        assert_eq!(get(t, "permission").unwrap().to_string_val(), read, "{given}");
+    }
+    set(t, "permission", &s("auto"));
+    assert_eq!(h.max_tool_calls(), Some(AUTO_TOOL_CALLS));
+    set(t, "mode", &s("coach"));
+    assert_eq!(h.max_tool_calls(), None, "Coach: the usual limit");
+    set(t, "mode", &s("build"));
+    set(t, "permission", &s("propose"));
+    assert_eq!(h.max_tool_calls(), None);
+    assert!(AUTO_TOOL_CALLS > rapidr_ai::rai::MAX_TOOL_CALLS);
 }

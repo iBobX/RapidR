@@ -471,6 +471,22 @@ impl Tools {
         self.run_done(&action, said, false)
     }
 
+    /// Stop, or a new question: the run or version RAI asked Studio for
+    /// (RunRequest), the call that waits for it, the program calls held for
+    /// the card — dropped, so nothing is done after it and the next call
+    /// isn't refused as "still going on". A card still asking is answered
+    /// by no one: it asks nothing any more.
+    fn drop_requests(&mut self) {
+        self.run_held = None;
+        self.run_request.clear();
+        self.run_result = None;
+        self.app_held.clear();
+        self.app_sent.clear();
+        if self.app_asked == Some(None) {
+            self.app_asked = None;
+        }
+    }
+
     /// A run_program call answered: nothing held or asked any more.
     fn run_done(&mut self, action: &str, content: String, is_error: bool) -> Option<ToolOutcome> {
         self.run_held = None;
@@ -820,9 +836,14 @@ impl ToolProvider for Handle {
             // "Don't allow" lasts the answer; "Allow for this run", the run)
             t.app_asked = None;
             t.app_ask_run.clear();
-            t.app_held.clear();
-            t.app_sent.clear();
+            // (a run or a version the last answer asked for and didn't get:
+            // never done now, never "still going on")
+            t.drop_requests();
         });
+    }
+
+    fn cancelled(&mut self) {
+        with(&self.name, Tools::drop_requests);
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
