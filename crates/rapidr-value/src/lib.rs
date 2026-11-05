@@ -447,6 +447,17 @@ thread_local! {
 /// ([`host_call`]): its message.
 pub struct HostRaised(pub String);
 
+/// `s` in lower case, borrowed when it is already (most component names
+/// and properties are): what `str::to_lowercase` gives, without the copy a
+/// lookup made each time (docs/speed-audit-2026-11.md).
+pub fn lower(s: &str) -> std::borrow::Cow<'_, str> {
+    if s.is_ascii() && !s.bytes().any(|b| b.is_ascii_uppercase()) {
+        std::borrow::Cow::Borrowed(s)
+    } else {
+        std::borrow::Cow::Owned(s.to_lowercase())
+    }
+}
+
 /// Runs `f`, a call of the interpreter's host into the runtime (a builtin,
 /// a component's method, a property): a run-time error the runtime raises
 /// there ([`runtime_error`] — an object's RapidQ exception, "Cannot create

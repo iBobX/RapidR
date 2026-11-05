@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
+use rapidr_value::lower;
 
 // ---------------------------------------------------------------------------
 // Component representation
@@ -961,37 +962,44 @@ pub fn is_window(name: &str) -> bool {
 }
 
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
-    let prop_lower = prop.to_lowercase();
+    // (the kernel reads every property of every control at each frame: a
+    // read makes no lower-case copy it doesn't need and looks the type up
+    // once — it did both a dozen times, docs/speed-audit-2026-11.md)
+    let prop_lower = lower(prop);
+    let prop_lower = prop_lower.as_ref();
+    let key = lower(name);
+    let ty = comp_type_of(&key);
+    let ty = ty.as_str();
     // Form.Scale (RapidR's): its screen's device pixels per pixel.
     #[cfg(feature = "gui")]
-    if prop_lower == "scale" && rp_comp_type(name) == "RFORM" {
+    if prop_lower == "scale" && ty == "RFORM" {
         return Value::Double(crate::ui::form_scale(name));
     }
     // A window's Visible: whether it shows (Show, ShowModal, Visible = True
     // until Hide / Close or the user closes it).
     #[cfg(feature = "gui")]
-    if prop_lower == "visible" && is_window(name) {
-        let stored = || COMPONENTS.with(|c| c.borrow().get(&name.to_lowercase()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
+    if prop_lower == "visible" && ty == "RFORM" && rp_comp_get(name, "parent").to_string_val().is_empty() {
+        let stored = || COMPONENTS.with(|c| c.borrow().get(key.as_ref()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
         return v_bool(crate::ui::window_shown(name).unwrap_or_else(stored));
     }
     // Screen, Application, Clipboard, Mouse (globals.rs).
-    if let Some(v) = crate::globals::get(name, &prop_lower) {
+    if let Some(v) = crate::globals::get(name, prop_lower) {
         return v;
     }
     // (the I/O and media lane's: io.rs)
-    if let Some((sub, member)) = crate::io::sub_component(name, &prop_lower) {
+    if let Some((sub, member)) = crate::io::sub_component(name, prop_lower) {
         return rp_comp_get(&sub, &member);
     }
-    if let Some(v) = crate::io::frames_timer_get(name, &prop_lower) {
+    if let Some(v) = crate::io::frames_timer_get(name, prop_lower) {
         return v;
     }
-    if let Some(v) = rapidr_value::objects::rqlib::get(name, &prop_lower) {
+    if let Some(v) = rapidr_value::objects::rqlib::get(name, prop_lower) {
         return v;
     }
     // A form's inside (its frame and main menu excluded); other
     // components have no frame inside their size.
-    if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
-        let (w, h) = if matches!(rp_comp_type(name).as_str(), "RFORM" | "RSCROLLBOX") {
+    if matches!(prop_lower, "clientwidth" | "clientheight") {
+        let (w, h) = if matches!(ty, "RFORM" | "RSCROLLBOX") {
             crate::scroll::client(name)
         } else {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
@@ -999,97 +1007,99 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         return v_int(if prop_lower == "clientwidth" { w } else { h });
     }
     // A component's Handle (rapidr_value::handles).
-    if prop_lower == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&name.to_lowercase())) {
+    if prop_lower == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(key.as_ref())) {
         return v_int(rapidr_value::handles::handle_of(name));
     }
     // `Constraints.MinWidth` is MinWidth (rapidr_value::layout).
-    if let Some(flat) = rapidr_value::layout::constraint_alias(&prop_lower) {
+    if let Some(flat) = rapidr_value::layout::constraint_alias(prop_lower) {
         return rp_comp_get(name, flat);
     }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
-    if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
+    if let Some(v) = rapidr_value::mdi::get(name, prop_lower) {
         return v;
     }
     // A QFORM's MDIChildCount, TileMode (form_members.rs).
-    if matches!(prop_lower.as_str(), "mdichildcount" | "tilemode") {
-        if let Some(v) = crate::form_members::get(name, &rp_comp_type(name), &prop_lower) {
+    if matches!(prop_lower, "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members::get(name, ty, prop_lower) {
             return v;
         }
     }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock.rs).
-    if rp_comp_type(name) == "RDOCKMANAGER" {
-        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &prop_lower) {
+    if ty == "RDOCKMANAGER" {
+        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, prop_lower) {
             return v;
         }
     }
-    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels.rs).
-    if let Some(v) = crate::panels::get(name, &prop_lower) {
-        return v;
+    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels.rs:
+    // a panel's type answers, no other's).
+    if rapidr_value::panels::is_panel(ty) {
+        if let Some(v) = crate::panels::get(name, prop_lower) {
+            return v;
+        }
     }
     // (I1) RapidR Studio's components (studio.rs).
     #[cfg(feature = "studio")]
-    {
-        let t = rp_comp_type(name);
-        if rapidr_studio::is_studio_type(&t) {
-            if let Some(v) = crate::studio::get(&t, name, &prop_lower) {
-                return v;
-            }
+    if rapidr_studio::is_studio_type(ty) {
+        if let Some(v) = crate::studio::get(ty, name, prop_lower) {
+            return v;
         }
     }
     // (I8) RAI, the AI component (ai.rs).
     #[cfg(feature = "network")]
-    if rapidr_ai::rai::is_rai(&rp_comp_type(name)) {
-        if let Some(v) = crate::ai::get(name, &prop_lower) {
+    if rapidr_ai::rai::is_rai(ty) {
+        if let Some(v) = crate::ai::get(name, prop_lower) {
             return v;
         }
     }
     // RSecrets, the OS keychain for programs (rapidr_ai::secrets).
     #[cfg(feature = "network")]
-    if rapidr_ai::secrets::component::is_secrets(&rp_comp_type(name)) {
-        if let Some(v) = rapidr_ai::secrets::component::get(name, &prop_lower) {
+    if rapidr_ai::secrets::component::is_secrets(ty) {
+        if let Some(v) = rapidr_ai::secrets::component::get(name, prop_lower) {
             return v;
         }
     }
     // RSystemInfo: what this computer has (rapidr_value::sysinfo).
-    if rapidr_value::sysinfo::component::is_sysinfo(&rp_comp_type(name)) {
-        if let Some(v) = rapidr_value::sysinfo::component::get(name, &prop_lower) {
+    if rapidr_value::sysinfo::component::is_sysinfo(ty) {
+        if let Some(v) = rapidr_value::sysinfo::component::get(name, prop_lower) {
             return v;
         }
     }
     // RWindowCapture and RAppHands: the program's own eyes and hands
     // (ui/drive.rs, rapidr_ui_app::{eyes, hands}).
     #[cfg(feature = "gui")]
-    match rp_comp_type(name).as_str() {
+    match ty {
         "RWINDOWCAPTURE" => {
-            if let Some(v) = crate::ui::drive::capture_get(name, &prop_lower) {
+            if let Some(v) = crate::ui::drive::capture_get(name, prop_lower) {
                 return v;
             }
         }
         "RAPPHANDS" => {
-            if let Some(v) = crate::ui::drive::hands_get(name, &prop_lower) {
+            if let Some(v) = crate::ui::drive::hands_get(name, prop_lower) {
                 return v;
             }
         }
         _ => {}
     }
-    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
-    if let Some(v) = crate::scroll::get(name, &prop_lower) {
-        return v;
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs:
+    // only theirs).
+    if matches!(ty, "RFORM" | "RSCROLLBOX") {
+        if let Some(v) = crate::scroll::get(name, prop_lower) {
+            return v;
+        }
     }
     // (what the user typed and selected, before the program reads it)
     #[cfg(feature = "gui")]
     if rapidr_value::objects::is_textedit(name) {
         crate::ui::text_pull(name);
     }
-    if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
+    if let Some(v) = rapidr_value::objects::get(name, prop_lower) {
         return v;
     }
 
     // Check GUI state overrides first
     #[cfg(feature = "gui")]
     {
-        let comp_type = rp_comp_type(name);
-        match comp_type.as_str() {
+        match ty {
             // (RDESIGNSURFACE's CompCount and FormCaption, RCODEEDITOR's
             // Text: the shared models' — objects::design, objects::textedit)
             "RRICHEDIT" | "RMEMO" => {
@@ -1111,18 +1121,17 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // Data science property overrides
     #[cfg(feature = "datascience")]
     {
-        let comp_type = rp_comp_type(name);
-        match comp_type.as_str() {
+        match ty {
             "RNUM" => {
-                let v = crate::datascience::num_get_prop(name, &prop_lower);
+                let v = crate::datascience::num_get_prop(name, prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             "RDATAFRAME" => {
-                let v = crate::datascience::dataframe_get_prop(name, &prop_lower);
+                let v = crate::datascience::dataframe_get_prop(name, prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             "RPLOT" => {
-                let v = crate::datascience::plot_get_prop(name, &prop_lower);
+                let v = crate::datascience::plot_get_prop(name, prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             _ => {}
@@ -1131,20 +1140,21 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
 
     COMPONENTS.with(|c| {
         c.borrow()
-            .get(&name.to_lowercase())
-            .and_then(|comp| comp.properties.get(&prop_lower))
+            .get(key.as_ref())
+            .and_then(|comp| comp.properties.get(prop_lower))
             .cloned()
             // (a QRECT's fields, and positions, are 0 until set; a panel's
             // bevels RapidQ's defaults)
-            .or_else(|| (comp_is_panel(name)).then(|| rapidr_value::objects::bevel::default(&prop_lower).map(v_int)).flatten())
+            .or_else(|| matches!(ty, "RPANEL" | "RBEVEL").then(|| rapidr_value::objects::bevel::default(prop_lower).map(v_int)).flatten())
             // (Anchors and Constraints: akLeft + akTop, none)
-            .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(name), &prop_lower).map(v_int))
-            .unwrap_or_else(|| if matches!(prop_lower.as_str(), "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
+            .or_else(|| rapidr_value::layout::default_property(ty, prop_lower).map(v_int))
+            .unwrap_or_else(|| if matches!(prop_lower, "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
     })
 }
 
-fn comp_is_panel(name: &str) -> bool {
-    COMPONENTS.with(|c| c.try_borrow().ok().and_then(|c| c.get(&name.to_lowercase()).map(|x| matches!(x.type_name.as_str(), "RPANEL" | "RBEVEL"))).unwrap_or(false))
+/// A component's type by its key (lower case), "" for none.
+fn comp_type_of(key: &str) -> String {
+    COMPONENTS.with(|c| c.borrow().get(key).map(|comp| comp.type_name.clone()).unwrap_or_default())
 }
 
 /// Get the type name of a registered component.
@@ -1229,12 +1239,7 @@ pub fn rp_comp_children(name: &str) -> Vec<String> {
 }
 
 pub fn rp_comp_type(name: &str) -> String {
-    COMPONENTS.with(|c| {
-        c.borrow()
-            .get(&name.to_lowercase())
-            .map(|comp| comp.type_name.clone())
-            .unwrap_or_default()
-    })
+    comp_type_of(&lower(name))
 }
 
 /// A QIMAGE's picture changed: with AutoSize the control takes the

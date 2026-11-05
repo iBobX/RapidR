@@ -702,7 +702,7 @@ pub fn scrolls(type_name: &str) -> bool {
 
 /// A container's bars, to read (`None`: it has none yet).
 pub fn with<R>(name: &str, f: impl FnOnce(&Scroller) -> R) -> Option<R> {
-    SCROLLERS.with(|s| s.borrow().get(&name.to_lowercase()).map(f))
+    SCROLLERS.with(|s| s.borrow().get(crate::lower(name).as_ref()).map(f))
 }
 
 /// A container's bars, to change (made the first time).

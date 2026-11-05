@@ -37,7 +37,7 @@ impl Store for RtStore {
         // parent's: object.rs `program_color`)
         // (a Font.Color the program didn't set: its parent's, RapidQ's
         // ParentFont)
-        if matches!(prop.to_ascii_lowercase().as_str(), "fontcolor" | "font.color") {
+        if prop.eq_ignore_ascii_case("fontcolor") || prop.eq_ignore_ascii_case("font.color") {
             return crate::object::drawn_font_color(id, prop);
         }
         rp_comp_get(id, prop)

@@ -327,6 +327,43 @@ interpreter (325); RapidR Studio's 81 goldens (all match); Studio's flows
 on the desktop host (the four web-build flows need the web runtime's
 wasm, not built in this worktree).
 
+### Fix 2: a property read that doesn't copy or look things up again
+
+What the kernel reads at every frame (every property of every control)
+went through `rp_comp_get`, which made a lower-case copy of the name and
+of the property at almost every step and looked the component's type up
+about ten times, then asked a dozen models, each making its own copy of
+the name to find it. Now:
+
+- `rp_comp_get` makes the lower-case property and key once (a copy only
+  when there is an upper-case letter or a non-ASCII one —
+  `rapidr_value::lower`, what `to_lowercase` gives) and looks the type up
+  once; a model that only answers for its own types (the panels, Studio's,
+  RAI's, RSecrets, RSystemInfo, the scroll bars) is asked only for them.
+- The shared models' lookups (`objects`, menus, `rqlib`, archives, audio,
+  Direct3D, headers, scroll bars, layout) find a name without copying it.
+- A control's font (six parts, each its own or the nearest parent's) is
+  read in one walk up the parents, not six (a test compares both ways on
+  2,000 random chains, loops included).
+- The kernel's store looks for `Font.Color` without making a copy.
+
+Same answers: the same functions in the same order, minus the copies and
+the repeated type lookups. A faster hasher was tried after this (SipHash
+was 12 % of what was left): the writes 12 % faster, the frames unchanged,
+so it was left out — the standard hasher's resistance to crafted keys
+stays.
+
+| | before | after |
+|---|--:|--:|
+| 200-control resize frame, `rapidr run` (median / p95) | 29.1 / 51.6 ms | **12.2 / 18.2 ms** |
+| … its two size writes | 2.03 ms | **0.75 ms** |
+| 200-control resize frame, native (fixes 1, 2, 3, 7 together) | 11.3 / 19.8 ms | **8.3 / 9.3 ms** |
+| … its two size writes, native | 0.47 ms | **0.19 ms** |
+| 12-canvas resize frame, `rapidr run` (fixes 1–3 together) | 28.2 ms | **18.1–18.5 ms** (OnResize 8.6 → 0.42 ms; OnPaint 12 → 11 ms: canvas text, hot spot 10) |
+| 12-canvas resize frame, native | 28.0 ms | **18.2–18.4 ms** |
+| #12's 41 moves, native | 10.4–11.5 ms | **0.16–0.31 ms** |
+| 800 place writes, native | 949–973 ms | **1.7–1.8 ms** |
+
 ### Resize coalescing: measured, nothing to coalesce
 
 Before changing how a live resize is handled, a hand drag counted how the

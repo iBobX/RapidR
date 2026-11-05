@@ -108,11 +108,11 @@ pub fn create(id: &str, type_name: &str) -> bool {
 }
 
 pub fn exists(id: &str) -> bool {
-    STORE.with(|s| s.borrow().contains_key(&id.to_lowercase()))
+    STORE.with(|s| s.borrow().contains_key(crate::lower(id).as_ref()))
 }
 
 fn with<R>(id: &str, f: impl FnOnce(&mut State) -> R) -> Option<R> {
-    STORE.with(|s| s.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+    STORE.with(|s| s.borrow_mut().get_mut(crate::lower(id).as_ref()).map(f))
 }
 
 pub fn get(id: &str, prop: &str) -> Option<Value> {

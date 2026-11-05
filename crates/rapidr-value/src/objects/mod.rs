@@ -460,12 +460,12 @@ pub fn with_tree<R>(id: &str, f: impl FnOnce(&mut tree::TreeView) -> R) -> Optio
 
 /// Whether `id` is a QHEADER.
 pub fn is_header(id: &str) -> bool {
-    HEADERS.with(|h| h.borrow().contains_key(&id.to_lowercase()))
+    HEADERS.with(|h| h.borrow().contains_key(crate::lower(id).as_ref()))
 }
 
 /// Reads or changes a QHEADER's sections (to show them, or from the mouse).
 pub fn with_header<R>(id: &str, f: impl FnOnce(&mut header::Header) -> R) -> Option<R> {
-    HEADERS.with(|h| h.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+    HEADERS.with(|h| h.borrow_mut().get_mut(crate::lower(id).as_ref()).map(f))
 }
 
 /// Paints QHEADER `id`'s faces on its surface, `width` × `height`; returns
@@ -935,7 +935,7 @@ pub fn set_backdrop(id: &str, bgr: u32) -> bool {
 
 /// QDIGDISPLAY `id`'s Display (`None`: it isn't one).
 pub fn digdisplay_text(id: &str) -> Option<String> {
-    DIGITS.with(|d| d.borrow().get(&id.to_lowercase()).cloned())
+    DIGITS.with(|d| d.borrow().get(crate::lower(id).as_ref()).cloned())
 }
 
 /// Draws QDIGDISPLAY `id`'s Display onto its surface again (it was
@@ -1119,14 +1119,40 @@ pub fn font_flat_name(prop: &str) -> Option<&'static str> {
 /// keep them as `fontname`, `fontsize` (points), `fontcolor`, `fontbold`, …):
 /// what text drawn for the component (a form's surface, a list's items) uses.
 pub fn font_from_props(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Font {
-    let name = inherited_font_prop(id, "fontname", props).to_string_val();
-    let flag = |p: &str| inherited_font_prop(id, p, props).to_bool();
-    let size = inherited_font_prop(id, "fontsize", props).to_i64();
+    // (each part as `inherited_font_prop` finds it — its own, else the
+    // nearest parent's — all six in one walk up the parents: the kernel
+    // reads every control's font at each frame, and six walks were most of
+    // a frame, docs/speed-audit-2026-11.md)
+    const FLATS: [&str; 6] = ["fontname", "fontsize", "fontbold", "fontitalic", "fontunderline", "fontstrikeout"];
+    let mut found: [Option<Value>; 6] = Default::default();
+    let mut at = id.to_string();
+    for _ in 0..32 {
+        for (i, flat) in FLATS.iter().enumerate() {
+            if found[i].is_none() {
+                let v = props(&at, flat);
+                if !matches!(v, Value::Null) && !(*flat == "fontname" && v.to_string_val().trim().is_empty()) {
+                    found[i] = Some(v);
+                }
+            }
+        }
+        if found.iter().all(Option::is_some) {
+            break;
+        }
+        let parent = props(&at, "parent").to_string_val();
+        if parent.is_empty() || parent.eq_ignore_ascii_case(&at) {
+            break;
+        }
+        at = parent;
+    }
+    let [name, size, bold, italic, underline, strikeout] = found;
+    let name = name.map_or_else(|| DEFAULT_FONT_NAME.to_string(), |v| v.to_string_val());
+    let size = size.map_or(DEFAULT_FONT_SIZE, |v| v.to_i64());
+    let flag = |v: Option<Value>| v.is_some_and(|v| v.to_bool());
     Font {
         name: if name.trim().is_empty() { DEFAULT_FONT_NAME.into() } else { name },
         size: if size > 0 { size } else { DEFAULT_FONT_SIZE },
         color: color_bgr(props(id, "fontcolor").to_i64()) as i64,
-        styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
+        styles: u8::from(flag(bold)) | u8::from(flag(italic)) << 1 | u8::from(flag(underline)) << 2 | u8::from(flag(strikeout)) << 3,
     }
 }
 
@@ -1214,7 +1240,7 @@ pub fn with_canvas<R>(id: &str, width: i64, height: i64, f: impl FnOnce(&mut Bit
 }
 
 pub fn exists(id: &str) -> bool {
-    OBJECTS.with(|o| o.borrow().contains_key(&id.to_lowercase()))
+    OBJECTS.with(|o| o.borrow().contains_key(crate::lower(id).as_ref()))
 }
 
 /// Forgets object `id` (a kernel-drawn dialog's components once it
@@ -1227,7 +1253,7 @@ pub fn remove(id: &str) -> bool {
 }
 
 fn with<R>(id: &str, f: impl FnOnce(&mut Object) -> R) -> Option<R> {
-    OBJECTS.with(|o| o.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+    OBJECTS.with(|o| o.borrow_mut().get_mut(crate::lower(id).as_ref()).map(f))
 }
 
 /// Every file stream (RFileStream) writes what it hasn't written to its
@@ -1264,7 +1290,7 @@ fn ensure_printer(id: &str) {
 
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     ensure_printer(id);
-    let prop = prop.to_lowercase();
+    let prop = crate::lower(prop).into_owned();
     // (linked data: an RCSV's, an RDataSource's, an RDBGrid's —
     // datascience::link)
     if let Some(v) = crate::datascience::link::get(id, &prop) {
@@ -2629,5 +2655,66 @@ mod tests {
         set("t_font", "size", &v_int(20)).unwrap().unwrap();
         assert!(font_properties("t_font").unwrap().contains(&("fontsize", v_int(20))));
         assert!(get("t_bmp", "nosuchprop").is_none() && get("t_nobody", "width").is_none());
+    }
+}
+
+#[cfg(test)]
+mod font_walk_tests {
+    use super::{color_bgr, font_from_props, inherited_font_prop, Font, DEFAULT_FONT_NAME, DEFAULT_FONT_SIZE};
+    use crate::{v_int, v_str, Value};
+    use std::collections::HashMap;
+
+    /// The font as it was read before the single walk: each part walked
+    /// up the parents on its own.
+    fn walked_each(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Font {
+        let name = inherited_font_prop(id, "fontname", props).to_string_val();
+        let flag = |p: &str| inherited_font_prop(id, p, props).to_bool();
+        let size = inherited_font_prop(id, "fontsize", props).to_i64();
+        Font {
+            name: if name.trim().is_empty() { DEFAULT_FONT_NAME.into() } else { name },
+            size: if size > 0 { size } else { DEFAULT_FONT_SIZE },
+            color: color_bgr(props(id, "fontcolor").to_i64()) as i64,
+            styles: u8::from(flag("fontbold")) | u8::from(flag("fontitalic")) << 1 | u8::from(flag("fontunderline")) << 2 | u8::from(flag("fontstrikeout")) << 3,
+        }
+    }
+
+    #[test]
+    fn one_walk_reads_the_font_each_part_did() {
+        let mut seed = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = |n: u64| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed % n
+        };
+        let parts = ["fontname", "fontsize", "fontbold", "fontitalic", "fontunderline", "fontstrikeout", "fontcolor"];
+        for _ in 0..2000 {
+            // (a chain c0 <- c1 <- ... <- c4, sometimes a loop, each with some parts)
+            let mut store: HashMap<(String, String), Value> = HashMap::new();
+            for i in 0..5 {
+                let id = format!("c{i}");
+                if i > 0 {
+                    let parent = if next(10) == 0 { format!("C{}", next(5)) } else { format!("c{}", i - 1) };
+                    store.insert((id.clone(), "parent".into()), v_str(&parent));
+                }
+                for p in parts {
+                    match next(6) {
+                        0 => {
+                            store.insert((id.clone(), p.into()), v_int(next(3) as i64 * 7));
+                        }
+                        1 => {
+                            store.insert((id.clone(), p.into()), v_str(["", " ", "Arial", "Courier New"][next(4) as usize]));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            let props = |id: &str, p: &str| store.get(&(id.to_lowercase(), p.to_string())).cloned().unwrap_or(Value::Null);
+            for i in 0..5 {
+                let id = format!("c{i}");
+                let (a, b) = (font_from_props(&id, &props), walked_each(&id, &props));
+                assert_eq!((a.name, a.size, a.color, a.styles), (b.name, b.size, b.color, b.styles), "{id} in {store:?}");
+            }
+        }
     }
 }

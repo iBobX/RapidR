@@ -500,7 +500,7 @@ pub fn anchor_set(name: &str, rules: Option<AnchorRules>) {
 
 /// The anchoring recorded for component `name`, if it follows its parent.
 pub fn anchor_rules(name: &str) -> Option<AnchorRules> {
-    anchor_store::RULES.with(|r| r.borrow().get(&name.to_lowercase()).copied())
+    anchor_store::RULES.with(|r| r.borrow().get(crate::lower(name).as_ref()).copied())
 }
 
 /// Lays out the anchored children of a container whose client area is now
