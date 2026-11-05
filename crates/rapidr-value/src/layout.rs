@@ -111,7 +111,10 @@ pub fn default_align(type_name: &str) -> Align {
 /// then sizes itself to its caption — AutoSize); RapidR's own components,
 /// theirs.
 pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
-    Some(match type_name.to_ascii_uppercase().as_str() {
+    // (asked at every read of an unset property: no copy of a type name
+    // already in upper case, as the registries keep them)
+    let upper: std::borrow::Cow<str> = if type_name.bytes().any(|b| b.is_ascii_lowercase()) { type_name.to_ascii_uppercase().into() } else { type_name.into() };
+    Some(match upper.as_ref() {
         "RFORM" => (320, 240),
         "RBUTTON" => (75, 25),
         "RLABEL" => (65, 17),
@@ -624,13 +627,15 @@ pub fn constraint_alias(prop: &str) -> Option<&'static str> {
 /// (AccessibleName, AccessibleDescription) read "" unset, which needs no
 /// answer here.
 pub fn default_property(type_name: &str, prop: &str) -> Option<i64> {
-    default_size(type_name)?;
-    match prop {
-        "anchors" => Some(DEFAULT_ANCHORS),
-        "accessiblehidden" => Some(0),
-        p if CONSTRAINT_PROPERTIES.contains(&p) || constraint_alias(p).is_some() => Some(0),
-        _ => None,
-    }
+    // (the property first: most reads are of others, and the type's size
+    // is a lookup)
+    let v = match prop {
+        "anchors" => DEFAULT_ANCHORS,
+        "accessiblehidden" => 0,
+        p if CONSTRAINT_PROPERTIES.contains(&p) || constraint_alias(p).is_some() => 0,
+        _ => return None,
+    };
+    default_size(type_name).map(|_| v)
 }
 
 /// Dragging a QSPLITTER (RapidQ's own Splitter, which RapidQ wraps): the

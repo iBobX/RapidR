@@ -707,7 +707,16 @@ pub fn with<R>(name: &str, f: impl FnOnce(&Scroller) -> R) -> Option<R> {
 
 /// A container's bars, to change (made the first time).
 pub fn with_mut<R>(name: &str, f: impl FnOnce(&mut Scroller) -> R) -> R {
-    SCROLLERS.with(|s| f(s.borrow_mut().entry(name.to_lowercase()).or_default()))
+    SCROLLERS.with(|s| {
+        let mut s = s.borrow_mut();
+        // (a form's every property read asks: no copy of a name already in
+        // lower case once its bars are made)
+        let key = crate::lower(name);
+        if !s.contains_key(key.as_ref()) {
+            s.insert(key.clone().into_owned(), Scroller::default());
+        }
+        f(s.get_mut(key.as_ref()).expect("made above"))
+    })
 }
 
 /// A container gone: its bars too.
@@ -715,6 +724,264 @@ pub fn remove(name: &str) {
     SCROLLERS.with(|s| {
         s.borrow_mut().remove(&name.to_lowercase());
     });
+}
+
+/// When and from what a container's bars are worked out — the one
+/// sequence the desktop runtime (`scroll.rs`) and the web runtime
+/// (`scroll_web.rs`) run on their registries ([`ScrollStore`]), as
+/// `layout::engine` is for Align: the bars from the components that take
+/// room, the components moved when a position had to change, laid out again
+/// when a bar came or went.
+///
+/// A write of a component's place worked its parent's bars out again from
+/// all of the parent's components: an OnResize placing 200 controls did it
+/// 800 times (docs/speed-audit-2026-11.md, hot spot 1). So a change
+/// ([`changed`]) is put off when that can't make a difference — nothing in
+/// the container is scrolled (no position to keep in range: no component
+/// moves) and it has no aligned component (laid out again, when a bar comes
+/// or goes, from the ranges of that moment) — and the container's bars are
+/// worked out once, before anything reads them ([`flush`]): the program's
+/// next read or method call, a read or set of the bars or of the client
+/// area, the container's first aligned component, the window loop's turn
+/// before the windows take the components' places and paint. Else at once,
+/// as always — the bars put off before first, in order.
+pub mod engine {
+    use std::cell::{Cell, RefCell};
+
+    use super::{Child, Scroller, Shift};
+    use crate::layout::Align;
+    use crate::{v_int, Value};
+
+    /// A runtime's components, as the bars see them.
+    pub trait ScrollStore {
+        /// Its RapidR type name (upper case; "" for none).
+        fn type_of(&self, name: &str) -> String;
+        /// A property as the bars read it (Left / Top / Width / Height,
+        /// Align, Visible, BorderStyle).
+        fn get(&self, name: &str, prop: &str) -> Value;
+        /// A component moved by a scroll: its Left / Top set (quietly, see
+        /// [`ScrollStore::quietly`]).
+        fn set(&self, name: &str, prop: &str, value: Value);
+        /// A container's children (key, type), in creation order.
+        fn children(&self, name: &str) -> Vec<(String, String)>;
+        /// A form's inside: its frame and main menu excluded.
+        fn form_area(&self, form: &str) -> (i64, i64);
+        /// Whether a container has (had) an aligned component.
+        fn has_aligned(&self, name: &str) -> bool;
+        /// A container's aligned components laid out again (a bar came or
+        /// went: its client area changed).
+        fn realign(&self, name: &str);
+        /// Runs `f` without its geometry stores laying anything out.
+        fn quietly(&self, f: &mut dyn FnMut());
+        /// A component the bars moved (the desktop moves its widget).
+        fn moved(&self, _name: &str) {}
+        /// A container whose bars were worked out (drawn again).
+        fn redraw(&self, _name: &str) {}
+    }
+
+    thread_local! {
+        /// Set while the bars are worked out (moving components mustn't
+        /// start it again).
+        static UPDATING: Cell<bool> = const { Cell::new(false) };
+        /// The containers whose bars wait to be worked out again (lower
+        /// case), in the order their components (or they) changed.
+        static STALE: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    }
+
+    fn stale() -> bool {
+        STALE.with(|s| !s.borrow().is_empty())
+    }
+
+    /// Whether `name` scrolls (a QFORM, a QSCROLLBOX — not a QFORMMDI: its
+    /// children's MDI client area is Windows' own).
+    pub fn scrolls<S: ScrollStore + ?Sized>(s: &S, name: &str) -> bool {
+        !name.is_empty() && super::scrolls(&s.type_of(name)) && !crate::mdi::is_mdi(name)
+    }
+
+    /// A QSCROLLBOX's edge (BorderStyle bsSingle, its default: 2 pixels).
+    pub fn border<S: ScrollStore + ?Sized>(s: &S, name: &str) -> i64 {
+        if s.type_of(name) != "RSCROLLBOX" {
+            return 0;
+        }
+        match s.get(name, "borderstyle") {
+            Value::Null => 2,
+            v if v.to_i64() == 0 => 0,
+            _ => 2,
+        }
+    }
+
+    /// The area the bars and the components share: a form's inside, a
+    /// scroll box's inside its edge.
+    pub fn area<S: ScrollStore + ?Sized>(s: &S, name: &str) -> (i64, i64) {
+        if s.type_of(name) == "RFORM" {
+            return s.form_area(name);
+        }
+        let b = border(s, name);
+        ((s.get(name, "width").to_i64() - 2 * b).max(0), (s.get(name, "height").to_i64() - 2 * b).max(0))
+    }
+
+    /// The client area: the area less the bars shown (ClientWidth /
+    /// ClientHeight).
+    pub fn client<S: ScrollStore + ?Sized>(s: &S, name: &str) -> (i64, i64) {
+        flush(s);
+        let (w, h) = area(s, name);
+        super::with(name, |b| b.client(w, h)).unwrap_or((w, h))
+    }
+
+    /// The components that take room (menus, timers and the like don't;
+    /// nor does a non-visual component inside a form — an RDataFrame's
+    /// Width and Height are its columns and rows).
+    fn children<S: ScrollStore + ?Sized>(s: &S, name: &str) -> Vec<(String, Child)> {
+        s.children(name)
+            .into_iter()
+            .filter(|(c, t)| !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM") && rapidr_lang::component(t).is_none_or(|k| k.visual) && !matches!(s.get(c, "width"), Value::Null))
+            .map(|(c, _)| {
+                let n = |p: &str| s.get(&c, p).to_i64();
+                let visible = match s.get(&c, "visible") {
+                    Value::Null => true,
+                    v => v.to_bool(),
+                };
+                let child = Child { left: n("left"), top: n("top"), width: n("width"), height: n("height"), align: Align::from_value(n("align")), visible };
+                (c, child)
+            })
+            .collect()
+    }
+
+    /// `name`'s components moved or resized, or it did: its bars are
+    /// worked out again — at once, or (when that can't make a difference)
+    /// once before anything reads them ([`flush`]), however many changes
+    /// came first. Then the ranges and the bars are those of the components
+    /// as they end up, whatever order they changed in.
+    pub fn changed<S: ScrollStore + ?Sized>(s: &S, name: &str) {
+        // (as `update`: nothing while the bars are being worked out — what
+        // they move doesn't start it again)
+        if UPDATING.with(Cell::get) || !scrolls(s, name) {
+            return;
+        }
+        let later = !s.has_aligned(name) && super::with(name, Scroller::unscrolled).unwrap_or(true);
+        if !later {
+            flush(s);
+            update(s, name);
+            return;
+        }
+        let key = name.to_lowercase();
+        STALE.with(|st| {
+            let mut st = st.borrow_mut();
+            if !st.contains(&key) {
+                st.push(key);
+            }
+        });
+    }
+
+    /// The bars put off ([`changed`]) worked out now, in order.
+    pub fn flush<S: ScrollStore + ?Sized>(s: &S) {
+        if UPDATING.with(Cell::get) || !stale() {
+            return;
+        }
+        while let Some(name) = STALE.with(|st| {
+            let mut st = st.borrow_mut();
+            (!st.is_empty()).then(|| st.remove(0))
+        }) {
+            update(s, &name);
+        }
+    }
+
+    /// The bars worked out again for `name` (its components or size
+    /// changed, the program set a Position or AutoScroll …): the components
+    /// moved if a position had to change, laid out again if the client area
+    /// did.
+    pub fn update<S: ScrollStore + ?Sized>(s: &S, name: &str) {
+        if !scrolls(s, name) || UPDATING.with(Cell::get) {
+            return;
+        }
+        // (worked out now: no longer waiting)
+        if stale() {
+            let key = name.to_lowercase();
+            STALE.with(|st| st.borrow_mut().retain(|n| *n != key));
+        }
+        UPDATING.with(|u| u.set(true));
+        for _ in 0..2 {
+            let (w, h) = area(s, name);
+            let kids: Vec<Child> = children(s, name).into_iter().map(|(_, c)| c).collect();
+            let before = super::with(name, |b| (b.horz.shown, b.vert.shown));
+            let bare = super::bare(&s.type_of(name), &s.get(name, "borderstyle"));
+            let shift = super::with_mut(name, |b| {
+                b.bare = bare;
+                b.update(w, h, &kids)
+            });
+            move_children(s, name, shift);
+            let after = super::with(name, |b| (b.horz.shown, b.vert.shown));
+            if before == after {
+                break;
+            }
+            // (a bar came or went: the client area changed)
+            s.realign(name);
+        }
+        UPDATING.with(|u| u.set(false));
+        s.redraw(name);
+    }
+
+    /// The components moved by a scroll: Left by -dx, Top by -dy.
+    pub fn move_children<S: ScrollStore + ?Sized>(s: &S, name: &str, (dx, dy): Shift) {
+        if (dx, dy) == (0, 0) {
+            return;
+        }
+        let kids = children(s, name);
+        s.quietly(&mut || {
+            for (c, k) in &kids {
+                if dx != 0 {
+                    s.set(c, "left", v_int(k.left - dx));
+                }
+                if dy != 0 {
+                    s.set(c, "top", v_int(k.top - dy));
+                }
+            }
+        });
+        for (c, _) in &kids {
+            s.moved(c);
+        }
+    }
+
+    /// The user scrolled (`shift` from the model): the components move,
+    /// the bars are drawn again.
+    pub fn user_scrolled<S: ScrollStore + ?Sized>(s: &S, name: &str, shift: Shift) {
+        flush(s);
+        move_children(s, name, shift);
+        s.redraw(name);
+    }
+
+    /// The program reading AutoScroll, HorzPosition, … of a QFORM /
+    /// QSCROLLBOX (`prop` lower case).
+    pub fn get<S: ScrollStore + ?Sized>(s: &S, name: &str, prop: &str) -> Option<Value> {
+        if !scrolls(s, name) {
+            return None;
+        }
+        let v = super::with_mut(name, |b| b.get(prop));
+        // (one of the bars' properties: as they are once worked out)
+        if v.is_some() && stale() {
+            flush(s);
+            return super::with_mut(name, |b| b.get(prop));
+        }
+        v
+    }
+
+    /// The program setting one (`prop` lower case): the bars and the
+    /// components follow.
+    pub fn set<S: ScrollStore + ?Sized>(s: &S, name: &str, prop: &str, value: &Value) -> bool {
+        if !scrolls(s, name) {
+            return false;
+        }
+        // (one of the bars' properties — AutoScroll, Horz…, Vert…: the
+        // change on the bars as they are once worked out)
+        if prop == "autoscroll" || prop.starts_with("horz") || prop.starts_with("vert") {
+            flush(s);
+        }
+        if super::with_mut(name, |b| b.set(prop, value)).is_none() {
+            return false;
+        }
+        update(s, name);
+        true
+    }
 }
 
 #[cfg(test)]

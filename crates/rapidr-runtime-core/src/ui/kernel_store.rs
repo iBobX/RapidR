@@ -61,8 +61,18 @@ impl Store for RtStore {
         if let Some(f) = dialog(id, |s| s.font(id)) {
             return f;
         }
-        rapidr_value::objects::font_from_props(id, &|i, p| rp_comp_get(i, p))
+        FONTS.with(|m| rapidr_value::objects::font_from_props_kept(id, &|i, p| rp_comp_get(i, p), m))
     }
+
+    fn painting(&self, on: bool) {
+        FONTS.with(|m| m.borrow_mut().painting(on));
+    }
+}
+
+thread_local! {
+    /// The components' fonts as read during a paint (the web's store keeps
+    /// them so too: rapidr_value::objects::FontMemo).
+    static FONTS: std::cell::RefCell<rapidr_value::objects::FontMemo> = std::cell::RefCell::new(rapidr_value::objects::FontMemo::default());
 }
 
 /// A true / false property as the kernel reads them (`default` when unset).

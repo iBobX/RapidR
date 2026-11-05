@@ -376,6 +376,14 @@ export const cases = [
   // RapidR Sans, whose r is a pixel wider: the box's range one more)
   { name: "autoscroll", events: "box.__mousedown_140_90,box.__mouseup_140_90,box.__mousedown_102_90,box.__mouseup_102_90,box.__mousedown_50_30,box.__mouseup_50_30,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=3012094252901|14679221|216184-96|751251|020096"] },
+  // (WEB-PARITY-SPEED) A form built the same way on both runtimes: buttons
+  // parented last first, one moved away and back, one made later — drawn in
+  // the order they were made (one children index, rapidr_value::children);
+  // a scroll box's bars from many writes in a row (one engine,
+  // rapidr_value::scrollbars::engine); the user's resize. The captures of
+  // the desktop and the web must be the same.
+  { name: "children_parity", events: "btn.onclick", dump: "lbl.caption", resize: "420,320",
+    expect: ["lbl.caption=box24617812999|418330246178"] },
   { name: "onshow_scroll", events: "btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=show;333x283"] },
   { name: "form_visible", events: "btn.onclick,btn.onclick", dump: "lbl.caption",

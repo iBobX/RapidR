@@ -13,7 +13,7 @@ use crate::value::{v_null, v_str, Value};
 
 /// Whether `type_name` is one of them.
 pub fn is_webapi(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RWEBGEOLOCATION" | "RROUTER")
+    ["RJAVASCRIPT", "RWEBSTORAGE", "RWEBNOTIFICATION", "RWEBGEOLOCATION", "RROUTER"].iter().any(|t| t.eq_ignore_ascii_case(type_name))
 }
 
 /// A BASIC value for JavaScript.

@@ -25,6 +25,28 @@ pub trait Store {
     fn children(&self, id: &str) -> Vec<(String, String)>;
     /// The font its Font properties describe (`objects::font_from_props`).
     fn font(&self, id: &str) -> Font;
+    /// A paint begins (`true`) or ends (`false`), one inside another as the
+    /// form designer's: nothing the program can change changes in between
+    /// (reading runs no program code), so a store may keep what it read
+    /// meanwhile — the runtimes keep the components' fonts
+    /// (`rapidr_value::objects::FontMemo`).
+    fn painting(&self, _on: bool) {}
+}
+
+/// A paint of `store`'s components while it lives ([`Store::painting`]).
+pub(crate) struct Painting<'a>(&'a dyn Store);
+
+impl<'a> Painting<'a> {
+    pub(crate) fn begin(store: &'a dyn Store) -> Painting<'a> {
+        store.painting(true);
+        Painting(store)
+    }
+}
+
+impl Drop for Painting<'_> {
+    fn drop(&mut self) {
+        self.0.painting(false);
+    }
 }
 
 /// An integer property, `default` when it has none.

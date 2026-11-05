@@ -61,7 +61,7 @@ for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; 
 [ $CLEAN = 1 ] && trap 'rm -rf "$W"/* target/debug target/wasm32-unknown-unknown/debug' EXIT
 want() { [[ " ${STAGES[*]} " == *" $1 "* ]]; }
 # (the browser tests need the repo served: RAPIDR_URL, else port 8765)
-if want web || want examples; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
+if want web || want examples || want perf; then curl -s -o /dev/null "${RAPIDR_URL:-http://localhost:8765}/" || { echo "serve the repo on ${RAPIDR_URL:-http://localhost:8765} first (python3 -m http.server 8765 --bind 127.0.0.1)"; exit 1; }; fi
 if want studio || want perf; then curl -s -o /dev/null "${STUDIO_WEB_URL:-${RAPIDR_STUDIO_URL:-http://127.0.0.1:18473/}}index.html" || { echo "build and serve Studio for the web on ${STUDIO_WEB_URL:-http://127.0.0.1:18473/} first (tools/build_studio_web.sh; python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1)"; exit 1; }; fi
 if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   # (the UI kernel and the program glue stay GUI-free: they must build for
@@ -227,6 +227,12 @@ if want perf; then echo "== perf"
   # with 1,000 $DEFINEs, Studio's caret move and edit round)
   out=$(python3 tools/bench/ui_bench --check $([ -n "${RAPIDR_PERF_NO_WINDOWS:-}" ] || echo --windows) 2>&1) || echo "tools/bench/ui_bench: FAILED"
   echo "$out" | grep -E "MISSED|every budget met|Traceback|Error"
+  # (the same budgets on the web, docs/speed-audit-2026-11.md "Web parity":
+  # the programs on the web runtime's page in headless Chromium — #12, the
+  # place writes, the 200-control and 12-canvas forms dragged by a corner —
+  # and Studio for the web's caret move in a 5,000-line program)
+  out=$(node tools/bench/web_ui_bench.mjs --check 2>&1) || echo "tools/bench/web_ui_bench.mjs: FAILED"
+  echo "$out" | grep -E "MISSED|every budget met|Error"
   cargo run -q --release -p rapidr-editor --example editor_bench 2>&1 | grep -E "MISSED|targets met|missed"
   cargo run -q --release -p rapidr-value --example frame_bench 2>&1 | grep -E "MISSED|missed|pipeline"
   cargo run -q --release -p rapidr-ui-render --example codeeditor_bench 2>&1 | grep -E "MISSED|targets met|missed"

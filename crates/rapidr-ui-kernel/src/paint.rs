@@ -716,6 +716,9 @@ impl FormUi {
     /// designer's grid), with (0, 0) the client area's top left.
     pub fn paint_into(&mut self, store: &dyn Store, ts: &mut TextSystem, p: &mut Painter, under: &mut dyn FnMut(&mut Painter)) {
         self.sync(store);
+        // (the store may keep what it reads until the paint ends: every
+        // control's font walks up the same parents)
+        let _painting = crate::store::Painting::begin(store);
         self.scale = p.scale();
         let (w, h) = self.client;
         if self.menu_offset > 0 {

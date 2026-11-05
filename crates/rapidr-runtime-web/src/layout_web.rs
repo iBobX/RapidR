@@ -100,6 +100,11 @@ pub fn reanchor(parent: &str) {
     engine::reanchor(&mut Rt, &parent.to_uppercase());
 }
 
+/// Whether a container has (had) an aligned child.
+pub(crate) fn has_aligned_children(name: &str) -> bool {
+    ALIGNED_PARENTS.with(|a| a.borrow().contains(&name.to_uppercase()))
+}
+
 fn has_menu(form: &str) -> bool {
     get_children_of(form).iter().any(|(_, t)| t == "RMAINMENU")
 }
@@ -213,9 +218,14 @@ impl engine::LayoutStore for Rt {
         anchor_set(name, rules);
     }
     fn has_aligned(&self, parent: &str) -> bool {
-        ALIGNED_PARENTS.with(|a| a.borrow().contains(&parent.to_uppercase()))
+        has_aligned_children(parent)
     }
     fn mark_aligned(&mut self, parent: &str) {
+        // (bars put off while it had no aligned component are worked out
+        // first, as they were then: rapidr_value::scrollbars::engine)
+        if !has_aligned_children(parent) {
+            crate::scroll_web::flush();
+        }
         ALIGNED_PARENTS.with(|a| a.borrow_mut().insert(parent.to_uppercase()));
     }
     fn has_anchored(&self, parent: &str) -> bool {
@@ -225,7 +235,9 @@ impl engine::LayoutStore for Rt {
         ANCHORED_PARENTS.with(|a| a.borrow_mut().insert(parent.to_uppercase()));
     }
     fn scroll_update(&mut self, name: &str) {
-        crate::scroll_web::update(name);
+        // (at once, or once before anything reads them when that can't
+        // differ: rapidr_value::scrollbars::engine)
+        crate::scroll_web::changed(name);
     }
     // (RapidQ aligns nothing before the form's first Show: rapidr_value::
     // layout's align_controls_unshown; ui-app's forms mark the first Show)

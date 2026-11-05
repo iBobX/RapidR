@@ -292,7 +292,8 @@ the same way on the build before this lane, 788fdd9c),
 - The web runtime has its own copies of the three UI patterns
   (`runtime-web`'s scroll update per write, children scan, property
   reads): not changed in this lane (the fixes in shared code — 4, 6, 7,
-  FIELD$ — reach it). A parity lane with web measurements.
+  FIELD$ — reach it). A parity lane with web measurements — done: "Web
+  parity", at the end.
 - `tools/check_words.py` fails on five unused allowlist entries for
   `ROADMAP.md` since the roadmap's rewrite (commit edeed986), not this
   lane's.
@@ -419,7 +420,8 @@ type) is made once and kept while the tree doesn't change: a revision
 stored. `pre_paint` keeps, per shown form, the components it serves —
 lists, combo boxes, grids, headers, trees — in the same depth-first order,
 found again only when the revision moves (`Program::tree_revision`; a
-program that can't tell, the web's, walks the tree as before). Same
+program that can't tell walks the tree as before — the web's, until "Web
+parity" below gave it the same index). Same
 children, same order, same owner-draw events in the same order; a test
 compares the index with the old scan through made, parented, moved,
 self-parented and number-parented components.
@@ -899,3 +901,201 @@ starting point.
 - **Beautiful**: the same output; audio and animation with room to spare.
 - **Legal**: no new dependency; no `unsafe`; Cranelift's licence and tree
   listed for the lawyer in jit-design.md before it is added.
+
+## Web parity
+
+The WEB-PARITY-SPEED lane (2026-11-05): the web runtime
+(`crates/rapidr-runtime-web`, its UI kernel host `crates/rapidr-ui-host-web`)
+had its own copies of the three UI patterns step 2 fixed on the desktop,
+and got none of the fixes. Where the desktop's code could serve the web it
+now does (one implementation, the private copies deleted); where the two
+registries differ too much for that in a day, the web got the same fix and
+the reason is below.
+
+### The map
+
+| Pattern | The desktop (after step 2) | The web, before | Now |
+|---|---|---|---|
+| Scroll bars per place write | `runtime-core/src/scroll.rs`: bars put off and worked out once before anything reads them (fix 1) | `scroll_web.rs`: a copy of the desktop's scroll.rs from before fix 1 — every Left / Top / Width / Height write worked the parent's bars out again from all its children (`layout_web` → `scroll_update` → `update`) | **Shared**: `rapidr_value::scrollbars::engine` — the sequence (put off or at once, flush, update, move the children, the bars' properties, the client area) over a `ScrollStore` trait, as `layout::engine` is for Align. `scroll.rs` and `scroll_web.rs` are each registry's store (its types, its reads — the web's stored values —, its children, a form's inside, its layout's aligned set, realign, quietly; the desktop moves widgets and redraws). The web flushes where the desktop does: the program's reads and calls (`rp_comp_value`, `rp_comp_read`, `rp_comp_method`), a container's first aligned child (`layout_web`'s `mark_aligned`), the bars' properties and the client area, and the page's turn and frame (`kernel_web`'s `sync`, `frame`) |
+| Children scan | `object.rs`: an index of every parent's children and a tree revision (fix 3); `lists::pre_paint` keeps its components per form | `object_web.rs` `get_children_of`: the whole registry scanned and sorted at every call; the web's `Program` had no tree revision, so the owner-draw turn walked every component's children at every frame | **Shared**: `rapidr_value::children::ChildrenIndex` — the index, its revision and the lookup, each registry with its own case rule (the desktop's keys are lower case and a Parent names its parent in any ASCII case; the web's keys are upper case, compared in upper case, as before). The web's `Program::tree_revision` is now `Some`: `pre_paint` keeps its list on the web too. A component that names itself its Parent is no child of its own on the web either (it was: the kernel's tree walk would have recursed on it) |
+| Property reads | `rp_comp_get`: one lower-case key, one type lookup, the models asked only for their types (fix 2) | `rp_comp_get`: an upper-case copy of the name and a lower-case copy of the property at every read, the type looked up about ten times (each an upper-case copy, a hash, a String clone), the panels' and the scroll bars' models asked for every type, `live_prop` and the kernel's `get_prop` looking the type up twice more; `WebStore::get` lower-cased every property | **The same fix, not shared**: one key (`rapidr_value::upper`, borrowed when the name is already upper case, as `lower` is), one type lookup handed to `live_prop` and the kernel's `get_prop_of`, the models gated by type as on the desktop; the stored-value reads layout and the bars make (`rp_comp_get_stored`) copy nothing they needn't. The shared code both runtimes read through got cheaper too: `objects::get` copies no property already in lower case, `scrollbars::with_mut` no name, `layout::default_property` asks for the type's size only for its own properties, `default_size` copies no type already in upper case |
+
+**Why the reads aren't one function**: the two registries differ under the
+same names — keys in upper case on the web, lower case on the desktop; a
+web read prefers live values the desktop doesn't have (a web-only
+component's element, the page's web APIs, a form's window), and each
+runtime has its own chain of models (the web's Studio, RAI and I/O
+glue, the desktop's GUI pulls). One `rp_comp_get` needs one registry type
+in `rapidr-value` with both runtimes' live sources as hooks: a refactor of
+both 3,000-line `object` files, larger than this lane's day. Proposed as
+its own lane.
+
+**One more shared fix, both runtimes** (what was left of the 200-control
+frame on the web after the three): every control's font walked up its
+parents with a full property read for each part, so a panel's and its
+form's font parts were read again for each of the 200 controls at each
+frame (27 % of the frame). The UI kernel now tells its store when a paint
+begins and ends (`Store::painting`, nested for the form designer's); both
+runtimes' stores keep the font parts and Parents read during one paint
+(`rapidr_value::objects::FontMemo`, `font_from_props_kept`): the same walk,
+each part read once a paint. Reading runs no program code, so nothing a
+paint reads changes during it; a test reads 2,000 random chains both ways,
+counts the reads, and checks a paint inside a paint and a change after one.
+On the desktop (`ui_bench --windows`, `rapidr run`, back to back): the
+200-control frame in a real window 10.2 → 8.1 ms.
+
+The toolbox (Studio's): its groups' members were found again — every
+registry type searched for each — each time its accessibility tree was
+made, which the web does at every key; they are found once
+(`panels::toolbox::members`).
+
+### Before and after (web)
+
+Headless Chromium on the Apple M4 Max, the Mac otherwise idle;
+`node tools/bench/web_ui_bench.mjs` with the runtime built from `0f464de2`
+(before) and from this lane's branch (after): milliseconds, the fastest of 3
+runs' medians. The writes are the program's own TIMER, each case repeated
+50 times (the web's TIMER counts whole milliseconds: one pass's time); a
+drag step is the page's main-thread work (Chromium's TaskDuration: the
+pointer event, the layout, OnResize, the frame, the paint) for one of 120
+pointer moves out and back, each waited for; "paint" is the host's probe
+(`RAPIDR_FRAME_TIMES`: the kernel's paint, the CPU renderer, the copy).
+
+| | before | after | wanted |
+|---|--:|--:|--:|
+| #12: 41 moves, form never shown | 1.48 | **0.08** | < 5 |
+| #12: 41 moves, form shown | 1.90 | **0.08** | < 5 |
+| 800 place writes, 200 controls | 120.5 | **2.66** | |
+| 200 caption writes | 4.06 | **1.52** | |
+| 200-control form dragged: a step (p95) | 30.3 (33.8) | **13.4 (14.3)** | < 16 |
+| … its frame's paint | 15.5 | **6.0** | |
+| 12 canvases: OnResize (48 writes, TIMER) | 1.0 | **0.0** | |
+| 12 canvases dragged: a step (p95) | 13.4 (14.9) | **11.7 (12.7)** | < 16 |
+| RapidR Studio for the web, 5,000 lines: a caret move (Down) | 64.9–65.8 | **18.7–20.1** | |
+| … its frame's paint | 7.8–8.0 | **5.0–5.2** | |
+
+(Studio's rows: 40 Down keys in a generated 5,000-line program, opened in
+its code view; 65.8 and 20.1 were measured back to back while other work
+loaded the Mac, 64.9 with other lanes' builds running, 18.7 on the idle
+Mac.)
+
+Once, without repeating (the program's TIMER): #12's 41 moves 1–2 → 0–1
+ms; the 800 writes 142–193 → 2 ms (20–58 ms in two of five runs: a VM time
+slice ended inside them, and the page drew a frame).
+
+Profiles (Chrome's sampling profiler, a named build of the same code: the
+200-control drag, 60 steps): 1,799 ms busy before — the paint 75 %, of it
+`rp_comp_get` 60 % (the font walk 33 %, the kernel's reads 29 %), malloc
+and free 22 %, `to_uppercase` 8 %, SipHash 6 %, the owner-draw turn's
+children scans 6 % — then 947 ms with the three fixes and 909 with the
+cheaper shared reads, before the font memo. The Studio caret before:
+`pre_paint` → `get_children_of` 52 % of the page's time (as on the desktop
+before fix 3).
+
+What a caret move in Studio on the web still costs: the accessibility
+mirror. The web host builds the kernel's accessibility tree and reconciles
+its ARIA elements with it after every key and at every frame
+(`WebHost::sync_mirror`, `Mirror::sync`: about half of the page's time,
+most of it reading the elements' attributes and styles back from the DOM
+to compare). The desktop builds its tree only when a screen reader asks.
+Not one of the three patterns: proposed as its own task (keep the last
+applied attributes in Rust and touch only what changed; build the tree
+once a frame).
+
+### Lines
+
+The scroll bars: the desktop's `scroll.rs` 236 lines and the web's
+`scroll_web.rs` 131 → 93 and 82 (each its registry as the engine's store);
+the sequence once, in `scrollbars::engine` (238 lines with its
+documentation). The children: the desktop's private index and the web's
+scan → one `ChildrenIndex` (77 lines, and its test). The web's `rp_comp_set_prop_only` was a second copy of its
+`store_prop`: it calls it.
+
+### The guard
+
+`tools/bench/web_ui_bench.mjs` (budgets in
+`tools/bench/web_ui_budgets.json`, run by `tools/regress.sh perf`; `--check`
+exits 1 on a miss — the build before misses eight of its nine): the same
+programs as `ui_bench` on the web runtime's page, the forms dragged by
+their corner, and Studio for the web's caret move. `prop_writes.rr` takes a repeat count on its command line
+(without one, as before: `ui_bench`'s numbers are unchanged).
+
+The web and the desktop building a form the same way: the GUI parity case
+`children_parity` (`tests/fixtures/children_parity.bas`, in
+`tests/gui_parity_cases.mjs`): overlapping buttons parented last first,
+one moved to a panel and back, one made later — drawn in the order they
+were made —, a scroll box's bars from many writes in a row, the user's
+resize; the desktop's dump and capture (native and interpreted, the GUI
+events suite) and the web's (`tests/web_gui_parity.mjs`) must be the same.
+The conformance case `scroll_batched_writes` holds the web's scroll values
+to the desktop's `.expected` (the web conformance run).
+
+### Checked
+
+- Unit tests: rapidr-value (the children index against a scan, both case
+  rules, 300 random registries; the font memo against the walk on 2,000
+  random chains, each part read once a paint; the scroll bars, layout and
+  toolbox tests), rapidr-runtime-core (74, the desktop's index test among
+  them), rapidr-ui-kernel (48), rapidr-ui-app (263); `cargo clippy -p
+  rapidr-runtime-web --target wasm32-unknown-unknown`: nothing new.
+- The conformance suite on both backends: 334 / 334 each (the interpreter's
+  file-I/O cases with the default work folder, see below).
+- The web conformance run: 285 passed, 3 known failures, and
+  `system_info`, which fails the same on the build before.
+- The examples on the web: 547 checks passed.
+- The web suites of `tools/regress.sh web` (32, `studio_run_frame` on this
+  lane's Studio build) and the web's accessibility suite (137 checks): all
+  passed.
+- The GUI events suite, native and interpreted: all checks passed (the new
+  `children_parity` among them).
+- The desktop's captures (`tests/gui_captures.mjs`: every GUI parity case at
+  1 × and 2 ×, 246 runs) with the runner from before this lane and the one
+  after: byte-identical, but `dialog_timers` (its tick counts: timing) and
+  `dir_list_view`'s modified times (the files are made by the run).
+- The web's 200-control form dragged by real pointer moves at a hand's
+  pace (60 moves, ~16 ms apart): 60 frames both before and after, the
+  drag over in 3.1 → 2.1 s, its paint 15.7 → 6.5 ms a frame; the two
+  screenshots at the far end byte-identical.
+- `tools/bench/ui_bench --check`: every budget met (the desktop's numbers
+  as after step 2; Studio's caret move 0.70 ms CPU, an edit round 25 ms).
+
+- The web against those desktop captures (`tests/web_gui_parity.mjs`, at
+  1 × and 2 ×): 368 checks passed each, `children_parity`'s window and
+  accessibility tree byte for byte the desktop's; the windows that differ
+  (`menus`, `menus_open`, `themes`, `handler_modal_events`, `focus_order`)
+  differ the same, pixel for pixel, with the runtime and runner from before
+  this lane.
+
+### Found, not changed
+
+- `system_info` fails in the web conformance run (its free-memory line is
+  missing in headless Chromium) — the same on the build before this lane.
+- A component moved to another parent leaves its old parent's scroll bars
+  as they were (both runtimes, before and after: the bars are worked out
+  for the parent that changed, the new one).
+- `rapidr_studio::is_studio_type` makes an upper-case copy at every call,
+  and both runtimes' reads ask it (SHARED-TOOLS' crate: a one-line fix for
+  that lane).
+- With `CONFORMANCE_WORK` on the build volume, the conformance run's
+  file-I/O cases fail (the build before too); the default work folder
+  passes them.
+- A native build names a component called like a Rust keyword with an
+  underscore (`Box` → `box_`), and `L(i).Parent = Box` on a component
+  array then stores `box_`: the labels are no one's children, the box gets
+  no scroll bars (`One.Parent = Box` on a single component is right; the
+  interpreter and the web are right). The same on the build before this
+  lane; the parity fixture names its box `Holder`. For the native
+  backend's lane.
+
+### The pillars
+
+- **Fast**: the web's 200-control frame 30 → 13 ms, its place writes 45 ×
+  faster; Studio for the web's caret move several times faster; the
+  desktop shares the font memo.
+- **Easy to use**: nothing changes for a program; a page resized by hand
+  keeps up with the mouse.
+- **Accessible**: the accessibility trees are unchanged (the web's
+  accessibility suite); the mirror's cost is measured and proposed next.
+- **Beautiful**: the same pixels on both runtimes (the parity case's
+  captures); smooth resizing in the browser.
+- **Legal**: no new dependency; no `unsafe`.
