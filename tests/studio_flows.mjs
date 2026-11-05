@@ -746,6 +746,86 @@ const CASES = [
     delay: 3,
     dump: { "proj.kind": /^project$/, "proj.filename": /hello_form\.rrproj$/, "proj.filecount": /^1$/ },
   },
+  // (Project > Add File, as Studio saves a project file — SaveProjectFile:
+  // the review of 2026-11-05): a project's file written as Studio's own
+  // write (not "updated outside Studio"); a program opened on its own
+  // becomes a project, said; never over a project file that is there)
+  {
+    name: "project-add-file",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => writeFileSync(join(p, "notes.txt"), "a note\n"),
+    folder: "{dir}/project/notes.txt",
+    do: "wait,project.addFile,wait,wait,wait,wait",
+    delay: 6,
+    dump: { "proj.filecount": /^2$/, "proj.filename": /\/project\/Hello\.rrproj$/, "outputbox.text": /^(?![\s\S]*updated outside Studio)[\s\S]*Saved \S*Hello\.rrproj/ },
+    files: { "Hello.rrproj": /path = "notes\.txt"/ },
+  },
+  {
+    name: "project-add-file-lone",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => writeFileSync(join(p, "notes.txt"), "a note\n"),
+    folder: "{dir}/project/notes.txt",
+    do: "wait,project.addFile,wait,wait",
+    delay: 5,
+    dump: { "proj.kind": /^project$/, "proj.filename": /\/project\/main\.rrproj$/, "outputbox.text": /Saved \S*main\.rrproj/ },
+    files: { "main.rrproj": /path = "notes\.txt"/ },
+  },
+  {
+    name: "project-add-file-lone-kept",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => {
+      writeFileSync(join(p, "notes.txt"), "a note\n");
+      writeFileSync(join(p, "main.rrproj"), "# another project's file: never written over\n");
+    },
+    folder: "{dir}/project/notes.txt",
+    do: "wait,project.addFile,wait,wait",
+    delay: 5,
+    dump: { "proj.kind": /^file$/, "outputbox.text": /Nothing was added: adding makes this program a project, and its project file \S*main\.rrproj is there already/ },
+    files: { "main.rrproj": /^# another project's file: never written over\n$/ },
+  },
+  // (Project > Add Folder never follows a link — one back to the folder
+  // looped, one elsewhere added files from outside the project —, and says
+  // what its limits left out: the review of 2026-11-05)
+  {
+    name: "project-add-folder-links",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => {
+      mkdirSync(join(p, "stuff", "b"), { recursive: true });
+      writeFileSync(join(p, "stuff", "a.txt"), "a\n");
+      writeFileSync(join(p, "stuff", "b", "c.txt"), "c\n");
+      symlinkSync(join(p, "stuff"), join(p, "stuff", "b", "back"));
+      symlinkSync(dirname(p), join(p, "stuff", "out"));
+      symlinkSync(join(dirname(p), "ai-audit.jsonl"), join(p, "stuff", "elsewhere.txt"));
+    },
+    folder: "{dir}/project/stuff",
+    do: "wait,project.addFolder,wait,wait",
+    delay: 6,
+    dump: { "proj.filecount": /^3$/, "outputbox.text": /Added 2 files from \S*stuff to the project\n3 links were skipped: Add Folder doesn't follow links/ },
+    files: { "Hello.rrproj": /^(?![\s\S]*(back|out|elsewhere))[\s\S]*path = "stuff\/a\.txt"[\s\S]*path = "stuff\/b\/c\.txt"/ },
+  },
+  {
+    name: "project-add-folder-many",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => {
+      mkdirSync(join(p, "many", "deeper"), { recursive: true });
+      for (let i = 0; i < 505; i++) writeFileSync(join(p, "many", `f${String(i).padStart(3, "0")}.txt`), `${i}\n`);
+      writeFileSync(join(p, "many", "deeper", "last.txt"), "last\n");
+    },
+    folder: "{dir}/project/many",
+    do: "wait,project.addFolder,wait,wait",
+    delay: 8,
+    dump: { "proj.filecount": /^501$/, "outputbox.text": /Added 500 files from \S*many to the project\n(6 more files were left out: Add Folder adds at most 500 at a time|5 more files were left out: Add Folder adds at most 500 at a time \(add a folder inside it next\)\n1 folder inside it wasn't looked in: too many at once)/ },
+  },
   {
     name: "open-folder",
     open: "",
@@ -2803,6 +2883,17 @@ const CASES = [
     dump: {},
     files: { "main.rr": /^(?![\s\S]*"ONE lost")[\s\S]*PRINT "ONE"/ },
   },
+  // (Close Document: Ctrl+W, and Ctrl+F4 too on Windows and Linux, as it
+  // was — macOS keeps Cmd+W only: the review of 2026-11-05)
+  {
+    name: "close-ctrl-f4",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    events: "studio.__key_115_16",
+    delay: 4,
+    dump: { "dock.documentcount": process.platform === "darwin" ? /^1$/ : /^0$/ },
+  },
   {
     name: "quit-cancel",
     open: "tests/fixtures/studio_save/main.rr",
@@ -4746,6 +4837,52 @@ const CASES = [
       "outputbox.text": /AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
     },
     same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
+  },
+  {
+    // ("Work on its own" and changes Studio can't apply — the same three: the
+    // review of 2026-11-05): tried once, said once in the Output (it tried
+    // every second), the Review bar shown (it was hidden), RAI told they
+    // were NOT applied, and the run it asked for not started on the old code)
+    name: "ai-auto-refused",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    capture: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:permission=auto,ai:ask=add three things and run,wait,wait,wait,wait,wait,wait",
+    delay: 9,
+    desktopGone: ["icons"],
+    dump: {
+      "aireviewbar.__shown": /^1$/,
+      "codedoc(0).text": /Caption = "Hello, RapidR"/,
+      "outputbox.text": /^(?![\s\S]*AI: not applied[\s\S]*AI: not applied)[\s\S]*AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
+      "ai.transcript": /^(?=[\s\S]*\*RAI's change to hello_form\.rr, icons\/note\.svg, hello_form\.rr\/blocked\.txt wasn't applied: hello_form\.rr\/blocked\.txt: its folder can't be made)[\s\S]*run_program: Error: Not applied: your change to hello_form\.rr, icons\/note\.svg, hello_form\.rr\/blocked\.txt was NOT applied/,
+      "aitools.proposalcount": /^3$/,
+      "aitools.autoapplydue": /^(0|False)$/i,
+    },
+  },
+  {
+    // ("Work on its own" saves the file RAI changed, not the user's other
+    // unsaved ones: other.inc's change stays theirs, unsaved)
+    name: "ai-auto-saves-its-own",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    do: 'wait,open:other.inc,wait,code:"TWO"=>"TWO mine",ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:permission=auto,ai:ask=say one louder,wait,wait,wait,wait,wait',
+    delay: 8,
+    dump: { "aitools.proposalcount": /^0$/, "aireviewbar.__shown": /^0$/ },
+    files: { "main.rr": /PRINT "ONE!"/, "other.inc": /^(?![\s\S]*TWO mine)[\s\S]*PRINT "TWO"/ },
+  },
+  {
+    // (the same through the Review dialog's Apply: saves the file it
+    // changed, not other.inc's unsaved change)
+    name: "ai-apply-saves-its-own",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    do: 'wait,open:other.inc,wait,code:"TWO"=>"TWO mine",ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=say one louder,wait,wait,wait,wait,ai:applyclick,wait',
+    delay: 8,
+    dump: { "aitools.proposalcount": /^0$/, "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/ },
+    files: { "main.rr": /PRINT "ONE!"/, "other.inc": /^(?![\s\S]*TWO mine)[\s\S]*PRINT "TWO"/ },
   },
   {
     // (changes left waiting are kept with the chat: Studio started again —
@@ -8571,6 +8708,8 @@ function runDesktop(c, scale = 1) {
     const copyTo = c.fsck ? mkdtempSync(join(tmpdir(), "rapidr-versions-")) : join(dir, "project");
     cpSync(join(ROOT, dirname(c.open)), copyTo, { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
     if (c.fsck) symlinkSync(copyTo, join(dir, "project"));
+    // (`prepare`: files or links made in the copy first — a link loop, many files)
+    if (c.prepare) c.prepare(copyTo);
     args.push(join(dir, "project", c.open.split("/").pop()));
   } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());
@@ -8628,7 +8767,9 @@ function runDesktop(c, scale = 1) {
       RAPIDR_LOGIN_PATH: "off",
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
-      ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
+      // (the file dialog's answer: a path in the repository, or with {dir}
+      // one in the case's own folder — its project's copy)
+      ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder.includes("{dir}") ? c.folder.replaceAll("{dir}", dir) : join(ROOT, c.folder) } : {}),
       // (DEMO-MODE: the script played and recorded; no capture — demo mode
       // ends Studio itself when the script is done)
       ...(c.demo ? { RAPIDR_DEMO: join(dir, "demo.json"), RAPIDR_DEMO_OUT: join(dir, "demo-out"), RAPIDR_DEMO_LANG: c.demoLang || "en", RAPIDR_CAPTURE: undefined, RAPIDR_CAPTURE_DELAY: undefined, RAPIDR_TEST_DUMP: undefined } : {}),

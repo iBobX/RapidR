@@ -88,24 +88,63 @@ SUB AddFileToProject
   OpenDlg.Caption = TR$("Add a File to the Project")
   OpenDlg.Filter = TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN
+    IF AddKeepsProjectFile = 0 THEN EXIT SUB
     ' (saved at once, then read again: the tree reads the project file,
     ' and an unsaved add didn't show until Studio was reopened)
     IF Proj.AddFile(OpenDlg.FileName) THEN
-      Proj.Save
-      ProjectTree.Project = ""
-      FillProjectTree
+      AddSaved
     ELSE
       OutputLine Proj.Error
     END IF
   END IF
 END SUB
 
+' (Add File / Add Folder on a program opened on its own — no project file
+' yet —: the add makes it a project, its project file <folder>/<name>.rrproj;
+' never over one that is there already, another project's: said, nothing
+' added. 1 when the add may go on)
+FUNCTION AddKeepsProjectFile AS INTEGER
+  DIM f AS STRING
+  Result = 1
+  IF ProjectOpen = 0 OR Proj.Kind = "project" THEN EXIT FUNCTION
+  f = Proj.FileName
+  IF f = "" THEN
+    IF Proj.Name = "" THEN f = Proj.Folder + "/project.rrproj" ELSE f = Proj.Folder + "/" + Proj.Name + ".rrproj"
+  END IF
+  IF FILEEXISTS(f) THEN
+    Result = 0
+    OutputLine TR$("Nothing was added: adding makes this program a project, and its project file {file} is there already. Open that project (File > Open Project or File...), then add the files to it.", "file", f)
+    AddSay TR$("Nothing was added: {file} is there already", "file", FileTitle(f))
+    OutputBox.Page = "output"
+    Dock.ShowPane("outputbox")
+  END IF
+END FUNCTION
+
+' (the files added: the project file written as Studio writes it — its own
+' write, not a change from outside; ProjectFile follows; a failure said:
+' SaveProjectFile —, then the tree reads it again)
+SUB AddSaved
+  SaveProjectFile
+  ProjectTree.Project = ""
+  FillProjectTree
+END SUB
+
+' (what Add File / Add Folder say on the status line, and to a screen
+' reader; a running program's state is left as it is)
+SUB AddSay(Text AS STRING)
+  IF RunState <> "running" AND RunState <> "paused" THEN SetState "stopped", Text
+  Application.Announce Text
+END SUB
+
 ' Project > Add Folder: every file in a folder and the folders inside it
 ' (not hidden ones: .git, .rapidr…), each added as Add File does; at most
-' 500 files. The tree shows them at once.
+' 500 files, at most 200 folders waiting to be looked in. A link inside it
+' (to the folder itself, to elsewhere) is never followed. What was left
+' out is said, with how many. The tree shows them at once.
 SUB AddFolderToProject
   DIM todo(200) AS STRING, n AS INTEGER, top AS STRING, f AS STRING, names AS STRING
   DIM k AS INTEGER, cnt AS INTEGER, added AS INTEGER, skipped AS INTEGER, p AS STRING
+  DIM links AS INTEGER, leftFiles AS INTEGER, leftFolders AS INTEGER
   OpenDlg.Caption = TR$("Add a Folder to the Project")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute = 0 THEN
@@ -113,9 +152,10 @@ SUB AddFolderToProject
     EXIT SUB
   END IF
   OpenDlg.PickFolder = 0
+  IF AddKeepsProjectFile = 0 THEN EXIT SUB
   n = 1
   todo(1) = OpenDlg.FileName
-  DO WHILE n > 0 AND added < 500
+  DO WHILE n > 0
     top = todo(n)
     n = n - 1
     ' (the folder's names first: DIR$ keeps one listing at a time)
@@ -128,22 +168,33 @@ SUB AddFolderToProject
     cnt = TALLY(names, CHR$(10))
     FOR k = 1 TO cnt
       p = top + "/" + FIELD$(names, CHR$(10), k)
-      IF DIREXISTS(p) THEN
-        IF n < 200 THEN
+      IF Proj.IsLink(p) THEN
+        ' (never followed: a loop, or files from outside the project)
+        links = links + 1
+      ELSEIF DIREXISTS(p) THEN
+        ' (500 files in: the folders still waiting are looked in only to
+        ' count what is left out — none more are taken)
+        IF n < 200 AND added < 500 THEN
           n = n + 1
           todo(n) = p
+        ELSE
+          leftFolders = leftFolders + 1
         END IF
       ELSEIF added < 500 THEN
         IF Proj.AddFile(p) THEN added = added + 1 ELSE skipped = skipped + 1
+      ELSE
+        leftFiles = leftFiles + 1
       END IF
     NEXT
   LOOP
   ' (saved, then read again, so the new files show now)
-  IF added > 0 THEN Proj.Save
-  ProjectTree.Project = ""
-  FillProjectTree
-  OutputLine TR$("Added {n} files from {folder} to the project", "n", STR$(added), "folder", OpenDlg.FileName)
-  IF skipped > 0 THEN OutputLine TR$("{n} were in the project already or couldn't be added", "n", STR$(skipped))
+  IF added > 0 THEN AddSaved
+  OutputLine TR$("Added {n} files from {folder} to the project", "n", LTRIM$(STR$(added)), "folder", OpenDlg.FileName)
+  IF skipped > 0 THEN OutputLine TR$("{n} were in the project already or couldn't be added", "n", LTRIM$(STR$(skipped)))
+  IF leftFiles > 0 THEN OutputLine TRN$("{n} more file was left out: Add Folder adds at most 500 at a time (add a folder inside it next)", "{n} more files were left out: Add Folder adds at most 500 at a time (add a folder inside it next)", leftFiles)
+  IF leftFolders > 0 THEN OutputLine TRN$("{n} folder inside it wasn't looked in: too many at once (add it on its own)", "{n} folders inside it weren't looked in: too many at once (add them one by one)", leftFolders)
+  IF links > 0 THEN OutputLine TRN$("{n} link was skipped: Add Folder doesn't follow links", "{n} links were skipped: Add Folder doesn't follow links", links)
+  IF leftFiles > 0 OR leftFolders > 0 THEN AddSay TR$("Not everything was added: the Output says what was left out")
 END SUB
 
 SUB RunCommand(Id AS STRING)
@@ -329,11 +380,16 @@ SUB StudioClose(Action AS INTEGER)
   McpShutdown
 END SUB
 
-' (keys the menus don't hold: F8 stepping beside F11 / F10)
+' (keys the menus don't hold: F8 stepping beside F11 / F10; Ctrl+F4 beside
+' Ctrl+W for Close Document on Windows and Linux, as it was — not on macOS,
+' where Cmd+W is the one, nor in a browser, which keeps both for its tabs)
 SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
   IF Key = 119 THEN
     IF Shift = 0 THEN RunCommand "debug.stepInto"
     IF Shift = 256 THEN RunCommand "debug.stepOver"
+  END IF
+  IF Key = 115 AND Shift = 16 THEN
+    IF Proj.FileManager <> "" AND Proj.FileManager <> "Finder" THEN RunCommand "file.close"
   END IF
 END SUB
 

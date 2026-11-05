@@ -1379,7 +1379,10 @@ SUB McpShowAsk
     CASE "run": t = TR$("{client} wants to run your program ({what}).", "client", McpWaitClient(0), "what", McpWaitWhat(0))
     ' (mcpapp.inc: what Allow Once covers, and what it may see)
     CASE "drive": t = TR$("{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data.", "client", McpWaitClient(0), "what", McpWaitWhat(0))
-    CASE "rai": t = TR$("{client} wants to ask RAI: {prompt}", "client", McpWaitClient(0), "prompt", LEFT$(Mcp.Argument("Prompt", McpWaitCall(0)), 160))
+    CASE "rai"
+      t = TR$("{client} wants to ask RAI: {prompt}", "client", McpWaitClient(0), "prompt", LEFT$(Mcp.Argument("Prompt", McpWaitCall(0)), 160))
+      ' (RAI may work on its own for the user, never for an AI app: said)
+      IF AIPermission = "auto" THEN t = t + " " + TR$("RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program.")
     CASE ELSE: t = McpWaitClient(0) + ": " + McpWaitWhat(0)
   END SELECT
   IF McpWaitCount > 1 THEN t = TR$("{question} ({n} more waiting)", "question", t, "n", McpWaitCount - 1)
@@ -2078,6 +2081,9 @@ SUB McpAskRai(CallId AS INTEGER, Client AS STRING, What AS STRING)
     EXIT SUB
   END IF
   Dock.ShowPane("aipanel")
+  ' (an AI app's question: RAI proposes, even when it may work on its own —
+  ' ai.inc AIPermissionNow)
+  AIAskedByApp = 1
   AISendNow prompt, 0
   IF AI.Busy = 0 THEN
     Mcp.Reply CallId, "RAI didn't start: " + AI.Error + " " + AI.Status, 1

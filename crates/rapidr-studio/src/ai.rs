@@ -131,10 +131,20 @@ struct Tools {
     /// "stop" or "" — Studio's pane reads it (RunRequest), does it with
     /// Run's own command, and takes it (RunRequestTaken).
     run_request: String,
-    /// The run_program call waiting for that: its ticket `run:N`, the
-    /// action, the runs started before it, since when, the seconds to let
-    /// it run.
-    run_held: Option<(String, String, u64, Option<std::time::Instant>, u64)>,
+    /// The run_program (or save_version) call waiting for that.
+    run_held: Option<RunHeld>,
+    /// What the card waiting for the user (`app_asked`) asks for: a
+    /// run_program action ("start", "stop"), or "" — RAI wants to look at
+    /// and use the running program (an app tool's call).
+    app_ask_run: String,
+    /// "Work on its own": the waiting changes Studio last tried to apply by
+    /// itself (path, new text) — tried once, never again until RAI changes
+    /// them —, and why it couldn't ("" it could).
+    auto_tried: Vec<(String, String)>,
+    auto_why: String,
+    /// A held run answered by Studio before it was started (its changes
+    /// weren't applied: it would run the old code).
+    run_refusal: Option<String>,
     /// What Studio said after doing a request that answers in words (a
     /// version saved: RunRequestTaken's Result).
     run_result: Option<String>,
@@ -143,6 +153,26 @@ struct Tools {
     mode: Mode,
     /// Coach's hint ladder for the problem open now.
     ladder: Ladder,
+}
+
+/// A run_program or save_version call waiting for Studio (RunRequest), or
+/// first for the user's answer to RAI's card.
+#[derive(Clone)]
+struct RunHeld {
+    /// Its ticket, `run:N`.
+    ticket: String,
+    /// "start", "stop" or "version".
+    action: String,
+    /// The runs started before it (a new run is seen by the count).
+    before: u64,
+    /// Since when Studio was asked (RunRequest); `None` while the card
+    /// waits for the user.
+    since: Option<std::time::Instant>,
+    /// The seconds to let a run go on before answering.
+    wait: u64,
+    /// The user allowed it on the card: the run it starts is the run RAI may
+    /// look at and use (no second card).
+    allowed: bool,
 }
 
 /// Where a call RAI held for the user's answer is.
@@ -271,6 +301,7 @@ impl Tools {
         }
         if self.app_asked != Some(None) {
             self.app_asked = Some(None);
+            self.app_ask_run.clear();
         }
         self.app_next += 1;
         let ticket = format!("ask:{}", self.app_next);
@@ -305,11 +336,18 @@ impl Tools {
     }
 
     /// RAI's own Run: start or stop the program (Studio does it, with Run's
-    /// and Stop's commands), answered later (run_poll).
+    /// and Stop's commands), answered later (run_poll). While RAI proposes,
+    /// the user says yes first — the chat's card, once a run, as for using
+    /// the program: a run can do anything the user can; "Work on its own"
+    /// had its consent dialog. Never in Coach or when RAI only reads (not
+    /// offered there either).
     fn run_call(&mut self, input: &Json) -> ToolOutcome {
         let answer = |content: String, is_error: bool| ToolOutcome { content, is_error, note: ai_tools::activity("run_program", input).unwrap_or_default(), read: None, risk: "ui", target: String::new() };
         if !self.permission_allows() {
             return answer("The user allowed reading only (Tools > Settings > AI > It may): you can't run their program. Say what you would check instead.".into(), true);
+        }
+        if self.coach() {
+            return answer("run_program isn't available in Coach mode: the user runs their program themselves (Run). Give the hint in words.".into(), true);
         }
         if self.run_held.is_some() {
             return answer("A run_program call is still going on: wait for its answer.".into(), true);
@@ -322,11 +360,28 @@ impl Tools {
             "status" => answer(self.run_status(), false),
             "stop" if !running => answer(format!("It isn't running. {}", self.run_status()), false),
             "start" if running => answer(format!("It is running already: look at it with app_layout or app_screenshot, or stop it first. {}", self.run_status()), false),
+            // ("Work on its own": a change Studio couldn't apply still waits —
+            // a run would test the old code)
+            "start" if self.auto_refused().is_some() => answer(self.auto_refused().unwrap_or_default(), true),
             "start" | "stop" => {
-                self.run_request = action.clone();
+                // (a run the user allowed RAI to use can be stopped without
+                // asking again; every new run asks)
+                let run = crate::session::run_number();
+                let ask = !self.permission.eq_ignore_ascii_case("auto") && !(action == "stop" && run.is_some() && run == self.app_run);
+                if ask && self.app_asked == Some(Some(false)) {
+                    return run_refused();
+                }
                 self.app_next += 1;
                 let ticket = format!("run:{}", self.app_next);
-                self.run_held = Some((ticket.clone(), action, crate::session::runs_started(), Some(std::time::Instant::now()), wait));
+                let mut held = RunHeld { ticket: ticket.clone(), action: action.clone(), before: crate::session::runs_started(), since: None, wait, allowed: false };
+                if ask {
+                    self.app_asked = Some(None);
+                    self.app_ask_run = action;
+                } else {
+                    self.run_request = action;
+                    held.since = Some(std::time::Instant::now());
+                }
+                self.run_held = Some(held);
                 ToolOutcome::later(ticket)
             }
             _ => answer("action is start, stop or status.".into(), true),
@@ -351,7 +406,7 @@ impl Tools {
         self.run_result = None;
         self.app_next += 1;
         let ticket = format!("run:{}", self.app_next);
-        self.run_held = Some((ticket.clone(), "version".into(), 0, Some(std::time::Instant::now()), 0));
+        self.run_held = Some(RunHeld { ticket: ticket.clone(), action: "version".into(), before: 0, since: Some(std::time::Instant::now()), wait: 0, allowed: false });
         ToolOutcome::later(ticket)
     }
 
@@ -368,11 +423,29 @@ impl Tools {
 
     /// A run_program call (`run:N`): None while Studio hasn't done it yet.
     fn run_poll(&mut self, ticket: &str) -> Option<ToolOutcome> {
-        let (held, action, before, since, wait) = self.run_held.clone()?;
+        let RunHeld { ticket: held, action, before, since, wait, allowed } = self.run_held.clone()?;
         if held != ticket {
             return None;
         }
-        let elapsed = since.map_or(0.0, |s| s.elapsed().as_secs_f64());
+        if let Some(why) = self.run_refusal.take() {
+            return self.run_done(&action, why, true);
+        }
+        // (the card still waits: asked of Studio once the user allows it)
+        let Some(since) = since else {
+            return match self.app_asked {
+                Some(None) => None,
+                Some(Some(true)) => {
+                    self.run_request = action.clone();
+                    self.run_held = Some(RunHeld { ticket: held, action, before, since: Some(std::time::Instant::now()), wait, allowed: true });
+                    None
+                }
+                _ => {
+                    self.run_held = None;
+                    Some(run_refused())
+                }
+            };
+        };
+        let elapsed = since.elapsed().as_secs_f64();
         let running = crate::session::any_running();
         if action == "version" {
             if let Some(said) = self.run_result.take() {
@@ -398,12 +471,75 @@ impl Tools {
             }
             return None;
         }
+        // (the run the user allowed on the card: RAI may look at and use it
+        // without a second card — the card said so)
+        if allowed && running {
+            self.app_run = crate::session::run_number();
+        }
         if running && elapsed < wait as f64 {
             return None;
         }
         let how = if running { "Started: it is running." } else { "It ran and ended." };
-        let said = format!("{how} {} Look at it with app_layout or app_screenshot while it runs (the user is asked once a run).", self.run_status());
+        let ask = if allowed || self.permission.eq_ignore_ascii_case("auto") { "" } else { " (the user is asked once a run)" };
+        let said = format!("{how} {} Look at it with app_layout or app_screenshot while it runs{ask}.", self.run_status());
         self.run_done(&action, said, false)
+    }
+
+    /// Stop, or a new question: the run or version RAI asked Studio for
+    /// (RunRequest), the call that waits for it, the program calls held for
+    /// the card — dropped, so nothing is done after it and the next call
+    /// isn't refused as "still going on". A card still asking is answered
+    /// by no one: it asks nothing any more.
+    fn drop_requests(&mut self) {
+        self.run_held = None;
+        self.run_request.clear();
+        self.run_result = None;
+        self.run_refusal = None;
+        self.app_held.clear();
+        self.app_sent.clear();
+        if self.app_asked == Some(None) {
+            self.app_asked = None;
+        }
+    }
+
+    /// The waiting changes of the open project, as (path, new text).
+    fn waiting_set(&self) -> Vec<(String, String)> {
+        self.waiting().iter().map(|p| (p.path.clone(), p.new.clone())).collect()
+    }
+
+    /// "Work on its own": changes wait that Studio hasn't tried to apply
+    /// by itself yet (AutoApplyDue) — each set tried once.
+    fn auto_due(&self) -> bool {
+        let set = self.waiting_set();
+        !set.is_empty() && set != self.auto_tried
+    }
+
+    /// The changes Studio tried to apply by itself, still waiting because
+    /// it couldn't: what RAI is told (its facts, a run refused), else None.
+    fn auto_refused(&self) -> Option<String> {
+        let set = self.waiting_set();
+        if self.auto_why.is_empty() || set.is_empty() || set != self.auto_tried {
+            return None;
+        }
+        let paths: Vec<&str> = set.iter().map(|(p, _)| p.as_str()).collect();
+        Some(format!("Not applied: your change to {} was NOT applied ({}), so the project is as it was and a run would test the old code. It waits for the user's review now. Read the file again (read_file) and propose the change again on it as it is, or tell the user.", paths.join(", "), self.auto_why))
+    }
+
+    /// Studio tried to apply the waiting changes by itself (AutoApplyTried):
+    /// `why` "" — applied —, else why it couldn't: RAI is told (its facts,
+    /// the chat), a run it asked for isn't started on the old code.
+    fn auto_apply_tried(&mut self, why: &str) {
+        self.auto_tried = self.waiting_set();
+        self.auto_why = why.trim().replace(['\r', '\n'], "; ");
+        let Some(said) = self.auto_refused() else { return };
+        let paths = self.auto_tried.iter().map(|(p, _)| p.as_str()).collect::<Vec<_>>().join(", ");
+        let line = tr_ui_fill("RAI's change to {path} wasn't applied: {why}. It waits for your review.", &[("path", &paths), ("why", &self.auto_why)]);
+        rapidr_ai::rai::record(&self.rai, &line, json!({"target": paths, "decision": "not-applied", "why": self.auto_why}));
+        // (a run asked of Studio, not started yet: not started, said why)
+        if self.run_held.as_ref().is_some_and(|h| h.action == "start") && self.run_request == "start" {
+            self.run_request.clear();
+            self.run_refusal = Some(said);
+        }
     }
 
     /// A run_program call answered: nothing held or asked any more.
@@ -554,7 +690,11 @@ fn facts(t: &Tools) -> String {
     // (changes proposed earlier, not decided yet: part of the project as
     // the tools see it)
     let waiting: Vec<&str> = t.waiting().iter().filter(|p| !t.turn_paths.contains(&p.path)).map(|p| p.path.as_str()).collect();
-    if !waiting.is_empty() {
+    // ("Work on its own": a change Studio couldn't apply — said, so RAI
+    // never goes on as if it were in)
+    if let Some(said) = t.auto_refused() {
+        f.push_str(&format!("\n{said}"));
+    } else if !waiting.is_empty() {
         f.push_str(&format!(" Changes you proposed earlier wait for the user's review: {}. Until they decide, read_file, check_code and the compiler see those files as you proposed them, and a new change to one builds on it.", waiting.join(", ")));
     }
     if t.compat.eq_ignore_ascii_case("rapidq") {
@@ -627,8 +767,9 @@ impl ToolProvider for Handle {
             // only then, so the request stays small the rest of the time;
             // never when RAI only reads: looking at the program shows what
             // it shows, private data too. Coach: its eyes only)
-            // (its own Run: start, stop, status — as the user's Run does)
-            if t.permission_allows() {
+            // (its own Run: start, stop, status — as the user's Run does;
+            // never in Coach, where the user runs it, nor when RAI only reads)
+            if t.may_propose() {
                 tools.push(ai_tools::run_tool());
             }
             if t.may_propose() && !t.coach() {
@@ -692,7 +833,14 @@ impl ToolProvider for Handle {
     }
 
     fn waits_for_user(&self, ticket: &str) -> bool {
-        ticket.starts_with("ask:") && with(&self.name, |t| t.app_asked == Some(None) && !t.app_sent.contains_key(ticket))
+        with(&self.name, |t| {
+            let card = t.app_asked == Some(None);
+            if ticket.starts_with("run:") {
+                // (a run held for RAI's card: the user's answer has no time limit)
+                return card && t.run_held.as_ref().is_some_and(|h| h.ticket == ticket && h.since.is_none());
+            }
+            ticket.starts_with("ask:") && card && !t.app_sent.contains_key(ticket)
+        })
     }
 
     fn begin_turn(&mut self) {
@@ -746,9 +894,15 @@ impl ToolProvider for Handle {
             // (RAI's question about the running program is this turn's: a
             // "Don't allow" lasts the answer; "Allow for this run", the run)
             t.app_asked = None;
-            t.app_held.clear();
-            t.app_sent.clear();
+            t.app_ask_run.clear();
+            // (a run or a version the last answer asked for and didn't get:
+            // never done now, never "still going on")
+            t.drop_requests();
         });
+    }
+
+    fn cancelled(&mut self) {
+        with(&self.name, Tools::drop_requests);
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
@@ -1159,14 +1313,24 @@ impl Tools {
         }
         // (RAI asks before it looks at or uses the running program: once a
         // run — Studio's own links, marked)
-        match self.app_asked {
-            Some(None) => {
+        // (its own Run asks the same way while it proposes: a run can do
+        // anything the user can)
+        match (self.app_asked, self.app_ask_run.as_str()) {
+            (Some(None), what) => {
                 let (allow, deny) = (rapidr_ai::rai::own_link("ai:app-allow"), rapidr_ai::rai::own_link("ai:app-deny"));
-                out.push(("app".to_string(), format!("✋ {}\u{2003}\u{2003}[{}]({allow})\u{2003}\u{2003}[{}]({deny})", tr_ui("RAI wants to click and type in your running program. It sees whatever the program shows, including private data."), tr_ui("Allow for this run"), tr_ui("Don't allow"))));
+                let question = match what {
+                    "start" => tr_ui("RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data."),
+                    "stop" => tr_ui("RAI wants to stop your running program."),
+                    _ => tr_ui("RAI wants to click and type in your running program. It sees whatever the program shows, including private data."),
+                };
+                out.push(("app".to_string(), format!("✋ {question}\u{2003}\u{2003}[{}]({allow})\u{2003}\u{2003}[{}]({deny})", tr_ui("Allow for this run"), tr_ui("Don't allow"))));
             }
-            Some(Some(true)) => out.push(("app".to_string(), format!("✓ {}", tr_ui("You allowed RAI to use your running program for this run")))),
-            Some(Some(false)) => out.push(("app".to_string(), format!("× {}", tr_ui("You didn't allow RAI to use your running program")))),
-            None => {}
+            (Some(Some(true)), "start") => out.push(("app".to_string(), format!("✓ {}", tr_ui("You allowed RAI to run and use your program for this run")))),
+            (Some(Some(true)), _) => out.push(("app".to_string(), format!("✓ {}", tr_ui("You allowed RAI to use your running program for this run")))),
+            (Some(Some(false)), "start") => out.push(("app".to_string(), format!("× {}", tr_ui("You didn't allow RAI to run your program")))),
+            (Some(Some(false)), "stop") => out.push(("app".to_string(), format!("× {}", tr_ui("You didn't allow RAI to stop your program")))),
+            (Some(Some(false)), _) => out.push(("app".to_string(), format!("× {}", tr_ui("You didn't allow RAI to use your running program")))),
+            (None, _) => {}
         }
         out
     }
@@ -1357,6 +1521,19 @@ fn app_refused(name: &str) -> ToolOutcome {
     }
 }
 
+/// A run_program call the user answered "Don't allow" on RAI's card.
+fn run_refused() -> ToolOutcome {
+    let note = ai_tools::activity("run_program", &Json::Null).unwrap_or_else(|| "run_program".to_string());
+    ToolOutcome {
+        content: "The user didn't allow you to run their program (they answered \"Don't allow\" in RapidR Studio's chat). Don't try again in this answer: say what you would have checked, and that they can press Run themselves.".into(),
+        is_error: true,
+        note: format!("{note}: you didn't allow it"),
+        read: None,
+        risk: "ui",
+        target: String::new(),
+    }
+}
+
 /// "1 error to fix", "3 errors to fix": what the card of a new program says
 /// it has left.
 fn errors_to_fix(n: usize) -> String {
@@ -1519,6 +1696,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "fellback" => crate::flag(t.fell_back),
             "programuseasked" => crate::flag(t.app_asked == Some(None)),
             "runrequest" => s(t.run_request.clone()),
+            "autoapplydue" => crate::flag(t.auto_due()),
             _ => return None,
         })
     })
@@ -1542,7 +1720,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                     "propose".into()
                 }
             }
-            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "runrequest" | "callfailed" | "callnote" | "calltarget" | "callrisk" | "coachlocked" | "coacherror" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "runrequest" | "autoapplydue" | "callfailed" | "callnote" | "calltarget" | "callrisk" | "coachlocked" | "coacherror" => {}
             "mode" => {
                 let m = Mode::parse(&t);
                 // (the dial turned: the open problem's ladder starts over)
@@ -1616,6 +1794,13 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                     t.run_result = Some(said);
                 }
             });
+            Value::Null
+        }
+        // ("Work on its own": Studio tried to apply the waiting changes —
+        // Why "" applied, else why not)
+        "autoapplytried" => {
+            let why = arg(0);
+            with(name, |t| t.auto_apply_tried(&why));
             Value::Null
         }
         "allowprogramuse" => {

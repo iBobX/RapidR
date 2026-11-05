@@ -881,4 +881,32 @@ mod tests {
         ep.base_url = "http://localhost:11434/v1".into();
         assert!(explain_connection(&ep, "connection refused").message.contains("Is the local server running"));
     }
+
+    /// Ollama's /api/ps: asked only beside an OpenAI-style `/v1` (a base
+    /// without one has none: None), a GET with no body; its answer lists
+    /// each loaded model with the window it runs with, 0 when it says none.
+    #[test]
+    fn ollama_ps_is_asked_beside_v1_and_read() {
+        let p = provider("compatible").unwrap();
+        let mut ep = Endpoint::new(p);
+        for (base, url) in [("http://127.0.0.1:11434/v1", "http://127.0.0.1:11434/api/ps"), ("http://127.0.0.1:11434/v1/", "http://127.0.0.1:11434/api/ps"), ("http://gpu.lan:8000/ollama/v1", "http://gpu.lan:8000/ollama/api/ps")] {
+            ep.base_url = base.into();
+            let req = ollama_ps_request(&ep).unwrap_or_else(|| panic!("{base}: asked"));
+            assert_eq!((req.method, req.url.as_str()), ("GET", url), "{base}");
+            assert!(req.body.is_none());
+            assert!(!req.headers.iter().any(|(k, _)| k == "content-type"), "{:?}", req.headers);
+        }
+        for base in ["http://127.0.0.1:1234", "http://127.0.0.1:8080/v1beta", "http://127.0.0.1:8080/api", "http://127.0.0.1:8080/v2"] {
+            ep.base_url = base.into();
+            assert!(ollama_ps_request(&ep).is_none(), "{base}");
+        }
+        let body = r#"{"models":[{"name":"qwen3.8:latest","model":"qwen3.8:latest","size":9876543210,"digest":"abc","details":{"family":"qwen3"},"expires_at":"2026-11-05T10:00:00Z","size_vram":9876543210,"context_length":262144},{"name":"llama3.2:3b","model":"llama3.2:3b","context_length":8192},{"name":"gemma4:e2b","model":"gemma4:e2b"}]}"#;
+        let models = parse_models(p, body).unwrap();
+        let window = |id: &str| models.iter().find(|m| m.id == id).map(|m| m.context);
+        assert_eq!(models.len(), 3, "{models:?}");
+        assert_eq!(window("qwen3.8:latest"), Some(262_144));
+        assert_eq!(window("llama3.2:3b"), Some(8192));
+        assert_eq!(window("gemma4:e2b"), Some(0), "none said: 0");
+        assert!(parse_models(p, r#"{"models":[]}"#).unwrap().is_empty(), "nothing loaded: none");
+    }
 }

@@ -13,7 +13,11 @@
 //                      folder): its bytes on disk must be the text's UTF-8
 //   "add three things" read the main file, then: its window renamed, an icon in
 //                      a new folder, a file under the main file (it can't be
-//                      made): an Apply that must change nothing
+//                      made): an Apply that must change nothing; "… and run":
+//                      then run_program, and say what each tool answered
+//   "say one louder"   read the main file, then propose_edit PRINT "ONE" → "ONE!"
+//   "change and run …" read the main file, propose_edit its greeting, run_program,
+//                      and say what each tool answered (ask_rai: studio_mcp.mjs)
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "break …"          read_file the main file, then propose_edit: a `DIM … AS BOOLEAN`
 //                      (a type RapidR doesn't have) before its form: a change that leaves an error
@@ -372,7 +376,28 @@ function script(first, results, system, messages = []) {
         { name: "write_file", input: { path: `${mainFile}/blocked.txt`, summary: "A file where it can't go", text: "x\n" } },
       ] };
     }
+    // ("… and run": then run_program — "Work on its own" can't apply the
+    // three, so the run must not test the old code; the answer says what
+    // each tool answered: tests/studio_flows.mjs ai-auto-refused)
+    if (q.includes("and run") && step === 4) return { tools: [{ name: "run_program", input: { action: "start", wait: 2 } }] };
+    if (q.includes("and run")) return { text: "What happened: " + results.slice(4).map((r) => `${r.name}: ${String(r.content).replace(/\s+/g, " ").slice(0, 400)}`).join(" | ") };
     return { text: "I proposed three changes: review them and apply them." };
+  }
+  // (one line of the main file changed: tests/studio_flows.mjs ai-auto-saves-its-own
+  // — "Work on its own" saves the file RAI changed, not the user's others)
+  if (q.startsWith("say one louder")) {
+    if (step === 0) return { text: "Reading it.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: "ONE, louder", edits: [{ old_text: 'PRINT "ONE"', new_text: 'PRINT "ONE!"' }] } }] };
+    return { text: "Done: it says ONE! now." };
+  }
+  // (an AI app's question through ask_rai while the user lets RAI work on
+  // its own: a change, then a run — tests/studio_mcp.mjs rai-auto. The last
+  // answer says what each tool answered, so the AI app's reply shows it)
+  if (q.startsWith("change and run")) {
+    if (step === 0) return { text: "Reading it first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: "Greets from RAI", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Changed by RAI"' }] } }] };
+    if (step === 2) return { tools: [{ name: "run_program", input: { action: "start", wait: 3 } }] };
+    return { text: "What happened: " + results.slice(1).map((r) => `${r.name}: ${String(r.content).replace(/\s+/g, " ").slice(0, 400)}`).join(" | ") };
   }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };

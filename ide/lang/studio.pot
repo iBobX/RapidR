@@ -537,11 +537,15 @@ msgid "Not edited: the chat is as it was."
 msgstr ""
 
 #: ide/ai.inc
+msgid "some changes weren't applied"
+msgstr ""
+
+#: ide/ai.inc
 msgid "RAI saved the version “{message}” ({id})"
 msgstr ""
 
 #: ide/ai.inc
-msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
+msgid "RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat."
 msgstr ""
 
 #: ide/ai.inc
@@ -4040,6 +4044,10 @@ msgid "{client} wants to ask RAI: {prompt}"
 msgstr ""
 
 #: ide/mcp.inc
+msgid "RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program."
+msgstr ""
+
+#: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
 msgstr ""
 
@@ -5941,6 +5949,14 @@ msgid "Add a File to the Project"
 msgstr ""
 
 #: ide/shell.inc
+msgid "Nothing was added: adding makes this program a project, and its project file {file} is there already. Open that project (File > Open Project or File...), then add the files to it."
+msgstr ""
+
+#: ide/shell.inc
+msgid "Nothing was added: {file} is there already"
+msgstr ""
+
+#: ide/shell.inc
 msgid "Add a Folder to the Project"
 msgstr ""
 
@@ -5950,6 +5966,28 @@ msgstr ""
 
 #: ide/shell.inc
 msgid "{n} were in the project already or couldn't be added"
+msgstr ""
+
+#: ide/shell.inc
+msgid "{n} more file was left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgid_plural "{n} more files were left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/shell.inc
+msgid "{n} folder inside it wasn't looked in: too many at once (add it on its own)"
+msgid_plural "{n} folders inside it weren't looked in: too many at once (add them one by one)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/shell.inc
+msgid "{n} link was skipped: Add Folder doesn't follow links"
+msgid_plural "{n} links were skipped: Add Folder doesn't follow links"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/shell.inc
+msgid "Not everything was added: the Output says what was left out"
 msgstr ""
 
 #: ide/shell.inc

@@ -1531,3 +1531,254 @@ fn a_reread_after_results_were_cut_sends_the_text_again() {
     h.results_trimmed();
     assert!(read(&mut h).contains("CREATE Form AS RForm"));
 }
+
+/// The tools a turn offers, by name.
+fn offered(h: &Handle) -> Vec<String> {
+    h.tools().into_iter().map(|t| t.name).collect()
+}
+
+/// The chat's card about the program, as the turn shows it ("" none).
+fn app_card(h: &Handle) -> String {
+    h.turn_cards().into_iter().find(|(k, _)| k == "app").map(|(_, c)| c).unwrap_or_default()
+}
+
+/// RAI's own Run (run_program) while it proposes: held behind the chat's
+/// card, once a run — never asked of Studio before the user allows it —;
+/// "Don't allow" refuses it; "Work on its own" asks Studio at once. Coach
+/// and reading only never offer it, and a call anyway is refused.
+#[test]
+fn run_program_asks_first_while_rai_proposes() {
+    install();
+    let t = "tools-run-card";
+    let mut h = Handle { name: t.into() };
+    set(t, "permission", &s("propose"));
+    h.begin_turn();
+    assert!(offered(&h).contains(&"run_program".to_string()));
+    // (status: answered at once, nothing asked)
+    let out = h.call("run_program", &json!({"action": "status"}));
+    assert!(!out.is_error && out.content.contains("isn't running"), "{}", out.content);
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    // (start: the card, nothing asked of Studio yet, no time limit)
+    let out = h.call("run_program", &json!({"action": "start", "wait": 1}));
+    assert_eq!(out.risk, rapidr_ai::rai::LATER);
+    let ticket = out.target.clone();
+    assert!(ticket.starts_with("run:"), "{ticket}");
+    assert_ne!(get(t, "programuseasked").unwrap().to_i64(), 0, "the card asks");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "Studio isn't asked before the user allows it");
+    assert!(h.waits_for_user(&ticket));
+    assert!(h.finish_call("run_program", &ticket).is_none());
+    let card = app_card(&h);
+    assert!(card.contains("RAI wants to run your program") && card.contains("ai:app-allow") && card.contains("ai:app-deny"), "{card}");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (allowed: Studio asked to start it once; the run seen, answered)
+    call(t, "allowprogramuse", &[Value::Integer(1)]);
+    assert!(h.finish_call("run_program", &ticket).is_none());
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    assert!(!h.waits_for_user(&ticket));
+    call(t, "runrequesttaken", &[]);
+    crate::session::tests::test_run_started();
+    let out = h.finish_call("run_program", &ticket).expect("answered once the run started");
+    assert!(!out.is_error && out.content.contains("It ran and ended"), "{}", out.content);
+    assert!(app_card(&h).contains("You allowed RAI to run and use your program"), "{}", app_card(&h));
+
+    // ("Don't allow": refused, told; asked of Studio never)
+    h.begin_turn();
+    let out = h.call("run_program", &json!({"action": "start"}));
+    let ticket = out.target.clone();
+    call(t, "allowprogramuse", &[Value::Integer(0)]);
+    let out = h.finish_call("run_program", &ticket).expect("refused");
+    assert!(out.is_error && out.content.contains("didn't allow you to run"), "{}", out.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    assert!(app_card(&h).contains("You didn't allow RAI to run your program"), "{}", app_card(&h));
+    // (… and the next start in that answer is refused at once)
+    let out = h.call("run_program", &json!({"action": "start"}));
+    assert!(out.is_error && out.content.contains("didn't allow you to run"), "{}", out.content);
+
+    // ("Work on its own": its consent dialog covered running — Studio asked at once)
+    set(t, "permission", &s("auto"));
+    h.begin_turn();
+    let out = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(out.risk, rapidr_ai::rai::LATER);
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0, "no card");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    assert!(!h.waits_for_user(&out.target));
+
+    // (Coach, reading only: not offered, and refused)
+    set(t, "mode", &s("build"));
+    for (permission, mode, why) in [("propose", "coach", "Coach mode"), ("read-only", "build", "reading only")] {
+        set(t, "permission", &s(permission));
+        set(t, "mode", &s(mode));
+        h.begin_turn();
+        assert!(!offered(&h).contains(&"run_program".to_string()), "{permission} {mode}");
+        let out = h.call("run_program", &json!({"action": "start"}));
+        assert!(out.is_error && out.content.contains(why), "{}", out.content);
+        assert_ne!(out.risk, rapidr_ai::rai::LATER);
+    }
+}
+
+/// Stop (or a new question) while a run_program or save_version call waits
+/// for Studio: the request is dropped — Studio never starts the program or
+/// saves the version after it —, and the next call isn't refused as "still
+/// going on".
+#[test]
+fn stop_drops_a_waiting_run_or_version() {
+    install();
+    let t = "tools-run-stop";
+    let mut h = Handle { name: t.into() };
+    set(t, "permission", &s("auto"));
+    h.begin_turn();
+    let out = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(out.risk, rapidr_ai::rai::LATER);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    let again = h.call("run_program", &json!({"action": "start"}));
+    assert!(again.is_error && again.content.contains("still going on"), "{}", again.content);
+    // (Stop: nothing left for Studio to do, the call answered by no one)
+    h.cancelled();
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    assert!(h.finish_call("run_program", &out.target).is_none());
+    let next = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(next.risk, rapidr_ai::rai::LATER, "{}", next.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    // (a new question drops it too)
+    h.begin_turn();
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (save_version: the same)
+    let v = h.call("save_version", &json!({"message": "Step 1"}));
+    assert_eq!(v.risk, rapidr_ai::rai::LATER, "{}", v.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "version\tStep 1");
+    h.cancelled();
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    let v = h.call("save_version", &json!({"message": "Step 1"}));
+    assert_eq!(v.risk, rapidr_ai::rai::LATER, "{}", v.content);
+    // (a card still asking when Stop came asks nothing any more)
+    set(t, "permission", &s("propose"));
+    h.begin_turn();
+    let _ = h.call("run_program", &json!({"action": "start"}));
+    assert_ne!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    h.cancelled();
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    call(t, "allowprogramuse", &[Value::Integer(1)]);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "an answer after Stop starts nothing");
+}
+
+/// save_version is RAI's only while it may change files: refused in Coach
+/// and when it only reads (and never offered there).
+#[test]
+fn save_version_is_refused_in_coach_and_reading_only() {
+    install();
+    let t = "tools-version-refused";
+    let mut h = Handle { name: t.into() };
+    for (permission, mode) in [("propose", "coach"), ("read-only", "build"), ("auto", "coach")] {
+        set(t, "permission", &s(permission));
+        set(t, "mode", &s(mode));
+        h.begin_turn();
+        assert!(!offered(&h).contains(&"save_version".to_string()), "{permission} {mode}");
+        let out = h.call("save_version", &json!({"message": "Mine"}));
+        assert!(out.is_error && out.content.contains("can't save versions"), "{permission} {mode}: {}", out.content);
+        assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    }
+    set(t, "mode", &s("build"));
+    set(t, "permission", &s("propose"));
+    h.begin_turn();
+    assert!(offered(&h).contains(&"save_version".to_string()));
+}
+
+/// "Work on its own": the Permission property reads it back as set; a
+/// turn may make up to AUTO_TOOL_CALLS calls — only then, not in Coach.
+#[test]
+fn auto_permission_and_its_tool_calls() {
+    install();
+    let t = "tools-auto-limit";
+    let h = Handle { name: t.into() };
+    for (given, read) in [("auto", "auto"), ("AUTO", "auto"), ("read-only", "read-only"), ("propose", "propose"), ("anything", "propose")] {
+        assert!(set(t, "permission", &s(given)));
+        assert_eq!(get(t, "permission").unwrap().to_string_val(), read, "{given}");
+    }
+    set(t, "permission", &s("auto"));
+    assert_eq!(h.max_tool_calls(), Some(AUTO_TOOL_CALLS));
+    set(t, "mode", &s("coach"));
+    assert_eq!(h.max_tool_calls(), None, "Coach: the usual limit");
+    set(t, "mode", &s("build"));
+    set(t, "permission", &s("propose"));
+    assert_eq!(h.max_tool_calls(), None);
+    const { assert!(AUTO_TOOL_CALLS > rapidr_ai::rai::MAX_TOOL_CALLS) };
+}
+
+/// "Work on its own": Studio tries each set of waiting changes once
+/// (AutoApplyDue); one it couldn't apply isn't tried again, RAI is told it
+/// was NOT applied and why (its facts), a run it asked for isn't started on
+/// the old code and a new one is refused; a newer change is tried again.
+#[test]
+fn a_change_studio_could_not_apply_is_tried_once_and_said() {
+    install();
+    let t = "tools-auto-refused";
+    let dir = project_dir("auto-refused");
+    set(t, "projectfolder", &s(dir.to_string_lossy()));
+    set(t, "projectfiles", &s("main.rr"));
+    set(t, "mainfile", &s("main.rr"));
+    set(t, "permission", &s("auto"));
+    let mut h = Handle { name: t.into() };
+    h.begin_turn();
+    let due = || get(t, "autoapplydue").unwrap().to_i64() != 0;
+    assert!(!due(), "nothing waits");
+    let edit = |h: &mut Handle, from: &str, to: &str| h.call("propose_edit", &json!({"path": "main.rr", "summary": "A title", "edits": [{"old_text": format!("Caption = \"{from}\""), "new_text": format!("Caption = \"{to}\"")}]}));
+    let out = edit(&mut h, "Hi", "One");
+    assert!(!out.is_error, "{}", out.content);
+    assert!(due(), "a change waits: Studio applies it");
+    let run = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    // (Studio couldn't: tried once, the run not started, RAI told)
+    call(t, "autoapplytried", &[s("main.rr changed since the assistant read it")]);
+    assert!(!due(), "not tried again");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "the old code isn't run");
+    let said = h.finish_call("run_program", &run.target).expect("answered");
+    assert!(said.is_error && said.content.contains("was NOT applied") && said.content.contains("main.rr changed since"), "{}", said.content);
+    let facts = h.facts();
+    assert!(facts.contains("your change to main.rr was NOT applied (main.rr changed since the assistant read it)"), "{facts}");
+    let again = h.call("run_program", &json!({"action": "start"}));
+    assert!(again.is_error && again.content.contains("was NOT applied"), "{}", again.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (a newer change: tried again; applied, nothing said)
+    let out = edit(&mut h, "One", "Two");
+    assert!(!out.is_error, "{}", out.content);
+    assert!(due(), "a newer change is tried");
+    assert!(!h.facts().contains("NOT applied"));
+    call(t, "autoapplytried", &[s("")]);
+    assert!(!due());
+    assert!(!h.facts().contains("NOT applied"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// run_program's other actions: status and a stop with nothing running
+/// answer at once (the last run's output as data), nothing asked of Studio
+/// and no card; a start that never starts says so after 20 s.
+#[test]
+fn run_program_status_stop_and_a_start_that_never_comes() {
+    install();
+    let t = "tools-run-actions";
+    let mut h = Handle { name: t.into() };
+    set(t, "permission", &s("propose"));
+    set(t, "runoutput", &s("Hello\nLine 1"));
+    h.begin_turn();
+    for action in ["status", "stop"] {
+        let out = h.call("run_program", &json!({"action": action}));
+        assert!(!out.is_error && out.content.contains("isn't running") && out.content.contains("\"untrusted\":true") && out.content.contains("Line 1"), "{action}: {}", out.content);
+        assert_ne!(out.risk, rapidr_ai::rai::LATER);
+    }
+    let out = h.call("run_program", &json!({"action": "jump"}));
+    assert!(out.is_error && out.content.contains("start, stop or status"), "{}", out.content);
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (allowed, asked of Studio, never started: answered after 20 s)
+    let out = h.call("run_program", &json!({"action": "start"}));
+    call(t, "allowprogramuse", &[Value::Integer(1)]);
+    assert!(h.finish_call("run_program", &out.target).is_none());
+    with(t, |x| {
+        if let Some(held) = x.run_held.as_mut() {
+            held.since = Some(std::time::Instant::now() - std::time::Duration::from_secs(21));
+        }
+    });
+    let said = h.finish_call("run_program", &out.target).expect("given up on");
+    assert!(said.is_error && said.content.contains("didn't start within 20 s"), "{}", said.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "nothing left for Studio to do");
+}

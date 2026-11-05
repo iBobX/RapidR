@@ -646,6 +646,39 @@ if (want("recipe")) {
   check("recipe: Studio ended", end.ok);
 }
 
+// ---- ask_rai while RAI works on its own (Settings > AI > It may: "Work on its own") -----
+// (the review of 2026-11-05: an AI app allowed once to ask RAI got RAI's "Work on its
+// own" — a change applied and saved, the program run — with no further question. An AI
+// app's question runs RAI at "propose" level: the change waits for the user's review,
+// the run for RAI's card in the chat — here answered Don't allow)
+if (want("raiauto")) {
+  const PORT = BASE_PORT + 18;
+  const AI_READY = `ai:on,ai:provider=compatible,ai:base=${MOCK_URL},ai:model=mock-small`;
+  const events = ["mcpask.__until_Visible_1", "mcponcebtn.onclick", until("read_output")].join(",");
+  const run = studio("raiauto", [AI_READY, "ai:permission=auto", `mcp:on=${PORT}`, "ai:applink=deny"].join(","), events, "mcpasktext.caption,mcpask.visible,aitools.proposalcount,aitools.permission,aireviewbar.visible");
+  check("raiauto: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  const said = (what, r) => console.log(`     ${what} -> ${r.error ? "error" : "ok"}: ${r.text.replace(/\s+/g, " ").slice(0, 900)}`);
+  let r = await tool("ask_rai", { Prompt: "change and run the program" });
+  said("ask_rai", r);
+  check("ask_rai (allowed once): RAI answered", !r.error && r.text.includes("Answer:"), r.text);
+  check("…its change was proposed for the user's review", /propose_edit: Waiting for the user to apply the change to main\.rr/.test(r.text), r.text);
+  check("…its run waited for RAI's card and was not allowed", /run_program: [^|]*didn't allow/i.test(r.text) && !/run_program: [^|]*(Started|It ran and ended)/.test(r.text), r.text);
+  const disk = readFileSync(join(WORK, "raiauto", "main.rr"), "utf8");
+  check("main.rr on disk is as it was (nothing applied or saved on its own)", disk.includes('PRINT "Hello from Studio"') && !disk.includes("Changed by RAI"), disk);
+  r = await tool("read_output");
+  said("read_output", r);
+  check("the program didn't run the change", !r.text.includes("Changed by RAI"), r.text);
+  const end = await run.ended();
+  console.log(`     end: ${JSON.stringify(end.lines)}`);
+  const audit = existsSync(join(WORK, "raiauto-audit.jsonl")) ? readFileSync(join(WORK, "raiauto-audit.jsonl"), "utf8") : "";
+  const decisions = audit.split("\n").filter((l) => /"op":"(decision|tool)"/.test(l) && !l.includes('"source":"mcp"'));
+  for (const l of decisions) console.log(`     audit: ${l}`);
+  check("the audit log has no change applied and no run done for that question", !decisions.some((l) => l.includes('"decision":"applied"') || l.includes('"decision":"ran in your program"')), decisions.join(" | "));
+  check("the AI Apps pane's question said RAI only proposes for an AI app", /proposes changes for you to review/.test(end.lines["mcpasktext.caption"] || ""), end.lines["mcpasktext.caption"]);
+  check("the change waits in the Review bar", end.lines["aitools.proposalcount"] === "1" && shown(end.lines["aireviewbar.visible"]), JSON.stringify(end.lines));
+}
+
 // ---- School Lock (ide/schoollock.inc): AI apps locked by a teacher — the server never
 // starts, nothing ever listens on the port while Studio runs; unlocked until Studio
 // closes, it starts as the user had it ---------------------------------------------------

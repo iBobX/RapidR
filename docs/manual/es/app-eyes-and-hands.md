@@ -1,4 +1,4 @@
-<!-- translated-from: app-eyes-and-hands.md b33f420aa11e3853 -->
+<!-- translated-from: app-eyes-and-hands.md ffc2ce4f7accd152 -->
 # Los ojos y las manos de un programa: RWindowCapture y RAppHands
 
 Un programa de RapidR puede ver sus propias ventanas y usarlas como lo haría una
@@ -208,6 +208,17 @@ posterior). Con su permiso en solo lectura no puede mirar ni usar el programa en
 absoluto. Recibe estas herramientas solo mientras tu programa se ejecuta.
 
 ![La tarjeta de RAI en su chat: “RAI wants to click and type in your running program”, “Allow for this run” o “Don't allow”; la línea de estado espera tu respuesta](../images/app-eyes/rai-asks.png)
+
+RAI también puede ejecutar tu programa por sí mismo (su herramienta
+`run_program`). Mientras propone cambios para que los revises, pregunta primero
+con la misma tarjeta, **RAI quiere ejecutar tu programa**, una vez por cada
+ejecución: **Permitir en esta ejecución** lo inicia y le deja mirar, hacer clic y
+escribir en esa ejecución; **No permitir** le responde que no. Si lo dejas
+trabajar por su cuenta (Herramientas > Configuración > IA > Puede hacer), no
+pregunta: ya dijiste que sí una vez, en la pregunta de esa opción. Una pregunta
+que una aplicación de IA le hace a RAI (`ask_rai`) igual pregunta primero, y los
+cambios que deja esperan tu revisión. En el modo Coach y con solo lectura, RAI
+no ejecuta tu programa.
 
 <!-- legal -->
 **Lo que ve la IA.** Una imagen o el informe de disposición muestra todo lo que

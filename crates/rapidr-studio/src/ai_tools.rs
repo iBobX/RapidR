@@ -209,7 +209,7 @@ pub fn version_tool() -> Tool {
 pub fn run_tool() -> Tool {
     Tool {
         name: "run_program".into(),
-        description: "Runs the open project's program in RapidR Studio, as the user's Run does (its files are saved first), lets it run up to wait seconds (5 by default, 30 at most) and says how it went and what it printed; then app_layout / app_screenshot look at it (the user is asked once a run). action: start (default), stop, or status (its state and last output). One run at a time. Example: {\"action\": \"start\", \"wait\": 5}.".into(),
+        description: "Runs the open project's program in RapidR Studio, as the user's Run does (its files are saved first; the user is asked first, once a run, unless they let you work on your own), lets it run up to wait seconds (5 by default, 30 at most) and says how it went and what it printed; then app_layout / app_screenshot look at it. action: start (default), stop, or status (its state and last output). One run at a time. Example: {\"action\": \"start\", \"wait\": 5}.".into(),
         input_schema: schema(json!({"action": {"type": "string", "enum": ["start", "stop", "status"], "description": "start (default), stop or status"}, "wait": {"type": "integer", "description": "seconds to let it run before answering, 1..30 (5 by default)"}}), &[]),
     }
 }

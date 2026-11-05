@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md bb167dc1938f191d -->
+<!-- translated-from: ai-assistant.md 378d0e5faa37bfb6 -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -504,7 +504,9 @@ de ella los muestran:
 Cada cambio tiene **Aceptar** y **Rechazar** (F7 va al siguiente; Enter lo acepta,
 Backspace lo rechaza); **Aceptar todo**, **Rechazar todo** y luego **Aplicar**. Lo que
 aplicaste es un solo paso en el deshacer de cada archivo: **Edición > Deshacer** lo
-revierte. **Herramientas > Revisar los cambios de la IA…** abre la revisión otra vez.
+revierte. Los archivos que cambió se guardan enseguida; tus otros documentos sin
+guardar quedan como los dejaste. **Herramientas > Revisar los cambios de la IA…**
+abre la revisión otra vez.
 
 El chat dice cada decisión una sola vez, tal como ocurrió: *Aplicaste el cambio a
 server.rr*, *Rechazaste el cambio a main.rr* o, cuando editaste el archivo después de

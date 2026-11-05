@@ -630,6 +630,10 @@ pub trait ToolProvider {
     }
     /// A new question: what the last one left is dropped.
     fn begin_turn(&mut self);
+    /// The user stopped the answer (Stop, a new chat): what the tools still
+    /// wait for, or asked their app to do, is dropped — never done after it
+    /// (RapidR Studio: a run or a version RAI asked for).
+    fn cancelled(&mut self) {}
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome;
     /// One sentence on what the turn left (changes to review), if anything.
     fn turn_status(&self) -> Option<String>;
@@ -2028,6 +2032,11 @@ impl Ai {
     }
 
     fn cancel(&mut self) {
+        // (what the tools wait for, or asked their app to do, dropped: never
+        // done after Stop)
+        for (_, _, t) in &mut self.tools {
+            t.cancelled();
+        }
         // (a turn waiting for a tool: its calls answered as stopped — every
         // tool use needs its result —, the turn over)
         if let Some(w) = self.waiting.take() {

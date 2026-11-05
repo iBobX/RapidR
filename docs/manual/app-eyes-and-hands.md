@@ -170,6 +170,16 @@ all. It gets these tools only while your program runs.
 
 ![RAI's card in its chat: RAI wants to click and type in your running program, Allow for this run or Don't allow; the status line waits for your answer](images/app-eyes/rai-asks.png)
 
+RAI can also run your program itself (its `run_program` tool). While it
+proposes changes for you to review, it asks first with the same card, **RAI
+wants to run your program**, once for each run: **Allow for this run**
+starts it and lets RAI look, click and type in that run; **Don't allow**
+answers it no. Set to work on its own (Tools > Settings > AI > It may), it
+doesn't ask: you said yes to that once, in that setting's own question. A
+question an AI app asks RAI (`ask_rai`) still asks first, as do the changes
+it leads to. In Coach mode and with reading only, RAI doesn't run your
+program.
+
 **What the AI sees.** A picture or the layout report shows whatever your program shows: your data, or other people's. With an AI app it goes to that app and, under its maker's terms, maybe to the company behind it; with RAI it goes to the AI provider you chose. RapidR sends nothing itself, keeps no picture (it is deleted as soon as it is handed over) and writes only that a picture was asked for into the activity list, never the picture, never what was typed. Use test data, and close what you don't want seen. A program under test may send real email, make real purchases or delete real data when it is clicked: test with test data.
 
 While the program is **paused in the debugger**, an AI can still look at

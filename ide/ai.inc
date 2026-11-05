@@ -31,6 +31,7 @@
 
 DECLARE SUB AIUpdate
 DECLARE SUB AIRunRequest
+DECLARE FUNCTION AIPermissionNow AS STRING
 DECLARE FUNCTION AISaveVersion(Message AS STRING) AS STRING
 DECLARE SUB AIShowNote
 DECLARE SUB AiLanguageChanged
@@ -166,7 +167,11 @@ DIM AIApAct(AIMAXPROPS) AS INTEGER
 DIM AIApFull(AIMAXPROPS) AS STRING
 DIM AIApDoc(AIMAXPROPS) AS INTEGER
 DIM AIApBefore(AIMAXPROPS) AS STRING
+' (the last Apply that went in: how many proposals it had — AIApAct and
+' AIApDoc say what it changed, AISaveApplied saves those)
+DIM AIApN AS INTEGER
 DECLARE SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
+DECLARE SUB AISaveApplied
 ' (the panel's lists being filled: their OnChange isn't the user's)
 DIM AIFilling AS INTEGER
 ' (Set Up RAI's Finish asked for the models: when they come, the status
@@ -1070,7 +1075,7 @@ SUB AIApplySettings
   IF AIMaxTokens > 0 THEN AI.MaxTokens = AIMaxTokens ELSE AI.MaxTokens = 32000
   AI.PriceIn = AIPriceIn
   AI.PriceOut = AIPriceOut
-  AITools.Permission = AIPermission
+  AITools.Permission = AIPermissionNow
   AITools.ReviewFirst = AIReviewFirst
   AIApplyReplyLanguage
   ' (the dial: Build or Coach, as the user left it — School Lock may keep
@@ -1603,6 +1608,16 @@ END SUB
 
 ' (a question to the assistant now: typed in the box, or the one queued)
 SUB AISendNow(T AS STRING, FromBox AS INTEGER)
+  ' (who asks it: an AI app's question — McpAskRai — is answered at
+  ' "propose" level, and RAI's changes it leads to are reviewed by the user
+  ' before RAI works on its own again — AIPermissionNow)
+  AIForApp = AIAskedByApp
+  AIAskedByApp = 0
+  IF AIForApp THEN
+    AIAppReview = 1
+  ELSEIF AITools.ProposalCount = 0 THEN
+    AIAppReview = 0
+  END IF
   ' (School Lock: nothing goes to an AI while it is off)
   IF LockOffAI THEN
     AIStatus.SimpleText = LockTitleText
@@ -1613,6 +1628,7 @@ SUB AISendNow(T AS STRING, FromBox AS INTEGER)
   AISyncProject
   AIReviewBar.Visible = 0
   AIProgressSaid = ""
+  AITools.Permission = AIPermissionNow
   IF AI.Ask(T) THEN
     IF FromBox THEN AIInput.Text = ""
   ELSE
@@ -1869,14 +1885,31 @@ SUB AINewChat
   AIInput.SetFocus
 END SUB
 
+' The permission RAI works with now: the user's (Tools > Settings > AI >
+' It may), but "Work on its own" is never an AI app's — the user said yes to
+' it for RAI, not for every app allowed to ask RAI once (the review of
+' 2026-11-05): a question an AI app asked (ask_rai) is answered at "propose"
+' level — its changes wait for the user's review, its runs for RAI's card —,
+' and so is every question until the user has decided on the changes it
+' left.
+FUNCTION AIPermissionNow AS STRING
+  Result = AIPermission
+  IF AIPermission <> "auto" THEN EXIT FUNCTION
+  IF AIForApp THEN Result = "propose"
+  IF AIAppReview AND AITools.ProposalCount > 0 THEN Result = "propose"
+END FUNCTION
+
 ' RAI's own Run (its run_program tool): Studio starts or stops the
 ' program with Run's and Stop's own commands, once (taken first).
 SUB AIRunRequest
   DIM r AS STRING, i AS INTEGER
   ' (Tools > Settings > AI: "Work on its own": RAI's changes to the open
   ' project are applied at once — each one undoable, as Apply does — before
-  ' anything it asked Studio to do; a new program keeps its usual way)
-  IF AIPermission = "auto" AND AIAutoApplying = 0 AND AITools.ProposalCount > 0 THEN
+  ' anything it asked Studio to do; a new program keeps its usual way. Each
+  ' set of changes is tried once: one Apply can't do — a file changed since
+  ' RAI read it — waits in the Review bar, RAI is told why, and a run it
+  ' asked for doesn't start on the old code — AITools.AutoApplyTried)
+  IF AIPermissionNow = "auto" AND AIAutoApplying = 0 AND AITools.AutoApplyDue THEN
     IF AIProjectProposal = 0 THEN
       AIAutoApplying = 1
       FOR i = 0 TO AITools.ProposalCount - 1
@@ -1885,11 +1918,20 @@ SUB AIRunRequest
           AIRevSeen(i) = 1
         END IF
       NEXT
+      AIApplyWhy = ""
       AIApplyProposals
-      ' (saved at once, and RAI's view of the project brought up to date:
-      ' its next change builds on these files as they are now — else it
-      ' was refused as made for an older text)
-      IF AITools.ProposalCount = 0 THEN RunCommand "file.saveAll"
+      IF AITools.ProposalCount = 0 THEN
+        AITools.AutoApplyTried ""
+        ' (saved at once — the files RAI changed, never the user's others —,
+        ' and RAI's view of the project brought up to date: its next change
+        ' builds on these files as they are now — else it was refused as
+        ' made for an older text)
+        AISaveApplied
+      ELSE
+        IF AIApplyWhy = "" THEN AIApplyWhy = TR$("some changes weren't applied")
+        AITools.AutoApplyTried AIApplyWhy
+        AIShowReviewBar
+      END IF
       AISyncProject
       AIAutoApplying = 0
     END IF
@@ -1958,13 +2000,13 @@ SUB AIUpdate
   AIEnableSend
   AIProgressShow
   AILiveRefresh
-  ' (RAI's card asks to use the running program: seen and heard, even
-  ' when an AI app asked RAI — the answer is the user's)
+  ' (RAI's card asks to run the program or use the running one: seen and
+  ' heard, even when an AI app asked RAI — the answer is the user's)
   IF AITools.ProgramUseAsked THEN
     IF AIProgramAskSaid = 0 THEN
       AIProgramAskSaid = 1
       Dock.ShowPane("aipanel")
-      Application.Announce TR$("RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat.")
+      Application.Announce TR$("RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat.")
     END IF
   ELSE
     AIProgramAskSaid = 0
@@ -2052,8 +2094,9 @@ END SUB
 SUB AIShowReviewBar
   IF AITools.ProposalCount = 0 THEN EXIT SUB
   ' ("Work on its own": nothing for the user to review — Studio applies
-  ' RAI's changes itself; a new program still opens its usual way)
-  IF AIPermission = "auto" AND AIProjectProposal = 0 THEN EXIT SUB
+  ' RAI's changes itself, unless it tried and couldn't; a new program still
+  ' opens its usual way. Never for an AI app's question: AIPermissionNow)
+  IF AIPermissionNow = "auto" AND AIProjectProposal = 0 AND AITools.AutoApplyDue THEN EXIT SUB
   IF AIProjectProposal THEN
     AIReviewBtn.Caption = TR$("Preview the New Program...")
     AIReviewBtn.AccessibleName = TR$("Preview the new program before it is created")
@@ -2260,10 +2303,27 @@ SUB AIRevApplyClick
   AIRevKeep
   AIReview.Close
   AIApplyProposals
-  ' (Robert 2026-11-02: applied means saved — and RAI's view of the files
+  ' (Robert 2026-11-02: applied means saved — the files RAI changed only,
+  ' never the user's other unsaved work —, and RAI's view of the files
   ' brought up to date, so its next change builds on them as they are)
-  IF AITools.ProposalCount = 0 THEN RunCommand "file.saveAll"
+  IF AITools.ProposalCount = 0 THEN AISaveApplied
   AISyncProject
+END SUB
+
+' (an Apply that went in, saved: the files it changed in their editors —
+' the new ones are written already, the project file too —; the user's
+' other unsaved documents stay theirs, as they left them: the review of
+' 2026-11-05)
+SUB AISaveApplied
+  DIM i AS INTEGER, d AS INTEGER, ok AS INTEGER
+  FOR i = 0 TO AIApN - 1
+    IF AIApAct(i) = 2 THEN
+      d = AIApDoc(i)
+      IF d >= 0 THEN
+        IF DocOpen(d) AND DocDirty(d) THEN ok = SaveDocument(d)
+      END IF
+    END IF
+  NEXT
 END SUB
 
 SUB AIRevCancel
@@ -2286,6 +2346,7 @@ SUB AIApplyProposals
   DIM i AS INTEGER, n AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
   DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, why AS STRING, current AS STRING
   DIM undoN AS INTEGER, k AS INTEGER, failed AS STRING
+  AIApN = 0
   n = AITools.ProposalCount
   IF n > AIMAXPROPS THEN n = AIMAXPROPS
   ' ---- 1. checked, nothing changed yet (act: 0 nothing, 1 new file, 2 change) ----
@@ -2378,6 +2439,7 @@ SUB AIApplyProposals
     EXIT SUB
   END IF
   ' ---- all in: what was decided ----
+  AIApN = n
   FOR i = 0 TO n - 1
     newText = AIRevResult(i)
     IF AIApAct(i) = 0 THEN
@@ -2434,6 +2496,12 @@ SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
   DIM i AS INTEGER, n AS INTEGER, first AS STRING
   n = TALLY(Why, CHR$(10))
   first = FIELD$(Why, CHR$(10), 1)
+  ' (why, for "Work on its own": RAI is told — AIRunRequest)
+  AIApplyWhy = ""
+  FOR i = 1 TO n
+    IF AIApplyWhy <> "" THEN AIApplyWhy = AIApplyWhy + "; "
+    AIApplyWhy = AIApplyWhy + FIELD$(Why, CHR$(10), i)
+  NEXT
   FOR i = 1 TO n
     OutputLine TR$("AI: not applied — {reason}", "reason", FIELD$(Why, CHR$(10), i))
   NEXT
@@ -3307,6 +3375,12 @@ SUB AIStep(Stp AS STRING)
       ShowAIReviewQuietly
       AIRevAcceptAll
       AIApplyProposals
+    CASE "applyclick"
+      ' (the Review dialog's Apply, all accepted — its own handler: what it
+      ' saves after; the dialog itself not shown)
+      ShowAIReviewQuietly
+      AIRevAcceptAll
+      AIRevApplyClick
     CASE "create"
       AINewFolder.Text = arg
       AINewCreate
