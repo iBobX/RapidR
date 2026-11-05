@@ -461,8 +461,20 @@ a copy run interpreted, 32 voices, the share of a 10 ms block):
 - macOS hardened runtime, ad hoc with `--options runtime`: with the
   `allow-jit` entitlement compiled; without it "JIT: off, this process may
   not make code executable …", interpreted, the same answers.
+- RapidR Studio itself run with `RAPIDR_JIT=always` (every loop and
+  routine of Studio's own code compiled at once, exits everywhere), doing
+  the same walk: it found one bug — a call compiled to a routine whose
+  result was never worked out, so never defined ("can't resolve symbol");
+  fixed (only routines worked out and defined are called compiled; one the
+  code generator refuses becomes a stub that goes straight back to the
+  interpreter) and kept as a test.
+- x86-64: the JIT's tests (every edge value) and the whole conformance
+  suite both ways pass with an x86-64 build run under Rosetta on this Mac —
+  the code generator's x86-64 backend, not only its ARM one.
 - Windows 11 ARM64 VM: `tools/release/windows-vm.sh jit` (and
   `Target=x86_64-pc-windows-msvc`) builds the branch there and runs the
   JIT's tests and conformance both ways — the VM was suspended by the host
   during the lane's run (not resumed: the lane doesn't start VMs); to be
-  run when it is up. The Ubuntu VM was stopped: Linux untested.
+  run when it is up. The Ubuntu VM was stopped: Linux untested (its
+  SELinux-style refusal of executable memory is the probe's error case,
+  not a kill — to be seen there).
