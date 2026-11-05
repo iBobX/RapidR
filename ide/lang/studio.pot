@@ -5986,6 +5986,10 @@ msgstr ""
 msgid "RapidR Studio is ready."
 msgstr ""
 
+#: ide/tools.inc ide/versions.inc
+msgid "This project keeps versions now: {folder}"
+msgstr ""
+
 #: ide/tools.inc
 msgid "RAI saved the version “{message}” ({id})"
 msgstr ""
@@ -5996,10 +6000,6 @@ msgstr ""
 
 #: ide/tools.inc
 msgid "Went back to version {version}: a new version ({id}). Undo in Versions takes it back."
-msgstr ""
-
-#: ide/tools.inc ide/versions.inc
-msgid "This project keeps versions now: {folder}"
 msgstr ""
 
 #: ide/versions.inc
