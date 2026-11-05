@@ -857,8 +857,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
         return;
     }
     // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio_web.rs).
-    if rapidr_studio::is_studio_type(&rp_comp_type(&uname)) && crate::studio_web::set(&rp_comp_type(&uname), name, &lprop, &val) {
-        return;
+    {
+        let t = rp_comp_type(&uname);
+        if rapidr_studio::is_studio_type(&t) && crate::studio_web::set(&t, name, &lprop, &val) {
+            return;
+        }
     }
     // (I8) RAI, the AI component (ai_web.rs).
     if rapidr_ai::rai::is_rai(&rp_comp_type(&uname)) && crate::ai_web::set(name, &lprop, &val) {

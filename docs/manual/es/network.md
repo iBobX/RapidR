@@ -1,4 +1,4 @@
-<!-- translated-from: network.md 3ecfc268e7bf759b -->
+<!-- translated-from: network.md bc358bd3d692fe0d -->
 # Redes: sockets y un servidor web local
 
 Un programa se comunica con la red en dos direcciones:
@@ -311,6 +311,13 @@ cada llamada mostrada en la ventana, y una casilla que le impide añadir.
   herramientas).
 - **Recursos.** `AddResource Uri, Name` ofrece algo para leer; `OnReadResource` lo
   pide, y `Reply` da su texto.
+- **Prompts.** `AddPrompt Name, Title, Description, Text` ofrece una instrucción
+  lista que la persona de la aplicación de IA puede elegir ("Trabaja en mis notas
+  paso a paso"); la aplicación de IA envía su texto como el mensaje de la persona.
+- **Una herramienta con otro nombre.** `AddAlias "nombre_viejo", "nombre_nuevo"`
+  mantiene funcionando a una aplicación de IA que todavía llama al nombre viejo:
+  su llamada es la de la herramienta nueva (tu `OnToolCall` recibe el nombre
+  nuevo), y el nombre viejo no aparece en la lista.
 
 <!-- legal -->
 Lo que el servidor hace por sí mismo: escucha solo en `127.0.0.1` (otro `Host`

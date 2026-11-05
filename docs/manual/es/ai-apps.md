@@ -1,4 +1,4 @@
-<!-- translated-from: ai-apps.md ecefd7c985467294 -->
+<!-- translated-from: ai-apps.md d4bcedb8d7fd806d -->
 # Deja que las aplicaciones de IA trabajen en Studio
 
 <!-- legal -->
@@ -148,8 +148,9 @@ los guarda (como siempre).
 
 ## Las herramientas
 
-Las herramientas son las que usa RAI, el asistente propio de Studio, más las de
-Studio:
+Las herramientas son el único conjunto de herramientas de RapidR Studio: las
+mismas que usa RAI, el asistente propio de Studio (solo el último grupo es
+exclusivo de las aplicaciones de IA):
 
 <!-- legal -->
 | Herramienta | Qué hace | Tipo |
@@ -158,22 +159,31 @@ Studio:
 | `list_files`, `read_file` | Los archivos del proyecto, el texto de un archivo (el del editor, con los cambios sin guardar incluidos) | mirar |
 | `project_outline` | Los archivos en el orden de inclusión, los formularios, las `SUB` y las `FUNCTION`, las variables globales | mirar |
 | `rapidr_list`, `rapidr_get` | Los componentes de los formularios y sus propiedades, tomados del código fuente | mirar |
-| `rapidr_describe`, `search_manual`, `find_example` | La ayuda de RapidR: un componente o una función integrada, el manual, un ejemplo que funciona | mirar |
-| `check_code`, `get_problems` | Los errores y las advertencias del compilador, y los problemas de disposición de los formularios | mirar |
+| `rapidr_describe`, `search_manual`, `find_example` | La ayuda de RapidR: un componente o una función integrada, el manual, código que funciona: una receta, o los ejemplos de RapidR que coinciden por su nombre de archivo, los componentes que usan o sus palabras | mirar |
+| `how_do_i` | Los pasos, con las herramientas exactas, para una tarea: cambiar código, corregir un error, depurar un fallo, añadir un formulario, aprender un componente, empezar una aplicación nueva, probar la aplicación en ejecución, versiones | mirar |
+| `check_code` | Los errores y las advertencias del compilador, cada uno con una sugerencia en la forma de RapidR | mirar |
 | `layout_report` | Los componentes de cada formulario con su posición y su tamaño, y lo que se ve mal (cortado, unos sobre otros, un texto demasiado largo) | mirar |
-| `capture` | Una imagen (PNG) de la ventana de Studio tal como la ves: solo la ventana propia de Studio, y nunca mientras haya un cuadro de diálogo abierto (Configuración y Configurar RAI pueden mostrar tu token o una clave): a la aplicación de IA se le dice que vuelva a pedirla más tarde | mirar |
+| `button_grid` | Una cuadrícula de botones ya dispuesta (un teclado): el código para pegar; no cambia nada | mirar |
 | `list_documents` | Los documentos abiertos, el activo, los cambios sin guardar | mirar |
 | `read_output` | Lo que el programa imprimió desde la última lectura | mirar |
-| `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | El trabajo de RAI: sus pasos, su chat, su registro de auditoría | mirar |
+| `list_versions`, `compare_versions` | Las versiones guardadas del proyecto (Versiones), y lo que cambió entre dos de ellas o desde una | mirar |
 | `propose_edit`, `write_file`, `create_project` | Un cambio en un archivo (solo las partes que cambian), un archivo nuevo, un programa nuevo: el compilador los revisa primero | cambiar |
-| `set_property` | La propiedad de un componente establecida en el diseñador de formularios, como en el panel Propiedades | cambiar |
-| `open_project` | Abre un proyecto o un programa | cambiar |
-| `run_program` | Guarda, ejecuta el programa, espera unos segundos y devuelve su salida (o dónde se pausó) | ejecutar |
+| `set_property` | La propiedad de un componente establecida como lo hace el panel Propiedades: un cambio como los demás, que con **Preguntar antes de cambiar** ves como diferencias | cambiar |
+| `save_version`, `restore_version`, `start_versions` | Guardar una versión (primero se guardan los archivos abiertos, y se inician Versiones si el proyecto no las tenía; la versión es de la aplicación de IA, no tuya), volver a una versión (una versión nueva: no se pierde nada, Deshacer en Versiones la revierte), iniciar Versiones en un proyecto | cambiar |
+| `report_gap` | Escribe una línea breve en el `RAPIDR-ISSUES.md` del proyecto: una herramienta que le faltó a la aplicación de IA, una pregunta que el manual no respondió. No escribe nada más | cambiar (una nota: permitida en todas las opciones salvo Solo lectura) |
+| `run_program` | Guarda, ejecuta el programa, espera unos segundos y devuelve su salida (o dónde se pausó). No mientras el código tenga errores: a la aplicación de IA se le dicen los primeros, y que Problemas debe estar en 0 | ejecutar |
 | `debug` | Puntos de interrupción, continuar, pasar por encima / entrar en la llamada / salir de la llamada, pausar, la pila de llamadas y las variables | ejecutar |
-| `ask_rai` | Le pregunta a RAI como lo harías en su panel, y devuelve su respuesta y sus pasos. Para una aplicación de IA, RAI solo propone, incluso si lo dejas trabajar por su cuenta: sus cambios esperan tu revisión, y una ejecución, tu sí en su chat | ejecutar (puede costar dinero: usa tu proveedor de IA) |
-| `app_layout`, `app_screenshot` | Las ventanas y los controles del programa en ejecución en palabras (y lo que se ve mal), una imagen de sus ventanas | ejecutar (mirar o usar el programa en ejecución) |
-| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Hace clic, escribe, presiona teclas, arrastra y se desplaza en el programa en ejecución, con un puntero que ves | ejecutar (mirar o usar el programa en ejecución) |
+| `app_layout`, `app_screenshot` | Las ventanas y los controles del programa en ejecución en palabras (y lo que se ve mal), una imagen de sus ventanas con lo mismo en palabras al lado | ejecutar (mirar o usar el programa en ejecución) |
+| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Hace clic, escribe, presiona teclas, arrastra y se desplaza en el programa en ejecución, con un puntero que ves; los botones de un cuadro de mensaje por su texto o su nombre corto (b0) | ejecutar (mirar o usar el programa en ejecución) |
 | `app_wait` | Deja que el programa en ejecución trabaje por su cuenta un momento, o hasta que esté inactivo | mirar |
+| `open_project` | Abre un proyecto o un programa (solo aplicaciones de IA) | cambiar |
+| `capture` | Una imagen (PNG) de la ventana de Studio tal como la ves: solo la ventana propia de Studio, y nunca mientras haya un cuadro de diálogo abierto (Configuración y Configurar RAI pueden mostrar tu token o una clave): a la aplicación de IA se le dice que vuelva a pedirla más tarde (solo aplicaciones de IA) | mirar |
+| `ask_rai` | Le pregunta a RAI como lo harías en su panel, y devuelve su respuesta y sus pasos. Para una aplicación de IA, RAI solo propone, incluso si lo dejas trabajar por su cuenta: sus cambios esperan tu revisión, y una ejecución, tu sí en su chat (solo aplicaciones de IA) | ejecutar (puede costar dinero: usa tu proveedor de IA) |
+| `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | El trabajo de RAI: sus pasos, su chat, su registro de auditoría (solo aplicaciones de IA) | mirar |
+
+Los nombres anteriores siguen funcionando para las aplicaciones de IA que aún
+los usan: `get_problems` es `check_code`, `recipe` es `find_example`. No
+aparecen en la lista.
 
 Una llamada con un argumento que falta o es incorrecto se responde al instante con
 lo que la herramienta necesita (“Call read_file again: it needs `path` (a
@@ -183,21 +193,33 @@ string)…”), así que hasta un modelo pequeño puede corregirse solo.
 
 Cuando una aplicación de IA se conecta, Studio le entrega un texto breve (menos de
 unos 1200 tokens) con la forma de trabajar, igual para toda aplicación de IA,
-pequeña o grande:
+pequeña o grande, y con las mismas reglas que sigue RAI: doce reglas numeradas
+de una línea, cada una con su herramienta. Entre ellas:
 
-1. `studio_status` dice qué hay abierto. En un proyecto vacío termina con *This
-   project is empty: call find_example first*.
-2. `find_example` con lo que quiere el usuario: un programa que funciona para
-   empezar.
-3. `write_file` para un archivo nuevo, `propose_edit` para unas pocas líneas de uno
-   existente. **El proyecto abierto es el programa del usuario**: `create_project`
-   solo crea un proyecto nuevo aparte.
-4. `check_code` después de cada escritura. Un error que es una costumbre de otro
-   lenguaje tiene debajo una línea de **sugerencia** con la forma de RapidR
-   ([¿Vienes de otro lenguaje?](language.md#vienes-de-otro-lenguaje)).
-5. El mismo error dos veces seguidas en un archivo: el rechazo cambia a *Same error
-   again. Stop rewriting the whole file. Call find_example(…) and start from that
-   recipe*, con las primeras líneas de la receta más cercana.
+1. `studio_status` primero. En un proyecto vacío termina con *This project is
+   empty: call find_example first*.
+2. Aprender con `rapidr_describe`, `find_example` y `search_manual`: nunca el
+   código fuente de RapidR, nunca un miembro que `rapidr_describe` no listó.
+3. Para cambiar código: `save_version`, `read_file`, `propose_edit` (solo las
+   líneas que cambian), `check_code`, `run_program`, `app_screenshot` o
+   `app_layout`, `save_version`. **El proyecto abierto es el programa del
+   usuario**: `create_project` solo crea un proyecto nuevo aparte.
+4. `check_code` después de cada cambio: **Problemas debe estar en 0** antes de
+   ejecutar, medir o informar. Un error que es una costumbre de otro lenguaje
+   tiene debajo una línea de **sugerencia** con la forma de RapidR
+   ([¿Vienes de otro lenguaje?](language.md#vienes-de-otro-lenguaje)). El mismo
+   error dos veces seguidas en un archivo: el rechazo cambia a *Same error
+   again. Stop rewriting the whole file. Call find_example(…) and start from
+   that recipe*, con las primeras líneas de la receta más cercana.
+5. **Nunca git ni una terminal** para tu proyecto: las herramientas de
+   Versiones.
+6. Si no sabe qué sigue: `how_do_i`. Si falta una herramienta o una respuesta:
+   `report_gap`, y sigue.
+
+Las aplicaciones de IA que los usan reciben además dos instrucciones listas
+(prompts de MCP), *Work on this project the RapidR way* y *Start a new RapidR
+app*, y tres guías para leer (recursos de MCP): las reglas, los pasos de cada
+tarea y la página de este manual sobre el diseño de formularios.
 
 …y una tarjeta del lenguaje de unas 25 líneas: las reglas que más rompen los
 modelos pequeños (`x = 1` y no `SET x = 1`, `<>` y no `!=`, `MOD` y no `%`,
@@ -293,5 +315,8 @@ IA, con el mismo protocolo y las mismas protecciones: mira
 - Las imágenes de aquí se hacen con `node tools/manual/shots.mjs ai-apps` (Studio
   con la aplicación de IA de las pruebas, `tests/http_client_probe.mjs`); el
   comportamiento se comprueba con `node tests/studio_mcp.mjs`.
-- Las opciones de permisos propias de RAI (Configuración > IA) siguen siendo
-  independientes; está previsto usar estas cuatro palabras también para RAI.
+- Las opciones de permisos de RAI (Configuración > IA) y las cuatro de aquí se
+  deciden con las mismas reglas: Solo lectura es el *Solo leer el proyecto y
+  responder* de RAI, Preguntar antes de cambiar su *Leer el proyecto y
+  proponer cambios que revisas*, Permitir todo su *Trabajar por su cuenta*.
+  Está previsto mostrarle a RAI estas mismas cuatro palabras.

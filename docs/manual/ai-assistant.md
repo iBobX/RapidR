@@ -319,6 +319,16 @@ description of every component, property, method, event and function, and
 what the compiler says about the code. It can't read anything outside the
 project's folder, and never your key.
 
+Its tools are RapidR Studio's own — the same ones an AI app gets ([the
+list](ai-apps.md#the-tools)), under the same rules: besides reading,
+checking and proposing changes, the assistant can see what Studio has open,
+run your program and read what it prints, debug it, look at it and use it
+(asking you first, once a run, unless you let it work on its own), keep
+versions as it works (save one, list them, compare them; going back to one
+asks you first), look up the steps for a task, and note a missing tool or an
+unanswered question in the project's `RAPIDR-ISSUES.md`. It never uses git
+or a shell for your project.
+
 ## Your chats are kept
 
 Each project keeps its own chats. Close Studio, open the project again
@@ -759,8 +769,9 @@ it reads them again when it needs them. The status line stays honest: when
 an answer says it changed something but no change reached you, the
 assistant is asked once to really make it, and if it still doesn't, the
 status says *"The assistant didn't make the change you asked for"*; a
-change that doesn't compile says so too. The assistant can't run your
-program, but it sees the last lines your last run printed. A model of 4 to 9
+change that doesn't compile says so too. With the lite set (below) the
+assistant can't run your program, but it sees the last lines your last run
+printed. A model of 4 to 9
 billion parameters can build small programs this way; for bigger ones a
 larger model does better.
 

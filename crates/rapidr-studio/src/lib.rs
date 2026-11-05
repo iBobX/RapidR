@@ -50,7 +50,10 @@ pub mod recipes;
 pub mod recovery;
 pub mod repository;
 pub mod school_lock;
+pub mod policy;
 pub mod session;
+pub mod tools_core;
+pub mod toolset;
 
 pub use rapidr_session::Transport;
 
@@ -124,54 +127,87 @@ pub trait Host: Copy + 'static {
     }
 }
 
+/// Studio's components, by their canonical R names.
+#[derive(Clone, Copy)]
+enum Kind {
+    Project,
+    LanguageService,
+    ProgramSession,
+    AiProjectTools,
+    Repository,
+}
+
+/// Which of Studio's components `type_name` is, matched ignoring case
+/// without a copy (the runtime asks on every property read).
+fn kind(type_name: &str) -> Option<Kind> {
+    const KINDS: [(&str, Kind); 5] = [
+        ("RPROJECT", Kind::Project),
+        ("RLANGUAGESERVICE", Kind::LanguageService),
+        ("RPROGRAMSESSION", Kind::ProgramSession),
+        ("RAIPROJECTTOOLS", Kind::AiProjectTools),
+        ("RREPOSITORY", Kind::Repository),
+    ];
+    KINDS.iter().find(|(n, _)| n.eq_ignore_ascii_case(type_name)).map(|&(_, k)| k)
+}
+
+/// `name` in lower case, copied only when it has an upper-case letter (the
+/// runtimes pass property and method names lower-cased already).
+fn lower(name: &str) -> std::borrow::Cow<'_, str> {
+    if name.bytes().any(|b| b.is_ascii_uppercase()) {
+        std::borrow::Cow::Owned(name.to_ascii_lowercase())
+    } else {
+        std::borrow::Cow::Borrowed(name)
+    }
+}
+
 /// Whether `type_name` (a canonical R name) is one of Studio's components.
 pub fn is_studio_type(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION" | "RAIPROJECTTOOLS" | "RREPOSITORY")
+    kind(type_name).is_some()
 }
 
 /// A property of component `name` of `type_name` (`None`: not one of its
 /// own; the runtime keeps it).
 pub fn get(type_name: &str, name: &str, prop: &str) -> Option<Value> {
-    let prop = prop.to_ascii_lowercase();
-    match type_name.to_ascii_uppercase().as_str() {
-        "RPROJECT" => project::get(name, &prop),
-        "RLANGUAGESERVICE" => langsvc::get(name, &prop),
-        "RPROGRAMSESSION" => session::get(name, &prop),
-        "RAIPROJECTTOOLS" => ai::get(name, &prop),
-        "RREPOSITORY" => repository::get(name, &prop),
-        _ => None,
+    let k = kind(type_name)?;
+    let prop = lower(prop);
+    match k {
+        Kind::Project => project::get(name, &prop),
+        Kind::LanguageService => langsvc::get(name, &prop),
+        Kind::ProgramSession => session::get(name, &prop),
+        Kind::AiProjectTools => ai::get(name, &prop),
+        Kind::Repository => repository::get(name, &prop),
     }
 }
 
 /// Sets a property; whether it was one of the component's own.
 pub fn set<H: Host>(host: H, type_name: &str, name: &str, prop: &str, value: &Value) -> bool {
-    let prop = prop.to_ascii_lowercase();
-    match type_name.to_ascii_uppercase().as_str() {
-        "RPROJECT" => project::set(name, &prop, value),
-        "RLANGUAGESERVICE" => langsvc::set(name, &prop, value),
-        "RPROGRAMSESSION" => session::set(host, name, &prop, value),
-        "RAIPROJECTTOOLS" => {
+    let Some(k) = kind(type_name) else { return false };
+    let prop = lower(prop);
+    match k {
+        Kind::Project => project::set(name, &prop, value),
+        Kind::LanguageService => langsvc::set(name, &prop, value),
+        Kind::ProgramSession => session::set(host, name, &prop, value),
+        Kind::AiProjectTools => {
             ai::install();
             ai::set(name, &prop, value)
         }
-        "RREPOSITORY" => repository::set(name, &prop, value),
-        _ => false,
+        Kind::Repository => repository::set(name, &prop, value),
     }
 }
 
 /// A method (`None`: not one of the component's own).
 pub fn call<H: Host>(host: H, type_name: &str, name: &str, method: &str, args: &[Value]) -> Option<Value> {
-    let method = method.to_ascii_lowercase();
-    match type_name.to_ascii_uppercase().as_str() {
-        "RPROJECT" => project::call(host, name, &method, args),
-        "RLANGUAGESERVICE" => langsvc::call(name, &method, args),
-        "RPROGRAMSESSION" => session::call(host, name, &method, args),
-        "RAIPROJECTTOOLS" => {
+    let k = kind(type_name)?;
+    let method = lower(method);
+    match k {
+        Kind::Project => project::call(host, name, &method, args),
+        Kind::LanguageService => langsvc::call(name, &method, args),
+        Kind::ProgramSession => session::call(host, name, &method, args),
+        Kind::AiProjectTools => {
             ai::install();
             ai::call(name, &method, args)
         }
-        "RREPOSITORY" => repository::call(name, &method, args),
-        _ => None,
+        Kind::Repository => repository::call(name, &method, args),
     }
 }
 

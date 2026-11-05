@@ -1,0 +1,2 @@
+# Finding one of RapidR's own examples by its file name (recipe / find_example).
+Find RapidR's example called rai_models and tell me which component it uses to talk to an AI model, and the file's path.

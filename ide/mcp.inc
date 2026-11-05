@@ -39,10 +39,17 @@
 ' permissions — Settings > AI — should take the same four words: a
 ' follow-up, docs/manual/ai-apps.md.)
 '
-' The tools are the assistant's (RAIProjectTools: one implementation —
-' McpTools is Studio's second one, its own proposals) plus Studio's:
-' studio_status, list_documents, open_project, get_problems, run_program,
-' read_output, ask_rai, get_rai_steps, get_rai_transcript, get_rai_audit.
+' The tools are RapidR Studio's ONE tool set (docs/ai-tools.md), the same
+' RAI gets: defined once in crates/rapidr-studio/src/toolset.rs (names,
+' descriptions, schemas, kinds; McpTools.ToolNames …), decided by the one
+' policy (McpTools.DecideCall), answered by the project's tools in Rust
+' (McpTools.CallTool: McpTools is Studio's second RAIProjectTools, with
+' its own proposals), by Studio's own (tools.inc: studio_status,
+' run_program, debug, Versions …, the same RAI's reach) or by the running
+' program (mcpapp.inc). AI apps only: open_project, capture, ask_rai and
+' RAI's steps, chat and audit. Old names stay answered (Mcp.AddAlias:
+' get_problems is check_code). The core rules go as the instructions;
+' MCP prompts and resources carry the workflows (guide.rs).
 '
 ' Test steps (only with RAPIDR_TEST_MCP_TOKEN, which stands in for the
 ' keychain's token): mcp:on[=port], mcp:off, mcp:allow=change|run|rai,
@@ -67,7 +74,6 @@ DECLARE SUB McpClearLogClick
 DECLARE SUB McpRevApply
 DECLARE SUB McpRevReject
 DECLARE SUB McpRevPicked
-DECLARE FUNCTION McpKindOf(Tool AS STRING) AS STRING
 DECLARE FUNCTION McpModeName(Mode AS STRING) AS STRING
 DECLARE FUNCTION McpModeIndex(Mode AS STRING) AS INTEGER
 DECLARE FUNCTION McpModeAt(Index AS INTEGER) AS STRING
@@ -78,7 +84,7 @@ DECLARE SUB McpFillModes(Box AS RComboBox)
 DECLARE FUNCTION McpOutcomeShown(Outcome AS STRING) AS STRING
 DECLARE FUNCTION McpDialogShown(Dialog AS STRING) AS STRING
 DECLARE SUB McpLanguageChanged
-DECLARE FUNCTION McpDecision(Kind AS STRING) AS STRING
+DECLARE FUNCTION McpDecision(Tool AS STRING, Kind AS STRING) AS STRING
 DECLARE SUB McpModeFollow
 DECLARE FUNCTION McpModeKept(Key AS STRING) AS STRING
 DECLARE SUB McpSetMode(Mode AS STRING)
@@ -128,9 +134,7 @@ DECLARE FUNCTION McpApply(Said AS STRING) AS STRING
 DECLARE SUB McpRejectAll
 DECLARE SUB McpRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE FUNCTION McpShownPath(Path AS STRING) AS STRING
-DECLARE FUNCTION McpStatusText AS STRING
 DECLARE FUNCTION McpRel(Path AS STRING) AS STRING
-DECLARE FUNCTION McpDocumentsText AS STRING
 DECLARE FUNCTION McpFullPath(Path AS STRING) AS STRING
 DECLARE FUNCTION McpInside(Path AS STRING, Folder AS STRING) AS INTEGER
 DECLARE FUNCTION McpOpenAllowed(Path AS STRING) AS INTEGER
@@ -138,21 +142,15 @@ DECLARE FUNCTION McpDirtyFiles AS STRING
 DECLARE FUNCTION McpOpenProject(Path AS STRING) AS STRING
 DECLARE FUNCTION McpOpenCheck(Path AS STRING) AS STRING
 DECLARE FUNCTION McpErrorOutcome(Answer AS STRING) AS STRING
-DECLARE FUNCTION McpRunWords AS STRING
-DECLARE FUNCTION McpRunSeconds AS STRING
-DECLARE FUNCTION McpOutputFrom(At AS LONG) AS STRING
-DECLARE FUNCTION McpReadOutput(All AS INTEGER) AS STRING
-DECLARE SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE SUB McpAskRai(CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE FUNCTION McpRaiStepsText AS STRING
 DECLARE FUNCTION McpRaiTranscript(Chars AS INTEGER) AS STRING
 DECLARE FUNCTION McpRaiAudit(Count AS INTEGER) AS STRING
-DECLARE SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
-DECLARE FUNCTION McpDebugState AS STRING
 DECLARE SUB McpCapture(CallId AS INTEGER, Client AS STRING)
 DECLARE FUNCTION McpDialogOpen AS STRING
 DECLARE SUB McpLogEnd
-DECLARE FUNCTION McpSetProperty(Component AS STRING, Prop AS STRING, Value AS STRING) AS STRING
+DECLARE SUB McpResourceRead(Uri AS STRING, CallId AS INTEGER)
+
 
 CONST MCP_DEFAULT_PORT = 47330
 ' (what the first-time question says: 2 since AI apps look at and use the
@@ -203,15 +201,20 @@ DIM McpWaitWhat(MCPWAITS) AS STRING
 DIM McpWaitCount AS INTEGER
 ' (run_program waiting for the program: its call, until when, what it was
 ' asked; ask_rai waiting for RAI)
-DIM McpRunCall AS INTEGER, McpRunUntil AS DOUBLE, McpRunFrom AS LONG, McpRunAction AS STRING, McpRunClient AS STRING
 DIM McpRaiCall AS INTEGER, McpRaiUntil AS DOUBLE, McpRaiSaid AS STRING
 ' (debug waiting for the program to stop: its call, until when, the stops
 ' seen before it, then a moment for the variables to arrive)
-DIM McpDebugCall AS INTEGER, McpDebugUntil AS DOUBLE, McpDebugStops AS LONG, McpDebugSettle AS DOUBLE
 ' (the program's output, and where read_output read up to)
-DIM McpOutput AS STRING
-DIM McpOutputDropped AS LONG
-DIM McpOutputRead AS LONG
+' (the calls of Studio's own tools — tools.inc — waiting for its answer:
+' the call, its AI app, the tool, what it is, for the pane's line)
+CONST MCPSTUDIO = 16
+DIM McpStCall(MCPSTUDIO) AS INTEGER
+DIM McpStClient(MCPSTUDIO) AS STRING
+DIM McpStTool(MCPSTUDIO) AS STRING
+DIM McpStWhat(MCPSTUDIO) AS STRING
+DIM McpStCount AS INTEGER
+' (the last run an AI app started: its AI app, for the pane's line when it ends)
+DIM McpRunClient AS STRING
 ' (the status bar's panel for AI apps: added the first time they're on)
 DIM McpStatusPanel AS INTEGER
 ' (the warning chip's icon)
@@ -450,18 +453,6 @@ END CREATE
 
 ' ---- settings ------------------------------------------------------------------
 
-FUNCTION McpKindOf(Tool AS STRING) AS STRING
-  SELECT CASE Tool
-    CASE "propose_edit", "write_file", "create_project", "open_project", "set_property": Result = "change"
-    CASE "run_program", "debug": Result = "run"
-    ' (mcpapp.inc: looking at or using the running program — it shows what
-    ' the program shows: asked once a run)
-    CASE "app_layout", "app_screenshot", "app_click", "app_type", "app_key", "app_drag", "app_scroll": Result = "drive"
-    CASE "ask_rai": Result = "rai"
-    CASE ELSE: Result = "read"
-  END SELECT
-END FUNCTION
-
 ' ---- the permission mode -------------------------------------------------------
 
 ' A mode as the menus say it.
@@ -529,19 +520,12 @@ FUNCTION McpModeNoteEn(Mode AS STRING) AS STRING
   END SELECT
 END FUNCTION
 
-' What a call of Kind gets in the mode: "allow", "ask" or "refuse".
-FUNCTION McpDecision(Kind AS STRING) AS STRING
-  IF Kind = "read" THEN
-    Result = "allow"
-    EXIT FUNCTION
-  END IF
-  SELECT CASE McpMode
-    CASE "read": Result = "refuse"
-    CASE "all": Result = "allow"
-    CASE "edits"
-      IF Kind = "change" THEN Result = "allow" ELSE Result = "ask"
-    CASE ELSE: Result = "ask"
-  END SELECT
+' What a call of Tool (its permission class Kind: McpTools.ToolGrant) gets
+' in the mode: "allow", "ask" or "refuse" — the one policy RAI's calls get
+' too (McpTools.DecideCall: crates/rapidr-studio/src/policy.rs), then the
+' person's own answers: Allow for This Session, Allow Once for a run.
+FUNCTION McpDecision(Tool AS STRING, Kind AS STRING) AS STRING
+  Result = McpTools.DecideCall(Tool, McpMode)
   ' (Allow for This Session: that kind until Studio closes, the server
   ' stops or another project opens)
   IF Result = "ask" AND INSTR(McpGrants, "|" + Kind + "|") > 0 THEN Result = "allow"
@@ -779,6 +763,7 @@ SUB SetUpMcp
   McpLoadSettings
   McpTools.Permission = "propose"
   Mcp.OnToolCall = McpToolCalled
+  Mcp.OnReadResource = McpResourceRead
   Mcp.OnConnect = McpClientIn
   Mcp.OnDisconnect = McpClientOut
   ' (mcpapp.inc: the running program's answers)
@@ -924,9 +909,10 @@ SUB McpStopServer
   WHILE McpWaitCount > 0
     McpDecide 0
   WEND
-  IF McpRunCall > 0 THEN Mcp.Reply McpRunCall, "The server stopped.", 1
+  ToolsDropMcp
   IF McpRaiCall > 0 THEN Mcp.Reply McpRaiCall, "The server stopped.", 1
-  McpRunCall = 0: McpRaiCall = 0
+  McpRaiCall = 0
+  McpStCount = 0
   IF Mcp.Listening THEN
     Mcp.Disconnect ""
     Mcp.Stop
@@ -955,38 +941,49 @@ SUB McpStopClick
   OutputLine TR$("AI apps: stopped. Every AI app was disconnected.")
 END SUB
 
-' (the tools: the assistant's — those that change files only when changes
-' aren't off —, then Studio's own)
+' (the tools: RapidR Studio's one tool set, as the registry has it —
+' crates/rapidr-studio/src/toolset.rs —, the same in every mode: a call the
+' mode refuses is told so, in plain words; the old names as aliases; the
+' workflows as prompts and resources — guide.rs)
 SUB McpSyncTools
-  DIM names AS STRING, n AS INTEGER, k AS INTEGER, t AS STRING
+  DIM names AS STRING, n AS INTEGER, k AS INTEGER, t AS STRING, line AS STRING
   Mcp.ClearTools
-  ' (the same tools in every mode — a call the mode refuses is said so, in
-  ' plain words)
-  McpTools.Permission = "propose"
-  Mcp.AddTool "studio_status", "What RapidR Studio has open now: the project and its files, the documents open (unsaved ones marked), whether the program runs, its errors, RAI, and what you may do. Call it first.", "", "read"
   names = McpTools.ToolNames
   n = TALLY(names, CHR$(10)) + 1
   FOR k = 1 TO n
     t = FIELD$(names, CHR$(10), k)
-    IF t <> "" AND t <> "layout" THEN Mcp.AddTool t, McpTools.ToolDescription(t), McpTools.ToolSchema(t), McpTools.ToolKind(t)
+    ' (mcpapp.inc: the running program's eyes and hands — only once the
+    ' user confirmed the question that says so; an AI app can't even see
+    ' them before)
+    IF t <> "" AND (McpTools.ToolHandler(t) <> "app" OR McpConsentOk) THEN Mcp.AddTool t, McpTools.ToolDescription(t), McpTools.ToolSchema(t), McpTools.ToolHint(t)
   NEXT
-  Mcp.AddTool "list_documents", "The documents open in Studio's editor: each file (relative to the project), whether it is the active one, its view (Code or Design) and whether it has unsaved changes.", "", "read"
-  Mcp.AddTool "get_problems", "The program's errors and warnings as Studio's compiler finds them (its main file and what it includes), with file, line and column.", "", "read"
-  Mcp.AddTool "read_output", "What the running (or last) program printed in Studio's Output, since your last read_output; All = true for everything kept. Also says whether it still runs.", "[All AS BOOLEAN]", "read"
-  Mcp.AddTool "get_rai_steps", "What RAI, Studio's own assistant, is doing or did in its last answer: busy or not, its status, and its steps (each tool it used).", "", "read"
-  Mcp.AddTool "get_rai_transcript", "RAI's chat as the user sees it, as Markdown: its last Chars characters (8000 by default).", "[Chars AS INTEGER]", "read"
-  Mcp.AddTool "get_rai_audit", "RAI's audit log: its last Count lines (30 by default) — each request to its provider, each tool, each change it proposed and what the user decided.", "[Count AS INTEGER]", "read"
-  ' (mcpapp.inc: the running program's eyes and hands — only once the user
-  ' confirmed the question that says so; an AI app can't even see them
-  ' before)
-  IF McpConsentOk THEN McpAppTools
-  Mcp.AddTool "layout_report", "The program's forms as the source makes them: each form's client area, each component's place and size (Left, Top, Width, Height, or aligned), then what looks wrong — a control cut off by its form, two on top of each other, a caption too long for its button.", "", "read"
-  Mcp.AddTool "capture", "A picture (PNG) of RapidR Studio's window as the user sees it now: the code, the form designer, the panes. Use it to see a form you changed in the designer.", "", "read"
-  Mcp.AddTool "open_project", "Opens an existing project (.rrproj) or program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes. The open project IS the user's program: to build or change it use write_file and propose_edit on its files — don't open or create another project for the user's task.", "path AS STRING", "change"
-  Mcp.AddTool "set_property", "Sets a component's property in the form designer, as the user would in the Properties pane: Component (its name, rapidr_list gives them), Property (Caption, Left, Width, Color …) and Value as the code writes it (" + CHR$(34) + "OK" + CHR$(34) + " for text, 120, &HFF0000, True). One undo step in its file.", "Component AS STRING, Property AS STRING, Value AS STRING", "change"
-  Mcp.AddTool "debug", "The debugger, on the program run_program started with Debug = true: Action breakpoint (File and Line: set one; Remove = true takes it away), continue, step_over, step_into, step_out, pause, or state. Waits up to Wait seconds (5 by default) for the program to stop, then says where it is, the call stack and the variables.", "Action AS STRING, [File AS STRING], [Line AS INTEGER], [Remove AS BOOLEAN], [Wait AS INTEGER]", "change"
-  Mcp.AddTool "run_program", "Runs the open project's program in Studio (saving its files first, as Run does) and waits up to Wait seconds (3 by default, 60 at most) or until it ends; says how it went and what it printed. Action: start (default), stop, restart or status. Debug = true runs it with the debugger (it stops at the user's breakpoints).", "[Action AS STRING], [Wait AS INTEGER], [Debug AS BOOLEAN]", "change"
-  Mcp.AddTool "ask_rai", "Asks RAI, RapidR Studio's own assistant, as the user would in its panel (the user sees it), and waits for its answer (Wait = false: at once; then get_rai_steps). RAI may propose changes the user reviews. It uses the user's AI provider, which may cost money.", "Prompt AS STRING, [Wait AS BOOLEAN]", "network"
+  names = McpTools.ToolAliases
+  n = TALLY(names, CHR$(10)) + 1
+  FOR k = 1 TO n
+    line = FIELD$(names, CHR$(10), k)
+    IF line <> "" THEN Mcp.AddAlias FIELD$(line, CHR$(9), 1), FIELD$(line, CHR$(9), 2)
+  NEXT
+  Mcp.ClearPrompts
+  names = McpTools.PromptList
+  n = TALLY(names, CHR$(10)) + 1
+  FOR k = 1 TO n
+    line = FIELD$(names, CHR$(10), k)
+    IF line <> "" THEN Mcp.AddPrompt FIELD$(line, CHR$(9), 1), FIELD$(line, CHR$(9), 2), FIELD$(line, CHR$(9), 3), McpTools.PromptText(FIELD$(line, CHR$(9), 1))
+  NEXT
+  Mcp.ClearResources
+  names = McpTools.ResourceList
+  n = TALLY(names, CHR$(10)) + 1
+  FOR k = 1 TO n
+    line = FIELD$(names, CHR$(10), k)
+    IF line <> "" THEN Mcp.AddResource FIELD$(line, CHR$(9), 1), FIELD$(line, CHR$(9), 2), FIELD$(line, CHR$(9), 3), "text/markdown"
+  NEXT
+END SUB
+
+' (a resource read: Studio's own guide text — the core rules, the
+' workflows, the manual's page on forms)
+SUB McpResourceRead(Uri AS STRING, CallId AS INTEGER)
+  Mcp.Reply CallId, McpTools.ResourceText(Uri)
+  McpLogLine Mcp.ClientName, "resource", Uri, "", "ok"
 END SUB
 
 ' The open project, as McpTools sees it: its files, the editors' texts.
@@ -1273,21 +1270,23 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
   ' (a crash report's last calls: the tool's name only — crash.inc)
   Proj.CrashCall "MCP: " + Tool
   McpPaneShow
-  kind = McpKindOf(Tool)
+  ' (its permission class — read, change, run, drive, rai, note — from the
+  ' one tool set; the decision from the one policy)
+  kind = McpTools.ToolGrant(Tool)
   ' (the open project's mode)
   McpModeFollow
-  perm = McpDecision(kind)
+  perm = McpDecision(Tool, kind)
   McpSyncProject
   what = McpTools.ToolActivity(Tool, Arguments)
   IF perm = "refuse" THEN
-    Mcp.Reply CallId, "Not allowed: RapidR Studio lets AI apps only look at this project now, and not at the running program (its user chose Read only in the AI Apps pane), so nothing can be changed, run, looked at in the program or used. Tell the user what you would do instead; they can choose another mode there.", 1
+    Mcp.Reply CallId, McpTools.Refusal(Tool, McpMode), 1
     McpLogLine client, Tool, what, "", "refused: Read only"
     EXIT SUB
   END IF
   ' (a change to files is made first — nothing is written — so the user
-  ' decides on what it really is; a run, RAI, a property and a project to
+  ' decides on what it really is; a run, RAI, a version and a project to
   ' open are asked first)
-  IF kind = "change" AND Tool <> "open_project" AND Tool <> "set_property" THEN
+  IF kind = "change" AND McpTools.ToolHandler(Tool) = "core" THEN
     McpProposeThen Tool, Arguments, CallId, client, what, perm
     EXIT SUB
   END IF
@@ -1428,10 +1427,10 @@ SUB McpDecide(Choice AS INTEGER)
   ' (mcpapp.inc: the running program allowed — until this run ends)
   IF Choice > 0 AND kind = "drive" THEN McpAppRunAllowed = RunStarted
   IF Choice = 0 THEN
-    IF kind = "change" AND tool <> "open_project" THEN McpRejectAll
+    IF kind = "change" AND McpTools.ToolHandler(tool) = "core" THEN McpRejectAll
     Mcp.Reply callId, "The user didn't allow this in RapidR Studio. Ask them what they want instead.", 1
     McpLogLine client, tool, what, "", "denied by you"
-  ELSEIF kind = "change" AND tool <> "open_project" THEN
+  ELSEIF kind = "change" AND McpTools.ToolHandler(tool) = "core" THEN
     Mcp.Reply callId, McpApply(args), 0
     McpLogLine client, tool, what, McpTools.CallTarget, "applied (you allowed it)"
   ELSE
@@ -1605,55 +1604,89 @@ END SUB
 
 ' ---- the tools Studio adds ----------------------------------------------------------------
 
-' A call allowed: run now (or later: run_program and ask_rai answer when
-' they are done).
+' A call allowed: run now (or later: run_program, debug and ask_rai answer
+' when they are done). Studio's own tools (tools.inc) are the ones RAI's
+' calls reach too; AI apps' own here: open_project, capture, ask_rai and
+' RAI's state.
 SUB McpRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
-  DIM answer AS STRING, failed AS INTEGER
+  DIM answer AS STRING, failed AS INTEGER, n AS INTEGER
   SELECT CASE Tool
-    CASE "studio_status": answer = McpStatusText
-    CASE "list_documents": answer = McpDocumentsText
-    CASE "get_problems"
-      answer = McpTools.CallTool("check_code", "{}")
-      failed = McpTools.CallFailed
-    CASE "read_output": answer = McpReadOutput(Flag(LCASE$(Mcp.Argument("All", CallId)) = "true"))
     CASE "get_rai_steps": answer = McpRaiStepsText
     CASE "get_rai_transcript": answer = McpRaiTranscript(VAL(Mcp.Argument("Chars", CallId)))
     CASE "get_rai_audit": answer = McpRaiAudit(VAL(Mcp.Argument("Count", CallId)))
     CASE "open_project"
       answer = McpOpenProject(Mcp.Argument("Path", CallId))
       failed = Flag(LEFT$(answer, 7) = "Can't o")
-    CASE "run_program"
-      McpRunProgram CallId, Client, What
-      EXIT SUB
-    CASE "debug"
-      McpDebug CallId, Client, What
-      EXIT SUB
-    CASE "layout_report"
-      McpSyncProject
-      answer = McpTools.LayoutReport
     CASE "capture"
       McpCapture CallId, Client
       EXIT SUB
-    ' (mcpapp.inc: the program answers through Session's OnApp)
-    CASE "app_layout", "app_screenshot", "app_click", "app_type", "app_key", "app_drag", "app_scroll", "app_wait"
-      McpAppRun Tool, CallId, Client, What
-      EXIT SUB
-    CASE "set_property"
-      answer = McpSetProperty(Mcp.Argument("Component", CallId), Mcp.Argument("Property", CallId), Mcp.Argument("Value", CallId))
-      failed = Flag(LEFT$(answer, 4) = "Can'")
     CASE "ask_rai"
       McpAskRai CallId, Client, What
       EXIT SUB
     CASE ELSE
-      ' (the assistant's tools)
-      answer = McpTools.CallTool(Tool, Arguments)
-      failed = McpTools.CallFailed
-      Mcp.Reply CallId, answer, failed
-      IF failed THEN McpLogLine Client, Tool, What, McpTools.CallTarget, McpErrorOutcome(answer) ELSE McpLogLine Client, Tool, What, McpTools.CallTarget, "ok"
-      EXIT SUB
+      SELECT CASE McpTools.ToolHandler(Tool)
+        ' (mcpapp.inc: the program answers through Session's OnApp)
+        CASE "app"
+          McpAppRun Tool, Arguments, CallId, Client, What
+          EXIT SUB
+        ' (Studio's own — tools.inc —: answered through McpStudioAnswered)
+        CASE "studio"
+          IF McpStCount >= MCPSTUDIO THEN
+            Mcp.Reply CallId, "Too many calls are waiting for RapidR Studio: wait for their answers first.", 1
+            EXIT SUB
+          END IF
+          n = McpStCount
+          McpStCall(n) = CallId
+          McpStClient(n) = Client
+          McpStTool(n) = Tool
+          McpStWhat(n) = What
+          McpStCount = n + 1
+          IF Tool = "run_program" THEN McpRunClient = Client
+          ToolsWho = Client + " (AI app)"
+          ToolsRun "mcp:" + Num(CallId), Tool, McpTools.NormalArgs(Arguments)
+          EXIT SUB
+        ' (the project's tools, in Rust: the same RAI's are)
+        CASE ELSE
+          answer = McpTools.CallTool(Tool, Arguments)
+          failed = McpTools.CallFailed
+          Mcp.Reply CallId, answer, failed
+          IF failed THEN McpLogLine Client, Tool, What, McpTools.CallTarget, McpErrorOutcome(answer) ELSE McpLogLine Client, Tool, What, McpTools.CallTarget, "ok"
+          EXIT SUB
+      END SELECT
   END SELECT
   Mcp.Reply CallId, answer, failed
   IF failed THEN McpLogLine Client, Tool, What, "", McpErrorOutcome(answer) ELSE McpLogLine Client, Tool, What, "", "ok"
+END SUB
+
+' A call of Studio's own tools (tools.inc) answered: the AI app told, the
+' pane's line written.
+SUB McpStudioAnswered(CallId AS INTEGER, Text AS STRING, Failed AS INTEGER)
+  DIM k AS INTEGER, found AS INTEGER
+  found = -1
+  FOR k = 0 TO McpStCount - 1
+    IF McpStCall(k) = CallId AND found < 0 THEN found = k
+  NEXT
+  Mcp.Reply CallId, Text, Failed
+  IF found < 0 THEN EXIT SUB
+  IF Failed THEN McpLogLine McpStClient(found), McpStTool(found), McpStWhat(found), "", McpErrorOutcome(Text) ELSE McpLogLine McpStClient(found), McpStTool(found), McpStWhat(found), "", "ok"
+  FOR k = found TO McpStCount - 2
+    McpStCall(k) = McpStCall(k + 1)
+    McpStClient(k) = McpStClient(k + 1)
+    McpStTool(k) = McpStTool(k + 1)
+    McpStWhat(k) = McpStWhat(k + 1)
+  NEXT
+  McpStCount = McpStCount - 1
+END SUB
+
+' (a run an AI app started ended by itself before the wait was over: the
+' pane says so too)
+SUB McpRunEnded
+  IF RunState = "running" OR RunState = "paused" OR RunStarted = 0 OR RunEndedAt < RunStarted THEN EXIT SUB
+  IF ToolsOut = "" AND ToolsOutDropped = 0 THEN
+    McpLogLine McpRunClient, "run_program", TR$("The program started and ended after {seconds} s (exit code {code}), with no output", "seconds", ToolsRunSeconds, "code", RunExitCode), "", ""
+  ELSE
+    McpLogLine McpRunClient, "run_program", TR$("The program started and ended after {seconds} s (exit code {code})", "seconds", ToolsRunSeconds, "code", RunExitCode), "", ""
+  END IF
 END SUB
 
 ' (a failed call's line says why: the first sentence the AI app was told,
@@ -1677,69 +1710,11 @@ FUNCTION McpShownPath(Path AS STRING) AS STRING
 END FUNCTION
 
 
-FUNCTION McpStatusText AS STRING
-  DIM t AS STRING, nl AS STRING, i AS INTEGER, f AS STRING, d AS INTEGER, docs AS STRING, n AS INTEGER, info AS STRING
-  nl = CHR$(10)
-  t = "RapidR Studio " + Lang.Version + nl
-  IF ProjectOpen THEN
-    FOR i = 0 TO Proj.FileCount - 1
-      IF f <> "" THEN f = f + ", "
-      f = f + Proj.File(i)
-    NEXT
-    t = t + "Project: " + ProjectName + " (" + McpShownPath(Proj.Folder) + "); main file " + Proj.MainFile + "; files: " + f + nl
-  ELSE
-    t = t + "Project: none open (open_project opens one; examples/gui/hello_form.rr is one of RapidR's examples)" + nl
-  END IF
-  t = t + "Documents: " + McpDocumentsText + nl
-  SELECT CASE RunState
-    CASE "running": t = t + "Program: running" + nl
-    CASE "paused": t = t + "Program: paused (debugger) at " + FileTitle(PausedFile) + ":" + Num(PausedLine) + nl
-    CASE "error": t = t + "Program: not running (" + StateText + ")" + nl
-    CASE ELSE: t = t + "Program: not running" + nl
-  END SELECT
-  IF ProjectOpen THEN t = t + "Errors: " + Num(ProgramErrors) + " (get_problems lists them)" + nl
-  IF AIReady THEN
-    IF AI.Busy THEN t = t + "RAI: answering (" + AI.Activity + ")" + nl ELSE t = t + "RAI: ready (" + AI.Provider + ", " + AI.Model + ")" + nl
-  ELSE
-    t = t + "RAI: not set up (the user sets it up in Studio)" + nl
-  END IF
-  FOR i = 0 TO McpTools.ProposalCount - 1
-    info = McpTools.ProposalInfo(i)
-    IF FIELD$(info, CHR$(9), 6) = "" THEN n = n + 1
-  NEXT
-  IF n > 0 THEN t = t + "Your changes waiting for the user: " + Num(n) + nl
-  ' (why capture says no for now)
-  IF McpDialogOpen <> "" THEN t = t + "Open in Studio: " + McpDialogOpen + " (no picture of Studio until it closes)" + nl
-  t = t + "Permission: " + McpModeNameEn(McpMode) + " — " + McpModeNoteEn(McpMode)
-  IF McpGrants <> "" AND McpMode = "ask" THEN t = t + " Allowed for this session: " + REPLACESUBSTR$(MID$(McpGrants, 2, LEN(McpGrants) - 2), "||", ", ") + "."
-  ' (what to do next: an empty project says "call find_example first")
-  t = t + nl + McpTools.StatusNext
-  Result = t
-END FUNCTION
-
 FUNCTION McpRel(Path AS STRING) AS STRING
   DIM p AS STRING, f AS STRING
   p = REPLACESUBSTR$(Path, "\", "/")
   f = REPLACESUBSTR$(Proj.Folder, "\", "/")
   IF f <> "" AND LEFT$(p, LEN(f) + 1) = f + "/" THEN Result = MID$(p, LEN(f) + 2) ELSE Result = McpShownPath(p)
-END FUNCTION
-
-FUNCTION McpDocumentsText AS STRING
-  DIM d AS INTEGER, t AS STRING, one AS STRING
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) THEN
-      one = McpRel(DocFile(d))
-      IF d = ActiveDoc THEN one = one + " (active"
-      IF d <> ActiveDoc THEN one = one + " ("
-      IF DocHasForm(d) AND DocViewNow(d) = "design" THEN one = one + ", Design view" ELSE one = one + ", Code view"
-      IF DocDirty(d) THEN one = one + ", unsaved changes"
-      one = REPLACESUBSTR$(one, "(, ", "(") + ")"
-      IF t <> "" THEN t = t + "; "
-      t = t + one
-    END IF
-  NEXT
-  IF t = "" THEN t = "none open"
-  Result = t
 END FUNCTION
 
 ' ---- open_project ------------------------------------------------------------------------
@@ -1818,187 +1793,7 @@ FUNCTION McpOpenProject(Path AS STRING) AS STRING
   END IF
   McpCarryMode before, beforeKey
   McpSyncProject
-  Result = "Opened. " + McpStatusText
-END FUNCTION
-
-' ---- run_program and read_output -----------------------------------------------------------
-
-' (debug.inc's ProgramOutput: the program's output, kept for read_output)
-SUB McpProgramOutput(Text AS STRING)
-  IF Mcp.Listening = 0 THEN EXIT SUB
-  McpOutput = McpOutput + Text
-  IF LEN(McpOutput) > MCP_OUTPUT_KEPT THEN
-    McpOutputDropped = McpOutputDropped + LEN(McpOutput) - MCP_OUTPUT_KEPT
-    McpOutput = RIGHT$(McpOutput, MCP_OUTPUT_KEPT)
-  END IF
-END SUB
-
-FUNCTION McpRunWords AS STRING
-  SELECT CASE RunState
-    CASE "running": Result = "The program is running."
-    CASE "paused": Result = "The program is paused in the debugger at " + FileTitle(PausedFile) + ":" + Num(PausedLine) + "."
-    CASE ELSE
-      ' (it ran and ended by itself — at once, maybe: said so, how long it
-      ' ran, its exit code and whether it printed anything; "isn't running"
-      ' made an agent think it never started)
-      IF RunStarted > 0 AND RunEndedAt >= RunStarted THEN
-        Result = "The program started and ended after " + McpRunSeconds + " s (exit code " + Num(RunExitCode) + ")"
-        IF McpOutput = "" AND McpOutputDropped = 0 THEN
-          Result = Result + ", with no output. If it should have opened a window or printed something: check_code shows what the compiler sees in it (a SUB that ends with END instead of END SUB swallows the lines after it), and read_output everything it printed."
-        ELSE
-          Result = Result + "."
-        END IF
-      ELSEIF RunState = "error" THEN
-        Result = "The program isn't running: " + StateText + "."
-      ELSE
-        Result = "The program isn't running."
-      END IF
-  END SELECT
-END FUNCTION
-
-' (how long the last run took, in seconds with one decimal: "0.2")
-FUNCTION McpRunSeconds AS STRING
-  DIM tenths AS LONG
-  tenths = INT((RunEndedAt - RunStarted) * 10 + 0.5)
-  Result = LTRIM$(STR$(tenths \ 10)) + "." + LTRIM$(STR$(tenths MOD 10))
-END FUNCTION
-
-FUNCTION McpOutputFrom(At AS LONG) AS STRING
-  DIM from AS LONG
-  from = At - McpOutputDropped
-  IF from < 0 THEN from = 0
-  Result = MID$(McpOutput, from + 1)
-END FUNCTION
-
-FUNCTION McpReadOutput(All AS INTEGER) AS STRING
-  DIM t AS STRING
-  IF All THEN t = McpOutputFrom(0) ELSE t = McpOutputFrom(McpOutputRead)
-  McpOutputRead = McpOutputDropped + LEN(McpOutput)
-  IF t = "" THEN t = "(no new output)"
-  Result = McpRunWords + CHR$(10) + "Output:" + CHR$(10) + t
-END FUNCTION
-
-SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
-  DIM action AS STRING, w AS DOUBLE
-  action = LCASE$(Mcp.Argument("Action", CallId))
-  IF action = "" THEN action = "start"
-  w = VAL(Mcp.Argument("Wait", CallId))
-  IF Mcp.Argument("Wait", CallId) = "" THEN w = 3
-  IF w < 0 THEN w = 0
-  IF w > 60 THEN w = 60
-  SELECT CASE action
-    CASE "status"
-      Mcp.Reply CallId, McpReadOutput(0)
-      McpLogLine Client, "run_program", TR$("Program status"), "", "ok"
-      EXIT SUB
-    CASE "stop"
-      IF RunState = "running" OR RunState = "paused" THEN RunCommand "run.stop"
-      Mcp.Reply CallId, "Stopped. " + McpReadOutput(0)
-      McpLogLine Client, "run_program", TR$("Stopped the program"), "", "ok"
-      EXIT SUB
-    CASE "start", "restart"
-      IF ProjectOpen = 0 THEN
-        Mcp.Reply CallId, "No project is open: open_project first.", 1
-        EXIT SUB
-      END IF
-      IF action = "restart" AND (RunState = "running" OR RunState = "paused") THEN RunCommand "run.stop"
-      IF RunState = "running" OR RunState = "paused" THEN
-        Mcp.Reply CallId, "The program runs already: run_program with Action stop (or restart) first. " + McpReadOutput(0), 1
-        EXIT SUB
-      END IF
-      McpOutput = "": McpOutputDropped = 0: McpOutputRead = 0
-      IF LCASE$(Mcp.Argument("Debug", CallId)) = "true" THEN StartProgram 1 ELSE StartProgram 0
-      IF RunState <> "running" AND RunState <> "paused" THEN
-        Mcp.Reply CallId, "Studio couldn't run it: " + StateText + CHR$(10) + McpTools.CallTool("check_code", "{}"), 1
-        McpLogLine Client, "run_program", What, "", "couldn't run"
-        EXIT SUB
-      END IF
-      McpRunCall = CallId
-      McpRunUntil = TIMER + w
-      McpRunAction = action
-      McpRunClient = Client
-      McpLogLine Client, "run_program", TR$("Running the program"), "", "started"
-    CASE ELSE
-      Mcp.Reply CallId, "Action is start, stop, restart or status.", 1
-  END SELECT
-END SUB
-
-' ---- debug -----------------------------------------------------------------------------
-
-SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
-  DIM action AS STRING, f AS STRING, full AS STRING, d AS INTEGER, ln AS INTEGER, i AS INTEGER, w AS DOUBLE
-  action = LCASE$(Mcp.Argument("Action", CallId))
-  w = VAL(Mcp.Argument("Wait", CallId))
-  IF Mcp.Argument("Wait", CallId) = "" THEN w = 5
-  IF w < 0 THEN w = 0
-  IF w > 60 THEN w = 60
-  SELECT CASE action
-    CASE "breakpoint"
-      f = Mcp.Argument("File", CallId)
-      IF f = "" THEN f = Proj.MainFile
-      ln = VAL(Mcp.Argument("Line", CallId))
-      full = ProjectPath(f)
-      IF ProjectOpen = 0 OR InProject(full) = 0 OR ln < 1 THEN
-        Mcp.Reply CallId, "Can't: give File (one of the project's files) and Line (from 1).", 1
-        EXIT SUB
-      END IF
-      d = DocOf(full)
-      IF d < 0 THEN
-        OpenDocument full
-        d = DocOf(full)
-      END IF
-      IF d < 0 THEN
-        Mcp.Reply CallId, "Can't open " + f + ".", 1
-        EXIT SUB
-      END IF
-      i = FindBreakpoint(DocFile(d), ln)
-      IF (LCASE$(Mcp.Argument("Remove", CallId)) = "true") = (i >= 0) THEN ToggleBreakpointAt d, ln
-      Mcp.Reply CallId, StateText + ". " + McpDebugState
-      McpLogLine Client, "debug", TR$(StateText), McpRel(full), "ok"
-      EXIT SUB
-    CASE "state"
-      Mcp.Reply CallId, McpDebugState
-      McpLogLine Client, "debug", TR$("Debugger state"), "", "ok"
-      EXIT SUB
-    CASE "continue": IF RunState = "paused" THEN RunCommand "run.continue"
-    CASE "step_over": RunCommand "debug.stepOver"
-    CASE "step_into": RunCommand "debug.stepInto"
-    CASE "step_out": RunCommand "debug.stepOut"
-    CASE "pause": RunCommand "run.pause"
-    CASE ELSE
-      Mcp.Reply CallId, "Action is breakpoint, continue, step_over, step_into, step_out, pause or state.", 1
-      EXIT SUB
-  END SELECT
-  McpLogLine Client, "debug", TR$("Debugger: {action}", "action", action), "", "ok"
-  McpDebugCall = CallId
-  McpDebugUntil = TIMER + w
-  McpDebugStops = LEN(StopLog)
-  McpDebugSettle = 0
-END SUB
-
-' Where the program is, its call stack and its variables, in words.
-FUNCTION McpDebugState AS STRING
-  DIM t AS STRING, nl AS STRING, k AS INTEGER, bps AS STRING
-  nl = CHR$(10)
-  t = McpRunWords
-  IF RunState = "paused" THEN
-    t = t + nl + "Call stack:"
-    FOR k = 0 TO FrameCount - 1
-      t = t + nl + "  " + FrameName(k) + "  " + FileTitle(FrameFile(k)) + ":" + Num(FrameLine(k))
-    NEXT
-    t = t + nl + "Variables:"
-    FOR k = 0 TO VarsTree.ItemCount - 1
-      IF k > 60 THEN EXIT FOR
-      t = t + nl + "  " + VarsTree.Item(k).Text
-    NEXT
-  END IF
-  FOR k = 0 TO BpCount - 1
-    IF bps <> "" THEN bps = bps + ", "
-    bps = bps + McpRel(BpFile(k)) + ":" + Num(BpLine(k))
-  NEXT
-  IF bps = "" THEN bps = "none"
-  t = t + nl + "Breakpoints: " + bps
-  Result = t
+  Result = "Opened. " + ToolsStatusText("mcp:0")
 END FUNCTION
 
 ' ---- capture and set_property ------------------------------------------------------------
@@ -2042,49 +1837,6 @@ SUB McpCapture(CallId AS INTEGER, Client AS STRING)
   KILL f
   McpLogLine Client, "capture", TR$("A picture of Studio"), "", "ok"
 END SUB
-
-' A component's property set in its form's designer (opened when it isn't),
-' as the Properties pane would: one undo step in its file.
-FUNCTION McpSetProperty(Component AS STRING, Prop AS STRING, Value AS STRING) AS STRING
-  DIM d AS INTEGER, i AS INTEGER, found AS INTEGER, listing AS STRING, file AS STRING, k AS INTEGER
-  found = -1
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) AND DocHasForm(d) AND found < 0 THEN
-      FOR i = 0 TO DesignDoc(d).Count - 1
-        IF LCASE$(DesignDoc(d).GetName(i)) = LCASE$(Component) THEN found = d: k = i
-      NEXT
-    END IF
-  NEXT
-  IF found < 0 THEN
-    ' (its file, from the source: opened, then looked for again)
-    McpSyncProject
-    listing = McpTools.CallTool("rapidr_list", "{}")
-    IF McpTools.CallFailed = 0 THEN
-      McpJ.Parse listing
-      i = 0
-      WHILE McpJ.Has("content.objects." + Num(i) + ".id") AND file = ""
-        IF LCASE$(McpJ.Get("content.objects." + Num(i) + ".id")) = LCASE$(Component) THEN file = McpJ.Get("content.objects." + Num(i) + ".file")
-        i = i + 1
-      WEND
-      IF file <> "" THEN
-        OpenDocument ProjectPath(file)
-        d = DocOf(ProjectPath(file))
-        IF d >= 0 THEN
-          FOR i = 0 TO DesignDoc(d).Count - 1
-            IF LCASE$(DesignDoc(d).GetName(i)) = LCASE$(Component) THEN found = d: k = i
-          NEXT
-        END IF
-      END IF
-    END IF
-  END IF
-  IF found < 0 THEN
-    Result = "Can't find a component named " + Component + " in the project's forms (rapidr_list lists them)."
-    EXIT FUNCTION
-  END IF
-  DesignDoc(found).SetProp k, Prop, Value
-  ProjectFileChanged found
-  Result = Component + "." + Prop + " is now " + DesignDoc(found).GetProp(k, Prop) + " (in " + McpRel(DocFile(found)) + ": Edit > Undo takes it back; Run saves it)."
-END FUNCTION
 
 ' ---- ask_rai and RAI's state ------------------------------------------------------------
 
@@ -2159,32 +1911,6 @@ SUB McpTickTimer(Sender AS RTimer)
   DIM t AS STRING
   ' (another project open: its own mode)
   McpModeFollow
-  IF McpRunCall > 0 THEN
-    IF RunState <> "running" OR TIMER >= McpRunUntil OR TIMER < McpRunUntil - 120 THEN
-      t = McpReadOutput(1)
-      IF RunState = "running" THEN t = t + CHR$(10) + "(It still runs: read_output for more, run_program Action stop to end it.)"
-      IF RunState = "paused" THEN t = t + CHR$(10) + McpDebugState
-      Mcp.Reply McpRunCall, t, Flag(RunState = "error")
-      ' (ended by itself before the wait was over: the pane says so too)
-      IF RunState <> "running" AND RunState <> "paused" AND RunEndedAt >= RunStarted AND RunStarted > 0 THEN
-        IF McpOutput = "" AND McpOutputDropped = 0 THEN
-          McpLogLine McpRunClient, "run_program", TR$("The program started and ended after {seconds} s (exit code {code}), with no output", "seconds", McpRunSeconds, "code", RunExitCode), "", ""
-        ELSE
-          McpLogLine McpRunClient, "run_program", TR$("The program started and ended after {seconds} s (exit code {code})", "seconds", McpRunSeconds, "code", RunExitCode), "", ""
-        END IF
-      END IF
-      McpRunCall = 0
-    END IF
-  END IF
-  IF McpDebugCall > 0 THEN
-    ' (stopped again — a breakpoint, a step's end — or ended: a moment for
-    ' the variables, then said)
-    IF McpDebugSettle = 0 AND (LEN(StopLog) <> McpDebugStops OR (RunState <> "running" AND RunState <> "paused") OR TIMER >= McpDebugUntil) THEN McpDebugSettle = TIMER + 0.6
-    IF McpDebugSettle > 0 AND TIMER >= McpDebugSettle THEN
-      Mcp.Reply McpDebugCall, McpDebugState
-      McpDebugCall = 0
-    END IF
-  END IF
   IF McpRaiCall > 0 THEN
     IF AI.Busy THEN
       IF AI.Activity <> McpRaiSaid THEN

@@ -12,6 +12,9 @@
 '   list_notes   the notes, one a line              (it only reads)
 '   add_note     adds a note: Text AS STRING        (it changes the list)
 '   find_notes   the notes with a word: Word AS STRING
+' search_notes, its old name, still works (AddAlias), and a ready-made
+' instruction, "Tidy my notes", is offered to the AI app's person
+' (AddPrompt).
 '
 ' The server listens on 127.0.0.1 only — this computer — and refuses a
 ' request without the token, one from a web page and one for another host
@@ -145,6 +148,10 @@ Mcp.Instructions = "A short list of notes the user keeps. Read them with list_no
 Mcp.AddTool "list_notes", "The user's notes, one a line.", "", "read"
 Mcp.AddTool "find_notes", "The notes that have a word in them (any case).", "Word AS STRING", "read"
 Mcp.AddTool "add_note", "Adds a note at the end of the user's list.", "Text AS STRING", "change"
+' (an AI app that still calls find_notes by its old name keeps working)
+Mcp.AddAlias "search_notes", "find_notes"
+' (a ready-made instruction the person can pick in their AI app)
+Mcp.AddPrompt "tidy", "Tidy my notes", "Finds notes that say the same thing", "Read my notes with list_notes and tell me which ones say the same thing, so I can merge them. Don't change the list."
 Mcp.Port = 47120
 IF COMMAND$(1) <> "" THEN Mcp.Port = VAL(COMMAND$(1))
 ' (the token: the one given, else a new random one — keep a real

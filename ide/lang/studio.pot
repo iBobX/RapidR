@@ -541,10 +541,6 @@ msgid "some changes weren't applied"
 msgstr ""
 
 #: ide/ai.inc
-msgid "RAI saved the version “{message}” ({id})"
-msgstr ""
-
-#: ide/ai.inc
 msgid "RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat."
 msgstr ""
 
@@ -4052,23 +4048,11 @@ msgid "{question} ({n} more waiting)"
 msgstr ""
 
 #: ide/mcp.inc
-msgid "Program status"
+msgid "The program started and ended after {seconds} s (exit code {code}), with no output"
 msgstr ""
 
 #: ide/mcp.inc
-msgid "Stopped the program"
-msgstr ""
-
-#: ide/mcp.inc
-msgid "Running the program"
-msgstr ""
-
-#: ide/mcp.inc
-msgid "Debugger state"
-msgstr ""
-
-#: ide/mcp.inc
-msgid "Debugger: {action}"
+msgid "The program started and ended after {seconds} s (exit code {code})"
 msgstr ""
 
 #: ide/mcp.inc
@@ -4077,14 +4061,6 @@ msgstr ""
 
 #: ide/mcp.inc
 msgid "Asking RAI: {prompt}"
-msgstr ""
-
-#: ide/mcp.inc
-msgid "The program started and ended after {seconds} s (exit code {code}), with no output"
-msgstr ""
-
-#: ide/mcp.inc
-msgid "The program started and ended after {seconds} s (exit code {code})"
 msgstr ""
 
 #: ide/mcp.inc
@@ -6010,6 +5986,22 @@ msgstr ""
 msgid "RapidR Studio is ready."
 msgstr ""
 
+#: ide/tools.inc
+msgid "RAI saved the version “{message}” ({id})"
+msgstr ""
+
+#: ide/tools.inc
+msgid "An AI app saved the version “{message}” ({id})"
+msgstr ""
+
+#: ide/tools.inc
+msgid "Went back to version {version}: a new version ({id}). Undo in Versions takes it back."
+msgstr ""
+
+#: ide/tools.inc ide/versions.inc
+msgid "This project keeps versions now: {folder}"
+msgstr ""
+
 #: ide/versions.inc
 msgid "&Start Keeping Versions of This Project"
 msgstr ""
@@ -6362,10 +6354,6 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Versions didn't start"
-msgstr ""
-
-#: ide/versions.inc
-msgid "This project keeps versions now: {folder}"
 msgstr ""
 
 #: ide/versions.inc

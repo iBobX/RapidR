@@ -14,19 +14,79 @@
 /// The instructions' budget, in tokens (`rapidr_lang::card::estimate_tokens`).
 pub const BUDGET_TOKENS: usize = 1_200;
 
-/// The workflow: what to do, in order.
-const WORKFLOW: &str = "\
-RapidR Studio, the IDE of RapidR (a modern BASIC), with the user watching every call. The open project IS the user's program: put your work in its files. create_project only makes a separate new project.
+/// The core rules' own budget (tokens): short enough for a small model to
+/// keep in mind (docs/ai-tools.md "Small models").
+pub const CORE_BUDGET_TOKENS: usize = 420;
 
-Work in this order:
-1. studio_status says what is open.
-2. find_example for what the user wants: it returns a working program. Start from it and change names, captions and logic; don't write from nothing.
-3. write_file (a new file, or the recipe into an empty main.rr) or propose_edit (a few lines of a file: never resend a whole file to change a few lines). Paths are relative to the project's folder: main.rr.
-4. check_code after every write. Each error has a hint line with the RapidR form: apply it.
-5. The same error twice: stop rewriting; call find_example and start from its recipe again.
-6. rapidr_describe before a component or builtin you are unsure of (never invent one); search_manual for \"how do I\".
-7. run_program, read_output; app_layout, app_screenshot, app_click and app_type to see and use the running program (the user sees a pointer; the first look of a run may wait for them). ask_rai asks RapidR's own assistant (may cost the user money).
+/// The core rules: what every AI working in RapidR Studio is told first —
+/// RAI and AI apps alike —, numbered, one line each, plain words, the exact
+/// tools. The rest comes when asked (how_do_i, the tools' own words).
+pub const CORE_RULES: &str = "\
+RapidR Studio, the IDE of RapidR (a modern BASIC). The user watches every call. The open project IS the user's program: work in its files.
+1. studio_status first: what is open, the errors, what you may do.
+2. Learn with rapidr_describe (the truth about a component or builtin), find_example (working code) and search_manual. Never read RapidR's own source code, never invent a member.
+3. Something new: find_example first, then adapt its code.
+4. To change code: save_version, read_file, propose_edit (only the lines that change), check_code, run_program, app_screenshot or app_layout, save_version.
+5. A new file: write_file. create_project only makes a separate new project.
+6. check_code after every change. Problems must be 0 before you run, measure or report.
+7. Each error has a hint line with the RapidR form: apply it. The same error twice: stop rewriting, find_example.
+8. See the running program with app_layout or app_screenshot; use it with app_click, app_type, app_key; read_output for what it printed.
+9. A crash or a wrong value: run_program with debug true, then debug (breakpoint, state, step_over).
+10. Never use git or a shell for the user's project: save_version, list_versions, compare_versions, restore_version.
+11. Not sure which tool comes next: how_do_i. A tool or an answer is missing: report_gap, then go on.
+12. Report only what you saw working: the output, a picture, numbers.
 ";
+
+/// The ready-made instructions Studio's MCP server offers an AI app's
+/// person (MCP prompts): (name, title, what it is for, the text).
+pub const PROMPTS: &[(&str, &str, &str, &str)] = &[
+    (
+        "rapidr-way",
+        "Work on this project the RapidR way",
+        "The steps and tools for changing the open project safely: versions, small changes, checks, runs, seeing it work.",
+        "Work on the project open in RapidR Studio, step by step, the RapidR way:
+1. studio_status — what is open, and what you may do.
+2. list_versions — start_versions if it keeps none; then save_version {\"message\": \"Before: <the task>\"}.
+3. Learn what you need: rapidr_describe for a component or builtin, find_example for working code, search_manual for how-to. Never read RapidR's own source, never invent a member.
+4. read_file, then propose_edit — only the lines that change. A new file: write_file.
+5. check_code until Problems = 0 (apply each error's hint line).
+6. run_program, then app_layout or app_screenshot to see it; app_click and app_type to use it; read_output.
+7. When a step works: save_version {\"message\": \"<what works now>\"}. Something broke: compare_versions, or restore_version.
+8. Never use git or a shell for the project. A tool or an answer is missing: report_gap.
+9. At the end, tell the user what you changed and what you saw working.",
+    ),
+    (
+        "new-app",
+        "Start a new RapidR app",
+        "From a sentence to a working program: an example first, then the code, checked, run and seen.",
+        "Make the new program the user describes, in RapidR, in RapidR Studio:
+1. studio_status — an empty project open: build it there (write_file main.rr); nothing open: create_project.
+2. find_example {\"query\": \"<what the program does, in a few words>\"} — start from the working code it gives.
+3. Adapt it: names, captions, logic. A window is CREATE Form AS RForm … END CREATE, ending with Form.ShowModal.
+4. check_code until Problems = 0.
+5. run_program, then app_screenshot or app_layout to see it; click through it with app_click.
+6. save_version {\"message\": \"First version\"} (start_versions first if needed).
+7. Tell the user what it does and how to use it.",
+    ),
+];
+
+/// The resources Studio's MCP server offers (uri, title, what it is): the
+/// rules, the workflows, the manual's guide to forms.
+pub const RESOURCES: &[(&str, &str, &str)] = &[
+    ("rapidr://guide/rules", "The core rules", "How to work in RapidR Studio: the core rules and the language card"),
+    ("rapidr://guide/workflows", "Workflows", "Each task's steps with the exact tools (what how_do_i answers)"),
+    ("rapidr://guide/forms", "Designing forms", "RapidR's manual on designing forms: the designer, layout, Align"),
+];
+
+/// A resource's text (`None`: not one of them).
+pub fn resource(uri: &str) -> Option<String> {
+    match uri {
+        "rapidr://guide/rules" => Some(server_instructions()),
+        "rapidr://guide/workflows" => Some(crate::tools_core::all_workflows()),
+        "rapidr://guide/forms" => crate::manual_search::PAGES.iter().find(|(p, _)| *p == "designing-forms.md").map(|(_, t)| t.to_string()),
+        _ => None,
+    }
+}
 
 /// The language card: the rules small models break most (a line each).
 const CARD: &str = "\
@@ -55,9 +115,9 @@ RapidR in short (names are not case-sensitive):
 - Not sure of a component, property or builtin? rapidr_describe it. Never invent one.
 ";
 
-/// The server's instructions: the workflow, then the card.
+/// The server's instructions: the core rules, then the card.
 pub fn server_instructions() -> String {
-    format!("{WORKFLOW}\n{CARD}")
+    format!("{CORE_RULES}\n{CARD}")
 }
 
 /// What `studio_status` adds at its end: the next step for this project.
@@ -87,7 +147,7 @@ mod tests {
     #[test]
     fn the_instructions_hold_the_workflow_and_stay_inside_the_budget() {
         let text = server_instructions();
-        for must in ["find_example", "check_code", "hint", "The open project IS the user's program", "create_project only makes a separate new project", "stop rewriting", "propose_edit", "studio_status"] {
+        for must in ["find_example", "check_code", "hint", "The open project IS the user's program", "create_project only makes a separate new project", "stop rewriting", "propose_edit", "studio_status", "Never use git or a shell", "save_version", "Problems must be 0", "how_do_i", "report_gap"] {
             assert!(text.contains(must), "missing {must:?}");
         }
         let tokens = rapidr_lang::card::estimate_tokens(&text);
@@ -175,6 +235,29 @@ Form.ShowModal
         a.update(file, program);
         let errors: Vec<String> = a.diagnostics(file).into_iter().filter(|d| d.severity == Severity::Error).map(|d| d.message).collect();
         assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    /// The core rules: 10 to 15 numbered lines, each one action with its
+    /// exact tool, under their budget — and every tool they name is one.
+    #[test]
+    fn the_core_rules_are_short_numbered_and_name_real_tools() {
+        let numbered: Vec<&str> = CORE_RULES.lines().filter(|l| l.split('.').next().is_some_and(|n| n.parse::<u32>().is_ok())).collect();
+        assert!((10..=15).contains(&numbered.len()), "{} rules", numbered.len());
+        for l in &numbered {
+            assert!(l.len() <= 200, "one line, plain: {l}");
+        }
+        let tokens = rapidr_lang::card::estimate_tokens(CORE_RULES);
+        println!("core rules: {} characters, about {tokens} tokens", CORE_RULES.len());
+        assert!(tokens <= CORE_BUDGET_TOKENS, "{tokens} tokens: over {CORE_BUDGET_TOKENS}");
+        // (every snake_case word a tool's name)
+        let all = format!("{CORE_RULES}{}", PROMPTS.iter().map(|p| p.3).collect::<String>());
+        let not_tools = ["step_over", "step_into", "step_out", "old_text", "new_text"];
+        for w in all.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).filter(|w| w.contains('_') && w.chars().all(|c| c.is_ascii_lowercase() || c == '_') && !not_tools.contains(w)) {
+            assert!(crate::toolset::find(w).is_some(), "{w} isn't a tool");
+        }
+        for (uri, _, _) in RESOURCES {
+            assert!(resource(uri).is_some_and(|t| t.len() > 500), "{uri}");
+        }
     }
 
     #[test]

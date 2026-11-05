@@ -529,8 +529,11 @@ fn set_property(name: &str, prop: &str, val: Value) {
     }
     // (I1) RapidR Studio's RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION (studio.rs).
     #[cfg(feature = "studio")]
-    if rapidr_studio::is_studio_type(&rp_comp_type(name)) && crate::studio::set(&rp_comp_type(name), name, &prop_lower, &val) {
-        return;
+    {
+        let t = rp_comp_type(name);
+        if rapidr_studio::is_studio_type(&t) && crate::studio::set(&t, name, &prop_lower, &val) {
+            return;
+        }
     }
     // (I8) RAI, the AI component (ai.rs).
     #[cfg(feature = "network")]

@@ -6905,3 +6905,11 @@ msgstr "No se agregó todo: la Salida dice qué quedó fuera"
 
 msgid "{n} were in the project already or couldn't be added"
 msgstr "{n} ya estaban en el proyecto o no se pudieron agregar"
+
+#: ide/tools.inc
+msgid "An AI app saved the version “{message}” ({id})"
+msgstr "Una aplicación de IA guardó la versión «{message}» ({id})"
+
+#: ide/tools.inc
+msgid "Went back to version {version}: a new version ({id}). Undo in Versions takes it back."
+msgstr "Se volvió a la versión {version}: una versión nueva ({id}). Deshacer en Versiones lo revierte."

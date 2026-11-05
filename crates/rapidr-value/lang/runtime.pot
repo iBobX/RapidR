@@ -1173,7 +1173,19 @@ msgid "RAI wants to stop your running program."
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to bring your project back to an earlier version: your files become as they were then, saved as a new version. Nothing is lost, and Undo in Versions takes it back."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to start Versions in this project, so it can save versions of your work as it goes."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "RAI wants to click and type in your running program. It sees whatever the program shows, including private data."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Allow"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
@@ -1189,7 +1201,19 @@ msgid "You allowed RAI to run and use your program for this run"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to bring the project back to an earlier version"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to start Versions"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "You allowed RAI to use your running program for this run"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to change the versions"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
@@ -1298,6 +1322,50 @@ msgstr ""
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Laying out the buttons"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the open documents"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading the forms' layout"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Setting a property"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Setting a property of {name}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Using the debugger"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the versions"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Comparing versions"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Going back to a version"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Starting Versions"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking up how to do it"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Noting what's missing"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai_tools.rs

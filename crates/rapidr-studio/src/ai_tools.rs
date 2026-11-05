@@ -1,17 +1,9 @@
-//! The assistant's tools (docs/ide-ai.md §4.2, docs/ai-architecture.md
-//! §3–5): what a model may call while it answers, all on the project open
-//! in Studio and nothing beyond it.
-//!
-//! | Tool | Risk | What |
-//! |---|---|---|
-//! | `list_files` | read | the project's files |
-//! | `read_file` | read | a file's text (the editor's when it is open), inside the project only |
-//! | `rapidr_describe` | read | a component type's or builtin's registry entry (the introspection interface) |
-//! | `rapidr_list`, `rapidr_get` | read | the forms' components and their properties, from the source (design time) |
-//! | `check_code` | read | RapidR's compiler on a file, or on text as that file would be |
-//! | `propose_edit` | proposal | a change to a file — only the parts that change (search and replace, each old text once in the file) — shown to the user as a diff: nothing is written until they apply it |
-//! | `write_file` | proposal | a new file's text (or a file rewritten almost entirely), shown the same way |
-//! | `create_project` | proposal | a new program's files, previewed before anything is created |
+//! The project's tools (docs/ide-ai.md §4.2, docs/ai-architecture.md
+//! §3–5, docs/ai-tools.md): the handlers of RapidR Studio's one tool set
+//! that need only the project and RapidR's knowledge — files, the compiler,
+//! the forms, Help, examples, proposals —, the same for RAI and AI apps.
+//! The tools themselves (names, descriptions, schemas, who gets them) are
+//! [`crate::toolset`]'s; whether a call may run, [`crate::policy`]'s.
 //!
 //! What a tool returns from the project (a file, a property's value) goes
 //! back to the model as data, marked untrusted with where it came from
@@ -91,157 +83,36 @@ pub const MAX_TEXT: usize = 120_000;
 /// The most files a new project may have.
 const MAX_FILES: usize = 24;
 
-fn schema(props: Json, required: &[&str]) -> Json {
-    json!({"type": "object", "properties": props, "required": required, "additionalProperties": false})
-}
-
-/// The tools a model is offered: the read tools always, the proposing ones
-/// unless the permission is read-only.
+/// The tools a model is offered with the program not running (the
+/// registry's, [`crate::toolset::for_rai`]): the read tools always, the
+/// ones that change or run unless the permission is read-only.
 pub fn tools(proposals: bool) -> Vec<Tool> {
-    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
-    let mut out = vec![
-        t("list_files", "The open project's files (paths relative to its folder), its main file first.", schema(json!({}), &[])),
-        t("read_file", "A file of the open project: its text as the editor has it (unsaved changes included). Only files inside the project.", schema(json!({"path": {"type": "string", "description": "the file's path, relative to the project's folder, e.g. main.rr (list_files names them)"}}), &["path"])),
-        t(
-            "rapidr_describe",
-            "RapidR's registry entry for a component type (its properties with types, ranges and defaults, its methods, its events, an example) or for a builtin; or every type / builtin in one line each. Use it before using a component you haven't checked.",
-            schema(json!({"type": {"type": "string", "description": "a component type: RButton, RForm, RStringGrid (classic names too: QBUTTON)"}, "builtin": {"type": "string", "description": "a builtin function or statement: MID$, SHOWMESSAGE"}, "what": {"type": "string", "enum": ["types", "builtins"], "description": "list every type or every builtin"}}), &[]),
-        ),
-        t(
-            "rapidr_list",
-            "The components the project's source creates (its CREATE blocks), in creation order: their ids (names), types, parents and forms, with the file and line. Optionally only those inside `scope` (a component's id) or of one `type`.",
-            schema(json!({"scope": {"type": "string"}, "type": {"type": "string"}}), &[]),
-        ),
-        t(
-            "rapidr_get",
-            "One component's design-time properties (as the CREATE block writes them, or their defaults) and its bound events, typed; `props` to ask for some only.",
-            schema(json!({"id": {"type": "string", "description": "the component's name, as rapidr_list gives it"}, "props": {"type": "array", "items": {"type": "string"}}}), &["id"]),
-        ),
-        t(
-            "check_code",
-            "RapidR's compiler on a file of the project — or on `text` as that file would be with it — and the project's other files: its errors and warnings with line and column, or that there are none. Check every change before you propose it.",
-            schema(json!({"path": {"type": "string", "description": "the file, relative to the project's folder (main.rr); default: the main file"}, "text": {"type": "string", "description": "the file's text to check instead of what it has now"}}), &[]),
-        ),
-        t(
-            "find_example",
-            "A short working RapidR program close to what you describe (a calculator, a timer, a to-do list, a quiz, a drawing pad, a CSV grid, a list with Start/Stop …), from RapidR's recipes: start from it and adapt it.",
-            schema(json!({"query": {"type": "string", "description": "what the program does, in a few words"}}), &["query"]),
-        ),
-        t(
-            "project_outline",
-            "The open project as the compiler reads it: its files in include order (which file $INCLUDEs which), and for each file its forms and their components, its SUBs and FUNCTIONs with their parameters, its globals (DIM) with their types, its CONSTs and TYPEs, each with its line. Call it before writing changes to a project of several files, and before adding a DIM, SUB or FUNCTION: a name is declared once in the whole program, and only SUBs and FUNCTIONs listed here (or builtins) can be called.",
-            schema(json!({}), &[]),
-        ),
-        t(
-            "search_manual",
-            "RapidR's user manual (its guide pages), searched: the three sections that best answer a question (\"how do I add a menu\", \"read a CSV file\", \"breakpoints\", \"serial port\"), each trimmed, with its page and heading.",
-            schema(json!({"query": {"type": "string", "description": "the question, or a few words of it"}}), &["query"]),
-        ),
-    ];
-    if proposals {
-        out.push(t(
-            "layout",
-            "A grid of buttons laid out for you (a keypad, a toolbar): give the captions row by row; it returns the CREATE blocks with exact Left / Top / Width / Height, one shared OnClick handler, and the ClientWidth / ClientHeight the form needs. Paste them into the form's CREATE block.",
-            schema(
-                json!({
-                    "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "the captions, row by row: [[\"7\",\"8\",\"9\",\"/\"],[\"4\",\"5\",\"6\",\"*\"]]"},
-                    "left": {"type": "integer", "description": "the grid's left edge (default 8)"},
-                    "top": {"type": "integer", "description": "the grid's top edge (default 8; below a display, its bottom + 8)"},
-                    "width": {"type": "integer", "description": "each button's width (default 56)"},
-                    "height": {"type": "integer", "description": "each button's height (default 36)"},
-                    "gap": {"type": "integer", "description": "pixels between buttons (default 4)"},
-                    "on_click": {"type": "string", "description": "the SUB every button calls (SUB Name (Sender AS RButton): Sender.Caption says which)"}
-                }),
-                &["rows"],
-            ),
-        ));
-        out.push(t(
-            "propose_edit",
-            "The way to change an existing file of the open project (which IS the user's program): send only the parts that change, shown to the user as a diff they accept or reject (nothing changes until they do). Each edit replaces `old_text` — a few whole lines copied exactly from the file, appearing exactly once in it — with `new_text`. Several edits in one call for changes in several places.",
-            schema(
-                json!({
-                    "path": {"type": "string", "description": "the file, relative to the project's folder (main.rr)"},
-                    "edits": {"type": "array", "items": {"type": "object", "properties": {"old_text": {"type": "string"}, "new_text": {"type": "string"}}, "required": ["old_text", "new_text"], "additionalProperties": false}},
-                    "summary": {"type": "string", "description": "one sentence: what the change does"}
-                }),
-                &["path", "edits", "summary"],
-            ),
-        ));
-        out.push(t(
-            "write_file",
-            "A new file's whole text in the open project (which IS the user's program) — or, rarely, an existing file rewritten almost entirely —, shown to the user as a diff they accept or reject. To change part of an existing file use propose_edit: a whole-file rewrite of a file over 40 lines that keeps most of it is refused.",
-            schema(json!({"path": {"type": "string", "description": "the file, relative to the project's folder (main.rr); a new file is made"}, "text": {"type": "string"}, "summary": {"type": "string"}}), &["path", "text", "summary"]),
-        ));
-        out.push(t(
-            "create_project",
-            "Makes a separate NEW program as a new project — its files (a main .rr file; more for forms or modules it $INCLUDEs) — which Studio opens for the user when your answer ends. The open project IS the user's program: for the work they asked for in it, use write_file and propose_edit on its files; create_project is only for a different new program, or when no project is open. Checked by the compiler: fix the errors it reports and call it again.",
-            schema(
-                json!({
-                    "name": {"type": "string", "description": "the program's title, e.g. Scientific Calculator (its folder is made from it)"},
-                    "main": {"type": "string", "description": "the main file's path, e.g. main.rr"},
-                    "files": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "text": {"type": "string"}}, "required": ["path", "text"], "additionalProperties": false}},
-                    "summary": {"type": "string"}
-                }),
-                &["name", "main", "files", "summary"],
-            ),
-        ));
-    }
-    out
+    crate::toolset::for_rai(crate::toolset::RaiNow { permission_allows: proposals, coach: false, running: false, lite: false })
 }
 
-/// The running program's eyes and hands for RAI (RapidR Studio's AI apps
-/// have the same through ide/mcpapp.inc): its layout in words and a wait
-/// always; clicks, typing, keys, drags and the wheel when `input` (the
-/// user allows changes). A picture isn't one of RAI's: its models get the
-/// layout in words.
-/// RAI saves a Version (save_version): every changed file of the project,
-/// as Save a Version does, keys and passwords checked first.
-pub fn version_tool() -> Tool {
-    Tool {
-        name: "save_version".into(),
-        description: "Saves a Version of the open project in RapidR Studio's Versions, as the user's Save a Version does: every changed file, under message (its name). Studio refuses when a line looks like a key or password, and says which. Save one before a step that changes many files, and after a step that works. Example: {\"message\": \"Step 1a - before bug fixes\"}.".into(),
-        input_schema: schema(json!({"message": {"type": "string", "description": "the version's name, in a few words"}}), &["message"]),
-    }
-}
-
-/// RAI's own Run (run_program): Studio starts or stops the open project's
-/// program as Run and Stop do, and says how it went.
-pub fn run_tool() -> Tool {
-    Tool {
-        name: "run_program".into(),
-        description: "Runs the open project's program in RapidR Studio, as the user's Run does (its files are saved first; the user is asked first, once a run, unless they let you work on your own), lets it run up to wait seconds (5 by default, 30 at most) and says how it went and what it printed; then app_layout / app_screenshot look at it. action: start (default), stop, or status (its state and last output). One run at a time. Example: {\"action\": \"start\", \"wait\": 5}.".into(),
-        input_schema: schema(json!({"action": {"type": "string", "enum": ["start", "stop", "status"], "description": "start (default), stop or status"}, "wait": {"type": "integer", "description": "seconds to let it run before answering, 1..30 (5 by default)"}}), &[]),
-    }
-}
-
-pub fn app_tools(input: bool) -> Vec<Tool> {
-    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
-    let target = || json!({
-        "caption": {"type": "string", "description": "the text on it (a button's caption)"},
-        "name": {"type": "string", "description": "its name (app_layout lists them)"},
-        "label": {"type": "string", "description": "the label beside it (an edit's)"},
-        "window": {"type": "string", "description": "the window (a form's name or title)"},
-        "x": {"type": "integer"}, "y": {"type": "integer"}
-    });
-    let with = |extra: Json| {
-        let mut p = target();
-        if let (Some(p), Some(e)) = (p.as_object_mut(), extra.as_object()) {
-            p.extend(e.clone());
+/// The running program's request for an app tool's call — the same for RAI
+/// and AI apps (ide/mcpapp.inc asks for it with RAIProjectTools.
+/// AppRequest): `do` and the arguments under the program's own names, in
+/// any case the call wrote them.
+pub fn app_request(name: &str, input: &Json) -> Json {
+    let mut req = serde_json::Map::new();
+    req.insert("do".into(), json!(name.trim_start_matches("app_")));
+    let get = |k: &str| input.get(k).or_else(|| input.as_object().and_then(|o| o.iter().find(|(x, _)| x.eq_ignore_ascii_case(k)).map(|(_, v)| v))).filter(|v| !v.is_null()).cloned();
+    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("tox", "to_x"), ("to_y", "to_y"), ("toy", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy"), ("scale", "scale"), ("frame", "frame"), ("cursor", "cursor")] {
+        if req.contains_key(to) {
+            continue;
         }
-        p
-    };
-    let mut out = vec![
-        t("app_layout", "What the program the user runs shows now, in words: its windows, each control's name, type, caption or text and place (x,y size w×h), and what looks wrong (text cut off, controls on top of each other). Example: {}.", schema(json!({"window": {"type": "string"}}), &[])),
-        t("app_wait", "Lets the running program work on its own for ms milliseconds (its timers). Example: {\"ms\": 500}.", schema(json!({"ms": {"type": "integer"}, "idle": {"type": "boolean", "description": "until it has nothing left to run (at most ms)"}}), &[])),
-    ];
-    if input {
-        out.push(t("app_click", "Clicks in the program the user runs, as a person would (a pointer shows it). Example: {\"caption\": \"7\"}; or {\"name\": \"btnSave\"}, {\"label\": \"Name\"}, {\"window\": \"Form1\", \"x\": 30, \"y\": 55}. Says what it clicked, or what is there.", schema(with(json!({"double": {"type": "boolean"}, "button": {"type": "string", "enum": ["left", "right"]}})), &[])));
-        out.push(t("app_type", "Types text into the running program (clicks the control first). Example: {\"label\": \"Name\", \"text\": \"Ada\"}.", schema(with(json!({"text": {"type": "string"}})), &["text"])));
-        out.push(t("app_key", "Presses keys in the running program: Enter, Tab, Escape, Ctrl+S, Shift+Tab … separated by spaces. Example: {\"keys\": \"Ctrl+A Backspace\", \"name\": \"txtName\"}.", schema(with(json!({"keys": {"type": "string"}})), &["keys"])));
-        out.push(t("app_drag", "Drags in the running program from a control to (to_x, to_y) of its window. Example: {\"name\": \"Slider1\", \"to_x\": 180, \"to_y\": 20}.", schema(with(json!({"to_x": {"type": "integer"}, "to_y": {"type": "integer"}})), &["to_x", "to_y"])));
-        out.push(t("app_scroll", "Turns the mouse wheel over a control of the running program (notches down; negative: up). Example: {\"name\": \"List1\", \"notches\": 5}.", schema(with(json!({"notches": {"type": "integer"}})), &[])));
+        if let Some(v) = get(from) {
+            // (a number or a flag an AI app sent as text: as the program reads it)
+            let v = match (&v, to) {
+                (Json::String(t), "x" | "y" | "to_x" | "to_y" | "ms" | "dy") => t.trim().parse::<f64>().map(|n| json!(n)).unwrap_or(v),
+                (Json::String(t), "double" | "idle" | "frame" | "cursor") => json!(t.trim().eq_ignore_ascii_case("true") || t.trim() == "1"),
+                _ => v,
+            };
+            req.insert(to.into(), v);
+        }
     }
-    out
+    Json::Object(req)
 }
 
 /// An app tool's call (RAI's): the request sent to the program Studio
@@ -252,14 +123,7 @@ pub fn app_call(name: &str, input: &Json, may_use: bool) -> Outcome {
     if name != "app_wait" && !may_use {
         return err("the user allowed reading only (Tools > Settings > AI > Permission): you can't look at or use their running program; say what you would look at, click or type instead", format!("{name}: not allowed (read-only)"), "");
     }
-    let mut req = serde_json::Map::new();
-    req.insert("do".into(), json!(name.trim_start_matches("app_")));
-    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("to_y", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy")] {
-        if let Some(v) = input.get(from).filter(|v| !v.is_null()) {
-            req.insert(to.into(), v.clone());
-        }
-    }
-    match crate::session::app_send(Json::Object(req)) {
+    match crate::session::app_send(app_request(name, input)) {
         Ok(ticket) => Outcome::later(ticket),
         Err(e) => err(e, format!("{name}: the program isn't running"), ""),
     }
@@ -278,31 +142,10 @@ pub fn app_done(name: &str, ok: bool, text: String) -> Outcome {
 
 /// The lite set for a small context window (under 16K tokens; K8): the
 /// tools a small model needs to read, check and change a program, each
-/// said in a line — no form introspection, examples, outline or layout.
+/// said in a line (the registry's `lite` words) — no form introspection,
+/// examples, outline or layout.
 pub fn tools_lite(proposals: bool) -> Vec<Tool> {
-    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
-    let path = || json!({"type": "string"});
-    let mut out = vec![
-        t("list_files", "The project's files.", schema(json!({}), &[])),
-        t("read_file", "A project file's text.", schema(json!({"path": path()}), &["path"])),
-        t("rapidr_describe", "A component's or builtin's members and syntax.", schema(json!({"type": {"type": "string"}, "builtin": {"type": "string"}}), &[])),
-        t("check_code", "Compiles a file (or `text` as that file): its errors.", schema(json!({"path": path(), "text": {"type": "string"}}), &[])),
-        t("search_manual", "RapidR's manual: the sections that answer a question.", schema(json!({"query": {"type": "string"}}), &["query"])),
-    ];
-    if proposals {
-        out.push(t(
-            "propose_edit",
-            "Changes a file: each edit's old_text (whole lines, once in the file) becomes new_text. The user reviews it.",
-            schema(json!({"path": path(), "edits": {"type": "array", "items": {"type": "object", "properties": {"old_text": {"type": "string"}, "new_text": {"type": "string"}}, "required": ["old_text", "new_text"], "additionalProperties": false}}, "summary": {"type": "string"}}), &["path", "edits", "summary"]),
-        ));
-        out.push(t("write_file", "A new file's whole text.", schema(json!({"path": path(), "text": {"type": "string"}, "summary": {"type": "string"}}), &["path", "text", "summary"])));
-        out.push(t(
-            "create_project",
-            "A new program (main.rr, and other files it $INCLUDEs), opened in Studio when you finish.",
-            schema(json!({"name": {"type": "string"}, "main": {"type": "string"}, "files": {"type": "array", "items": {"type": "object", "properties": {"path": path(), "text": {"type": "string"}}, "required": ["path", "text"], "additionalProperties": false}}, "summary": {"type": "string"}}), &["name", "main", "files", "summary"]),
-        ));
-    }
-    out
+    crate::toolset::for_rai(crate::toolset::RaiNow { permission_allows: proposals, coach: false, running: false, lite: true })
 }
 
 /// A key as app_key names it, safe to show: a key's name (Enter, F5,
@@ -325,7 +168,10 @@ fn known_key(token: &str) -> bool {
 /// or it runs ("Reading main.rr", "Searching the manual", "Writing
 /// server.rr"); `input` may hold only the fields written so far.
 pub fn activity(name: &str, input: &Json) -> Option<String> {
-    let field = |k: &str| input.get(k).and_then(Json::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+    // (an argument's name in any case: an AI app's older tool lists wrote Path, Action)
+    let field = |k: &str| input.get(k).or_else(|| input.as_object().and_then(|o| o.iter().find(|(x, _)| x.eq_ignore_ascii_case(k)).map(|(_, v)| v))).and_then(Json::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+    let name = &crate::toolset::canonical(name);
+    let name = name.as_str();
     // (the person reads these, in their language: whole phrases, the values
     // — a file, a component, a caption — put in)
     Some(match name {
@@ -337,7 +183,19 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| tr_ui("Reading RapidR's reference"), |t| tr_ui_fill("Reading the help of {name}", &[("name", &t)])),
         "rapidr_list" | "rapidr_get" => tr_ui("Looking at the form"),
         "check_code" => tr_ui("Checking (compiling)"),
-        "layout" => tr_ui("Laying out the buttons"),
+        "layout" | "button_grid" => tr_ui("Laying out the buttons"),
+        // (studio_status and read_output keep their names in the AI Apps
+        // pane: the tests' steps wait for them there)
+        "list_documents" => tr_ui("Listing the open documents"),
+        "layout_report" => tr_ui("Reading the forms' layout"),
+        "set_property" => field("component").map_or_else(|| tr_ui("Setting a property"), |c| tr_ui_fill("Setting a property of {name}", &[("name", &c)])),
+        "debug" => tr_ui("Using the debugger"),
+        "list_versions" => tr_ui("Listing the versions"),
+        "compare_versions" => tr_ui("Comparing versions"),
+        "restore_version" => tr_ui("Going back to a version"),
+        "start_versions" => tr_ui("Starting Versions"),
+        "how_do_i" => tr_ui("Looking up how to do it"),
+        "report_gap" => tr_ui("Noting what's missing"),
         // (the running program's eyes and hands: an AI app's arguments are
         // capitalised, RAI's not)
         "app_layout" => tr_ui("Reading the running program's layout"),
@@ -603,6 +461,9 @@ fn s<'a>(input: &'a Json, key: &str) -> &'a str {
 /// Runs a tool. `proposals` collects what the proposing tools propose (a
 /// second proposal for a file in the same turn builds on the first).
 pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Proposal>, may_propose: bool) -> Outcome {
+    // (an old name — get_problems, layout, recipe — is its tool's)
+    let canonical = crate::toolset::canonical(name);
+    let name = canonical.as_str();
     // (a crash report's last calls: the tool's name only, never its input)
     rapidr_crash::call(&format!("tool: {name}"));
     if let Some(raw) = input.get("_invalid_json").and_then(Json::as_str) {
@@ -620,8 +481,15 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "find_example" => find_example(input),
         "project_outline" => project_outline(project),
         "search_manual" => search_manual(input),
-        "layout" => layout(input),
-        "propose_edit" | "write_file" | "create_project" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
+        "button_grid" => layout(input),
+        "layout_report" => ok(layout_report(&project.sources()), "Read the forms' layout".into(), "read", ""),
+        "how_do_i" => crate::tools_core::how_do_i(input),
+        "list_versions" => crate::tools_core::list_versions(input, project),
+        "compare_versions" => crate::tools_core::compare_versions(input, project),
+        "report_gap" if !may_propose => err("the user allowed reading only: tell them about the gap in words instead", "report_gap: not allowed (read-only)".into(), ""),
+        "report_gap" => crate::tools_core::report_gap(input, project),
+        "propose_edit" | "write_file" | "create_project" | "set_property" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
+        "set_property" => Outcome { risk: "state", ..set_property(input, project, proposals) },
         // (a proposing tool's risk is a proposal's, whether it fitted or not:
         // the audit log says what was tried)
         "propose_edit" => Outcome { risk: "state", ..propose_edit(input, project, proposals) },
@@ -644,7 +512,11 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         }
         "write_file" => Outcome { risk: "state", ..write_file(input, project, proposals) },
         "create_project" => Outcome { risk: "state", ..create_project(input, proposals) },
-        other => err(format!("there is no tool `{other}`: the tools are {}", tools(may_propose).iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")), format!("{other}: no such tool"), ""),
+        other => match crate::toolset::find(other) {
+            // (a tool Studio or the running program answers, asked here)
+            Some(t) => err(format!("{other} is answered by RapidR Studio itself ({}), not here: call it as a tool", t.handler.word()), format!("{other}: not a project tool"), ""),
+            None => err(format!("there is no tool `{other}`: the tools are {}", crate::toolset::TOOLS.iter().map(|t| t.name).collect::<Vec<_>>().join(", ")), format!("{other}: no such tool"), ""),
+        },
     }
 }
 
@@ -996,10 +868,25 @@ fn layout(input: &Json) -> Outcome {
 
 /// The recipe closest to `query`, whole, and the next ones' names.
 fn find_example(input: &Json) -> Outcome {
-    let query = s(input, "query");
+    let query = s(input, "query").trim();
+    if query.is_empty() {
+        return err("give `query`: what the program does, in a few words (a stopwatch, a CSV grid), or a component's name (RJson)", "find_example: no query".into(), "");
+    }
+    // (an example's own file name — rai_models —, or a component or
+    // builtin it uses — RJson —: RapidR's examples first, the describe
+    // pointer with them; a recipe for what a program does)
+    let examples = || crate::tools_core::examples_answer(query);
+    if matches!(crate::tools_core::search_examples(query).first(), Some((crate::tools_core::Match::File, _))) || crate::tools_core::named_in(query).is_some() {
+        if let Some(o) = examples() {
+            return o;
+        }
+    }
     let found = crate::recipes::search(query);
     let Some((_, best)) = found.first() else {
-        return ok(format!("No recipe is close to \"{query}\". The recipes: {}.", crate::recipes::all().iter().map(|r| r.title.as_str()).collect::<Vec<_>>().join("; ")), format!("Looked for an example of {query}: none close"), "read", query);
+        if let Some(o) = examples() {
+            return o;
+        }
+        return ok(format!("Nothing close to \"{query}\" in RapidR's recipes or examples. Try other words (what the program does), rapidr_describe for a component or builtin, or search_manual. The recipes: {}.", crate::recipes::all().iter().map(|r| r.title.as_str()).collect::<Vec<_>>().join("; ")), format!("Looked for an example of {query}: none close"), "read", query);
     };
     let others: Vec<&str> = found.iter().skip(1).take(2).map(|(_, r)| r.title.as_str()).collect();
     let more = if others.is_empty() { String::new() } else { format!("\nAlso close: {}.", others.join("; ")) };
@@ -1744,6 +1631,15 @@ fn check(input: &Json, p: &Project) -> Outcome {
     }
 }
 
+/// The project's problems as check_code finds them for its main file (and
+/// what it includes): "error …", "warning …" and "hint …" lines.
+pub fn problems(p: &Project) -> Vec<String> {
+    if p.main.is_empty() {
+        return Vec::new();
+    }
+    diagnostics(&p.all(), "/project", p.main, p.main, p.compat.eq_ignore_ascii_case("rapidq"))
+}
+
 /// `old` (the file `path`) with each edit applied. An old text that is in
 /// the file once but for its lines' indentation and trailing spaces fits
 /// those lines (a small model rarely copies indentation exactly); one that
@@ -1906,27 +1802,77 @@ fn propose_edit(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
     };
     let edits = input.get("edits").and_then(Json::as_array).cloned().unwrap_or_default();
     match apply_edits(&rel, &current, &edits) {
-        Ok(new) => {
-            if let Some((why, short)) = refused(p, proposals, &rel, &current, &new) {
-                return err(why, format!("Refused a change to {rel}: {short}"), &rel);
-            }
-            let original = p.text(&rel).unwrap_or_default();
-            let summary = s(input, "summary").to_string();
-            let new_text = new.clone();
-            propose(proposals, Proposal { kind: "edit".into(), path: rel.clone(), old: original, new, summary: summary.clone(), ..Proposal::default() });
-            match compile_errors(p, proposals) {
-                None => {
-                    forget_refusals(&rel);
-                    ok(format!("{}\nIt compiles. Don't send it again: tell them in a sentence what it does.", waiting_for_the_user(&rel)), format!("Proposed a change to {rel}: {summary}"), "state", &rel)
-                }
-                Some(errors) => ok(format!("{}\n{}", waiting_for_the_user(&rel), but_errors(&rel, &errors, &new_text)), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", &rel),
-            }
-        }
+        Ok(new) => propose_text(&rel, &current, new, s(input, "summary"), p, proposals),
         Err(e) => {
             let e = same_again(&rel, "edit-miss", &e, &current).unwrap_or(e);
             err(e, format!("A change to {rel} didn't fit the file"), &rel)
         }
     }
+}
+
+/// A file's new text proposed (propose_edit's, set_property's): refused
+/// when it breaks the file, else waiting for the user, with whether the
+/// project compiles with it.
+fn propose_text(rel: &str, current: &str, new: String, summary: &str, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
+    if let Some((why, short)) = refused(p, proposals, rel, current, &new) {
+        return err(why, format!("Refused a change to {rel}: {short}"), rel);
+    }
+    let original = p.text(rel).unwrap_or_default();
+    let summary = summary.to_string();
+    let new_text = new.clone();
+    propose(proposals, Proposal { kind: "edit".into(), path: rel.to_string(), old: original, new, summary: summary.clone(), ..Proposal::default() });
+    match compile_errors(p, proposals) {
+        None => {
+            forget_refusals(rel);
+            ok(format!("{}\nIt compiles. Don't send it again: tell them in a sentence what it does.", waiting_for_the_user(rel)), format!("Proposed a change to {rel}: {summary}"), "state", rel)
+        }
+        Some(errors) => ok(format!("{}\n{}", waiting_for_the_user(rel), but_errors(rel, &errors, &new_text)), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", rel),
+    }
+}
+
+/// set_property: one property of a component in its form, as the
+/// Properties pane sets it (the designer's smallest change to its CREATE
+/// block, rapidr-designer), proposed as any change is: the user sees the
+/// diff, nothing changes until it is applied — for RAI and AI apps alike.
+fn set_property(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
+    let (component, prop, value) = (s(input, "component").trim(), s(input, "property").trim(), s(input, "value"));
+    if component.is_empty() || prop.is_empty() {
+        return err("give component (its name: rapidr_list lists them), property (Caption, Width …) and value", "set_property: missing arguments".into(), "");
+    }
+    let names: Vec<String> = std::iter::once(p.main.to_string()).chain(p.files.iter().cloned()).chain(p.buffers.keys().cloned()).filter(|f| !f.is_empty() && is_source(f)).collect();
+    let mut seen: Vec<String> = Vec::new();
+    for rel in names {
+        if seen.contains(&rel) {
+            continue;
+        }
+        seen.push(rel.clone());
+        let Some(current) = base_text(&rel, p, proposals) else { continue };
+        let full = p.full(&rel);
+        let mut doc = rapidr_designer::Document::open(&current, Some(std::path::Path::new(&full)), rapidr_preprocessor::PreprocessOptions::default());
+        for fi in 0..doc.forms().len() {
+            let Some(d) = doc.designer(fi) else { continue };
+            let Some(id) = d.design.find(component) else { continue };
+            let Some(node) = d.design.node(id) else { continue };
+            let (canonical, real_name) = (node.canonical.clone(), node.name.clone());
+            let Some(c) = rapidr_lang::component(&canonical) else { continue };
+            let Some(pr) = c.property(prop) else {
+                let near = nearest_member(c, prop).map(|n| format!(" Did you mean {n}?")).unwrap_or_default();
+                return err(format!("{} has no property {prop}.{near} rapidr_describe {{\"type\": \"{}\"}} lists them.", c.display, c.display), format!("set_property: {real_name}.{prop} isn't a property"), &rel);
+            };
+            let typed = matches!(pr.ty, rapidr_lang::Type::Int | rapidr_lang::Type::Float | rapidr_lang::Type::Bool | rapidr_lang::Type::Color | rapidr_lang::Type::Enum | rapidr_lang::Type::Set);
+            let v = value.trim();
+            let source = if typed || (v.len() >= 2 && v.starts_with('"') && v.ends_with('"')) { v.to_string() } else { rapidr_value::designer::value::write_str(value) };
+            if let Err(e) = doc.apply(fi, rapidr_designer::Command::SetProp { node: id, name: pr.name.to_string(), value: Some(source) }) {
+                return err(format!("{real_name}.{} can't be set to {value}: {e:?}", pr.name), format!("set_property: {real_name}.{} refused", pr.name), &rel);
+            }
+            let new = doc.text().to_string();
+            if new == current {
+                return ok(format!("{real_name}.{} is {value} already: nothing to change.", pr.name), format!("{real_name}.{} unchanged", pr.name), "read", &rel);
+            }
+            return propose_text(&rel, &current, new, &format!("{real_name}.{} = {value}", pr.name), p, proposals);
+        }
+    }
+    err(format!("No component named {component} in the project's forms: rapidr_list lists them."), format!("set_property: no {component}"), "")
 }
 
 /// A proposal's first line: it waits for the user (a line of its own, so
@@ -2569,7 +2515,7 @@ mod tests {
         // (both tools are offered, the outline's description says when to call it)
         let tools = tools(false);
         let outline = tools.iter().find(|t| t.name == "project_outline").expect("project_outline");
-        assert!(outline.description.contains("before writing changes to a project of several files"));
+        assert!(outline.description.contains("changing a project of several files"));
         assert!(tools.iter().any(|t| t.name == "search_manual"));
     }
 

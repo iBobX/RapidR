@@ -36,7 +36,7 @@
 // first-time question (turning the switch on) answered both ways; the
 // activity's Copy; capture refused while Settings shows the token.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe|locked …]
+//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe|raiauto|shared|raiversions|locked …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -45,6 +45,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 // (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
@@ -96,16 +97,19 @@ function env(name) {
 // has it — a new project then goes in the tests' Documents, never in the
 // repository)
 function studio(name, steps, events, dump, more = {}, opts = {}) {
-  cpSync(join(ROOT, "tests", "fixtures", "studio_mcp"), join(WORK, name), { recursive: true });
+  // (opts.dir: the project's folder's parent — outside the repository, for a
+  // project that keeps its own versions)
+  const base = opts.dir || WORK;
+  cpSync(join(ROOT, "tests", "fixtures", "studio_mcp"), join(base, name), { recursive: true });
   // (opts.main: the main file's text before Studio starts — an empty project, say)
-  if (opts.main !== undefined) writeFileSync(join(WORK, name, "main.rr"), opts.main);
+  if (opts.main !== undefined) writeFileSync(join(base, name, "main.rr"), opts.main);
   let home = ".";
   if (opts.home) {
     home = join(WORK, `${name}-install`);
     cpSync(join(ROOT, "ide", "assets"), join(home, "ide", "assets"), { recursive: true });
     writeFileSync(join(home, "release.toml"), 'version = "0.0.0"\nrust = "1.0.0"\nkind = "sdk"\n');
   }
-  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", "rapidr-light", "--do", steps, ...(opts.project === false ? [] : [join(WORK, name, "Hello.rrproj")])];
+  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", "rapidr-light", "--do", steps, ...(opts.project === false ? [] : [join(base, name, "Hello.rrproj")])];
   const child = spawn(RAPIDR, args, { cwd: ROOT, env: { ...env(name), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, ...more }, stdio: ["ignore", "pipe", "pipe"] });
   children.push(child);
   let out = "";
@@ -188,6 +192,9 @@ function check(what, ok, detail = "") {
 }
 const want = (name) => only.length === 0 || only.includes(name);
 const until = (what) => `mcpsub.__until_Caption_${CLIENT}: ${what}`;
+// (the call that ends a part: its words in the AI Apps pane are what the
+// steps wait for — how_do_i's, called nowhere else here)
+const END_WORDS = "Looking up how to do it";
 const shown = (v) => v === "1" || v === "-1";
 
 // ---- Allow everything: the whole tour, nothing asks -------------------------------------
@@ -202,14 +209,16 @@ if (want("all")) {
   check("server/discover: the current revision, Studio's name", d.json.result?.supportedVersions?.[0] === MODERN && d.json.result?._meta?.["io.modelcontextprotocol/serverInfo"]?.name === "rapidr-studio", JSON.stringify(d.json));
   const list = (await call("tools/list")).json.result?.tools || [];
   const names = list.map((t) => t.name);
-  for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "get_problems", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit"]) {
+  for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit", "save_version", "list_versions", "compare_versions", "restore_version", "start_versions", "how_do_i", "report_gap", "button_grid"]) {
     check(`tools/list has ${t}`, names.includes(t), names.join(","));
   }
+  // (the one tool set: an old name answered, never listed — get_problems is check_code now)
+  check("tools/list: the old get_problems isn't listed (it is answered: check_code)", !names.includes("get_problems") && !names.includes("layout"), names.join(","));
   // (every description whole: BASIC strings take no backslash escapes — a
   // \" once cut set_property's at "(\")
   const cut = list.filter((t) => !/[.!?)]$/.test((t.description || "").trim()) || (t.description || "").includes("\\"));
   check("every tool's description is whole (no stray backslash, ends a sentence)", list.length > 0 && cut.length === 0, cut.map((t) => `${t.name}: …${(t.description || "").slice(-60)}`).join(" | "));
-  check("set_property's description names a text value in quotes", /\("OK" for text, 120, &HFF0000, True\)\. One undo step in its file\.$/.test(list.find((t) => t.name === "set_property")?.description || ""), list.find((t) => t.name === "set_property")?.description);
+  check("set_property's description and schema say how a value is written", /"value": "OK"/.test(list.find((t) => t.name === "set_property")?.description || "") && /OK \(text\), 120, &HFF0000/.test(JSON.stringify(list.find((t) => t.name === "set_property")?.inputSchema || {})), list.find((t) => t.name === "set_property")?.description);
   // (a tool without arguments is listed with "properties": {} — a model server that builds a grammar from
   // the schema, Ollama for some models, answers HTTP 500 "properties must be an object" to a list without)
   check("every tool's inputSchema is an object with its properties (even none)", list.every((t) => t.inputSchema?.type === "object" && t.inputSchema.properties && typeof t.inputSchema.properties === "object"), list.filter((t) => !t.inputSchema?.properties).map((t) => t.name).join(","));
@@ -449,7 +458,7 @@ if (want("carry")) {
   // Projects folder; Allow Once): Hello is in Allow edits, its own — not
   // Ask, Kept's — and nothing is said about a mode carried
   PORT = BASE_PORT + 14;
-  run = studio("carry-kept", `mcp:mode=edits,mcp:on=${PORT}`, ["mcpsub.__until_Caption_New project: same permission as before (Allow edits)", "mcpmodebox.__item_1", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(","), "mcpmodebox.text,mcplog.items", {}, { home: true });
+  run = studio("carry-kept", `mcp:mode=edits,mcp:on=${PORT}`, ["mcpsub.__until_Caption_New project: same permission as before (Allow edits)", "mcpmodebox.__item_1", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until(END_WORDS)].join(","), "mcpmodebox.text,mcplog.items", {}, { home: true });
   check("Own mode: Studio listens", await listening(PORT));
   ({ tool } = client(PORT));
   r = await tool("create_project", NEW("Kept"));
@@ -461,7 +470,7 @@ if (want("carry")) {
   check("Own mode: Hello opened (asked: outside the Projects folder)", !r.error && r.text.includes("Opened"), r.text);
   r = await tool("studio_status");
   check("Own mode: Hello keeps its own Allow edits (not Kept's Ask before changes)", r.text.includes("Project: Hello") && r.text.includes("Permission: Allow edits"), r.text);
-  await tool("get_problems");
+  await tool("how_do_i", { task: "the end of this part" });
   end = await run.ended();
   const said = (end.out.match(/same permission as before/g) || []).length;
   check("Own mode: a mode carried is said once (Kept), never for Hello", said === 1, end.out.slice(-1500));
@@ -684,6 +693,121 @@ if (want("raiauto")) {
   check("the audit log has no change applied and no run done for that question", !decisions.some((l) => l.includes('"decision":"applied"') || l.includes('"decision":"ran in your program"')), decisions.join(" | "));
   check("the AI Apps pane's question said RAI only proposes for an AI app", /proposes changes for you to review/.test(end.lines["mcpasktext.caption"] || ""), end.lines["mcpasktext.caption"]);
   check("the change waits in the Review bar", end.lines["aitools.proposalcount"] === "1" && shown(end.lines["aireviewbar.visible"]), JSON.stringify(end.lines));
+}
+
+// ---- The one tool set (docs/ai-tools.md): the Versions tools, the old names,
+// the guidance (prompts, resources, how_do_i, report_gap), the run that waits
+// for Problems = 0, find_example's examples — the same tools RAI gets --------
+if (want("shared")) {
+  const PORT = BASE_PORT + 19;
+  // (outside the repository: a project keeps its own versions only there)
+  const dir = join(tmpdir(), `rapidr-studio-mcp-shared-${process.pid}`);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const run = studio("shared", `mcp:mode=all,mcp:on=${PORT}`, until(END_WORDS), "mcplog.items", { RAPIDR_VERSIONS_NAME: "Test Person" }, { dir });
+  check("shared: Studio listens", await listening(PORT));
+  const { call, tool } = client(PORT);
+  const folder = join(dir, "shared");
+  const list = (await call("tools/list")).json.result?.tools || [];
+  const names = list.map((t) => t.name);
+  check("shared: the Versions tools are listed for AI apps", ["save_version", "list_versions", "compare_versions", "restore_version", "start_versions"].every((t) => names.includes(t)), names.join(","));
+  check("shared: restore_version is marked as a change", list.find((t) => t.name === "restore_version")?.annotations?.readOnlyHint === false);
+  // (prompts and resources: the workflows for MCP clients)
+  const prompts = (await call("prompts/list")).json.result?.prompts || [];
+  check("prompts/list: Work on this project the RapidR way, Start a new RapidR app", prompts.some((p) => p.name === "rapidr-way" && /RapidR way/.test(p.title)) && prompts.some((p) => p.name === "new-app"), JSON.stringify(prompts));
+  const way = (await call("prompts/get", { name: "rapidr-way" })).json.result?.messages?.[0]?.content?.text || "";
+  check("prompts/get rapidr-way: the steps, versions first, never git", way.includes("save_version") && way.includes("Never use git or a shell"), way.slice(0, 300));
+  const res = (await call("resources/list")).json.result?.resources || [];
+  check("resources/list: the core rules, the workflows, the guide to forms", ["rapidr://guide/rules", "rapidr://guide/workflows", "rapidr://guide/forms"].every((u) => res.some((r) => r.uri === u)), JSON.stringify(res));
+  const rules = (await call("resources/read", { uri: "rapidr://guide/rules" })).json.result?.contents?.[0]?.text || "";
+  check("resources/read rules: the numbered core rules", rules.includes("1. studio_status first") && rules.includes("Never use git or a shell"), rules.slice(0, 300));
+
+  // (Versions through MCP: none yet, started, saved, listed, compared, restored)
+  let r = await tool("list_versions");
+  check("list_versions: none yet, save_version says how", !r.error && r.text.includes("doesn't keep versions yet") && r.text.includes("save_version starts them"), r.text);
+  // (a project without versions: save_version starts them, as Save a Version does)
+  r = await tool("save_version", { message: "Step 0 - as it was" });
+  check("save_version: Versions started, then saved, with its id", !r.error && r.text.startsWith("Versions started in this project.") && /Saved the version "Step 0 - as it was" \([0-9a-f]{7}\)/.test(r.text), r.text);
+  const first = (r.text.match(/\(([0-9a-f]{7})\)/) || [])[1] || "";
+  r = await tool("start_versions");
+  check("start_versions: kept already, said", !r.error && r.text.includes("keeps versions already"), r.text);
+  r = await tool("list_versions");
+  check("list_versions: the version, its id and its author (the AI app, never the user)", !r.error && r.text.includes(first) && r.text.includes("Step 0 - as it was") && r.text.includes("(AI app)") && r.text.includes("Nothing changed"), r.text);
+  r = await tool("propose_edit", { path: "main.rr", summary: "A new greeting", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello, versions"' }] });
+  check("propose_edit: applied at once (Allow everything)", !r.error && r.text.startsWith("Changed main.rr"), r.text);
+  r = await tool("compare_versions");
+  check("compare_versions: the change since the last version, the editor's text included", !r.error && r.text.includes('-PRINT "Hello from Studio"') && r.text.includes('+PRINT "Hello, versions"'), r.text);
+  r = await tool("save_version", { message: "Step 1 - new greeting" });
+  check("save_version: the open file saved first, then the version", !r.error && r.text.includes("Step 1 - new greeting") && readFileSync(join(folder, "main.rr"), "utf8").includes("Hello, versions"), r.text);
+  r = await tool("restore_version", { version: first });
+  check("restore_version: back to Step 0 as a new version", !r.error && r.text.includes(`as it was in version ${first}`), r.text);
+  r = await tool("read_file", { path: "main.rr" });
+  check("…the editor has the file as it was", r.text.includes("Hello from Studio") && !r.text.includes("Hello, versions"), r.text);
+  r = await tool("list_versions");
+  check("…and the newer version stays on the timeline", r.text.includes("Step 1 - new greeting") && r.text.includes("Went back"), r.text);
+
+  // (run_program while Problems > 0: refused, the errors listed; fixed, it runs)
+  r = await tool("write_file", { path: "main.rr", summary: "A typo", text: 'DIM n AS INTEGER\nPRINT "Hello from Studio"\ngreeting = "Hi"\nFOR n = 1 TO 2\n    PRINT "Line "; n\nNEXT\n' });
+  check("write_file with a compile error (an undeclared name given a text): applied, the error said", !r.error && r.text.includes("doesn't compile"), r.text);
+  r = await tool("run_program", { action: "start", wait: 5 });
+  check("run_program with an error: not run, Problems must be 0, the first errors", r.error && r.text.includes("Not run: the code has") && r.text.includes("Problems must be 0") && r.text.includes("error"), r.text);
+  r = await tool("write_file", { path: "main.rr", summary: "Fixed", text: 'DIM n AS INTEGER\nPRINT "Hello from Studio"\nFOR n = 1 TO 2\n    PRINT "Line "; n\nNEXT\n' });
+  r = await tool("run_program", { action: "start", wait: 10 });
+  check("run_program after the fix: it ran, the ERRORS lane's words kept", !r.error && r.text.includes("Hello from Studio") && r.text.includes("The program started and ended after"), r.text);
+
+  // (the old names: answered as their tools)
+  r = await tool("get_problems");
+  check("get_problems (an old name): check_code's answer", !r.error && r.text.includes("compiles"), r.text);
+  r = await tool("recipe", { query: "rai_models" });
+  check("recipe (an old name) rai_models: RapidR's example examples/ai/rai_models.rr", !r.error && r.text.includes("examples/ai/rai_models.rr"), r.text.slice(0, 400));
+  r = await tool("find_example", { query: "RJson" });
+  check("find_example RJson: rapidr_describe named, the examples that use it", !r.error && r.text.includes('rapidr_describe {"type": "RJson"}') && r.text.includes("examples/data/json.rr") && r.text.includes("examples/network/http_json.rr"), r.text.slice(0, 600));
+  // (small-model guidance: how_do_i, report_gap)
+  r = await tool("how_do_i", { task: "go back to an older version" });
+  check("how_do_i versions: the Versions tools, never git", !r.error && r.text.includes("restore_version") && r.text.includes("never git"), r.text);
+  r = await tool("report_gap", { what: "No tool to rename a file", kind: "missing_tool", tried: "how_do_i" });
+  const issues = existsSync(join(folder, "RAPIDR-ISSUES.md")) ? readFileSync(join(folder, "RAPIDR-ISSUES.md"), "utf8") : "";
+  check("report_gap: one short entry in the project's RAPIDR-ISSUES.md", !r.error && issues.includes("a missing tool (from an AI app): No tool to rename a file. Tried: how_do_i."), issues || r.text);
+  r = await tool("how_do_i", { task: "the end of this part" });
+  const end = await run.ended();
+  check("shared: Studio ended", end.ok);
+  const audit = existsSync(join(WORK, "shared-audit.jsonl")) ? readFileSync(join(WORK, "shared-audit.jsonl"), "utf8") : "";
+  check("shared: every Versions call in the audit log both callers share", ["save_version", "restore_version", "start_versions", "list_versions", "report_gap"].every((t) => audit.includes(`"tool":"${t}"`)) && !audit.includes("Hello, versions"), audit.split("\n").slice(-6).join(" | "));
+  rmSync(dir, { recursive: true, force: true });
+}
+
+// ---- RAI with the one tool set: what AI apps do above, RAI does too (the
+// tests' mock model, "Work on its own"): status, Versions started and saved,
+// a change, the code checked, a run, the versions listed, a workflow looked up
+if (want("raiversions")) {
+  const PORT = BASE_PORT + 20;
+  const AI_READY = `ai:on,ai:provider=compatible,ai:base=${MOCK_URL},ai:model=mock-small`;
+  const dir = join(tmpdir(), `rapidr-studio-mcp-raiversions-${process.pid}`);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const run = studio("raiversions", [`mcp:mode=all,mcp:on=${PORT}`, AI_READY, "ai:permission=auto", "ai:ask=keep versions of my work", "ai:wait"].join(","), until(END_WORDS), "aitools.proposalcount", { RAPIDR_VERSIONS_NAME: "Test Person" }, { dir });
+  check("raiversions: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  let steps = "";
+  for (let k = 0; k < 120; k++) {
+    steps = (await tool("get_rai_steps")).text;
+    if (steps.includes("RAI: idle") && steps.includes("list_versions")) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  const said = (await tool("get_rai_transcript", { chars: 20000 })).text;
+  console.log(`     RAI: ${said.replace(/\s+/g, " ").slice(-1800)}`);
+  check("RAI: studio_status answered by Studio (RAI's permission said)", /studio_status: [^|]*Permission: Work on its own/.test(said), said.slice(-2500));
+  check("RAI: start_versions started Versions", /start_versions: [^|]*Versions started/.test(said), said.slice(-2500));
+  check("RAI: save_version saved, with an id", /save_version: [^|]*Saved the version "Before RAI's change" \([0-9a-f]{7}\)/.test(said), said.slice(-2500));
+  check("RAI: its change applied on its own, checked, run (the run's output back)", /check_code: [^|]*compiles/.test(said) && /run_program: [^|]*Changed by RAI/.test(said), said.slice(-2500));
+  check("RAI: the second version saved, the list shows both, RAI the author", /save_version: [^|]*RAI's change works/.test(said) && /list_versions: [^|]*— RAI — RAI's change works[^|]*— RAI — Before RAI's change/.test(said), said.slice(-2500));
+  check("RAI: how_do_i gave the versions workflow", /how_do_i: [^|]*restore_version/.test(said), said.slice(-2500));
+  const r = await tool("list_versions");
+  check("…and an AI app sees the same versions RAI saved", r.text.includes("RAI's change works") && r.text.includes("Before RAI's change"), r.text);
+  await tool("how_do_i", { task: "the end of this part" });
+  const end = await run.ended();
+  check("raiversions: Studio ended, nothing left waiting", end.ok && end.lines["aitools.proposalcount"] === "0", JSON.stringify(end.lines));
+  rmSync(dir, { recursive: true, force: true });
 }
 
 // ---- School Lock (ide/schoollock.inc): AI apps locked by a teacher — the server never

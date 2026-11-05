@@ -1,0 +1,3 @@
+# The tasks small models failed in the week of 2026-11-02 (docs/ai-tools.md):
+# keeping versions with Studio's own tools, not git or a shell. One turn.
+Before you change anything, save a version of this project. Then make the program print Hello, Versions. Save a version again, and tell me the list of versions you see.

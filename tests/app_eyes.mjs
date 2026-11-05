@@ -191,6 +191,9 @@ function check(what, ok, detail = "") {
 }
 const want = (name) => only.length === 0 || only.includes(name);
 const until = (what) => `mcpsub.__until_Caption_${CLIENT}: ${what}`;
+// (the call that ends a part: its words in the AI Apps pane are what the
+// steps wait for — how_do_i's, called nowhere else here)
+const END_WORDS = "Looking up how to do it";
 const png = (r) => r.content.find((c) => c.type === "image");
 const isPng = (img) => !!img && img.mimeType === "image/png" && Buffer.from(img.data, "base64").subarray(1, 4).toString() === "PNG";
 const save = (img, file) => img && writeFileSync(join(WORK, file), Buffer.from(img.data, "base64"));
@@ -266,7 +269,7 @@ function checkTrail(mode, end, pid) {
 // ---- Allow everything: the whole tour ----------------------------------------------------
 if (want("all")) {
   const PORT = BASE_PORT;
-  const run = studio("all", ["mcp:mode=all", `mcp:on=${PORT}`].join(","), until("get_problems"), "mcplog.itemcount,mcplog.items", { RAPIDR_SCALE: "2" });
+  const run = studio("all", ["mcp:mode=all", `mcp:on=${PORT}`].join(","), until(END_WORDS), "mcplog.itemcount,mcplog.items", { RAPIDR_SCALE: "2" });
   check("Studio listens for AI apps", await listening(PORT));
   const { call, tool } = client(PORT);
   const list = (await call("tools/list")).json.result?.tools || [];
@@ -338,7 +341,7 @@ if (want("all")) {
   r = await tool("app_wait", { Ms: 200 });
   check("app_wait", !r.error && r.text.includes("Waited 200 ms"), r.text);
   await canaryCalls("all", tool, true);
-  r = await tool("get_problems");
+  r = await tool("how_do_i", { task: "the end of this part" });
   const end = await run.ended();
   check("Studio ended after the tour", end.ok);
   check("the pane lists the AI app's calls", Number(end.lines["mcplog.itemcount"]) >= 20, end.lines["mcplog.itemcount"]);
@@ -353,7 +356,7 @@ if (want("ask")) {
   const PORT = BASE_PORT + 1;
   // (the run: Allow for This Session; the first look of the run: Allow
   // Once; the first look of the next run (a restart): Allow Once)
-  const events = ["mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
+  const events = ["mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until(END_WORDS)].join(",");
   const run = studio("ask", `mcp:on=${PORT}`, events, "mcpask.visible,mcplog.items");
   check("Ask before changes: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
@@ -372,7 +375,7 @@ if (want("ask")) {
   check("a new run (restart): the run itself isn't asked (Allow for This Session)", !r.error && !asked(r), r.text);
   r = await layoutWhenUp(tool);
   check("…but looking at it asks again: Allow Once lasted the run", r.asked && r.text.includes("b7 (RButton)"), r.text);
-  r = await tool("get_problems");
+  r = await tool("how_do_i", { task: "the end of this part" });
   const end = await run.ended();
   check("Ask before changes: nothing left waiting", end.lines["mcpask.visible"] === "0", JSON.stringify(end.lines));
   checkTrail("ask", end, run.child.pid);
@@ -382,7 +385,7 @@ if (want("ask")) {
 if (want("edits")) {
   const PORT = BASE_PORT + 2;
   // (the run: Allow Once; the typing: Deny; the next look: Allow Once)
-  const events = ["mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcpdenybtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
+  const events = ["mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcpdenybtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until(END_WORDS)].join(",");
   const run = studio("edits", `mcp:mode=edits,mcp:on=${PORT}`, events, "mcpmodebox.text,mcplog.items");
   check("Allow edits: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
@@ -396,7 +399,7 @@ if (want("edits")) {
   r = await tool("app_click", { Caption: "7" });
   check("then using it isn't asked in this run", !r.error && !asked(r), r.text);
   await canaryCalls("edits", tool, true);
-  r = await tool("get_problems");
+  r = await tool("how_do_i", { task: "the end of this part" });
   const end = await run.ended();
   check("Allow edits: the menu says it", end.lines["mcpmodebox.text"] === "Allow edits", JSON.stringify(end.lines));
   check("the pane: the denied typing said as a count, denied", paneText(end.out).includes(`Typing ${CANARY_TYPED.length} characters into the box beside "Name" in the running program  — denied by you`), paneText(end.out));
@@ -406,7 +409,7 @@ if (want("edits")) {
 // ---- Read only: the user runs it; the AI app neither looks at nor uses it -----------------
 if (want("read")) {
   const PORT = BASE_PORT + 3;
-  const run = studio("read", `mcp:mode=read,mcp:on=${PORT},run.start`, until("get_problems"), "mcpmodebox.text,mcplog.items");
+  const run = studio("read", `mcp:mode=read,mcp:on=${PORT},run.start`, until(END_WORDS), "mcpmodebox.text,mcplog.items");
   check("Read only: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   // (app_wait only lets time pass: it works in every mode — here, once the
@@ -422,7 +425,7 @@ if (want("read")) {
     check(`Read only: ${t} refused, in the mode's words`, r.error && r.text.includes("Read only") && !png(r), r.text);
   }
   await canaryCalls("read", tool, false);
-  r = await tool("get_problems");
+  r = await tool("how_do_i", { task: "the end of this part" });
   const end = await run.ended();
   check("Read only: the menu says it", end.lines["mcpmodebox.text"] === "Read only", JSON.stringify(end.lines));
   checkTrail("read", end, run.child.pid);
@@ -433,7 +436,7 @@ if (want("session")) {
   const PORT = BASE_PORT + 5;
   // (the run and the first look: Allow for This Session; then, in another
   // project, opening it, its run and its first look: Allow Once each)
-  const events = ["mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
+  const events = ["mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until(END_WORDS)].join(",");
   const run = studio("session", `mcp:on=${PORT}`, events, "mcpask.visible");
   check("Session: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
@@ -458,7 +461,7 @@ if (want("session")) {
     await sleep(250);
   }
   check("Session: …and so is looking at it", wasAsked && r.text.includes("greetbutton (RButton)"), r.text);
-  r = await tool("get_problems");
+  r = await tool("how_do_i", { task: "the end of this part" });
   const end = await run.ended();
   check("Session: nothing left waiting", end.lines["mcpask.visible"] === "0", JSON.stringify(end.lines));
 }
@@ -505,23 +508,23 @@ if (want("upgrade")) {
   // Turn On: the server, with the running program's tools
   const regYes = join(WORK, "upgrade-yes.reg");
   seed(regYes);
-  run = studio("upgrade-yes", "", ["consentdialog.__until_Visible_-1", "consentyes.onclick", until("get_problems")].join(","), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regYes }, { project, fresh: false });
+  run = studio("upgrade-yes", "", ["consentdialog.__until_Visible_-1", "consentyes.onclick", until(END_WORDS)].join(","), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regYes }, { project, fresh: false });
   check("Upgrade, Turn On: Studio listens", await listening(PORT));
   let { call, tool } = client(PORT);
   let names = ((await call("tools/list")).json.result?.tools || []).map((t) => t.name);
   check("Upgrade, Turn On: the app_* tools are there", ["app_layout", "app_screenshot", "app_click", "app_type", "app_wait"].every((t) => names.includes(t)), names.join(","));
-  await tool("get_problems");
+  await tool("how_do_i", { task: "the end of this part" });
   end = await run.ended();
   check("Upgrade, Turn On: the project asks before changes now", end.lines["mcpmodebox.text"] === "Ask before changes" && /Calc\.rrproj\?ask/.test(value(reg(regYes), "McpModes") || ""), JSON.stringify(end.lines));
   check("Upgrade, Turn On: the confirmation kept (version 2)", value(reg(regYes), "McpConsentVersion") === "2" && value(reg(regYes), "McpConfirmed") === "1", reg(regYes).slice(-600));
 
   // The next start: not asked again
-  run = studio("upgrade-again", "", until("get_problems"), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regYes }, { project, fresh: false });
+  run = studio("upgrade-again", "", until(END_WORDS), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regYes }, { project, fresh: false });
   check("Upgrade, the next start: Studio listens at once", await listening(PORT));
   ({ call, tool } = client(PORT));
   names = ((await call("tools/list")).json.result?.tools || []).map((t) => t.name);
   check("Upgrade, the next start: the app_* tools there", names.includes("app_click"), names.join(","));
-  await tool("get_problems");
+  await tool("how_do_i", { task: "the end of this part" });
   end = await run.ended();
   check("Upgrade, the next start: not asked again", !end.lines["consenttitle.caption"], JSON.stringify(end.lines));
 }
@@ -532,7 +535,7 @@ if (want("rai")) {
   const AI_READY = `ai:on,ai:provider=compatible,ai:base=${MOCK_URL},ai:model=mock-small`;
   // (RAI's card answered: Don't allow the first time, Allow for this run
   // the second — each step waits until RAI asks)
-  const run = studio("rai", [AI_READY, "mcp:mode=all", `mcp:on=${PORT}`, "ai:applink=deny", "ai:applink=allow"].join(","), until("get_problems"), "", { RAPIDR_AI_TEST_SERVER: MOCK_URL.replace(/\/v1$/, "") });
+  const run = studio("rai", [AI_READY, "mcp:mode=all", `mcp:on=${PORT}`, "ai:applink=deny", "ai:applink=allow"].join(","), until(END_WORDS), "", { RAPIDR_AI_TEST_SERVER: MOCK_URL.replace(/\/v1$/, "") });
   check("RAI: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   let r = await tool("run_program", { Action: "start", Wait: 2 });
@@ -549,7 +552,7 @@ if (want("rai")) {
   check("the program shows 7", r.text.includes('display (RLabel) "7"'), r.text);
   r = await tool("get_rai_transcript", { Chars: 30000 });
   check("RAI's chat shows each answer to its card", r.text.includes("You didn't allow RAI to use your running program") && r.text.includes("You allowed RAI to use your running program for this run"), r.text.slice(-1500));
-  r = await tool("get_problems");
+  r = await tool("how_do_i", { task: "the end of this part" });
   const end = await run.ended();
   check("RAI: Studio ended", end.ok);
   const audit = existsSync(join(WORK, "rai-audit.jsonl")) ? readFileSync(join(WORK, "rai-audit.jsonl"), "utf8") : "";

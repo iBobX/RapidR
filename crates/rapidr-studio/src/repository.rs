@@ -726,6 +726,120 @@ mod engine {
     }
 }
 
+/// The project's versions read for the shared AI tools (list_versions,
+/// compare_versions — crate::tools_core): the same engine the Versions
+/// pane uses, on a folder, without the pane's component.
+pub(crate) mod read {
+    use super::{engine, Repo};
+
+    /// A version on the timeline.
+    pub struct Row {
+        pub id: String,
+        pub short: String,
+        pub seconds: i64,
+        pub author: String,
+        pub message: String,
+        pub checkpoint: bool,
+    }
+
+    fn repo(folder: &str) -> Repo {
+        Repo { folder: crate::slashes(folder.trim_end_matches(['/', '\\'])), ..Repo::default() }
+    }
+
+    /// Whether the project's folder keeps versions.
+    pub fn versioned(folder: &str) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            std::path::Path::new(folder).join(".git").exists()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = folder;
+            false
+        }
+    }
+
+    /// The versions, newest first (`None`: the project keeps none yet);
+    /// Err: why they can't be read (the web, a broken repository).
+    pub fn timeline(folder: &str, limit: usize) -> Result<Option<Vec<Row>>, String> {
+        if cfg!(target_arch = "wasm32") {
+            return Err(super::NOT_ON_THE_WEB.to_string());
+        }
+        if !versioned(folder) {
+            return Ok(None);
+        }
+        let mut r = repo(folder);
+        let text = engine::timeline(&mut r, limit);
+        if text.is_empty() && !r.error.is_empty() {
+            return Err(r.error);
+        }
+        Ok(Some(
+            text.lines()
+                .filter_map(|l| {
+                    let f: Vec<&str> = l.split('\t').collect();
+                    (f.len() >= 6).then(|| Row { id: f[0].into(), short: f[1].into(), seconds: f[2].parse().unwrap_or(0), author: f[3].into(), message: f[4].into(), checkpoint: f[5] == "checkpoint" })
+                })
+                .collect(),
+        ))
+    }
+
+    /// What changed since the last version (saved files): (state, path).
+    pub fn changed(folder: &str) -> Result<Vec<(char, String)>, String> {
+        let mut r = repo(folder);
+        engine::read_state(&mut r)?;
+        Ok(r.changes)
+    }
+
+    /// The files a version changed.
+    pub fn files_in(folder: &str, version: &str) -> Vec<String> {
+        let mut r = repo(folder);
+        engine::version_files(&mut r, version).lines().filter_map(|l| l.split_once('\t').map(|(_, p)| p.to_string())).collect()
+    }
+
+    /// A file as a version has it.
+    pub fn file_at(folder: &str, rel: &str, version: &str) -> Option<String> {
+        if version.trim().is_empty() {
+            return None;
+        }
+        let mut r = repo(folder);
+        engine::file_at(&mut r, rel, version)
+    }
+
+    /// `a` → `b` as diff lines (`-`, `+`, ` `, `@@`), three lines of context.
+    pub fn diff(a: &str, b: &str) -> Vec<String> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut out = Vec::new();
+            for h in rapidr_vcs::hunks(a.as_bytes(), b.as_bytes(), 3) {
+                out.push(format!("@@ line {} @@", h.new_start));
+                for l in h.lines {
+                    out.push(match l {
+                        rapidr_vcs::Line::Same(t) => format!(" {t}"),
+                        rapidr_vcs::Line::Removed(t) => format!("-{t}"),
+                        rapidr_vcs::Line::Added(t) => format!("+{t}"),
+                    });
+                }
+            }
+            out
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            a.lines().map(|l| format!("-{l}")).chain(b.lines().map(|l| format!("+{l}"))).collect()
+        }
+    }
+
+    /// (tests) Versions started in `folder` and a first version saved.
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub fn start_and_save(folder: &str, message: &str) -> Option<String> {
+        let mut r = repo(folder);
+        r.author = "Test".into();
+        if !engine::start(&mut r) {
+            return None;
+        }
+        engine::save(&mut r, message, "", true)
+    }
+}
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
