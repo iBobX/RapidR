@@ -110,6 +110,9 @@ struct Compiled {
     gbuf: Vec<u64>,
     ctx: Ctx,
     locals: Vec<u64>,
+    /// The code generator failed beyond repair: nothing more compiled or
+    /// run for this module.
+    broken: Option<String>,
 }
 
 pub struct Engine {
@@ -150,6 +153,10 @@ impl Engine {
         }
         // (one module per VM: a debugger's snippet runs in an evaluation,
         // where nothing compiled runs)
+        if let Some(why) = self.state.as_ref().and_then(|s| s.broken.clone()) {
+            self.off = Some(why);
+            return None;
+        }
         self.state.as_mut().filter(|s| s.module == id)
     }
 
@@ -213,6 +220,7 @@ fn new_state(m: &Module) -> Result<Compiled, String> {
         gbuf: Vec::new(),
         ctx: Ctx { globals: std::ptr::null_mut(), interrupt: &native::NOT_INTERRUPTED, depth_limit: 0, exits: Vec::new(), garrays: Vec::new(), larrays: Vec::new() },
         locals: Vec::new(),
+        broken: None,
     })
 }
 
@@ -279,15 +287,20 @@ impl Compiled {
                 c.calls = cout.calls.clone();
                 changed |= before != (c.callable, c.ret);
             }
-            if !changed && !out.pending {
-                return Ok(out);
-            }
             if !changed {
-                // (calls still not worked out: none of them can be)
+                // (settled — unless a routine is still not worked out: none
+                // of those can be, and their callers are built again
+                // without them; a call is only ever compiled to a routine
+                // that is worked out and will be defined)
+                let mut open = false;
                 for c in self.env.callees.values_mut() {
                     if !c.defined && c.callable == Callable::Unknown {
                         c.callable = Callable::No;
+                        open = true;
                     }
+                }
+                if !open && !out.pending {
+                    return Ok(out);
                 }
             }
         }
@@ -296,6 +309,7 @@ impl Compiled {
 
     /// Compiles the entry form of `fi` at `ip` (`start`: the routine's
     /// start, else a loop's head) for the frame on top of `view`.
+    #[allow(clippy::result_large_err)]
     fn compile(&mut self, view: &JitView<'_>, fi: u32, ip: usize, start: bool, strict: bool, stats: &mut Stats) -> Result<usize, String> {
         let m = view.module;
         let t0 = Instant::now();
@@ -331,10 +345,18 @@ impl Compiled {
             };
             let id = self.env.callees[spec].func;
             if let Err(e) = self.define(id, func, stats) {
-                result = Err(jm_err(e));
-                break;
+                // (callers already defined may call it: in its place a form
+                // that goes straight back to the interpreter at the
+                // routine's start — its frame, its parameters)
+                stats.notes.push(format!("a routine compiled as a stub ({})", jm_err(e)));
+                let stub = self.stub(m, spec);
+                if let Err(e) = stub.and_then(|func| self.define(id, func, stats).map_err(jm_err)) {
+                    result = Err(e);
+                    break;
+                }
+            } else {
+                self.commit_records(cout.records, usize::MAX);
             }
-            self.commit_records(cout.records, usize::MAX);
             defined.push(spec.clone());
             stats.callees += 1;
         }
@@ -355,8 +377,21 @@ impl Compiled {
             self.define(id, func, stats).map_err(jm_err)?;
             Ok((id, fout, hint))
         });
-        // (defined code is made executable, whatever happened after)
-        self.jm().finalize_definitions().map_err(jm_err)?;
+        // (defined code is made executable, whatever happened after; a
+        // failure there — the code generator's own — and nothing of this
+        // module is compiled or run any more)
+        let finalized = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.jm().finalize_definitions()));
+        match finalized {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                self.broken = Some(jm_err(e));
+                return Err("the compiled code couldn't be made executable".into());
+            }
+            Err(_) => {
+                self.broken = Some("the code generator failed".into());
+                return Err("the code generator failed".into());
+            }
+        }
         let (id, fout, hint) = form?;
         let code = self.jm().get_finalized_function(id);
         let form_index = self.forms.len();
@@ -398,6 +433,18 @@ impl Compiled {
             stats.loops += 1;
         }
         Ok(form_index)
+    }
+
+    /// A callee form that goes straight back to the interpreter: the frame
+    /// at the routine's start, its parameters as passed. (In place of one
+    /// the code generator refused, so its callers stay sound.)
+    fn stub(&mut self, m: &Module, spec: &(u32, Vec<K>)) -> Result<cranelift_codegen::ir::Function, String> {
+        let rec = self.records.len() as u32;
+        let mut func = compile::new_function(compile::callee_signature(&spec.1), spec.0);
+        let jm = self.jm.as_mut().expect("the module's compiled code");
+        let record = compile::build_stub(m, spec.0, &spec.1, &mut func, &mut self.fctx, jm, self.helpers, rec).map_err(|e| e.0)?;
+        self.records.push(record);
+        Ok(func)
     }
 
     // (the generator's own error, as it comes: rare, and only reported)

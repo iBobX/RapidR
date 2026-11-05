@@ -10,8 +10,10 @@
   first), for every desktop target — those RapidR has anyway without it
   (serde, syn … through feature unification) are its own business;
 - no source file of them carries a Mozilla Public License header, other
-  than the one the review found (regalloc2's src/lib.rs: C1, Robert's
-  decision — reported here until it is closed);
+  than the stale one the review found in regalloc2's src/lib.rs (C1, closed
+  by the review's addendum: regalloc2's pull request #15 relicensed the
+  whole crate) — and regalloc2 stays the reviewed 0.15.2, so a new
+  version's file is read again first;
 - never in the web runtime, the web host or rapidr-runtime-core (native
   builds never embed the VM), nor in a 32-bit x86 or wasm build.
 
@@ -29,6 +31,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PINNED = "0.137.1"
+# (the register allocator: the release whose relicensing record the review
+# read — its addendum)
+PINNED_OTHERS = {"regalloc2": "0.15.2"}
 ROOTS = ["cranelift-codegen", "cranelift-frontend", "cranelift-jit", "cranelift-module", "cranelift-native"]
 
 FORBIDDEN_FEATURES = {
@@ -61,8 +66,9 @@ NO_JIT_PACKAGES = ["rapidr-runtime-web", "rapidr-vm-host-web", "rapidr-runtime-c
 JIT_CRATES = re.compile(r"^(cranelift|regalloc2$|wasmtime-internal)")
 
 MPL_HEADER = "subject to the terms of the Mozilla Public"
-# (C1: known, Robert's decision pending — reported, not failed)
-MPL_KNOWN = {("regalloc2", "src/lib.rs")}
+# (a stale header: regalloc2 pull request #15 relicensed the file with the
+# crate — the review's addendum, C1 closed)
+MPL_KNOWN = {("regalloc2", "0.15.2", "src/lib.rs")}
 
 
 def metadata(platform, all_features=False):
@@ -113,6 +119,8 @@ def main():
                     seen_roots.add(name)
                     if version != PINNED:
                         problems.append(f"{name} {version}: not the reviewed release {PINNED} ({where})")
+                if name in PINNED_OTHERS and version != PINNED_OTHERS[name]:
+                    problems.append(f"{name} {version}: not the reviewed {PINNED_OTHERS[name]} ({where})")
                 if name not in REVIEWED and i not in baseline:
                     problems.append(f"{name} {version}: not in the review's list ({where})")
                 bad = FORBIDDEN_FEATURES.get(name, set()) & set(nodes[i].get("features", []))
@@ -135,8 +143,8 @@ def main():
                                 continue
                             if MPL_HEADER in text:
                                 rel = os.path.relpath(path, src)
-                                if (p["name"], rel) in MPL_KNOWN:
-                                    notes.append(f"{p['name']} {p['version']} {rel}: MPL-2.0 header (C1, Robert's decision; not mergeable until closed)")
+                                if (p["name"], p["version"], rel) in MPL_KNOWN:
+                                    notes.append(f"{p['name']} {p['version']} {rel}: its stale MPL-2.0 header (relicensed by regalloc2 pull request #15: the review's addendum)")
                                 else:
                                     problems.append(f"{p['name']} {p['version']} {rel}: a Mozilla Public License header")
     missing = set(ROOTS) - seen_roots

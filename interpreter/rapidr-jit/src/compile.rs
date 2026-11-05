@@ -1557,6 +1557,53 @@ impl Walk<'_, '_> {
     }
 }
 
+/// A callee form that goes straight back to the interpreter: it writes out
+/// its frame at the routine's start (the parameters as passed, the other
+/// locals Null) as exit `record` and returns 1 — the record it made is
+/// returned for the engine to keep at that index.
+#[allow(clippy::too_many_arguments)]
+pub fn build_stub(m: &Module, fi: u32, params: &[K], func: &mut ir::Function, fctx: &mut FunctionBuilderContext, jm: &mut JITModule, helpers: Helpers, record: u32) -> Result<ExitRecord, Unbuilt> {
+    let f = m.functions.get(fi as usize).ok_or_else(|| Unbuilt("no such routine".into()))?;
+    let frontend = jm.isa().frontend_config();
+    let exit = jm.declare_func_in_func(helpers.exit, func);
+    let mut b = FunctionBuilder::new(func, fctx);
+    let block = b.create_block();
+    b.append_block_params_for_function_params(block);
+    b.switch_to_block(block);
+    let args = b.block_params(block).to_vec();
+    let mut locals = Vec::new();
+    let mut vals = Vec::new();
+    let mut next = 2;
+    for s in 0..f.n_locals as usize {
+        let k = params.get(s).copied().unwrap_or(K::Null);
+        locals.push((s as u16, k));
+        if ty(k).is_some() {
+            let v = args[next];
+            next += 1;
+            vals.push(match k {
+                K::Dbl => b.ins().bitcast(types::I64, MemFlagsData::new(), v),
+                K::Bool => b.ins().uextend(types::I64, v),
+                _ => v,
+            });
+        }
+    }
+    let n = vals.len();
+    let slot = b.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, (8 * n.max(1)) as u32, 3));
+    let addr = b.ins().stack_addr(types::I64, slot, 0);
+    for (i, v) in vals.into_iter().enumerate() {
+        b.ins().store(MemFlagsData::trusted(), v, addr, (i * 8) as i32);
+    }
+    let idv = b.ins().iconst(types::I32, i64::from(record));
+    let nv = b.ins().iconst(types::I32, n as i64);
+    b.ins().call(exit, &[args[0], idv, addr, nv]);
+    let one = b.ins().iconst(types::I32, 1);
+    let zero = b.ins().iconst(types::I64, 0);
+    b.ins().return_(&[one, zero]);
+    b.seal_all_blocks();
+    b.finalize(frontend);
+    Ok(ExitRecord { fn_index: fi, ip: 0, locals, stack: Vec::new(), why: Why::Planned, form: usize::MAX })
+}
+
 /// A new function of the code generator for a form.
 pub fn new_function(sig: Signature, n: u32) -> ir::Function {
     ir::Function::with_name_signature(UserFuncName::user(0, n), sig)

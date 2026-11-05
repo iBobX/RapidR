@@ -169,6 +169,15 @@ fn gosub_and_text_in_a_hot_loop() {
 }
 
 #[test]
+fn a_call_to_a_routine_whose_result_is_never_worked_out() {
+    // (Y returns only after a PRINT — left to the interpreter — or through
+    // itself: its result's kind is never known, so X, which calls it,
+    // can't be either; X's caller must not call X compiled. Found by
+    // RapidR Studio run with RAPIDR_JIT=always: "can't resolve symbol")
+    same("FUNCTION Y(n AS INTEGER) AS INTEGER\n  IF n = 0 THEN\n    PRINT \"bottom\"\n    Result = 0\n  ELSE\n    Result = Y(n - 1) + 1\n  END IF\nEND FUNCTION\nFUNCTION X(n AS INTEGER) AS INTEGER\n  IF n < 0 THEN\n    Result = 0\n  ELSE\n    Result = Y(n)\n  END IF\nEND FUNCTION\nDIM i AS INTEGER, s AS INTEGER\nFOR i = 1 TO 50\n  s = s + X(3)\nNEXT\nPRINT s\n");
+}
+
+#[test]
 fn a_compiled_call_into_a_routine_that_prints() {
     // (always: the callee compiled though it PRINTs — it leaves at its
     // PRINT, its caller at the call, both frames put back)

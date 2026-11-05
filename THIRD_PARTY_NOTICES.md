@@ -702,7 +702,7 @@ their `OFL.txt`.
 | cranelift-jit | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
 | cranelift-module | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
 | cranelift-native | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
-| regalloc2 | 0.15.2 | <https://github.com/bytecodealliance/regalloc2> |
+| regalloc2 | 0.15.2 | <https://github.com/bytecodealliance/regalloc2> (the MPL-2.0 header left in its src/lib.rs is stale: pull request #15, <https://github.com/bytecodealliance/regalloc2/pull/15>, relicensed the whole crate in 2021) |
 | target-lexicon | 0.13.5 | <https://github.com/bytecodealliance/target-lexicon> |
 | wasmtime-internal-core | 50.0.1 | <https://crates.io/crates/wasmtime-internal-core> |
 | wasmtime-internal-jit-icache-coherence | 50.0.1 | <https://github.com/bytecodealliance/wasmtime> |

@@ -391,10 +391,12 @@ and CC0-1.0; plus OFL-1.1 for fonts. All any of them asks of a user is that
 - **The JIT's machine-code compiler** (desktop runtimes only): Cranelift,
   Apache-2.0 WITH LLVM-exception (its patent grant: Apache-2.0 §3);
   `regalloc2`, its register allocator, derives from an allocator first
-  published under the MPL and relicensed with Mozilla's sign-off in 2021 —
-  one file still carries the old header (docs/legal/review-2026-11-05-cranelift.md,
-  C1). No cryptography in it (its `incremental-cache` feature, with
-  `sha2`, stays off).
+  published under the MPL and relicensed in full with Mozilla's sign-off in
+  2021 (its pull request #15); the old header left in its `src/lib.rs` is
+  stale, and the notices say so beside it
+  (docs/legal/review-2026-11-05-cranelift.md, the addendum). No
+  cryptography in it (its `incremental-cache` feature, with `sha2`, stays
+  off).
 
 ## 6. The repository
 
@@ -486,11 +488,11 @@ and trademarks, in [legal/rapidq-review.md](legal/rapidq-review.md)
   the legal review of 2026-11-05: the reviewed release pinned (0.137.1),
   its optional features off (`disas`, `incremental-cache`,
   `souper-harvest`, `enable-serde`, `pulley`, `wasmtime-unwinder`), no
-  crate the review didn't list, no Mozilla Public License header in its
-  sources but `regalloc2`'s `src/lib.rs` (the review's C1, reported until
-  Robert closes it — the JIT isn't merged before), and never in the web
-  runtime, the web host, `rapidr-runtime-core`, a wasm or a 32-bit x86
-  build.
+  crate the review didn't list, `regalloc2` at the reviewed 0.15.2, no
+  Mozilla Public License header in its sources but the stale one in
+  `regalloc2`'s `src/lib.rs` (its pull request #15 relicensed the whole
+  crate: the review's addendum), and never in the web runtime, the web
+  host, `rapidr-runtime-core`, a wasm or a 32-bit x86 build.
 - `tools/regress.sh legal` runs all of them and exits 1 if any fails (it is
   part of a full run).
 

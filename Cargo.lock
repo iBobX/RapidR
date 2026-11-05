@@ -5556,6 +5556,7 @@ dependencies = [
  "rapidr-parser",
  "rapidr-value",
  "rapidr-vm",
+ "regalloc2",
  "region",
 ]
 

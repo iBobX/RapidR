@@ -672,6 +672,15 @@ fn copyright_line(p: &Package) -> String {
     }
 }
 
+/// A short line a crate's entry carries: what its own files don't say
+/// right (docs/legal/review-2026-11-05-cranelift.md, the addendum).
+const CRATE_NOTES: &[(&str, &str)] = &[(
+    "regalloc2",
+    "Apache-2.0 WITH LLVM-exception throughout. The MPL-2.0 header still at the top of its src/lib.rs is a leftover: \
+     regalloc2 pull request #15 (https://github.com/bytecodealliance/regalloc2/pull/15, merged 2021-11-18 with Mozilla's sign-off) \
+     relicensed the whole crate, src/lib.rs included, to Apache-2.0 WITH LLVM-exception.",
+)];
+
 fn crate_component(p: &Package, clarified: &HashMap<String, String>) -> Result<Component, String> {
     let declared = p.license.clone().or_else(|| clarified.get(&p.name).cloned()).ok_or_else(|| format!("{} {}: declares no licence (add a [[licenses.clarify]] to deny.toml)", p.name, p.version))?;
     let files = licence_files(p);
@@ -697,7 +706,8 @@ fn crate_component(p: &Package, clarified: &HashMap<String, String>) -> Result<C
             blocks.push(Block { title: format!("{} {} — {id} (the crate ships no licence file for it)", p.name, p.version), text: format!("{}\n\n{template}", copyright_line(p)) });
         }
     }
-    Ok(Component { name: p.name.clone(), version: p.version.clone(), declared, used: used.join(" AND "), url: p.url.clone(), note: String::new(), blocks })
+    let note = CRATE_NOTES.iter().find(|(n, _)| *n == p.name).map(|(_, t)| t.to_string()).unwrap_or_default();
+    Ok(Component { name: p.name.clone(), version: p.version.clone(), declared, used: used.join(" AND "), url: p.url.clone(), note, blocks })
 }
 
 // --- what isn't a crate ----------------------------------------------------

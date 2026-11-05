@@ -9,7 +9,8 @@ the program runs (`rapidr run`, Studio's F5). Sections 1–11 are the plan
 as written before the work; **§12 says what tier 1 is as built
 (2026-11-05) and where it differs from the plan, and why**. The
 dependency's review: `docs/legal/review-2026-11-05-cranelift.md` (OK with
-conditions; C1 is Robert's decision and gates the merge).
+conditions; C1 closed in its addendum: regalloc2's relicensing covers the
+file whose header still says MPL).
 
 ## 1. Why a JIT, and what is left after phase 2
 
@@ -211,8 +212,9 @@ interpreted".
   `souper-harvest`, `enable-serde`, `pulley` and `cranelift-jit`'s
   `wasmtime-unwinder` stay off — `tools/check_jit_features.py` (in
   `tools/regress.sh legal`) fails if one is turned on, if the code
-  generator brings a crate the review didn't list, if a source file of its
-  tree carries an MPL header other than the known one (C1), or if it
+  generator brings a crate the review didn't list, if regalloc2 isn't the
+  reviewed 0.15.2, if a source file of its tree carries an MPL header other
+  than the known stale one, or if it
   reaches the web runtime, `rapidr-runtime-core`, a wasm or a 32-bit x86
   build. Its sources are never patched or edited.
 - **iOS / iPadOS** (RapidR's mobile plans): JIT is forbidden for apps:
@@ -251,15 +253,17 @@ distributed, and there is nothing to attribute either way. RapidR's
 binaries and every exported program list Cranelift's crates in their
 notices anyway (`THIRD_PARTY_NOTICES.md`, `rapidr notices`). Patent grant:
 Apache-2.0's. No GPL / LGPL / AGPL by the declared licences or in any file
-read; **one MPL-2.0 header**: `regalloc2`'s `src/lib.rs` (a leftover of the
-2021 relicensing, most likely): the review's C1, Robert's decision — the
-branch is not merged until it is closed. The tree as resolved in
-RapidR's `Cargo.lock` (the review's §1 has the exact list):
+read; **one stale MPL-2.0 header**: `regalloc2`'s `src/lib.rs` — a
+leftover comment: regalloc2's pull request #15 (2021, with Mozilla's
+sign-off) relicensed the whole crate, that file included (the review's
+addendum, C1 closed). The notices say so beside regalloc2, which is pinned
+to the reviewed 0.15.2. The tree as resolved in RapidR's `Cargo.lock` (the
+review's §1 has the exact list):
 
 | Crate | Licence | Role |
 |---|---|---|
 | cranelift-codegen, -frontend, -jit, -module, -native, -entity, -bforest, -control, -codegen-shared, -assembler-x64, -bitset 0.137.1; build time only: -codegen-meta, -assembler-x64-meta, -isle, -srcgen | Apache-2.0 WITH LLVM-exception | the compiler |
-| regalloc2 0.15.2 | Apache-2.0 WITH LLVM-exception (and the MPL-headed `src/lib.rs`: C1) | register allocator |
+| regalloc2 0.15.2 (pinned) | Apache-2.0 WITH LLVM-exception (its `src/lib.rs`'s MPL header is stale: PR #15) | register allocator |
 | target-lexicon 0.13.5 | Apache-2.0 WITH LLVM-exception | target triples |
 | wasmtime-internal-core, wasmtime-internal-jit-icache-coherence 50.0.1 | Apache-2.0 WITH LLVM-exception | support; instruction-cache flush |
 | gimli 0.33.0 | MIT OR Apache-2.0 | unwind info |
