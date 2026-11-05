@@ -210,9 +210,9 @@ never a different answer.
 | 11 | The same runtime work costs 2–4 × more inside `rapidr run` than in a native build | (to find) | the 200-control frame 28.8 vs 10.8 ms | Re-measure after 1–3 (most of the difference is allocation-heavy code); if it stays, profile the interpreter's process setup (threads, allocator) | `rapidr run` frames as native's |
 | 12 | A designer nudge (arrow key) in a big form file | (not profiled) | ~100 ms CPU at 5,000 lines | Out of this lane: for the designer's own pass | |
 
-## 5. Step 2, proposed (waiting for the go)
+## 5. Step 2, as proposed (the lead's go came the same day)
 
-In this order, each with its before / after here and its guard:
+In this order, each with its before / after in §6 and its guard:
 
 1. Hot spot 1 (scroll bars once a turn) — #12 under 5 ms for 41 moves.
 2. Hot spot 3 (children index; `pre_paint` over its own components).
@@ -244,6 +244,47 @@ MIT/Apache-2.0) only if the lead prefers it to a small one of our own.
 Each fix is its own commit; "before" is the commit before it, measured
 back to back with it on the same Mac (shared with other lanes: load
 average 15–55), `rapidr run` unless it says native.
+
+**Where things stand** (the brief's acceptance first):
+
+| | before | after | wanted |
+|---|--:|--:|--:|
+| #12: 41 moves | 11–12.5 ms | **0.11–0.25 ms** | < 5 ms |
+| 200-control form, a resize frame in a window (median) | 29 ms (`rapidr run`), 11 ms (native) | **10.7–12.2 ms**, **8.3 ms** | < 16 ms |
+| …dragged by hand: frames for 120 mouse steps | 60–71 (`rapidr run`) | **119** (one per step), both runtimes | every step |
+| a caret move, 5,000-line file (Studio's CPU, headless) | 10.5–11.7 ms | **2.0–3.0 ms** | < 16 ms with the paint |
+| an edit pause, 5,000-line file (CPU) | 372–388 ms | **52–76 ms** | < 16 ms: not yet (see below) |
+| opening RapidQ's `windows.inc` in Studio (CPU) | 25.3 s | **3.3 s** | |
+| RapidR Web Server's window, by hand: frames in the drag | 22 | **65** | |
+
+| Hot spot (§4) | Status |
+|---|---|
+| 1 scroll bars per write | fixed (exactly, when nothing is scrolled and nothing aligned; else as before) |
+| 2 property reads | fixed (no copies, one type lookup, one font walk); the faster hasher measured and left out |
+| 3 children scan | fixed (index; the owner-draw turn serves only its own components) |
+| resize coalescing | measured: nothing to coalesce (one size a frame already) |
+| 4 line counts | fixed |
+| 6 `$DEFINE` search | fixed |
+| 5 whole-program analysis per pause | first part fixed (Studio's outline, FIELD$); the rest — the analysis off the UI thread — proposed as its own lane |
+| 7 SIN / COS | fixed |
+| 8, 9 interpreter, typed arrays | the JIT and fast-arrays lanes' (their benchmarks now have budgets) |
+| 10 canvas text | open: the 12-canvas frame is 18.8 ms, its OnPaints' text and pixels |
+| 11 interpreter process slower at runtime work | open: still 2–4 × (the 200-control writes 0.75 vs 0.19 ms native); same functions in both profiles |
+| 12 designer nudge | open (the designer's) |
+
+**Left for the lead:**
+- An edit pause still costs 52–150 ms on the UI thread, now mostly the
+  compiler's own checks (`rapidr_bcgen::semantic`, the ERRORS lane's
+  crate); making it free means the analysis on a worker thread — a lane.
+- `codeeditor_bench --service --lines 5000` (typing with the language
+  service): p99 key → pixels 21 ms (target 16), not looked at here.
+- The web runtime has its own copies of the three UI patterns
+  (`runtime-web`'s scroll update per write, children scan, property
+  reads): not changed in this lane (the fixes in shared code — 4, 6, 7,
+  FIELD$ — reach it). A parity lane with web measurements.
+- `tools/check_words.py` fails on five unused allowlist entries for
+  `ROADMAP.md` since the roadmap's rewrite (commit edeed986), not this
+  lane's.
 
 ### Hand resizes, before any fix
 
@@ -287,6 +328,16 @@ child process — with 12 sample sites, its own OnResize timed (`rapidr run`):
 
 (Its own layout code is now most of what's left of a frame: 12 ms of its
 35.)
+
+**RapidR Studio, a real walk**: a real window opening RapidQ's
+`windows.inc` (17,832 lines), a click in the code, then 60 Down-arrow keys
+(real key events, ~20 a second), the process's CPU over the keys (the
+paint included):
+
+| | the window shows after | CPU to open (Studio's start included) | a caret move (CPU, painted) |
+|---|--:|--:|--:|
+| before the fixes | 21.8 s | 23.8 s | 26.2 ms |
+| after | **3.8 s** | **3.7 s** | **11.5 ms** |
 
 ### The guard
 
