@@ -102,7 +102,7 @@ pub fn encodings(parsed: &Parsed) -> Vec<FileDiagnostic> {
         if !matches!(encoding, SourceEncoding::Windows1252 | SourceEncoding::Windows1252Bom) {
             continue;
         }
-        let f = rapidr_preprocessor::SourceFile { path: Some(path.clone()), text, encoding, lines: Vec::new() };
+        let f = rapidr_preprocessor::SourceFile::new(Some(path.clone()), text, encoding);
         let bom = usize::from(f.encoding == SourceEncoding::Windows1252Bom) * 3;
         let bytes = f.bytes();
         let body = &bytes[bom.min(bytes.len())..];
