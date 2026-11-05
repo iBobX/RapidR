@@ -62,6 +62,25 @@ int main(int argc, char **argv)
     ((void(__stdcall *)(void *))slot_co_task_mem_free)(0);
     CHECK("CoTaskMemFree(NULL): returns", 1);
 
+    /* the cube roots (ours: the library's Cephes-derived ones are never linked) */
+    {
+        double worst = 0.0, v;
+        int n, whole = 1;
+        for (n = 1; n <= 1000; n++) {
+            double d = n;
+            if (cbrt(d * d * d) != d || cbrt(-(d * d * d)) != -d) whole = 0;
+        }
+        CHECK("cbrt: the cubes of 1..1000 come out whole, either sign", whole);
+        CHECK("cbrt: 0, -0 (sign kept), infinity, NaN are themselves", cbrt(0.0) == 0.0 && 1.0 / cbrt(-0.0) < 0.0 && cbrt(1.0 / 0.0) == 1.0 / 0.0 && cbrt(0.0 / 0.0) != cbrt(0.0 / 0.0));
+        for (v = 5e-324; v < 1e300; v *= 3.1) {
+            double r = cbrt(v), back = r * r * r, rel = (back - v) / v;
+            if (rel < 0) rel = -rel;
+            if (rel > worst) worst = rel;
+        }
+        CHECK("cbrt: r*r*r is within 1e-15 of x from the smallest subnormal to 1e300", worst < 1e-15);
+        CHECK("cbrtf(27) is 3, cbrtf(-8) is -2", cbrtf(27.0f) == 3.0f && cbrtf(-8.0f) == -2.0f);
+    }
+
     printf("%s\n", failures ? "FAILED" : "all ok");
     return failures != 0;
 }

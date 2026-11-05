@@ -62,3 +62,17 @@ linked; after this change none of the three delay-load files is linked.
   the stand-in of one that is not there). On Windows 11: all six native. A
   throwaway build whose lookups were pointed at a DLL that does not exist: all
   six stand-ins, each called once, no crash.
+
+## The runner programs (2026-11-05, lane BUILD-MATRIX)
+
+The programs `rapidr build --interp` makes start from `rapidrintr-runner[w].exe`, built from
+`interpreter/rapidr-runner-stub`, a crate that has neither `win7.rs` nor `cbrt.rs`. Built as it was, the
+Windows 7 runner needed the same six Windows 8-only functions and linked mingw-w64's Cephes-derived
+`cbrt` / `cbrtf` (found by `tools/win7/link_audit.sh ... runner`: 106 objects, 2 flagged).
+`tools/win7/shim/win7_stand_ins.c` has the same six stand-ins and the same two cube roots, written for C
+from the same public documentation and RapidR's own `win7.rs` / `cbrt.rs` (no header, no code of
+mingw-w64, of a delay-load helper or of anyone else), and `tools/win7/runners.sh` links it into those two
+programs only. Checked after: `link_audit.sh ... runner`: 103 objects, 0 flagged; `imports.py`: no
+`combase.dll`, no `api-ms-win-core-*`; `shim/test_stand_ins.c` run on Windows 11 as Windows has the functions and
+with every lookup answering "not there". (The permanent form is the stub crate including `win7.rs` and
+`cbrt.rs`: a few lines in `interpreter/rapidr-runner-stub`, not made here.)

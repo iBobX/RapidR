@@ -1,5 +1,6 @@
 /*
- * The six functions Windows 7 does not have, for the runner programs (rapidrintr-runner[w].exe).
+ * The six functions Windows 7 does not have, and the cube roots msvcrt.dll does not have (below), for the
+ * runner programs (rapidrintr-runner[w].exe).
  *
  * rapidr.exe has these in crates/rapidr-cli/src/win7.rs (see tools/win7/clean-room.md for how and
  * why). The runner stubs that `rapidr build --interp` copies into a person's program are built from
@@ -27,6 +28,46 @@
 
 typedef unsigned short wchar16;
 typedef unsigned int size_t_;
+
+/*
+ * `cbrt` and `cbrtf` too: msvcrt.dll, the C runtime Windows 7 has, has no cube root, so the linker would
+ * take mingw-w64's, which are derived from Cephes (a permission to copy that is vague; the project links no
+ * Cephes-derived code, docs/licensing.md 3.3, docs/legal/review-2026-10-23-win7-alpha.md item 1).
+ * rapidr.exe defines its own in crates/rapidr-cli/src/cbrt.rs; the runner stub does not, and
+ * tools/win7/link_audit.sh ... runner found the two Cephes members in its link. These are the same method
+ * (a first guess from the exponent bits, then Newton's iteration y = (2y + a / y^2) / 3) written for C:
+ * an object's own definition comes before an archive member, so the library's never gets in.
+ */
+double cbrt(double x);
+float cbrtf(float x);
+
+double cbrt(double x)
+{
+    union { double d; unsigned long long u; } v;
+    double a, y, r;
+    int i;
+    if (x == 0.0 || x != x || x - x != 0.0)
+        return x;   /* +-0, NaN, +-infinity: themselves */
+    a = x < 0.0 ? -x : x;
+    if (a < 2.2250738585072014e-308)   /* subnormal: scaled by 2^54 into the normal range, the root by 2^18 */
+        return cbrt(x * 18014398509481984.0) / 262144.0;
+    v.d = a;
+    v.u = v.u / 3 + 0x2A9F7893782DA1CEull;   /* exponent / 3 in the exponent bits: within a few percent of the root */
+    y = v.d;
+    for (i = 0; i < 5; i++)
+        y = (2.0 * y + a / (y * y)) / 3.0;
+    if (y < 4.0e15) {   /* (a whole number's cube comes out as that whole number; above this y is whole already) */
+        r = (double)(long long)(y + 0.5);
+        if (r * r * r == a)
+            y = r;
+    }
+    return x < 0.0 ? -y : y;
+}
+
+float cbrtf(float x)
+{
+    return (float)cbrt((double)x);
+}
 
 __declspec(dllimport) void *__stdcall GetModuleHandleW(const wchar16 *name);
 __declspec(dllimport) void *__stdcall LoadLibraryW(const wchar16 *name);

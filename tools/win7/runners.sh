@@ -29,7 +29,8 @@ TARGET="${ARCH}-win7-windows-gnu"
 
 OBJ="$TD/win7-shims/$ARCH/win7_stand_ins.o"
 mkdir -p "$(dirname "$OBJ")"
-"$LLVM_MINGW/bin/${ARCH}-w64-mingw32-clang" -O2 -Wall -Wextra -c "$HERE/shim/win7_stand_ins.c" -o "$OBJ"
+# (-fno-builtin: our cbrt must not be turned into a call to cbrt; SSE2, as the Rust target)
+"$LLVM_MINGW/bin/${ARCH}-w64-mingw32-clang" -O2 -Wall -Wextra -fno-builtin -msse2 -mfpmath=sse -c "$HERE/shim/win7_stand_ins.c" -o "$OBJ"
 
 # `cargo rustc` hands the object to these two programs' link only: the libraries they use are not
 # built again (a RUSTFLAGS change would).
