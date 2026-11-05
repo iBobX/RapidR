@@ -70,6 +70,8 @@ pub mod prelude {
     pub use crate::value::data;
     pub use crate::value::numeric;
     pub use crate::value::wide;
+    // (native typed arrays: rapidr-codegen-rust's typed_arrays)
+    pub use crate::value::typed_array::TypedArray;
     // (an event handler's start: rapidr_ast::event_params)
     pub use crate::value::events as rr_events;
     pub use crate::value::tray;
