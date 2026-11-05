@@ -840,8 +840,16 @@ fn post(name: &str, a: Arrived) {
     // (what the server is, asked whatever revision the header names — an
     // app asks it first, with an earlier revision's header, and quit when
     // refused (Goose, Robert 2026-11-03): the versions it can then pick)
+    // (a client the person disconnected is refused here too, as on every
+    // other path; one let in is heard: the app shows it)
     if method == "server/discover" && !modern {
         if let Some(id) = &id {
+            let meta = body.pointer("/params/_meta").and_then(|m| m.get(META_CLIENT));
+            let (client, version_of) = client_title(meta.or_else(|| body.pointer("/params/clientInfo")));
+            if shut_out(name, &client) {
+                return send_json(&a, 403, &[], &error_message(id, SESSION_REFUSED, "Disconnected by the person using the app: they can let AI apps in again by turning the server off and on."));
+            }
+            heard(name, &client, &version_of, false);
             return discover(name, &a, id);
         }
     }
@@ -1344,6 +1352,94 @@ mod tests {
         assert_eq!(supported()[0], "2026-07-28");
         assert!(supported().contains(&"2025-03-26"));
         assert!(supported().contains(&"2024-11-05"));
+    }
+
+    /// A server named `name` for the tests: nothing listens; its requests
+    /// are handed to `post` as they would arrive.
+    fn test_server(name: &str) {
+        let (_tx, rx) = mpsc::channel();
+        let info = Info { name: "rapidr-test".into(), version: "1.0".into(), ..Info::default() };
+        SERVERS.with(|s| {
+            s.borrow_mut().insert(name.to_string(), Server { running: Arc::new(AtomicBool::new(true)), events: rx, path: "/mcp".into(), info, sessions: HashMap::new(), clients: Vec::new(), shut_out: Vec::new(), calls: HashMap::new(), queue: VecDeque::new(), busy: Rc::new(Cell::new(false)), idle: Duration::from_secs(900) })
+        });
+    }
+
+    /// A POST of `body` with `headers` to server `name`: its status, its
+    /// JSON answer, its head.
+    fn posted(name: &str, headers: &[(&str, &str)], body: &Json) -> (u16, Json, String) {
+        let (tx, rx) = mpsc::channel();
+        let mut all = vec![("Content-Type".to_string(), "application/json".to_string())];
+        all.extend(headers.iter().map(|(n, v)| (n.to_string(), v.to_string())));
+        let request = Request { method: "POST".into(), target: "/mcp".into(), version: "HTTP/1.1".into(), headers: all, body: body.to_string().into_bytes() };
+        post(name, Arrived { id: 1, request, peer: "127.0.0.1".into(), conn: tx });
+        let mut bytes = Vec::new();
+        while let Ok(out) = rx.try_recv() {
+            if let Out::Bytes(b) = out {
+                bytes.extend(b);
+            }
+        }
+        let text = String::from_utf8(bytes).unwrap();
+        let (head, answer) = text.split_once("\r\n\r\n").unwrap_or((&text, ""));
+        let status = head.split(' ').nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+        (status, serde_json::from_str(answer).unwrap_or(Json::Null), head.to_string())
+    }
+
+    fn clients_of(name: &str) -> Vec<String> {
+        with_server(name, |s| s.clients.iter().map(|c| c.name.clone()).collect()).unwrap_or_default()
+    }
+
+    /// server/discover asked with an earlier revision's header, or with
+    /// none: the whole answer (ttlMs and cacheScope too), the client heard;
+    /// a client the person disconnected is refused there as everywhere.
+    #[test]
+    fn discover_on_the_earlier_revisions_path() {
+        let name = "mcp-test-discover";
+        test_server(name);
+        let ask = |client: &str| json!({"jsonrpc": "2.0", "id": 7, "method": "server/discover", "params": {"_meta": {META_CLIENT: {"name": client, "version": "1.2"}}}});
+        for headers in [&[("MCP-Protocol-Version", "2025-06-18")][..], &[("MCP-Protocol-Version", "2025-11-25")][..], &[][..]] {
+            let (status, answer, _) = posted(name, headers, &ask("goose"));
+            assert_eq!(status, 200, "{headers:?}: {answer}");
+            let r = &answer["result"];
+            assert_eq!(answer["id"], json!(7));
+            assert_eq!(r["supportedVersions"][0], json!("2026-07-28"), "{answer}");
+            assert_eq!(r["ttlMs"], json!(0), "{answer}");
+            assert_eq!(r["cacheScope"], json!("private"), "{answer}");
+            assert_eq!(r["_meta"][META_SERVER]["name"], json!("rapidr-test"), "{answer}");
+        }
+        assert_eq!(clients_of(name), vec!["goose".to_string()], "heard: the app shows it");
+        // (no _meta: the earlier revisions' clientInfo names it, or none)
+        let (status, _, _) = posted(name, &[], &json!({"jsonrpc": "2.0", "id": 8, "method": "server/discover"}));
+        assert_eq!(status, 200);
+        assert!(clients_of(name).contains(&"an AI app".to_string()));
+        // (disconnected by the person: refused, not heard again)
+        with_server(name, |s| s.shut_out.push("goose".into()));
+        let before = with_server(name, |s| s.clients.iter().find(|c| c.name == "goose").map(|c| c.last)).flatten();
+        let (status, answer, _) = posted(name, &[("MCP-Protocol-Version", "2025-06-18")], &ask("Goose"));
+        assert_eq!(status, 403, "{answer}");
+        assert_eq!(answer["error"]["code"], json!(SESSION_REFUSED));
+        assert!(answer["error"]["message"].as_str().unwrap_or("").contains("Disconnected"), "{answer}");
+        let after = with_server(name, |s| s.clients.iter().find(|c| c.name == "goose").map(|c| c.last)).flatten();
+        assert_eq!(before, after, "a refused client isn't heard");
+        stop(name);
+    }
+
+    /// An earlier revision's initialize at 2024-11-05: answered with that
+    /// revision and a session; the session's requests work.
+    #[test]
+    fn a_session_at_2024_11_05() {
+        let name = "mcp-test-2024";
+        test_server(name);
+        let (status, answer, head) = posted(name, &[], &json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "old-app", "version": "0.1"}}}));
+        assert_eq!(status, 200, "{answer}");
+        assert_eq!(answer["result"]["protocolVersion"], json!("2024-11-05"), "{answer}");
+        assert_eq!(answer["result"]["serverInfo"]["name"], json!("rapidr-test"));
+        let sid = head.lines().find_map(|l| l.strip_prefix("Mcp-Session-Id: ")).map(str::trim).unwrap_or("").to_string();
+        assert_eq!(sid.len(), 32, "{head}");
+        let (status, answer, _) = posted(name, &[("Mcp-Session-Id", &sid), ("MCP-Protocol-Version", "2024-11-05")], &json!({"jsonrpc": "2.0", "id": 2, "method": "ping"}));
+        assert_eq!(status, 200, "{answer}");
+        assert_eq!(answer["result"], json!({}));
+        assert_eq!(clients_of(name), vec!["old-app".to_string()]);
+        stop(name);
     }
 
     #[test]
