@@ -578,7 +578,7 @@ pub const TOOLS: &[Spec] = &[
         grant: "change",
         handler: Handler::Studio,
         offer: Offer::Both,
-        description: "Saves a Version of the project as Save a Version does (open files saved first): before a big step and after each step that works. Refused when a line looks like a key or password. Never use git or a shell: these tools are the way. Example: {\"message\": \"Step 1 - the form works\"}.",
+        description: "Saves a Version of the project as Save a Version does (open files saved first; Versions started when the project has none): before a big step and after each step that works. Refused when a line looks like a key or password. Never use git or a shell: these tools are the way. Example: {\"message\": \"Step 1 - the form works\"}.",
         lite: "",
         schema: message_args,
         mcp_hint: "change",

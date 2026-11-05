@@ -169,6 +169,13 @@ function startStudio(work, port, capture) {
     RAPIDR_CAPTURE_DELAY: "1.5",
     RAPIDR_MENU: "window",
     RAPIDR_TEST_MCP_TOKEN: TOKEN,
+    // (the program Studio runs: its own GUI test keeps it open two minutes —
+    // else it is captured and ends at once, and the app_* tools find nothing
+    // running —, a message box it opens stays open half a minute, as a
+    // user's would, then answers OK)
+    RAPIDR_TEST_PROGRAM_EVENTS: "form.__wait_120000",
+    RAPIDR_TEST_PROGRAM_MESSAGE_DIALOG: "OK;OK;OK;OK",
+    RAPIDR_TEST_PROGRAM_DIALOG_HOLD: "30000",
     RAPIDR_PRINT_TO: join(work, "prints"),
     RAPIDR_REGISTRY: join(work, "studio.reg"),
     RAPIDR_DOCUMENTS: join(work, "docs"),

@@ -147,7 +147,7 @@ assistant, uses (only the last group is AI apps' alone):
 | `list_versions`, `compare_versions` | The project's saved versions (Versions), and what changed between two of them or since one | look |
 | `propose_edit`, `write_file`, `create_project` | A change to a file (only the parts that change), a new file, a new program — checked by the compiler first | change |
 | `set_property` | A component's property set as the Properties pane sets it — a change like the others: under **Ask before changes** you see it as a diff | change |
-| `save_version`, `restore_version`, `start_versions` | Save a Version (the open files saved first; the version is the AI app's, not yours), go back to a version (a new version: nothing is lost, Undo in Versions takes it back), start Versions in a project | change |
+| `save_version`, `restore_version`, `start_versions` | Save a Version (the open files saved first, Versions started if the project had none; the version is the AI app's, not yours), go back to a version (a new version: nothing is lost, Undo in Versions takes it back), start Versions in a project | change |
 | `report_gap` | Writes one short line in the project's `RAPIDR-ISSUES.md`: a tool the AI app missed, a question the manual didn't answer. Nothing else is written | change (a note: allowed in every choice but Read only) |
 | `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused). Not while the code has errors: the AI app is told the first ones, and that Problems must be 0 | run |
 | `debug` | Breakpoints, continue, step over / into / out, pause, the call stack and the variables | run |

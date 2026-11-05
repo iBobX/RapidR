@@ -382,7 +382,7 @@ END FUNCTION
 ' saved "anyway"). A version an AI saves is its own: its name in the
 ' timeline and in a line's history, never the user's.
 SUB ToolsSaveVersion(Ticket AS STRING)
-  DIM msg AS STRING, fl AS STRING, id AS STRING, i AS INTEGER, who AS STRING, n AS INTEGER
+  DIM msg AS STRING, fl AS STRING, id AS STRING, i AS INTEGER, who AS STRING, n AS INTEGER, started AS STRING
   msg = LTRIM$(RTRIM$(REPLACESUBSTR$(REPLACESUBSTR$(ToolsArg("message"), CHR$(10), " "), CHR$(13), " ")))
   IF msg = "" THEN
     ToolsAnswer Ticket, "message: the version's name, in a few words (" + CHR$(34) + "Step 1 - the form works" + CHR$(34) + ").", 1
@@ -392,17 +392,23 @@ SUB ToolsSaveVersion(Ticket AS STRING)
     ToolsAnswer Ticket, "Not saved: no project is open.", 1
     EXIT SUB
   END IF
+  ' (a project without versions: started first, as Save a Version does)
+  started = ""
   IF Repo.Versioned = 0 THEN
-    ToolsAnswer Ticket, "Not saved: this project doesn't keep versions yet. start_versions starts them, then save_version again. Never use git or a shell instead.", 1
-    EXIT SUB
+    IF Repo.Start = 0 THEN
+      ToolsAnswer Ticket, "Not saved: Versions couldn't start in this project: " + Repo.Error + " Never use git or a shell instead: tell the user.", 1
+      EXIT SUB
+    END IF
+    OutputLine TR$("This project keeps versions now: {folder}", "folder", Proj.Folder)
+    started = "Versions started in this project. "
   END IF
   IF SaveAllOk = 0 THEN
-    ToolsAnswer Ticket, "Not saved: the open files couldn't be saved first.", 1
+    ToolsAnswer Ticket, started + "Not saved: the open files couldn't be saved first.", 1
     EXIT SUB
   END IF
   VerRefresh
   IF VerChCount = 0 THEN
-    ToolsAnswer Ticket, "Nothing changed since the last version, so there is nothing to save.", 0
+    ToolsAnswer Ticket, started + "Nothing changed since the last version, so there is nothing to save.", 0
     EXIT SUB
   END IF
   n = VerChCount
@@ -427,7 +433,7 @@ SUB ToolsSaveVersion(Ticket AS STRING)
     OutputLine TR$("An AI app saved the version “{message}” ({id})", "message", msg, "id", LEFT$(id, 7))
   END IF
   VerRefresh
-  ToolsAnswer Ticket, "Saved the version " + CHR$(34) + msg + CHR$(34) + " (" + LEFT$(id, 7) + "), " + Num(n) + " file(s) changed before it.", 0
+  ToolsAnswer Ticket, started + "Saved the version " + CHR$(34) + msg + CHR$(34) + " (" + LEFT$(id, 7) + "), " + Num(n) + " file(s) changed before it.", 0
 END SUB
 
 ' restore_version: the project (or one file) as a version had it, saved as

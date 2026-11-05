@@ -327,7 +327,7 @@ Never read RapidR's own source code to learn the language, and never call a memb
         "versions",
         &["version", "versions", "save", "undo", "restore", "go back", "history", "git", "commit", "revert", "backup"],
         "To keep and use versions (never git or a shell):
-1. list_versions — the saved versions and their ids (or that this project has none: start_versions).
+1. list_versions — the saved versions and their ids (none yet: save_version starts Versions and saves the first).
 2. save_version {\"message\": \"…\"} — before a big step and after each step that works.
 3. compare_versions {} — what changed since the last version (or {\"from\": \"<id>\"}).
 4. restore_version {\"version\": \"<id>\"} — back to that version as a new one (the user is asked; nothing is lost, Undo takes it back).",
@@ -466,7 +466,7 @@ pub fn list_versions(input: &Json, p: &Project) -> Outcome {
     let limit = input.get("limit").and_then(Json::as_u64).unwrap_or(20).clamp(1, 200) as usize;
     match crate::repository::read::timeline(p.folder, limit) {
         Err(why) => err(why, "list_versions: no versions".into(), ""),
-        Ok(None) => ok("This project doesn't keep versions yet: start_versions starts them (the user may be asked), then save_version saves the first one. Never use git or a shell instead.".into(), "Looked at the versions: none yet".into(), ""),
+        Ok(None) => ok("This project doesn't keep versions yet: save_version starts them and saves the first one (or start_versions only starts them). Never use git or a shell instead.".into(), "Looked at the versions: none yet".into(), ""),
         Ok(Some(rows)) => {
             let mut out = Vec::new();
             if rows.is_empty() {

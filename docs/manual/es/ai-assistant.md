@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 378d0e5faa37bfb6 -->
+<!-- translated-from: ai-assistant.md f2008b2a52576dd5 -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -332,6 +332,16 @@ El asistente lee solo lo que necesita, cuando lo necesita: los archivos del proy
 los componentes de tus formularios y sus propiedades, la descripción propia de RapidR
 de cada componente, propiedad, método, evento y función, y lo que dice el compilador
 sobre el código. No puede leer nada fuera de la carpeta del proyecto, y nunca tu clave.
+
+Sus herramientas son las propias de RapidR Studio, las mismas que recibe una
+aplicación de IA ([la lista](ai-apps.md#las-herramientas)), con las mismas reglas:
+además de leer, revisar y proponer cambios, el asistente puede ver qué tiene abierto
+Studio, ejecutar tu programa y leer lo que imprime, depurarlo, mirarlo y usarlo
+(preguntándote primero, una vez por ejecución, salvo que lo dejes trabajar por su
+cuenta), guardar versiones mientras trabaja (guardar una, listarlas, compararlas;
+volver a una te pregunta primero), buscar los pasos de una tarea y anotar una
+herramienta que falta o una pregunta sin respuesta en el `RAPIDR-ISSUES.md` del
+proyecto. Nunca usa git ni una terminal para tu proyecto.
 
 ## Tus chats se conservan
 
@@ -783,8 +793,8 @@ el asistente leyó o escribió antes se reemplazan por notas breves: los vuelve 
 cuando los necesita. La línea de estado se mantiene honesta: cuando una respuesta dice
 que cambió algo pero ningún cambio te llegó, se le pide una vez al asistente que de
 verdad lo haga, y si aun así no lo hace, el estado dice *“El asistente no hizo el cambio
-que pediste”*; un cambio que no compila también lo dice. El asistente no puede ejecutar
-tu programa, pero ve las últimas líneas que imprimió tu última ejecución. Un modelo de 4
+que pediste”*; un cambio que no compila también lo dice. Con el conjunto ligero (más
+abajo) el asistente no puede ejecutar tu programa, pero ve las últimas líneas que imprimió tu última ejecución. Un modelo de 4
 a 9 mil millones de parámetros puede construir programas pequeños de esta manera; para
 los más grandes, un modelo más grande funciona mejor.
 

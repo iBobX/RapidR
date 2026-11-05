@@ -1,4 +1,4 @@
-<!-- translated-from: ai-apps.md bdeb50bad5e763ab -->
+<!-- translated-from: ai-apps.md d4bcedb8d7fd806d -->
 # Deja que las aplicaciones de IA trabajen en Studio
 
 <!-- legal -->
@@ -169,7 +169,7 @@ exclusivo de las aplicaciones de IA):
 | `list_versions`, `compare_versions` | Las versiones guardadas del proyecto (Versiones), y lo que cambió entre dos de ellas o desde una | mirar |
 | `propose_edit`, `write_file`, `create_project` | Un cambio en un archivo (solo las partes que cambian), un archivo nuevo, un programa nuevo: el compilador los revisa primero | cambiar |
 | `set_property` | La propiedad de un componente establecida como lo hace el panel Propiedades: un cambio como los demás, que con **Preguntar antes de cambiar** ves como diferencias | cambiar |
-| `save_version`, `restore_version`, `start_versions` | Guardar una versión (primero se guardan los archivos abiertos; la versión es de la aplicación de IA, no tuya), volver a una versión (una versión nueva: no se pierde nada, Deshacer en Versiones la revierte), iniciar Versiones en un proyecto | cambiar |
+| `save_version`, `restore_version`, `start_versions` | Guardar una versión (primero se guardan los archivos abiertos, y se inician Versiones si el proyecto no las tenía; la versión es de la aplicación de IA, no tuya), volver a una versión (una versión nueva: no se pierde nada, Deshacer en Versiones la revierte), iniciar Versiones en un proyecto | cambiar |
 | `report_gap` | Escribe una línea breve en el `RAPIDR-ISSUES.md` del proyecto: una herramienta que le faltó a la aplicación de IA, una pregunta que el manual no respondió. No escribe nada más | cambiar (una nota: permitida en todas las opciones salvo Solo lectura) |
 | `run_program` | Guarda, ejecuta el programa, espera unos segundos y devuelve su salida (o dónde se pausó). No mientras el código tenga errores: a la aplicación de IA se le dicen los primeros, y que Problemas debe estar en 0 | ejecutar |
 | `debug` | Puntos de interrupción, continuar, pasar por encima / entrar en la llamada / salir de la llamada, pausar, la pila de llamadas y las variables | ejecutar |

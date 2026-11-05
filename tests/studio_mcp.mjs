@@ -724,14 +724,13 @@ if (want("shared")) {
 
   // (Versions through MCP: none yet, started, saved, listed, compared, restored)
   let r = await tool("list_versions");
-  check("list_versions: none yet, start_versions says how", !r.error && r.text.includes("doesn't keep versions yet") && r.text.includes("start_versions"), r.text);
-  r = await tool("save_version", { message: "Too early" });
-  check("save_version before Versions: refused, start_versions named", r.error && r.text.includes("start_versions"), r.text);
-  r = await tool("start_versions");
-  check("start_versions: started", !r.error && r.text.includes("Versions started"), r.text);
+  check("list_versions: none yet, save_version says how", !r.error && r.text.includes("doesn't keep versions yet") && r.text.includes("save_version starts them"), r.text);
+  // (a project without versions: save_version starts them, as Save a Version does)
   r = await tool("save_version", { message: "Step 0 - as it was" });
-  check("save_version: saved, with its id", !r.error && /Saved the version "Step 0 - as it was" \([0-9a-f]{7}\)/.test(r.text), r.text);
+  check("save_version: Versions started, then saved, with its id", !r.error && r.text.startsWith("Versions started in this project.") && /Saved the version "Step 0 - as it was" \([0-9a-f]{7}\)/.test(r.text), r.text);
   const first = (r.text.match(/\(([0-9a-f]{7})\)/) || [])[1] || "";
+  r = await tool("start_versions");
+  check("start_versions: kept already, said", !r.error && r.text.includes("keeps versions already"), r.text);
   r = await tool("list_versions");
   check("list_versions: the version, its id and its author (the AI app, never the user)", !r.error && r.text.includes(first) && r.text.includes("Step 0 - as it was") && r.text.includes("(AI app)") && r.text.includes("Nothing changed"), r.text);
   r = await tool("propose_edit", { path: "main.rr", summary: "A new greeting", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello, versions"' }] });
