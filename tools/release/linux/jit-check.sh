@@ -7,6 +7,12 @@
 #   tools/release/ubuntu-vm.sh send <src.tar> /tmp/rapidr-jit-src.tar
 #   tools/release/ubuntu-vm.sh run tools/release/linux/jit-check.sh /tmp/rapidr-jit-src.tar [name]
 #
+# name `x86_64`: the same for x86-64 Linux, in an arm64 VM with Rosetta: built by the x86_64 Rust
+# that `linux/setup-tools.sh x86rust` installed (~/rust-x86_64), linked by Zig, every program run by
+# Rosetta (linux/x86-env.sh says why and how). The code generator's x86-64 backend and the System V
+# x86-64 calling convention of its entry forms and helpers, on Linux, with the JIT's own tests and
+# the conformance suite both ways; the timings are Rosetta's, not an x86-64 CPU's.
+#
 # (A build takes longer than one prlctl call lasts: start it detached and read its log; with
 # nobody logged in at the VM's desktop, as root through `runuser -u <user>`.)
 #
@@ -23,6 +29,13 @@ export RAPIDR_PRINT_TO="$W/prints" RAPIDR_REGISTRY="$W/registry.reg" RAPIDR_AI_K
 export RAPIDR_BUILD_CACHE="$W/build-cache" LANGUAGE=en_US.UTF-8 RAPIDR_LANG=en
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 cd "$W/src" || exit 1
+if [ "$NAME" = x86_64 ]; then
+  # (x86-env.sh from the sources just extracted)
+  . ./tools/release/linux/x86-env.sh
+  x86_available || { echo "name x86_64: this VM has no x86_64 Rust under Rosetta (linux/setup-tools.sh x86rust), or no Zig"; exit 1; }
+  x86_env "$W/wrap"
+  export PATH="$X86_HOME/cargo/bin:$PATH" RUSTUP_HOME="$X86_HOME/rustup" CARGO_HOME="$X86_HOME/cargo"
+fi
 fail=0
 echo "== $(rustc -vV | grep host), building rapidr"
 cargo build --release -q -p rapidr-cli 2>&1 | grep -E '^error' -A6 | head -20
