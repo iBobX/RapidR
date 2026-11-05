@@ -154,7 +154,7 @@ impl Layout {
 
     /// A stored property, as the runtimes read one (Null when unset).
     fn stored(&self, key: &str, prop: &str) -> Value {
-        let Some(c) = self.comps.get(&key.to_lowercase()) else { return Value::Null };
+        let Some(c) = self.comps.get(crate::lower(key).as_ref()) else { return Value::Null };
         match prop {
             "left" => Value::Integer(c.rect.left),
             "top" => Value::Integer(c.rect.top),

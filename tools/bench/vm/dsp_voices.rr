@@ -1,0 +1,66 @@
+' vm_bench: typed global arrays - a synthesizer's voices kept in global
+' DOUBLE arrays (phase, step, envelope, gain, two filter states), each
+' read and written for every voice and sample: 32 voices x 441 samples x
+' 100 blocks (1,411,200 voice steps, about 13 million element accesses),
+' the sample-major loop of a real-time synth (a saw, an envelope, a
+' state-variable filter).
+$APPTYPE CONSOLE
+CONST VOICES = 32
+CONST BLOCK = 441
+CONST BLOCKS = 100
+DIM VPhase(VOICES - 1) AS DOUBLE
+DIM VInc(VOICES - 1) AS DOUBLE
+DIM VEnv(VOICES - 1) AS DOUBLE
+DIM VGain(VOICES - 1) AS DOUBLE
+DIM VLp(VOICES - 1) AS DOUBLE
+DIM VBp(VOICES - 1) AS DOUBLE
+DIM OutBuf(BLOCK - 1) AS DOUBLE
+DIM t AS DOUBLE
+
+SUB Init
+  DIM v AS INTEGER
+  FOR v = 0 TO VOICES - 1
+    VPhase(v) = (v * 0.17) - INT(v * 0.17)
+    VInc(v) = (110.0 * (2.0 ^ ((v MOD 24) / 12.0))) / 44100.0
+    VEnv(v) = 0.01
+    VGain(v) = 0.15
+    VLp(v) = 0.0
+    VBp(v) = 0.0
+  NEXT
+END SUB
+
+FUNCTION Run AS DOUBLE
+  DIM blk AS INTEGER, i AS INTEGER, v AS INTEGER
+  DIM ph AS DOUBLE, osc AS DOUBLE, env AS DOUBLE, lp AS DOUBLE, bp AS DOUBLE, hp AS DOUBLE
+  DIM mix AS DOUBLE, peak AS DOUBLE
+  peak = 0.0
+  FOR blk = 1 TO BLOCKS
+    FOR i = 0 TO BLOCK - 1
+      mix = 0.0
+      FOR v = 0 TO VOICES - 1
+        ph = VPhase(v) + VInc(v)
+        IF ph >= 1.0 THEN ph = ph - 1.0
+        VPhase(v) = ph
+        osc = 2.0 * ph - 1.0
+        env = VEnv(v) + 0.0005 * (0.80 - VEnv(v))
+        VEnv(v) = env
+        lp = VLp(v)
+        bp = VBp(v)
+        lp = lp + 0.28 * bp
+        hp = (osc * env * VGain(v)) - lp - 0.55 * bp
+        bp = 0.28 * hp + bp
+        VLp(v) = lp
+        VBp(v) = bp
+        mix = mix + lp
+      NEXT
+      OutBuf(i) = mix
+      IF ABS(mix) > peak THEN peak = ABS(mix)
+    NEXT
+  NEXT
+  Result = peak
+END FUNCTION
+
+t = TIMER
+Init
+PRINT "dsp_voices "; INT(Run * 1000000)
+PRINT "ms "; INT((TIMER - t) * 1000)

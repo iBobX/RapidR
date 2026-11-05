@@ -230,6 +230,14 @@ thread_local! {
     /// What each header's faces were last painted for (size, sections,
     /// pressed).
     static HEADERS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+    /// Each shown form's components that `pre_paint` serves, in its order,
+    /// for the program's tree revision (`Program::tree_revision`).
+    static SERVED: RefCell<HashMap<String, (u64, Vec<(String, String)>)>> = RefCell::new(HashMap::new());
+}
+
+/// The components `pre_paint` has work for.
+fn served(type_name: &str) -> bool {
+    matches!(type_name, "RLISTBOX" | "RCOMBOBOX" | "RSTRINGGRID" | "RHEADER" | "RTREEVIEW")
 }
 
 /// The components of shown form `form`, depth first (id, type).
@@ -276,7 +284,22 @@ fn size_of<P: Program>(p: P, id: &str, type_name: &str) -> (i64, i64) {
 pub fn pre_paint<P: Program>(p: P, forms: &[String]) {
     let mut comps = Vec::new();
     for f in forms {
-        components(p, f, &mut comps);
+        // (the components it serves, in their order, found again only when
+        // the tree changed: every component's children were asked for at
+        // every turn of the window loop — docs/speed-audit-2026-11.md)
+        let Some(rev) = p.tree_revision() else {
+            components(p, f, &mut comps);
+            continue;
+        };
+        let cached = SERVED.with(|s| s.borrow().get(f).filter(|(r, _)| *r == rev).map(|(_, list)| list.clone()));
+        let list = cached.unwrap_or_else(|| {
+            let mut all = Vec::new();
+            components(p, f, &mut all);
+            all.retain(|(_, t)| served(t));
+            SERVED.with(|s| s.borrow_mut().insert(f.clone(), (rev, all.clone())));
+            all
+        });
+        comps.extend(list);
     }
     for (id, t) in comps {
         match t.as_str() {

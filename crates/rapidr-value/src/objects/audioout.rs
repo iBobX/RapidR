@@ -726,11 +726,11 @@ pub fn create(id: &str, type_name: &str) -> bool {
 }
 
 pub fn exists(id: &str) -> bool {
-    STREAMS.with(|s| s.borrow().contains_key(&id.to_lowercase()))
+    STREAMS.with(|s| s.borrow().contains_key(crate::lower(id).as_ref()))
 }
 
 fn with<R>(id: &str, f: impl FnOnce(&mut AudioOut) -> R) -> Option<R> {
-    STREAMS.with(|s| s.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+    STREAMS.with(|s| s.borrow_mut().get_mut(crate::lower(id).as_ref()).map(f))
 }
 
 /// A property (lower case); `None` when `id` isn't a stream or it isn't one of its.

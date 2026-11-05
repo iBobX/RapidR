@@ -114,6 +114,7 @@ END SUB
 
 SUB RefreshQuickOpen
   DIM i AS INTEGER, n AS INTEGER, d AS INTEGER, text AS STRING, row AS STRING, kind AS STRING, nm AS STRING, detail AS STRING
+  DIM rowAt AS INTEGER, rowEnd AS INTEGER
   FOR i = 0 TO QuickCount - 1
     Palette.RemoveCommand QuickId(i)
   NEXT
@@ -127,8 +128,12 @@ SUB RefreshQuickOpen
   IF d < 0 THEN EXIT SUB
   text = Lang.Outline(DocFile(d))
   n = TALLY(text, CHR$(10))
+  ' (each row where the last one ended, as FillOutline reads them)
+  rowAt = 1
   FOR i = 1 TO n
-    row = FIELD$(text, CHR$(10), i)
+    rowEnd = INSTR(rowAt, text, CHR$(10))
+    row = MID$(text, rowAt, rowEnd - rowAt)
+    rowAt = rowEnd + 1
     kind = FIELD$(row, CHR$(9), 2)
     nm = FIELD$(row, CHR$(9), 3)
     detail = FIELD$(row, CHR$(9), 4)

@@ -95,15 +95,15 @@ pub fn create(id: &str, type_name: &str) -> bool {
 }
 
 pub fn is_menu(id: &str) -> bool {
-    MENUS.with(|m| m.borrow().contains_key(&key(id)))
+    MENUS.with(|m| m.borrow().contains_key(crate::lower(id).as_ref()))
 }
 
 pub fn kind(id: &str) -> Option<Kind> {
-    MENUS.with(|m| m.borrow().get(&key(id)).map(|n| n.kind))
+    MENUS.with(|m| m.borrow().get(crate::lower(id).as_ref()).map(|n| n.kind))
 }
 
 pub fn with<R>(id: &str, f: impl FnOnce(&MenuNode) -> R) -> Option<R> {
-    MENUS.with(|m| m.borrow().get(&key(id)).map(f))
+    MENUS.with(|m| m.borrow().get(crate::lower(id).as_ref()).map(f))
 }
 
 /// The menu (main or pop-up) an item belongs to, or the menu itself.
@@ -166,7 +166,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     let flag = |b: bool| v_int(b as i64);
     MENUS.with(|m| {
         let m = m.borrow();
-        let n = m.get(&key(id))?;
+        let n = m.get(crate::lower(id).as_ref())?;
         Some(match prop {
             "caption" => v_str(&n.caption),
             "checked" => flag(n.checked),

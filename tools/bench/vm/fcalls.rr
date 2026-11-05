@@ -1,0 +1,27 @@
+' vm_bench: calls with DOUBLE arguments - a small FUNCTION (a clamp)
+' called 2,000,000 times from a loop, as a program's helpers are.
+$APPTYPE CONSOLE
+DIM t AS DOUBLE
+
+FUNCTION Clamp(x AS DOUBLE, lo AS DOUBLE, hi AS DOUBLE) AS DOUBLE
+  IF x < lo THEN
+    Result = lo
+  ELSEIF x > hi THEN
+    Result = hi
+  ELSE
+    Result = x
+  END IF
+END FUNCTION
+
+FUNCTION Run AS DOUBLE
+  DIM i AS INTEGER, s AS DOUBLE
+  s = 0.0
+  FOR i = 1 TO 2000000
+    s = s + Clamp((i MOD 300) - 100.0, 0.0, 150.0)
+  NEXT
+  Result = s
+END FUNCTION
+
+t = TIMER
+PRINT "fcalls "; INT(Run)
+PRINT "ms "; INT((TIMER - t) * 1000)

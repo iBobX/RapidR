@@ -43,7 +43,7 @@ thread_local! {
 }
 
 fn with<R>(id: &str, f: impl FnOnce(&mut Lib) -> R) -> Option<R> {
-    STORE.with(|s| s.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+    STORE.with(|s| s.borrow_mut().get_mut(crate::lower(id).as_ref()).map(f))
 }
 
 /// Makes object `id` if `type_name` is one of these objects.
@@ -64,7 +64,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
 
 /// Whether `id` is one of these objects.
 pub fn exists(id: &str) -> bool {
-    STORE.with(|s| s.borrow().contains_key(&id.to_lowercase()))
+    STORE.with(|s| s.borrow().contains_key(crate::lower(id).as_ref()))
 }
 
 /// Whether `id` is a QCGI.

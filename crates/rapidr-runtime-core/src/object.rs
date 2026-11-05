@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
+use rapidr_value::lower;
 
 // ---------------------------------------------------------------------------
 // Component representation
@@ -62,6 +63,25 @@ thread_local! {
     static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
     /// How many handlers have been queued for the bytecode VM.
     static VM_QUEUED: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// Changes whenever a component is made or a Parent is stored
+    /// ([`rp_tree_revision`]): the children index and what the UI builds
+    /// from the tree are made again then.
+    static TREE_REV: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// Each parent's children ([`get_children_of`]) for a TREE_REV: the
+    /// Parent's text in ASCII lower case → (creation order, key, type), in
+    /// creation order.
+    static CHILDREN: RefCell<(u64, HashMap<String, Vec<(u32, String, String)>>)> = RefCell::new((u64::MAX, HashMap::new()));
+}
+
+/// A number that changes whenever a component is made or a Parent is
+/// stored: what's built from the tree of components (the children of each,
+/// the components a window loop's turn serves) is good while it stays.
+pub fn rp_tree_revision() -> u64 {
+    TREE_REV.with(std::cell::Cell::get)
+}
+
+fn tree_changed() {
+    TREE_REV.with(|r| r.set(r.get().wrapping_add(1)));
 }
 
 /// How many event handlers have been queued for the bytecode VM so far (it
@@ -187,6 +207,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     COMPONENTS.with(|c| {
         c.borrow_mut().insert(name_lower, comp);
     });
+    tree_changed();
     rapidr_value::objects::create(name, type_name);
     // (RARCHIVE: the clock and the local time zone a zip's times are in)
     if rapidr_value::objects::archive::is_type(type_name) {
@@ -776,6 +797,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
         // real component exists. The TYPE statement is currently lowered
         // to a no-op by bcgen, so without this fallback `r.left = 10`
         // would silently drop the value.
+        // (a component made here, or a Parent stored: the tree changed)
+        if prop_lower == "parent" || !comps.contains_key(&key) {
+            tree_changed();
+        }
         let comp = comps.entry(key).or_insert_with(|| RpComponent::new("RUDT"));
         // The program chose a font: the GUI applies it (defaults it doesn't).
         let font_prop = prop_lower.starts_with("font") && prop_lower != "font";
@@ -937,37 +962,44 @@ pub fn is_window(name: &str) -> bool {
 }
 
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
-    let prop_lower = prop.to_lowercase();
+    // (the kernel reads every property of every control at each frame: a
+    // read makes no lower-case copy it doesn't need and looks the type up
+    // once — it did both a dozen times, docs/speed-audit-2026-11.md)
+    let prop_lower = lower(prop);
+    let prop_lower = prop_lower.as_ref();
+    let key = lower(name);
+    let ty = comp_type_of(&key);
+    let ty = ty.as_str();
     // Form.Scale (RapidR's): its screen's device pixels per pixel.
     #[cfg(feature = "gui")]
-    if prop_lower == "scale" && rp_comp_type(name) == "RFORM" {
+    if prop_lower == "scale" && ty == "RFORM" {
         return Value::Double(crate::ui::form_scale(name));
     }
     // A window's Visible: whether it shows (Show, ShowModal, Visible = True
     // until Hide / Close or the user closes it).
     #[cfg(feature = "gui")]
-    if prop_lower == "visible" && is_window(name) {
-        let stored = || COMPONENTS.with(|c| c.borrow().get(&name.to_lowercase()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
+    if prop_lower == "visible" && ty == "RFORM" && rp_comp_get(name, "parent").to_string_val().is_empty() {
+        let stored = || COMPONENTS.with(|c| c.borrow().get(key.as_ref()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
         return v_bool(crate::ui::window_shown(name).unwrap_or_else(stored));
     }
     // Screen, Application, Clipboard, Mouse (globals.rs).
-    if let Some(v) = crate::globals::get(name, &prop_lower) {
+    if let Some(v) = crate::globals::get(name, prop_lower) {
         return v;
     }
     // (the I/O and media lane's: io.rs)
-    if let Some((sub, member)) = crate::io::sub_component(name, &prop_lower) {
+    if let Some((sub, member)) = crate::io::sub_component(name, prop_lower) {
         return rp_comp_get(&sub, &member);
     }
-    if let Some(v) = crate::io::frames_timer_get(name, &prop_lower) {
+    if let Some(v) = crate::io::frames_timer_get(name, prop_lower) {
         return v;
     }
-    if let Some(v) = rapidr_value::objects::rqlib::get(name, &prop_lower) {
+    if let Some(v) = rapidr_value::objects::rqlib::get(name, prop_lower) {
         return v;
     }
     // A form's inside (its frame and main menu excluded); other
     // components have no frame inside their size.
-    if matches!(prop_lower.as_str(), "clientwidth" | "clientheight") {
-        let (w, h) = if matches!(rp_comp_type(name).as_str(), "RFORM" | "RSCROLLBOX") {
+    if matches!(prop_lower, "clientwidth" | "clientheight") {
+        let (w, h) = if matches!(ty, "RFORM" | "RSCROLLBOX") {
             crate::scroll::client(name)
         } else {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
@@ -975,97 +1007,99 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         return v_int(if prop_lower == "clientwidth" { w } else { h });
     }
     // A component's Handle (rapidr_value::handles).
-    if prop_lower == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&name.to_lowercase())) {
+    if prop_lower == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(key.as_ref())) {
         return v_int(rapidr_value::handles::handle_of(name));
     }
     // `Constraints.MinWidth` is MinWidth (rapidr_value::layout).
-    if let Some(flat) = rapidr_value::layout::constraint_alias(&prop_lower) {
+    if let Some(flat) = rapidr_value::layout::constraint_alias(prop_lower) {
         return rp_comp_get(name, flat);
     }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi.rs).
-    if let Some(v) = rapidr_value::mdi::get(name, &prop_lower) {
+    if let Some(v) = rapidr_value::mdi::get(name, prop_lower) {
         return v;
     }
     // A QFORM's MDIChildCount, TileMode (form_members.rs).
-    if matches!(prop_lower.as_str(), "mdichildcount" | "tilemode") {
-        if let Some(v) = crate::form_members::get(name, &rp_comp_type(name), &prop_lower) {
+    if matches!(prop_lower, "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members::get(name, ty, prop_lower) {
             return v;
         }
     }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock.rs).
-    if rp_comp_type(name) == "RDOCKMANAGER" {
-        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &prop_lower) {
+    if ty == "RDOCKMANAGER" {
+        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, prop_lower) {
             return v;
         }
     }
-    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels.rs).
-    if let Some(v) = crate::panels::get(name, &prop_lower) {
-        return v;
+    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels.rs:
+    // a panel's type answers, no other's).
+    if rapidr_value::panels::is_panel(ty) {
+        if let Some(v) = crate::panels::get(name, prop_lower) {
+            return v;
+        }
     }
     // (I1) RapidR Studio's components (studio.rs).
     #[cfg(feature = "studio")]
-    {
-        let t = rp_comp_type(name);
-        if rapidr_studio::is_studio_type(&t) {
-            if let Some(v) = crate::studio::get(&t, name, &prop_lower) {
-                return v;
-            }
+    if rapidr_studio::is_studio_type(ty) {
+        if let Some(v) = crate::studio::get(ty, name, prop_lower) {
+            return v;
         }
     }
     // (I8) RAI, the AI component (ai.rs).
     #[cfg(feature = "network")]
-    if rapidr_ai::rai::is_rai(&rp_comp_type(name)) {
-        if let Some(v) = crate::ai::get(name, &prop_lower) {
+    if rapidr_ai::rai::is_rai(ty) {
+        if let Some(v) = crate::ai::get(name, prop_lower) {
             return v;
         }
     }
     // RSecrets, the OS keychain for programs (rapidr_ai::secrets).
     #[cfg(feature = "network")]
-    if rapidr_ai::secrets::component::is_secrets(&rp_comp_type(name)) {
-        if let Some(v) = rapidr_ai::secrets::component::get(name, &prop_lower) {
+    if rapidr_ai::secrets::component::is_secrets(ty) {
+        if let Some(v) = rapidr_ai::secrets::component::get(name, prop_lower) {
             return v;
         }
     }
     // RSystemInfo: what this computer has (rapidr_value::sysinfo).
-    if rapidr_value::sysinfo::component::is_sysinfo(&rp_comp_type(name)) {
-        if let Some(v) = rapidr_value::sysinfo::component::get(name, &prop_lower) {
+    if rapidr_value::sysinfo::component::is_sysinfo(ty) {
+        if let Some(v) = rapidr_value::sysinfo::component::get(name, prop_lower) {
             return v;
         }
     }
     // RWindowCapture and RAppHands: the program's own eyes and hands
     // (ui/drive.rs, rapidr_ui_app::{eyes, hands}).
     #[cfg(feature = "gui")]
-    match rp_comp_type(name).as_str() {
+    match ty {
         "RWINDOWCAPTURE" => {
-            if let Some(v) = crate::ui::drive::capture_get(name, &prop_lower) {
+            if let Some(v) = crate::ui::drive::capture_get(name, prop_lower) {
                 return v;
             }
         }
         "RAPPHANDS" => {
-            if let Some(v) = crate::ui::drive::hands_get(name, &prop_lower) {
+            if let Some(v) = crate::ui::drive::hands_get(name, prop_lower) {
                 return v;
             }
         }
         _ => {}
     }
-    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
-    if let Some(v) = crate::scroll::get(name, &prop_lower) {
-        return v;
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs:
+    // only theirs).
+    if matches!(ty, "RFORM" | "RSCROLLBOX") {
+        if let Some(v) = crate::scroll::get(name, prop_lower) {
+            return v;
+        }
     }
     // (what the user typed and selected, before the program reads it)
     #[cfg(feature = "gui")]
     if rapidr_value::objects::is_textedit(name) {
         crate::ui::text_pull(name);
     }
-    if let Some(v) = rapidr_value::objects::get(name, &prop_lower) {
+    if let Some(v) = rapidr_value::objects::get(name, prop_lower) {
         return v;
     }
 
     // Check GUI state overrides first
     #[cfg(feature = "gui")]
     {
-        let comp_type = rp_comp_type(name);
-        match comp_type.as_str() {
+        match ty {
             // (RDESIGNSURFACE's CompCount and FormCaption, RCODEEDITOR's
             // Text: the shared models' — objects::design, objects::textedit)
             "RRICHEDIT" | "RMEMO" => {
@@ -1087,18 +1121,17 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     // Data science property overrides
     #[cfg(feature = "datascience")]
     {
-        let comp_type = rp_comp_type(name);
-        match comp_type.as_str() {
+        match ty {
             "RNUM" => {
-                let v = crate::datascience::num_get_prop(name, &prop_lower);
+                let v = crate::datascience::num_get_prop(name, prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             "RDATAFRAME" => {
-                let v = crate::datascience::dataframe_get_prop(name, &prop_lower);
+                let v = crate::datascience::dataframe_get_prop(name, prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             "RPLOT" => {
-                let v = crate::datascience::plot_get_prop(name, &prop_lower);
+                let v = crate::datascience::plot_get_prop(name, prop_lower);
                 if !matches!(v, Value::Null) { return v; }
             }
             _ => {}
@@ -1107,20 +1140,21 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
 
     COMPONENTS.with(|c| {
         c.borrow()
-            .get(&name.to_lowercase())
-            .and_then(|comp| comp.properties.get(&prop_lower))
+            .get(key.as_ref())
+            .and_then(|comp| comp.properties.get(prop_lower))
             .cloned()
             // (a QRECT's fields, and positions, are 0 until set; a panel's
             // bevels RapidQ's defaults)
-            .or_else(|| (comp_is_panel(name)).then(|| rapidr_value::objects::bevel::default(&prop_lower).map(v_int)).flatten())
+            .or_else(|| matches!(ty, "RPANEL" | "RBEVEL").then(|| rapidr_value::objects::bevel::default(prop_lower).map(v_int)).flatten())
             // (Anchors and Constraints: akLeft + akTop, none)
-            .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(name), &prop_lower).map(v_int))
-            .unwrap_or_else(|| if matches!(prop_lower.as_str(), "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
+            .or_else(|| rapidr_value::layout::default_property(ty, prop_lower).map(v_int))
+            .unwrap_or_else(|| if matches!(prop_lower, "left" | "top" | "right" | "bottom") { v_int(0) } else { v_null() })
     })
 }
 
-fn comp_is_panel(name: &str) -> bool {
-    COMPONENTS.with(|c| c.try_borrow().ok().and_then(|c| c.get(&name.to_lowercase()).map(|x| matches!(x.type_name.as_str(), "RPANEL" | "RBEVEL"))).unwrap_or(false))
+/// A component's type by its key (lower case), "" for none.
+fn comp_type_of(key: &str) -> String {
+    COMPONENTS.with(|c| c.borrow().get(key).map(|comp| comp.type_name.clone()).unwrap_or_default())
 }
 
 /// Get the type name of a registered component.
@@ -1129,6 +1163,9 @@ fn comp_is_panel(name: &str) -> bool {
 /// property (`UpDown.Max`) — rapidr_value::members, the same rule for native
 /// builds, the interpreter and the web.
 pub fn rp_comp_value(name: &str, member: &str) -> Value {
+    // (the program reads: what waits to be worked out is done first —
+    // scroll.rs)
+    crate::scroll::flush();
     let lower = member.to_ascii_lowercase();
     // (a Boolean reads 1, as RapidQ's: rapidr_value::property_read)
     if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
@@ -1139,6 +1176,7 @@ pub fn rp_comp_value(name: &str, member: &str) -> Value {
 
 /// `Obj.Sub.Prop` read by a program (codegen): as [`rp_comp_value`]'s.
 pub fn rp_comp_read(name: &str, prop: &str) -> Value {
+    crate::scroll::flush();
     if prop.eq_ignore_ascii_case("color") {
         return program_color(name);
     }
@@ -1201,12 +1239,7 @@ pub fn rp_comp_children(name: &str) -> Vec<String> {
 }
 
 pub fn rp_comp_type(name: &str) -> String {
-    COMPONENTS.with(|c| {
-        c.borrow()
-            .get(&name.to_lowercase())
-            .map(|comp| comp.type_name.clone())
-            .unwrap_or_default()
-    })
+    comp_type_of(&lower(name))
 }
 
 /// A QIMAGE's picture changed: with AutoSize the control takes the
@@ -1245,6 +1278,8 @@ fn form_is_built(name: &str) -> bool {
 /// Call a method on a registered component.
 /// Dispatches to the appropriate backend based on component type.
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
+    // (a method sees the components as they are once worked out — scroll.rs)
+    crate::scroll::flush();
     let v = comp_method(name, method, args);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();
@@ -2527,6 +2562,9 @@ pub(crate) fn stored_int(name: &str, prop: &str) -> i64 {
 pub(crate) fn store_prop(name: &str, prop: &str, val: Value) {
     COMPONENTS.with(|c| {
         if let Some(comp) = c.borrow_mut().get_mut(&name.to_lowercase()) {
+            if prop.eq_ignore_ascii_case("parent") {
+                tree_changed();
+            }
             comp.properties.insert(prop.to_lowercase(), val);
         }
     });
@@ -2542,22 +2580,32 @@ pub fn all_components() -> Vec<(String, String)> {
 }
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
-    COMPONENTS.with(|c| {
-        let comps = c.borrow();
-        let mut children: Vec<(String, String, u32)> = Vec::new();
-        // (asked for every component of every shown form at each step of
-        // the window loop — lists' pre_paint —: no allocation per component)
-        for (name, comp) in comps.iter() {
-            if name.eq_ignore_ascii_case(parent_name) {
-                continue;
+    // (an index of every parent's children, made again only when the tree
+    // changed: each call scanned and sorted the whole registry, and the
+    // window loop asks for every component's children at every turn —
+    // docs/speed-audit-2026-11.md)
+    let rev = rp_tree_revision();
+    CHILDREN.with(|index| {
+        let mut index = index.borrow_mut();
+        if index.0 != rev {
+            let mut by_parent: HashMap<String, Vec<(u32, String, String)>> = HashMap::new();
+            COMPONENTS.with(|c| {
+                for (name, comp) in c.borrow().iter() {
+                    // (a Parent names its parent in any ASCII case: names_parent)
+                    if let Some(p) = comp.properties.get("parent") {
+                        by_parent.entry(p.to_string_val().to_ascii_lowercase()).or_default().push((comp.creation_order, name.clone(), comp.type_name.clone()));
+                    }
+                }
+            });
+            // Sort by creation order to match the original CREATE block order
+            for kids in by_parent.values_mut() {
+                kids.sort_by_key(|c| c.0);
             }
-            if comp.properties.get("parent").is_some_and(|p| names_parent(p, parent_name)) {
-                children.push((name.clone(), comp.type_name.clone(), comp.creation_order));
-            }
+            *index = (rev, by_parent);
         }
-        // Sort by creation order to match the original CREATE block order
-        children.sort_by_key(|c| c.2);
-        children.into_iter().map(|(n, t, _)| (n, t)).collect()
+        index.1.get(&parent_name.to_ascii_lowercase()).map_or_else(Vec::new, |kids| {
+            kids.iter().filter(|(_, name, _)| !name.eq_ignore_ascii_case(parent_name)).map(|(_, n, t)| (n.clone(), t.clone())).collect()
+        })
     })
 }
 
@@ -2726,5 +2774,69 @@ mod deferred_tests {
         let r = std::panic::catch_unwind(|| rp_in_host_callback(|| panic!("in a callback")));
         assert!(r.is_err());
         assert!(!rp_host_callback_active());
+    }
+}
+
+#[cfg(test)]
+mod children_index_tests {
+    use super::*;
+
+    /// The children as they were found before the index: the whole
+    /// registry scanned and sorted.
+    fn scanned(parent_name: &str) -> Vec<(String, String)> {
+        COMPONENTS.with(|c| {
+            let comps = c.borrow();
+            let mut children: Vec<(String, String, u32)> = Vec::new();
+            for (name, comp) in comps.iter() {
+                if name.eq_ignore_ascii_case(parent_name) {
+                    continue;
+                }
+                if comp.properties.get("parent").is_some_and(|p| names_parent(p, parent_name)) {
+                    children.push((name.clone(), comp.type_name.clone(), comp.creation_order));
+                }
+            }
+            children.sort_by_key(|c| c.2);
+            children.into_iter().map(|(n, t, _)| (n, t)).collect()
+        })
+    }
+
+    fn all_parents() -> Vec<&'static str> {
+        vec!["cxform", "CXFORM", "cxPanel", "cxpanel2", "cxbox", "nobody", "", "cxa"]
+    }
+
+    #[test]
+    fn the_index_answers_as_scanning_the_registry() {
+        rp_create_component("cxForm", "RFORM");
+        rp_create_component("cxPanel", "RPANEL");
+        rp_create_component("cxPanel2", "RPANEL");
+        rp_create_component("cxBox", "RSCROLLBOX");
+        for i in 0..12 {
+            rp_create_component(&format!("cxA{i}"), if i % 2 == 0 { "RBUTTON" } else { "RLABEL" });
+        }
+        let check = |when: &str| {
+            for p in all_parents() {
+                assert_eq!(get_children_of(p), scanned(p), "{when}: children of {p:?}");
+            }
+        };
+        check("made");
+        rp_comp_set("cxPanel", "parent", v_str("cxForm"));
+        rp_comp_set("cxPanel2", "parent", v_str("CXFORM"));
+        rp_comp_set("cxBox", "parent", v_str("cxPanel"));
+        for i in 0..12 {
+            let parent = ["cxForm", "cxpanel", "cxPANEL2", "cxBox"][i % 4];
+            rp_comp_set(&format!("cxA{i}"), "parent", v_str(parent));
+        }
+        check("parented");
+        // (moved to another parent, one to itself, one by a number)
+        rp_comp_set("cxA3", "parent", v_str("cxPanel2"));
+        rp_comp_set("cxA5", "parent", v_str("cxA5"));
+        store_prop("cxA7", "Parent", v_str("cxBox"));
+        rp_comp_set("cxA9", "parent", v_int(7));
+        check("moved");
+        // (a component made later comes last among its siblings)
+        rp_create_component("cxLate", "RBUTTON");
+        rp_comp_set("cxLate", "parent", v_str("cxForm"));
+        check("made later");
+        assert_eq!(get_children_of("cxForm").last().map(|c| c.0.as_str()), Some("cxlate"));
     }
 }

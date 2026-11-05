@@ -1,0 +1,170 @@
+' ui bench: resizing a form with 200 controls - a toolbar (alTop, 20
+' buttons), a status bar (alBottom, 6 labels), a side panel (alLeft, 40
+' labels and edits) and a client panel (alClient) holding 132 controls in a
+' grid, its last column anchored to the right and its last row to the
+' bottom. No program code runs on a resize (Align and Anchors do it all).
+'
+' Run it: the program resizes its form STEPS times (wider and taller, then
+' back: ClientWidth and ClientHeight set, then DOEVENTS - the window
+' loop's turn: layout, events, paint) and prints what each step took
+' (TIMER), then the two writes' own time: their mean, median, 95th
+' percentile and worst:
+'   resize200 frame steps=N mean=... median=... p95=... worst=... ms
+'   resize200 writes steps=N ...
+' With RESIZE_BY_HAND=<seconds> in the environment (a person, or a
+' real-input script, drags the window's corner meanwhile) it prints the
+' times between the OnResize events the drag gave instead.
+$APPTYPE CONSOLE
+
+CONST STEPS = 120
+
+DIM Tb(19) AS RButton
+DIM St(5) AS RLabel
+DIM SideL(19) AS RLabel
+DIM SideE(19) AS REdit
+DIM GridB(43) AS RButton
+DIM GridL(43) AS RLabel
+DIM GridE(43) AS REdit
+DIM Took(5000) AS DOUBLE
+DIM SetTook(STEPS) AS DOUBLE
+DIM Seen(5000) AS DOUBLE
+DIM SeenCount AS INTEGER
+DIM StepNo AS INTEGER
+DIM t0 AS DOUBLE, t1 AS DOUBLE, w AS INTEGER, h AS INTEGER
+DIM ByHand AS DOUBLE
+DIM k AS INTEGER, col AS INTEGER, row AS INTEGER
+
+DECLARE SUB FormResized
+DECLARE SUB ByHandEnd
+DECLARE SUB Report(What AS STRING, Count AS INTEGER)
+
+CREATE F AS RForm
+  Caption = "resize200"
+  Left = 40: Top = 40
+  ClientWidth = 900: ClientHeight = 640
+  OnResize = FormResized
+  CREATE TopBar AS RPanel
+    Align = alTop: Height = 34: BevelOuter = 0
+  END CREATE
+  CREATE Status AS RPanel
+    Align = alBottom: Height = 24: BevelOuter = 0
+  END CREATE
+  CREATE Side AS RPanel
+    Align = alLeft: Width = 220: BevelOuter = 0
+  END CREATE
+  CREATE Main AS RPanel
+    Align = alClient: BevelOuter = 0
+  END CREATE
+  CREATE Ender AS RTimer
+    Enabled = 0
+    OnTimer = ByHandEnd
+  END CREATE
+END CREATE
+
+FOR k = 0 TO 19
+  Tb(k).Parent = TopBar: Tb(k).Caption = "T" + STR$(k)
+  Tb(k).Left = 4 + k * 40: Tb(k).Top = 4: Tb(k).Width = 36: Tb(k).Height = 26
+NEXT
+FOR k = 0 TO 5
+  St(k).Parent = Status: St(k).Caption = "Status " + STR$(k)
+  St(k).Left = 6 + k * 120: St(k).Top = 4
+NEXT
+FOR k = 0 TO 19
+  SideL(k).Parent = Side: SideL(k).Caption = "Field " + STR$(k)
+  SideL(k).Left = 8: SideL(k).Top = 6 + k * 28
+  SideE(k).Parent = Side: SideE(k).Text = "value " + STR$(k)
+  SideE(k).Left = 80: SideE(k).Top = 4 + k * 28: SideE(k).Width = 130
+  SideE(k).Anchors = akLeft + akTop + akRight
+NEXT
+' (the grid: 11 rows of 12 controls - a label, an edit, a button, 4 times)
+FOR k = 0 TO 43
+  row = k \ 4: col = k MOD 4
+  GridL(k).Parent = Main: GridL(k).Caption = "L" + STR$(k)
+  GridL(k).Left = 8 + col * 165: GridL(k).Top = 8 + row * 34
+  GridE(k).Parent = Main: GridE(k).Text = "E" + STR$(k)
+  GridE(k).Left = 36 + col * 165: GridE(k).Top = 6 + row * 34: GridE(k).Width = 70
+  GridB(k).Parent = Main: GridB(k).Caption = "B" + STR$(k)
+  GridB(k).Left = 110 + col * 165: GridB(k).Top = 4 + row * 34: GridB(k).Width = 50: GridB(k).Height = 26
+  IF col = 3 THEN
+    GridE(k).Anchors = akTop + akRight
+    GridB(k).Anchors = akTop + akRight
+  END IF
+  IF row = 10 THEN GridB(k).Anchors = akLeft + akBottom
+NEXT
+
+SUB FormResized
+  IF SeenCount < 5000 THEN
+    Seen(SeenCount) = TIMER
+    SeenCount = SeenCount + 1
+  END IF
+END SUB
+
+SUB ByHandEnd
+  DIM i AS INTEGER, n AS INTEGER
+  Ender.Enabled = 0
+  ' (the times between OnResize events while the corner moves: a gap of
+  ' half a second or more is the hand at rest - the window showing, before
+  ' and after the drag - not a frame)
+  n = 0
+  FOR i = 1 TO SeenCount - 1
+    IF (Seen(i) - Seen(i - 1)) < 0.5 THEN
+      Took(n) = (Seen(i) - Seen(i - 1)) * 1000
+      n = n + 1
+    END IF
+  NEXT
+  IF n > 1 THEN Report "resize200 byhand", n ELSE PRINT "resize200 byhand: no resize seen"
+  F.Close
+  END
+END SUB
+
+' (the times sorted, then their mean, median, 95th percentile and worst)
+SUB Report(What AS STRING, Count AS INTEGER)
+  DIM i AS INTEGER, j AS INTEGER, x AS DOUBLE, total AS DOUBLE
+  FOR i = 1 TO Count - 1
+    x = Took(i): j = i - 1
+    WHILE j >= 0 AND Took(j) > x
+      Took(j + 1) = Took(j): j = j - 1
+    WEND
+    Took(j + 1) = x
+  NEXT
+  FOR i = 0 TO Count - 1
+    total = total + Took(i)
+  NEXT
+  PRINT What; " steps="; Count; FORMAT$(" mean=%.2f median=%.2f p95=%.2f worst=%.2f ms", total / Count, Took(Count \ 2), Took((Count * 95) \ 100), Took(Count - 1))
+END SUB
+
+ByHand = VAL(ENVIRON$("RESIZE_BY_HAND"))
+IF ByHand > 0 THEN
+  Ender.Interval = INT(ByHand * 1000)
+  Ender.Enabled = 1
+  F.ShowModal
+  END
+END IF
+F.Show
+' (shown and painted before the steps)
+FOR k = 1 TO 5
+  DOEVENTS
+NEXT
+FOR StepNo = 0 TO STEPS - 1
+  ' (wider and taller by 4 and 3 pixels a step, then back)
+  IF StepNo < STEPS / 2 THEN
+    w = 900 + StepNo * 4: h = 640 + StepNo * 3
+  ELSE
+    w = 900 + (STEPS - StepNo) * 4: h = 640 + (STEPS - StepNo) * 3
+  END IF
+  t0 = TIMER
+  F.ClientWidth = w
+  F.ClientHeight = h
+  t1 = TIMER
+  ' (the window loop's turn: the new size laid out, the events, the paint)
+  DOEVENTS
+  Took(StepNo) = (TIMER - t0) * 1000
+  SetTook(StepNo) = (t1 - t0) * 1000
+NEXT
+Report "resize200 frame", STEPS
+FOR k = 0 TO STEPS - 1
+  Took(k) = SetTook(k)
+NEXT
+Report "resize200 writes", STEPS
+F.Close
+END

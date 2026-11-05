@@ -150,6 +150,9 @@ struct PpState {
     rapidq_inc_given: bool,
     /// Every file read so far (the origin map's files).
     files: Vec<SourceFile>,
+    /// The `$DEFINE`s in the order a line's substitution tries them, made
+    /// once for as long as they don't change ([`DefineIndex`]).
+    define_index: Option<DefineIndex>,
     /// Every `$INCLUDE` followed so far ([`PreprocessResult::includes`]).
     includes: Vec<IncludeUse>,
     /// False when only one text's lines are classified ([`scan_lines`]):
@@ -182,6 +185,7 @@ impl PpState {
             libraries: Vec::new(),
             rapidq_inc_given: false,
             files: Vec::new(),
+            define_index: None,
             includes: Vec::new(),
             follow_includes: true,
             errors: None,
@@ -195,12 +199,7 @@ impl PpState {
                 return (id, false);
             }
         }
-        self.files.push(SourceFile {
-            path: path.clone(),
-            text: text.to_string(),
-            encoding,
-            lines: vec![LineKind::Code; text.split('\n').count()],
-        });
+        self.files.push(SourceFile::new(path.clone(), text.to_string(), encoding));
         (self.files.len() - 1, true)
     }
 
@@ -776,6 +775,7 @@ fn preprocess_with_state(
                 if let Some((name, value)) = line["#CONST ".len()..].split_once('=') {
                     let _ = rest;
                     state.defines.insert(name.trim().to_string(), strip_inline_comment(value).trim().to_string());
+                    state.define_index = None;
                 }
             }
             emit!(out, LineKind::Directive, blank());
@@ -836,6 +836,7 @@ fn preprocess_with_state(
                     "1".to_string()
                 };
                 state.defines.insert(symbol, value);
+                state.define_index = None;
             }
             emit!(out, LineKind::Directive, blank());
             continue;
@@ -845,6 +846,7 @@ fn preprocess_with_state(
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2 {
                 state.defines.retain(|key, _| !key.eq_ignore_ascii_case(parts[1]));
+                state.define_index = None;
             }
             emit!(out, LineKind::Directive, blank());
             continue;
@@ -1066,7 +1068,8 @@ fn preprocess_with_state(
         // (not in a directive's line; a line with `STR$(…)` gets them too —
         // `If gFile < Z_OK Then … str$(gFile)` in RapidQ's zlib examples)
         if !state.defines.is_empty() && !upper_line.trim_start().starts_with('$') {
-            substitute_defines_outside_strings(&mut processed_line, &state.defines, state.object_fields.as_ref(), in_create);
+            let index = state.define_index.get_or_insert_with(|| DefineIndex::new(&state.defines));
+            substitute_defines_outside_strings(&mut processed_line, index, state.object_fields.as_ref(), in_create);
         }
 
         emit!(out, LineKind::Code, processed_line);
@@ -1785,10 +1788,7 @@ fn split_macro_args(args: &str) -> Vec<String> {
 ///
 /// In a CREATE block (`in_create`) a statement's assignment target is the
 /// object's property: its name stays too.
-fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<String, String>, kept: Option<&HashSet<String>>, in_create: bool) {
-    let mut sorted = defines.iter().collect::<Vec<_>>();
-    sorted.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
-
+fn substitute_defines_outside_strings(line: &mut MappedText, index: &DefineIndex, kept: Option<&HashSet<String>>, in_create: bool) {
     // The parts outside quotes, as (start, end) of the line as written;
     // done last to first so the earlier ones keep their offsets.
     let mut parts = Vec::new();
@@ -1801,8 +1801,15 @@ fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<S
     }
     for (part_start, part_end) in parts.into_iter().rev() {
         let mut part_end = part_end;
-        for (symbol, value) in &sorted {
-            if kept.is_some_and(|k| k.contains(&symbol.to_ascii_lowercase())) {
+        // (the defines tried, in their order: only those whose name is a
+        // word of the part, and those a value put in brings — a symbol
+        // stands only as a whole word; a line was searched once for each
+        // of the 973 defines of a big include, docs/speed-audit-2026-11.md)
+        let mut todo: std::collections::BTreeSet<usize> = index.others.iter().copied().collect();
+        index.candidates(&line.text[part_start..part_end], 0, &mut todo);
+        while let Some(i) = todo.pop_first() {
+            let (symbol, value, folded) = &index.order[i];
+            if kept.is_some_and(|k| k.contains(folded)) {
                 continue;
             }
             let text = &line.text[part_start..part_end];
@@ -1811,6 +1818,49 @@ fn substitute_defines_outside_strings(line: &mut MappedText, defines: &HashMap<S
                 line.replace(part_start + at.start..part_start + at.end, value);
             }
             part_end = part_end + found.len() * value.len() - found.len() * symbol.len();
+            if !found.is_empty() {
+                index.candidates(value, i + 1, &mut todo);
+            }
+        }
+    }
+}
+
+/// The `$DEFINE`s as a line's substitution tries them — longest first (the
+/// order the defines' map gave them in, among equals), as each line sorted
+/// them before — and which of them a word may be.
+struct DefineIndex {
+    /// (symbol, value, symbol in lower case), longest symbol first.
+    order: Vec<(String, String, String)>,
+    /// A symbol made of identifier characters only (lower case) → where it
+    /// is in `order`: it can stand only where a whole word is it.
+    by_word: HashMap<String, Vec<usize>>,
+    /// The others: tried on every part.
+    others: Vec<usize>,
+}
+
+impl DefineIndex {
+    fn new(defines: &HashMap<String, String>) -> Self {
+        let mut sorted = defines.iter().collect::<Vec<_>>();
+        sorted.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
+        let order: Vec<(String, String, String)> = sorted.into_iter().map(|(k, v)| (k.clone(), v.clone(), k.to_ascii_lowercase())).collect();
+        let mut by_word: HashMap<String, Vec<usize>> = HashMap::new();
+        let mut others = Vec::new();
+        for (i, (_, _, folded)) in order.iter().enumerate() {
+            if folded.bytes().all(is_identifier_byte) {
+                by_word.entry(folded.clone()).or_default().push(i);
+            } else {
+                others.push(i);
+            }
+        }
+        DefineIndex { order, by_word, others }
+    }
+
+    /// The defines from `from` on whose symbol is one of `text`'s words.
+    fn candidates(&self, text: &str, from: usize, todo: &mut std::collections::BTreeSet<usize>) {
+        for word in text.split(|c: char| !is_identifier_char(c)).filter(|w| !w.is_empty()) {
+            if let Some(at) = self.by_word.get(word.to_ascii_lowercase().as_str()) {
+                todo.extend(at.iter().copied().filter(|&i| i >= from));
+            }
         }
     }
 }
@@ -2351,5 +2401,91 @@ mod tests {
         let bom = super::encode_source("é 中", super::SourceEncoding::Windows1252Bom);
         assert_eq!(bom, "\u{feff}é 中".as_bytes());
         assert_eq!(super::encode_source("é €", super::SourceEncoding::Windows1252), b"\xE9 \x80");
+    }
+}
+#[cfg(test)]
+mod define_index_tests {
+    use std::collections::{HashMap, HashSet};
+
+    use super::origin::MappedText;
+    use super::{define_occurrences, is_assignment_target, substitute_defines_outside_strings, DefineIndex};
+
+    // (the substitution as it was before the index: every define searched
+    // for in every part, longest first)
+    #[allow(clippy::all)]
+    fn substitute_defines_reference(line: &mut MappedText, defines: &HashMap<String, String>, kept: Option<&HashSet<String>>, in_create: bool) {
+        let mut sorted = defines.iter().collect::<Vec<_>>();
+        sorted.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
+
+        // The parts outside quotes, as (start, end) of the line as written;
+        // done last to first so the earlier ones keep their offsets.
+        let mut parts = Vec::new();
+        let mut start = 0;
+        for (i, part) in line.text.split('"').enumerate() {
+            if i % 2 == 0 {
+                parts.push((start, start + part.len()));
+            }
+            start += part.len() + 1;
+        }
+        for (part_start, part_end) in parts.into_iter().rev() {
+            let mut part_end = part_end;
+            for (symbol, value) in &sorted {
+                if kept.is_some_and(|k| k.contains(&symbol.to_ascii_lowercase())) {
+                    continue;
+                }
+                let text = &line.text[part_start..part_end];
+                let found: Vec<_> = define_occurrences(text, symbol).into_iter().filter(|at| !(in_create && is_assignment_target(text, at))).collect();
+                for at in found.iter().rev() {
+                    line.replace(part_start + at.start..part_start + at.end, value);
+                }
+                part_end = part_end + found.len() * value.len() - found.len() * symbol.len();
+            }
+        }
+    }
+
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+        fn below(&mut self, n: usize) -> usize {
+            (self.next() % n as u64) as usize
+        }
+    }
+
+    #[test]
+    fn the_index_substitutes_as_searching_every_define() {
+        let words = ["A", "ab", "AB", "Abc", "x1", "X1", "true", "TRUE", "glint", "GLint", "_u", "a_b", "Q$", "v", "Transparent"];
+        let glue = [" ", ".", "(", ")", ",", ":", " = ", "\"", "+", "_", "", "  ", "é", "'"];
+        let mut rng = Rng(0x2545_F491_4F6C_DD1D);
+        for round in 0..3000 {
+            let mut defines = HashMap::new();
+            for _ in 0..rng.below(8) {
+                let k = words[rng.below(words.len())].to_string();
+                // (values that bring other symbols in, and empty ones)
+                let v = match rng.below(4) {
+                    0 => String::new(),
+                    1 => words[rng.below(words.len())].to_string(),
+                    2 => format!("{} {}", words[rng.below(words.len())], words[rng.below(words.len())]),
+                    _ => format!("{}", rng.below(100)),
+                };
+                defines.insert(k, v);
+            }
+            let mut text = String::new();
+            for _ in 0..rng.below(12) {
+                text.push_str(if rng.below(2) == 0 { words[rng.below(words.len())] } else { glue[rng.below(glue.len())] });
+            }
+            let kept: Option<HashSet<String>> = (round % 5 == 0).then(|| ["ab".to_string(), "transparent".to_string()].into_iter().collect());
+            let in_create = round % 3 == 0;
+            let mut old = MappedText::exact(&text, 0, 0);
+            substitute_defines_reference(&mut old, &defines, kept.as_ref(), in_create);
+            let mut new = MappedText::exact(&text, 0, 0);
+            substitute_defines_outside_strings(&mut new, &DefineIndex::new(&defines), kept.as_ref(), in_create);
+            assert_eq!(new.text, old.text, "{text:?} with {defines:?}");
+            assert_eq!(new.segs, old.segs, "{text:?} with {defines:?}");
+        }
     }
 }

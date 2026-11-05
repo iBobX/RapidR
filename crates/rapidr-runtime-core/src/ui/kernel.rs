@@ -211,6 +211,9 @@ pub fn waker() -> Option<std::task::Waker> {
 /// new forms' kernel sides, trees rebuilt, layouts read again
 /// (`rapidr_ui_app::desktop`'s, shared with the web host).
 fn sync_desk(desk: &mut Desktop) {
+    // (the scroll bars waiting to be worked out: before the windows take
+    // the components' places — scroll.rs)
+    crate::scroll::flush();
     rapidr_ui_app::menus::dump_if_changed(Rt);
     let store = RtStore;
     let notify = take_notify();
@@ -418,6 +421,7 @@ pub fn step(max_wait: Option<Duration>) {
         return;
     }
     ensure_host();
+    crate::scroll::flush();
     forms::show_pending(Rt);
     // (the interpreter: timers held back for the handlers queued ahead of
     // them, which the VM has run since — or which wait, and this is their

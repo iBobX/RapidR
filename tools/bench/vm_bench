@@ -22,6 +22,11 @@ tools/bench/vm/ with the `rapidr` given (./rapidr, or RAPIDR=…).
   binary_read  the program that found the slow MID$: a 64 KB file read
                with ReadNum(1), then with ReadStr + ASC(MID$()) (it writes
                tests/results/bench/blob.bin)
+  dsp_sin      705,600 SINs into a global DOUBLE array (a synthesizer's
+               oscillators)
+  dsp_voices   32 synth voices kept in global DOUBLE arrays, 441 samples x
+               100 blocks
+  fcalls       2,000,000 calls of a 3-argument DOUBLE FUNCTION
   idle         a form waiting in ShowModal with a 1-second timer: CPU used
                over 3 seconds (a real window: skipped with --no-windows)
 
@@ -253,6 +258,14 @@ def main():
     if want("binary_read"):
         os.makedirs(os.path.join(ROOT, "tests", "results", "bench"), exist_ok=True)
         results["binary_read"] = {"ms": bench("binary_read", [exe, "run", prog("binary_read.rr")], env, runs, expect="ReadStr + ASC(MID$) x 65536: sum 8355840")["ms"]}
+    # (the speed audit's, docs/speed-audit-2026-11.md: SIN in a DSP loop,
+    # a synth's voices in global DOUBLE arrays, DOUBLE calls)
+    if want("dsp_sin"):
+        results["dsp_sin"] = {"ms": bench("dsp_sin", [exe, "run", prog("dsp_sin.rr")], env, runs, expect="dsp_sin 67359")["ms"]}
+    if want("dsp_voices"):
+        results["dsp_voices"] = {"ms": bench("dsp_voices", [exe, "run", prog("dsp_voices.rr")], env, runs, expect="dsp_voices 1823146")["ms"]}
+    if want("fcalls"):
+        results["fcalls"] = {"ms": bench("fcalls", [exe, "run", prog("fcalls.rr")], env, runs, expect="fcalls 124492600")["ms"]}
     if want("idle") and windows:
         results["idle"] = {"cpu_pct": idle_cpu([exe, "run", prog("idle_form.rr")], env)}
     if want("idle_debug") and windows:
@@ -295,6 +308,9 @@ def main():
         "stream_read": "stream ReadNum + MemCopyTo, 64 KB",
         "stream_write": "file writes, a byte at a time, 64 KB",
         "binary_read": "the 64 KB file repro",
+        "dsp_sin": "SIN DSP, 705,600 SINs",
+        "dsp_voices": "synth voices in global DOUBLE arrays",
+        "fcalls": "2 M DOUBLE FUNCTION calls",
         "idle": "idle form (ShowModal + timer)",
         "idle_debug": "idle form, under the debugger",
         "studio_idle": "Studio, idle",

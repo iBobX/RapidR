@@ -1,0 +1,170 @@
+' ui bench: resizing a form with 12 canvases that the program lays out
+' itself (OnResize sets each canvas's Left, Top, Width and Height: 48
+' writes) and paints itself (each canvas's OnPaint: a background, a grid
+' of 24 lines, 8 bars and 6 lines of text), as a dashboard does.
+'
+' Run it: the program resizes its form STEPS times (ClientWidth and
+' ClientHeight set, then DOEVENTS - the window loop's turn: the OnResize,
+' the canvases' OnPaint, the paint) and prints what each step took
+' (TIMER), then the program's own share: the OnResize handler's and the
+' OnPaint handlers' time in each step:
+'   canvas12 frame steps=N mean=... median=... p95=... worst=... ms
+'   canvas12 onresize ...   canvas12 onpaint ...
+' With RESIZE_BY_HAND=<seconds> in the environment (a person, or a
+' real-input script, drags the window's corner meanwhile) it prints the
+' times between the OnResize events the drag gave instead.
+$APPTYPE CONSOLE
+
+CONST STEPS = 120
+CONST COLS = 4
+CONST ROWS = 3
+
+DIM Cv(11) AS RCanvas
+DIM Took(5000) AS DOUBLE
+DIM ResizeTook(STEPS) AS DOUBLE
+DIM PaintTook(STEPS) AS DOUBLE
+DIM Seen(5000) AS DOUBLE
+DIM SeenCount AS INTEGER
+DIM InResize AS DOUBLE, InPaint AS DOUBLE, Paints AS INTEGER
+DIM StepNo AS INTEGER
+DIM t0 AS DOUBLE, w AS INTEGER, h AS INTEGER
+DIM ByHand AS DOUBLE
+DIM k AS INTEGER
+
+DECLARE SUB FormResized
+DECLARE SUB CanvasPaint(Sender AS RCanvas)
+DECLARE SUB ByHandEnd
+DECLARE SUB Report(What AS STRING, Count AS INTEGER)
+
+CREATE F AS RForm
+  Caption = "canvas12"
+  Left = 60: Top = 60
+  ClientWidth = 960: ClientHeight = 600
+  OnResize = FormResized
+  CREATE Ender AS RTimer
+    Enabled = 0
+    OnTimer = ByHandEnd
+  END CREATE
+END CREATE
+
+FOR k = 0 TO 11
+  Cv(k).Parent = F
+  Cv(k).Tag = k
+  Cv(k).OnPaint = CanvasPaint
+NEXT
+
+' (the program's own layout: a 4 x 3 grid of cards with 8-pixel gaps)
+SUB FormResized
+  DIM i AS INTEGER, cw AS INTEGER, ch AS INTEGER, t AS DOUBLE
+  t = TIMER
+  IF SeenCount < 5000 THEN
+    Seen(SeenCount) = t
+    SeenCount = SeenCount + 1
+  END IF
+  cw = (F.ClientWidth - 8 * (COLS + 1)) \ COLS
+  ch = (F.ClientHeight - 8 * (ROWS + 1)) \ ROWS
+  FOR i = 0 TO 11
+    Cv(i).Left = 8 + (i MOD COLS) * (cw + 8)
+    Cv(i).Top = 8 + (i \ COLS) * (ch + 8)
+    Cv(i).Width = cw
+    Cv(i).Height = ch
+  NEXT
+  InResize = InResize + (TIMER - t) * 1000
+END SUB
+
+' (a card: its background, a grid, bars and a few lines of text)
+SUB CanvasPaint(Sender AS RCanvas)
+  DIM i AS INTEGER, x AS INTEGER, y AS INTEGER, bw AS INTEGER, t AS DOUBLE
+  t = TIMER
+  Sender.FillRect 0, 0, Sender.Width, Sender.Height, &HF4F0EC
+  FOR i = 1 TO 12
+    x = (Sender.Width * i) \ 13
+    Sender.Line x, 0, x, Sender.Height, &HDDDDDD
+    y = (Sender.Height * i) \ 13
+    Sender.Line 0, y, Sender.Width, y, &HDDDDDD
+  NEXT
+  bw = Sender.Width \ 10
+  FOR i = 0 TO 7
+    y = Sender.Height - ((i * 37 + Sender.Tag * 11) MOD (Sender.Height - 20)) - 10
+    Sender.FillRect 10 + i * (bw + 2), y, 10 + i * (bw + 2) + bw, Sender.Height - 4, &H996633
+  NEXT
+  FOR i = 0 TO 5
+    Sender.TextOut 8, 6 + i * 16, "Card " + STR$(Sender.Tag) + " line " + STR$(i), &H202020, -1
+  NEXT
+  InPaint = InPaint + (TIMER - t) * 1000
+  Paints = Paints + 1
+END SUB
+
+SUB ByHandEnd
+  DIM i AS INTEGER, n AS INTEGER
+  Ender.Enabled = 0
+  ' (the times between OnResize events while the corner moves: a gap of
+  ' half a second or more is the hand at rest - the window showing, before
+  ' and after the drag - not a frame)
+  n = 0
+  FOR i = 1 TO SeenCount - 1
+    IF (Seen(i) - Seen(i - 1)) < 0.5 THEN
+      Took(n) = (Seen(i) - Seen(i - 1)) * 1000
+      n = n + 1
+    END IF
+  NEXT
+  IF n > 1 THEN Report "canvas12 byhand", n ELSE PRINT "canvas12 byhand: no resize seen"
+  PRINT "canvas12 byhand paints="; Paints; FORMAT$(" onpaint total=%.1f ms, onresize total=%.1f ms", InPaint, InResize)
+  F.Close
+  END
+END SUB
+
+' (the times sorted, then their mean, median, 95th percentile and worst)
+SUB Report(What AS STRING, Count AS INTEGER)
+  DIM i AS INTEGER, j AS INTEGER, x AS DOUBLE, total AS DOUBLE
+  FOR i = 1 TO Count - 1
+    x = Took(i): j = i - 1
+    WHILE j >= 0 AND Took(j) > x
+      Took(j + 1) = Took(j): j = j - 1
+    WEND
+    Took(j + 1) = x
+  NEXT
+  FOR i = 0 TO Count - 1
+    total = total + Took(i)
+  NEXT
+  PRINT What; " steps="; Count; FORMAT$(" mean=%.2f median=%.2f p95=%.2f worst=%.2f ms", total / Count, Took(Count \ 2), Took((Count * 95) \ 100), Took(Count - 1))
+END SUB
+
+ByHand = VAL(ENVIRON$("RESIZE_BY_HAND"))
+IF ByHand > 0 THEN
+  Ender.Interval = INT(ByHand * 1000)
+  Ender.Enabled = 1
+  F.ShowModal
+  END
+END IF
+F.Show
+FOR k = 1 TO 5
+  DOEVENTS
+NEXT
+FOR StepNo = 0 TO STEPS - 1
+  IF StepNo < STEPS / 2 THEN
+    w = 960 + StepNo * 4: h = 600 + StepNo * 3
+  ELSE
+    w = 960 + (STEPS - StepNo) * 4: h = 600 + (STEPS - StepNo) * 3
+  END IF
+  InResize = 0: InPaint = 0
+  t0 = TIMER
+  F.ClientWidth = w
+  F.ClientHeight = h
+  DOEVENTS
+  Took(StepNo) = (TIMER - t0) * 1000
+  ResizeTook(StepNo) = InResize
+  PaintTook(StepNo) = InPaint
+NEXT
+Report "canvas12 frame", STEPS
+FOR k = 0 TO STEPS - 1
+  Took(k) = ResizeTook(k)
+NEXT
+Report "canvas12 onresize", STEPS
+FOR k = 0 TO STEPS - 1
+  Took(k) = PaintTook(k)
+NEXT
+Report "canvas12 onpaint", STEPS
+PRINT "canvas12 paints="; Paints
+F.Close
+END

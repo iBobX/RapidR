@@ -310,6 +310,12 @@ pub fn rp_sqr(val: &Value) -> Value {
 }
 
 pub fn rp_sin(val: &Value) -> Value {
+    // (a number is never a list: its text has no comma — no text made for
+    // it, the result bit for bit the same; SIN was ~600 ns a call,
+    // docs/speed-audit-2026-11.md)
+    if let Value::Integer(_) | Value::Double(_) = val {
+        return v_dbl(val.to_f64().sin());
+    }
     let s = val.to_string_val();
     if s.contains(',') {
         // Vectorized: apply sin to each element of comma-separated array
@@ -324,6 +330,10 @@ pub fn rp_sin(val: &Value) -> Value {
 }
 
 pub fn rp_cos(val: &Value) -> Value {
+    // (a number: as rp_sin)
+    if let Value::Integer(_) | Value::Double(_) = val {
+        return v_dbl(val.to_f64().cos());
+    }
     let s = val.to_string_val();
     if s.contains(',') {
         // Vectorized: apply cos to each element of comma-separated array
@@ -577,14 +587,19 @@ pub fn rp_reverse(s: &Value) -> Value {
 
 /// FIELD$ — return the nth field (1-based) split by delimiter
 pub fn rp_field(s: &Value, delim: &Value, n: &Value) -> Value {
-    let s = s.to_string_val();
     let delim = delim.to_string_val();
     let n = n.to_i64();
-    let parts: Vec<&str> = s.split(&delim).collect();
-    if n < 1 || n > parts.len() as i64 {
-        v_str("")
-    } else {
-        Value::String(parts[(n - 1) as usize].to_string().into())
+    // (the field found where it is: the text not copied, nor every field
+    // after it cut out — FIELD$ over each line of a long text did both for
+    // every line, docs/speed-audit-2026-11.md)
+    let index = if n >= 1 { usize::try_from(n - 1).ok() } else { None };
+    let field = |text: &str| match index.and_then(|i| text.split(delim.as_str()).nth(i)) {
+        Some(part) => Value::String(part.to_string().into()),
+        None => v_str(""),
+    };
+    match s {
+        Value::String(text) => field(text.as_str()),
+        other => field(&other.to_string_val()),
     }
 }
 
@@ -704,4 +719,85 @@ pub fn rp_randint(low: &Value, high: &Value, size: &Value) -> Value {
 /// An integer in 0 … n-1 from the shared generator (0 when n is 0).
 pub fn random_index(n: usize) -> usize {
     ((random_unit() * n as f64) as usize).min(n.saturating_sub(1))
+}
+
+#[cfg(test)]
+mod trig_tests {
+    use super::{rp_cos, rp_sin};
+    use crate::{v_dbl, v_int, v_str, Value};
+
+    /// SIN / COS as they were before the number fast path: the argument's
+    /// text looked at for a comma first.
+    fn old(val: &Value, f: fn(f64) -> f64) -> Value {
+        let s = val.to_string_val();
+        if s.contains(',') {
+            let result: String = s.split(',').map(|v| f(v.trim().parse::<f64>().unwrap_or(0.0)).to_string()).collect::<Vec<_>>().join(",");
+            v_str(&result)
+        } else {
+            v_dbl(f(val.to_f64()))
+        }
+    }
+
+    fn same(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Double(x), Value::Double(y)) => x.to_bits() == y.to_bits(),
+            _ => a.to_string_val() == b.to_string_val() && std::mem::discriminant(a) == std::mem::discriminant(b),
+        }
+    }
+
+    #[test]
+    fn sin_and_cos_give_what_they_gave_bit_for_bit() {
+        let mut values: Vec<Value> = vec![
+            v_int(0), v_int(1), v_int(-1), v_int(7), v_int(i64::MAX), v_int(i64::MIN), v_int(1 << 53),
+            v_dbl(0.0), v_dbl(-0.0), v_dbl(0.5), v_dbl(-2.25), v_dbl(std::f64::consts::PI), v_dbl(1e-310), v_dbl(1e300), v_dbl(-1e300),
+            v_dbl(f64::INFINITY), v_dbl(f64::NEG_INFINITY), v_dbl(f64::NAN), v_dbl(1e15), v_dbl(123456789.123456789),
+            v_str("0.5"), v_str("1,2,3"), v_str(" 0.25 , -1 ,x"), v_str(""), v_str("abc"), Value::Boolean(true), Value::Boolean(false), Value::Null,
+        ];
+        // (and a sweep: every phase a synthesizer steps through)
+        let mut x = -20.0;
+        while x < 20.0 {
+            values.push(v_dbl(x));
+            x += 0.013_7;
+        }
+        for v in &values {
+            let (s, o) = (rp_sin(v), old(v, f64::sin));
+            assert!(same(&s, &o), "SIN({v:?}): {s:?} vs {o:?}");
+            let (c, o) = (rp_cos(v), old(v, f64::cos));
+            assert!(same(&c, &o), "COS({v:?}): {c:?} vs {o:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod field_tests {
+    use super::rp_field;
+    use crate::{v_dbl, v_int, v_str, Value};
+
+    /// FIELD$ as it was before: every field cut out, then the one asked for.
+    fn old(s: &Value, delim: &Value, n: &Value) -> Value {
+        let s = s.to_string_val();
+        let delim = delim.to_string_val();
+        let n = n.to_i64();
+        let parts: Vec<&str> = s.split(&delim).collect();
+        if n < 1 || n > parts.len() as i64 {
+            v_str("")
+        } else {
+            Value::String(parts[(n - 1) as usize].to_string().into())
+        }
+    }
+
+    #[test]
+    fn field_gives_what_it_gave() {
+        let texts = [v_str(""), v_str("a"), v_str("a,b,,c,"), v_str("x\ty\tz"), v_str("éa,ü,b"), v_str(",,"), v_int(12345), v_dbl(1.5), Value::Null, Value::Boolean(true), v_str("one\ntwo\n")];
+        let delims = [v_str(","), v_str(""), v_str("\t"), v_str("\n"), v_str("ab"), v_str("é"), v_int(3)];
+        let ns = [i64::MIN, -1, 0, 1, 2, 3, 4, 5, 9, i64::MAX];
+        for t in &texts {
+            for d in &delims {
+                for &n in &ns {
+                    let (a, b) = (rp_field(t, d, &v_int(n)), old(t, d, &v_int(n)));
+                    assert_eq!(a.to_string_val(), b.to_string_val(), "FIELD$({t:?}, {d:?}, {n})");
+                }
+            }
+        }
+    }
 }

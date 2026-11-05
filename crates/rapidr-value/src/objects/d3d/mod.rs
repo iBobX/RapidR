@@ -261,7 +261,7 @@ pub fn create(id: &str, type_name: &str) -> bool {
 
 /// Whether `id` is a QD3D* object.
 pub fn exists(id: &str) -> bool {
-    store(|s| s.refs.contains_key(&id.to_lowercase()))
+    store(|s| s.refs.contains_key(crate::lower(id).as_ref()))
 }
 
 impl Store {
@@ -271,12 +271,12 @@ impl Store {
     }
 
     fn handle(&self, id: &str, kind: Kind) -> Option<usize> {
-        self.refs.get(&id.to_lowercase()).filter(|r| r.kind == kind || (kind == Kind::Mesh && r.kind == Kind::MeshBuilder) || (kind == Kind::MeshBuilder && r.kind == Kind::Mesh)).and_then(|r| r.handle)
+        self.refs.get(crate::lower(id).as_ref()).filter(|r| r.kind == kind || (kind == Kind::Mesh && r.kind == Kind::MeshBuilder) || (kind == Kind::MeshBuilder && r.kind == Kind::Mesh)).and_then(|r| r.handle)
     }
 
     /// The visual a variable refers to: a mesh builder or a mesh.
     fn visual(&self, id: &str) -> Option<usize> {
-        let r = self.refs.get(&id.to_lowercase())?;
+        let r = self.refs.get(crate::lower(id).as_ref())?;
         matches!(r.kind, Kind::MeshBuilder | Kind::Mesh | Kind::Visual).then_some(r.handle)?
     }
 
@@ -316,7 +316,7 @@ impl Store {
 
     fn scene_mut(&mut self, id: &str) -> &mut Scene {
         self.scene(id);
-        self.scenes.get_mut(&id.to_lowercase()).expect("made above")
+        self.scenes.get_mut(crate::lower(id).as_ref()).expect("made above")
     }
 
     /// The scene frame `h` is in (its topmost frame's).
@@ -631,11 +631,11 @@ fn load_texture(file: &str) -> Result<Rc<Bitmap>, String> {
 /// A QD3D* object's property; `None` if it isn't one's.
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     store(|s| {
-        let r = *s.refs.get(&id.to_lowercase())?;
+        let r = *s.refs.get(crate::lower(id).as_ref())?;
         match (r.kind, prop) {
             // QD3DVECTOR: X / Y / Z, the same as DVX / DVY / DVZ (a union).
             (Kind::Vector, "x" | "dvx" | "y" | "dvy" | "z" | "dvz") => {
-                let v = s.vectors.get(&id.to_lowercase()).copied().unwrap_or_default();
+                let v = s.vectors.get(crate::lower(id).as_ref()).copied().unwrap_or_default();
                 let i = match prop {
                     "x" | "dvx" => 0,
                     "y" | "dvy" => 1,
@@ -670,7 +670,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
 /// Sets a QD3D* object's property; `None` if it isn't one's.
 pub fn set(id: &str, prop: &str, val: &Value) -> Option<()> {
     store(|s| {
-        let r = *s.refs.get(&id.to_lowercase())?;
+        let r = *s.refs.get(crate::lower(id).as_ref())?;
         if r.kind == Kind::Vector {
             let i = match prop {
                 "x" | "dvx" => 0,
@@ -688,7 +688,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<()> {
 /// A QD3D* object's method; `None` if it isn't one's. `dir`: where its
 /// files are read from (the runtime's current directory).
 pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, String>> {
-    let r = store(|s| s.refs.get(&id.to_lowercase()).copied())?;
+    let r = store(|s| s.refs.get(crate::lower(id).as_ref()).copied())?;
     let res = match r.kind {
         Kind::Frame => frame_call(id, r.handle, method, args),
         Kind::MeshBuilder | Kind::Mesh => mesh_call(id, r.handle, method, args),
