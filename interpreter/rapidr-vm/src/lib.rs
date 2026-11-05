@@ -270,8 +270,6 @@ enum Hot {
     /// At an instruction it doesn't run (a host operation, the end of the
     /// code).
     Cold,
-    /// After its one instruction (`ONE`).
-    Done,
     /// The frame that was entered returned: the VM stops.
     Stopped,
 }
@@ -365,6 +363,12 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// outermost one the error went through ([`Self::run_events`]): the
     /// host is told which ([`HandlerFailure::handler`]).
     failed_handler: Option<u32>,
+    /// What a global never assigned reads, and the FOR test's 0, for the
+    /// fused instructions to borrow (kept here, not in `run_hot`'s frame:
+    /// there LLVM spilled their addresses to a hundred stack slots at every
+    /// entry — and the debugger enters it at every line).
+    null: Value,
+    zero: Value,
 }
 
 /// A handler's run-time error that a wait went on after
@@ -442,6 +446,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             quiet: (0, 0),
             error_moved: false,
             failed_handler: None,
+            null: Value::Null,
+            zero: Value::Integer(0),
         }
     }
 
@@ -733,16 +739,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// of their own, small enough to compile tight (docs/vm-fast-design.md):
     /// it runs from `ip` until an instruction it doesn't run (a host
     /// operation, the end of the code: [`Hot::Cold`], `ip` at it) or the
-    /// frame that was entered returns ([`Hot::Stopped`]); with `ONE`, one
-    /// instruction only (the debugger looks before each). `code` follows the
-    /// calls and returns.
+    /// frame that was entered returns ([`Hot::Stopped`]); with `DEBUG`, the
+    /// debugger's look before each instruction (`debug_point`, an
+    /// evaluation's steps), as exec_loop made it. `code` follows the calls
+    /// and returns.
     #[inline(never)]
-    fn run_hot<'m, const ONE: bool>(&mut self, module: &'m Module, code_out: &mut &'m [u8], ip_out: &mut usize, values: &[Value], direct: &[u8]) -> Result<Hot, VmError> {
+    fn run_hot<'m, const DEBUG: bool>(&mut self, module: &'m Module, code_out: &mut &'m [u8], ip_out: &mut usize, values: &[Value], direct: &[u8]) -> Result<Hot, VmError> {
         let mut code: &'m [u8] = code_out;
         let mut ip = *ip_out;
-        // (what a global never assigned reads, and the FOR test's 0)
-        let null = Value::Null;
-        let zero = Value::Integer(0);
         macro_rules! out {
             ($hot:expr) => {{
                 *ip_out = ip;
@@ -786,7 +790,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 let g = read_u32(code, &mut ip)? as usize;
                 match self.globals.get(g) {
                     Some(Some(v)) => v,
-                    _ => &null,
+                    _ => &self.null,
                 }
             }};
             (K) => {{
@@ -807,7 +811,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             ($r:expr) => {{
                 let r = $r;
                 match code.get(ip..ip + 4) {
-                    Some(&[raw::StoreLocalNum, lo, hi, kind]) if !ONE => {
+                    // (under the debugger only inside the rest of a line it
+                    // has looked at, never in an evaluation)
+                    Some(&[raw::StoreLocalNum, lo, hi, kind]) if !DEBUG || (self.eval_fuel.is_none() && self.quiet.0 <= ip && ip < self.quiet.1) => {
                         let slot = u16::from_le_bytes([lo, hi]);
                         let local = self.frames.last_mut().unwrap().locals.get_mut(slot as usize).ok_or_else(|| VmError::BadLocalSlot(slot))?;
                         fast::store_num(local, r, kind)?;
@@ -896,7 +902,50 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
 
 
         loop {
-            let Some(&opbyte) = code.get(ip) else { out!(Hot::Cold) };
+            if ip >= code.len() {
+                out!(Hot::Cold);
+            }
+            // (under the debugger, its look before each instruction: an
+            // evaluation counts its steps; else, outside the rest of the
+            // line it last looked at or when it's called, debug_point —
+            // here, not in exec_loop, so the program doesn't leave this
+            // loop at every line)
+            if DEBUG {
+                if let Some(fuel) = &mut self.eval_fuel {
+                    // (an evaluation: no stops, a bounded number of steps)
+                    if *fuel == 0 {
+                        return Err(VmError::Runtime("the evaluation ran too long and was stopped".into()));
+                    }
+                    *fuel -= 1;
+                } else if ip < self.quiet.0 || ip >= self.quiet.1 || self.interrupt.load(std::sync::atomic::Ordering::Relaxed) {
+                    match self.debug_point(module, ip) {
+                        DebugAction::Run => {}
+                        DebugAction::Resumed => {
+                            // (a debugger served a stop here: the frames are
+                            // as they were, an evaluation came and went — and
+                            // Set Next Statement may have moved the program;
+                            // the instruction there runs without another look)
+                            ip = self.frames.last().unwrap().ip;
+                            refresh!();
+                            if ip >= code.len() {
+                                out!(Hot::Cold);
+                            }
+                        }
+                        DebugAction::Pause => {
+                            *ip_out = ip;
+                            *code_out = code;
+                            return Err(VmError::Paused);
+                        }
+                        DebugAction::Halt => {
+                            self.frames.clear();
+                            self.stack.clear();
+                            self.yield_rest.clear();
+                            out!(Hot::Stopped);
+                        }
+                    }
+                }
+            }
+            let opbyte = code[ip];
             self.fault_ip = ip;
             let at = ip;
             ip += 1;
@@ -1195,7 +1244,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let end = leaf!(L);
                     let step = leaf!(L);
                     let exit = read_u32(code, &mut ip)?;
-                    let go = if fast::lt(step, &zero) { fast::ge(var, end) } else { fast::le(var, end) };
+                    let go = if fast::lt(step, &self.zero) { fast::ge(var, end) } else { fast::le(var, end) };
                     if !go {
                         ip = exit as usize;
                         tick!();
@@ -1216,7 +1265,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let var = read_u32(code, &mut ip)? as usize;
                     let v = match self.globals.get(var) {
                         Some(Some(v)) => v,
-                        _ => &null,
+                        _ => &self.null,
                     };
                     let step = leaf!(L);
                     let top = read_u32(code, &mut ip)?;
@@ -1388,9 +1437,6 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     out!(Hot::Cold);
                 }
             }
-            if ONE {
-                out!(Hot::Done);
-            }
         }
     }
 
@@ -1475,44 +1521,15 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 continue;
             }
 
-            if self.debug_mode {
-                if let Some(fuel) = &mut self.eval_fuel {
-                    // (an evaluation: no stops, a bounded number of steps)
-                    if *fuel == 0 {
-                        return Err(VmError::Runtime("the evaluation ran too long and was stopped".into()));
-                    }
-                    *fuel -= 1;
-                } else if ip < self.quiet.0 || ip >= self.quiet.1 || self.interrupt.load(std::sync::atomic::Ordering::Relaxed) {
-                    match self.debug_point(module, ip) {
-                        DebugAction::Run => {}
-                        DebugAction::Resumed => {
-                            // (a debugger served a stop here: the frames are
-                            // as they were, an evaluation came and went — and
-                            // Set Next Statement may have moved the program)
-                            ip = self.frames.last().unwrap().ip;
-                            refresh!();
-                        }
-                        DebugAction::Pause => return Err(VmError::Paused),
-                        DebugAction::Halt => {
-                            self.frames.clear();
-                            self.stack.clear();
-                            self.yield_rest.clear();
-                            return Ok(());
-                        }
-                    }
-                }
-            }
-
-            // (what computes runs in run_hot: under the debugger one
-            // instruction at a time, after its look; else on until a host
-            // operation)
+            // (what computes runs in run_hot, on until a host operation;
+            // under the debugger with its look before each instruction —
+            // that one too)
             let hot = if self.debug_mode {
                 self.run_hot::<true>(module, &mut code, &mut ip, values, direct)?
             } else {
                 self.run_hot::<false>(module, &mut code, &mut ip, values, direct)?
             };
             match hot {
-                Hot::Done => continue,
                 Hot::Stopped => return Ok(()),
                 Hot::Cold if ip >= code.len() => continue,
                 Hot::Cold => {}
