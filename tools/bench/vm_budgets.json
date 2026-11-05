@@ -1,5 +1,5 @@
 {
-  "about": "The VM's budgets (tools/bench/vm_bench --check; tools/regress.sh perf). Times: the fastest of the runs' CPU time (start-up: wall time); a budget missed fails. \"budgets\" were measured on an Apple-silicon Mac (busy with other builds), \"systems\" holds a system's own (by platform.system()). Measured 2026-10-15 (DEBUG-VM) — the Mac before: start-up 10.5 ms, the 10 M loop 1088 ms (1624 ms under the debugger), strings 1284 ms, Fib(27) 94 ms, arrays 552 ms, Studio running an idle program 10.2 % CPU; after: 8 ms, 607 ms (717 ms), 566 ms, 59 ms, 338 ms, 0.25 %. Ubuntu 24.04 (ARM, in a VM) on one core and 2 GB: 2.4 ms, 1285 ms (1332 ms), 481 ms, 93 ms, 759 ms, idle 0 %, Studio running it 0.25 %, Studio's start 261 ms. Binary data (STRING-SPEED, 2026-10-29, an M4 Max busy with other lanes): mid_scan 3268 ms before, 19 ms after; concat_build 1029 → 79 ms; byte_array 297 → 284 ms; stream_read 148 → 154 ms; stream_write 1640 → 177 ms; binary_read 9195 → 174 ms (tools/bench/README.md). The speed audit's (2026-11-05, docs/speed-audit-2026-11.md): dsp_sin 557 → 150 ms (SIN made text of every number), dsp_voices 787, fcalls 340 — the next lanes' (typed arrays, the JIT) starting points. Their budgets leave room for a busy machine and keep a quadratic MID$ or s = s + x, or a system call per written byte, from coming back unseen. VM-FAST (2026-11-05, docs/speed-audit-2026-11.md \"Phase 2: the interpreter\"): the 10 M loop 560 -> 121 ms (646 -> 232 under the debugger), in a SUB 559 -> 91, Fib(27) 54 -> 33, arrays 315 -> 81, byte_array 218 -> 71, dsp_sin 151 -> 42, dsp_voices 787 -> 251, fcalls 355 -> 138, top_double (new) 404 -> 117, dsp_scalars (new) 310 -> 129: the budgets about twice those (a busy machine), so the old speed fails them. Linux's scaled from the Mac's (x 2.5), not measured in that lane.",
+  "about": "The VM's budgets (tools/bench/vm_bench --check; tools/regress.sh perf). Times: the fastest of the runs' CPU time (start-up: wall time); a budget missed fails. \"budgets\" were measured on an Apple-silicon Mac (busy with other builds), \"systems\" holds a system's own (by platform.system()). Measured 2026-10-15 (DEBUG-VM) — the Mac before: start-up 10.5 ms, the 10 M loop 1088 ms (1624 ms under the debugger), strings 1284 ms, Fib(27) 94 ms, arrays 552 ms, Studio running an idle program 10.2 % CPU; after: 8 ms, 607 ms (717 ms), 566 ms, 59 ms, 338 ms, 0.25 %. Ubuntu 24.04 (ARM, in a VM) on one core and 2 GB: 2.4 ms, 1285 ms (1332 ms), 481 ms, 93 ms, 759 ms, idle 0 %, Studio running it 0.25 %, Studio's start 261 ms. Binary data (STRING-SPEED, 2026-10-29, an M4 Max busy with other lanes): mid_scan 3268 ms before, 19 ms after; concat_build 1029 → 79 ms; byte_array 297 → 284 ms; stream_read 148 → 154 ms; stream_write 1640 → 177 ms; binary_read 9195 → 174 ms (tools/bench/README.md). The speed audit's (2026-11-05, docs/speed-audit-2026-11.md): dsp_sin 557 → 150 ms (SIN made text of every number), dsp_voices 787, fcalls 340 — the next lanes' (typed arrays, the JIT) starting points. Their budgets leave room for a busy machine and keep a quadratic MID$ or s = s + x, or a system call per written byte, from coming back unseen. VM-FAST (2026-11-05, docs/speed-audit-2026-11.md \"Phase 2: the interpreter\"): the 10 M loop 560 -> 121 ms (646 -> 232 under the debugger), in a SUB 559 -> 91, Fib(27) 54 -> 33, arrays 315 -> 81, byte_array 218 -> 71, dsp_sin 151 -> 42, dsp_voices 787 -> 251, fcalls 355 -> 138, top_double (new) 404 -> 117, dsp_scalars (new) 310 -> 129: the budgets about twice those (a busy machine), so the old speed fails them. Linux's scaled from the Mac's (x 2.5), not measured in that lane. JIT-TIER1 (2026-11-05, docs/jit-design.md): the interpreter's budgets above are measured with RAPIDR_JIT=off; the same programs with the JIT (rapidr run's default) as <name>_jit, an M4 Max busy with other lanes: loop10m 123 -> 25 ms, loop10m_sub 100 -> 16, Fib(27) 33 -> 7.4, arrays 77 -> 23, dsp_sin 43 -> 17, dsp_voices 249 -> 51, fcalls 142 -> 13, top_double 134 -> 28, dsp_scalars 129 -> 17; f5_jit (loop10m under the debugger with nothing watched: Studio's F5 without a breakpoint) 17. Budgets about twice those; Linux's x 2.5, not measured there.",
   "budgets": {
     "startup": {
       "ms": 150
@@ -61,6 +61,36 @@
     "dsp_scalars": {
       "ms": 260
     },
+    "loop10m_jit": {
+      "ms": 50
+    },
+    "loop10m_sub_jit": {
+      "ms": 40
+    },
+    "calls_jit": {
+      "ms": 20
+    },
+    "arrays_jit": {
+      "ms": 50
+    },
+    "dsp_sin_jit": {
+      "ms": 40
+    },
+    "dsp_voices_jit": {
+      "ms": 110
+    },
+    "fcalls_jit": {
+      "ms": 30
+    },
+    "top_double_jit": {
+      "ms": 60
+    },
+    "dsp_scalars_jit": {
+      "ms": 40
+    },
+    "f5_jit": {
+      "ms": 40
+    },
     "idle": {
       "cpu_pct": 1.0
     },
@@ -120,6 +150,36 @@
       },
       "dsp_scalars": {
         "ms": 650
+      },
+      "loop10m_jit": {
+        "ms": 125
+      },
+      "loop10m_sub_jit": {
+        "ms": 100
+      },
+      "calls_jit": {
+        "ms": 50
+      },
+      "arrays_jit": {
+        "ms": 125
+      },
+      "dsp_sin_jit": {
+        "ms": 100
+      },
+      "dsp_voices_jit": {
+        "ms": 275
+      },
+      "fcalls_jit": {
+        "ms": 75
+      },
+      "top_double_jit": {
+        "ms": 150
+      },
+      "dsp_scalars_jit": {
+        "ms": 100
+      },
+      "f5_jit": {
+        "ms": 100
       }
     }
   }

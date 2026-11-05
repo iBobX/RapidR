@@ -104,7 +104,12 @@ if want words; then echo "== words"; python3 tools/check_words.py || echo "tools
   python3 tools/check_design.py || echo "tools/check_design.py: FAILED"
   python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; fi
+# (the VM runs every case twice — `vm` the interpreter alone, `vm-jit` with
+# the JIT compiling all it can at once, RAPIDR_JIT=always: the same output
+# and errors; then the JIT's own tests in an optimized build, every edge
+# value through compiled code — docs/jit-design.md §12)
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
+  echo "== the JIT, every edge value"; cargo test --release -q -p rapidr-jit 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,
 # interpreted and native executables, the web — GUI ones by the test hooks)
@@ -258,6 +263,11 @@ if want legal; then echo "== legal"
   # (RArchive's libraries: only the features the legal review cleared — no
   # AES, Deflate64, PPMd, ruzstd's dictionary builder or C codecs)
   python3 tools/check_archive_features.py || LEGAL_FAILED=1
+  # (the JIT's code generator: the reviewed release, its optional features
+  # off, only the reviewed crates, no MPL header but the known one, never
+  # in the web runtime or rapidr-runtime-core —
+  # docs/legal/review-2026-11-05-cranelift.md C2, C4)
+  python3 tools/check_jit_features.py || LEGAL_FAILED=1
   out=$(python3 tools/check_notices.py --rapidr ./rapidr 2>&1) || LEGAL_FAILED=1
   echo "$out" | grep -E "FAIL|notices: all ok"; fi
 [ $LEGAL_FAILED = 1 ] && { echo "LEGAL CHECKS FAILED"; exit 1; }

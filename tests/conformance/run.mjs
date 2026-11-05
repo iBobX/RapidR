@@ -30,9 +30,15 @@
 // A marked backend that fails is XFAIL (ok); one that passes is XPASS, which
 // fails the run so the marker gets removed once the bug is fixed.
 //
+// The VM runs every case twice: `vm` the interpreter alone
+// (RAPIDR_JIT=off), `vm-jit` with the JIT compiling everything it can at
+// once (RAPIDR_JIT=always, docs/jit-design.md): the same output, the same
+// errors. A case marked xfail for `vm` is for `vm-jit` too.
+//
 // Usage (from repo root, after ./build.sh):
-//   node tests/conformance/run.mjs                  # both backends
+//   node tests/conformance/run.mjs                  # every backend
 //   node tests/conformance/run.mjs --backend vm     # fast: VM only
+//   node tests/conformance/run.mjs --backend vm,vm-jit  # the VM, both ways
 //   node tests/conformance/run.mjs gosub case_      # only matching cases
 // Env: RAPIDR_BIN (default ./rapidr), CONFORMANCE_WORK (scratch dir).
 
@@ -57,10 +63,10 @@ const TIMEOUT_MS = 30_000;
 const MAX_OUTPUT = 1 << 20;  // 1 MB: more than any case prints; catches runaway loops
 
 const args = process.argv.slice(2);
-let backends = ["vm", "codegen"];
+let backends = ["vm", "vm-jit", "codegen"];
 const filters = [];
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--backend") backends = [args[++i]];
+  if (args[i] === "--backend") backends = args[++i].split(",");
   else filters.push(args[i]);
 }
 
@@ -97,13 +103,13 @@ function run(cmd, cmdArgs, opts = {}) {
 }
 
 // Returns { compiled: bool, output: string, diagnostics: string }.
-function runVm(name, src, input, progArgs) {
+function runVm(name, src, input, progArgs, jit = "off") {
   const rrbc = join(WORK, `${name}.rrbc`);
   // (the program's lang folder: beside its .rrbc, as TR$ looks for it)
   if (existsSync(join(CASES, "lang"))) cpSync(join(CASES, "lang"), join(WORK, "lang"), { recursive: true });
   const c = run(RAPIDR, ["build-bc", src, "-o", rrbc]);
   if (!c.ok) return { compiled: false, output: "", diagnostics: c.out + c.err };
-  const r = run(RAPIDR, ["run-bc", rrbc, ...progArgs], { input });
+  const r = run(RAPIDR, ["run-bc", rrbc, ...progArgs], { input, env: { ...process.env, RAPIDR_JIT: jit } });
   return { compiled: true, output: r.out, diagnostics: c.err + r.err, crashed: !r.ok, status: r.status };
 }
 
@@ -150,7 +156,7 @@ function cargoErrors(text) {
   return out.length ? out.join("\n") : text;
 }
 
-const RUNNERS = { vm: runVm, codegen: runCodegen };
+const RUNNERS = { vm: runVm, "vm-jit": (n, s, i, a) => runVm(n, s, i, a, "always"), codegen: runCodegen };
 
 function check(result, expected, expectedError, runtimeError = null, exitCode = null) {
   if (expectedError !== null) {
@@ -186,6 +192,9 @@ for (const name of cases) {
   const text = readFileSync(src, "utf8");
   const xfailLine = text.split("\n")[0].match(/^'\s*xfail:\s*([^—-]+)/i);
   const xfail = new Set(xfailLine ? xfailLine[1].split(",").map((s) => s.trim().toLowerCase()) : []);
+  // (the interpreter's known failures are the JIT's too: it runs what the
+  // interpreter runs)
+  if (xfail.has("vm")) xfail.add("vm-jit");
   // `' skip-on: win32` (a process.platform name): a case whose outcome is
   // another on that system (a Windows DLL call succeeds there) isn't run.
   const skipLine = text.split("\n")[0].match(/^'\s*skip-on:\s*([^—-]+)/i);

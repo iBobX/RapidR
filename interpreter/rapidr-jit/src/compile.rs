@@ -481,13 +481,12 @@ impl Walk<'_, '_> {
                 self.locals_ptr = Some(params[1]);
                 self.depth = Some(self.b.ins().iconst(types::I64, 0));
                 // (the locals it uses, from the buffer the VM filled)
-                for s in 0..n_locals {
-                    let k = kinds[s];
+                for (s, &k) in kinds.iter().enumerate().take(n_locals) {
                     if ty(k).is_none() || self.used_hint.is_some_and(|u| !u.contains(&(s as u16))) {
                         continue;
                     }
                     let raw = self.b.ins().load(types::I64, MemFlagsData::trusted(), params[1], (s * 8) as i32);
-                    let v = self.from_bits(raw, k);
+                    let v = self.bits_to_value(raw, k);
                     let var = self.var(s as u32, k);
                     self.b.def_var(var, v);
                 }
@@ -521,7 +520,7 @@ impl Walk<'_, '_> {
     }
 
     /// 64 raw bits as a value of kind `k`.
-    fn from_bits(&mut self, raw: V, k: K) -> V {
+    fn bits_to_value(&mut self, raw: V, k: K) -> V {
         match k {
             K::Dbl => self.b.ins().bitcast(types::F64, MemFlagsData::new(), raw),
             K::Bool => self.b.ins().icmp_imm_s(IntCC::NotEqual, raw, 0),
@@ -531,7 +530,7 @@ impl Walk<'_, '_> {
     }
 
     /// A value of kind `k` as 64 raw bits.
-    fn to_bits(&mut self, v: V, k: K) -> V {
+    fn value_to_bits(&mut self, v: V, k: K) -> V {
         match k {
             K::Dbl => self.b.ins().bitcast(types::I64, MemFlagsData::new(), v),
             K::Bool => self.b.ins().uextend(types::I64, v),
@@ -565,12 +564,12 @@ impl Walk<'_, '_> {
             if k != K::Null {
                 let var = self.var(s as u32, k);
                 let v = self.b.use_var(var);
-                vals.push(self.to_bits(v, k));
+                vals.push(self.value_to_bits(v, k));
             }
         }
         for &(v, k) in stack {
             if k != K::Null {
-                vals.push(self.to_bits(v, k));
+                vals.push(self.value_to_bits(v, k));
             }
         }
         let rec = ExitRecord { fn_index: self.fi, ip: ip as u32, locals, stack: stack.iter().map(|e| e.1).collect(), why, form: 0 };
@@ -672,7 +671,7 @@ impl Walk<'_, '_> {
             return self.exit_now(at, kinds, &st, Why::Return);
         }
         let (bits, k) = match value {
-            Some((v, k)) => (self.to_bits(v, k), k),
+            Some((v, k)) => (self.value_to_bits(v, k), k),
             None => (self.b.ins().iconst(types::I64, 0), K::Null),
         };
         self.out.rets.insert(k);
@@ -736,7 +735,7 @@ impl Walk<'_, '_> {
         }
         let p = self.global_ptr();
         let raw = self.b.ins().load(types::I64, MemFlagsData::trusted(), p, (i * 8) as i32);
-        Some((self.from_bits(raw, k), k))
+        Some((self.bits_to_value(raw, k), k))
     }
 
     /// Stores into global `name` a value of its kind (`false`: another
@@ -748,7 +747,7 @@ impl Walk<'_, '_> {
         }
         self.out.globals.insert(i);
         if k != K::Null {
-            let bits = self.to_bits(v, k);
+            let bits = self.value_to_bits(v, k);
             let p = self.global_ptr();
             self.b.ins().store(MemFlagsData::trusted(), bits, p, (i * 8) as i32);
         }
@@ -783,7 +782,7 @@ impl Walk<'_, '_> {
         })
     }
 
-    fn to_f64(&mut self, (v, k): Entry) -> V {
+    fn as_f64(&mut self, (v, k): Entry) -> V {
         match k {
             K::Dbl => v,
             _ => self.b.ins().fcvt_from_sint(types::F64, v),
@@ -807,7 +806,7 @@ impl Walk<'_, '_> {
             return None;
         }
         if bin == Bin::Div {
-            let (x, y) = (self.to_f64(a), self.to_f64(b));
+            let (x, y) = (self.as_f64(a), self.as_f64(b));
             return Some((self.b.ins().fdiv(x, y), K::Dbl));
         }
         if a.1 == K::Int && b.1 == K::Int {
@@ -819,7 +818,7 @@ impl Walk<'_, '_> {
             };
             return Some((r, K::Int));
         }
-        let (x, y) = (self.to_f64(a), self.to_f64(b));
+        let (x, y) = (self.as_f64(a), self.as_f64(b));
         let r = match bin {
             Bin::Add => self.b.ins().fadd(x, y),
             Bin::Sub => self.b.ins().fsub(x, y),
@@ -837,7 +836,7 @@ impl Walk<'_, '_> {
         if !matches!(a.1, K::Int | K::Dbl) || !matches!(b.1, K::Int | K::Dbl) {
             return None;
         }
-        let (x, y) = (self.to_f64(a), self.to_f64(b));
+        let (x, y) = (self.as_f64(a), self.as_f64(b));
         let cc = match cmp {
             Cmp::Eq => FloatCC::UnorderedOrEqual,
             Cmp::Ne => FloatCC::OrderedNotEqual,
@@ -864,7 +863,7 @@ impl Walk<'_, '_> {
     }
 
     /// `Value::to_i64` (the bitwise operators' operand, an index).
-    fn to_i64(&mut self, (v, k): Entry) -> Option<V> {
+    fn as_i64(&mut self, (v, k): Entry) -> Option<V> {
         Some(match k {
             K::Int => v,
             K::Dbl => self.b.ins().fcvt_to_sint_sat(types::I64, v),
@@ -895,7 +894,7 @@ impl Walk<'_, '_> {
             (NumKind::Double, K::Dbl) => return Some((v, K::Dbl)),
             (NumKind::Double, K::Int) => return Some((self.b.ins().fcvt_from_sint(types::F64, v), K::Dbl)),
             (NumKind::Single, K::Dbl | K::Int) => {
-                let f = self.to_f64((v, k));
+                let f = self.as_f64((v, k));
                 let s = self.b.ins().fdemote(types::F32, f);
                 return Some((self.b.ins().fpromote(types::F64, s), K::Dbl));
             }
@@ -915,13 +914,13 @@ impl Walk<'_, '_> {
             }
             _ => {}
         }
-        let bits = self.to_bits(v, k);
+        let bits = self.value_to_bits(v, k);
         let fref = self.fref(self.helpers.conv);
         let c = self.b.ins().iconst(types::I32, i64::from(code));
         let kc = self.b.ins().iconst(types::I32, i64::from(k.code()));
         let call = self.b.ins().call(fref, &[c, kc, bits]);
         let raw = self.b.inst_results(call)[0];
-        Some((self.from_bits(raw, out), out))
+        Some((self.bits_to_value(raw, out), out))
     }
 
     /// A pure maths builtin of one argument (`fast::call_direct`): the
@@ -954,7 +953,7 @@ impl Walk<'_, '_> {
                 _ => {}
             }
         }
-        let bits = self.to_bits(arg.0, arg.1);
+        let bits = self.value_to_bits(arg.0, arg.1);
         let slot = self.b.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 3));
         let addr = self.b.ins().stack_addr(types::I64, slot, 0);
         let fref = self.fref(self.helpers.math);
@@ -965,7 +964,7 @@ impl Walk<'_, '_> {
         let wrong = self.b.ins().icmp_imm_s(IntCC::NotEqual, got, i64::from(expect.code()));
         self.cond_exit(wrong, at, kinds, pre, Why::Guard);
         let raw = self.b.ins().load(types::I64, MemFlagsData::trusted(), addr, 0);
-        Some((self.from_bits(raw, expect), expect))
+        Some((self.bits_to_value(raw, expect), expect))
     }
 
     /// An array's handle: a global array, or one of the entry frame's
@@ -1016,12 +1015,12 @@ impl Walk<'_, '_> {
             return (self.dummy(), K::Null);
         }
         let raw = self.b.ins().load(types::I64, MemFlagsData::trusted(), addr, 0);
-        (self.from_bits(raw, elem), elem)
+        (self.bits_to_value(raw, elem), elem)
     }
 
     fn aset(&mut self, arr: (i64, usize, K), index: V, value: Entry, at: usize, kinds: &[K], pre: &[Entry]) {
         let (table, h, _) = arr;
-        let bits = self.to_bits(value.0, value.1);
+        let bits = self.value_to_bits(value.0, value.1);
         let fref = self.fref(self.helpers.aset);
         let ctx = self.ctx();
         let t = self.b.ins().iconst(types::I32, table);
@@ -1086,7 +1085,7 @@ impl Walk<'_, '_> {
         self.cond_exit(res[0], next, kinds, &below, Why::AfterCall { wants_value });
         stack.truncate(stack.len() - argc);
         if wants_value {
-            let v = if ret == K::Null { self.dummy() } else { self.from_bits(res[1], ret) };
+            let v = if ret == K::Null { self.dummy() } else { self.bits_to_value(res[1], ret) };
             stack.push((v, ret));
         }
         None
@@ -1209,7 +1208,7 @@ impl Walk<'_, '_> {
                     if !matches!(a.1, K::Int | K::Dbl) || !matches!(b.1, K::Int | K::Dbl) {
                         bail!();
                     }
-                    let (x, y) = (self.to_f64(a), self.to_f64(b));
+                    let (x, y) = (self.as_f64(a), self.as_f64(b));
                     let fref = self.fref(self.helpers.powf);
                     let call = self.b.ins().call(fref, &[x, y]);
                     let r = self.b.inst_results(call)[0];
@@ -1290,7 +1289,7 @@ impl Walk<'_, '_> {
                 Op::BAnd | Op::BOr | Op::BXor | Op::Shl | Op::Shr => {
                     let b = pop!();
                     let a = pop!();
-                    let (Some(x), Some(y)) = (self.to_i64(a), self.to_i64(b)) else { bail!() };
+                    let (Some(x), Some(y)) = (self.as_i64(a), self.as_i64(b)) else { bail!() };
                     let r = match insn.op {
                         Op::BAnd => self.b.ins().band(x, y),
                         Op::BOr => self.b.ins().bor(x, y),
@@ -1302,7 +1301,7 @@ impl Walk<'_, '_> {
                 }
                 Op::BNot => {
                     let a = pop!();
-                    let Some(x) = self.to_i64(a) else { bail!() };
+                    let Some(x) = self.as_i64(a) else { bail!() };
                     let r = self.b.ins().bnot(x);
                     stack.push((r, K::Int));
                 }
@@ -1430,7 +1429,7 @@ impl Walk<'_, '_> {
                             None => bail!(),
                         }
                     };
-                    let (Some(arr), Some(i)) = (self.array(am, o[0], &kinds), self.to_i64(idx)) else { bail!() };
+                    let (Some(arr), Some(i)) = (self.array(am, o[0], &kinds), self.as_i64(idx)) else { bail!() };
                     let v = self.aget(arr, i, at, &kinds, &pre);
                     stack.push(v);
                 }
@@ -1458,7 +1457,7 @@ impl Walk<'_, '_> {
                             None => bail!(),
                         }
                     }
-                    let (Some(arr), Some(i)) = (self.array(am, o[0], &kinds), self.to_i64(idx)) else { bail!() };
+                    let (Some(arr), Some(i)) = (self.array(am, o[0], &kinds), self.as_i64(idx)) else { bail!() };
                     if !value.1.scalar() {
                         bail!();
                     }

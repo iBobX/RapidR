@@ -52,9 +52,34 @@ struct Form {
     globals: Vec<usize>,
     garrays: Vec<usize>,
     n_locals: usize,
+    /// Its region (a loop's: head to the end of its last backward jump).
+    region: (usize, usize),
     deopts: u32,
     runs: u64,
     disabled: bool,
+    /// The loop around it was made hot (see `PROMOTE`).
+    promoted: bool,
+}
+
+/// Runs of an inner loop's form from the interpreter before the loop
+/// around it is compiled too (whose turns are few — its inner loop's
+/// were counted —: a synthesizer's voice loop around its samples' loop).
+const PROMOTE: u64 = 16;
+
+/// The innermost loop of `code` around `region` (its head), if any.
+fn enclosing_loop(code: &[u8], region: (usize, usize)) -> Option<usize> {
+    let mut best: Option<(usize, usize)> = None;
+    let mut ip = 0;
+    while let Some(insn) = decode(code, ip) {
+        for (o, v) in insn.op.layout().iter().zip(&insn.operands) {
+            let t = *v as usize;
+            if *o == Operand::Target && t <= ip && t < region.0 && insn.next >= region.1 && best.is_none_or(|b| insn.next - t < b.1 - b.0) {
+                best = Some((t, insn.next));
+            }
+        }
+        ip = insn.next;
+    }
+    best.map(|b| b.0)
 }
 
 /// What the engine did (`rapidr run --verbose`).
@@ -215,6 +240,7 @@ impl Compiled {
     }
 
     /// One build of a form (a round's, or the final one).
+    #[allow(clippy::too_many_arguments)]
     fn build(&mut self, m: &Module, fi: u32, kind: &FormKind, entry: &[K], obs: &Observed, hint: Option<&BTreeSet<u16>>, sig: cranelift_codegen::ir::Signature) -> Result<(FormOut, cranelift_codegen::ir::Function), String> {
         let mut func = compile::new_function(sig, fi);
         let base = self.records.len();
@@ -226,7 +252,10 @@ impl Compiled {
     /// Works out which routines the form calls can be called compiled,
     /// building each one's callee form until nothing changes; then the
     /// entry form's last round.
-    fn settle(&mut self, m: &Module, fi: u32, kind: &FormKind, entry: &[K], obs: &Observed) -> Result<FormOut, String> {
+    /// `strict`: a routine or loop with an instruction compiled code leaves
+    /// to the interpreter isn't worth compiling (`always` compiles it all
+    /// the same — the tests' way: every exit taken, often).
+    fn settle(&mut self, m: &Module, fi: u32, kind: &FormKind, entry: &[K], obs: &Observed, strict: bool) -> Result<FormOut, String> {
         let entry_sig = compile::entry_signature(self.jm());
         for _round in 0..16 {
             let (out, _) = self.build(m, fi, kind, entry, obs, None, entry_sig.clone())?;
@@ -237,7 +266,7 @@ impl Compiled {
                 let (cout, _) = self.build(m, spec.0, &ckind, &[], obs, None, compile::callee_signature(&spec.1))?;
                 let c = self.env.callees.get_mut(&spec).expect("a callee");
                 let before = (c.callable, c.ret);
-                if !cout.unclean.is_empty() || cout.rets.len() > 1 {
+                if (strict && !cout.unclean.is_empty()) || cout.rets.len() > 1 {
                     c.callable = Callable::No;
                 } else {
                     if c.ret.is_none() {
@@ -267,7 +296,7 @@ impl Compiled {
 
     /// Compiles the entry form of `fi` at `ip` (`start`: the routine's
     /// start, else a loop's head) for the frame on top of `view`.
-    fn compile(&mut self, view: &JitView<'_>, fi: u32, ip: usize, start: bool, stats: &mut Stats) -> Result<usize, String> {
+    fn compile(&mut self, view: &JitView<'_>, fi: u32, ip: usize, start: bool, strict: bool, stats: &mut Stats) -> Result<usize, String> {
         let m = view.module;
         let t0 = Instant::now();
         let frame = view.frames.last().ok_or("no frame")?;
@@ -280,8 +309,8 @@ impl Compiled {
         let entry: Vec<K> = frame.locals.iter().map(K::of).collect();
         self.env.direct_maths = view.direct_maths;
         let obs = Observed { globals: view.globals, locals: Some(&frame.locals) };
-        let out = self.settle(m, fi, &kind, &entry, &obs)?;
-        if let Some((at, why)) = out.unclean.first() {
+        let out = self.settle(m, fi, &kind, &entry, &obs, strict)?;
+        if let Some((at, why)) = out.unclean.first().filter(|_| strict) {
             return Err(format!("{why:?} at byte {at}"));
         }
         // (the final builds: every callee form found callable, then the
@@ -318,7 +347,7 @@ impl Compiled {
             let hint = out.used_locals.clone();
             let sig = compile::entry_signature(self.jm());
             let (fout, func) = self.build(m, fi, &kind, &entry, &obs, Some(&hint), sig.clone())?;
-            if !fout.used_locals.is_subset(&hint) || !fout.unclean.is_empty() {
+            if !fout.used_locals.is_subset(&hint) || (strict && !fout.unclean.is_empty()) {
                 return Err("its last build differed".into());
             }
             let name = self.env.next_name();
@@ -356,9 +385,11 @@ impl Compiled {
             globals: globals.into_iter().collect(),
             garrays: garrays.into_iter().collect(),
             n_locals: f.n_locals as usize,
+            region,
             deopts: 0,
             runs: 0,
             disabled: false,
+            promoted: false,
         });
         stats.compile_time += t0.elapsed();
         if start {
@@ -369,6 +400,8 @@ impl Compiled {
         Ok(form_index)
     }
 
+    // (the generator's own error, as it comes: rare, and only reported)
+    #[allow(clippy::result_large_err)]
     fn define(&mut self, id: FuncId, func: cranelift_codegen::ir::Function, stats: &mut Stats) -> Result<(), cranelift_module::ModuleError> {
         if stats.code_bytes > native::CODE_CAP {
             return Err(cranelift_module::ModuleError::Allocation { err: std::io::Error::new(std::io::ErrorKind::OutOfMemory, "the compiled code's cap is reached") });
@@ -548,9 +581,10 @@ impl Engine {
     }
 
     fn try_compile(&mut self, view: &JitView<'_>, fi: u32, ip: usize, start: bool) -> Option<usize> {
+        let strict = self.mode != Mode::Always;
+        self.state(view.module)?;
         let mut stats = std::mem::take(&mut self.stats);
-        let st = self.state(view.module)?;
-        let r = st.compile(view, fi, ip, start, &mut stats);
+        let r = self.state.as_mut().expect("set up").compile(view, fi, ip, start, strict, &mut stats);
         let r = match r {
             Ok(form) => Some(form),
             Err(e) => {
@@ -597,10 +631,21 @@ impl rapidr_vm::Jit for Engine {
             }
         };
         let ran = self.enter(&mut view, form);
-        let disabled = self.state.as_ref().is_some_and(|s| s.forms[form].disabled);
+        let Some(st) = self.state.as_mut() else { return JitAnswer::NOT_YET };
+        let disabled = st.forms[form].disabled;
         if disabled {
-            if let Some(st) = self.state.as_mut() {
-                st.loops.insert((fi, ip), Start::Rejected);
+            st.loops.insert((fi, ip), Start::Rejected);
+        }
+        // (entered again and again: the loop around it is hot)
+        let f = &mut st.forms[form];
+        if ran && !f.promoted && f.runs >= PROMOTE {
+            f.promoted = true;
+            let region = f.region;
+            if let Some(head) = view.module.functions.get(fi as usize).and_then(|func| enclosing_loop(&func.code, region)) {
+                let e = st.loops.entry((fi, head)).or_insert(Start::Counting(0));
+                if let Start::Counting(n) = e {
+                    *n = (*n).max(loop_hot);
+                }
             }
         }
         JitAnswer { ran, again_after: if disabled { 4096 } else { 1 } }

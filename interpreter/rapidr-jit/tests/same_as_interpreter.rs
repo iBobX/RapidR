@@ -80,8 +80,10 @@ fn a_global_loop() {
 
 #[test]
 fn a_loop_in_a_sub() {
+    // (`always`: the SUB compiled from its start, PRINT left to the
+    // interpreter)
     let r = same("SUB Count\n  DIM i AS INTEGER\n  DIM s AS INTEGER\n  s = 0\n  FOR i = 1 TO 100000\n    s = s + i\n  NEXT\n  PRINT s\nEND SUB\nCount\n");
-    assert!(r.contains("1 loop(s)"), "{r}");
+    assert!(r.contains("1 routine(s)") && r.contains("ran 1"), "{r}");
 }
 
 #[test]

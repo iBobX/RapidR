@@ -5,9 +5,11 @@ The speed release's phase 3. The interpreter is now 2.5–6 × faster than
 interpreter"; docs/vm-fast-design.md), but a fused instruction still costs
 2–5 ns, and a native build does the same work at 0.3–1 ns. This document is
 the plan for compiling hot typed code to machine code with Cranelift while
-the program runs (`rapidr run`, Studio's F5). It is a plan, not code: no
-dependency is added until the lead says so and the lawyer review is in
-`docs/legal/`.
+the program runs (`rapidr run`, Studio's F5). Sections 1–11 are the plan
+as written before the work; **§12 says what tier 1 is as built
+(2026-11-05) and where it differs from the plan, and why**. The
+dependency's review: `docs/legal/review-2026-11-05-cranelift.md` (OK with
+conditions; C1 is Robert's decision and gates the merge).
 
 ## 1. Why a JIT, and what is left after phase 2
 
@@ -180,14 +182,39 @@ interpreted".
 ## 7. Security
 
 - **W^X**: code is written into pages that are writable and not
-  executable, then made executable and not writable before it runs
-  (Cranelift's `cranelift-jit` with `region`); never both at once.
+  executable, then made executable and not writable before it runs; never
+  both at once. Off macOS that is `cranelift-jit`'s own memory (mapped
+  read + write, then `region::protect` to read + execute).
 - **macOS**: the hardened runtime refuses executable memory unless the app
   is signed with `com.apple.security.cs.allow-jit` and maps it with
-  `MAP_JIT`, writing through `pthread_jit_write_protect_np`. RapidR
-  Studio's and the runtime's signing (docs: the code-signing plan) gets the
-  entitlement; a build without it runs interpreted (the JIT checks at start
-  and falls back, saying so in `rapidr run --verbose`).
+  `MAP_JIT`, writing through `pthread_jit_write_protect_np`. **That needs
+  RapidR's own memory provider**: the stock `cranelift-jit` memory maps no
+  `MAP_JIT` memory and is *killed* under the hardened runtime even with
+  `allow-jit` (tested by the lawyer review, §7, and again here).
+  `interpreter/rapidr-jit/src/native.rs` maps one `MAP_JIT` region (16 MB
+  reserved), writes with this thread's write protection off and turns it
+  back on (and invalidates the instruction cache) before anything runs.
+  At start-up the JIT maps one `MAP_JIT` page as a probe: refused (EINVAL:
+  hardened runtime without the entitlement) it says so in
+  `rapidr run --verbose` and the interpreter runs everything — an error,
+  never a kill. `tools/release/macos/rapidr.entitlements` (the CLI) and
+  `runner.entitlements` (the interpreted runners) carry `allow-jit`;
+  **never `allow-unsigned-executable-memory`**. Tested here (macOS 27.2,
+  Apple silicon, ad hoc with `--options runtime`): with `allow-jit` the
+  loop runs compiled, without it "JIT: off, this process may not make code
+  executable … the interpreter runs everything", the same answers. RapidR's
+  ad-hoc export signer (not written yet) must not set the hardened-runtime
+  flag; a user who notarizes an exported app adds `allow-jit` (else it
+  runs interpreted).
+- **The code generator's release**: `cranelift-*` pinned to `=0.137.1`
+  (the reviewed one); its optional features `disas`, `incremental-cache`,
+  `souper-harvest`, `enable-serde`, `pulley` and `cranelift-jit`'s
+  `wasmtime-unwinder` stay off — `tools/check_jit_features.py` (in
+  `tools/regress.sh legal`) fails if one is turned on, if the code
+  generator brings a crate the review didn't list, if a source file of its
+  tree carries an MPL header other than the known one (C1), or if it
+  reaches the web runtime, `rapidr-runtime-core`, a wasm or a 32-bit x86
+  build. Its sources are never patched or edited.
 - **iOS / iPadOS** (RapidR's mobile plans): JIT is forbidden for apps:
   interpreter only.
 - **The web**: wasm modules only (§ 6), inside the page's sandbox.
@@ -215,28 +242,39 @@ counters: two `u32` per function. Code is freed with the module.
 Cranelift (`cranelift-codegen`, `cranelift-frontend`, `cranelift-jit`,
 `cranelift-module`, `cranelift-native`, part of the Bytecode Alliance's
 wasmtime project) is licensed **Apache-2.0 WITH LLVM-exception**. The
-LLVM exception removes Apache-2.0's attribution requirement for code
-*compiled* by it: programs RapidR's JIT runs carry no notice; RapidR's own
-binaries carry Cranelift's notice in THIRD_PARTY_NOTICES.md (regenerated,
-as for every dependency). Patent grant: Apache-2.0's. No GPL / LGPL / AGPL
-in the tree as known today:
+LLVM exception concerns **Cranelift's own code embedded in the binary that
+links it** (object form: Apache-2.0 §4(a), (b), (d) waived there; §4(c)
+still applies to the source form, as in the SDK's vendored crates). The
+machine code Cranelift *generates* for a user's program is not
+Cranelift's code: it contains no part of it, lives in memory, is never
+distributed, and there is nothing to attribute either way. RapidR's
+binaries and every exported program list Cranelift's crates in their
+notices anyway (`THIRD_PARTY_NOTICES.md`, `rapidr notices`). Patent grant:
+Apache-2.0's. No GPL / LGPL / AGPL by the declared licences or in any file
+read; **one MPL-2.0 header**: `regalloc2`'s `src/lib.rs` (a leftover of the
+2021 relicensing, most likely): the review's C1, Robert's decision — the
+branch is not merged until it is closed. The tree as resolved in
+RapidR's `Cargo.lock` (the review's §1 has the exact list):
 
 | Crate | Licence | Role |
 |---|---|---|
-| cranelift-codegen, -frontend, -jit, -module, -native, -entity, -bforest, -control, -codegen-shared, -codegen-meta, -isle (build time) | Apache-2.0 WITH LLVM-exception | the compiler |
-| regalloc2 | Apache-2.0 WITH LLVM-exception | register allocator |
-| target-lexicon | Apache-2.0 WITH LLVM-exception (0.12.16 checked locally) | target triples |
-| wasmtime-jit-icache-coherence | Apache-2.0 WITH LLVM-exception | instruction-cache flush (arm64) |
-| gimli | MIT OR Apache-2.0 (0.32.3 checked locally) | unwind info |
-| hashbrown, smallvec, log, bumpalo, libc, rustc-hash, anyhow, windows-sys | MIT OR Apache-2.0 | support |
-| region | MIT | page protection (W^X) |
-| arbitrary, serde (optional features) | MIT OR Apache-2.0 | not enabled |
+| cranelift-codegen, -frontend, -jit, -module, -native, -entity, -bforest, -control, -codegen-shared, -assembler-x64, -bitset 0.137.1; build time only: -codegen-meta, -assembler-x64-meta, -isle, -srcgen | Apache-2.0 WITH LLVM-exception | the compiler |
+| regalloc2 0.15.2 | Apache-2.0 WITH LLVM-exception (and the MPL-headed `src/lib.rs`: C1) | register allocator |
+| target-lexicon 0.13.5 | Apache-2.0 WITH LLVM-exception | target triples |
+| wasmtime-internal-core, wasmtime-internal-jit-icache-coherence 50.0.1 | Apache-2.0 WITH LLVM-exception | support; instruction-cache flush |
+| gimli 0.33.0 | MIT OR Apache-2.0 | unwind info |
+| arbitrary 1.5.0 | MIT OR Apache-2.0 | **in the tree** (`cranelift-codegen`'s `std` turns on `cranelift-control/fuzz`) |
+| memmap2 0.9.12, mach2 (macOS), libm, foldhash, fnv, bitflags 1.3.2, equivalent, indexmap, anyhow, hashbrown, smallvec, log, bumpalo, libc, rustc-hash, windows-sys | MIT OR Apache-2.0, MIT, Zlib, BSD-2-Clause OR MIT OR Apache-2.0 | support |
+| region 3.0.2 | MIT | page protection (W^X off macOS, the start-up probe) |
+| serde (the `enable-serde` features) | MIT OR Apache-2.0 | off |
 
-To be confirmed when the dependency is added (versions move): `cargo
-metadata` / `cargo deny check licenses` on the exact tree, the result and
-the review in `docs/legal/review-<date>-cranelift.md` (memory:
-lawyer-agent-review), THIRD_PARTY_NOTICES.md regenerated, the web runtime
-untouched (no Cranelift in wasm).
+Done when the dependency was added (2026-11-05): `cargo deny check`
+(advisories, bans, licenses, sources) ok on RapidR's `Cargo.lock`;
+`THIRD_PARTY_NOTICES.md` regenerated (697 libraries, a new
+"Apache-2.0 WITH LLVM-exception" group); `rapidr notices` lists the
+crates for every desktop kind and none for the web; the web runtime,
+the web host and `rapidr-runtime-core` don't reach them
+(`tools/check_jit_features.py`).
 
 ## 10. The plan for the next lane
 
@@ -266,3 +304,131 @@ untouched (no Cranelift in wasm).
 - **Beautiful**: smooth audio and animation from interpreted programs.
 - **Legal**: Apache-2.0 WITH LLVM-exception and permissive support crates,
   reviewed before the dependency is added; nothing on disk.
+
+## 12. Tier 1 as built (JIT-TIER1, 2026-11-05)
+
+Code: `interpreter/rapidr-bytecode/src/verify.rs` (the verifier),
+`interpreter/rapidr-vm/src/jit.rs` (where the JIT plugs in: the VM has no
+`unsafe` and no code generator), `interpreter/rapidr-jit/` (`compile.rs`
+bytecode → IR, `engine.rs` counters, batches and the hand-over,
+`native.rs` every `unsafe`: memory, the probe, the call, the helpers).
+The JIT is the `jit` feature of `rapidr-vm-host-native`: on in the CLI
+(`rapidr run`, so Studio's runs) and the interpreted runner; never in
+the web host, `rapidr-runtime-core`, iOS, wasm or 32-bit x86 (there the
+crate has no code generator and `install` says why).
+
+### 12.1 The verifier
+
+`rapidr_bytecode::verify::module`, run by `Vm::run` before the first
+instruction (so on every host): every instruction decodes; every operand
+names something the module has (a local slot below the function's
+`n_locals`, a string, a constant, a function, a conversion kind a store
+or `ToNum` knows); every jump lands on an instruction's first byte or the
+code's end; parameters fit the locals; the line table stays inside the
+code. A module that fails: "this program is damaged and can't run: <what>
+(in <routine>, routine n, at byte b). Build it again from its source".
+Tests: one hand-broken module per kind of damage, the message's place,
+and every byte of a sound module changed to ten values — the verifier
+never panics and what it passes decodes to the end. Every conformance
+case passes it (no false alarm).
+
+### 12.2 What gets compiled, and where it differs from §2–§4
+
+- **Forms, not one function each.** An *entry form* is entered from the
+  interpreter, at a loop's head (OSR) or at a routine's start; a *callee
+  form* is called machine to machine by compiled code, specialised for its
+  arguments' kinds (Fib(Integer), Clamp(Double, Double, Double)), and
+  returns its value in registers. A loop's entry form covers the loop
+  only (its head to its last backward jump): **a loop is compiled even
+  when its routine has instructions outside the subset** (`loop10m`'s
+  `__main` PRINTs; §2 would have left it interpreted). Leaving the region
+  is an exit.
+- **Kinds per point, not per variable.** A local is Null at a routine's
+  start and a Double after `Result = lo`: each point of the code has its
+  own kinds, worked out from the kinds the form was entered with (an entry
+  form: the frame's values then; checked again at every entry) and the
+  bytecode. Where two paths meet with different kinds, the second one
+  leaves for the interpreter.
+- **Every way out is an exit with a record**: where the interpreter goes
+  on (the instruction compiled code stopped *before*: nothing of it has
+  happened), each local and stack entry and its kind. A callee that leaves
+  writes out its whole frame and returns 1; each caller up to the entry
+  form leaves at the instruction after its call; the VM gets real frames
+  for all of them, each above its caller, and the interpreter goes on in
+  the innermost — returning, BYREF write-back and all, as if it had never
+  stopped. Run-time errors (MOD / `\` by zero, an index outside an array,
+  …) are exits before the instruction: the interpreter raises the error,
+  with its line and message and the debugger's break-on-error stop.
+- **Arrays through helpers**: one-index reads and writes call
+  `rapidr_jit_aget` / `aset` (bounds checked there, the element's kind
+  checked against the one compiled for). Compiled code dereferences no
+  computed address at all: only the context's fields, the locals and
+  globals buffers at constant offsets the verifier vouched for, and its
+  own stack slots. (Tier 2 gives raw typed storage.)
+- **The maths builtins** call the interpreter's own functions through one
+  helper (`ABS` inline); the result's kind is checked.
+- **Left to the interpreter in tier 1**: text, objects, host operations,
+  `GOSUB` / `RETURN`, `CALLFUNC`, a call whose BYREF arguments are
+  written back (`LoadArgOut`), arrays of more dimensions, SHL / SHR.
+- **Hotness**: 10,000 turns of a loop, 1,000 calls of a routine. The VM
+  counts per routine (a countdown at every backward jump and call) and asks
+  the JIT when it runs out. A loop whose form is entered 16 times makes the
+  loop around it hot (a synth's voice loop around its sample loop: its own
+  turns are few).
+- **Not worth it**: a loop or routine with an instruction it leaves to the
+  interpreter, or kinds that disagree, inside it is not compiled (it would
+  leave at every turn). `RAPIDR_JIT=always` compiles it all the same, at
+  the first turn or call — the tests' way: every exit taken, often.
+- **Deopts**: a form whose values keep being of other kinds (more than 10
+  times) is not used again.
+- **Depth**: compiled calls inside compiled calls stop at 256 (the
+  machine stack's room); deeper, the interpreter makes the call, and its
+  stack overflow error is the one it always gave.
+- Compiled on the VM's thread when a count runs out (0.1–2 ms a batch);
+  per module and per process, nothing on disk; 16 MB of code at most.
+
+### 12.3 The debugger (differs from §5)
+
+Studio's F5 always runs in debug mode, so "no compiled code in debug
+mode" would have left F5 interpreted. Instead: **compiled code runs under
+the debugger while it watches nothing** — no breakpoint, no step, no
+evaluation — and checks the debugger's interrupt at every loop turn and
+every call it makes. Pause, a breakpoint set while it runs, any request:
+the interrupt is raised, compiled code leaves at the loop's head (or the
+callee's first instruction), and the interpreter's own look serves it —
+the line, the variables as values, Step, Set Next Statement, all as
+before. With a breakpoint or a step active nothing compiled is entered.
+Tests (`interpreter/rapidr-jit/tests/debugger.rs`): a pause in a hot
+loop stops on its lines with the counter as an Integer; a pause in a
+compiled call; with a breakpoint nothing compiled runs; stepping after a
+pause, then going on compiled to the right answer.
+
+### 12.4 Tests and guards
+
+- `interpreter/rapidr-jit/tests/edge_values.rs`: phase 2's edge values
+  (24 in a release build, 10 in a debug one) through every fused
+  arithmetic form, every plain operation, every compare-and-branch,
+  every conversion, the maths builtins, the FOR test with five kinds of
+  step, one-index array reads and writes: the same kind, bits, branch and
+  error with the JIT as without.
+- `tests/conformance/run.mjs`: the `vm-jit` backend runs every case with
+  `RAPIDR_JIT=always` beside `vm` (`off`): all the same; 149 of 298 cases
+  run compiled code.
+- `tools/bench/vm_budgets.json`: `<name>_jit` beside the interpreter's
+  (measured with `RAPIDR_JIT=off`).
+- `tools/check_jit_features.py`: §7's pins and features, §9's tree.
+
+### 12.5 Numbers (`rapidr run`, CPU ms, the fastest of 5; M4 Max busy with other lanes)
+
+| Program | phase 2 (`RAPIDR_JIT=off`) | JIT | native (§1's table) |
+|---|--:|--:|--:|
+| `loop10m` | 123 | 16 | 23 |
+| `loop10m_sub` | 99 | 16 | 14 |
+| `top_double` (own ms) | 122 | 24 | 17 |
+| `dsp_scalars` (own ms) | 125 | 10 | 5 |
+| `fcalls` (own ms) | 135 | 6 | 13 |
+| `calls` (Fib 27, CPU) | 33 | 7 | — |
+| `dsp_voices` (own ms) | 245 | 44 | 8 (typed arrays: tier 2) |
+
+`loop10m`, `dsp_scalars` and `fcalls` are within 3 × of native (§6.1's
+acceptance).

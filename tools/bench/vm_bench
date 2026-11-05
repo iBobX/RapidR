@@ -33,6 +33,12 @@ tools/bench/vm/ with the `rapidr` given (./rapidr, or RAPIDR=…).
   idle         a form waiting in ShowModal with a 1-second timer: CPU used
                over 3 seconds (a real window: skipped with --no-windows)
 
+The interpreter's numbers are measured with RAPIDR_JIT=off; the same
+programs again with the JIT (docs/jit-design.md), what `rapidr run` does
+by default, as `<name>_jit` — and `f5_jit`, loop10m under the debugger
+with nothing watched (Studio's F5 without a breakpoint: compiled code
+runs, a pause would stop it).
+
 Each time is the fastest of --runs runs (3): CPU time (what the program
 itself costs, steady on a machine busy with other work), start-up's wall
 time. `--check` compares with the
@@ -217,7 +223,9 @@ def main():
             only.append(a)
         i += 1
     exe = rapidr_binary()
-    env = scratch_env()
+    jit_env = scratch_env()
+    # (the interpreter's own budgets: the JIT off)
+    env = dict(jit_env, RAPIDR_JIT="off")
     prog = lambda n: os.path.join(PROGRAMS, n)  # noqa: E731
     want = lambda n: not only or n in only  # noqa: E731
     version = subprocess.run([exe, "version"], capture_output=True, text=True).stdout.strip()
@@ -275,6 +283,25 @@ def main():
         results["top_double"] = {"ms": bench("top_double", [exe, "run", prog("top_double.rr")], env, runs, expect="top_double 5999")["ms"]}
     if want("dsp_scalars"):
         results["dsp_scalars"] = {"ms": bench("dsp_scalars", [exe, "run", prog("dsp_scalars.rr")], env, runs, expect="dsp_scalars 1904054")["ms"]}
+    # (the JIT, docs/jit-design.md: what `rapidr run` does by default)
+    jit_programs = [
+        ("loop10m", loop_sum),
+        ("loop10m_sub", loop_sum),
+        ("calls", "196418"),
+        ("arrays", "999000000"),
+        ("dsp_sin", "dsp_sin 67359"),
+        ("dsp_voices", "dsp_voices 1823146"),
+        ("fcalls", "fcalls 124492600"),
+        ("top_double", "top_double 5999"),
+        ("dsp_scalars", "dsp_scalars 1904054"),
+    ]
+    for name, expect in jit_programs:
+        if want(name) or want(name + "_jit"):
+            results[name + "_jit"] = {"ms": bench(name, [exe, "run", prog(name + ".rr")], jit_env, runs, expect=expect)["ms"]}
+    if want("debugger") or want("f5_jit"):
+        # (Studio's F5 without a breakpoint: debug mode, nothing watched)
+        reqs = json.dumps({"seq": 1, "type": "start", "debug": True, "breakOnError": True}) + "\n"
+        results["f5_jit"] = {"ms": bench("f5", [exe, "run", "--session", prog("loop10m.rr")], jit_env, runs, stdin_text=reqs, expect=loop_sum)["ms"]}
     if want("idle") and windows:
         results["idle"] = {"cpu_pct": idle_cpu([exe, "run", prog("idle_form.rr")], env)}
     if want("idle_debug") and windows:
@@ -322,6 +349,16 @@ def main():
         "fcalls": "2 M DOUBLE FUNCTION calls",
         "top_double": "5 M DOUBLE multiply-adds, globals",
         "dsp_scalars": "the synth on local DOUBLEs",
+        "loop10m_jit": "JIT: 10 M loop, globals",
+        "loop10m_sub_jit": "JIT: 10 M loop, in a SUB",
+        "calls_jit": "JIT: calls, Fib(27)",
+        "arrays_jit": "JIT: arrays, 2 M elements",
+        "dsp_sin_jit": "JIT: SIN DSP",
+        "dsp_voices_jit": "JIT: synth voices, global arrays",
+        "fcalls_jit": "JIT: 2 M DOUBLE FUNCTION calls",
+        "top_double_jit": "JIT: 5 M DOUBLE multiply-adds",
+        "dsp_scalars_jit": "JIT: the synth on local DOUBLEs",
+        "f5_jit": "JIT: 10 M loop, debugger, no breakpoint",
         "idle": "idle form (ShowModal + timer)",
         "idle_debug": "idle form, under the debugger",
         "studio_idle": "Studio, idle",
