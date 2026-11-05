@@ -479,7 +479,16 @@ a copy run interpreted, 32 voices, the share of a 10 ms block):
   read + execute) is what runs there. A system that refuses executable
   memory (SELinux's execmem) is the start-up probe's error case, not a
   kill — not seen on Ubuntu's defaults.
-- Windows (`tools/release/windows-vm.sh jit`, and
-  `jit Target=x86_64-pc-windows-msvc` for x86-64 under Windows' own
-  emulation): see the lane's report for the runs; the commands build the
-  branch in the VM and run the same checks.
+- Windows 11 ARM64 (the VM, `tools/release/windows-vm.sh jit`): built
+  there from the branch, the JIT's tests pass, the conformance suite both
+  ways (660 runs: Windows skips a few cases) passes; wall time with /
+  without the JIT: `loop10m` 244 / 490 ms, `fcalls` 171 / 288,
+  `dsp_scalars` 166 / 354, `calls` 96 / 231 (a Windows process' start is
+  a good part of each; the programs' own `ms` lines: `fcalls` 10,
+  `dsp_scalars` 13). x86-64 Windows: not run — the VM's Rust has no
+  `x86_64-pc-windows-msvc` target (the lane fetched nothing but the
+  reviewed crates); `rustup target add x86_64-pc-windows-msvc` in the VM,
+  then `tools/release/windows-vm.sh jit Target=x86_64-pc-windows-msvc`
+  (built there, run under Windows' own emulation). Its calling convention
+  for the entry forms and the helpers (Windows x64's own) is the one thing
+  the Rosetta run doesn't cover.
