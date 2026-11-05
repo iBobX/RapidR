@@ -272,6 +272,17 @@ average 15–55), `rapidr run` unless it says native.
 | 11 interpreter process slower at runtime work | open: still 2–4 × (the 200-control writes 0.75 vs 0.19 ms native); same functions in both profiles |
 | 12 designer nudge | open (the designer's) |
 
+**Checked on the final build** (a frozen copy of the branch, so the suites
+saw exactly what is committed): the conformance suite on both backends
+(650 passed, 0 failed — `scroll_batched_writes` included), the GUI events
+suite native and interpreted (all checks passed), RapidR Studio's 81
+goldens (all match), Studio's flows on the desktop host (2,985 checks
+passed; the 4 that fail — `ai-smart-hover`, `ai-smart-click` twice,
+`ai-smart-click-block`, the Assistant's hover tip and Help search — fail
+the same way on the build before this lane, 788fdd9c),
+`vm_bench --check` (every budget met, idle 0 % CPU) and `ui_bench --check`
+(every budget met); each fix's own crates' unit tests as it went in.
+
 **Left for the lead:**
 - An edit pause still costs 52–150 ms on the UI thread, now mostly the
   compiler's own checks (`rapidr_bcgen::semantic`, the ERRORS lane's
