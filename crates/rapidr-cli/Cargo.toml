@@ -15,7 +15,7 @@ rapidr-preprocessor.workspace = true
 rapidr-bcgen.workspace = true
 rapidr-bytecode.workspace = true
 rapidr-vm.workspace = true
-rapidr-vm-host-native = { workspace = true, features = ["full", "session", "studio"] }
+rapidr-vm-host-native = { workspace = true, features = ["full", "session", "studio", "jit"] }
 # RapidR's crash and hang reports for Studio and the programs it runs
 rapidr-crash.workspace = true
 rapidr-webbundle = { workspace = true, features = ["zip"] }

@@ -1,0 +1,142 @@
+//! Programs run with the JIT (`always`: everything it can, at once) and
+//! without: the same output, the same run-time error at the same line.
+
+use rapidr_jit::Mode;
+use rapidr_value::Value;
+use rapidr_vm::{Host, StubHost, Vm};
+
+/// The test host, calling the pure maths builtins itself as the desktop's
+/// does.
+#[derive(Default)]
+struct MathHost(StubHost);
+
+impl Host for MathHost {
+    const DIRECT_MATHS: bool = true;
+    fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+        match rapidr_vm::direct_builtin(name) {
+            Some(f) if args.len() == 1 => Ok(f(&args[0])),
+            _ => self.0.call_builtin(name, args),
+        }
+    }
+    fn create_comp(&mut self, k: &str, id: &str) -> Result<Value, String> {
+        self.0.create_comp(k, id)
+    }
+    fn set_prop(&mut self, id: &str, n: &str, v: Value) -> Result<(), String> {
+        self.0.set_prop(id, n, v)
+    }
+    fn get_prop(&mut self, id: &str, n: &str) -> Result<Value, String> {
+        self.0.get_prop(id, n)
+    }
+    fn call_method(&mut self, id: &str, m: &str, a: &[Value]) -> Result<Value, String> {
+        self.0.call_method(id, m, a)
+    }
+    fn register_event(&mut self, id: &str, e: &str, f: u32) -> Result<(), String> {
+        self.0.register_event(id, e, f)
+    }
+    fn print(&mut self, s: &str) -> Result<(), String> {
+        self.0.print(s)
+    }
+    fn input(&mut self) -> Result<String, String> {
+        self.0.input()
+    }
+}
+
+fn compile(src: &str) -> rapidr_bytecode::Module {
+    let toks = rapidr_lexer::Lexer::new(src, Some("test".into())).tokenize().expect("lex");
+    let prog = rapidr_parser::parse_tokens(&toks).expect("parse");
+    rapidr_bcgen::compile_program_with_source(&prog, Some(src)).expect("compile").module
+}
+
+/// The output (and the error, if one) of `src` run in `mode`, and the
+/// JIT's report.
+fn run(src: &str, mode: Mode) -> (String, String) {
+    let m = compile(src);
+    let mut h = MathHost::default();
+    let mut vm = Vm::new(&mut h);
+    let _ = rapidr_jit::install_mode(&mut vm, mode);
+    let r = vm.run(&m);
+    let report = rapidr_jit::report(&vm).unwrap_or_default();
+    drop(vm);
+    let mut out = h.0.output;
+    if let Err(e) = r {
+        out.push_str(&format!("ERROR: {e}"));
+    }
+    (out, report)
+}
+
+/// Both ways the same; returns the JIT's report.
+fn same(src: &str) -> String {
+    let (off, _) = run(src, Mode::Off);
+    let (on, report) = run(src, Mode::Always);
+    assert_eq!(on, off, "with the JIT ({report})");
+    report
+}
+
+#[test]
+fn a_global_loop() {
+    let r = same("DIM i AS INTEGER\nDIM s AS INTEGER\ns = 0\nFOR i = 1 TO 100000\n  s = s + i\nNEXT\nPRINT s\n");
+    assert!(r.contains("1 loop(s)"), "{r}");
+}
+
+#[test]
+fn a_loop_in_a_sub() {
+    let r = same("SUB Count\n  DIM i AS INTEGER\n  DIM s AS INTEGER\n  s = 0\n  FOR i = 1 TO 100000\n    s = s + i\n  NEXT\n  PRINT s\nEND SUB\nCount\n");
+    assert!(r.contains("1 loop(s)"), "{r}");
+}
+
+#[test]
+fn doubles_at_the_top() {
+    same("DIM i AS INTEGER\nDIM x AS DOUBLE, y AS DOUBLE\nx = 0.0\ny = 1.0\nFOR i = 1 TO 5000\n  x = x * 0.999 + y\n  y = y + 0.000001\nNEXT\nPRINT INT(x)\nPRINT x\n");
+}
+
+#[test]
+fn calls_with_doubles() {
+    let r = same(
+        "FUNCTION Clamp(x AS DOUBLE, lo AS DOUBLE, hi AS DOUBLE) AS DOUBLE\n  IF x < lo THEN\n    Result = lo\n  ELSEIF x > hi THEN\n    Result = hi\n  ELSE\n    Result = x\n  END IF\nEND FUNCTION\nFUNCTION MyRun AS DOUBLE\n  DIM i AS INTEGER, s AS DOUBLE\n  s = 0.0\n  FOR i = 1 TO 20000\n    s = s + Clamp((i MOD 300) - 100.0, 0.0, 150.0)\n  NEXT\n  Result = s\nEND FUNCTION\nPRINT MyRun\n",
+    );
+    assert!(r.contains("called from compiled code"), "{r}");
+}
+
+#[test]
+fn recursion() {
+    same("FUNCTION Fib(n AS INTEGER) AS INTEGER\n  IF n < 2 THEN\n    Result = n\n  ELSE\n    Result = Fib(n - 1) + Fib(n - 2)\n  END IF\nEND FUNCTION\nPRINT Fib(20)\n");
+}
+
+#[test]
+fn dsp_scalars() {
+    same(
+        "CONST VOICES = 4\nCONST BLOCK = 41\nCONST BLOCKS = 10\nFUNCTION MyRun AS DOUBLE\n  DIM blk AS INTEGER, i AS INTEGER, v AS INTEGER\n  DIM ph AS DOUBLE, inc AS DOUBLE, osc AS DOUBLE, env AS DOUBLE, lp AS DOUBLE, bp AS DOUBLE, hp AS DOUBLE\n  DIM total AS DOUBLE\n  total = 0.0\n  FOR v = 0 TO VOICES - 1\n    ph = (v * 0.17) - INT(v * 0.17)\n    inc = (110.0 * (2.0 ^ ((v MOD 24) / 12.0))) / 44100.0\n    env = 0.01\n    lp = 0.0\n    bp = 0.0\n    FOR blk = 1 TO BLOCKS\n      FOR i = 0 TO BLOCK - 1\n        ph = ph + inc\n        IF ph >= 1.0 THEN ph = ph - 1.0\n        osc = 2.0 * ph - 1.0\n        env = env + 0.0005 * (0.80 - env)\n        lp = lp + 0.28 * bp\n        hp = (osc * env * 0.15) - lp - 0.55 * bp\n        bp = 0.28 * hp + bp\n      NEXT\n    NEXT\n    total = total + ABS(lp)\n  NEXT\n  Result = total\nEND FUNCTION\nPRINT INT(MyRun * 1000000)\nPRINT MyRun\n",
+    );
+}
+
+#[test]
+fn global_arrays() {
+    same("DIM a(99) AS DOUBLE\nDIM i AS INTEGER\nDIM s AS DOUBLE\nFOR i = 0 TO 99\n  a(i) = i * 0.5\nNEXT\nFOR i = 0 TO 99\n  s = s + a(i)\nNEXT\nPRINT s\n");
+}
+
+#[test]
+fn a_run_time_error_inside_a_hot_loop_is_the_interpreters() {
+    let src = "DIM i AS INTEGER\nDIM s AS INTEGER\nDIM d AS INTEGER\nd = 5\nFOR i = 1 TO 100\n  d = d - 1\n  s = s + 100 MOD d\nNEXT\nPRINT s\n";
+    let (off, _) = run(src, Mode::Off);
+    assert!(off.contains("Division by zero") && off.contains("line 7"), "{off}");
+    same(src);
+}
+
+#[test]
+fn an_index_out_of_range_in_a_hot_loop() {
+    same("DIM a(9) AS INTEGER\nDIM i AS INTEGER\nFOR i = 0 TO 20\n  a(i) = i\nNEXT\nPRINT a(9)\n");
+}
+
+/// `cargo test -p rapidr-jit --test same_as_interpreter show -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn show_reports() {
+    for src in [
+        "DIM i AS INTEGER\nDIM s AS INTEGER\ns = 0\nFOR i = 1 TO 100000\n  s = s + i\nNEXT\nPRINT s\n",
+        "FUNCTION Fib(n AS INTEGER) AS INTEGER\n  IF n < 2 THEN\n    Result = n\n  ELSE\n    Result = Fib(n - 1) + Fib(n - 2)\n  END IF\nEND FUNCTION\nPRINT Fib(20)\n",
+        "DIM a(9) AS INTEGER\nDIM i AS INTEGER\nFOR i = 0 TO 20\n  a(i) = i\nNEXT\nPRINT a(9)\n",
+    ] {
+        let (out, report) = run(src, Mode::Always);
+        println!("{out}\n{report}\n---");
+    }
+}

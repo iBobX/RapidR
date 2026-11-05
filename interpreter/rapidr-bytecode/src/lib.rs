@@ -32,8 +32,10 @@
 #![allow(clippy::needless_range_loop)]
 
 pub mod builtins;
+pub mod disasm;
 pub mod io;
 pub mod op;
+pub mod verify;
 
 pub use op::{raw, Bin, Cmp, Mode, Op, Operand, NO_KIND};
 
