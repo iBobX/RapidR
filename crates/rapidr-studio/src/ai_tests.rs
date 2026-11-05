@@ -1748,3 +1748,37 @@ fn a_change_studio_could_not_apply_is_tried_once_and_said() {
     assert!(!h.facts().contains("NOT applied"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// run_program's other actions: status and a stop with nothing running
+/// answer at once (the last run's output as data), nothing asked of Studio
+/// and no card; a start that never starts says so after 20 s.
+#[test]
+fn run_program_status_stop_and_a_start_that_never_comes() {
+    install();
+    let t = "tools-run-actions";
+    let mut h = Handle { name: t.into() };
+    set(t, "permission", &s("propose"));
+    set(t, "runoutput", &s("Hello\nLine 1"));
+    h.begin_turn();
+    for action in ["status", "stop"] {
+        let out = h.call("run_program", &json!({"action": action}));
+        assert!(!out.is_error && out.content.contains("isn't running") && out.content.contains("\"untrusted\":true") && out.content.contains("Line 1"), "{action}: {}", out.content);
+        assert_ne!(out.risk, rapidr_ai::rai::LATER);
+    }
+    let out = h.call("run_program", &json!({"action": "jump"}));
+    assert!(out.is_error && out.content.contains("start, stop or status"), "{}", out.content);
+    assert_eq!(get(t, "programuseasked").unwrap().to_i64(), 0);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (allowed, asked of Studio, never started: answered after 20 s)
+    let out = h.call("run_program", &json!({"action": "start"}));
+    call(t, "allowprogramuse", &[Value::Integer(1)]);
+    assert!(h.finish_call("run_program", &out.target).is_none());
+    with(t, |x| {
+        if let Some(held) = x.run_held.as_mut() {
+            held.since = Some(std::time::Instant::now() - std::time::Duration::from_secs(21));
+        }
+    });
+    let said = h.finish_call("run_program", &out.target).expect("given up on");
+    assert!(said.is_error && said.content.contains("didn't start within 20 s"), "{}", said.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "nothing left for Studio to do");
+}
