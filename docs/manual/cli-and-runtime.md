@@ -7,6 +7,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | Command | |
 |---|---|
 | `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a source (`.rr` / `.bas`, or the older source extensions `.rqw`, `.rqb` and `.rq`; compiled in memory first). This is the RapidR Runtime. |
+| `rapidr run --verbose <file> [args]` | The same, saying on standard error what the Runtime does: whether its JIT is on (or why not), then what it compiled ([Hot code compiled](#hot-code-compiled-the-jit)) |
 | `rapidr <file.rrbc> [args]` | The same, for a compiled program (and for `#!/usr/bin/env rapidr` scripts) |
 | `rapidr open <file> [args]` | Run it as a double click does: a downloaded file asks first, a console program gets a terminal |
 | `rapidr info <file>` | The program's kind, bytecode format and the oldest runtime it needs |
@@ -152,6 +153,54 @@ directly. It is the same interpreter inside `--interp` executables.
 Standalone `--interp` executables remain for programs shipped to people
 who don't have the Runtime.
 
+### Hot code compiled (the JIT)
+
+A loop that turns thousands of times, or a `SUB` / `FUNCTION` called a
+thousand times, on numbers declared `AS INTEGER`, `AS DOUBLE` and the like,
+is compiled to machine code while the program runs — by `rapidr run`,
+RapidR Studio's Run (F5) and `--interp` executables. Nothing to switch on,
+nothing to change in the program: it gives the very same answers and the
+same run-time errors, at the same line. Typical loops and routines run
+4 to 20 times faster than interpreted, close to a native build
+([hot_loops.rr](../../examples/basics/hot_loops.rr) times three of them).
+
+```
+$ rapidr run --verbose basics/hot_loops.rr
+JIT: on
+Checksum of 5,000,000 turns: 391530  (28 ms)
+Clamped sum of 1,000,000 calls: 62243775  (4 ms)
+Filtered voice, loudest sample: 1.747212  (2 ms)
+JIT: 3 loop(s) and 1 routine(s) compiled (1 called from compiled code), 2 KB of code in 1.5 ms; ...
+$ RAPIDR_JIT=off rapidr run basics/hot_loops.rr
+Checksum of 5,000,000 turns: 391530  (113 ms)
+Clamped sum of 1,000,000 calls: 62243775  (69 ms)
+Filtered voice, loudest sample: 1.747212  (32 ms)
+```
+
+- **What it compiles**: numbers, booleans, `FOR` and the other loops,
+  `IF`, arithmetic and comparisons, conversions into typed variables,
+  one-index arrays of numbers, the maths functions (`ABS`, `SIN`, `INT` …)
+  and calls between such routines. Text, objects, components, `PRINT`,
+  files and the like stay with the interpreter; a loop that uses them at
+  every turn is left interpreted as a whole.
+- **The debugger**: under the debugger with a breakpoint or a step,
+  everything runs interpreted, as always. Without one (F5 with no
+  breakpoint), compiled code runs — and Pause, or a breakpoint set while it
+  runs, stops it on its line with its variables, as before.
+- **Where**: 64-bit Windows, macOS and Linux. The web, iOS and 32-bit
+  Windows run everything interpreted. Nothing compiled is ever written to
+  disk.
+- **macOS and signing**: an app signed with the hardened runtime (for
+  notarization) needs the `com.apple.security.cs.allow-jit` entitlement for
+  its programs to be compiled; without it they run interpreted, with the
+  same results (`rapidr run --verbose` says so). RapidR's own apps have it.
+- `RAPIDR_JIT=off` runs a program on the interpreter alone (to compare);
+  `RAPIDR_JIT=always` compiles everything it can at once (RapidR's tests).
+- **A damaged program** — a `.rrbc` cut short, edited by hand, or made by
+  something other than RapidR's compiler — is refused before it starts:
+  "this program is damaged and can't run: … Build it again from its
+  source".
+
 ## `rapidr setup`
 
 ```sh
@@ -181,6 +230,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_RENDERER=cpu\|gpu` | force drawing on the CPU or the GPU (by default the GPU, or the CPU when the only GPU is a software one) |
 | `RAPIDR_PRINT_TO=<file or folder>` | printed documents go there as PDFs instead of to a printer |
 | `RAPIDR_REGISTRY=<file>` | RRegistry keeps its keys in this file instead of the system's (Windows' registry; a per-user store elsewhere) |
+| `RAPIDR_JIT=off\|on\|always` | the Runtime's JIT: `off` the interpreter alone, `on` hot code compiled (the default), `always` everything it can at once ([Hot code compiled](#hot-code-compiled-the-jit)) |
 | `RAPIDR_SCHOOL_POLICY=<file>` | School Lock's policy read from this file when the computer has none (the tests'): it can add a lock, never take the computer's away |
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
 | `RAPIDR_DOCUMENTS=<folder>` | the folder used as your Documents: RapidR Studio's copies of the examples (`RapidR/Examples/`) and builds that can't go beside their program (`RapidR/Builds/`) |

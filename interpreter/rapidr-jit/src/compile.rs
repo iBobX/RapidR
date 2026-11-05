@@ -240,6 +240,7 @@ pub struct Helpers {
     pub aset: FuncId,
     pub conv: FuncId,
     pub math: FuncId,
+    pub math2: FuncId,
     pub powf: FuncId,
 }
 
@@ -260,6 +261,7 @@ impl Helpers {
             aset: d("rapidr_jit_aset", sig(&[I64, I32, I32, I64, I32, I64], &[I32]))?,
             conv: d("rapidr_jit_conv", sig(&[I32, I32, I64], &[I64]))?,
             math: d("rapidr_jit_math", sig(&[I32, I32, I64, I64], &[I32]))?,
+            math2: d("rapidr_jit_math2", sig(&[I32, I32, I64, I32, I64, I64], &[I32]))?,
             powf: d("rapidr_jit_powf", sig(&[F64, F64], &[F64]))?,
         })
     }
@@ -923,23 +925,43 @@ impl Walk<'_, '_> {
         Some((self.bits_to_value(raw, out), out))
     }
 
-    /// A pure maths builtin of one argument (`fast::call_direct`): the
-    /// interpreter's own function, through the helper; its result's kind
-    /// is checked against the one compiled for.
-    fn math(&mut self, code: u8, arg: Entry, at: usize, kinds: &[K], pre: &[Entry]) -> Option<Entry> {
-        if !arg.1.scalar() {
+    /// A pure maths builtin of one argument, or SHL / SHR of two
+    /// (`fast::call_direct`): the interpreter's own function, through the
+    /// helper; its result's kind is checked against the one compiled for.
+    fn math(&mut self, code: u8, args: &[Entry], at: usize, kinds: &[K], pre: &[Entry]) -> Option<Entry> {
+        if args.iter().any(|a| !a.1.scalar()) || args.is_empty() || args.len() > 2 {
             return None;
         }
-        // (the kind it gives for this kind of argument, from a sample)
-        let sample = match arg.1 {
-            K::Int => Value::Integer(3),
-            K::Dbl => Value::Double(2.5),
-            K::Bool => Value::Boolean(true),
-            _ => Value::Null,
-        };
-        let expect = K::of(&rapidr_vm::fast::call_direct(code, std::slice::from_ref(&sample)));
+        // (the kind it gives for these kinds of arguments, from samples)
+        let samples: Vec<Value> = args
+            .iter()
+            .map(|a| match a.1 {
+                K::Int => Value::Integer(3),
+                K::Dbl => Value::Double(2.5),
+                K::Bool => Value::Boolean(true),
+                _ => Value::Null,
+            })
+            .collect();
+        let expect = K::of(&rapidr_vm::fast::call_direct(code, &samples));
         if !expect.scalar() {
             return None;
+        }
+        let arg = args[0];
+        if args.len() == 2 {
+            let b = args[1];
+            let (x, y) = (self.value_to_bits(arg.0, arg.1), self.value_to_bits(b.0, b.1));
+            let slot = self.b.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 3));
+            let addr = self.b.ins().stack_addr(types::I64, slot, 0);
+            let fref = self.fref(self.helpers.math2);
+            let c = self.b.ins().iconst(types::I32, i64::from(code));
+            let ka = self.b.ins().iconst(types::I32, i64::from(arg.1.code()));
+            let kb = self.b.ins().iconst(types::I32, i64::from(b.1.code()));
+            let call = self.b.ins().call(fref, &[c, ka, x, kb, y, addr]);
+            let got = self.b.inst_results(call)[0];
+            let wrong = self.b.ins().icmp_imm_s(IntCC::NotEqual, got, i64::from(expect.code()));
+            self.cond_exit(wrong, at, kinds, pre, Why::Guard);
+            let raw = self.b.ins().load(types::I64, MemFlagsData::trusted(), addr, 0);
+            return Some((self.bits_to_value(raw, expect), expect));
         }
         // (ABS of a number: written out)
         if code == rapidr_vm::fast::direct_code("ABS") {
@@ -1338,12 +1360,14 @@ impl Walk<'_, '_> {
                 Op::CallBuiltin => {
                     let name = m.strings.get(o[0] as usize).map(String::as_str).unwrap_or("");
                     let code = if self.env.direct_maths { rapidr_vm::fast::direct_code(name) } else { 0 };
-                    // (one argument; SHL and SHR, two, are the interpreter's)
-                    if code == 0 || code >= 128 || o[1] != 1 {
+                    // (one argument; SHL and SHR two)
+                    let argc = if code >= 128 { 2 } else { 1 };
+                    if code == 0 || o[1] as usize != argc {
                         bail!();
                     }
-                    let arg = pop!();
-                    match self.math(code, arg, at, &kinds, &pre) {
+                    let b = pop!();
+                    let args = if argc == 2 { vec![pop!(), b] } else { vec![b] };
+                    match self.math(code, &args, at, &kinds, &pre) {
                         Some(r) => stack.push(r),
                         None => bail!(),
                     }

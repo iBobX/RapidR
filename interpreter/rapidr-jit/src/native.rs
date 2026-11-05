@@ -167,6 +167,22 @@ pub extern "C" fn rapidr_jit_math(code: u32, kind: u32, bits: u64, out: *mut u64
     }
 }
 
+/// SHL / SHR (`fast::call_direct` with two arguments): as
+/// [`rapidr_jit_math`].
+pub extern "C" fn rapidr_jit_math2(code: u32, ka: u32, a: u64, kb: u32, b: u64, out: *mut u64) -> u32 {
+    // SAFETY: `out` is an 8-byte stack slot compiled code made for this
+    // call (compile.rs `math`).
+    let out = unsafe { &mut *out };
+    let args = [value_of(K::from_code(ka), a), value_of(K::from_code(kb), b)];
+    match catch_unwind(AssertUnwindSafe(|| rapidr_vm::fast::call_direct(code as u8, &args))) {
+        Ok(r) => {
+            *out = bits_of(&r);
+            K::of(&r).code()
+        }
+        Err(_) => u32::MAX,
+    }
+}
+
 /// `a ^ b` (`Value::power`).
 pub extern "C" fn rapidr_jit_powf(a: f64, b: f64) -> f64 {
     a.powf(b)
@@ -180,6 +196,7 @@ pub fn helper_symbols() -> Vec<(&'static str, *const u8)> {
         ("rapidr_jit_aset", rapidr_jit_aset as *const u8),
         ("rapidr_jit_conv", rapidr_jit_conv as *const u8),
         ("rapidr_jit_math", rapidr_jit_math as *const u8),
+        ("rapidr_jit_math2", rapidr_jit_math2 as *const u8),
         ("rapidr_jit_powf", rapidr_jit_powf as *const u8),
     ]
 }

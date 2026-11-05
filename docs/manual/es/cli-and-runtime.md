@@ -9,6 +9,7 @@ entorno de ejecución.
 | Comando | |
 |---|---|
 | `rapidr run <file> [args]` | Ejecuta un programa: un `.rrbc`, o un código fuente (`.rr` / `.bas`, o las extensiones de código fuente anteriores `.rqw`, `.rqb` y `.rq`; se compila primero en memoria). Esto es el RapidR Runtime. |
+| `rapidr run --verbose <file> [args]` | Lo mismo, diciendo en la salida de errores lo que hace el Runtime: si su JIT está activo (o por qué no) y después qué compiló ([Código frecuente compilado](#código-frecuente-compilado-el-jit)) |
 | `rapidr <file.rrbc> [args]` | Lo mismo, para un programa compilado (y para los scripts `#!/usr/bin/env rapidr`) |
 | `rapidr open <file> [args]` | Lo ejecuta como lo hace un doble clic: un archivo descargado pregunta primero, un programa de consola recibe una terminal |
 | `rapidr info <file>` | El tipo del programa, el formato del bytecode y el Runtime más antiguo que necesita |
@@ -165,6 +166,58 @@ lleva dentro cada ejecutable `--interp`.
 Los ejecutables independientes `--interp` siguen existiendo para los programas que
 se entregan a personas que no tienen el Runtime.
 
+### Código frecuente compilado (el JIT)
+
+Un bucle que da miles de vueltas, o un `SUB` / `FUNCTION` llamado mil
+veces, sobre números declarados `AS INTEGER`, `AS DOUBLE` y similares, se
+compila a código máquina mientras el programa se ejecuta: con `rapidr run`,
+con Ejecutar (F5) de RapidR Studio y en los ejecutables `--interp`. No hay
+nada que activar ni que cambiar en el programa: da exactamente los mismos
+resultados y los mismos errores en tiempo de ejecución, en la misma línea.
+Los bucles y rutinas típicos se ejecutan de 4 a 20 veces más rápido que
+interpretados, cerca de una compilación nativa
+([hot_loops.rr](../../../examples/basics/hot_loops.rr) mide tres).
+
+```
+$ rapidr run --verbose basics/hot_loops.rr
+JIT: on
+Checksum of 5,000,000 turns: 391530  (28 ms)
+Clamped sum of 1,000,000 calls: 62243775  (4 ms)
+Filtered voice, loudest sample: 1.747212  (2 ms)
+JIT: 3 loop(s) and 1 routine(s) compiled (1 called from compiled code), 2 KB of code in 1.5 ms; ...
+$ RAPIDR_JIT=off rapidr run basics/hot_loops.rr
+Checksum of 5,000,000 turns: 391530  (113 ms)
+Clamped sum of 1,000,000 calls: 62243775  (69 ms)
+Filtered voice, loudest sample: 1.747212  (32 ms)
+```
+
+- **Qué compila**: números, booleanos, `FOR` y los demás bucles, `IF`,
+  aritmética y comparaciones, conversiones a variables con tipo, arreglos
+  de números de un índice, las funciones matemáticas (`ABS`, `SIN`, `INT`
+  …) y las llamadas entre esas rutinas. El texto, los objetos, los
+  componentes, `PRINT`, los archivos y similares siguen en el intérprete;
+  un bucle que los usa en cada vuelta queda interpretado entero.
+- **El depurador**: con un punto de interrupción o un paso activo, todo se
+  ejecuta interpretado, como siempre. Sin ellos (F5 sin puntos de
+  interrupción) se ejecuta el código compilado, y Pausa, o un punto de
+  interrupción puesto mientras se ejecuta, lo detiene en su línea con sus
+  variables, como antes.
+- **Dónde**: Windows, macOS y Linux de 64 bits. La web, iOS y Windows de
+  32 bits ejecutan todo interpretado. Nada compilado se escribe nunca en
+  disco.
+- **macOS y la firma**: una app firmada con el hardened runtime (para la
+  notarización) necesita el entitlement `com.apple.security.cs.allow-jit`
+  para que sus programas se compilen; sin él se ejecutan interpretados, con
+  los mismos resultados (`rapidr run --verbose` lo dice). Las apps de
+  RapidR lo tienen.
+- `RAPIDR_JIT=off` ejecuta un programa solo con el intérprete (para
+  comparar); `RAPIDR_JIT=always` compila de una vez todo lo que puede (las
+  pruebas de RapidR).
+- **Un programa dañado** —un `.rrbc` cortado, editado a mano o hecho por
+  algo que no es el compilador de RapidR— se rechaza antes de empezar:
+  "this program is damaged and can't run: … Build it again from its
+  source".
+
 ## `rapidr setup`
 
 ```sh
@@ -195,6 +248,7 @@ desde la que se ejecuta el comando. `rapidr setup --check` imprime cuál.
 | `RAPIDR_RENDERER=cpu\|gpu` | fuerza el dibujo en la CPU o en la GPU (de forma predeterminada la GPU, o la CPU cuando la única GPU es una por software) |
 | `RAPIDR_PRINT_TO=<file or folder>` | los documentos impresos van allí como PDF en lugar de a una impresora |
 | `RAPIDR_REGISTRY=<file>` | RRegistry guarda sus claves en este archivo en lugar de en el del sistema (el registro de Windows; un almacén por usuario en otros sistemas) |
+| `RAPIDR_JIT=off\|on\|always` | el JIT del Runtime: `off` solo el intérprete, `on` el código frecuente compilado (lo predeterminado), `always` todo lo que puede de una vez ([Código frecuente compilado](#código-frecuente-compilado-el-jit)) |
 | `RAPIDR_SCHOOL_POLICY=<file>` | la política del bloqueo escolar se lee de este archivo cuando la computadora no tiene una (la de las pruebas): puede añadir un bloqueo, nunca quitar el de la computadora |
 | `RAPIDR_CONFIG_DIR=<folder>` | tu carpeta de RapidR (la lista de archivos de confianza) |
 | `RAPIDR_DOCUMENTS=<folder>` | la carpeta que se usa como tus Documentos: las copias de los ejemplos de RapidR Studio (`RapidR/Examples/`) y las compilaciones que no pueden ir junto a su programa (`RapidR/Builds/`) |

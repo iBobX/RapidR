@@ -365,11 +365,12 @@ case passes it (no false alarm).
   computed address at all: only the context's fields, the locals and
   globals buffers at constant offsets the verifier vouched for, and its
   own stack slots. (Tier 2 gives raw typed storage.)
-- **The maths builtins** call the interpreter's own functions through one
-  helper (`ABS` inline); the result's kind is checked.
+- **The maths builtins** call the interpreter's own functions through a
+  helper (`ABS` inline; SHL / SHR through a two-argument one); the
+  result's kind is checked.
 - **Left to the interpreter in tier 1**: text, objects, host operations,
   `GOSUB` / `RETURN`, `CALLFUNC`, a call whose BYREF arguments are
-  written back (`LoadArgOut`), arrays of more dimensions, SHL / SHR.
+  written back (`LoadArgOut`), arrays of more dimensions.
 - **Hotness**: 10,000 turns of a loop, 1,000 calls of a routine. The VM
   counts per routine (a countdown at every backward jump and call) and asks
   the JIT when it runs out. A loop whose form is entered 16 times makes the
@@ -431,4 +432,33 @@ pause, then going on compiled to the right answer.
 | `dsp_voices` (own ms) | 245 | 44 | 8 (typed arrays: tier 2) |
 
 `loop10m`, `dsp_scalars` and `fcalls` are within 3 × of native (§6.1's
-acceptance).
+acceptance). Others: `arrays` 77 → 24, `byte_array` 71 → 24, `dsp_sin`
+43 → 18; nothing it can't compile got slower (`strings` 442 / 436,
+`concat_build`, `mid_scan` the same).
+
+Music Studio's synth (`~/projects/RapidRMusicStudio/repro/synth_bench.rr`,
+a copy run interpreted, 32 voices, the share of a 10 ms block):
+
+| Mode | phase 2 | JIT |
+|---|--:|--:|
+| A, per-voice filter (sample-major) | 24.9 % | 9.8 % |
+| B, eight bus filters | 23.6 % | 7.3 % |
+| C, voice-major scalars | 10.4 % | 1.2 % |
+
+### 12.6 Seen working
+
+- RapidR Studio (this branch's, run from the checkout with `--do` and its
+  capture hooks — no screen control): F5 on `loop10m.rr` and
+  `dsp_voices.rr` (Output: the answers, `ms 54` for the synth); F5 on a
+  2-billion-turn loop, Pause after a second — stopped on the FOR line with
+  `i = 644,253,559` and `s = 644,253,558` in Variables (compiled code had
+  run 640 million turns), Step to the line in the loop, Continue
+  (compiled again), Pause again later in the next round.
+- macOS hardened runtime, ad hoc with `--options runtime`: with the
+  `allow-jit` entitlement compiled; without it "JIT: off, this process may
+  not make code executable …", interpreted, the same answers.
+- Windows 11 ARM64 VM: `tools/release/windows-vm.sh jit` (and
+  `Target=x86_64-pc-windows-msvc`) builds the branch there and runs the
+  JIT's tests and conformance both ways — the VM was suspended by the host
+  during the lane's run (not resumed: the lane doesn't start VMs); to be
+  run when it is up. The Ubuntu VM was stopped: Linux untested.

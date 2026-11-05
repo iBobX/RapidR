@@ -360,13 +360,17 @@ fn conversions() {
 #[test]
 fn maths_builtins() {
     for name in rapidr_vm::direct_names() {
-        if rapidr_vm::direct_builtin(name).is_none() {
-            continue;
-        }
-        check(name, |c| {
+        // (SHL and SHR take two: a and b)
+        let argc = if rapidr_vm::direct_builtin2(name).is_some() { 2 } else { 1 };
+        let ran = check(name, |c| {
             let s = c.m.add_string(&name.to_ascii_uppercase());
-            c.op(Op::LoadLocal).u16(0).op(Op::CallBuiltin).u32(s).u8(1).store_r();
+            c.op(Op::LoadLocal).u16(0);
+            if argc == 2 {
+                c.op(Op::LoadLocal).u16(1);
+            }
+            c.op(Op::CallBuiltin).u32(s).u8(argc).store_r();
         });
+        assert!(ran > 0, "{name} never ran compiled");
     }
 }
 
