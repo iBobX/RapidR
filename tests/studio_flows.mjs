@@ -746,6 +746,49 @@ const CASES = [
     delay: 3,
     dump: { "proj.kind": /^project$/, "proj.filename": /hello_form\.rrproj$/, "proj.filecount": /^1$/ },
   },
+  // (Project > Add File, as Studio saves a project file — SaveProjectFile:
+  // the review of 2026-11-05): a project's file written as Studio's own
+  // write (not "updated outside Studio"); a program opened on its own
+  // becomes a project, said; never over a project file that is there)
+  {
+    name: "project-add-file",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => writeFileSync(join(p, "notes.txt"), "a note\n"),
+    folder: "{dir}/project/notes.txt",
+    do: "wait,project.addFile,wait,wait,wait,wait",
+    delay: 6,
+    dump: { "proj.filecount": /^2$/, "proj.filename": /\/project\/Hello\.rrproj$/, "outputbox.text": /^(?![\s\S]*updated outside Studio)[\s\S]*Saved \S*Hello\.rrproj/ },
+    files: { "Hello.rrproj": /path = "notes\.txt"/ },
+  },
+  {
+    name: "project-add-file-lone",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => writeFileSync(join(p, "notes.txt"), "a note\n"),
+    folder: "{dir}/project/notes.txt",
+    do: "wait,project.addFile,wait,wait",
+    delay: 5,
+    dump: { "proj.kind": /^project$/, "proj.filename": /\/project\/main\.rrproj$/, "outputbox.text": /Saved \S*main\.rrproj/ },
+    files: { "main.rrproj": /path = "notes\.txt"/ },
+  },
+  {
+    name: "project-add-file-lone-kept",
+    open: "tests/fixtures/studio_save/main.rr",
+    copyDir: true,
+    desktopOnly: true,
+    prepare: (p) => {
+      writeFileSync(join(p, "notes.txt"), "a note\n");
+      writeFileSync(join(p, "main.rrproj"), "# another project's file: never written over\n");
+    },
+    folder: "{dir}/project/notes.txt",
+    do: "wait,project.addFile,wait,wait",
+    delay: 5,
+    dump: { "proj.kind": /^file$/, "outputbox.text": /Nothing was added: adding makes this program a project, and its project file \S*main\.rrproj is there already/ },
+    files: { "main.rrproj": /^# another project's file: never written over\n$/ },
+  },
   {
     name: "open-folder",
     open: "",
@@ -8617,6 +8660,8 @@ function runDesktop(c, scale = 1) {
     const copyTo = c.fsck ? mkdtempSync(join(tmpdir(), "rapidr-versions-")) : join(dir, "project");
     cpSync(join(ROOT, dirname(c.open)), copyTo, { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
     if (c.fsck) symlinkSync(copyTo, join(dir, "project"));
+    // (`prepare`: files or links made in the copy first — a link loop, many files)
+    if (c.prepare) c.prepare(copyTo);
     args.push(join(dir, "project", c.open.split("/").pop()));
   } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());
@@ -8674,7 +8719,9 @@ function runDesktop(c, scale = 1) {
       RAPIDR_LOGIN_PATH: "off",
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
-      ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
+      // (the file dialog's answer: a path in the repository, or with {dir}
+      // one in the case's own folder — its project's copy)
+      ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder.includes("{dir}") ? c.folder.replaceAll("{dir}", dir) : join(ROOT, c.folder) } : {}),
       // (DEMO-MODE: the script played and recorded; no capture — demo mode
       // ends Studio itself when the script is done)
       ...(c.demo ? { RAPIDR_DEMO: join(dir, "demo.json"), RAPIDR_DEMO_OUT: join(dir, "demo-out"), RAPIDR_DEMO_LANG: c.demoLang || "en", RAPIDR_CAPTURE: undefined, RAPIDR_CAPTURE_DELAY: undefined, RAPIDR_TEST_DUMP: undefined } : {}),

@@ -5949,6 +5949,14 @@ msgid "Add a File to the Project"
 msgstr ""
 
 #: ide/shell.inc
+msgid "Nothing was added: adding makes this program a project, and its project file {file} is there already. Open that project (File > Open Project or File...), then add the files to it."
+msgstr ""
+
+#: ide/shell.inc
+msgid "Nothing was added: {file} is there already"
+msgstr ""
+
+#: ide/shell.inc
 msgid "Add a Folder to the Project"
 msgstr ""
 

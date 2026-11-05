@@ -88,16 +88,52 @@ SUB AddFileToProject
   OpenDlg.Caption = TR$("Add a File to the Project")
   OpenDlg.Filter = TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN
+    IF AddKeepsProjectFile = 0 THEN EXIT SUB
     ' (saved at once, then read again: the tree reads the project file,
     ' and an unsaved add didn't show until Studio was reopened)
     IF Proj.AddFile(OpenDlg.FileName) THEN
-      Proj.Save
-      ProjectTree.Project = ""
-      FillProjectTree
+      AddSaved
     ELSE
       OutputLine Proj.Error
     END IF
   END IF
+END SUB
+
+' (Add File / Add Folder on a program opened on its own — no project file
+' yet —: the add makes it a project, its project file <folder>/<name>.rrproj;
+' never over one that is there already, another project's: said, nothing
+' added. 1 when the add may go on)
+FUNCTION AddKeepsProjectFile AS INTEGER
+  DIM f AS STRING
+  Result = 1
+  IF ProjectOpen = 0 OR Proj.Kind = "project" THEN EXIT FUNCTION
+  f = Proj.FileName
+  IF f = "" THEN
+    IF Proj.Name = "" THEN f = Proj.Folder + "/project.rrproj" ELSE f = Proj.Folder + "/" + Proj.Name + ".rrproj"
+  END IF
+  IF FILEEXISTS(f) THEN
+    Result = 0
+    OutputLine TR$("Nothing was added: adding makes this program a project, and its project file {file} is there already. Open that project (File > Open Project or File...), then add the files to it.", "file", f)
+    AddSay TR$("Nothing was added: {file} is there already", "file", FileTitle(f))
+    OutputBox.Page = "output"
+    Dock.ShowPane("outputbox")
+  END IF
+END FUNCTION
+
+' (the files added: the project file written as Studio writes it — its own
+' write, not a change from outside; ProjectFile follows; a failure said:
+' SaveProjectFile —, then the tree reads it again)
+SUB AddSaved
+  SaveProjectFile
+  ProjectTree.Project = ""
+  FillProjectTree
+END SUB
+
+' (what Add File / Add Folder say on the status line, and to a screen
+' reader; a running program's state is left as it is)
+SUB AddSay(Text AS STRING)
+  IF RunState <> "running" AND RunState <> "paused" THEN SetState "stopped", Text
+  Application.Announce Text
 END SUB
 
 ' Project > Add Folder: every file in a folder and the folders inside it
@@ -113,6 +149,7 @@ SUB AddFolderToProject
     EXIT SUB
   END IF
   OpenDlg.PickFolder = 0
+  IF AddKeepsProjectFile = 0 THEN EXIT SUB
   n = 1
   todo(1) = OpenDlg.FileName
   DO WHILE n > 0 AND added < 500
@@ -139,9 +176,7 @@ SUB AddFolderToProject
     NEXT
   LOOP
   ' (saved, then read again, so the new files show now)
-  IF added > 0 THEN Proj.Save
-  ProjectTree.Project = ""
-  FillProjectTree
+  IF added > 0 THEN AddSaved
   OutputLine TR$("Added {n} files from {folder} to the project", "n", STR$(added), "folder", OpenDlg.FileName)
   IF skipped > 0 THEN OutputLine TR$("{n} were in the project already or couldn't be added", "n", STR$(skipped))
 END SUB

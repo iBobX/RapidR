@@ -504,6 +504,11 @@ DECLARE SUB LayoutStep(S AS STRING)
 DECLARE SUB LayoutProbeTick
 ' (every document with changes saved; 0 when a save was declined: documents.inc)
 DECLARE FUNCTION SaveAllOk AS INTEGER
+' (Project > Add File / Add Folder: a lone program's project file never
+' written over another's; the project file saved, the tree read again: shell.inc)
+DECLARE FUNCTION AddKeepsProjectFile AS INTEGER
+DECLARE SUB AddSaved
+DECLARE SUB AddSay(Text AS STRING)
 ' (RapidR's crash and hang reports: crash.inc)
 DECLARE SUB SetUpCrash
 DECLARE SUB ApplyCrashChrome
