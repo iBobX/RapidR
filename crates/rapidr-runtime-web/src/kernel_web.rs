@@ -93,7 +93,8 @@ impl Store for WebStore {
         // as the desktop's RtStore)
         // (a Font.Color the program didn't set: its parent's, RapidQ's
         // ParentFont)
-        if matches!(prop.to_ascii_lowercase().as_str(), "fontcolor" | "font.color") {
+        // (no lower-case copy of every property read: the desktop's RtStore)
+        if prop.eq_ignore_ascii_case("fontcolor") || prop.eq_ignore_ascii_case("font.color") {
             return crate::object_web::drawn_font_color(id, prop);
         }
         rp_comp_get(id, prop)
@@ -103,7 +104,9 @@ impl Store for WebStore {
         if let Some(t) = dialog(id, |s| s.type_of(id)) {
             return t;
         }
-        rp_comp_type(id).to_ascii_uppercase()
+        let mut t = rp_comp_type(id);
+        t.make_ascii_uppercase();
+        t
     }
 
     fn children(&self, id: &str) -> Vec<(String, String)> {
@@ -117,8 +120,18 @@ impl Store for WebStore {
         if let Some(f) = dialog(id, |s| s.font(id)) {
             return f;
         }
-        rapidr_value::objects::font_from_props(id, &|i, p| rp_comp_get(i, p))
+        FONTS.with(|m| rapidr_value::objects::font_from_props_kept(id, &|i, p| rp_comp_get(i, p), m))
     }
+
+    fn painting(&self, on: bool) {
+        FONTS.with(|m| m.borrow_mut().painting(on));
+    }
+}
+
+thread_local! {
+    /// The components' fonts as read during a paint, as the desktop's
+    /// store keeps them (rapidr_value::objects::FontMemo).
+    static FONTS: RefCell<rapidr_value::objects::FontMemo> = RefCell::new(rapidr_value::objects::FontMemo::default());
 }
 
 /// A component's children, ids lowercase (as the desktop's registry keeps
@@ -169,6 +182,9 @@ impl Program for Web {
     }
     fn children(self, id: &str) -> Vec<(String, String)> {
         children(id)
+    }
+    fn tree_revision(self) -> Option<u64> {
+        Some(crate::object_web::rp_tree_revision())
     }
     fn all(self) -> Vec<(String, String)> {
         crate::object_web::all_components()
@@ -320,6 +336,9 @@ fn spec_of(name: &str) -> WindowSpec {
 /// forms, trees rebuilt, layouts read again), then onto the page.
 fn sync() {
     ensure();
+    // (the scroll bars waiting to be worked out: before the windows take
+    // the components' places — rapidr_value::scrollbars::engine)
+    crate::scroll_web::flush();
     rapidr_ui_app::menus::dump_if_changed(Web);
     let notify = take_notify();
     let ops = take_ops();
@@ -586,6 +605,7 @@ fn frame() {
         later();
         return;
     }
+    crate::scroll_web::flush();
     forms::show_pending(Web);
     lists::pre_paint(Web, &forms::shown_forms());
     sync();
@@ -1086,13 +1106,15 @@ fn ask_before_leaving() {
 /// What only the GUI knows of a property: a form's Visible is whether its
 /// window shows (as
 /// the desktop's); everything else is the store's (Null: read it there).
-pub fn get_prop(name: &str, prop: &str) -> Value {
-    if crate::overlay_web::is_overlay(&crate::object_web::rp_comp_type(name)) {
+/// `ty`: its type (the read looked it up once).
+pub fn get_prop_of(name: &str, ty: &str, prop: &str) -> Value {
+    if crate::overlay_web::is_overlay(ty) {
         if let Some(v) = crate::overlay_web::get_prop(name, prop) {
             return v;
         }
     }
-    if prop == "visible" && forms::is_form(Web, name) {
+    // (a form: `forms::is_form`'s types)
+    if prop == "visible" && matches!(ty, "RFORM" | "RFORMMDI") {
         if let Some(shown) = forms::window_shown(name) {
             return Value::Boolean(shown);
         }

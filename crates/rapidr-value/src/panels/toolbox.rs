@@ -14,7 +14,7 @@
 //! the program hears comes back as a [`User`] action ([`rt_user`]):
 //! OnSelect, OnPick, OnDragStart, OnDragDrop.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use super::fuzzy;
 use super::runtime::Runtime;
@@ -214,7 +214,19 @@ pub fn group_title(title: &str) -> String {
 /// The components a group shows: its members the compilers create, in the
 /// table's order.
 pub fn members(group: &str) -> Vec<&'static str> {
-    group_table().into_iter().filter(|g| g.0 == group).flat_map(|g| g.4.iter().copied()).filter(|t| rapidr_lang::is_component_type(t)).collect()
+    // (made once a group: both tables are static, and the toolbox's
+    // catalog asks for every group's each time its accessibility tree is
+    // made — on the web at every key, docs/speed-audit-2026-11.md "Web
+    // parity")
+    thread_local! {
+        static MEMBERS: std::cell::RefCell<HashMap<String, Vec<&'static str>>> = std::cell::RefCell::new(HashMap::new());
+    }
+    if let Some(m) = MEMBERS.with(|m| m.borrow().get(group).cloned()) {
+        return m;
+    }
+    let m: Vec<&'static str> = group_table().into_iter().filter(|g| g.0 == group).flat_map(|g| g.4.iter().copied()).filter(|t| rapidr_lang::is_component_type(t)).collect();
+    MEMBERS.with(|c| c.borrow_mut().insert(group.to_string(), m.clone()));
+    m
 }
 
 /// A component under RapidR's name (`RButton`, `RPlot`): what the

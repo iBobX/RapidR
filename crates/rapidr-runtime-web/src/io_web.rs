@@ -167,10 +167,11 @@ fn video_frame(name: &str) {
 
 /// `QDOWNLOAD.StateGauge.Parent = Form`: a member of its gauge or label.
 pub fn sub_component(name: &str, prop: &str) -> Option<(String, String)> {
+    // (the dot first: every property read asks, and few have one)
+    let (sub, member) = prop.split_once('.')?;
     if !rqlib::is_download(name) {
         return None;
     }
-    let (sub, member) = prop.split_once('.')?;
     matches!(sub, "stategauge" | "speedlbl").then(|| (format!("{}.{sub}", name.to_lowercase()), member.to_string()))
 }
 

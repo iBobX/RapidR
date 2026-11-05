@@ -45,6 +45,8 @@ pub mod file_dialog;
 pub mod format;
 pub mod toggle_group;
 pub mod objects;
+// Each parent's children, indexed: both runtimes' registries.
+pub mod children;
 pub mod layout;
 pub mod autosize;
 // (I4) RapidR Studio's visual designer model, GUI-free.
@@ -457,6 +459,16 @@ pub fn lower(s: &str) -> std::borrow::Cow<'_, str> {
         std::borrow::Cow::Borrowed(s)
     } else {
         std::borrow::Cow::Owned(s.to_lowercase())
+    }
+}
+
+/// `s` in upper case, borrowed when it is already: what `str::to_uppercase`
+/// gives (the web runtime's registry keys), as [`lower`] is for lower case.
+pub fn upper(s: &str) -> std::borrow::Cow<'_, str> {
+    if s.is_ascii() && !s.bytes().any(|b| b.is_ascii_lowercase()) {
+        std::borrow::Cow::Borrowed(s)
+    } else {
+        std::borrow::Cow::Owned(s.to_uppercase())
     }
 }
 

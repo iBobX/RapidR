@@ -63,25 +63,21 @@ thread_local! {
     static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
     /// How many handlers have been queued for the bytecode VM.
     static VM_QUEUED: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-    /// Changes whenever a component is made or a Parent is stored
-    /// ([`rp_tree_revision`]): the children index and what the UI builds
-    /// from the tree are made again then.
-    static TREE_REV: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-    /// Each parent's children ([`get_children_of`]) for a TREE_REV: the
-    /// Parent's text in ASCII lower case → (creation order, key, type), in
-    /// creation order.
-    static CHILDREN: RefCell<(u64, HashMap<String, Vec<(u32, String, String)>>)> = RefCell::new((u64::MAX, HashMap::new()));
+    /// Each parent's children ([`get_children_of`]) and the tree's revision
+    /// ([`rp_tree_revision`]), the web's too (rapidr_value::children): a
+    /// Parent names its parent in any ASCII case.
+    static TREE: RefCell<rapidr_value::children::ChildrenIndex> = RefCell::new(rapidr_value::children::ChildrenIndex::new(|s| s.to_ascii_lowercase()));
 }
 
 /// A number that changes whenever a component is made or a Parent is
 /// stored: what's built from the tree of components (the children of each,
 /// the components a window loop's turn serves) is good while it stays.
 pub fn rp_tree_revision() -> u64 {
-    TREE_REV.with(std::cell::Cell::get)
+    TREE.with(|t| t.borrow().revision())
 }
 
 fn tree_changed() {
-    TREE_REV.with(|r| r.set(r.get().wrapping_add(1)));
+    TREE.with(|t| t.borrow_mut().changed());
 }
 
 /// How many event handlers have been queued for the bytecode VM so far (it
@@ -2581,30 +2577,14 @@ pub fn all_components() -> Vec<(String, String)> {
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
     // (an index of every parent's children, made again only when the tree
-    // changed: each call scanned and sorted the whole registry, and the
-    // window loop asks for every component's children at every turn —
-    // docs/speed-audit-2026-11.md)
-    let rev = rp_tree_revision();
-    CHILDREN.with(|index| {
-        let mut index = index.borrow_mut();
-        if index.0 != rev {
-            let mut by_parent: HashMap<String, Vec<(u32, String, String)>> = HashMap::new();
+    // changed — rapidr_value::children, the web's too)
+    TREE.with(|index| {
+        index.borrow_mut().children_of(parent_name, |add| {
             COMPONENTS.with(|c| {
                 for (name, comp) in c.borrow().iter() {
-                    // (a Parent names its parent in any ASCII case: names_parent)
-                    if let Some(p) = comp.properties.get("parent") {
-                        by_parent.entry(p.to_string_val().to_ascii_lowercase()).or_default().push((comp.creation_order, name.clone(), comp.type_name.clone()));
-                    }
+                    add(name, &comp.type_name, comp.creation_order, comp.properties.get("parent"));
                 }
-            });
-            // Sort by creation order to match the original CREATE block order
-            for kids in by_parent.values_mut() {
-                kids.sort_by_key(|c| c.0);
-            }
-            *index = (rev, by_parent);
-        }
-        index.1.get(&parent_name.to_ascii_lowercase()).map_or_else(Vec::new, |kids| {
-            kids.iter().filter(|(_, name, _)| !name.eq_ignore_ascii_case(parent_name)).map(|(_, n, t)| (n.clone(), t.clone())).collect()
+            })
         })
     })
 }

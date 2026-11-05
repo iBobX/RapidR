@@ -1156,6 +1156,59 @@ pub fn font_from_props(id: &str, props: &dyn Fn(&str, &str) -> Value) -> Font {
     }
 }
 
+/// What a runtime's store read of the components' fonts during a paint
+/// (the UI kernel's `Store::painting`): nothing the program can change
+/// changes while the kernel paints — reading runs no program code — so each
+/// component's font parts and Parent are read once a paint, not again for
+/// each of its children and theirs ([`font_from_props_kept`]). A
+/// 200-control form read its panel's and its form's parts for every control
+/// inside them at every frame (docs/speed-audit-2026-11.md "Web parity").
+#[derive(Default)]
+pub struct FontMemo {
+    /// Paints begun and not ended (one may draw another inside: the form
+    /// designer's).
+    depth: u32,
+    /// The parts read, by the name asked ([`FONT_PARTS`]' order).
+    parts: HashMap<String, [Option<Value>; 8]>,
+}
+
+/// What [`font_from_props`] reads of a component.
+const FONT_PARTS: [&str; 8] = ["fontname", "fontsize", "fontbold", "fontitalic", "fontunderline", "fontstrikeout", "parent", "fontcolor"];
+
+impl FontMemo {
+    /// A paint begins (`true`) or ends (`false`); what was read is
+    /// forgotten when the outermost one ends.
+    pub fn painting(&mut self, on: bool) {
+        if on {
+            self.depth += 1;
+        } else {
+            self.depth = self.depth.saturating_sub(1);
+            if self.depth == 0 {
+                self.parts.clear();
+            }
+        }
+    }
+}
+
+/// [`font_from_props`], each part read once while a paint lasts (`memo`;
+/// outside a paint, read as always): the same walk, the same answers.
+pub fn font_from_props_kept(id: &str, props: &dyn Fn(&str, &str) -> Value, memo: &RefCell<FontMemo>) -> Font {
+    if memo.borrow().depth == 0 {
+        return font_from_props(id, props);
+    }
+    let read = |at: &str, prop: &str| -> Value {
+        let Some(i) = FONT_PARTS.iter().position(|p| *p == prop) else { return props(at, prop) };
+        if let Some(v) = memo.borrow().parts.get(at).and_then(|e| e[i].clone()) {
+            return v;
+        }
+        // (not borrowed while the store reads: a read may ask for a font)
+        let v = props(at, prop);
+        memo.borrow_mut().parts.entry(at.to_string()).or_default()[i] = Some(v.clone());
+        v
+    };
+    font_from_props(id, &read)
+}
+
 /// Gives form `id` its own drawing surface (`Form.TextOut`, …) the first
 /// time it's drawn on; `color` is the form's.
 pub fn create_form_surface(id: &str, color: i64) {
@@ -1290,32 +1343,35 @@ fn ensure_printer(id: &str) {
 
 pub fn get(id: &str, prop: &str) -> Option<Value> {
     ensure_printer(id);
-    let prop = crate::lower(prop).into_owned();
+    // (asked for every property the kernel reads, of every control: no
+    // copy of a property already in lower case)
+    let lowered = crate::lower(prop);
+    let prop: &str = lowered.as_ref();
     // (linked data: an RCSV's, an RDataSource's, an RDBGrid's —
     // datascience::link)
-    if let Some(v) = crate::datascience::link::get(id, &prop) {
+    if let Some(v) = crate::datascience::link::get(id, prop) {
         return Some(v);
     }
     if d3d::exists(id) {
-        return d3d::get(id, &prop);
+        return d3d::get(id, prop);
     }
     if rqlib::exists(id) {
-        return rqlib::get(id, &prop);
+        return rqlib::get(id, prop);
     }
     if audioout::exists(id) {
-        return audioout::get(id, &prop);
+        return audioout::get(id, prop);
     }
     if archive::exists(id) {
-        return archive::get(id, &prop);
+        return archive::get(id, prop);
     }
-    if let Some(v) = menu::get(id, &prop) {
+    if let Some(v) = menu::get(id, prop) {
         return Some(v);
     }
     // `Mem.Pointer`: the address of its first byte (crate::memory).
     if prop == "pointer" && with(id, |o| matches!(o, Object::Stream(_))) == Some(true) {
         return Some(Value::Integer(crate::memory::stream_pointer(id)));
     }
-    if let Some(v) = with_header(id, |h| h.get(&prop)).flatten() {
+    if let Some(v) = with_header(id, |h| h.get(prop)).flatten() {
         return Some(v);
     }
     if prop == "display" {
@@ -1324,31 +1380,31 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
         }
     }
     with(id, |o| match o {
-        Object::Font(f) => f.get(&prop),
+        Object::Font(f) => f.get(prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
-        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readalltext" | "readbyte") => m.call(&prop, &[]),
-        Object::Stream(m) => m.get(&prop),
-        Object::Bitmap(b) => b.get(&prop),
-        Object::ImageList(l) => l.get(&prop),
-        Object::ListView(l) => l.get(&prop),
-        Object::Grid(g) => g.get(&prop),
-        Object::List(l) => l.get(&prop),
-        Object::DirTree(t) => t.get(&prop),
-        Object::Tree(t) => t.get(&prop),
-        Object::Printer(p) => p.get(&prop),
-        Object::Text(t) => t.get(&prop),
-        Object::Code(c) => c.get(&prop),
-        Object::Diff(d) => d.get(&prop),
-        Object::TrackBar(t) => t.get(&prop),
-        Object::TabControl(t) => t.get(&prop),
-        Object::Registry(r) => r.get(&prop),
-        Object::Design(d) => d.get(&prop),
-        Object::DxScreen(s) => s.get(&prop),
-        Object::DxImageList(l) => l.get(&prop),
-        Object::DxTimer(t) => t.get(&prop),
-        Object::DxSound(s) => s.get(&prop),
-        Object::DxJoystick(j) => j.get(&prop),
-        Object::Record(r) => r.get(&prop),
+        Object::Stream(m) if matches!(prop, "readline" | "readln" | "readall" | "readalltext" | "readbyte") => m.call(prop, &[]),
+        Object::Stream(m) => m.get(prop),
+        Object::Bitmap(b) => b.get(prop),
+        Object::ImageList(l) => l.get(prop),
+        Object::ListView(l) => l.get(prop),
+        Object::Grid(g) => g.get(prop),
+        Object::List(l) => l.get(prop),
+        Object::DirTree(t) => t.get(prop),
+        Object::Tree(t) => t.get(prop),
+        Object::Printer(p) => p.get(prop),
+        Object::Text(t) => t.get(prop),
+        Object::Code(c) => c.get(prop),
+        Object::Diff(d) => d.get(prop),
+        Object::TrackBar(t) => t.get(prop),
+        Object::TabControl(t) => t.get(prop),
+        Object::Registry(r) => r.get(prop),
+        Object::Design(d) => d.get(prop),
+        Object::DxScreen(s) => s.get(prop),
+        Object::DxImageList(l) => l.get(prop),
+        Object::DxTimer(t) => t.get(prop),
+        Object::DxSound(s) => s.get(prop),
+        Object::DxJoystick(j) => j.get(prop),
+        Object::Record(r) => r.get(prop),
     })?
 }
 
@@ -2715,6 +2771,44 @@ mod font_walk_tests {
                 let (a, b) = (font_from_props(&id, &props), walked_each(&id, &props));
                 assert_eq!((a.name, a.size, a.color, a.styles), (b.name, b.size, b.color, b.styles), "{id} in {store:?}");
             }
+            // (kept during a paint: the same fonts, each part read once)
+            let reads = std::cell::RefCell::new(HashMap::<(String, String), u32>::new());
+            let counted = |id: &str, p: &str| {
+                *reads.borrow_mut().entry((id.to_string(), p.to_string())).or_default() += 1;
+                props(id, p)
+            };
+            let memo = std::cell::RefCell::new(super::FontMemo::default());
+            memo.borrow_mut().painting(true);
+            for _ in 0..2 {
+                for i in 0..5 {
+                    let id = format!("c{i}");
+                    let (a, b) = (super::font_from_props_kept(&id, &counted, &memo), font_from_props(&id, &props));
+                    assert_eq!((a.name, a.size, a.color, a.styles), (b.name, b.size, b.color, b.styles), "{id} kept, in {store:?}");
+                }
+            }
+            assert!(reads.borrow().values().all(|n| *n == 1), "each part read once a paint: {:?}", reads.borrow());
+            memo.borrow_mut().painting(false);
+            reads.borrow_mut().clear();
+            let _ = super::font_from_props_kept("c4", &counted, &memo);
+            assert!(!reads.borrow().is_empty(), "read again once the paint ended");
         }
+    }
+
+    #[test]
+    fn a_paint_ends_and_what_changed_is_read() {
+        let memo = std::cell::RefCell::new(super::FontMemo::default());
+        let size = std::cell::Cell::new(10i64);
+        let props = |_: &str, p: &str| if p == "fontsize" { v_int(size.get()) } else { Value::Null };
+        memo.borrow_mut().painting(true);
+        // (a paint inside a paint — the designer's — ends without forgetting)
+        memo.borrow_mut().painting(true);
+        assert_eq!(super::font_from_props_kept("a", &props, &memo).size, 10);
+        memo.borrow_mut().painting(false);
+        size.set(14);
+        assert_eq!(super::font_from_props_kept("a", &props, &memo).size, 10);
+        memo.borrow_mut().painting(false);
+        assert_eq!(super::font_from_props_kept("a", &props, &memo).size, 14);
+        memo.borrow_mut().painting(true);
+        assert_eq!(super::font_from_props_kept("a", &props, &memo).size, 14);
     }
 }

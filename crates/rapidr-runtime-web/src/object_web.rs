@@ -39,6 +39,22 @@ thread_local! {
     static CREATION_COUNTER: RefCell<u32> = RefCell::new(0);
     static TIMER_HANDLES: RefCell<HashMap<String, i32>> = RefCell::new(HashMap::new());
     static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
+    /// Each parent's children ([`get_children_of`]) and the tree's revision
+    /// ([`rp_tree_revision`]), as the desktop's (rapidr_value::children): a
+    /// Parent's text compared in upper case, as the keys are.
+    static TREE: RefCell<rapidr_value::children::ChildrenIndex> = RefCell::new(rapidr_value::children::ChildrenIndex::new(|s| s.to_uppercase()));
+}
+
+/// A number that changes whenever a component is made or a Parent is
+/// stored (the desktop's `rp_tree_revision`): what's built from the tree —
+/// the children of each, the components the owner-draw turn serves — is
+/// good while it stays.
+pub fn rp_tree_revision() -> u64 {
+    TREE.with(|t| t.borrow().revision())
+}
+
+fn tree_changed() {
+    TREE.with(|t| t.borrow_mut().changed());
 }
 
 /// Install a thread-local indirect event dispatcher (used by the
@@ -174,6 +190,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
             },
         );
     });
+    tree_changed();
     // (the web-only components' elements, once the component is
     // registered: overlay_web, placed by the UI kernel's host)
     if crate::overlay_web::is_overlay(&rp_comp_type(&name_clone)) {
@@ -594,25 +611,17 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 }
 
 pub fn rp_comp_set_prop_only(name: &str, prop: &str, val: Value) {
-    let uname = name.to_uppercase();
-    let lprop = prop.to_lowercase();
-    COMPONENTS.with(|c| {
-        if let Some(comp) = c.borrow_mut().get_mut(&uname) {
-            comp.properties.insert(lprop, val);
-        }
-    });
+    store_prop(name, prop, val);
 }
 
 /// Read the stored property value directly, bypassing live-DOM lookups.
 pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
-    let uname = name.to_uppercase();
-    let lprop = prop.to_lowercase();
-    COMPONENTS.with(|c| {
-        c.borrow()
-            .get(&uname)
-            .and_then(|comp| comp.properties.get(&lprop).cloned())
-            .unwrap_or_else(v_null)
-    })
+    // (layout and the scroll bars read the stored places of every child:
+    // no copy of a name already in upper case, of a property already in
+    // lower case)
+    let uname = rapidr_value::upper(name);
+    let lprop = rapidr_value::lower(prop);
+    COMPONENTS.with(|c| c.borrow().get(uname.as_ref()).and_then(|comp| comp.properties.get(lprop.as_ref()).cloned()).unwrap_or_else(v_null))
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
@@ -1028,6 +1037,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     // Handle timer interval/enabled specially
     COMPONENTS.with(|c| {
         let mut comps = c.borrow_mut();
+        // (a component made here, or a Parent stored: the tree changed)
+        if lprop == "parent" || !comps.contains_key(&uname) {
+            tree_changed();
+        }
         // An unknown name is a property bag (a DIM'd QRECT or TYPE
         // variable), as on the desktop: its fields are kept.
         if !comps.contains_key(&uname) {
@@ -1219,170 +1232,182 @@ pub fn rp_sync_bound_widgets(db_name: &str, field_vals: &HashMap<String, String>
 
 /// A property as it is now: the web's own components' (webapi_web), a
 /// window's or a web-only element's (kernel_web); Null where only the
-/// stored value says.
-fn live_prop(name: &str, prop: &str) -> Value {
-    let t = rp_comp_type(name);
-    if crate::webapi_web::is_webapi(&t) {
-        return crate::webapi_web::get_prop(name, &t, prop).unwrap_or_else(v_null);
+/// stored value says. `ty`: the component's type.
+fn live_prop(name: &str, ty: &str, prop: &str) -> Value {
+    if crate::webapi_web::is_webapi(ty) {
+        return crate::webapi_web::get_prop(name, ty, prop).unwrap_or_else(v_null);
     }
-    crate::kernel_web::get_prop(name, prop)
+    crate::kernel_web::get_prop_of(name, ty, prop)
+}
+
+/// A component's type by its key (upper case), "" for none.
+fn comp_type_of(key: &str) -> String {
+    COMPONENTS.with(|c| c.borrow().get(key).map(|comp| comp.type_name.clone()).unwrap_or_default())
 }
 
 pub fn rp_comp_get(name: &str, prop: &str) -> Value {
-    let uname = name.to_uppercase();
-    let lprop = prop.to_lowercase();
+    // (the kernel reads every property of every control at each frame: a
+    // read makes one upper-case key, no lower-case copy it doesn't need,
+    // and looks the type up once — it did each about a dozen times, as the
+    // desktop's did, docs/speed-audit-2026-11.md "Web parity")
+    let lprop = rapidr_value::lower(prop);
+    let lprop = lprop.as_ref();
+    let uname = rapidr_value::upper(name);
+    let uname = uname.as_ref();
+    let ty = comp_type_of(uname);
+    let ty = ty.as_str();
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
-    if let Some(v) = crate::globals_web::get(name, &lprop) {
+    if let Some(v) = crate::globals_web::get(name, lprop) {
         return v;
     }
     // (the I/O and media lane's: io_web.rs)
-    if let Some((sub, member)) = crate::io_web::sub_component(name, &lprop) {
+    if let Some((sub, member)) = crate::io_web::sub_component(name, lprop) {
         return rp_comp_get(&sub, &member);
     }
-    if let Some(v) = rapidr_value::objects::rqlib::get(name, &lprop) {
+    if let Some(v) = rapidr_value::objects::rqlib::get(name, lprop) {
         return v;
     }
     // Form.Scale (RapidR's): the page's scale.
-    if lprop == "scale" && rp_comp_type(&uname) == "RFORM" {
+    if lprop == "scale" && ty == "RFORM" {
         return crate::globals_web::get("screen", "scale").unwrap_or(Value::Double(1.0));
     }
     // A form's inside (its frame and main menu excluded); other components
     // have no frame inside their size.
-    if matches!(lprop.as_str(), "clientwidth" | "clientheight") {
-        let (w, h) = if matches!(rp_comp_type(&uname).as_str(), "RFORM" | "RSCROLLBOX") {
-            crate::scroll_web::client(&uname)
+    if matches!(lprop, "clientwidth" | "clientheight") {
+        let (w, h) = if matches!(ty, "RFORM" | "RSCROLLBOX") {
+            crate::scroll_web::client(uname)
         } else {
             (rp_comp_get(name, "width").to_i64(), rp_comp_get(name, "height").to_i64())
         };
         return v_int(if lprop == "clientwidth" { w } else { h });
     }
     // A component's Handle (rapidr_value::handles).
-    if lprop == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(&uname)) {
+    if lprop == "handle" && COMPONENTS.with(|c| c.borrow().contains_key(uname)) {
         return v_int(rapidr_value::handles::handle_of(name));
     }
     // `Constraints.MinWidth` is MinWidth (rapidr_value::layout).
-    if let Some(flat) = rapidr_value::layout::constraint_alias(&lprop) {
+    if let Some(flat) = rapidr_value::layout::constraint_alias(lprop) {
         return rp_comp_get(name, flat);
     }
     // A QFORMMDI's ChildCount, ChildCaption, … (mdi_web.rs).
-    if let Some(v) = rapidr_value::mdi::get(name, &lprop) {
+    if let Some(v) = rapidr_value::mdi::get(name, lprop) {
         return v;
     }
     // A QFORM's MDIChildCount, TileMode (form_members_web.rs).
-    if matches!(lprop.as_str(), "mdichildcount" | "tilemode") {
-        if let Some(v) = crate::form_members_web::get(name, &rp_comp_type(&uname), &lprop) {
+    if matches!(lprop, "mdichildcount" | "tilemode") {
+        if let Some(v) = crate::form_members_web::get(name, ty, lprop) {
             return v;
         }
     }
     // (I1) RapidR Studio's components (studio_web.rs).
-    {
-        let t = rp_comp_type(name);
-        if rapidr_studio::is_studio_type(&t) {
-            if let Some(v) = crate::studio_web::get(&t, name, &lprop) {
-                return v;
-            }
-        }
-        // (I8) RAI, the AI component (ai_web.rs).
-        if rapidr_ai::rai::is_rai(&t) {
-            if let Some(v) = crate::ai_web::get(name, &lprop) {
-                return v;
-            }
-        }
-        // RSecrets: a page has no keychain (Available is False, Error says so).
-        if rapidr_ai::secrets::component::is_secrets(&t) {
-            if let Some(v) = rapidr_ai::secrets::component::get(name, &lprop) {
-                return v;
-            }
-        }
-        // RSystemInfo: what the browser tells (Unknown names the rest).
-        if rapidr_value::sysinfo::component::is_sysinfo(&t) {
-            if let Some(v) = rapidr_value::sysinfo::component::get_with(name, &lprop, &web_facts) {
-                return v;
-            }
+    if rapidr_studio::is_studio_type(ty) {
+        if let Some(v) = crate::studio_web::get(ty, name, lprop) {
+            return v;
         }
     }
-    // RWindowCapture and RAppHands: the program's own eyes and hands
-    // (kernel_web.rs, rapidr_ui_app::app_components).
-    match rp_comp_type(name).as_str() {
+    // (I8) RAI, the AI component (ai_web.rs).
+    if rapidr_ai::rai::is_rai(ty) {
+        if let Some(v) = crate::ai_web::get(name, lprop) {
+            return v;
+        }
+    }
+    // RSecrets: a page has no keychain (Available is False, Error says so).
+    if rapidr_ai::secrets::component::is_secrets(ty) {
+        if let Some(v) = rapidr_ai::secrets::component::get(name, lprop) {
+            return v;
+        }
+    }
+    // RSystemInfo: what the browser tells (Unknown names the rest).
+    if rapidr_value::sysinfo::component::is_sysinfo(ty) {
+        if let Some(v) = rapidr_value::sysinfo::component::get_with(name, lprop, &web_facts) {
+            return v;
+        }
+    }
+    match ty {
+        // RWindowCapture and RAppHands: the program's own eyes and hands
+        // (kernel_web.rs, rapidr_ui_app::app_components).
         "RWINDOWCAPTURE" => {
-            if let Some(v) = crate::kernel_web::app_capture_get(name, &lprop) {
+            if let Some(v) = crate::kernel_web::app_capture_get(name, lprop) {
                 return v;
             }
         }
         "RAPPHANDS" => {
-            if let Some(v) = rapidr_ui_app::app_components::hands_get(name, &lprop) {
+            if let Some(v) = rapidr_ui_app::app_components::hands_get(name, lprop) {
+                return v;
+            }
+        }
+        // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
+        "RDOCKMANAGER" => {
+            if let Some(v) = rapidr_value::dock::runtime::rt_get(name, lprop) {
                 return v;
             }
         }
         _ => {}
     }
-    // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
-    if rp_comp_type(name) == "RDOCKMANAGER" {
-        if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
+    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels_web.rs:
+    // a panel's type answers, no other's).
+    if rapidr_value::panels::is_panel(ty) {
+        if let Some(v) = crate::panels_web::get(name, lprop) {
             return v;
         }
     }
-    // (I1 / L-PANELS) A panel's RowCount, Count, LineCount, … (panels_web.rs).
-    if let Some(v) = crate::panels_web::get(name, &lprop) {
-        return v;
+    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs:
+    // only theirs).
+    if matches!(ty, "RFORM" | "RSCROLLBOX") {
+        if let Some(v) = crate::scroll_web::get(name, lprop) {
+            return v;
+        }
     }
-    // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll_web.rs).
-    if let Some(v) = crate::scroll_web::get(name, &lprop) {
-        return v;
-    }
-    if let Some(v) = rapidr_value::objects::get(name, &lprop) {
+    if let Some(v) = rapidr_value::objects::get(name, lprop) {
         return v;
     }
 
-    // Check data-science / database component properties
     // An RDOM: its element's first
-    let comp_type = rp_comp_type(&uname);
-    if comp_type == "RDOM" {
-        let live = live_prop(&uname, &lprop);
+    if ty == "RDOM" {
+        let live = live_prop(uname, ty, lprop);
         if !matches!(live, Value::Null) {
             return live;
         }
     }
 
-    match comp_type.as_str() {
+    // Data-science components' own properties.
+    match ty {
         "RNUM" => {
-            let v = crate::datascience_web::num_get_prop(&uname, &lprop);
-            if !matches!(v, Value::Null) { return v; }
+            let v = crate::datascience_web::num_get_prop(uname, lprop);
+            if !matches!(v, Value::Null) {
+                return v;
+            }
         }
         "RDATAFRAME" => {
-            let v = crate::datascience_web::dataframe_get_prop(&uname, &lprop);
-            if !matches!(v, Value::Null) { return v; }
+            let v = crate::datascience_web::dataframe_get_prop(uname, lprop);
+            if !matches!(v, Value::Null) {
+                return v;
+            }
         }
         "RPLOT" => {
-            let v = crate::datascience_web::plot_get_prop(&uname, &lprop);
-            if !matches!(v, Value::Null) { return v; }
+            let v = crate::datascience_web::plot_get_prop(uname, lprop);
+            if !matches!(v, Value::Null) {
+                return v;
+            }
         }
-        "RSQLITE" => {
-            // Uses generic property store — fall through
-        }
+        // (RSQLITE: the generic store below)
         _ => {}
     }
 
     // Check stored properties first (for non-DOM properties)
-    let stored = COMPONENTS.with(|c| {
-        c.borrow()
-            .get(&uname)
-            .and_then(|comp| comp.properties.get(&lprop).cloned())
-    });
+    let stored = COMPONENTS.with(|c| c.borrow().get(uname).and_then(|comp| comp.properties.get(lprop).cloned()));
 
     // Positions are what the program (or layout) set; sizes too while the
     // element isn't rendered (a form not shown yet, a hidden control).
-    if matches!(lprop.as_str(), "left" | "top") {
-        if let Some(v) = stored.clone() {
-            return v;
-        }
+    if matches!(lprop, "left" | "top") && stored.is_some() {
+        return stored.unwrap_or_else(v_null);
     }
     // A QRECT's Right / Bottom (Left / Top below): 0 until set.
-    if matches!(lprop.as_str(), "right" | "bottom") {
+    if matches!(lprop, "right" | "bottom") {
         return stored.unwrap_or(v_int(0));
     }
-    if matches!(lprop.as_str(), "width" | "height") {
-        let live = live_prop(&uname, &lprop);
+    if matches!(lprop, "width" | "height") {
+        let live = live_prop(uname, ty, lprop);
         return match stored {
             Some(v) if live.to_i64() == 0 => v,
             _ => live,
@@ -1390,7 +1415,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
 
     // For visual properties, prefer live DOM values
-    match lprop.as_str() {
+    match lprop {
         "caption" | "text" | "left" | "top" | "width" | "height" | "visible" | "enabled"
         | "checked" | "value" | "listindex" | "itemindex" | "listcount" | "position"
         | "min" | "max" | "selstart" | "seltext" | "innerhtml" | "innertext" | "tagname"
@@ -1399,8 +1424,8 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         | "poster" | "storagetype" | "latitude" | "longitude" | "accuracy" | "title" | "body"
         | "route" | "hash" | "cssstyle" | "cssclass" => {
             // A component with no element (a QTIMER's Enabled): what was stored.
-            match live_prop(&uname, &lprop) {
-                Value::Null if matches!(lprop.as_str(), "left" | "top") => stored.unwrap_or(v_int(0)),
+            match live_prop(uname, ty, lprop) {
+                Value::Null if matches!(lprop, "left" | "top") => stored.unwrap_or(v_int(0)),
                 Value::Null => stored.unwrap_or_else(v_null),
                 // (Enabled keeps the number stored, as RapidQ's — `Enabled
                 // = -1` reads -1 — while the element agrees)
@@ -1414,8 +1439,8 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
         // (a panel's bevels: RapidQ's defaults until set; Anchors and
         // Constraints: akLeft + akTop, none)
         _ => stored
-            .or_else(|| (matches!(rp_comp_type(&uname).as_str(), "RPANEL" | "RBEVEL")).then(|| rapidr_value::objects::bevel::default(&lprop).map(v_int)).flatten())
-            .or_else(|| rapidr_value::layout::default_property(&rp_comp_type(&uname), &lprop).map(v_int))
+            .or_else(|| matches!(ty, "RPANEL" | "RBEVEL").then(|| rapidr_value::objects::bevel::default(lprop).map(v_int)).flatten())
+            .or_else(|| rapidr_value::layout::default_property(ty, lprop).map(v_int))
             .unwrap_or_else(v_null),
     }
 }
@@ -1424,6 +1449,9 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
 /// object's type has one by that name (`WHILE MySQL.FetchRow`), else the
 /// property (`UpDown.Max`) — rapidr_value::members, as on the desktop.
 pub fn rp_comp_value(name: &str, member: &str) -> Value {
+    // (the program reads: the scroll bars put off are worked out first —
+    // rapidr_value::scrollbars::engine)
+    crate::scroll_web::flush();
     let lower = member.to_ascii_lowercase();
     // (a Boolean reads 1, as RapidQ's: rapidr_value::property_read)
     if rapidr_value::members::is_value_method_name(&lower) && rapidr_value::members::is_value_method(&rp_comp_type(name), &lower) {
@@ -1434,6 +1462,7 @@ pub fn rp_comp_value(name: &str, member: &str) -> Value {
 
 /// `Obj.Sub.Prop` read by a program (codegen): as [`rp_comp_value`]'s.
 pub fn rp_comp_read(name: &str, prop: &str) -> Value {
+    crate::scroll_web::flush();
     if prop.eq_ignore_ascii_case("color") {
         return program_color(name);
     }
@@ -1499,13 +1528,7 @@ pub fn rp_comp_children(name: &str) -> Vec<String> {
 }
 
 pub fn rp_comp_type(name: &str) -> String {
-    let uname = name.to_uppercase();
-    COMPONENTS.with(|c| {
-        c.borrow()
-            .get(&uname)
-            .map(|comp| comp.type_name.clone())
-            .unwrap_or_default()
-    })
+    comp_type_of(&rapidr_value::upper(name))
 }
 
 // ---------------------------------------------------------------------------
@@ -1513,6 +1536,8 @@ pub fn rp_comp_type(name: &str) -> String {
 // ---------------------------------------------------------------------------
 
 pub fn rp_comp_method(name: &str, method: &str, args: &[Value]) -> Value {
+    // (a method sees the components as they are once worked out)
+    crate::scroll_web::flush();
     let v = comp_method(name, method, args);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links_web::apply();
@@ -2700,6 +2725,9 @@ pub fn rp_rebind_component_events(name: &str) {
 fn store_prop(name: &str, prop: &str, val: Value) {
     COMPONENTS.with(|c| {
         if let Some(comp) = c.borrow_mut().get_mut(&name.to_uppercase()) {
+            if prop.eq_ignore_ascii_case("parent") {
+                tree_changed();
+            }
             comp.properties.insert(prop.to_lowercase(), val);
         }
     });
@@ -2989,22 +3017,18 @@ pub fn all_components() -> Vec<(String, String)> {
     })
 }
 
+/// The components whose Parent is `parent_name`, in creation order (key,
+/// type): the desktop's index (rapidr_value::children), made again only
+/// when the tree changed — each call scanned and sorted the whole registry.
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
-    let uname = parent_name.to_uppercase();
-    COMPONENTS.with(|c| {
-        let comps = c.borrow();
-        let mut children: Vec<(String, String, u32)> = comps
-            .iter()
-            .filter(|(_, comp)| {
-                comp.properties
-                    .get("parent")
-                    .map(|v| v.to_string_val().to_uppercase() == uname)
-                    .unwrap_or(false)
+    TREE.with(|index| {
+        index.borrow_mut().children_of(parent_name, |add| {
+            COMPONENTS.with(|c| {
+                for (name, comp) in c.borrow().iter() {
+                    add(name, &comp.type_name, comp.creation_order, comp.properties.get("parent"));
+                }
             })
-            .map(|(name, comp)| (name.clone(), comp.type_name.clone(), comp.creation_order))
-            .collect();
-        children.sort_by_key(|c| c.2);
-        children.into_iter().map(|(n, t, _)| (n, t)).collect()
+        })
     })
 }
 
