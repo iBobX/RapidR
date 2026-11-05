@@ -65,7 +65,7 @@ tool now has one name, one description and one behaviour.
 | `run_program` | runner | run | Studio | yes (start/stop/status, 5 s, max 30) | yes (+restart, debug, 3 s, max 60) | both | one behaviour: start, stop, restart, status; debug; 5 s, max 60; **refused while the code has errors** (the first three said), warned loudly with warnings; the ERRORS lane's "started and ended after N s" kept |
 | `read_output` | runner | read | Studio | — | yes | both (RAI: while the program runs) | — |
 | `debug` | debugger | run | Studio | — | yes | both (RAI: while the program runs) | RAI may step a run it started (asked once a run), set breakpoints and read the state any time |
-| `save_version` | versions | change | Studio | yes | — | both | AI apps get it; open files saved first (as Run does); the version's author is the AI ("RAI", "<app> (AI app)") |
+| `save_version` | versions | change | Studio | yes | — | both | AI apps get it; open files saved first (as Run does); Versions started when the project has none (as Save a Version does — a 4B model stopped at the refusal); the version's author is the AI ("RAI", "<app> (AI app)") |
 | `list_versions` | versions | read | core | — | — | both | new |
 | `compare_versions` | versions | read | core | — | — | both | new: a diff from a version to another or to now (the editors' text) |
 | `restore_version` | versions | change | Studio | — | — | both | new: Go Back to This Version (a new version, Undo takes it back); asks in Ask before changes / on RAI's card |

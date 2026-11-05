@@ -62,6 +62,8 @@ pub fn examples_folder() -> String {
 }
 
 fn read_examples(folder: &str) -> Vec<Example> {
+    // (the web has no examples folder to read: none)
+    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
     let mut out = Vec::new();
     #[cfg(not(target_arch = "wasm32"))]
     {
