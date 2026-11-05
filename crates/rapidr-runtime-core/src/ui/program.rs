@@ -32,6 +32,9 @@ impl Program for Rt {
     fn children(self, id: &str) -> Vec<(String, String)> {
         get_children_of(id)
     }
+    fn tree_revision(self) -> Option<u64> {
+        Some(crate::object::rp_tree_revision())
+    }
     fn all(self) -> Vec<(String, String)> {
         crate::object::all_components()
     }

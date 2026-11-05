@@ -36,6 +36,12 @@ pub trait Program: Copy + 'static {
     fn type_of(self, id: &str) -> String;
     /// Its children (id, type name), in creation order.
     fn children(self, id: &str) -> Vec<(String, String)>;
+    /// A number that changes whenever a component is made or moves to
+    /// another parent (`None`: the program can't tell — what's built from
+    /// the tree is built again each time it's needed).
+    fn tree_revision(self) -> Option<u64> {
+        None
+    }
     /// Every component of the program (id, type name), in creation order
     /// (a change of language translates their text again).
     fn all(self) -> Vec<(String, String)> {

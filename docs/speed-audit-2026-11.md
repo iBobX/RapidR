@@ -297,6 +297,46 @@ rapidr-ui-app; the conformance suite on the interpreter (325 cases) and
 `scroll_batched_writes` built native too; the GUI events suite, native and
 interpreted (123 cases, all checks passed).
 
+### Fix 3: a children index; the window loop serves only its own components
+
+`get_children_of` scanned and sorted the whole registry for every call, and
+the window loop's owner-draw turn (`lists::pre_paint`) asked for every
+component's children at every turn. Now an index of every parent's
+children (their Parent's text in ASCII lower case → creation order, key,
+type) is made once and kept while the tree doesn't change: a revision
+(`rp_tree_revision`) moves whenever a component is made or a Parent is
+stored. `pre_paint` keeps, per shown form, the components it serves —
+lists, combo boxes, grids, headers, trees — in the same depth-first order,
+found again only when the revision moves (`Program::tree_revision`; a
+program that can't tell, the web's, walks the tree as before). Same
+children, same order, same owner-draw events in the same order; a test
+compares the index with the old scan through made, parented, moved,
+self-parented and number-parented components.
+
+| | before | after |
+|---|--:|--:|
+| RapidR Studio, a caret move in a 5,000-line file (CPU, headless) | 9.4–9.9 ms | **4.0–4.1 ms** |
+| RapidR Studio idle (`vm_bench studio_idle`: budget 1 %) | 1.24 % CPU (missed) | **0.00 %** |
+| RapidR Studio running the idle form (budget 2 %) | 1.49 % | **0.00 %** |
+| the 200-control resize frame | 28.8–29.2 ms | 28.9–29.0 ms (its cost is elsewhere: fix 2) |
+
+Checked: the unit tests of rapidr-runtime-core, rapidr-ui-app and
+rapidr-ui-kernel (with the new index test); the GUI events suite, native
+and interpreted (all checks passed); the conformance suite on the
+interpreter (325); RapidR Studio's 81 goldens (all match); Studio's flows
+on the desktop host (the four web-build flows need the web runtime's
+wasm, not built in this worktree).
+
+### Resize coalescing: measured, nothing to coalesce
+
+Before changing how a live resize is handled, a hand drag counted how the
+OnResize events come: 63 events for 120 mouse steps, only 1 of the 63
+intervals under 3 ms (`rapidr run`, the 200-control form). macOS already
+gives one size per frame, and the runtime lays out and paints each once:
+there is no second size waiting in the same turn to drop. A frame costs
+what it costs because of what it reads (fix 2), not because it is done
+twice.
+
 ### Fix 7: SIN and COS of a number make no text
 
 `SIN` and `COS` turned every argument into text to look for a comma (a

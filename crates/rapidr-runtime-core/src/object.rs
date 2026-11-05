@@ -62,6 +62,25 @@ thread_local! {
     static INDIRECT_DISPATCHER: RefCell<Option<IndirectDispatcher>> = const { RefCell::new(None) };
     /// How many handlers have been queued for the bytecode VM.
     static VM_QUEUED: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// Changes whenever a component is made or a Parent is stored
+    /// ([`rp_tree_revision`]): the children index and what the UI builds
+    /// from the tree are made again then.
+    static TREE_REV: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// Each parent's children ([`get_children_of`]) for a TREE_REV: the
+    /// Parent's text in ASCII lower case → (creation order, key, type), in
+    /// creation order.
+    static CHILDREN: RefCell<(u64, HashMap<String, Vec<(u32, String, String)>>)> = RefCell::new((u64::MAX, HashMap::new()));
+}
+
+/// A number that changes whenever a component is made or a Parent is
+/// stored: what's built from the tree of components (the children of each,
+/// the components a window loop's turn serves) is good while it stays.
+pub fn rp_tree_revision() -> u64 {
+    TREE_REV.with(std::cell::Cell::get)
+}
+
+fn tree_changed() {
+    TREE_REV.with(|r| r.set(r.get().wrapping_add(1)));
 }
 
 /// How many event handlers have been queued for the bytecode VM so far (it
@@ -187,6 +206,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     COMPONENTS.with(|c| {
         c.borrow_mut().insert(name_lower, comp);
     });
+    tree_changed();
     rapidr_value::objects::create(name, type_name);
     // (RARCHIVE: the clock and the local time zone a zip's times are in)
     if rapidr_value::objects::archive::is_type(type_name) {
@@ -776,6 +796,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
         // real component exists. The TYPE statement is currently lowered
         // to a no-op by bcgen, so without this fallback `r.left = 10`
         // would silently drop the value.
+        // (a component made here, or a Parent stored: the tree changed)
+        if prop_lower == "parent" || !comps.contains_key(&key) {
+            tree_changed();
+        }
         let comp = comps.entry(key).or_insert_with(|| RpComponent::new("RUDT"));
         // The program chose a font: the GUI applies it (defaults it doesn't).
         let font_prop = prop_lower.starts_with("font") && prop_lower != "font";
@@ -2533,6 +2557,9 @@ pub(crate) fn stored_int(name: &str, prop: &str) -> i64 {
 pub(crate) fn store_prop(name: &str, prop: &str, val: Value) {
     COMPONENTS.with(|c| {
         if let Some(comp) = c.borrow_mut().get_mut(&name.to_lowercase()) {
+            if prop.eq_ignore_ascii_case("parent") {
+                tree_changed();
+            }
             comp.properties.insert(prop.to_lowercase(), val);
         }
     });
@@ -2548,22 +2575,32 @@ pub fn all_components() -> Vec<(String, String)> {
 }
 
 pub fn get_children_of(parent_name: &str) -> Vec<(String, String)> {
-    COMPONENTS.with(|c| {
-        let comps = c.borrow();
-        let mut children: Vec<(String, String, u32)> = Vec::new();
-        // (asked for every component of every shown form at each step of
-        // the window loop — lists' pre_paint —: no allocation per component)
-        for (name, comp) in comps.iter() {
-            if name.eq_ignore_ascii_case(parent_name) {
-                continue;
+    // (an index of every parent's children, made again only when the tree
+    // changed: each call scanned and sorted the whole registry, and the
+    // window loop asks for every component's children at every turn —
+    // docs/speed-audit-2026-11.md)
+    let rev = rp_tree_revision();
+    CHILDREN.with(|index| {
+        let mut index = index.borrow_mut();
+        if index.0 != rev {
+            let mut by_parent: HashMap<String, Vec<(u32, String, String)>> = HashMap::new();
+            COMPONENTS.with(|c| {
+                for (name, comp) in c.borrow().iter() {
+                    // (a Parent names its parent in any ASCII case: names_parent)
+                    if let Some(p) = comp.properties.get("parent") {
+                        by_parent.entry(p.to_string_val().to_ascii_lowercase()).or_default().push((comp.creation_order, name.clone(), comp.type_name.clone()));
+                    }
+                }
+            });
+            // Sort by creation order to match the original CREATE block order
+            for kids in by_parent.values_mut() {
+                kids.sort_by_key(|c| c.0);
             }
-            if comp.properties.get("parent").is_some_and(|p| names_parent(p, parent_name)) {
-                children.push((name.clone(), comp.type_name.clone(), comp.creation_order));
-            }
+            *index = (rev, by_parent);
         }
-        // Sort by creation order to match the original CREATE block order
-        children.sort_by_key(|c| c.2);
-        children.into_iter().map(|(n, t, _)| (n, t)).collect()
+        index.1.get(&parent_name.to_ascii_lowercase()).map_or_else(Vec::new, |kids| {
+            kids.iter().filter(|(_, name, _)| !name.eq_ignore_ascii_case(parent_name)).map(|(_, n, t)| (n.clone(), t.clone())).collect()
+        })
     })
 }
 
@@ -2732,5 +2769,69 @@ mod deferred_tests {
         let r = std::panic::catch_unwind(|| rp_in_host_callback(|| panic!("in a callback")));
         assert!(r.is_err());
         assert!(!rp_host_callback_active());
+    }
+}
+
+#[cfg(test)]
+mod children_index_tests {
+    use super::*;
+
+    /// The children as they were found before the index: the whole
+    /// registry scanned and sorted.
+    fn scanned(parent_name: &str) -> Vec<(String, String)> {
+        COMPONENTS.with(|c| {
+            let comps = c.borrow();
+            let mut children: Vec<(String, String, u32)> = Vec::new();
+            for (name, comp) in comps.iter() {
+                if name.eq_ignore_ascii_case(parent_name) {
+                    continue;
+                }
+                if comp.properties.get("parent").is_some_and(|p| names_parent(p, parent_name)) {
+                    children.push((name.clone(), comp.type_name.clone(), comp.creation_order));
+                }
+            }
+            children.sort_by_key(|c| c.2);
+            children.into_iter().map(|(n, t, _)| (n, t)).collect()
+        })
+    }
+
+    fn all_parents() -> Vec<&'static str> {
+        vec!["cxform", "CXFORM", "cxPanel", "cxpanel2", "cxbox", "nobody", "", "cxa"]
+    }
+
+    #[test]
+    fn the_index_answers_as_scanning_the_registry() {
+        rp_create_component("cxForm", "RFORM");
+        rp_create_component("cxPanel", "RPANEL");
+        rp_create_component("cxPanel2", "RPANEL");
+        rp_create_component("cxBox", "RSCROLLBOX");
+        for i in 0..12 {
+            rp_create_component(&format!("cxA{i}"), if i % 2 == 0 { "RBUTTON" } else { "RLABEL" });
+        }
+        let check = |when: &str| {
+            for p in all_parents() {
+                assert_eq!(get_children_of(p), scanned(p), "{when}: children of {p:?}");
+            }
+        };
+        check("made");
+        rp_comp_set("cxPanel", "parent", v_str("cxForm"));
+        rp_comp_set("cxPanel2", "parent", v_str("CXFORM"));
+        rp_comp_set("cxBox", "parent", v_str("cxPanel"));
+        for i in 0..12 {
+            let parent = ["cxForm", "cxpanel", "cxPANEL2", "cxBox"][i % 4];
+            rp_comp_set(&format!("cxA{i}"), "parent", v_str(parent));
+        }
+        check("parented");
+        // (moved to another parent, one to itself, one by a number)
+        rp_comp_set("cxA3", "parent", v_str("cxPanel2"));
+        rp_comp_set("cxA5", "parent", v_str("cxA5"));
+        store_prop("cxA7", "Parent", v_str("cxBox"));
+        rp_comp_set("cxA9", "parent", v_int(7));
+        check("moved");
+        // (a component made later comes last among its siblings)
+        rp_create_component("cxLate", "RBUTTON");
+        rp_comp_set("cxLate", "parent", v_str("cxForm"));
+        check("made later");
+        assert_eq!(get_children_of("cxForm").last().map(|c| c.0.as_str()), Some("cxlate"));
     }
 }
