@@ -3,7 +3,7 @@
 # Windows), then uninstalls it.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File smoke.ps1 -Installer <...-setup.exe>
-#       [-Associations] [-Native -Cases <the release's source>] [-Regress]
+#       [-Associations] [-Native -Cases <the release's source>] [-Regress] [-Shots <folder>]
 #
 # The .rrbc / .rr file types are always registered (HKCU\Software\Classes, this
 # user's) and the test checks the uninstaller removes them: run it in a test VM.
@@ -14,11 +14,16 @@
 # What it makes — the temporary folder %TEMP%\rapidr-smoke-*, its cargo and rustup homes, the build
 # cache (RAPIDR_BUILD_CACHE, inside it) and the install — is removed at the end, even when a check
 # failed. If the job is killed, `windows-vm.sh clean` removes the rest, registrations included.
+# -Shots <folder>: the pictures the programs captured (the *.bmp beside the test programs) are copied
+# there before the clean-up, named after the installer (tools/release/build-matrix.sh --shots).
+# The last line before the verdict, "##cells run=ok interp=ok ...", is what the build matrix reads.
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [switch]$Associations,
     [switch]$Native,
     [switch]$Regress,
+    [string]$Shots = "",
+    [string]$P5Delay = "",
     [string]$Cases = "$env:USERPROFILE\rapidr-release\src"
 )
 # (Continue: Windows PowerShell turns a native tool's stderr into errors when the output is
@@ -35,14 +40,32 @@ $env:RAPIDR_BUILD_CACHE = "$T\build-cache"
 # signed test-mode token, docs/security/test-mode.md: RAPIDR_TEST_MODE, or the harnesses' own
 # %USERPROFILE%\.rapidr\test-mode.token)
 if (-not $env:RAPIDR_TEST_MODE -and (Test-Path "$env:USERPROFILE\.rapidr\test-mode.token")) { $env:RAPIDR_TEST_MODE = "$env:USERPROFILE\.rapidr\test-mode.token" }
+# (and no key of the user's AI providers is read or written: the keys live in memory)
+$env:RAPIDR_AI_KEYSTORE = "memory"
+# (-P5Delay: seconds the headless Studio of p5check.ps1 waits before it reads its window; 5 by default, which a
+# busy VM running the x64 build emulated did not always make: the Coach dial was read before the click had been handled)
+if ($P5Delay) { $env:P5_DELAY = $P5Delay }
 $script:fail = 0
+# The build matrix (tools/release/build-matrix.sh) reads one line from the end of this log,
+# "##cells run=ok interp=ok exe=ok native=ok nexe=ok other=ok" (`-` = no check of that kind ran):
+#   run     rapidr run: a console and a GUI program        interp  a Build (interpreted) of a program
+#   exe     the interpreted executable it made runs         native  setup and a native Build
+#   nexe    the natively built executable runs              other   everything else (install, file types, Studio...)
+# Each check counts for the cell $script:cell names when it runs (set before a group of checks).
+$script:cell = "other"; $script:cellsBad = @(); $script:cellsSeen = @()
+function Cells-Line {
+    "##cells " + ((@("run", "interp", "exe", "native", "nexe", "other") | ForEach-Object {
+        "$_=" + $(if ($script:cellsBad -contains $_) { "FAIL" } elseif ($script:cellsSeen -contains $_) { "ok" } else { "-" })
+    }) -join " ")
+}
 # (an error the script didn't expect counts as a failure, and the rest still runs: the uninstall
 # and the clean-up, so a failed run leaves no install, file types or toolchain behind)
-trap { Write-Host "  FAIL  unexpected error: $_"; $script:fail = 1; continue }
+trap { Write-Host "  FAIL  unexpected error: $_"; $script:fail = 1; $script:cellsBad += $script:cell; $script:cellsSeen += $script:cell; continue }
 function Check($what, [scriptblock]$test) {
     $ok = $false
     try { $ok = [bool](& $test) } catch { $ok = $false }
-    if ($ok) { Write-Host "  ok    $what" } else { Write-Host "  FAIL  $what"; $script:fail = 1 }
+    $script:cellsSeen += $script:cell
+    if ($ok) { Write-Host "  ok    $what" } else { Write-Host "  FAIL  $what"; $script:fail = 1; $script:cellsBad += $script:cell }
 }
 function Out-Of($exe, [string[]]$a) { (& $exe @a 2>&1 | Out-String) }
 
@@ -64,6 +87,9 @@ function Clean-Up {
 try {
 Write-Host "== install $(Split-Path -Leaf $Installer) into $T\app"
 $pathBefore = [Environment]::GetEnvironmentVariable("Path", "User")
+# (the .bas default before the install: a leftover of an earlier install in this user's registry — the 2.122.1 matrix
+# found .bas, .rqw, .rqb and .rq pointing at removed types — is not this install's doing; windows-vm.sh clean removes it)
+$basBefore = (Get-ItemProperty "HKCU:\Software\Classes\.bas" -ErrorAction SilentlyContinue)."(default)"
 $tasks = if ($Associations) { "/TASKS=basdefault" } else { "/TASKS=" }
 Start-Process -Wait -FilePath $Installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=$T\app", "/LOG=$T\install.log", $tasks)
 $R = "$T\app\bin\rapidr.exe"; $RW = "$T\app\bin\rapidrw.exe"
@@ -75,6 +101,7 @@ Write-Host "== $kind`: $(Out-Of $R @('version'))"
 Set-Location "$T\work"
 
 Write-Host "== interpreted programs"
+$script:cell = "run"
 Set-Content hello.bas "`$APPTYPE CONSOLE`r`nPRINT `"hello `"; COMMAND`$`r`nPRINT Application.ExeName`r`n"
 Check "rapidr run hello.bas a b" { (Out-Of $R @("run", "hello.bas", "a", "b")) -match "hello a b" }
 & $R build-bc hello.bas -o hello.rrbc | Out-Null
@@ -104,6 +131,7 @@ $env:RAPIDR_CAPTURE = "$T\work\wndproc"; $env:RAPIDR_CAPTURE_WINDOWS = "1"; $env
 Check "interpreted: WndProc got WM_USER + 1 (7, 9)" { (Out-Of $R @("run", "wndproc.bas")) -match "lbl.caption=got 00000401 7 9" }
 Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_WINDOWS, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
 
+$script:cell = "other"
 Write-Host "== a downloaded file asks once (Mark of the Web)"
 Copy-Item hello.bas downloaded.bas
 Set-Content -Path "downloaded.bas" -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://example.com/downloaded.bas"
@@ -122,19 +150,27 @@ function Subsystem($exe) {
 }
 if ($kind -eq "sdk") {
     Write-Host "== standalone interpreted executables"
-    & $R build hello.bas --interp | Out-Null
-    Check "console program: a console executable" { (Subsystem "$T\work\hello.exe") -eq 3 }
+    $script:cell = "interp"
+    $ib = Out-Of $R @("build", "hello.bas", "--interp")
+    Check "console program: a console executable" { (Test-Path "$T\work\hello.exe") -and ((Subsystem "$T\work\hello.exe") -eq 3) }
+    if (-not (Test-Path "$T\work\hello.exe")) { Write-Host (($ib -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 4) -join "`n") }
+    $script:cell = "exe"
     Check "it runs" { (Out-Of "$T\work\hello.exe" @("q")) -match "hello q" }
+    $script:cell = "interp"
     Check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" { (Get-Content -Raw "$T\work\THIRD-PARTY-NOTICES.txt") -match "Rust standard library" }
-    & $R build gui.bas --interp | Out-Null
-    Check "GUI program: a windowed executable (no console window)" { (Subsystem "$T\work\gui.exe") -eq 2 }
+    $ig = Out-Of $R @("build", "gui.bas", "--interp")
+    Check "GUI program: a windowed executable (no console window)" { (Test-Path "$T\work\gui.exe") -and ((Subsystem "$T\work\gui.exe") -eq 2) }
+    if (-not (Test-Path "$T\work\gui.exe")) { Write-Host (($ig -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 4) -join "`n") }
     $other = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "windows-x86_64" } else { "windows-aarch64" }
     if (Test-Path "$T\app\lib\rapidr\runners\$other") {
         New-Item -ItemType Directory -Force "$T\work\other" | Out-Null
         & $R build hello.bas "$T\work\other" --interp --target $other | Out-Null
         Check "--target $other" { Test-Path "$T\work\other\hello.exe" }
+        $script:cell = "exe"
         if ($other -eq "windows-x86_64") { Check "the x64 executable runs (emulated)" { (Out-Of "$T\work\other\hello.exe" @("x")) -match "hello x" } }
+        $script:cell = "interp"
     }
+    $script:cell = "other"
     $env:RAPIDR_CAPTURE = "$T\work\ide"; $env:RAPIDR_CAPTURE_DELAY = "0.5"; $env:RAPIDR_TEST_DUMP = "Studio.caption"
     Check "the IDE starts (headless)" { (Out-Of $R @("ide")) -match "Studio.caption=RapidR Studio" }
     Check "the IDE opens a file" { (Out-Of $R @("ide", "$T\work\hello.bas")) -match "Studio.caption=hello - RapidR Studio" }
@@ -143,27 +179,30 @@ if ($kind -eq "sdk") {
     if (Test-Path "$PSScriptRoot\p5check.ps1") {
         Write-Host "== Preview 5's features (p5check.ps1)"
         & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\p5check.ps1" -Rapidr $R -Work "$T\work\p5" | Write-Host
-        if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
+        if ($LASTEXITCODE -ne 0) { $script:fail = 1; $script:cellsBad += "other"; $script:cellsSeen += "other" }
     }
     # (-Regress: the conformance suite on the bytecode VM and the examples on `rapidr run`, with the INSTALLED
     # rapidr, the release's own tests (-Cases): regress.ps1)
     if ($Regress) {
         Write-Host "== regression with the installed rapidr (regress.ps1)"
         & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\regress.ps1" -Prefix "$T\app" -Source $Cases | Write-Host
-        if ($LASTEXITCODE -ne 0) { $script:fail = 1 }
+        if ($LASTEXITCODE -ne 0) { $script:fail = 1; $script:cellsBad += "other"; $script:cellsSeen += "other" }
     }
     # (EXAMPLES-DATA) a data example built: its staff.csv beside the .exe, and the .exe started
     # as Explorer starts it — in its own folder — reads it
     Write-Host "== a data example built, started as Explorer starts it"
     & $R examples copy linked_data "$T\work\lk" | Out-Null
     $lkBuild = Out-Of $R @("build", "$T\work\lk\linked_data.rr", "$T\work\lk-app", "--interp")
+    $script:cell = "interp"
     Check "the build puts staff.csv beside the .exe (and says so)" { (Test-Path "$T\work\lk-app\staff.csv") -and ($lkBuild -match "data files beside the .exe: staff.csv") }
+    $script:cell = "exe"
     $env:RAPIDR_CAPTURE = "$T\work\lk-cap"; $env:RAPIDR_CAPTURE_DELAY = "0.5"; $env:RAPIDR_TEST_DUMP = "grid.rowcount,status.caption"
     Check "started in its folder (Explorer's way), it shows staff.csv's 8 rows" {
         $p = Start-Process -Wait -PassThru -WorkingDirectory "$T\work\lk-app" -FilePath "$T\work\lk-app\linked_data.exe" -RedirectStandardOutput "$T\work\lk.out" -RedirectStandardError "$T\work\lk.err"
         (Get-Content -Raw "$T\work\lk.out") -match "grid.rowcount=8"
     }
     Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
+    $script:cell = "other"
     if ($Native) {
         Write-Host "== native builds: rapidr setup, then the shipped LLVM-MinGW (a throwaway rustup and cargo home, offline)"
         # The user's own Rust is never touched: its default, read before and after. Setup works in a
@@ -186,6 +225,7 @@ if ($kind -eq "sdk") {
         $before = Rust-State
         $setup = Out-Of $R @("setup", "--yes")
         Write-Host $setup
+        $script:cell = "native"
         Check "setup installs RapidR's toolchain beside, the defaults unchanged" { (Rust-State) -eq $before }
         Check "setup: native builds ready" { $setup -match "native builds ready" }
         Check "setup: the shipped linker" { (Out-Of $R @("setup", "--check")) -match "linker: LLVM-MinGW, shipped" }
@@ -197,7 +237,11 @@ if ($kind -eq "sdk") {
             $want = (Get-Content -Raw "$Cases\tests\conformance\cases\$case.expected").Replace("`r", "").TrimEnd()
             $got = if (Test-Path "$T\work\$case.exe") { (Out-Of "$T\work\$case.exe" @()).Replace("`r", "").TrimEnd() } else { $log }
             $lines = { param($x) ($x -split "`n" | ForEach-Object { $_.TrimEnd() }) -join "`n" }
+            $script:cell = "native"
+            Check "native $case`: built" { Test-Path "$T\work\$case.exe" }
+            $script:cell = "nexe"
             Check "native $case`: output as expected" { (& $lines $got) -eq (& $lines $want) }
+            $script:cell = "native"
             if (-not (Test-Path "$T\work\$case.exe")) { Write-Host (($log -split "`n" | Select-Object -Last 25) -join "`n") }
             if ($log -match "Access is denied|disappeared right after") {
                 Write-Host "  NOTE  not a RapidR failure: the antivirus here ($av) refused the new program. Look in its quarantine, allow $T (or pause it for the run), and run the smoke test again."
@@ -206,32 +250,45 @@ if ($kind -eq "sdk") {
         if (Test-Path $readobj) {
             $dlls = & $readobj --coff-imports "$T\work\arithmetic.exe" | Select-String "Name: (.*\.dll)" | ForEach-Object { $_.Matches[0].Groups[1].Value.ToLower() } | Sort-Object -Unique
             Write-Host "  arithmetic.exe imports: $($dlls -join ', ')"
+            $script:cell = "other"
             Check "native executables need no MinGW / LLVM DLL" { -not ($dlls | Where-Object { $_ -match "unwind|c\+\+|winpthread|gcc|stdc" }) }
+            $script:cell = "native"
         }
         # (RARCHIVE turns on the one build feature the defaults leave off: its crates
         # compile only here; 2.122.0's shipped sources missed a module of ruzstd)
         Set-Content "$T\work\archive.bas" "`$APPTYPE CONSOLE`r`nDIM Zip AS RARCHIVE`r`nPRINT `"archive `"; LEN(COMPRESS`$(`"aaaaaaaaaa`")) > 0`r`n"
         $alog = Out-Of $R @("build", "archive.bas")
-        Check "native RArchive build (every archive crate)" { (Test-Path "$T\work\archive.exe") -and ((Out-Of "$T\work\archive.exe" @()) -match "archive") }
+        Check "native RArchive build (every archive crate)" { Test-Path "$T\work\archive.exe" }
+        $script:cell = "nexe"
+        Check "the RArchive executable runs" { (Out-Of "$T\work\archive.exe" @()) -match "archive" }
+        $script:cell = "native"
         if (-not (Test-Path "$T\work\archive.exe")) { Write-Host (($alog -split "`n" | Select-Object -Last 25) -join "`n") }
         Copy-Item "$Cases\tests\fixtures\list_items.bas" "$T\work\list_items.bas"
         Out-Of $R @("build", "list_items.bas") | Out-Null
         $env:RAPIDR_CAPTURE = "$T\work\gui"; $env:RAPIDR_CAPTURE_DELAY = "0.5"
         Check "native builds carry the mingw-w64 notices" { (Get-Content -Raw "$T\work\THIRD-PARTY-NOTICES.txt") -match "mingw-w64 runtime" }
+        Check "native GUI fixture built" { Test-Path "$T\work\list_items.exe" }
+        $script:cell = "nexe"
         Check "native GUI fixture runs (capture)" { (Test-Path "$T\work\list_items.exe") -and ((Out-Of "$T\work\list_items.exe" @()) -match "captured window") }
+        $script:cell = "native"
         # (a form's WndProc, native: the interpreted check's program, built)
         Out-Of $R @("build", "wndproc.bas") | Out-Null
         $env:RAPIDR_CAPTURE = "$T\work\wndproc-native"; $env:RAPIDR_CAPTURE_WINDOWS = "1"; $env:RAPIDR_CAPTURE_DELAY = "1"; $env:RAPIDR_TEST_DUMP = "lbl.caption"
+        Check "native: WndProc built" { Test-Path "$T\work\wndproc.exe" }
+        $script:cell = "nexe"
         Check "native: WndProc got WM_USER + 1 (7, 9)" { (Test-Path "$T\work\wndproc.exe") -and ((Out-Of "$T\work\wndproc.exe" @()) -match "lbl.caption=got 00000401 7 9") }
         Remove-Item env:RAPIDR_CAPTURE_WINDOWS, env:RAPIDR_TEST_DUMP
         Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:CARGO_HOME, env:RUSTUP_HOME, env:CARGO_TARGET_DIR
         Remove-Item -Recurse -Force "$T\native-target", "$T\cargo-home", "$T\rustup-home" -ErrorAction SilentlyContinue
+        $script:cell = "other"
         Check "the user's own Rust unchanged (rustup default, active toolchain)" { (Users-Rust) -eq $usersBefore }
     }
 } else {
+    $script:cell = "other"
     Check "no executables: says it's the runtime" { (Out-Of $R @("build", "hello.bas", "--interp")) -match "This is the RapidR Runtime" }
 }
 
+$script:cell = "other"
 Write-Host "== file types (HKCU\Software\Classes)"
 Check ".rrbc is a RapidR program" { (Get-ItemProperty "HKCU:\Software\Classes\.rrbc")."(default)" -eq "RapidR.Program" }
 Check "it runs with rapidrw.exe" { (Get-ItemProperty "HKCU:\Software\Classes\RapidR.Program\shell\open\command")."(default)" -like "*rapidrw.exe*%1*" }
@@ -240,7 +297,8 @@ Check ".bas lists RapidR under Open with" { $null -ne (Get-ItemProperty "HKCU:\S
 if ($Associations) {
     Check ".bas is RapidR's by default (ticked)" { (Get-ItemProperty "HKCU:\Software\Classes\.bas")."(default)" -eq "RapidR.BasicSource" }
 } else {
-    Check ".bas is not RapidR's by default (unticked)" { (Get-ItemProperty "HKCU:\Software\Classes\.bas" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.BasicSource" }
+    if ($basBefore -eq "RapidR.BasicSource") { Write-Host "  NOTE  .bas already named RapidR.BasicSource before this install (a leftover in this VM user's registry): not this install's doing; windows-vm.sh clean removes it" }
+    Check ".bas is not RapidR's by default (unticked)" { ((Get-ItemProperty "HKCU:\Software\Classes\.bas" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.BasicSource") -or ($basBefore -eq "RapidR.BasicSource") }
 }
 Check "source: a Run action" { (Get-ItemProperty "HKCU:\Software\Classes\RapidR.Source\shell\run\command")."(default)" -like "*rapidrw.exe*" }
 if ($kind -eq "sdk") {
@@ -259,7 +317,15 @@ Check "the Start menu entry is gone" { -not (Test-Path "$env:APPDATA\Microsoft\W
 Check "file types removed" { -not (Test-Path "HKCU:\Software\Classes\RapidR.Project") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Program") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.Source") -and -not (Test-Path "HKCU:\Software\Classes\RapidR.BasicSource") -and ((Get-ItemProperty "HKCU:\Software\Classes\.rrbc" -ErrorAction SilentlyContinue)."(default)" -ne "RapidR.Program") }
 Check "PATH as before" { [Environment]::GetEnvironmentVariable("Path", "User") -eq $pathBefore }
 } finally {
+    if ($Shots) {
+        # (a name, not a path: below %USERPROFILE%\rapidr-release\out, where windows-vm.sh fetch reads)
+        if (-not [IO.Path]::IsPathRooted($Shots)) { $Shots = "$env:USERPROFILE\rapidr-release\out\$Shots" }
+        New-Item -ItemType Directory -Force $Shots | Out-Null
+        $tag = (Split-Path -Leaf $Installer) -replace "-setup\.exe$", ""
+        Get-ChildItem "$T\work" -Filter "*.bmp" -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName "$Shots\$tag-$($_.Name)" -Force }
+    }
     Clean-Up
 }
 Check "the temporary folder and build cache are gone" { -not (Test-Path $T) }
+Write-Host (Cells-Line)
 if ($script:fail) { Write-Host "== smoke test FAILED"; exit 1 } else { Write-Host "== smoke test passed"; exit 0 }

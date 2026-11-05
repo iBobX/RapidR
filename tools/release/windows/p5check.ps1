@@ -47,7 +47,7 @@ function Studio($name, $lang, $steps, $keys, $events, $file) {
     $a += @("--do", $steps)
     if ($file) { $a += $file }
     $set = @{
-        RAPIDR_CAPTURE = "$d\window"; RAPIDR_CAPTURE_DELAY = "5"; RAPIDR_MENU = "window"
+        RAPIDR_CAPTURE = "$d\window"; RAPIDR_CAPTURE_DELAY = $(if ($env:P5_DELAY) { $env:P5_DELAY } else { "5" }); RAPIDR_MENU = "window"
         RAPIDR_TEST_DUMP = "$keys,studio.caption"
         RAPIDR_PRINT_TO = "$d\prints"; RAPIDR_REGISTRY = "$d\reg.reg"; RAPIDR_CONFIG_DIR = "$d\config"; RAPIDR_DOCUMENTS = "$d\docs"
         RAPIDR_AI_KEYSTORE = "memory"; RAPIDR_AI_CHATS = "$d\chats"; RAPIDR_STUDIO_DATA = "$d\studio"; RAPIDR_LOGIN_PATH = "off"

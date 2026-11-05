@@ -15,13 +15,16 @@ flow.
 | Windows | `windows-vm.sh build` | Windows 11 VM | `RapidR-<ver>-windows-<x64\|arm64>-setup.exe` and `RapidR-Runtime-…` (Inno Setup, per user) |
 | Linux | `linux-vm.sh` | Ubuntu VM | `rapidr_<ver>_<amd64\|arm64>.deb`, `rapidr-<ver>-linux-<arch>.tar.gz` and the `rapidr-runtime…` pair |
 | (all) | `finish.sh` | Mac | the licence files checked in every package; `SHA256SUMS` |
+| (all) | `build-matrix.sh <ver>` | Mac, drives both VMs | not a package: **the gate before publishing**. Installs every artifact the way a user does, presses Build (interpreted) and Build Native, runs what they made, and prints ONE table ([docs/build-matrix.md](../../docs/build-matrix.md)) |
 
 The other files are the parts those scripts share:
 
 - `common.sh` (sourced): the version (from `Cargo.toml`), the `dist/<ver>/{prep,work,out}` folders.
 - `home.py`: the runtime's sources with their crates vendored (what native builds compile against, offline).
 - `stage.py`: lays out an installed RapidR (`bin/`, `lib/rapidr/`, `share/doc/rapidr/`) from built pieces; every package is made from that tree.
-- `smoke.sh` (macOS, Linux) and `windows/smoke.ps1` (Windows): install a package into a temporary place, check it, uninstall it, and remove everything they made (temporary folder, build cache, cargo target) even when a check fails.
+- `smoke.sh` (macOS, Linux) and `windows/smoke.ps1` (Windows): install a package into a temporary place, check it, uninstall it, and remove everything they made (temporary folder, build cache, cargo target) even when a check fails. Both end with a line `##cells run=ok interp=ok exe=ok native=ok nexe=ok other=ok`: which of the checks that matter for "everybody builds" passed (what `build-matrix.sh` reads).
+- `windows/smoke-win7.ps1`: the same idea for the Windows 7 alpha zip (`tools/win7/alpha.sh`), unzipped and used in the Windows 11 VM (`windows-vm.sh smoke-win7`).
+- `build-matrix.sh`: runs all of the above on every artifact of `dist/<ver>/out/` and prints one table (`dist/<ver>/build-matrix.txt`; logs and pictures in `dist/<ver>/build-matrix/`).
 - `p5check.sh` and `windows/p5check.ps1`: Preview 5's features in the installed Studio, headless (Versions: save, change, save, Go Back; the Coach dial; Set Up RAI's empty "On this computer"; Studio in Spanish; School Lock's dialog). `smoke.sh` and `windows/smoke.ps1` run them; `linux-vm.sh smoke` sends `p5check.sh` beside `smoke.sh`.
 - **The test-mode token (SEC-24).** A release build's test hooks (the captures and dumps every smoke test reads) act only with a signed token: `RAPIDR_TEST_MODE=<token>`, or the harnesses' `~/.rapidr/test-mode.token` (`%USERPROFILE%\.rapidr\test-mode.token` on Windows), which `smoke.sh`, `smoke.ps1` and `p5check` pick up. On the Mac it is already there; for a VM, copy the token file to that user's `.rapidr` folder first (it is signed, expires, and is not a key: [docs/security/test-mode.md](../../docs/security/test-mode.md)). Without it every GUI check fails with "test hooks are off".
 - `linux.sh`, `linux/` (install.sh, uninstall.sh, the MIME types and desktop entries, setup-tools.sh, clean.sh): the Linux build, run inside the VM by `linux-vm.sh`; `ubuntu-vm.sh` is the VM driver (send, run, root, fetch).
@@ -45,9 +48,18 @@ how to run it.
    then for each installer `windows-vm.sh smoke <installer> Native` (add `Regress` for the conformance suite and the examples with the installed rapidr) and
    `-Associations`, then `windows-vm.sh fetch <installer> dist/<ver>/out/<installer>`.
 6. **`tools/release/finish.sh`**.
-7. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish
+7. **`tools/release/build-matrix.sh <ver>`: the gate.** Before publish it must be
+   **all green, or every red explained** in the release notes (an explained red is
+   a known gap, never a surprise: [docs/build-matrix.md](../../docs/build-matrix.md)
+   lists the gaps). It exits non-zero on any red, so a script can stop on it.
+   About an hour with the native builds (`--quick`: minutes, interpreted only);
+   it needs both VMs running (it never starts one: ask Robert) and what steps 4
+   and 5 needed (the test-mode token in each VM, the Windows VM's `rapidr-release\src`).
+   The Windows 7 alpha zip (`tools/win7/alpha.sh`, made apart from the release) is
+   checked too when it is in `out/`.
+8. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish
    by hand (`gh release create`, see the packaging doc).
-8. **Clean up** (the last step, always: a release leaves ~10 GB in each VM and
+9. **Clean up** (the last step, always: a release leaves ~10 GB in each VM and
    the Windows VM's disk once filled up): `rm -rf dist/<ver>/work dist/<ver>/prep`,
    then `linux-vm.sh clean` and `windows-vm.sh clean`. Each removes the release
    work folder, the build cache, the smoke tests' temporary folders and the test
