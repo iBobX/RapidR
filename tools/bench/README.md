@@ -130,7 +130,9 @@ once (seek, write, set the length: three system calls a byte, ~15 µs).
 
 Each prints its answer and its own time (`ms …`, `TIMER`: the work alone).
 Run them with `tools/bench/vm_bench` (`rapidr run`: CPU time, the budgets in
-`vm_budgets.json`), built native (`./rapidr build tools/bench/vm/mid_scan.rr
+`vm_budgets.json`; the interpreter's own measured with `RAPIDR_JIT=off`,
+the compute programs again with the JIT as `<name>_jit` —
+docs/jit-design.md §12), built native (`./rapidr build tools/bench/vm/mid_scan.rr
 --output DIR`, then run it from the repository's folder), and on the web with
 `node tools/bench/web_bench.mjs` (the web runtime's own page, the repository
 served on `RAPIDR_URL`, after `tools/build_web_artifacts.sh`).

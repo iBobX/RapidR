@@ -27,6 +27,13 @@ import sys
 import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# A short line beside a library whose own files don't say it right
+# (docs/legal/review-2026-11-05-cranelift.md, the addendum).
+NOTES = {
+    "regalloc2": "(the MPL-2.0 header left in its src/lib.rs is stale: pull request #15, "
+                 "<https://github.com/bytecodealliance/regalloc2/pull/15>, relicensed the whole crate in 2021)",
+}
 OUT = os.path.join(ROOT, "THIRD_PARTY_NOTICES.md")
 
 
@@ -104,7 +111,8 @@ def render(pkgs):
         lines += [f"## {lic} ({len(group)})", "", "| Library | Version | Upstream |", "|---|---|---|"]
         for p in group:
             url = p.get("repository") or p.get("homepage") or f"https://crates.io/crates/{p['name']}"
-            lines.append(f"| {p['name']} | {p['version']} | <{url}> |")
+            note = NOTES.get(p["name"], "")
+            lines.append(f"| {p['name']} | {p['version']} | <{url}>{' ' + note if note else ''} |")
         lines.append("")
     return "\n".join(lines)
 

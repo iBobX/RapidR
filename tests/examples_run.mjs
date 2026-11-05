@@ -111,6 +111,9 @@ export const cases = [
       "FNV-1a hash of RapidR: 6B9404F5B9C8FD81", "Mask FFFF0000FFFF0000 AND &H123456789ABCDEF0 = 123400009ABC0000", "Mask SHR 16 = 281470681808895", "UINT64 max is greater than INT64 max"] },
   { file: "basics/fast_arrays.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Primes below 1000000: 78498", "Smoothed: 1.000 0.750 -0.750", "7 x 8 = 56, the whole table adds up to 6084", "Done in "] },
+  // (the JIT's: the same answers compiled, interpreted, native and on the web)
+  { file: "basics/hot_loops.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["Checksum of 5,000,000 turns: 391530", "Clamped sum of 1,000,000 calls: 62243775", "Filtered voice, loudest sample: 1.747212"] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
   // debugging/ (the debugger's example: here it runs on its own)

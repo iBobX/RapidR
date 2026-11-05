@@ -115,7 +115,7 @@ sign() {
     local opts=(--force --sign "${SIGN:--}")
     [ -n "$SIGN" ] && opts+=(--options runtime --timestamp)
     find "$app/Contents/lib" -type f -perm -u+x -name 'rapidrintr-runner*' -print0 | while IFS= read -r -d '' f; do
-        codesign "${opts[@]}" "$f"
+        codesign "${opts[@]}" --entitlements tools/release/macos/runner.entitlements "$f"
     done
     codesign "${opts[@]}" --entitlements tools/release/macos/rapidr.entitlements "$app/Contents/MacOS/rapidr"
     codesign "${opts[@]}" "$app/Contents/MacOS/rapidrw"

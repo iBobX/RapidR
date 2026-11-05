@@ -1,0 +1,70 @@
+' hot_loops.rr: typed code made fast while it runs. A loop that turns
+' thousands of times, or a FUNCTION called a thousand times, on numbers
+' declared AS INTEGER or AS DOUBLE, is compiled to machine code by RapidR's
+' JIT as the program runs — with the very same answers and errors, and the
+' debugger's Pause still stopping it on its line (docs/manual/cli-and-runtime.md).
+'
+'   rapidr run basics/hot_loops.rr
+'   rapidr run --verbose basics/hot_loops.rr        what the JIT compiled
+'   RAPIDR_JIT=off rapidr run basics/hot_loops.rr   the interpreter alone, to compare
+'
+' (Windows: set RAPIDR_JIT=off first. The web runs it interpreted.)
+$APPTYPE CONSOLE
+
+DIM t AS DOUBLE
+
+' A checksum: whole numbers, MOD, a FOR loop.
+SUB Checksum
+  DIM i AS INTEGER, s AS INTEGER
+  t = TIMER
+  s = 0
+  FOR i = 1 TO 5000000
+    s = (s * 31 + i) MOD 1000003
+  NEXT
+  PRINT "Checksum of 5,000,000 turns: "; s; "  ("; INT((TIMER - t) * 1000); " ms)"
+END SUB
+
+' A small FUNCTION, called a million times.
+FUNCTION Clamp(x AS DOUBLE, lo AS DOUBLE, hi AS DOUBLE) AS DOUBLE
+  IF x < lo THEN
+    Result = lo
+  ELSEIF x > hi THEN
+    Result = hi
+  ELSE
+    Result = x
+  END IF
+END FUNCTION
+
+SUB Calls
+  DIM i AS INTEGER, s AS DOUBLE
+  t = TIMER
+  s = 0.0
+  FOR i = 1 TO 1000000
+    s = s + Clamp((i MOD 300) - 100.0, 0.0, 150.0)
+  NEXT
+  PRINT "Clamped sum of 1,000,000 calls: "; INT(s); "  ("; INT((TIMER - t) * 1000); " ms)"
+END SUB
+
+' A synthesizer's voice: a saw wave through a filter, 441,000 samples
+' (ten seconds of sound) — DOUBLE arithmetic.
+SUB Voice
+  DIM i AS INTEGER
+  DIM ph AS DOUBLE, osc AS DOUBLE, lp AS DOUBLE, bp AS DOUBLE, hp AS DOUBLE, peak AS DOUBLE
+  t = TIMER
+  ph = 0.0
+  peak = 0.0
+  FOR i = 1 TO 441000
+    ph = ph + 220.0 / 44100.0
+    IF ph >= 1.0 THEN ph = ph - 1.0
+    osc = 2.0 * ph - 1.0
+    lp = lp + 0.2 * bp
+    hp = osc - lp - 0.5 * bp
+    bp = 0.2 * hp + bp
+    IF ABS(lp) > peak THEN peak = ABS(lp)
+  NEXT
+  PRINT "Filtered voice, loudest sample: "; FORMAT$("%.6f", peak); "  ("; INT((TIMER - t) * 1000); " ms)"
+END SUB
+
+Checksum
+Calls
+Voice

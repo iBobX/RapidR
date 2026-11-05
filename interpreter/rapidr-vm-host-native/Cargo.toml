@@ -19,6 +19,11 @@ full = ["gui", "network", "database", "ffi", "datascience"]
 session = ["dep:rapidr-session", "dep:serde_json"]
 # RapidR Studio's components (rapidr-runtime-core's `studio`): the CLI's.
 studio = ["rapidr-runtime-core/studio"]
+# The JIT (docs/jit-design.md): hot typed code compiled while it runs — the
+# CLI's `rapidr run` (and Studio's runs through it) and the interpreted
+# runner; never the web runtime or rapidr-runtime-core (native builds
+# never embed the VM). RAPIDR_JIT=off turns it off.
+jit = ["dep:rapidr-jit"]
 
 [dependencies]
 rapidr-value = { workspace = true }
@@ -26,6 +31,7 @@ rapidr-value = { workspace = true }
 rapidr-crash = { workspace = true }
 rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
+rapidr-jit = { workspace = true, optional = true }
 # (`archive`: RArchive in every interpreted program — the runners carry
 # every component until runner flavours, docs/lean-builds-and-export-plan.md)
 rapidr-runtime-core = { workspace = true, features = ["archive"] }

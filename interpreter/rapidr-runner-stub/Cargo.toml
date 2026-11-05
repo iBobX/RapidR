@@ -19,8 +19,8 @@ path = "src/windowed.rs"
 # (SEC-24: the test hooks act only in development builds or with a signed
 # test-mode token — docs/security/test-mode.md)
 rapidr-testmode.workspace = true
-# (the desktop host: the UI kernel)
-rapidr-vm-host-native = { workspace = true, features = ["gui"] }
+# (the desktop host: the UI kernel; the JIT, docs/jit-design.md)
+rapidr-vm-host-native = { workspace = true, features = ["gui", "jit"] }
 
 [features]
 # Local development builds only: the GUI test hooks act without a test-mode

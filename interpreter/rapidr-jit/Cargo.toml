@@ -1,0 +1,43 @@
+[package]
+name = "rapidr-jit"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RapidR's JIT: hot typed bytecode compiled to machine code while the program runs (docs/jit-design.md)"
+
+[dependencies]
+rapidr-value = { workspace = true }
+rapidr-bytecode = { workspace = true }
+rapidr-vm = { workspace = true }
+
+# The code generator, only where a JIT may run (docs/jit-design.md §7,
+# docs/legal/review-2026-11-05-cranelift.md C4): 64-bit x86 and ARM, never
+# iOS, never the web (wasm), never 32-bit x86 (the old-PC builds). One
+# reviewed release, pinned (C2); its optional features (disas,
+# incremental-cache, souper-harvest, enable-serde, pulley,
+# wasmtime-unwinder) stay off — tools/check_jit_features.py checks.
+[target.'cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "ios"), not(target_family = "wasm")))'.dependencies]
+cranelift-codegen = "=0.137.1"
+cranelift-frontend = "=0.137.1"
+cranelift-jit = "=0.137.1"
+cranelift-module = "=0.137.1"
+cranelift-native = "=0.137.1"
+# (the code generator's register allocator, pinned to the release the
+# legal review read: its relicensing record, pull request #15, covers it —
+# the review's addendum; a new version needs that file read again)
+regalloc2 = "=0.15.2"
+# (page protection for the start-up check off macOS: already in the tree
+# through cranelift-jit; MIT)
+region = "=3.0.2"
+
+# (macOS: MAP_JIT and the per-thread write protection — the hardened
+# runtime's way, docs/jit-design.md §7)
+[target.'cfg(all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+# (the tests compile BASIC programs and run them with the JIT and without)
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-bcgen = { workspace = true }

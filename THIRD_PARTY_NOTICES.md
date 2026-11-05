@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**677 libraries** under 23 license expressions.
+**697 libraries** under 24 license expressions.
 
-## Apache-2.0 OR MIT (414)
+## Apache-2.0 OR MIT (417)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -39,6 +39,7 @@ their `OFL.txt`.
 | android_system_properties | 0.1.5 | <https://github.com/nical/android_system_properties> |
 | anyhow | 1.0.104 | <https://github.com/dtolnay/anyhow> |
 | apple-native-keyring-store | 1.0.2 | <https://github.com/open-source-cooperative/apple-native-keyring-store.git> |
+| arbitrary | 1.5.0 | <https://github.com/rust-fuzz/arbitrary/> |
 | arboard | 3.6.1 | <https://github.com/1Password/arboard> |
 | arc-swap | 1.9.2 | <https://github.com/vorner/arc-swap> |
 | arrayvec | 0.7.6 | <https://github.com/bluss/arrayvec> |
@@ -145,6 +146,7 @@ their `OFL.txt`.
 | getrandom | 0.4.2 | <https://github.com/rust-random/getrandom> |
 | gilrs | 0.11.2 | <https://gitlab.com/gilrs-project/gilrs> |
 | gilrs-core | 0.6.8 | <https://gitlab.com/gilrs-project/gilrs> |
+| gimli | 0.33.0 | <https://github.com/gimli-rs/gimli> |
 | gix | 0.89.0 | <https://github.com/GitoxideLabs/gitoxide> |
 | gix-actor | 0.44.0 | <https://github.com/GitoxideLabs/gitoxide> |
 | gix-attributes | 0.37.0 | <https://github.com/GitoxideLabs/gitoxide> |
@@ -248,7 +250,7 @@ their `OFL.txt`.
 | lock_api | 0.4.14 | <https://github.com/Amanieu/parking_lot> |
 | log | 0.4.29 | <https://github.com/rust-lang/log> |
 | lsp-server | 0.10.0 | <https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server> |
-| memmap2 | 0.9.11 | <https://github.com/RazrFalcon/memmap2-rs> |
+| memmap2 | 0.9.12 | <https://github.com/RazrFalcon/memmap2-rs> |
 | mime | 0.3.17 | <https://github.com/hyperium/mime> |
 | muda | 0.21.0 | <https://github.com/tauri-apps/muda> |
 | mysql | 28.0.3 | <https://github.com/blackbeam/rust-mysql-simple> |
@@ -313,6 +315,7 @@ their `OFL.txt`.
 | rodio | 0.19.0 | <https://github.com/RustAudio/rodio> |
 | roxmltree | 0.21.1 | <https://github.com/RazrFalcon/roxmltree> |
 | rustc-hash | 1.1.0 | <https://github.com/rust-lang-nursery/rustc-hash> |
+| rustc-hash | 2.1.2 | <https://github.com/rust-lang/rustc-hash> |
 | rustversion | 1.0.22 | <https://github.com/dtolnay/rustversion> |
 | scoped-tls | 1.0.1 | <https://github.com/alexcrichton/scoped-tls> |
 | scopeguard | 1.2.0 | <https://github.com/bluss/scopeguard> |
@@ -440,7 +443,7 @@ their `OFL.txt`.
 | zbus-secret-service-keyring-store | 1.0.1 | <https://github.com/open-source-cooperative/zbus-secret-service-keyring-store.git> |
 | zeroize | 1.9.1 | <https://github.com/RustCrypto/utils> |
 
-## MIT (138)
+## MIT (139)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -528,6 +531,7 @@ their `OFL.txt`.
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.7.5 | <https://gitlab.redox-os.org/redox-os/syscall> |
+| region | 3.0.2 | <https://github.com/darfink/region-rs> |
 | rfd | 0.17.2 | <https://github.com/PolyMeilex/rfd> |
 | rgb | 0.8.53 | <https://github.com/kornelski/rust-rgb> |
 | ropey | 1.6.1 | <https://github.com/cessen/ropey> |
@@ -683,6 +687,26 @@ their `OFL.txt`.
 | wit-component | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component> |
 | wit-parser | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser> |
 
+## Apache-2.0 WITH LLVM-exception (15)
+
+| Library | Version | Upstream |
+|---|---|---|
+| cranelift-assembler-x64 | 0.137.1 | <https://crates.io/crates/cranelift-assembler-x64> |
+| cranelift-bforest | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-bitset | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-codegen | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-codegen-shared | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-control | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-entity | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-frontend | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-jit | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-module | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| cranelift-native | 0.137.1 | <https://github.com/bytecodealliance/wasmtime> |
+| regalloc2 | 0.15.2 | <https://github.com/bytecodealliance/regalloc2> (the MPL-2.0 header left in its src/lib.rs is stale: pull request #15, <https://github.com/bytecodealliance/regalloc2/pull/15>, relicensed the whole crate in 2021) |
+| target-lexicon | 0.13.5 | <https://github.com/bytecodealliance/target-lexicon> |
+| wasmtime-internal-core | 50.0.1 | <https://crates.io/crates/wasmtime-internal-core> |
+| wasmtime-internal-jit-icache-coherence | 50.0.1 | <https://github.com/bytecodealliance/wasmtime> |
+
 ## MIT OR Unlicense (12)
 
 | Library | Version | Upstream |
@@ -710,6 +734,15 @@ their `OFL.txt`.
 | tiny-skia-path | 0.11.4 | <https://github.com/RazrFalcon/tiny-skia/tree/master/path> |
 | tiny-skia-path | 0.12.0 | <https://github.com/linebender/tiny-skia/tree/master/path> |
 
+## Apache-2.0 OR BSD-2-Clause OR MIT (4)
+
+| Library | Version | Upstream |
+|---|---|---|
+| mach2 | 0.4.3 | <https://github.com/JohnTitor/mach2> |
+| mach2 | 0.6.0 | <https://github.com/JohnTitor/mach2> |
+| zerocopy | 0.8.47 | <https://github.com/google/zerocopy> |
+| zerocopy-derive | 0.8.47 | <https://github.com/google/zerocopy> |
+
 ## ISC (4)
 
 | Library | Version | Upstream |
@@ -727,14 +760,6 @@ their `OFL.txt`.
 | foldhash | 0.2.0 | <https://github.com/orlp/foldhash> |
 | slotmap | 1.1.1 | <https://github.com/orlp/slotmap> |
 | zlib-rs | 0.6.8 | <https://github.com/trifectatechfoundation/zlib-rs> |
-
-## Apache-2.0 OR BSD-2-Clause OR MIT (3)
-
-| Library | Version | Upstream |
-|---|---|---|
-| mach2 | 0.4.3 | <https://github.com/JohnTitor/mach2> |
-| zerocopy | 0.8.47 | <https://github.com/google/zerocopy> |
-| zerocopy-derive | 0.8.47 | <https://github.com/google/zerocopy> |
 
 ## (MIT OR Apache-2.0) AND Unicode-3.0 (2)
 

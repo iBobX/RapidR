@@ -35,12 +35,17 @@
 #![forbid(unsafe_code)]
 
 pub mod host;
-mod fast;
+// (the operations the instructions share: the JIT's helpers call the very
+// same functions — rapidr-jit)
+#[doc(hidden)]
+pub mod fast;
+pub mod jit;
 #[cfg(test)]
 mod fast_tests;
 
 pub use fast::{direct_builtin, direct_builtin2, direct_names};
 pub use host::{Host, StubHost};
+pub use jit::{Jit, JitAnswer, JitView};
 pub use rapidr_bytecode as bytecode;
 pub use rapidr_value::Value;
 
@@ -73,6 +78,9 @@ pub enum VmError {
     /// An error, and the source line it happened at: the file and line
     /// (`Module::source_map`) or just the compiled line.
     At { error: Box<VmError>, file: Option<String>, line: u32 },
+    /// The module failed the verifier (`rapidr_bytecode::verify`) before
+    /// it ran: what is wrong and where.
+    Damaged(String),
 }
 
 impl std::fmt::Display for VmError {
@@ -96,6 +104,7 @@ impl std::fmt::Display for VmError {
             VmError::Paused => write!(f, "paused"),
             VmError::Suspended => write!(f, "suspended"),
             VmError::Yielded => write!(f, "yielded"),
+            VmError::Damaged(what) => write!(f, "this program is damaged and can't run: {what}. Build it again from its source"),
         }
     }
 }
@@ -369,6 +378,13 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// entry — and the debugger enters it at every line).
     null: Value,
     zero: Value,
+    /// The compiler of hot code, when one is installed ([`Self::set_jit`]:
+    /// rapidr-jit on the desktop).
+    jit: Option<Box<dyn Jit>>,
+    /// A JIT is installed and may run here (never on a host that yields).
+    jit_on: bool,
+    /// Per function: loop turns and calls before the JIT is asked again.
+    jit_counts: Vec<jit::Countdown>,
 }
 
 /// A handler's run-time error that a wait went on after
@@ -448,7 +464,110 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             failed_handler: None,
             null: Value::Null,
             zero: Value::Integer(0),
+            jit: None,
+            jit_on: false,
+            jit_counts: Vec::new(),
         }
+    }
+
+    /// Installs a compiler of hot code (docs/jit-design.md): its code runs
+    /// where it has some, the interpreter everywhere else. Ignored on a
+    /// host that yields (the web page: no machine code there).
+    pub fn set_jit(&mut self, jit: Box<dyn Jit>) {
+        if !H::YIELDS {
+            self.jit_counts.clear();
+            self.jit = Some(jit);
+            self.jit_on = true;
+        }
+    }
+
+    /// The installed JIT (to ask for its report).
+    pub fn jit(&self) -> Option<&dyn Jit> {
+        self.jit.as_deref()
+    }
+
+    /// Whether compiled code may run now: not in an evaluation, and under
+    /// the debugger only while it watches nothing (no breakpoint, no step,
+    /// nothing asked) — a pause or a new breakpoint raises the interrupt,
+    /// which compiled code checks at every loop turn and call it makes.
+    fn jit_may_run(&self) -> bool {
+        self.eval_fuel.is_none()
+            && (!self.debug_mode
+                || (self.step_mode == StepMode::None && self.breakpoint_lines.is_empty() && !self.interrupt.load(std::sync::atomic::Ordering::Relaxed)))
+    }
+
+    /// The countdowns sized for `module` (the JIT says the first ones).
+    fn jit_prepare(&mut self, module: &Module) {
+        if let Some(jit) = &self.jit {
+            if self.jit_counts.len() < module.functions.len() {
+                let (turns, calls) = jit.first_ask();
+                self.jit_counts.resize(module.functions.len(), jit::Countdown::new(turns, calls));
+            }
+        }
+    }
+
+    /// The JIT lent the VM at the top frame, which it may run on.
+    fn jit_ask(&mut self, module: &Module, at_loop: Option<usize>, since: u32) -> JitAnswer {
+        let Some(mut jit) = self.jit.take() else { return JitAnswer::NOT_YET };
+        let debug = self.debug_mode;
+        let depth_room = MAX_CALL_DEPTH.saturating_sub(self.frames.len());
+        let view = JitView {
+            module,
+            frames: &mut self.frames,
+            stack: &mut self.stack,
+            globals: &mut self.globals,
+            interrupt: debug.then_some(&*self.interrupt),
+            depth_room,
+            direct_maths: H::DIRECT_MATHS,
+        };
+        let answer = match at_loop {
+            Some(ip) => jit.loop_head(view, ip, since),
+            None => jit.called(view, since),
+        };
+        self.jit = Some(jit);
+        answer
+    }
+
+    /// A backward jump to `target` ran out the top frame's countdown: the
+    /// JIT's turn. `Some(ip)`: compiled code ran, go on from `ip` (the top
+    /// frame's — maybe another function's, when it went back to the
+    /// interpreter inside a call).
+    #[inline(never)]
+    fn jit_turn(&mut self, module: &Module, target: usize) -> Option<usize> {
+        let fi = self.frames.last()?.fn_index as usize;
+        let since = self.jit_counts.get(fi)?.turns_set();
+        if !self.jit_may_run() {
+            self.jit_counts[fi].set_turns(256);
+            return None;
+        }
+        self.frames.last_mut().unwrap().ip = target;
+        let answer = self.jit_ask(module, Some(target), since);
+        if let Some(c) = self.jit_counts.get_mut(fi) {
+            c.set_turns(answer.again_after);
+        }
+        answer.ran.then(|| self.frames.last().map_or(target, |f| f.ip))
+    }
+
+    /// A frame was just pushed for a call: the JIT's turn when the
+    /// function's countdown ran out.
+    #[inline(never)]
+    fn jit_call(&mut self, module: &Module) -> Option<usize> {
+        let fi = self.frames.last()?.fn_index as usize;
+        let c = self.jit_counts.get_mut(fi)?;
+        c.calls -= 1;
+        if c.calls != 0 {
+            return None;
+        }
+        let since = c.calls_set();
+        if !self.jit_may_run() {
+            self.jit_counts[fi].set_calls(64);
+            return None;
+        }
+        let answer = self.jit_ask(module, None, since);
+        if let Some(c) = self.jit_counts.get_mut(fi) {
+            c.set_calls(answer.again_after);
+        }
+        answer.ran.then(|| self.frames.last().map_or(0, |f| f.ip))
     }
 
     /// The globals that have been assigned, by name (debuggers).
@@ -463,6 +582,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     pub fn host_mut(&mut self) -> &mut H { self.host }
 
     pub fn run(&mut self, module: &Module) -> Result<(), VmError> {
+        // (a damaged module is refused before its first instruction:
+        // docs/jit-design.md §7)
+        rapidr_bytecode::verify::module(module).map_err(|e| VmError::Damaged(e.to_string()))?;
         let entry = module.entry;
         self.call(module, entry, 0, false)?;
         self.exec(module)
@@ -779,6 +901,26 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
             };
         }
+        // A jump back to `$t` (a loop's head; this instruction is at
+        // `fault_ip`): with a JIT installed, the function's countdown —
+        // run out, the JIT's turn (docs/jit-design.md §3); when its code
+        // ran, on from where it left the program.
+        macro_rules! back_edge {
+            ($t:expr) => {
+                if self.jit_on && $t <= self.fault_ip {
+                    let fi = self.frames.last().unwrap().fn_index as usize;
+                    if let Some(c) = self.jit_counts.get_mut(fi) {
+                        c.turns -= 1;
+                        if c.turns == 0 {
+                            if let Some(to) = self.jit_turn(module, $t) {
+                                ip = to;
+                                refresh!();
+                            }
+                        }
+                    }
+                }
+            };
+        }
         // A fused instruction's operand (rapidr_bytecode::Mode), borrowed:
         // a local's value, a global's (Null never assigned) or a constant.
         macro_rules! leaf {
@@ -875,6 +1017,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 if !go {
                     ip = t as usize;
                     tick!();
+                    back_edge!(t as usize);
                 }
             }};
             ($f:path, S, $b:ident) => {{
@@ -886,6 +1029,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 if !go {
                     ip = t as usize;
                     tick!();
+                    back_edge!(t as usize);
                 }
             }};
             ($f:path, $a:ident, $b:ident) => {{
@@ -896,6 +1040,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 if !go {
                     ip = t as usize;
                     tick!();
+                    back_edge!(t as usize);
                 }
             }};
         }
@@ -1074,20 +1219,20 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 raw::Shr  => { let b = self.pop()?.to_i64(); let a = self.pop()?.to_i64(); self.stack.push(v_int(a.wrapping_shr(b as u32))); }
 
                 // ----- control flow -----
-                raw::Jump => { let t = read_u32(code, &mut ip)?; ip = t as usize; tick!(); }
+                raw::Jump => { let t = read_u32(code, &mut ip)?; ip = t as usize; tick!(); back_edge!(t as usize); }
                 raw::JumpIf => {
                     let t = read_u32(code, &mut ip)?;
                     let v = self.pop()?;
                     let go = v.to_bool();
                     fast::discard(v);
-                    if go { ip = t as usize; tick!(); }
+                    if go { ip = t as usize; tick!(); back_edge!(t as usize); }
                 }
                 raw::JumpIfNot => {
                     let t = read_u32(code, &mut ip)?;
                     let v = self.pop()?;
                     let go = v.to_bool();
                     fast::discard(v);
-                    if !go { ip = t as usize; tick!(); }
+                    if !go { ip = t as usize; tick!(); back_edge!(t as usize); }
                 }
 
                 // ----- calls -----
@@ -1100,6 +1245,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     ip = 0;
                     refresh!();
                     tick!();
+                    // (its compiled code, when it has some: the JIT's turn)
+                    if self.jit_on {
+                        if let Some(to) = self.jit_call(module) {
+                            ip = to;
+                            refresh!();
+                        }
+                    }
                 }
                 raw::CallFunc => {
                     let fi = read_u32(code, &mut ip)?;
@@ -1110,6 +1262,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     ip = 0;
                     refresh!();
                     tick!();
+                    if self.jit_on {
+                        if let Some(to) = self.jit_call(module) {
+                            ip = to;
+                            refresh!();
+                        }
+                    }
                 }
                 raw::Ret => {
                     if self.return_frame(module, false)? == Returned::Stop { out!(Hot::Stopped); }
@@ -1260,6 +1418,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     fast::put(&mut locals[var as usize], next);
                     ip = top as usize;
                     tick!();
+                    back_edge!(top as usize);
                 }
                 raw::ForStepG => {
                     let var = read_u32(code, &mut ip)? as usize;
@@ -1273,6 +1432,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.store_global(module, var, next)?;
                     ip = top as usize;
                     tick!();
+                    back_edge!(top as usize);
                 }
                 raw::AGetLS | raw::AGetGS => {
                     let at = self.pop()?;
@@ -1466,6 +1626,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             }
         };
         let direct: &[u8] = if H::DIRECT_MATHS { module.prepared.builtins(&module.strings, fast::direct_code) } else { &[] };
+        if self.jit_on {
+            self.jit_prepare(module);
+        }
 
         macro_rules! refresh {
             () => {

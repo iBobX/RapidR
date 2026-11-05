@@ -195,6 +195,18 @@ fn main() -> ExitCode {
                 ExitCode::from(2)
             }
         },
+        // (what the runtime does, on standard error: the JIT on or why not,
+        // then what it compiled — docs/jit-design.md)
+        (Some("run"), Some(flag)) if flag == "--verbose" => match rest.split_first() {
+            Some((path, args)) => {
+                rapidr_vm_host_native::set_verbose(true);
+                launch::run(path, args.to_vec(), launch::From::Command)
+            }
+            None => {
+                eprintln!("rapidr run --verbose <file.rrbc|.rr|.bas> [args]");
+                ExitCode::from(2)
+            }
+        },
         (Some("run"), Some(path)) => launch::run(&path, rest, launch::From::Command),
         (Some("open"), Some(path)) => launch::run(&path, rest, launch::From::Desktop),
         (Some("info"), Some(path)) => launch::info(&path),
@@ -350,6 +362,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr version");
             eprintln!("  rapidr --log <file> <command…>                     The command's output in a file");
             eprintln!("  rapidr run <file.rrbc|.rr|.bas|.rqw> [args]        Run a program (the RapidR Runtime)");
+            eprintln!("  rapidr run --verbose <file> [args]               …saying on standard error what the runtime does (the JIT)");
             eprintln!("  rapidr <command> --include-dir <folder> …        An include folder (any number; before a program's own arguments):");
             eprintln!("        $INCLUDE files are looked for in the program's folder, then there (also RAPIDR_INCLUDE_PATH)");
             eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");

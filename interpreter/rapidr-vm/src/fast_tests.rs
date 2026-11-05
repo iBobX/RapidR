@@ -302,12 +302,15 @@ fn typed_stores_and_conversions_are_their_expansions() {
         got.push(x).op(Op::StoreLocal).u16(1).op(Op::MoveLocal).u16(3).u16(1).op(Op::LoadLocal).u16(3).store_global("result");
         assert_eq!(got.run(), want.run(), "MoveLocal of {x:?}");
     }
-    // (a kind no runtime knows: the same error)
+    // (a kind no runtime knows: both refused before they run, by the
+    // verifier — rapidr_bytecode::verify)
     let mut want = Asm::new();
     want.push(&Value::Integer(1)).op(Op::ToNum).u8(77).op(Op::StoreLocal).u16(0);
     let mut got = Asm::new();
     got.push(&Value::Integer(1)).op(Op::StoreLocalNum).u16(0).u8(77);
-    assert_eq!(got.run(), want.run());
+    for r in [got.run(), want.run()] {
+        assert!(r.contains("is damaged") && r.contains("kind 77"), "{r}");
+    }
 }
 
 /// The numbers a FOR loop's counter, end and step are tried with.

@@ -574,14 +574,66 @@ pub fn crash_map(module: &Module) {
     rapidr_crash::set_ignore(|p| p.is::<rapidr_value::HostRaised>() || p.is::<rapidr_value::HandlerFailed>());
 }
 
+/// `rapidr run --verbose`: what the runtime does, on standard error (the
+/// JIT: on or why not, then what it compiled).
+static VERBOSE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Says on standard error what the runtime does ([`VERBOSE`]).
+pub fn set_verbose(on: bool) {
+    VERBOSE.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn verbose() -> bool {
+    VERBOSE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The JIT on `vm` where this build and the computer have one
+/// (docs/jit-design.md; `RAPIDR_JIT=off|on|always`): what was done, or why
+/// the interpreter runs alone.
+pub fn install_jit(vm: &mut Vm<'_, NativeHost>) -> String {
+    #[cfg(feature = "jit")]
+    {
+        match rapidr_jit::install(vm) {
+            Ok(s) | Err(s) => s,
+        }
+    }
+    #[cfg(not(feature = "jit"))]
+    {
+        let _ = vm;
+        "JIT: not in this build; the interpreter runs everything".to_string()
+    }
+}
+
+/// What the JIT did in `vm`'s run (`None`: none ran).
+pub fn jit_report(vm: &Vm<'_, NativeHost>) -> Option<String> {
+    #[cfg(feature = "jit")]
+    {
+        rapidr_jit::report(vm)
+    }
+    #[cfg(not(feature = "jit"))]
+    {
+        let _ = vm;
+        None
+    }
+}
+
 /// Runs `module`'s main program on `vm`; then the program's end (timers
 /// stopped, files closed).
 pub fn run_module(module: &Module, vm: &mut Vm<'_, NativeHost>) -> Result<(), String> {
     crash_map(module);
     rapidr_runtime_core::terminal::start();
     let prev = install_event_queue();
+    let jit = install_jit(vm);
+    if verbose() {
+        eprintln!("{jit}");
+    }
 
     let main_result = vm.run(module).map_err(|e| format!("vm error: {e}"));
+    if verbose() {
+        if let Some(report) = jit_report(vm) {
+            eprintln!("{report}");
+        }
+    }
     // The main program's end is the program's, as in RapidQ (RC.EXE: a
     // program whose main code ends after `Form.Show` exits there — its
     // form goes, its timers never tick): windows left open close with it.

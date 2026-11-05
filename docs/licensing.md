@@ -83,9 +83,17 @@ is the licence the notices comply with where a crate offers a choice.
 ### 2.1 Native and interpreted desktop executables
 
 Both contain RapidR's runtime (MIT) and, for the interpreted one, RapidR's
-bytecode VM (MIT); the runner stub is built from `rapidr-vm-host-native`,
-which is built on `rapidr-runtime-core`, so the two graphs are nearly the
-same and one file covers both.
+bytecode VM (MIT) and its JIT (MIT) with the JIT's code generator
+(Cranelift: `cranelift-*`, `regalloc2`, `target-lexicon`,
+`wasmtime-internal-*` — Apache-2.0 WITH LLVM-exception — and `gimli`,
+`region`, `arbitrary`, `memmap2`, `mach2` …; docs/jit-design.md §9,
+docs/legal/review-2026-11-05-cranelift.md); the runner stub is built from
+`rapidr-vm-host-native`, which is built on `rapidr-runtime-core`, so the
+two graphs are nearly the same and one file covers both (a native build
+has no JIT: its file lists those crates too, harmlessly — the superset
+rule of §1). `rapidr notices` (2026-11-05, with the JIT): macOS 321
+components, Windows x86_64 320, Linux x86_64 396, the web 194 (no JIT
+there), RapidR's own tools on macOS 404.
 
 | | macOS (aarch64, x86_64) | Windows (x86_64, aarch64) | Linux (x86_64, aarch64) |
 |---|---|---|---|
@@ -341,7 +349,7 @@ program defines its own (`crates/rapidr-cli/src/cbrt.rs`).
 | BSD-3-Clause | the above, and not use the authors' names to endorse the product | yes (and don't) |
 | 0BSD, Unlicense, CC0-1.0, public domain | nothing | listed anyway |
 | Apache-2.0 | include the licence; keep copyright, patent and attribution notices; include the `NOTICE` file's attributions if there is one; mark modified files (§4(a)–(d)). Grants a patent licence; it ends for whoever sues over patents in the work | yes (RapidR modifies no Apache-2.0 crate) |
-| Apache-2.0 WITH LLVM-exception | for code embedded in object form by compiling, nothing (§4(a), (b), (d) waived) | listed anyway |
+| Apache-2.0 WITH LLVM-exception | for code embedded in object form by compiling, nothing (§4(a), (b), (d) waived); in source form, as in the SDK's vendored crates, §4(a) and §4(c) still apply (the licence goes with them; their notices kept). Code the JIT *generates* is not the licensor's code: nothing either way | listed anyway (with the standard text for a crate that ships no licence file: `cranelift-assembler-x64`, `cranelift-bitset`, `wasmtime-internal-core`, `wasmtime-internal-jit-icache-coherence`) |
 | OFL-1.1 (fonts) | ship the copyright notice and licence with the fonts; don't sell the fonts by themselves; a modified font can't use a Reserved Font Name | yes (unmodified) |
 | GPL, LGPL, AGPL, MPL, EPL, CDDL or any other copyleft; SSPL, BUSL, non-commercial terms; data licences (CDLA, …); advertising clauses (BSD-4-Clause, OpenSSL-1.x / SSLeay); FreeType's FTL | **not allowed** in anything compiled into a program (§7); only system libraries the user's OS provides, used dynamically, are LGPL (Linux's glibc and libasound) | — |
 
@@ -380,6 +388,15 @@ and CC0-1.0; plus OFL-1.1 for fonts. All any of them asks of a user is that
 - **Not present**, decoding or encoding: H.264/AVC, HEVC, MPEG-2/4 video,
   AAC, AC-3, WMA/WMV, any MP3 *encoder*. On the web, audio and video are
   played by the browser's own decoders.
+- **The JIT's machine-code compiler** (desktop runtimes only): Cranelift,
+  Apache-2.0 WITH LLVM-exception (its patent grant: Apache-2.0 §3);
+  `regalloc2`, its register allocator, derives from an allocator first
+  published under the MPL and relicensed in full with Mozilla's sign-off in
+  2021 (its pull request #15); the old header left in its `src/lib.rs` is
+  stale, and the notices say so beside it
+  (docs/legal/review-2026-11-05-cranelift.md, the addendum). No
+  cryptography in it (its `incremental-cache` feature, with `sha2`, stays
+  off).
 
 ## 6. The repository
 
@@ -467,6 +484,15 @@ and trademarks, in [legal/rapidq-review.md](legal/rapidq-review.md)
   desktop and web, default and all features): no AES in `zip` or
   `sevenz-rust2`, no Deflate64, no PPMd, no `ruzstd` dictionary builder, no
   C codec (bzip2, zstd, brotli, lz4); turning one on needs a new review.
+- `python3 tools/check_jit_features.py`: the JIT's code generator keeps to
+  the legal review of 2026-11-05: the reviewed release pinned (0.137.1),
+  its optional features off (`disas`, `incremental-cache`,
+  `souper-harvest`, `enable-serde`, `pulley`, `wasmtime-unwinder`), no
+  crate the review didn't list, `regalloc2` at the reviewed 0.15.2, no
+  Mozilla Public License header in its sources but the stale one in
+  `regalloc2`'s `src/lib.rs` (its pull request #15 relicensed the whole
+  crate: the review's addendum), and never in the web runtime, the web
+  host, `rapidr-runtime-core`, a wasm or a 32-bit x86 build.
 - `tools/regress.sh legal` runs all of them and exits 1 if any fails (it is
   part of a full run).
 
