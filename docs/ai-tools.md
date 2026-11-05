@@ -147,7 +147,24 @@ The cost: RAI's full set grew from 15 to 25 tools with the program stopped
 (35 while it runs). The descriptions were written tight (about 11,500
 characters of tool definitions); the debugger and `read_output` are offered
 to RAI only while the program runs. The small-window set (`lite`) is
-unchanged: 8 tools.
+unchanged: 8 tools. For AI apps: 34 → 41 tools, `tools/list` 19,391 → 21,758
+characters, the server's instructions 3,278 → 3,518.
+
+### Measured with local models
+
+`tools/ai_eval/studio_mcp_agent.mjs` drives Studio over MCP with a model on
+this Mac's local model server (nothing downloaded), the build before this
+lane and the build after, on the three tasks in `tests/ai-eval/shared-tools/`
+(save versions around a change, click a message box's OK, find the
+`rai_models` example). A 4B and a 27B open-weights model, one run each:
+
+| Task | 4B before | 4B after | 27B before | 27B after |
+|---|---|---|---|---|
+| versions | no version tool: changed and ran the code, saved nothing | `save_version` started Versions and saved the first, read, changed; then stopped | changed and ran it, said Studio has no versions and to set up git | started, saved, changed, checked, ran, saved, listed: the whole task, 9 calls, 0 errors |
+| dialog | 11 calls, 1 error (`app_click` by label), then OK | 9 calls, OK clicked the first time | 9 calls, 0 errors | 8 calls, 0 errors |
+| recipe | "no recipe is close", the manual, no answer | `find_example "rai_models"`: the file in one call | 6 calls, among them `open_project` into the examples folder (leaving the user's project) | the file in one call, answered after 2 |
+
+The 4B model's empty last replies (its thinking mode) happen on both builds.
 
 ## The guards
 
