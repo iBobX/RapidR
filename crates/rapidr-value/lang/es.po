@@ -1232,6 +1232,10 @@ msgid "You didn't allow RAI to stop your program"
 msgstr "No permitiste que RAI detenga tu programa"
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI's change to {path} wasn't applied: {why}. It waits for your review."
+msgstr "El cambio de RAI a {path} no se aplicó: {why}. Espera tu revisión."
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "1 error left"
 msgstr "queda 1 error"
 

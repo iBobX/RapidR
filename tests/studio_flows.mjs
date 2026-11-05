@@ -4748,6 +4748,28 @@ const CASES = [
     same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
   },
   {
+    // ("Work on its own" and changes Studio can't apply — the same three: the
+    // review of 2026-11-05): tried once, said once in the Output (it tried
+    // every second), the Review bar shown (it was hidden), RAI told they
+    // were NOT applied, and the run it asked for not started on the old code)
+    name: "ai-auto-refused",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    capture: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:permission=auto,ai:ask=add three things and run,wait,wait,wait,wait,wait,wait",
+    delay: 9,
+    desktopGone: ["icons"],
+    dump: {
+      "aireviewbar.__shown": /^1$/,
+      "codedoc(0).text": /Caption = "Hello, RapidR"/,
+      "outputbox.text": /^(?![\s\S]*AI: not applied[\s\S]*AI: not applied)[\s\S]*AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
+      "ai.transcript": /^(?=[\s\S]*\*RAI's change to hello_form\.rr, icons\/note\.svg, hello_form\.rr\/blocked\.txt wasn't applied: hello_form\.rr\/blocked\.txt: its folder can't be made)[\s\S]*run_program: Error: Not applied: your change to hello_form\.rr, icons\/note\.svg, hello_form\.rr\/blocked\.txt was NOT applied/,
+      "aitools.proposalcount": /^3$/,
+      "aitools.autoapplydue": /^(0|False)$/i,
+    },
+  },
+  {
     // (changes left waiting are kept with the chat: Studio started again —
     // the project's chat opened —, they are still there to apply)
     name: "ai-proposals-kept",

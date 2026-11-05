@@ -630,6 +630,10 @@ msgid "Nothing was changed: {reason}. The changes still wait (Review)."
 msgstr "No se cambió nada: {reason}. Los cambios siguen esperando (Revisar)."
 
 #: ide/ai.inc
+msgid "some changes weren't applied"
+msgstr "algunos cambios no se aplicaron"
+
+#: ide/ai.inc
 msgid "{name}: {n} file, previewed: nothing is written until you press Create"
 msgid_plural "{name}: {n} files, previewed: nothing is written until you press Create"
 msgstr[0] "{name}: {n} archivo, en vista previa: no se escribe nada hasta que presiones Crear"

@@ -1029,6 +1029,10 @@ msgid "the label"
 msgstr ""
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI's change to {path} wasn't applied: {why}. It waits for your review."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} proposed before was set aside: {path} changed since."
 msgstr ""
 

@@ -537,6 +537,10 @@ msgid "Not edited: the chat is as it was."
 msgstr ""
 
 #: ide/ai.inc
+msgid "some changes weren't applied"
+msgstr ""
+
+#: ide/ai.inc
 msgid "RAI saved the version “{message}” ({id})"
 msgstr ""
 

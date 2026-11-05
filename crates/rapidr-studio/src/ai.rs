@@ -137,6 +137,14 @@ struct Tools {
     /// run_program action ("start", "stop"), or "" — RAI wants to look at
     /// and use the running program (an app tool's call).
     app_ask_run: String,
+    /// "Work on its own": the waiting changes Studio last tried to apply by
+    /// itself (path, new text) — tried once, never again until RAI changes
+    /// them —, and why it couldn't ("" it could).
+    auto_tried: Vec<(String, String)>,
+    auto_why: String,
+    /// A held run answered by Studio before it was started (its changes
+    /// weren't applied: it would run the old code).
+    run_refusal: Option<String>,
     /// What Studio said after doing a request that answers in words (a
     /// version saved: RunRequestTaken's Result).
     run_result: Option<String>,
@@ -352,6 +360,9 @@ impl Tools {
             "status" => answer(self.run_status(), false),
             "stop" if !running => answer(format!("It isn't running. {}", self.run_status()), false),
             "start" if running => answer(format!("It is running already: look at it with app_layout or app_screenshot, or stop it first. {}", self.run_status()), false),
+            // ("Work on its own": a change Studio couldn't apply still waits —
+            // a run would test the old code)
+            "start" if self.auto_refused().is_some() => answer(self.auto_refused().unwrap_or_default(), true),
             "start" | "stop" => {
                 // (a run the user allowed RAI to use can be stopped without
                 // asking again; every new run asks)
@@ -415,6 +426,9 @@ impl Tools {
         let RunHeld { ticket: held, action, before, since, wait, allowed } = self.run_held.clone()?;
         if held != ticket {
             return None;
+        }
+        if let Some(why) = self.run_refusal.take() {
+            return self.run_done(&action, why, true);
         }
         // (the card still waits: asked of Studio once the user allows it)
         let Some(since) = since else {
@@ -480,10 +494,51 @@ impl Tools {
         self.run_held = None;
         self.run_request.clear();
         self.run_result = None;
+        self.run_refusal = None;
         self.app_held.clear();
         self.app_sent.clear();
         if self.app_asked == Some(None) {
             self.app_asked = None;
+        }
+    }
+
+    /// The waiting changes of the open project, as (path, new text).
+    fn waiting_set(&self) -> Vec<(String, String)> {
+        self.waiting().iter().map(|p| (p.path.clone(), p.new.clone())).collect()
+    }
+
+    /// "Work on its own": changes wait that Studio hasn't tried to apply
+    /// by itself yet (AutoApplyDue) — each set tried once.
+    fn auto_due(&self) -> bool {
+        let set = self.waiting_set();
+        !set.is_empty() && set != self.auto_tried
+    }
+
+    /// The changes Studio tried to apply by itself, still waiting because
+    /// it couldn't: what RAI is told (its facts, a run refused), else None.
+    fn auto_refused(&self) -> Option<String> {
+        let set = self.waiting_set();
+        if self.auto_why.is_empty() || set.is_empty() || set != self.auto_tried {
+            return None;
+        }
+        let paths: Vec<&str> = set.iter().map(|(p, _)| p.as_str()).collect();
+        Some(format!("Not applied: your change to {} was NOT applied ({}), so the project is as it was and a run would test the old code. It waits for the user's review now. Read the file again (read_file) and propose the change again on it as it is, or tell the user.", paths.join(", "), self.auto_why))
+    }
+
+    /// Studio tried to apply the waiting changes by itself (AutoApplyTried):
+    /// `why` "" — applied —, else why it couldn't: RAI is told (its facts,
+    /// the chat), a run it asked for isn't started on the old code.
+    fn auto_apply_tried(&mut self, why: &str) {
+        self.auto_tried = self.waiting_set();
+        self.auto_why = why.trim().replace(['\r', '\n'], "; ");
+        let Some(said) = self.auto_refused() else { return };
+        let paths = self.auto_tried.iter().map(|(p, _)| p.as_str()).collect::<Vec<_>>().join(", ");
+        let line = tr_ui_fill("RAI's change to {path} wasn't applied: {why}. It waits for your review.", &[("path", &paths), ("why", &self.auto_why)]);
+        rapidr_ai::rai::record(&self.rai, &line, json!({"target": paths, "decision": "not-applied", "why": self.auto_why}));
+        // (a run asked of Studio, not started yet: not started, said why)
+        if self.run_held.as_ref().is_some_and(|h| h.action == "start") && self.run_request == "start" {
+            self.run_request.clear();
+            self.run_refusal = Some(said);
         }
     }
 
@@ -635,7 +690,11 @@ fn facts(t: &Tools) -> String {
     // (changes proposed earlier, not decided yet: part of the project as
     // the tools see it)
     let waiting: Vec<&str> = t.waiting().iter().filter(|p| !t.turn_paths.contains(&p.path)).map(|p| p.path.as_str()).collect();
-    if !waiting.is_empty() {
+    // ("Work on its own": a change Studio couldn't apply — said, so RAI
+    // never goes on as if it were in)
+    if let Some(said) = t.auto_refused() {
+        f.push_str(&format!("\n{said}"));
+    } else if !waiting.is_empty() {
         f.push_str(&format!(" Changes you proposed earlier wait for the user's review: {}. Until they decide, read_file, check_code and the compiler see those files as you proposed them, and a new change to one builds on it.", waiting.join(", ")));
     }
     if t.compat.eq_ignore_ascii_case("rapidq") {
@@ -1637,6 +1696,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "fellback" => crate::flag(t.fell_back),
             "programuseasked" => crate::flag(t.app_asked == Some(None)),
             "runrequest" => s(t.run_request.clone()),
+            "autoapplydue" => crate::flag(t.auto_due()),
             _ => return None,
         })
     })
@@ -1660,7 +1720,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                     "propose".into()
                 }
             }
-            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "runrequest" | "callfailed" | "callnote" | "calltarget" | "callrisk" | "coachlocked" | "coacherror" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "runrequest" | "autoapplydue" | "callfailed" | "callnote" | "calltarget" | "callrisk" | "coachlocked" | "coacherror" => {}
             "mode" => {
                 let m = Mode::parse(&t);
                 // (the dial turned: the open problem's ladder starts over)
@@ -1734,6 +1794,13 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                     t.run_result = Some(said);
                 }
             });
+            Value::Null
+        }
+        // ("Work on its own": Studio tried to apply the waiting changes —
+        // Why "" applied, else why not)
+        "autoapplytried" => {
+            let why = arg(0);
+            with(name, |t| t.auto_apply_tried(&why));
             Value::Null
         }
         "allowprogramuse" => {

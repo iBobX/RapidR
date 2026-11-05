@@ -1901,8 +1901,11 @@ SUB AIRunRequest
   DIM r AS STRING, i AS INTEGER
   ' (Tools > Settings > AI: "Work on its own": RAI's changes to the open
   ' project are applied at once — each one undoable, as Apply does — before
-  ' anything it asked Studio to do; a new program keeps its usual way)
-  IF AIPermissionNow = "auto" AND AIAutoApplying = 0 AND AITools.ProposalCount > 0 THEN
+  ' anything it asked Studio to do; a new program keeps its usual way. Each
+  ' set of changes is tried once: one Apply can't do — a file changed since
+  ' RAI read it — waits in the Review bar, RAI is told why, and a run it
+  ' asked for doesn't start on the old code — AITools.AutoApplyTried)
+  IF AIPermissionNow = "auto" AND AIAutoApplying = 0 AND AITools.AutoApplyDue THEN
     IF AIProjectProposal = 0 THEN
       AIAutoApplying = 1
       FOR i = 0 TO AITools.ProposalCount - 1
@@ -1911,11 +1914,19 @@ SUB AIRunRequest
           AIRevSeen(i) = 1
         END IF
       NEXT
+      AIApplyWhy = ""
       AIApplyProposals
-      ' (saved at once, and RAI's view of the project brought up to date:
-      ' its next change builds on these files as they are now — else it
-      ' was refused as made for an older text)
-      IF AITools.ProposalCount = 0 THEN RunCommand "file.saveAll"
+      IF AITools.ProposalCount = 0 THEN
+        AITools.AutoApplyTried ""
+        ' (saved at once, and RAI's view of the project brought up to date:
+        ' its next change builds on these files as they are now — else it
+        ' was refused as made for an older text)
+        RunCommand "file.saveAll"
+      ELSE
+        IF AIApplyWhy = "" THEN AIApplyWhy = TR$("some changes weren't applied")
+        AITools.AutoApplyTried AIApplyWhy
+        AIShowReviewBar
+      END IF
       AISyncProject
       AIAutoApplying = 0
     END IF
@@ -2078,9 +2089,9 @@ END SUB
 SUB AIShowReviewBar
   IF AITools.ProposalCount = 0 THEN EXIT SUB
   ' ("Work on its own": nothing for the user to review — Studio applies
-  ' RAI's changes itself; a new program still opens its usual way. Never
-  ' for an AI app's question: AIPermissionNow)
-  IF AIPermissionNow = "auto" AND AIProjectProposal = 0 THEN EXIT SUB
+  ' RAI's changes itself, unless it tried and couldn't; a new program still
+  ' opens its usual way. Never for an AI app's question: AIPermissionNow)
+  IF AIPermissionNow = "auto" AND AIProjectProposal = 0 AND AITools.AutoApplyDue THEN EXIT SUB
   IF AIProjectProposal THEN
     AIReviewBtn.Caption = TR$("Preview the New Program...")
     AIReviewBtn.AccessibleName = TR$("Preview the new program before it is created")
@@ -2461,6 +2472,12 @@ SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
   DIM i AS INTEGER, n AS INTEGER, first AS STRING
   n = TALLY(Why, CHR$(10))
   first = FIELD$(Why, CHR$(10), 1)
+  ' (why, for "Work on its own": RAI is told — AIRunRequest)
+  AIApplyWhy = ""
+  FOR i = 1 TO n
+    IF AIApplyWhy <> "" THEN AIApplyWhy = AIApplyWhy + "; "
+    AIApplyWhy = AIApplyWhy + FIELD$(Why, CHR$(10), i)
+  NEXT
   FOR i = 1 TO n
     OutputLine TR$("AI: not applied — {reason}", "reason", FIELD$(Why, CHR$(10), i))
   NEXT

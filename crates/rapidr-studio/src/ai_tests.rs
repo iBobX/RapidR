@@ -1703,3 +1703,48 @@ fn auto_permission_and_its_tool_calls() {
     assert_eq!(h.max_tool_calls(), None);
     assert!(AUTO_TOOL_CALLS > rapidr_ai::rai::MAX_TOOL_CALLS);
 }
+
+/// "Work on its own": Studio tries each set of waiting changes once
+/// (AutoApplyDue); one it couldn't apply isn't tried again, RAI is told it
+/// was NOT applied and why (its facts), a run it asked for isn't started on
+/// the old code and a new one is refused; a newer change is tried again.
+#[test]
+fn a_change_studio_could_not_apply_is_tried_once_and_said() {
+    install();
+    let t = "tools-auto-refused";
+    let dir = project_dir("auto-refused");
+    set(t, "projectfolder", &s(dir.to_string_lossy()));
+    set(t, "projectfiles", &s("main.rr"));
+    set(t, "mainfile", &s("main.rr"));
+    set(t, "permission", &s("auto"));
+    let mut h = Handle { name: t.into() };
+    h.begin_turn();
+    let due = || get(t, "autoapplydue").unwrap().to_i64() != 0;
+    assert!(!due(), "nothing waits");
+    let edit = |h: &mut Handle, from: &str, to: &str| h.call("propose_edit", &json!({"path": "main.rr", "summary": "A title", "edits": [{"old_text": format!("Caption = \"{from}\""), "new_text": format!("Caption = \"{to}\"")}]}));
+    let out = edit(&mut h, "Hi", "One");
+    assert!(!out.is_error, "{}", out.content);
+    assert!(due(), "a change waits: Studio applies it");
+    let run = h.call("run_program", &json!({"action": "start"}));
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "start");
+    // (Studio couldn't: tried once, the run not started, RAI told)
+    call(t, "autoapplytried", &[s("main.rr changed since the assistant read it")]);
+    assert!(!due(), "not tried again");
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "", "the old code isn't run");
+    let said = h.finish_call("run_program", &run.target).expect("answered");
+    assert!(said.is_error && said.content.contains("was NOT applied") && said.content.contains("main.rr changed since"), "{}", said.content);
+    let facts = h.facts();
+    assert!(facts.contains("your change to main.rr was NOT applied (main.rr changed since the assistant read it)"), "{facts}");
+    let again = h.call("run_program", &json!({"action": "start"}));
+    assert!(again.is_error && again.content.contains("was NOT applied"), "{}", again.content);
+    assert_eq!(get(t, "runrequest").unwrap().to_string_val(), "");
+    // (a newer change: tried again; applied, nothing said)
+    let out = edit(&mut h, "One", "Two");
+    assert!(!out.is_error, "{}", out.content);
+    assert!(due(), "a newer change is tried");
+    assert!(!h.facts().contains("NOT applied"));
+    call(t, "autoapplytried", &[s("")]);
+    assert!(!due());
+    assert!(!h.facts().contains("NOT applied"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

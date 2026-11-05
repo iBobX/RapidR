@@ -417,6 +417,8 @@ DIM AIAutoApplying AS INTEGER
 DIM AIForApp AS INTEGER
 DIM AIAskedByApp AS INTEGER
 DIM AIAppReview AS INTEGER
+' (why the last Apply changed nothing: its reasons, "; " between)
+DIM AIApplyWhy AS STRING
 DIM AIPriceIn AS DOUBLE
 DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)
