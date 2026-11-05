@@ -37,8 +37,23 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 FAIL=0
-ok() { echo "  ok    $*"; }
-bad() { echo "  FAIL  $*"; FAIL=1; }
+# The build matrix (tools/release/build-matrix.sh) reads one line from the end of this log,
+# "##cells run=ok interp=ok exe=ok native=ok nexe=ok other=ok" (`-` = no check of that kind ran):
+#   run     rapidr run: a console and a GUI program        interp  a Build (interpreted) of a program
+#   exe     the interpreted executable it made runs         native  setup and a native Build
+#   nexe    the natively built executable runs              other   everything else (install, file types, Studio...)
+# Each check counts for the cell $CELL names when it runs (set before a group of checks).
+CELL=other; CELLS_BAD=" "; CELLS_SEEN=" "
+ok() { echo "  ok    $*"; CELLS_SEEN="$CELLS_SEEN$CELL "; }
+bad() { echo "  FAIL  $*"; FAIL=1; CELLS_BAD="$CELLS_BAD$CELL "; CELLS_SEEN="$CELLS_SEEN$CELL "; }
+cells() {
+    local c r out=""
+    for c in run interp exe native nexe other; do
+        case "$CELLS_BAD" in *" $c "*) r=FAIL ;; *) case "$CELLS_SEEN" in *" $c "*) r=ok ;; *) r=- ;; esac ;; esac
+        out="$out$c=$r "
+    done
+    echo "##cells ${out% }"
+}
 check() { local what="$1"; shift; if "$@"; then ok "$what"; else bad "$what"; fi; }
 has() { grep -q -- "$2" <<<"$1"; }
 
@@ -48,6 +63,8 @@ export XDG_DATA_HOME="$T/data" XDG_CONFIG_HOME="$T/config"
 # (the build cache in $T too, for every build here: otherwise it is ~/.cache/rapidr or
 # ~/Library/Caches/RapidR, GBs per run, left behind in the user's home)
 export RAPIDR_BUILD_CACHE="$T/build-cache"
+# (and no key of the user's AI providers is read or written: the keys live in memory)
+export RAPIDR_AI_KEYSTORE=memory
 mkdir -p "$RAPIDR_PRINT_TO" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME"
 # (SEC-24: a release build's test hooks — the captures and dumps these checks read — act only with a
 # signed test-mode token, docs/security/test-mode.md: RAPIDR_TEST_MODE, or the harnesses' own
@@ -139,6 +156,7 @@ check "rapidr finds its installed home" test -n "$KIND"
 W="$T/work"; mkdir -p "$W"; cd "$W"
 
 echo "== interpreted programs"
+CELL=run
 printf '$APPTYPE CONSOLE\nPRINT "hello "; COMMAND$\nPRINT Application.ExeName\n' > hello.bas
 out="$(PATH="$BASE_PATH" "$R" run hello.bas a b 2>&1)"
 check "rapidr run hello.bas a b" has "$out" "hello a b"
@@ -152,12 +170,14 @@ check "rapidr info: console" has "$("$R" info hello.rrbc)" "apptype: console"
 # macOS 28 drops Rosetta, and running Intel code flags the app)
 universal() { local a=" $(lipo -archs "$1" 2>/dev/null) "; [[ "$a" == *" arm64 "* && "$a" == *" x86_64 "* ]]; }
 if [[ "$ART" == *.dmg ]]; then
+    CELL=other
     notuni=""
     while IFS= read -r -d '' f; do
         file -b "$f" | grep -q Mach-O && ! universal "$f" && notuni="$notuni $f"
     done < <(find "$T/Applications" -type f -perm -u+x -print0)
     check "every executable in the apps is universal (arm64 + x86_64)" test -z "$notuni"
     [ -n "$notuni" ] && echo "        not universal:$notuni"
+    CELL=run
 fi
 RTR="$T/Applications/RapidR Runtime.app/Contents/MacOS/rapidr"
 if [ -x "$RTR" ] && [ "$RTR" != "$R" ]; then
@@ -176,7 +196,9 @@ printf 'CREATE Form AS QFORM\n  Caption = "smoke"\n  CREATE Lbl AS QLABEL\n    C
 check "rapidr info: gui" has "$("$R" info gui.bas)" "apptype: gui"
 check "GUI program runs (capture)" has "$(RAPIDR_CAPTURE="$W/cap" RAPIDR_CAPTURE_DELAY=0.3 RAPIDR_TEST_DUMP=lbl.caption "$R" run gui.bas 2>&1)" "lbl.caption=ready"
 
+CELL=other
 echo "== an example built where RapidR is installed (Studio's Welcome page opens them there)"
+CELL=interp
 # (the install folder may not be the user's to write — /usr/lib/rapidr: the app
 # goes to Documents/RapidR/Builds instead; 2.118.0 failed with "Permission denied")
 ex="$(ls -d "$(dirname "$R")"/../lib/rapidr/examples/gui/hello_form.rr 2>/dev/null | head -1)"
@@ -185,6 +207,7 @@ if [ -n "$ex" ]; then
     check "an installed example builds (interpreted)" grep -q "Build succeeded" example-build.log; grep -q "Build succeeded" example-build.log || tail -5 example-build.log
 fi
 
+CELL=other
 echo "== a downloaded file asks once"
 cp hello.bas downloaded.bas
 case "$(uname)" in
@@ -205,9 +228,13 @@ check "the terminal runs rapidr run <program>" grep -q "run '$W/hello.rrbc'" "$W
 
 if [ "$KIND" = sdk ]; then
     echo "== a standalone interpreted executable, no Rust reachable"
+    CELL=interp
     out="$(PATH="$BASE_PATH" CARGO_HOME="$T/no-cargo" "$R" build hello.bas --interp 2>&1)"
     check "rapidr build --interp" test -x "$W/hello"
+    [ -x "$W/hello" ] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
+    CELL=exe
     check "the executable runs" has "$("$W/hello" q 2>&1)" "hello q"
+    CELL=interp
     if [[ "$ART" == *.dmg ]]; then
         check "it is universal" universal "$W/hello"
         mkdir -p "$W/arm" "$W/intel"
@@ -219,12 +246,13 @@ if [ "$KIND" = sdk ]; then
         [ "$(lipo -archs "$W/intel/hello" 2>/dev/null)" = x86_64 ] || printf '%s\n' "$intel_out" | tail -8 | sed 's/^/        /'
     fi
     check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
+    CELL=other
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide 2>&1)" "Studio.caption=RapidR Studio"
     check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide "$W/hello.bas" 2>&1)" "Studio.caption=hello - RapidR Studio"
     # (Preview 5's features, in the installed Studio: p5check.sh beside this script)
     if [ -f "$HERE/p5check.sh" ]; then
         echo "== Preview 5's features (p5check.sh)"
-        bash "$HERE/p5check.sh" "$R" "$W/p5" || FAIL=1
+        bash "$HERE/p5check.sh" "$R" "$W/p5" || { CELL=other; bad "Preview 5's features (p5check.sh, above)"; }
     fi
     # (EXAMPLES-DATA) a data example built: its staff.csv inside the app, and the app started as
     # the desktop starts it — macOS' Finder / `open` in /, a Linux launcher in the home folder, no
@@ -232,6 +260,7 @@ if [ "$KIND" = sdk ]; then
     echo "== a data example built, started as the desktop starts it"
     "$R" examples copy linked_data "$W/lk" > /dev/null 2>&1
     "$R" build "$W/lk/linked_data.rr" "$W/lk-app" --interp > lk-build.log 2>&1
+    CELL=interp
     check "the build puts staff.csv with the app (and says so)" grep -q "data files .*: staff.csv" lk-build.log
     mkdir -p "$W/home"
     case "$(uname)" in
@@ -239,7 +268,9 @@ if [ "$KIND" = sdk ]; then
         *) LK="$W/lk-app/linked_data.AppDir/AppRun"; FROM="$W/home" ;;
     esac
     out="$(cd "$FROM" && RAPIDR_CAPTURE="$W/lk-cap" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=grid.rowcount,status.caption "$LK" < /dev/null 2>&1)"
+    CELL=exe
     check "started from the desktop (no terminal, in $FROM), it shows staff.csv's 8 rows" has "$out" "grid.rowcount=8"
+    CELL=other
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
         echo "== rapidr setup and a native build: a throwaway rustup and cargo home, offline, the shipped sources"
         # (the user's own Rust is never touched: its default, read before and after)
@@ -251,12 +282,16 @@ if [ "$KIND" = sdk ]; then
         "$CARGO_BIN/rustup" set default-host "$host" > /dev/null 2>&1
         rust_state() { "$CARGO_BIN/rustup" default 2>&1; "$CARGO_BIN/rustup" show 2>&1 | grep -i "default host"; }
         before="$(rust_state)"
+        CELL=native
         PATH="$CARGO_BIN:$BASE_PATH" "$R" setup --yes --no-path > setup.log 2>&1
         check "setup installs RapidR's toolchain beside, the defaults unchanged" test "$(rust_state)" = "$before"
         check "setup: native builds ready" grep -q "native builds ready" setup.log; grep -q "native builds ready" setup.log || tail -5 setup.log
         printf '$APPTYPE CONSOLE\nPRINT "native "; 6 * 7\n' > native.bas
         PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build native.bas --debug > native.log 2>&1
-        check "rapidr build (native)" has "$(./native 2>&1)" "native 42"; [ -x ./native ] || tail -20 native.log
+        check "rapidr build (native)" test -x ./native; [ -x ./native ] || tail -20 native.log
+        CELL=nexe
+        check "the native executable runs" has "$(./native 2>&1)" "native 42"
+        CELL=native
         # (a program with forms, release: what users build — it links the GUI
         # stack; a console program doesn't, and missed a broken Windows import
         # library in 2.118.0)
@@ -267,7 +302,10 @@ if [ "$KIND" = sdk ]; then
         # sources missed a module of ruzstd and no check built one)
         printf '$APPTYPE CONSOLE\nDIM Zip AS RARCHIVE\nPRINT "archive "; LEN(COMPRESS$("aaaaaaaaaa")) > 0\n' > archive.bas
         PATH="$CARGO_BIN:$BASE_PATH" CARGO_TARGET_DIR="$T/native-target" RAPIDR_BUILD_CACHE="$T/build-cache" "$R" build archive.bas --debug > native-archive.log 2>&1
-        check "rapidr build (native, RArchive: every archive crate)" has "$(./archive 2>&1)" "archive"; [ -x ./archive ] || tail -25 native-archive.log
+        check "rapidr build (native, RArchive: every archive crate)" test -x ./archive; [ -x ./archive ] || tail -25 native-archive.log
+        CELL=nexe
+        check "the RArchive executable runs" has "$(./archive 2>&1)" "archive"
+        CELL=native
         if [[ "$ART" == *.dmg ]]; then
             # (a debug build is this Mac's architecture only; release builds are
             # universal — setup gave the toolchain both targets)
@@ -278,16 +316,19 @@ if [ "$KIND" = sdk ]; then
         fi
         rm -rf "$T/native-target"
         unset RUSTUP_HOME CARGO_HOME
+        CELL=other
         check "the user's own Rust unchanged (rustup default, active toolchain)" test "$(users_rust)" = "$users_before"
     else
         echo "  (no native build: Rust not found, or SMOKE_NATIVE=0)"
     fi
 else
     echo "== what the runtime alone doesn't do"
+    CELL=other
     check "no executables: says it's the runtime" has "$("$R" build hello.bas --interp 2>&1)" "This is the RapidR Runtime"
     check "no IDE: says so" has "$("$R" ide 2>&1)" "not found"
 fi
 
+CELL=other
 if [[ "$ART" == *.tar.gz ]]; then
     echo "== uninstall"
     sh "$T/prefix/lib/rapidr/uninstall.sh" > /dev/null 2>&1
@@ -297,5 +338,6 @@ if [[ "$ART" == *.tar.gz ]]; then
         check "defaults removed" sh -c "! grep -q rapidr '$XDG_CONFIG_HOME/mimeapps.list'"
     fi
 fi
+cells
 echo "== $( [ $FAIL = 0 ] && echo "smoke test passed" || echo "smoke test FAILED" ): $(basename "$ART")"
 exit $FAIL

@@ -7,7 +7,16 @@
 #   tools/release/windows-vm.sh build [Name=value…]   the installers (windows.ps1's
 #                                            parameters: Arch=x86_64, Toolchain=msvc,
 #                                            Sign=…), in the VM's %USERPROFILE%\rapidr-release\out
-#   tools/release/windows-vm.sh smoke <installer file name> [Native] [Associations]
+#   tools/release/windows-vm.sh smoke <installer file name> [Native] [Associations] [Shots=<VM folder>]
+#   tools/release/windows-vm.sh smoke-win7 <zip file name in …\rapidr-release\out> [Shots=<VM folder>]
+#                                            the Windows 7 alpha package, unzipped and used (windows/smoke-win7.ps1)
+#   tools/release/windows-vm.sh put <local file under your home> [name in the VM's out folder]
+#                                            copies a file into …\rapidr-release\out from the home share
+#                                            (skipped when the VM already has it, same SHA-256)
+#   tools/release/windows-vm.sh sum <file name in …\rapidr-release\out>   its SHA-256 there, or "missing"
+#   tools/release/windows-vm.sh ls <path below …\rapidr-release>             `dir /b` of it (e.g. out\matrix-shots)
+#   tools/release/windows-vm.sh shots-clear                                  removes …\rapidr-release\out\matrix-shots
+#                                            (the pictures the build matrix's --shots collected)
 #   tools/release/windows-vm.sh fetch <file in …\rapidr-release\out> <local file>
 #   tools/release/windows-vm.sh regress [Prefix=<folder>] [Source=<folder>]
 #                                            the conformance suite (bytecode VM) and the examples (`rapidr run`)
@@ -103,6 +112,19 @@ case "${1:-}" in
         job windows.ps1 -Prep "$SHARE\\.release-share\\prep" "$@"
         ;;
     smoke) inst="$2"; shift 2; awake; profile; job smoke.ps1 "Installer=$UP\\rapidr-release\\out\\$inst" "$@" ;;
+    smoke-win7) zip="$2"; shift 2; awake; profile; job smoke-win7.ps1 "Zip=$UP\\rapidr-release\\out\\$zip" "$@" ;;
+    ls) awake; profile; wsys "dir /b $UP\\rapidr-release\\$2" ;;
+    shots-clear) awake; profile; wsys "if exist $UP\\rapidr-release\\out\\matrix-shots rmdir /s /q $UP\\rapidr-release\\out\\matrix-shots" ;;
+    sum) awake; profile; wps filehash.ps1 -File "$UP\\rapidr-release\\out\\$2" ;;
+    put)
+        # (the home share shows the Mac's home: only a file below it can be copied)
+        src="$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")"
+        [ -f "$src" ] || die "put: $2 is not a file"
+        case "$src" in "$HOME"/*) ;; *) die "put: $src is not under your home folder (the VM sees only \\\\Mac\\Home)" ;; esac
+        rel="${src#"$HOME"/}"
+        awake; profile
+        wps put.ps1 -From "\\\\Mac\\Home\\${rel//\//\\}" -Name "${3:-$(basename "$src")}" ${PUT_SUM:+-Sum $PUT_SUM}
+        ;;
     regress) shift; awake; profile; job regress.ps1 "$@" ;;
     stop) awake; wps stop.ps1 ;;
     clean)
@@ -178,5 +200,5 @@ case "${1:-}" in
         fi
         rm -f "$got"
         ;;
-    *) die "usage: $0 tools|build|smoke|fetch|stop|clean|sync|flashtest …" ;;
+    *) die "usage: $0 tools|build|smoke|smoke-win7|put|sum|ls|shots-clear|fetch|stop|clean|sync|flashtest …" ;;
 esac
