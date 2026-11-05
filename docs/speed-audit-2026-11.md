@@ -24,13 +24,10 @@ Step 2 (the UI fixes) waits for the lead's go; each fix will add its
   Every run had `RAPIDR_REGISTRY` and `RAPIDR_PRINT_TO` in a temporary
   folder and `RAPIDR_AI_KEYSTORE=memory`; Studio ran with `--fresh`, its
   registry and data in a temporary folder.
-- **Not done yet**: dragging a real window's corner by hand (real mouse
-  input). The Mac was in use the whole time (HID idle 0 s), and real input
-  takes the mouse; `RESIZE_BY_HAND` in the resize benchmarks is ready for
-  it. RapidR Web Server's own window was not opened: its start runs
-  `FpmStopAll` and `EngineStart` (its servers) before the window shows, so
-  "open it only to resize it" needs a copy with those stubbed; its
-  patterns are in `prop_writes.rr` (its issue #12) and `resize_canvas12.rr`.
+- **Hand resizes** (real mouse input dragging a window's corner) were done
+  in step 2, when the Mac was free, before and after the fixes (§6) — and
+  RapidR Web Server's window too, from a copy whose start was stubbed (its
+  own start runs `FpmStopAll` and `EngineStart` before the window shows).
 
 ## 1. The interpreter and native code
 
@@ -263,6 +260,33 @@ each where they differed:
 
 A frame every 16.7 ms would give one event per mouse step (120) at about
 16.7 ms each.
+
+### Hand resizes, after the fixes
+
+The same drags with the build after all the fixes (the drag script posts a
+mouse step every ~19.8 ms: 2.38 s for 120 steps):
+
+| Form | `rapidr run`: events, median / p95 ms | native: events, median / p95 ms |
+|---|--:|--:|
+| 200 controls | **119 and 119**; 18.0 and 17.7 / 25.5 and 28.5 (before: 71 and 60; 28.7 and 48.5 / ~52) | **119**; 17.0 / 27.6 (before: 120; 20.7 / 29.6) |
+| 12 canvases | **119**; 19.8 / 24.9; OnResize 25.5 ms in all (before 422) | **119**; 19.6 / 25.0 |
+
+Every mouse step now gets its own frame: the window keeps up with the
+hand, on the interpreter as on native code.
+
+**RapidR Web Server's main window**, resized by hand: a copy of its
+program in a temporary folder (the real project untouched), its start
+stubbed so nothing runs — no server, no PHP, no process stopped, no
+settings saved, `HOME` a temporary folder; checked: nothing listening, no
+child process — with 12 sample sites, its own OnResize timed (`rapidr run`):
+
+| | events in the drag | between events, median / p95 | its OnResize, median / p95 |
+|---|--:|--:|--:|
+| before the fixes | 22 | 101 / 214 ms | 72.6 / 186.6 ms |
+| after | **65** | **35 / 54 ms** | **12.0 / 38.1 ms** |
+
+(Its own layout code is now most of what's left of a frame: 12 ms of its
+35.)
 
 ### Fix 1: scroll bars worked out once, when that can't differ
 
