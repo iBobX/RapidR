@@ -597,7 +597,7 @@ export const cases = [
     expect: ["client: no token 401", "client: foreign origin 403", "client: get 405", "client: initialize 200 2025-06-18 notes session 32", "client: initialized 202",
       "client: tools list_notes,find_notes,add_note read-only 2", "client: add Added. There are 3 notes.",
       "client: wrong call error true Call add_note again: it needs `Text` (a string).", "client: unknown tool -32602", "client: end session 200", "client: ended session 404",
-      "client: discover 2026-07-28,2025-11-25,2025-06-18,2025-03-26 notes complete", "client: list Buy milk / Call the library about the book / Water the plants",
+      "client: discover 2026-07-28,2025-11-25,2025-06-18,2025-03-26,2024-11-05 notes complete", "client: list Buy milk / Call the library about the book / Water the plants",
       "client: find Water the plants", "client: header mismatch 400 -32020", "client: unsupported 400 -32022 2026-07-28", "client: no method 404 -32601", "client: no session 400",
       "status.caption=3 calls from 1 AI app(s)", "notes.itemcount=3", "(this computer only)"] },
   // ai/ (the tests' mock provider, local: an OpenAI-compatible server)
