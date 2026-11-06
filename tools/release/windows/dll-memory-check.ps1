@@ -51,6 +51,8 @@ if (-not $env:RAPIDR_TEST_MODE -and (Test-Path "$env:USERPROFILE\.rapidr\test-mo
 Push-Location $src
 $fail = 0
 Write-Host "== $(& rustc -vV | Select-String host), building rapidr"
+# (a build that fails must not leave the last one's exe to be tested: the seeded cache has one)
+Remove-Item -Force -ErrorAction SilentlyContinue "$W\target\release\rapidr.exe"
 & cargo build --release -q -p rapidr-cli 2>&1 | Select-String -Pattern "^error" -Context 0, 6 | Select-Object -First 20 | Write-Host
 if (-not (Test-Path "$W\target\release\rapidr.exe")) { Write-Host "the build failed"; Pop-Location; exit 1 }
 Copy-Item -Force "$W\target\release\rapidr.exe" "$src\rapidr.exe"
