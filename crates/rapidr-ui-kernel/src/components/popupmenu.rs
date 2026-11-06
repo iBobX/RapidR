@@ -116,7 +116,7 @@ mod tests {
         let (s, mut f, mut ts) = world();
         // (4 px down: past the menu's border, so over its first item, and
         // still a click's wobble)
-        assert!(super::super::menubar::BORDER < 4);
+        const { assert!(super::super::menubar::BORDER < 4) };
         // (pressed on the label, its OnMouseDown opens the menu at the press)
         f.mouse_down(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
         assert!(f.open_popup("pm", 60, 100));
