@@ -3068,7 +3068,7 @@ msgstr "{color}（原来是 {original}）"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Hex"
-msgstr "十六进制"
+msgstr "HEX"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Filter"
