@@ -18,6 +18,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **A message box's buttons** can be clicked by their short name (`b0`) as `app_layout` lists them, or their caption; **`app_screenshot`** says in words what the picture shows.
 - **`set_property`** is a change like the others: under Ask before changes the user sees it as a diff. Old tool names (`get_problems`, `layout`, `recipe`) keep working.
 
+### Security
+- **Web programs and RapidR Studio on the web: the RWEBVIEW frame can't be used by another site** (SEC-34, [docs/security/audit-2026-11-05-web.md](docs/security/audit-2026-11-05-web.md)). `rapidr-webview.html` takes the HTML it shows only from the program's own page; a bundle's `_headers` and `.htaccess` keep other sites from framing it, and Studio's always sandbox it. Studio's program frame (`run.html`) starts only from Studio's own page and only Studio may frame it. Rebuild and redeploy web programs made before. `rapidr serve` (Run in Browser) gives the frame its own rules too: an RWEBVIEW's `Html` with scripts showed nothing there before.
+- **A link can't drive RapidR Studio on the web** (SEC-35): `?do=` from a link opens a page of the manual and nothing else; Studio's other commands run from it only on the tests' pages.
+- **A program can't keep its windows' frame over Studio** (SEC-36): Studio stops clipping the program's frame only while you hold the mouse in it, a few seconds at most.
+- **A program run in the browser gets only its folder's files** (SEC-37): an `$INCLUDE "..\x.inc"` still works on the desktop, as in RapidQ.
+
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed
 
 ### Added

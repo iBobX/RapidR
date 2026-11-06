@@ -59,6 +59,9 @@ async function studio(files, open) {
   const seen = [];
   page.on("console", (m) => { if (BAD.test(m.text())) seen.push(`console.${m.type()}: ${m.text().split("\n").slice(0, 2).join(" ")}`); });
   page.on("pageerror", (e) => seen.push(`pageerror: ${e.message.split("\n")[0]}`));
+  // (let the page run `?do=` — SEC-35 —, on Studio's ordinary runtime: this
+  // test is a person's visit, its files kept in the browser)
+  await page.addInitScript(() => { if (window === window.top) window.RAPIDR_STUDIO_ALLOW_DO = true; });
   await page.goto(`${STUDIO_URL}/run.html`, { waitUntil: "load" });
   await page.evaluate(async (files) => {
     const root = await navigator.storage.getDirectory();

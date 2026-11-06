@@ -104,6 +104,9 @@ async function open(fsa, studio = false) {
 
 // Studio, Notepad open and run (F5): the run frame.
 async function studioRun(page) {
+  // (let the page run `?do=` — SEC-35 —, on Studio's ordinary runtime, so
+  // its files are kept in the browser as on a person's visit)
+  await page.addInitScript(() => { if (window === window.top) window.RAPIDR_STUDIO_ALLOW_DO = true; });
   const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal", open: "examples/rapidq/notepad.bas", do: "run.start" });
   await page.goto(`${STUDIO_URL}/index.html?${q}`, { waitUntil: "load" });
   let frame;

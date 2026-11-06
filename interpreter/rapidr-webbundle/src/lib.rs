@@ -343,18 +343,28 @@ const COMMON_HEADERS: &[(&str, &str)] = &[
     ("Cross-Origin-Resource-Policy", "same-origin"),
 ];
 
+/// The RWEBVIEW frame file's own policy, as a header
+/// (docs/security/audit-2026-11-05-web.md SEC-34): only the program's own
+/// pages may frame it. Nothing that limits what its content does — the
+/// RWEBVIEW's Html runs there under its own rules (SEC-15), and a `<meta>`
+/// policy in the file would bind that Html too, so the file has none.
+pub const WEBVIEW_FRAME_POLICY: &str = "frame-ancestors 'self'";
+
 /// `_headers` (Netlify, Cloudflare Pages) and `.htaccess` (Apache): the
 /// page's policy as a header too — with `frame-ancestors`, which only a
-/// header can say — on `index.html` only (the RWEBVIEW frame keeps its own
-/// rules), and the common headers on everything. A host that reads neither
-/// still has the page's meta policy.
+/// header can say — on `index.html`; the RWEBVIEW frame its own
+/// ([`WEBVIEW_FRAME_POLICY`]: no other site frames it, its Html's rules its
+/// own); and the common headers on everything. A host that reads neither
+/// still has the page's meta policy, and the frame file its own check of
+/// who sends it the Html.
 pub fn host_config_files(needs: &WebNeeds) -> Vec<(&'static str, String)> {
     let policy = header_policy(needs);
     let mut headers = String::from(
         "# Response headers for hosts that read this file (Netlify, Cloudflare Pages).\n\
          # Made by rapidr build --web (docs/security-audit.md SEC-15). The policy is\n\
-         # index.html's own, plus frame-ancestors; rapidr-webview.html, the frame an\n\
-         # RWEBVIEW's Html runs in, must not get it.\n/*\n",
+         # index.html's own, plus frame-ancestors. rapidr-webview.html, the frame an\n\
+         # RWEBVIEW's Html runs in, has its own: no other site may frame it, and\n\
+         # nothing limits its Html (SEC-34).\n/*\n",
     );
     for (h, v) in COMMON_HEADERS {
         headers.push_str(&format!("  {h}: {v}\n"));
@@ -362,11 +372,13 @@ pub fn host_config_files(needs: &WebNeeds) -> Vec<(&'static str, String)> {
     for path in ["/", "/index.html"] {
         headers.push_str(&format!("{path}\n  Content-Security-Policy: {policy}\n"));
     }
+    headers.push_str(&format!("/{WEBVIEW_FRAME_FILE}\n  Content-Security-Policy: {WEBVIEW_FRAME_POLICY}\n"));
     let mut htaccess = String::from(
         "# Apache configuration for a RapidR web program (rapidr build --web;\n\
          # docs/security-audit.md SEC-15). The policy is index.html's own, plus\n\
-         # frame-ancestors; rapidr-webview.html, the frame an RWEBVIEW's Html runs\n\
-         # in, must not get it. No CORS: the program's files are its own page's.\n\
+         # frame-ancestors. rapidr-webview.html, the frame an RWEBVIEW's Html runs\n\
+         # in, has its own: no other site may frame it, and nothing limits its\n\
+         # Html (SEC-34). No CORS: the program's files are its own page's.\n\
          Options -Indexes\n\
          <IfModule mod_mime.c>\n  AddType application/wasm .wasm\n  AddType text/javascript .js\n  AddType application/octet-stream .rrbc\n</IfModule>\n\
          <IfModule mod_headers.c>\n",
@@ -374,7 +386,8 @@ pub fn host_config_files(needs: &WebNeeds) -> Vec<(&'static str, String)> {
     for (h, v) in COMMON_HEADERS {
         htaccess.push_str(&format!("  Header always set {h} \"{v}\"\n"));
     }
-    htaccess.push_str(&format!("  <Files \"index.html\">\n    Header always set Content-Security-Policy \"{policy}\"\n  </Files>\n</IfModule>\n"));
+    htaccess.push_str(&format!("  <Files \"index.html\">\n    Header always set Content-Security-Policy \"{policy}\"\n  </Files>\n"));
+    htaccess.push_str(&format!("  <Files \"{WEBVIEW_FRAME_FILE}\">\n    Header always set Content-Security-Policy \"{WEBVIEW_FRAME_POLICY}\"\n  </Files>\n</IfModule>\n"));
     vec![("_headers", headers), (".htaccess", htaccess)]
 }
 

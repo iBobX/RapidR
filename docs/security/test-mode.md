@@ -23,7 +23,7 @@ no token, one file read and one Ed25519 signature check when there is.
 | Local release with `--features dev-hooks` (`cargo build --release -p rapidr-cli --features dev-hooks`) | developers, until the real key is installed | act, no token needed |
 | **Release**: `tools/release/*.sh`, `tools/studio_app.sh` (release), the installers | what users get | act **only** with a token signed by the key in `crates/rapidr-testmode/test-mode.pub` |
 | Programs built by `rapidr build` / `--interp` runners | the compiler | a development `rapidr` (debug or dev-hooks) builds development programs and runners; a released `rapidr` builds release ones |
-| Web (the browser) | — | unchanged: the hooks come from the page's `window.RAPIDR_STUDIO_TEST`, which only the tests' pages set; a deployed program's page never does. There is no process environment and no token on the web. |
+| Web (the browser) | — | unchanged: the hooks come from the page's `window.RAPIDR_STUDIO_TEST`, which only the tests' pages set; a deployed program's page never does. There is no process environment and no token on the web. Studio's `?do=` runs its commands only under that gate too (SEC-35). |
 | Unit tests | `#[cfg(test)]` | fixture keys made inside the tests only; no build trusts them (`tests/security/test_mode_tokens.rs` checks) |
 
 `dev-hooks` is a cargo feature of `rapidr-testmode`, passed through by
@@ -169,7 +169,15 @@ redirect what a run touches, or turn on diagnostics without user data —
 registry, keychain and printer out of every run; turning them off would put
 those at risk. Studio's `--do` list is a command-line option (Studio's own
 commands, documented in docs/ide-plan.md); its MCP test steps need
-`RAPIDR_TEST_MCP_TOKEN`, which the gate covers.
+`RAPIDR_TEST_MCP_TOKEN`, which the gate covers. On the web the same list
+comes from the page's `?do=`, which any link can carry, so the page passes
+it on only under the web's gate: `window.RAPIDR_STUDIO_TEST` (with the
+capture hooks), or `window.RAPIDR_STUDIO_ALLOW_DO` alone (a test that drives
+Studio but keeps its ordinary runtime — the file tests, which need the
+browser's own file store). From a link it takes nothing but `wait` and a
+page of the manual (`manual:<page>`) (SEC-35,
+[audit-2026-11-05-web.md](audit-2026-11-05-web.md)). A deployed program's
+page sets neither.
 
 ## Tests
 

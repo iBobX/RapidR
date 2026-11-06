@@ -364,9 +364,13 @@
       window.addEventListener(up, () => { send({ __rapidr_windows: { held: false } }); rectsChanged(); }, true);
     }
 
+    // (the boot only from Studio's own page: the parent window, of this
+    // file's own site — location.origin is the address's, even at this
+    // frame's opaque origin; a page of another site framing run.html is
+    // never heard. docs/security/audit-2026-11-05-web.md SEC-34)
     let booted = false;
     window.addEventListener("message", (e) => {
-      if (booted || e.source !== parent || !e.data?.__rapidr_boot || !e.ports[0]) return;
+      if (booted || e.source !== parent || e.origin !== location.origin || !e.data?.__rapidr_boot || !e.ports[0]) return;
       booted = true;
       boot(e.data.__rapidr_boot, e.ports[0]).catch((err) => {
         send({ __rapidr_console: { level: "error", text: "[preview boot error] " + err } });

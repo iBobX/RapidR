@@ -314,3 +314,9 @@ mod tests {
 #[cfg(test)]
 #[path = "../../../tests/security/ai_tools_symlinks.rs"]
 mod security_regressions;
+
+/// SEC-37 (docs/security/audit-2026-11-05-web.md): what a browser's
+/// program is sent is its folder's only.
+#[cfg(test)]
+#[path = "../../../tests/security/web_program_files_confinement.rs"]
+mod security_sec37;

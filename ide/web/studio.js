@@ -9,6 +9,24 @@ const status = document.getElementById("studio-status");
 const say = (text) => { if (status) status.textContent = text; };
 const t0 = performance.now();
 
+// ?do=id,id,…: Studio's commands run once it's up, as `rapidr ide --do` on
+// the desktop — how the tests drive Studio, on a page that set
+// window.RAPIDR_STUDIO_TEST (the web's test gate, with the capture hooks) or
+// window.RAPIDR_STUDIO_ALLOW_DO (only this, for a test that drives Studio
+// but wants its ordinary runtime) before it loaded (docs/security/test-mode.md).
+// From a link anyone can send, only steps that just show something: a page
+// of the manual (manual:getting-started.md) and wait. A list with any other
+// step — keys typed, code changed, a command — isn't run at all
+// (docs/security/audit-2026-11-05-web.md SEC-35). A deployed program's page
+// sets neither.
+const LINK_STEP = /^(?:wait|manual:[A-Za-z0-9_-]+(?:\.md)?(?:#[A-Za-z0-9_-]+)?)$/;
+function linkSteps(list) {
+  if (window.RAPIDR_STUDIO_TEST || window.RAPIDR_STUDIO_ALLOW_DO) return list;
+  if (list.split(",").every((s) => LINK_STEP.test(s.trim()))) return list;
+  console.warn("RapidR Studio: the link's ?do= asks for more than a page of the manual: its steps aren't run.");
+  return "";
+}
+
 async function main() {
   const params = new URLSearchParams(location.search);
   // (the page is Studio's window: maximized, it fills the page — unless
@@ -19,7 +37,8 @@ async function main() {
   // (?lang=es: Studio in a language for this visit; xx, the pseudo-language)
   if (params.get("lang")) args.push("--lang", params.get("lang"));
   if (params.has("fresh")) args.push("--fresh");
-  if (params.get("do")) args.push("--do", params.get("do"));
+  const steps = params.get("do") ? linkSteps(params.get("do")) : "";
+  if (steps) args.push("--do", steps);
   if (params.get("open")) args.push(params.get("open"));
   window.RAPIDR_ARGS = args;
   // (Studio is the whole page: F5, F6 and Ctrl+Tab are its keys)
@@ -169,7 +188,7 @@ async function loadRuntimeFiles() {
   return runtimeFiles;
 }
 
-const run = { box: null, frame: null, port: null, ready: false, queue: [], generation: 0, program: "", files: new Map(), fileTokens: 0 };
+const run = { box: null, frame: null, port: null, ready: false, queue: [], generation: 0, program: "", files: new Map(), fileTokens: 0, held: false, heldTimer: 0 };
 
 // The program's Open / Save dialogs: its frame's opaque origin may not show
 // the browser's file pickers (showOpenFilePicker / showSaveFilePicker), so
@@ -294,11 +313,43 @@ function frameMessage(e) {
 // animation frames, so its first window would never be drawn)
 const NO_WINDOWS = "path('M0 0h1v1h-1Z')";
 
+// `held` comes from the frame, so Studio takes it only for a press it can
+// see (docs/security/audit-2026-11-05-web.md SEC-36): the frame must have
+// the focus a press in it gives, and the browser's user activation must be
+// on — which a real press in the frame gives this page too, and a script's
+// own event can't. A program can't keep its whole frame over Studio with no
+// press (`held: true` of its own making) or by never sending `held: false`:
+//  - the frame loses the focus the moment the user clicks into Studio, and
+//    `held` is dropped;
+//  - `held` lasts HELD_MS at most unless the windows keep moving — a real
+//    drag updates the rectangles each frame, which keeps it alive, so a
+//    genuine drag is never cut; a still, full-surface hold is clipped away.
+const HELD_MS = 4000;
+function pressSeen() {
+  if (!run.frame || document.activeElement !== run.frame) return false;
+  const ua = navigator.userActivation;
+  return !ua || ua.isActive;
+}
+function armHeld() {
+  clearTimeout(run.heldTimer);
+  run.heldTimer = setTimeout(() => { run.held = false; clipToWindows({}); }, HELD_MS);
+}
+function setHeld(held) {
+  const was = run.held;
+  run.held = held && pressSeen();
+  if (run.held) {
+    if (!was) armHeld();
+  } else {
+    clearTimeout(run.heldTimer);
+  }
+}
+
 function clipToWindows(w) {
   if (!run.frame) return;
-  if (typeof w.held === "boolean") run.held = w.held;
+  if (typeof w.held === "boolean") setHeld(w.held);
   if (Array.isArray(w.rects)) {
     const vw = window.innerWidth, vh = window.innerHeight;
+    const before = window.RAPIDR_STUDIO_RUN_RECTS && JSON.stringify(window.RAPIDR_STUDIO_RUN_RECTS);
     run.rects = w.rects
       .slice(0, 256)
       .filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite))
@@ -307,9 +358,15 @@ function clipToWindows(w) {
         return [l, t, Math.max(0, Math.min(vw, x + rw) - l), Math.max(0, Math.min(vh, y + rh) - t)];
       })
       .filter((r) => r[2] > 0 && r[3] > 0);
+    // (a window still moving under a real press keeps `held` alive, so a
+    // drag longer than HELD_MS isn't cut; a hold that doesn't move isn't)
+    if (run.held && pressSeen() && JSON.stringify(run.rects) !== before) armHeld();
     // (for the tests: where the program's windows are)
     window.RAPIDR_STUDIO_RUN_RECTS = run.rects;
   }
+  // (the user is working in Studio now: the program's frame doesn't keep the
+  // surface)
+  if (run.held && document.activeElement !== run.frame) setHeld(false);
   const rects = run.rects || [];
   let clip = NO_WINDOWS;
   if (run.held) clip = "none";
@@ -336,6 +393,7 @@ function closeFrame() {
   if (run.port) run.port.close();
   if (run.box) run.box.remove();
   run.files.clear();
+  clearTimeout(run.heldTimer);
   Object.assign(run, { box: null, frame: null, port: null, ready: false, queue: [], rects: [], held: false });
   window.RAPIDR_STUDIO_RUN_RECTS = [];
 }

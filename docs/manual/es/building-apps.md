@@ -343,6 +343,7 @@ Lo que hay en el zip:
 | `rapidr-assets.js` | los archivos propios del proyecto (un CSV que carga el programa, imágenes), cuando los hay |
 | `fonts/` | las fuentes de respaldo, que se cargan solo para los caracteres que les faltan a las fuentes integradas |
 | `THIRD-PARTY-NOTICES.txt` | los avisos de código abierto que viajan con el entorno de ejecución |
+| `rapidr-webview.html` | el marco donde corre el `Html` de un `RWebView`: acepta la página solo de la página de tu propio programa, y ningún otro sitio puede ponerlo en un marco |
 | `_headers`, `.htaccess` | los mismos encabezados seguros, para los servidores que los leen |
 
 Un programa que tiene que llegar a un servidor propio (un fetch a una dirección que

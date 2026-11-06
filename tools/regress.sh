@@ -150,7 +150,7 @@ if want web; then
   # Studio's run frame — its isolation, its file pickers — on Studio's web
   # build, made here from the current sources and runtime)
   RAPIDR="$PWD/rapidr" bash tools/build_studio_web.sh --no-runtime >/dev/null || echo "tools/build_studio_web.sh: FAILED"
-  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_end_code.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_audio_out.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
+  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_end_code.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_audio_out.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs tests/web_studio_safety.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi
@@ -184,14 +184,17 @@ if want studio; then echo "== studio"
   done
 fi
 # Security regressions (docs/security-audit.md; tests/security/): the
-# browser-free scripts, and the Rust ones each crate compiles from there
+# scripts (browser-free, but the RWEBVIEW frame's framing, SEC-34, in a
+# headless browser on two loopback servers: no build needed), and the Rust
+# ones each crate compiles from there
 # (its `security_regressions` module) — the web bundle's policy and
 # escaping, the language server's and the debug adapter's confinement, whose
 # keys and secrets a program reaches, RAI's redirects and kept files, the
 # assistant's tools and links (the memory keystore only), the test-mode
-# tokens and a release build's hooks off without one (SEC-24). The
-# browser's side is in the web stage (tests/web_bundle_csp.mjs,
-# tests/web_overlays.mjs).
+# tokens and a release build's hooks off without one (SEC-24), what a
+# browser's program is sent (SEC-37). The browser's side on the builds is in
+# the web stage (tests/web_bundle_csp.mjs, tests/web_overlays.mjs,
+# tests/web_studio_safety.mjs).
 if want security; then echo "== security"
   for t in tests/security/*.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "FAIL|Error"; }

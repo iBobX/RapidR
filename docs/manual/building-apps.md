@@ -324,6 +324,7 @@ What is in the zip:
 | `rapidr-assets.js` | the project's own files (a CSV the program loads, pictures), when there are some |
 | `fonts/` | the fallback fonts, loaded only for characters the built-in fonts lack |
 | `THIRD-PARTY-NOTICES.txt` | the open-source notices that travel with the runtime |
+| `rapidr-webview.html` | the frame an `RWebView`'s `Html` runs in: it takes the page only from your program's own page, and no other site may frame it |
 | `_headers`, `.htaccess` | the same safe headers, for hosts that read them |
 
 A program that has to reach a server of its own (a fetch of an address it

@@ -51,8 +51,14 @@ cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY
 # (the frame an RWEBVIEW's Html runs in: docs/security-audit.md SEC-15)
 cp interpreter/rapidr-webbundle/web/rapidr-webview.html "$OUT/runtime/"
 # (the hosts' headers: ide/web/_headers, .htaccess — no CORS, no framing by
-# other sites; docs/security-audit.md SEC-17)
+# other sites; docs/security-audit.md SEC-17. The frames' own rules too:
+# run.html framed by Studio only, the RWEBVIEW frame always sandboxed —
+# docs/security/audit-2026-11-05-web.md SEC-34: a build without them isn't
+# made)
 cp ide/web/_headers ide/web/.htaccess "$OUT/"
+grep -q "^/run.html$" "$OUT/_headers" && grep -q "^/runtime/rapidr-webview.html$" "$OUT/_headers" \
+    && grep -q '<Files "rapidr-webview.html">' "$OUT/.htaccess" && grep -q '<Files "run.html">' "$OUT/.htaccess" \
+    || { echo "error: ide/web/_headers and .htaccess must give run.html and runtime/rapidr-webview.html their own rules (SEC-34)"; exit 1; }
 cp -R target/web/fonts "$OUT/runtime/fonts"
 # (the start page's brand: ide/assets, read from --home as on the desktop)
 mkdir -p "$OUT/ide/assets"

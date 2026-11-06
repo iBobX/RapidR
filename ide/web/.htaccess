@@ -4,6 +4,13 @@
 # adds what only a header can say: no other site may put Studio in a frame.
 # No CORS: run.html, the program's sandboxed frame, gets the runtime from
 # Studio by message, never by fetching it.
+#
+# run.html: only Studio's own page may frame it. rapidr-webview.html (in
+# runtime/), the frame an RWEBVIEW's Html runs in, can't say that (its
+# frame-ancestors would have to match run.html, at an opaque origin): it is
+# always sandboxed instead, at an opaque origin whoever frames it, so what
+# runs in it never reaches Studio's storage
+# (docs/security/audit-2026-11-05-web.md SEC-34).
 Options -Indexes
 <IfModule mod_mime.c>
   AddType application/wasm .wasm
@@ -16,5 +23,11 @@ Options -Indexes
   Header always set Cross-Origin-Opener-Policy "same-origin"
   <Files "index.html">
     Header always set Content-Security-Policy "frame-ancestors 'self'"
+  </Files>
+  <Files "run.html">
+    Header always set Content-Security-Policy "frame-ancestors 'self'"
+  </Files>
+  <Files "rapidr-webview.html">
+    Header always set Content-Security-Policy "sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads"
   </Files>
 </IfModule>

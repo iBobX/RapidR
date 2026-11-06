@@ -9,10 +9,20 @@
   The HTML then replaces this page and runs under this file's rules, not
   the program page's Content-Security-Policy, which an iframe's srcdoc would
   inherit.
+
+  Who may send it (docs/security/audit-2026-11-05-web.md SEC-34): the parent
+  window only, and only a parent of this file's own site (the program's
+  page: e.origin is location.origin) — or, when this frame is itself at an
+  opaque origin, an opaque parent (RapidR Studio's program frame, run.html,
+  whose RWEBVIEWs are opaque too): what runs then can't reach the site's
+  storage. Any other site framing this file is ignored. The file has no
+  <meta> policy on purpose: document.write keeps it, so it would bind the
+  RWEBVIEW's Html; the hosts' headers give the file its own (framing) rules.
 -->
 <html><head><meta charset="utf-8"><script>
 addEventListener("message", function (e) {
   if (e.source !== parent || !e.data || typeof e.data.__rapidr_webview_html !== "string") return;
+  if (e.origin !== location.origin && !(String(self.origin) === "null" && e.origin === "null")) return;
   document.open();
   document.write(e.data.__rapidr_webview_html);
   document.close();

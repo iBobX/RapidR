@@ -9,7 +9,9 @@
 //!   user on the machine can't guess the address;
 //! - refuses a request whose `Host` isn't its own loopback address (a DNS
 //!   rebinding site), and anything but GET / HEAD;
-//! - sends the bundle's Content-Security-Policy and `nosniff`.
+//! - sends the bundle's Content-Security-Policy (with `frame-ancestors`) on
+//!   its page, the RWEBVIEW frame file its own on that file (SEC-34), and
+//!   `nosniff`.
 //!
 //! It prints `Serving <url>` once it listens, and ends when its standard
 //! input closes (the IDE that started it went away) or it's killed.
@@ -62,6 +64,18 @@ struct Site {
     csp: String,
 }
 
+/// The policy a served page gets: the RWEBVIEW frame file its own (only the
+/// program's page frames it; nothing limits its Html —
+/// docs/security/audit-2026-11-05-web.md SEC-34), any other page the
+/// bundle's, as the hosts' `_headers` say.
+fn policy_for<'a>(site_csp: &'a str, name: &str) -> &'a str {
+    if name == rapidr_webbundle::WEBVIEW_FRAME_FILE {
+        rapidr_webbundle::WEBVIEW_FRAME_POLICY
+    } else {
+        site_csp
+    }
+}
+
 /// One request: the file under `/<token>/`, or a refusal.
 fn answer(site: &Site, mut stream: TcpStream) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
@@ -93,10 +107,10 @@ fn answer(site: &Site, mut stream: TcpStream) {
     let mut parts = first.split_whitespace();
     let (method, target) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
     let ours = [format!("127.0.0.1:{}", site.port), format!("localhost:{}", site.port)];
-    let reply = |stream: &mut TcpStream, status: &str, kind: &str, body: &[u8], head_only: bool| {
+    let reply = |stream: &mut TcpStream, status: &str, kind: &str, body: &[u8], head_only: bool, name: &str| {
         let mut head = format!("HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n", body.len());
         if kind.starts_with("text/html") {
-            head.push_str(&format!("Content-Security-Policy: {}\r\n", site.csp));
+            head.push_str(&format!("Content-Security-Policy: {}\r\n", policy_for(&site.csp, name)));
         }
         head.push_str("\r\n");
         let _ = stream.write_all(head.as_bytes());
@@ -105,23 +119,23 @@ fn answer(site: &Site, mut stream: TcpStream) {
         }
     };
     if !ours.contains(&host) {
-        reply(&mut stream, "421 Misdirected Request", "text/plain; charset=utf-8", b"not this server's address\n", false);
+        reply(&mut stream, "421 Misdirected Request", "text/plain; charset=utf-8", b"not this server's address\n", false, "");
         return;
     }
     if method != "GET" && method != "HEAD" {
-        reply(&mut stream, "405 Method Not Allowed", "text/plain; charset=utf-8", b"GET only\n", false);
+        reply(&mut stream, "405 Method Not Allowed", "text/plain; charset=utf-8", b"GET only\n", false, "");
         return;
     }
     let path = target.split(['?', '#']).next().unwrap_or("");
     let prefix = format!("/{}/", site.token);
     let Some(rest) = path.strip_prefix(&prefix) else {
-        reply(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found\n", false);
+        reply(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found\n", false, "");
         return;
     };
     let name = if rest.is_empty() { "index.html" } else { rest };
     match site.files.get(name) {
-        Some(data) => reply(&mut stream, "200 OK", content_type(name), data, method == "HEAD"),
-        None => reply(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found\n", false),
+        Some(data) => reply(&mut stream, "200 OK", content_type(name), data, method == "HEAD", name),
+        None => reply(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found\n", false, ""),
     }
 }
 
@@ -197,7 +211,7 @@ pub fn run(args: &[String]) -> ExitCode {
         files: files.into_iter().collect(),
         token: token(),
         port,
-        csp: rapidr_webbundle::content_security_policy(&web.needs),
+        csp: rapidr_webbundle::header_policy(&web.needs),
     });
     let url = format!("http://127.0.0.1:{port}/{}/", site.token);
     println!("Serving {url} (built in {} ms)", started.elapsed().as_millis());
@@ -230,6 +244,16 @@ mod tests {
         let (a, b) = (token(), token());
         assert_eq!(a.len(), 32);
         assert_ne!(a, b);
+    }
+
+    /// SEC-34: the page has its policy with frame-ancestors; the RWEBVIEW
+    /// frame file its own (framing only: the page's stopped its script).
+    #[test]
+    fn each_page_its_policy() {
+        let page = rapidr_webbundle::header_policy(&rapidr_webbundle::WebNeeds::default());
+        assert!(page.contains("script-src 'self'") && page.ends_with("frame-ancestors 'self'"), "{page}");
+        assert_eq!(policy_for(&page, "index.html"), page);
+        assert_eq!(policy_for(&page, "rapidr-webview.html"), "frame-ancestors 'self'");
     }
 
     #[test]
