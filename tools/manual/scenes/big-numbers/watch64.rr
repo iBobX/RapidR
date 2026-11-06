@@ -1,0 +1,10 @@
+' The debugger's view of 64-bit numbers: a UINT64 above 2^63, an INT64
+' past 2^53, a UINT32 and one in a VARIANT.
+DIM big AS UINT64 = 18446744073709551615
+DIM id AS INT64 = -9007199254740993
+DIM flags AS UINT32 = &HF58ACBFB
+DIM v AS VARIANT
+v = big - 1
+big = big \ 2 + 1
+PRINT big; " "; id; " "; flags; " "; v
+PRINT "done"

@@ -58,7 +58,8 @@ pub fn rp_seek(file_num: &Value, position: &Value) {
 
 pub fn rp_filelen(filename: &Value) -> Value {
     match fs::metadata(host(filename)) {
-        Ok(m) => v_int(m.len() as i64),
+        // (a file past 2 GB: its size whole, as an INT64)
+        Ok(m) => crate::value::wide::whole_number_u(m.len()),
         Err(_) => v_int(0),
     }
 }
@@ -210,6 +211,20 @@ mod tests {
     use crate::value::{v_int, v_str};
     use std::fs::File;
     use std::io::Write;
+
+    /// A file past 2 GB (sparse: nothing written): FILELEN its size whole,
+    /// an INT64 (it showed -2147483648, docs/big-numbers-audit.md).
+    #[test]
+    fn filelen_past_two_gigabytes() {
+        let tmp = std::env::temp_dir().join(format!("rapidr_filelen_big_{}.bin", std::process::id()));
+        let f = File::create(&tmp).unwrap();
+        f.set_len(3 * 1024 * 1024 * 1024 + 5).unwrap();
+        drop(f);
+        let n = rp_filelen(&Value::String(tmp.to_string_lossy().into_owned().into()));
+        let _ = std::fs::remove_file(&tmp);
+        assert_eq!(n, Value::Int64(3 * 1024 * 1024 * 1024 + 5));
+        assert_eq!(crate::value::format::print_text(&n), "3221225477");
+    }
 
     #[test]
     fn test_freefile() {

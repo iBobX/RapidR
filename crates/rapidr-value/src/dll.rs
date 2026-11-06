@@ -183,6 +183,12 @@ impl Param {
         self.type_name == "STRING" || self.type_name.starts_with("STRING*")
     }
 
+    /// An INT64 / UINT64 passed by value: 8 bytes (two stack words on
+    /// 32-bit Windows).
+    pub fn is_wide_value(&self) -> bool {
+        !self.by_ref && matches!(self.type_name.as_str(), "INT64" | "UINT64")
+    }
+
     /// A floating-point value passed by value.
     pub fn is_float(&self) -> bool {
         !self.by_ref && matches!(self.type_name.as_str(), "DOUBLE" | "SINGLE" | "CURRENCY")
@@ -192,7 +198,7 @@ impl Param {
     pub fn is_numeric(&self) -> bool {
         matches!(
             self.type_name.as_str(),
-            "" | "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" | "INT64" | "UINT64" | "VARIANT" | "BOOLEAN" | "BOOL"
+            "" | "BYTE" | "WORD" | "SHORT" | "INTEGER" | "LONG" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" | "INT64" | "UINT64" | "UINT32" | "VARIANT" | "BOOLEAN" | "BOOL"
         )
     }
 
@@ -257,6 +263,14 @@ pub fn numeric_size(type_name: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sixty_four_bit_parameters_by_value_take_two_words() {
+        let s = Spec::parse("INT64|INT64:v,UINT64:r,UINT32:v,LONG:v");
+        assert!(s.params[0].is_wide_value() && !s.params[1].is_wide_value() && !s.params[2].is_wide_value() && !s.params[3].is_wide_value());
+        assert!(s.params[2].is_numeric(), "UINT32 is a number");
+        assert_eq!(numeric_size("UINT64"), 8);
+    }
 
     #[test]
     fn libraries_and_hints() {

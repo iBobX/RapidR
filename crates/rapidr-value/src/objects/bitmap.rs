@@ -1099,7 +1099,7 @@ impl Bitmap {
             // DrawText(text, x, y [, color [, size]]) or (x, y, text …);
             // the size in pixels.
             "drawtext" => {
-                let text_first = !matches!(args.first(), Some(Value::Integer(_) | Value::Double(_)));
+                let text_first = !matches!(args.first(), Some(Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)));
                 let (text, x, y) = if text_first {
                     (args.first().map(Value::to_string_val), n(1), n(2))
                 } else {

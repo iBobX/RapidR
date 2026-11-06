@@ -484,7 +484,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             // (a $RESOURCE's name — its handle, a number —: the file built
             // into the program, read through its pseudo path)
             let file = match val {
-                Value::Integer(_) | Value::Double(_) => crate::resources::path(val.to_i64()).unwrap_or_else(|| text.trim().to_string()),
+                Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => crate::resources::path(val.to_i64()).unwrap_or_else(|| text.trim().to_string()),
                 _ => text.trim().to_string(),
             };
             with(|s| {

@@ -4034,3 +4034,11 @@ msgstr "La configuración de este proyecto nombra lugares fuera de su carpeta, a
 #: crates/rapidr-studio/src/project.rs
 msgid "The arguments Run gives the program name places outside the project's folder: {args}."
 msgstr "Los argumentos que Ejecutar le da al programa nombran lugares fuera de la carpeta del proyecto: {args}."
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{name}: bits {from} to {to} are outside the value's {width} bits"
+msgstr "{name}: los bits {from} a {to} están fuera de los {width} bits del valor"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
+msgstr "WriteInteger guarda 32 bits (un REG_DWORD): {n} no cabe; WriteString(name, STR$(n)) lo guarda completo"

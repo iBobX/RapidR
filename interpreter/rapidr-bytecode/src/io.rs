@@ -218,6 +218,8 @@ fn write_const(out: &mut Vec<u8>, c: &Const) {
         Const::Int(n)  => { out.push(2); write_i64(out, *n); }
         Const::Double(n) => { out.push(3); write_f64(out, *n); }
         Const::Str(s) => { out.push(4); write_str(out, s); }
+        Const::Int64(n) => { out.push(5); write_i64(out, *n); }
+        Const::UInt64(n) => { out.push(6); write_i64(out, *n as i64); }
     }
 }
 
@@ -296,6 +298,8 @@ fn read_const(r: &mut Reader) -> Result<Const, Error> {
         2 => Const::Int(r.read_i64()?),
         3 => Const::Double(r.read_f64()?),
         4 => Const::Str(read_str(r)?),
+        5 => Const::Int64(r.read_i64()?),
+        6 => Const::UInt64(r.read_i64()? as u64),
         t => return Err(Error::InvalidConstTag(t)),
     })
 }
@@ -334,6 +338,24 @@ fn read_function(r: &mut Reader) -> Result<Function, Error> {
 
 #[cfg(test)]
 mod tests {
+    /// A module with a 64-bit constant, a UINT32 conversion or one of
+    /// 2.123's builtins needs 2.123 (docs/big-numbers-design.md); the
+    /// constants go there and back.
+    #[test]
+    fn sixty_four_bit_modules_name_their_runtime() {
+        use crate::{Const, Module, MIN_RUNTIME, WIDE_SINCE};
+        let mut m = Module::new();
+        assert_eq!(m.min_runtime(), MIN_RUNTIME);
+        m.add_const(Const::UInt64(u64::MAX));
+        m.add_const(Const::Int64(i64::MIN));
+        assert_eq!(m.min_runtime(), WIDE_SINCE);
+        let back = Module::from_bytes(&m.to_bytes()).unwrap();
+        assert_eq!(back.consts, m.consts);
+        let mut b = Module::new();
+        b.add_string("getbits");
+        assert_eq!(b.min_runtime(), WIDE_SINCE);
+    }
+
     #[test]
     fn corrupt_counts_are_rejected_not_allocated() {
         // A header, then a const count of four billion.

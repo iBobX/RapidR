@@ -279,7 +279,9 @@ fn concat_at(span: TextSpan, left: Expression, right: &str) -> Expression {
 fn field_fill(span: TextSpan, type_name: &str) -> Expression {
     match type_name.to_ascii_uppercase().as_str() {
         "STRING" => text_at(span, ""),
-        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" | "INT64" | "UINT64" => int_at(span, 0),
+        "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "SINGLE" | "DOUBLE" | "CURRENCY" => int_at(span, 0),
+        // (RapidR's 64-bit kinds from the start)
+        "INT64" | "UINT64" | "UINT32" => call_at(span, crate::numeric::conversion_for(type_name).unwrap_or("__to_int64"), vec![int_at(span, 0)]),
         _ => call_at(span, "__null", Vec::new()),
     }
 }

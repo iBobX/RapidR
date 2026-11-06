@@ -19,7 +19,9 @@
 //! * SINGLE is a 32-bit float (`s = 0.1` holds 0.100000001490116), DOUBLE
 //!   a 64-bit one.
 //! * INT64 and UINT64 (RapidR's) keep all 64 bits: an integer as it is, a
-//!   float truncated toward zero, text read exactly (`crate::wide`).
+//!   float truncated toward zero, text read exactly; UINT32 wraps to its 32
+//!   bits unsigned (`crate::wide`). They make `Value::Int64` /
+//!   `Value::UInt64`, which carry their type wherever they go.
 //! * A string stored into a number converts like VAL; TRUE is -1. Arrays and
 //!   objects are left alone. (RapidQ stores 0 for a string: RapidR keeps
 //!   VAL's reading — a judgment call, see the ground-truth doc.)
@@ -41,12 +43,14 @@ pub enum NumKind {
     Single,
     /// INT64 (RapidR's): 64-bit signed.
     Int64,
-    /// UINT64 (RapidR's): 64-bit unsigned, its bits kept in the `i64` of a
-    /// `Value::Integer` (`crate::wide` shows and compares it unsigned).
+    /// UINT64 (RapidR's): 64-bit unsigned (`Value::UInt64`).
     UInt64,
+    /// UINT32 (RapidR's): 32-bit unsigned, 0 to 4294967295, held as an
+    /// INT64 value (`Value::Int64`), so it shows and works in full.
+    UInt32,
 }
 
-const ALL: [NumKind; 9] = [NumKind::Byte, NumKind::Word, NumKind::Short, NumKind::Long, NumKind::Dword, NumKind::Double, NumKind::Single, NumKind::Int64, NumKind::UInt64];
+const ALL: [NumKind; 10] = [NumKind::Byte, NumKind::Word, NumKind::Short, NumKind::Long, NumKind::Dword, NumKind::Double, NumKind::Single, NumKind::Int64, NumKind::UInt64, NumKind::UInt32];
 
 impl NumKind {
     /// The kind for a declared type name (`AS INTEGER`), if numeric.
@@ -61,6 +65,7 @@ impl NumKind {
             "SINGLE" => NumKind::Single,
             "INT64" => NumKind::Int64,
             "UINT64" => NumKind::UInt64,
+            "UINT32" => NumKind::UInt32,
             _ => return None,
         })
     }
@@ -77,6 +82,7 @@ impl NumKind {
             NumKind::Single => "__to_single",
             NumKind::Int64 => "__to_int64",
             NumKind::UInt64 => "__to_uint64",
+            NumKind::UInt32 => "__to_uint32",
         }
     }
 
@@ -107,8 +113,15 @@ impl NumKind {
             NumKind::Word => n as u16 as i64,
             NumKind::Short => n as i16 as i64,
             NumKind::Long | NumKind::Dword => n as i32 as i64,
+            NumKind::UInt32 => n as u32 as i64,
             NumKind::Double | NumKind::Single | NumKind::Int64 | NumKind::UInt64 => n,
         }
+    }
+
+    /// INT64, UINT64 and UINT32: the kinds whose values are RapidR's 64-bit
+    /// ones (`Value::Int64` / `Value::UInt64`).
+    pub fn is_wide(self) -> bool {
+        matches!(self, NumKind::Int64 | NumKind::UInt64 | NumKind::UInt32)
     }
 }
 
@@ -156,9 +169,16 @@ pub fn convert(v: &Value, kind: NumKind) -> Value {
         (NumKind::Double | NumKind::Single, Value::Array(_) | Value::Object(_)) => v.clone(),
         (NumKind::Double, _) => Value::Double(v.to_f64()),
         (NumKind::Single, _) => Value::Double(single(v.to_f64())),
-        (NumKind::Int64 | NumKind::UInt64, Value::Array(_) | Value::Object(_)) => v.clone(),
-        (NumKind::Int64 | NumKind::UInt64, _) => Value::Integer(crate::wide::of(v, kind == NumKind::UInt64)),
+        (NumKind::Int64 | NumKind::UInt64 | NumKind::UInt32, Value::Array(_) | Value::Object(_)) => v.clone(),
+        (NumKind::Int64, Value::Int64(_)) | (NumKind::UInt64, Value::UInt64(_)) => v.clone(),
+        (NumKind::Int64, _) => crate::wide::to_int64(v),
+        (NumKind::UInt64, _) => crate::wide::to_uint64(v),
+        (NumKind::UInt32, _) => crate::wide::to_uint32(v),
         (_, Value::Integer(n)) => Value::Integer(kind.wrap(crate::format::int32_of(*n))),
+        // (a 64-bit value stored into a classic type: the number it is, as a
+        // classic integer of that size would be stored)
+        (_, Value::Int64(n)) => Value::Integer(kind.wrap(crate::format::int32_of(*n))),
+        (_, Value::UInt64(n)) => Value::Integer(kind.wrap(crate::format::int32_of(i64::try_from(*n).unwrap_or(i64::MAX)))),
         (_, Value::Array(_) | Value::Object(_)) => v.clone(),
         (_, _) => Value::Integer(kind.wrap(trunc_to_int(v.to_f64()))),
     }
@@ -207,6 +227,9 @@ pub fn to_int64(v: &Value) -> Value {
 pub fn to_uint64(v: &Value) -> Value {
     convert(v, NumKind::UInt64)
 }
+pub fn to_uint32(v: &Value) -> Value {
+    convert(v, NumKind::UInt32)
+}
 
 // ---- Native builds' typed variables (rapidr-codegen-rust `typed`) ----
 //
@@ -216,14 +239,15 @@ pub fn to_uint64(v: &Value) -> Value {
 /// `v` stored into an integer variable of `kind`, as its number.
 #[inline]
 pub fn int_of(v: &Value, kind: NumKind) -> i64 {
-    if matches!(kind, NumKind::Int64 | NumKind::UInt64) {
+    if kind.is_wide() {
         return match v {
             Value::Array(_) | Value::Object(_) => 0,
-            _ => crate::wide::of(v, kind == NumKind::UInt64),
+            _ => convert(v, kind).to_i64(),
         };
     }
     match v {
-        Value::Integer(n) => kind.wrap(crate::format::int32_of(*n)),
+        Value::Integer(n) | Value::Int64(n) => kind.wrap(crate::format::int32_of(*n)),
+        Value::UInt64(n) => kind.wrap(crate::format::int32_of(i64::try_from(*n).unwrap_or(i64::MAX))),
         Value::Array(_) | Value::Object(_) => 0,
         _ => kind.wrap(trunc_to_int(v.to_f64())),
     }

@@ -109,6 +109,11 @@ export const cases = [
   { file: "basics/int64_uint64.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Total size: 16106127360 bytes = 15 GB", "INT64: -9223372036854775808 to 9223372036854775807", "UINT64: 0 to 18446744073709551615 (HEX$ FFFFFFFFFFFFFFFF)",
       "FNV-1a hash of RapidR: 6B9404F5B9C8FD81", "Mask FFFF0000FFFF0000 AND &H123456789ABCDEF0 = 123400009ABC0000", "Mask SHR 16 = 281470681808895", "UINT64 max is greater than INT64 max"] },
+  { file: "basics/bits_and_64bit.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["The largest UINT64: 18446744073709551615", "Half way: 9223372036854775808 (that's 2^63)", "Decimal 18446744073709551615, hexadecimal FFFFFFFFFFFFFFFF",
+      "IDs: 9007199254740991 9007199254740992 9007199254740993 9007199254740994", "Counted down in 4 turns", "Five 3 GB files: 16106127360 bytes = 15 GB", "A 4 TB disk: 4 TB",
+      "Read from text: 18446744073709551614; one more is 18446744073709551615", "FNV-1a of RapidR: 6B9404F5B9C8FD81", "Flags: 4119514107 = &HF58ACBFB",
+      "High word &HF58A, low word &HCBFB", "High byte of the low word: 203, low byte: 251", "Bits 28 to 31: 15", "Low word set to &H1234: &HF58A1234", "And it equals &HF58A1234."] },
   { file: "basics/fast_arrays.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Primes below 1000000: 78498", "Smoothed: 1.000 0.750 -0.750", "7 x 8 = 56, the whole table adds up to 6084", "Done in "] },
   // (the JIT's: the same answers compiled, interpreted, native and on the web)

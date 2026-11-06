@@ -94,6 +94,14 @@ await answer("How old are you? ", "36");
 const typed = await inPage.evaluate(() => document.getElementById("rapidr-console").textContent);
 ok(typed.startsWith("What is your name? Ada\nHow old are you? 36\n"), `prompts and typed lines in the console (${JSON.stringify(typed)})`);
 ok(/Hello Ada, next year you'll be ?37/.test(typed), "the program continued with the answers (a number for age)");
+// 3b. INPUT into INT64 / UINT64 on the web: the typed digits whole, never
+// through a JavaScript number (docs/big-numbers-audit.md).
+await inPage.goto(bundle("console_input64"));
+await answer("A UINT64? ", "18446744073709551615");
+await answer("An INT64? ", "-9007199254740993");
+const typed64 = await inPage.evaluate(() => document.getElementById("rapidr-console").textContent);
+ok(typed64.includes("u = 18446744073709551615, u - 1 = 18446744073709551614"), `a UINT64 typed in (${JSON.stringify(typed64)})`);
+ok(typed64.includes("i = -9007199254740993, i + 1 = -9007199254740992"), "an INT64 past 2^53 typed in");
 
 // 4. The web's command line: the page's query string (COMMAND$(n),
 // CommandCount), as a program's own arguments on the desktop.

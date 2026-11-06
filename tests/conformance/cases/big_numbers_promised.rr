@@ -1,0 +1,74 @@
+' The five things promised for 64-bit numbers (groups.io #38940, 2.123):
+' a FOR loop's end test, SELECT CASE, INPUT, FORMAT$'s %d and %x, and a
+' UINT64 above 2^63 joined to text with & and + — every digit exact on the
+' interpreter (JIT on and off), native builds and the web. A DOUBLE can't
+' tell 9007199254740993 from 9007199254740992: these never go through one.
+DIM u AS UINT64
+DIM i AS INT64
+DIM n AS INTEGER
+
+' 1. FOR: the end test in 64 bits
+FOR i = 9007199254740993 TO 9007199254740995
+    PRINT i
+NEXT i
+FOR u = 18446744073709551613 TO 18446744073709551615
+    n = n + 1
+NEXT u
+PRINT "up to the top: "; n; " turns, u = "; u
+n = 0
+FOR u = 2 TO 0 STEP -1
+    n = n + 1
+NEXT u
+PRINT "down to 0: "; n; " turns, u = "; u
+n = 0
+FOR i = 9223372036854775806 TO 9223372036854775807
+    n = n + 1
+NEXT i
+PRINT "INT64 to its top: "; n; " turns, i = "; i
+FOR i = -9223372036854775807 TO -9223372036854775808 STEP -1
+    PRINT i
+NEXT i
+
+' 2. SELECT CASE
+FUNCTION Size(x AS UINT64) AS STRING
+    SELECT CASE x
+    CASE 9007199254740992
+        Size = "2^53"
+    CASE 9007199254740993
+        Size = "2^53 + 1"
+    CASE 9223372036854775808 TO 18446744073709551614
+        Size = "above 2^63"
+    CASE 18446744073709551615
+        Size = "the top"
+    CASE IS < 1000
+        Size = "small"
+    CASE ELSE
+        Size = "other"
+    END SELECT
+END FUNCTION
+PRINT Size(9007199254740992); ", "; Size(9007199254740993); ", "; Size(9223372036854775809); ", "; Size(18446744073709551615); ", "; Size(5)
+i = -9007199254740993
+SELECT CASE i
+CASE -9007199254740992
+    PRINT "wrong: a DOUBLE"
+CASE -9007199254740993
+    PRINT "case -2^53 - 1"
+END SELECT
+
+' 3. INPUT: big_numbers_input.rr (it reads a typed line)
+
+' 4. FORMAT$ %d and %x
+u = 18446744073709551615
+i = -9007199254740993
+PRINT FORMAT$("%d|%x|%25d|%-21d|", u, u, i, u)
+PRINT FORMAT$("%x|%.20d|%d", i, 5000000000 + u - u, 42)
+PRINT FORMAT$("%n", u)
+
+' 5. Joined to text: & and +
+u = 9223372036854775808
+PRINT "u = " & u
+PRINT "u = " + u
+PRINT "u + 1 = " & (u + 1) & ", i = " & i
+DIM s AS STRING
+s = "max " + STR$(u * 2 - 1)
+PRINT s

@@ -1015,7 +1015,9 @@ fn number_text(x: f64, float: bool) -> String {
 /// or NULL.
 fn my_value(v: &Value) -> MyValue {
     match v {
-        Value::Integer(n) => MyValue::Int(*n),
+        Value::Integer(n) | Value::Int64(n) => MyValue::Int(*n),
+        // (a BIGINT UNSIGNED holds it whole)
+        Value::UInt64(n) => MyValue::UInt(*n),
         Value::Double(x) => MyValue::Double(*x),
         Value::Boolean(_) => MyValue::Int(v.to_i64()),
         Value::Null => MyValue::NULL,

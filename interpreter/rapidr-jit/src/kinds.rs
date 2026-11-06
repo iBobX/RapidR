@@ -19,6 +19,10 @@ pub enum K {
     Arr,
     /// Text, an object: compiled code doesn't touch it.
     Other,
+    /// `Value::Int64` (INT64, UINT32): an `i64` register.
+    I64,
+    /// `Value::UInt64`: an `i64` register holding its bits.
+    U64,
 }
 
 impl K {
@@ -29,13 +33,25 @@ impl K {
             Value::Integer(_) => K::Int,
             Value::Double(_) => K::Dbl,
             Value::Array(_) => K::Arr,
+            Value::Int64(_) => K::I64,
+            Value::UInt64(_) => K::U64,
             Value::String(_) | Value::Object(_) => K::Other,
         }
     }
 
     /// Null, a boolean or a number: a value compiled code holds.
     pub fn scalar(self) -> bool {
-        matches!(self, K::Null | K::Bool | K::Int | K::Dbl)
+        matches!(self, K::Null | K::Bool | K::Int | K::Dbl | K::I64 | K::U64)
+    }
+
+    /// INT64 / UINT64 (RapidR's 64-bit kinds, docs/big-numbers-design.md).
+    pub fn wide(self) -> bool {
+        matches!(self, K::I64 | K::U64)
+    }
+
+    /// A whole number in an `i64` register: an Integer, an INT64, a UINT64.
+    pub fn whole(self) -> bool {
+        matches!(self, K::Int | K::I64 | K::U64)
     }
 
     /// Its code for the helpers.
@@ -47,6 +63,8 @@ impl K {
             K::Dbl => 3,
             K::Arr => 4,
             K::Other => 5,
+            K::I64 => 6,
+            K::U64 => 7,
         }
     }
 
@@ -57,6 +75,8 @@ impl K {
             2 => K::Int,
             3 => K::Dbl,
             4 => K::Arr,
+            6 => K::I64,
+            7 => K::U64,
             _ => K::Other,
         }
     }
@@ -67,7 +87,8 @@ impl K {
 pub fn bits_of(v: &Value) -> u64 {
     match v {
         Value::Boolean(b) => u64::from(*b),
-        Value::Integer(n) => *n as u64,
+        Value::Integer(n) | Value::Int64(n) => *n as u64,
+        Value::UInt64(n) => *n,
         Value::Double(f) => f.to_bits(),
         _ => 0,
     }
@@ -78,6 +99,8 @@ pub fn value_of(k: K, bits: u64) -> Value {
     match k {
         K::Bool => Value::Boolean(bits & 0xFF != 0),
         K::Int => Value::Integer(bits as i64),
+        K::I64 => Value::Int64(bits as i64),
+        K::U64 => Value::UInt64(bits),
         K::Dbl => Value::Double(f64::from_bits(bits)),
         _ => Value::Null,
     }
@@ -89,7 +112,7 @@ mod tests {
 
     #[test]
     fn scalars_go_there_and_back() {
-        for v in [Value::Null, Value::Boolean(true), Value::Boolean(false), Value::Integer(i64::MIN), Value::Integer(-1), Value::Double(-0.0), Value::Double(f64::NAN), Value::Double(1e300)] {
+        for v in [Value::Null, Value::Boolean(true), Value::Boolean(false), Value::Integer(i64::MIN), Value::Integer(-1), Value::Double(-0.0), Value::Double(f64::NAN), Value::Double(1e300), Value::Int64(i64::MIN), Value::UInt64(u64::MAX)] {
             let k = K::of(&v);
             let back = value_of(k, bits_of(&v));
             assert_eq!(K::of(&back), k);

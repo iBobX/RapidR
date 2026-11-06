@@ -65,9 +65,11 @@ fn table() -> &'static HashMap<String, i64> {
 /// RapidR's own constants that only a `.rr` program has (RapidQ has them in
 /// none of its includes, so a `.bas` program never does): an RListView's
 /// OnChange `Change` kinds — the caption edited, an image, the check box or
-/// state image (`rapidr_value::objects::listview::CT_TEXT` …). In the
-/// language registry as RapidR's (`constants.toml`).
-pub const RAPIDR_ONLY: &[(&str, i64)] = &[("ctText", 0), ("ctImage", 1), ("ctState", 2)];
+/// state image (`rapidr_value::objects::listview::CT_TEXT` …) — and a
+/// stream's 64-bit number types, `Num_INT64`, `Num_UINT64`, `Num_UINT32`
+/// (`rapidr_value::objects::memstream::NUM_INT64` …). In the language
+/// registry as RapidR's (`constants.toml`).
+pub const RAPIDR_ONLY: &[(&str, i64)] = &[("ctText", 0), ("ctImage", 1), ("ctState", 2), ("Num_INT64", 9), ("Num_UINT64", 10), ("Num_UINT32", 11)];
 
 /// Whether `name` is one of [`RAPIDR_ONLY`] (any case).
 pub fn is_rapidr_only(name: &str) -> bool {

@@ -359,7 +359,8 @@ impl RustCodegen {
         );
         self.flat_loop_body("FOR", exit, &f.body);
         self.write_indent();
-        let _ = writeln!(self.output, "{}", assign(&format!("&{get} + &{step_tmp}")));
+        // (a 64-bit counter's step past its type's limit ends the loop)
+        let _ = writeln!(self.output, "match rp_for_next(&{get}, &{step_tmp}) {{ Some(__next) => {{ {} }} None => {{ __pc = {exit}; continue 'sm; }} }}", assign("__next"));
         self.jump(check);
         self.start_state(exit);
     }

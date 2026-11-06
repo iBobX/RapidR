@@ -119,6 +119,12 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `FIX(Number)` | A number's whole part, truncated toward zero (`FIX(-2.7)` is -2); the same as `INT`. |
 | `FLOOR(Number)` | The largest whole number not greater than a number (`FLOOR(-2.1)` is -3), as a 32-bit integer. |
 | `FRAC(Number)` | A number's fractional part, with its sign: `FRAC(-2.75)` is -0.75. |
+| `HIBYTE(Number)` | Bits 8 to 15 of a number (bit 0 is the rightmost), 0 to 255: the high byte of its low word. `HIBYTE(&H1234)` is `&H12`. |
+| `HIWORD(Number)` | Bits 16 to 31 of a number (bit 0 is the rightmost), 0 to 65535: the high word of a Windows message's `lParam`, a 32-bit colour's top half. `HIWORD(&HF58ACBFB)` is `&HF58A`. |
+| `LOBYTE(Number)` | Bits 0 to 7 of a number (bit 0 is the rightmost), 0 to 255. `LOBYTE(&H1234)` is `&H34`. |
+| `LOWORD(Number)` | Bits 0 to 15 of a number (bit 0 is the rightmost), 0 to 65535: the low word of a Windows message's `lParam`. `LOWORD(&HF58ACBFB)` is `&HCBFB`. |
+| `GETBITS(Number, Start, Count)` | `Count` bits of a number from bit `Start` on (bit 0 is the rightmost), as a number from 0: `GETBITS(&HF58ACBFB, 28, 4)` is 15. A classic number has 32 bits, an INT64, UINT64 or UINT32 64; a UINT64 or INT64 gives one of its type. Bits outside the number stop the program with a message naming them. |
+| `SETBITS(Number, Start, Count, Bits)` | The number with `Count` bits from bit `Start` on (bit 0 is the rightmost) replaced by the low `Count` bits of `Bits`: `SETBITS(0, 4, 4, 15)` is `&HF0`. It returns the new number (the variable changes only when stored back: `flags = SETBITS(flags, 3, 1, 1)`). A classic number has 32 bits (bit 31 set makes it negative, as a LONG), an INT64, UINT64 or UINT32 64. Bits outside the number stop the program with a message naming them. |
 | `IIF(Condition, TrueValue, FalseValue)` | `TrueValue` when the condition is true, else `FalseValue`. Both are evaluated before the choice. |
 | `INT(Number)` | A number's whole part, truncated toward zero (`INT(-2.5)` is -2), kept as large as the number. |
 | `INV(Number, Modulus)` | The modular inverse of a number (`INV(3, 26)` is 9), or -1 when there is none; also an operator, `a INV m`. |
@@ -158,7 +164,7 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | Builtin | |
 |---|---|
 | `ASC(char$)` | The character code of a string's first character, 0 for an empty string; the inverse of `CHR$`. It counts characters, not UTF-8 bytes: `ASC("é")` is 233. |
-| `BIN$(Integer)` | The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first. |
+| `BIN$(Integer)` | The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first. An INT64, UINT64 or UINT32 shows all 64 bits. |
 | `CHR$(byte)` | The one-character string whose code is the number's low byte (`CHR$(65)` is `A`); a real number is rounded half to even first. |
 | `COMPRESS$(Bytes$ [, Format$ [, Level]])` | `Bytes$` packed smaller: a string of bytes (one character a byte, as a stream's ReadBinStr gives and DECOMPRESS$ takes back). `Format$` is "gzip" (the default: what `.gz` files hold), "zlib" or "deflate"; `Level` 0 (stored, fastest) to 9 (smallest), 6 by default. For files and folders, RArchive. |
 | `CONVBASE$(Text$, FromBase, ToBase)` | A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$("FF", 16, 10)` is `255`. A negative number converts as its 32 bits; "" for a bad base or digit. |
@@ -166,7 +172,7 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `DELETE$(String$, Index, Count)` | The string with `Count` characters removed starting at position `Index` (1 the first): `DELETE$("Hello", 2, 3)` is `Ho`. |
 | `FIELD$(Source$, Delimiter$, FieldNumber)` | The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$("a,b,c", ",", 2)` is `b`; "" out of range. |
 | `FORMAT$(S$, arg1, arg2, ...)` | Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$("%5.2f", 3.14159)` is ` 3.14`. `%s` takes text (a number gives nothing), the others a number (text counts as 0); `%d` and `%x` make it a whole 32-bit number; a specifier Pascal's Format refuses (`%+d`, `%c`, `%.*f`) stops the program. |
-| `HEX$(Number)` | The hexadecimal digits of a number's 32 bits, always 8 of them: `HEX$(255)` is `000000FF`. A real number is rounded half to even first. |
+| `HEX$(Number [, Digits])` | The hexadecimal digits of a number's 32 bits, always 8 of them: `HEX$(255)` is `000000FF`. A real number is rounded half to even first. An INT64, UINT64 or UINT32 shows 8 digits, 16 when it needs more than 32 bits (a negative INT64 needs all 64). RapidR's `Digits` (1 to 16) gives at least that many, never cutting the number: `HEX$(255, 2)` is `FF`. |
 | `HEXTODEC(Hex$)` | The number a string of hexadecimal digits stands for (`&H` or `0x` in front allowed): `HEXTODEC("FF")` is 255; 0 when it isn't hexadecimal. |
 | `INSERT$(Part$, Source$, Index)` | `Source$` with `Part$` inserted before character `Index` (1 the first): `INSERT$("hi", "Hello", 3)` is `Hehillo`. The text to insert comes first. |
 | `INSTR([Start,] Search$,Find$)` | The position (1 the first) where `Find$` first occurs in `Search$`, from character `Start` when given; 0 when it doesn't (an empty `Find$` is never found). |
@@ -223,4 +229,4 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `TIMER` *bare* | The seconds since midnight (local time), with fractions, for timing parts of a program. |
 | `UNLOADLIBRARY(DLLName)` | Removes a DLL from memory — only one the program declared (`DECLARE … LIB "name"`), by that very name: `UNLOADLIBRARY("USER32")` unloads `LIB "USER32"`, while `UNLOADLIBRARY("USER32.DLL")` does nothing (capitals don't matter). A library not loaded, or not declared, does nothing; a later call to one of its functions loads it again, so unloading is never required (it is done when the program ends). Only on Windows is there a DLL to unload: elsewhere it does nothing, without an error. |
 
-162 builtins.
+168 builtins.

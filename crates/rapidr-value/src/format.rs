@@ -133,8 +133,24 @@ pub fn try_format(fmt: &str, args: &[Value]) -> Result<String, String> {
                     None => s,
                 }
             }
+            // (a 64-bit value, RapidR's: all of it — a classic number stays
+            // RapidQ's 32 bits)
+            // (a precision up to 20 there: a UINT64's every digit)
+            'd' if crate::wide::is_wide(arg) => min_digits(&arg.to_string_val(), prec.filter(|p| *p <= 20)),
+            'x' if crate::wide::is_wide(arg) => min_digits(&format!("{:X}", arg.to_i64() as u64), prec.filter(|p| *p <= 20)),
             'd' => min_digits(&int32_trunc(number_of(arg)).to_string(), int_prec),
             'x' => min_digits(&format!("{:X}", int32_trunc(number_of(arg)) as i32 as u32), int_prec),
+            // (`%f` / `%n` of a 64-bit whole number: its every digit, the
+            // decimals zeros — not a DOUBLE's 17 digits)
+            'f' | 'n' if crate::wide::is_wide(arg) => {
+                let p = float_prec.unwrap_or(2);
+                let mut t = arg.to_string_val();
+                if p > 0 {
+                    t.push('.');
+                    t.extend(std::iter::repeat_n('0', p));
+                }
+                if kind.eq_ignore_ascii_case(&'n') { thousands(&t) } else { t }
+            }
             kind => {
                 let v = number_of(arg);
                 if v.is_nan() {
@@ -173,7 +189,7 @@ pub fn try_format(fmt: &str, args: &[Value]) -> Result<String, String> {
 /// the argument's own bits.
 fn number_of(v: &Value) -> f64 {
     match v {
-        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => v.to_f64(),
+        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) | Value::Int64(_) | Value::UInt64(_) => v.to_f64(),
         _ => 0.0,
     }
 }
@@ -507,6 +523,9 @@ fn rapidq_digits(x: f64) -> Decimal {
 pub fn print_text(v: &Value) -> String {
     match v {
         Value::Integer(n) => int32_of(*n).to_string(),
+        // (RapidR's 64-bit numbers: every digit)
+        Value::Int64(n) => n.to_string(),
+        Value::UInt64(n) => n.to_string(),
         Value::Double(d) => print_double(*d),
         _ => v.to_string_val(),
     }

@@ -1,0 +1,28 @@
+' dll_calls64.rr: 64-bit DLL arguments and results the way 32-bit Windows
+' wants them (an INT64 by value is 8 bytes on the stack, low word first; a
+' result comes back in EDX:EAX). Each line says what it should print in
+' brackets; the last checks the stack after 2000 calls.
+'
+'   rapidr run dll_calls64.rr      (Windows; it matters most on 32-bit)
+
+DECLARE FUNCTION VarR8FromI8 LIB "oleaut32" ALIAS "VarR8FromI8" (i AS INT64, BYREF d AS DOUBLE) AS LONG
+DECLARE FUNCTION VarI8FromR8 LIB "oleaut32" ALIAS "VarI8FromR8" (d AS DOUBLE, BYREF i AS INT64) AS LONG
+DECLARE FUNCTION GetTickCount64 LIB "kernel32" ALIAS "GetTickCount64" () AS UINT64
+DECLARE FUNCTION MulDiv LIB "kernel32" ALIAS "MulDiv" (a AS LONG, b AS LONG, c AS LONG) AS LONG
+DIM d AS DOUBLE
+DIM i AS INT64
+DIM t AS UINT64
+DIM k AS LONG
+DIM n AS INTEGER
+k = VarR8FromI8(4294967301, d)
+PRINT "VarR8FromI8(4294967301) -> "; FORMAT$("%.0f", d); " rc="; k; "  (4294967301)"
+k = VarR8FromI8(-9007199254740991, d)
+PRINT "VarR8FromI8(-9007199254740991) -> "; FORMAT$("%.0f", d); "  (-9007199254740991)"
+k = VarI8FromR8(-9007199254740992.0, i)
+PRINT "VarI8FromR8 -> "; i; " rc="; k; "  (-9007199254740992)"
+t = GetTickCount64()
+PRINT "GetTickCount64 > 0: "; t > 0; "  VARTYPE "; VARTYPE(t); "  (-1  21)"
+FOR n = 1 TO 2000
+    k = VarR8FromI8(n, d)
+NEXT n
+PRINT "2000 calls: d = "; FORMAT$("%.0f", d); ", MulDiv(7,6,3) = "; MulDiv(7, 6, 3); "  (2000, 14) - stack still balanced"

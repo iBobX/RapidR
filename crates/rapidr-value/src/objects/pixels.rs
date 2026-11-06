@@ -37,7 +37,7 @@ fn fail(method: &str, why: String) -> String {
 fn kind(v: Option<&Value>) -> &'static str {
     match v {
         None => "nothing",
-        Some(Value::Integer(_) | Value::Double(_)) => "a number",
+        Some(Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) => "a number",
         Some(Value::String(_)) => "a string",
         Some(Value::Boolean(_)) => "a boolean",
         Some(Value::Object(_)) => "an object",

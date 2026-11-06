@@ -703,7 +703,7 @@ fn samples_of(s: &AudioOut, args: &[Value], float: bool) -> (Vec<f32>, Option<(S
             let r = span(args, all.len());
             (all[r].to_vec(), None)
         }
-        Some(v @ (Value::Integer(_) | Value::Double(_) | Value::Boolean(_))) => (vec![conv(v.to_f64())], None),
+        Some(v @ (Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) | Value::Boolean(_))) => (vec![conv(v.to_f64())], None),
         _ => (Vec::new(), None),
     }
 }

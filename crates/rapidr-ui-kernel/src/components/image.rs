@@ -169,7 +169,7 @@ pub fn paint_glyph(cx: &Cx, p: &mut Painter, rect: Rect, enabled: bool, pressed:
     }
     let unset = match &value {
         Value::Null => true,
-        Value::Integer(_) | Value::Double(_) => value.to_i64() == 0,
+        Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => value.to_i64() == 0,
         v => v.to_string_val().is_empty(),
     };
     if unset {

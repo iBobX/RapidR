@@ -351,7 +351,7 @@ fn step(stmt: &mut Statement, values: &[Value], used: &mut usize) -> Result<Opti
         return Err(params::wrong_count(*used + wanted, values.len()));
     };
     for (i, v) in mine.iter().enumerate() {
-        stmt.raw_bind_parameter(i + 1, sql_value(v)).map_err(text)?;
+        stmt.raw_bind_parameter(i + 1, sql_value(v)?).map_err(text)?;
     }
     *used += wanted;
     let n = stmt.column_count();
@@ -381,14 +381,19 @@ fn decl_types(stmt: &Statement) -> Vec<String> {
 
 /// A BASIC value as SQLite's: an integer INTEGER, a number REAL, a string
 /// TEXT, Null NULL (a comparison's true is -1, as RapidQ has it).
-fn sql_value(v: &Value) -> SqlValue {
-    match v {
-        Value::Integer(n) => SqlValue::Integer(*n),
+fn sql_value(v: &Value) -> Result<SqlValue, String> {
+    Ok(match v {
+        Value::Integer(n) | Value::Int64(n) => SqlValue::Integer(*n),
+        // (SQLite's integers are 64-bit signed: a UINT64 above them is
+        // refused, never cut or stored as a rounded REAL)
+        Value::UInt64(n) => SqlValue::Integer(i64::try_from(*n).map_err(|_| {
+            format!("{n} doesn't fit in SQLite's whole numbers (up to 9223372036854775807): pass it as text, STR$(n), to keep it whole")
+        })?),
         Value::Double(x) => SqlValue::Real(*x),
         Value::Boolean(_) => SqlValue::Integer(v.to_i64()),
         Value::Null => SqlValue::Null,
         other => SqlValue::Text(other.to_string_val()),
-    }
+    })
 }
 
 /// A value as Row(i) gives it.
@@ -552,8 +557,17 @@ fn query_async(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value 
     }) else {
         return v_int(0);
     };
+    // (a value SQLite can't hold is the query's error, as Query's is)
+    let values = match values.iter().map(sql_value).collect::<Result<Vec<_>, _>>() {
+        Ok(v) => v,
+        Err(e) => {
+            host.report(&format!("[SQLite] QueryAsync: {e}"));
+            host.fire(name, "onerror", &[v_str(&e)]);
+            return v_int(0);
+        }
+    };
     let shared = Shared::new();
-    let job = Job { sql, values: values.iter().map(sql_value).collect(), conn, shared: shared.clone() };
+    let job = Job { sql, values, conn, shared: shared.clone() };
     background::begin(host, name, key, shared, Some(Box::new(move || interrupt.interrupt())));
     start(key, job);
     v_int(1)
@@ -706,6 +720,24 @@ mod tests {
         assert_eq!(rows(&h), ["7|integer"]);
         assert_eq!(call(&h, "queryscalar", &[v_str("SELECT ? * 2"), Value::Double(1.25)]), "2.5");
         assert_eq!(call(&h, "queryscalar", &[v_str("SELECT ? IS NULL"), Value::Null]), "1");
+    }
+
+    /// INT64 / UINT64 parameters (docs/big-numbers-audit.md): an INT64 an
+    /// INTEGER, whole; a UINT64 SQLite can't hold refused with a message,
+    /// never stored as a rounded REAL.
+    #[test]
+    fn sixty_four_bit_parameters() {
+        let h = Log::default();
+        call(&h, "connect", &[v_str("")]);
+        call(&h, "query", &[v_str("CREATE TABLE t (n INTEGER)")]);
+        call(&h, "query", &[v_str("INSERT INTO t VALUES (?), (?), (?)"), Value::Int64(-9223372036854775808), Value::Int64(9007199254740993), Value::UInt64(9223372036854775807)]);
+        call(&h, "query", &[v_str("SELECT n, typeof(n) FROM t")]);
+        assert_eq!(rows(&h), ["-9223372036854775808|integer", "9007199254740993|integer", "9223372036854775807|integer"]);
+        h.0.borrow_mut().clear();
+        assert_eq!(call(&h, "query", &[v_str("INSERT INTO t VALUES (?)"), Value::UInt64(u64::MAX)]), "0");
+        let log = h.0.borrow().join("\n");
+        assert!(log.contains("18446744073709551615 doesn't fit in SQLite's whole numbers"), "{log}");
+        assert_eq!(call(&h, "queryscalar", &[v_str("SELECT COUNT(*) FROM t")]), "3", "nothing stored");
     }
 
     #[test]

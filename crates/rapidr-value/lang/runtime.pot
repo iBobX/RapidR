@@ -3797,6 +3797,14 @@ msgid "Division by zero"
 msgstr ""
 
 #: crates/rapidr-value/src/runtime_text.rs
+msgid "{name}: bits {from} to {to} are outside the value's {width} bits"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
 msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"
 msgstr ""
 

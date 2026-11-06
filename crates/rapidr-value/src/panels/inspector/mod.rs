@@ -757,7 +757,7 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
     let again = match prop {
         "target" => {
             let names: Vec<String> = match v {
-                Value::Integer(_) | Value::Double(_) => vec![component_arg(v)],
+                Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => vec![component_arg(v)],
                 _ => text.split(',').map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).collect(),
             };
             with_mut(name, |m| {

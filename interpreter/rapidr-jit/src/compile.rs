@@ -174,6 +174,9 @@ impl Env {
                     let kind = NumKind::from_code(insn.operands[1] as u8);
                     let k = match kind {
                         Some(NumKind::Double | NumKind::Single) => K::Dbl,
+                        // (an INT64 / UINT32 holds an INT64, a UINT64 one)
+                        Some(NumKind::UInt64) => K::U64,
+                        Some(k) if k.is_wide() => K::I64,
                         Some(_) => K::Int,
                         None => K::Other,
                     };
@@ -297,7 +300,7 @@ pub fn callee_signature(params: &[K]) -> Signature {
 fn ty(k: K) -> Option<ir::Type> {
     match k {
         K::Bool => Some(types::I8),
-        K::Int => Some(types::I64),
+        K::Int | K::I64 | K::U64 => Some(types::I64),
         K::Dbl => Some(types::F64),
         _ => None,
     }
@@ -531,7 +534,7 @@ impl Walk<'_, '_> {
         match k {
             K::Dbl => self.b.ins().bitcast(types::I64, MemFlagsData::new(), v),
             K::Bool => self.b.ins().uextend(types::I64, v),
-            K::Int => v,
+            K::Int | K::I64 | K::U64 => v,
             _ => self.b.ins().iconst(types::I64, 0),
         }
     }
@@ -775,6 +778,8 @@ impl Walk<'_, '_> {
             Const::Double(f) => (self.b.ins().f64const(*f), K::Dbl),
             Const::Bool(b) => (self.b.ins().iconst(types::I8, i64::from(*b)), K::Bool),
             Const::Null => (self.dummy(), K::Null),
+            Const::Int64(n) => (self.b.ins().iconst(types::I64, *n), K::I64),
+            Const::UInt64(n) => (self.b.ins().iconst(types::I64, *n as i64), K::U64),
             Const::Str(_) => return None,
         })
     }
@@ -782,6 +787,7 @@ impl Walk<'_, '_> {
     fn as_f64(&mut self, (v, k): Entry) -> V {
         match k {
             K::Dbl => v,
+            K::U64 => self.b.ins().fcvt_from_uint(types::F64, v),
             _ => self.b.ins().fcvt_from_sint(types::F64, v),
         }
     }
@@ -798,9 +804,20 @@ impl Walk<'_, '_> {
     /// `a op b` for Add, Sub, Mul, Div (`fast::add` & co.): `None` for
     /// kinds it leaves to the interpreter.
     fn arith(&mut self, bin: Bin, a: Entry, b: Entry) -> Option<Entry> {
-        let num = |k: K| matches!(k, K::Int | K::Dbl);
+        let num = |k: K| matches!(k, K::Int | K::Dbl | K::I64 | K::U64);
         if !num(a.1) || !num(b.1) {
             return None;
+        }
+        // (an INT64 / UINT64 with a whole number: 64-bit, wrapping; a UINT64
+        // on either side makes one — rapidr_value::wide::arith)
+        if (a.1.wide() || b.1.wide()) && a.1.whole() && b.1.whole() && bin != Bin::Div {
+            let r = match bin {
+                Bin::Add => self.b.ins().iadd(a.0, b.0),
+                Bin::Sub => self.b.ins().isub(a.0, b.0),
+                Bin::Mul => self.b.ins().imul(a.0, b.0),
+                _ => return None,
+            };
+            return Some((r, if a.1 == K::U64 || b.1 == K::U64 { K::U64 } else { K::I64 }));
         }
         if bin == Bin::Div {
             let (x, y) = (self.as_f64(a), self.as_f64(b));
@@ -830,6 +847,9 @@ impl Walk<'_, '_> {
     /// integers, and beyond 2^53 the interpreter compares their floats
     /// too), a NaN on either side "less" and "equal" at once.
     fn compare(&mut self, cmp: Cmp, a: Entry, b: Entry) -> Option<V> {
+        if a.1.wide() || b.1.wide() {
+            return self.compare_wide(cmp, a, b);
+        }
         if !matches!(a.1, K::Int | K::Dbl) || !matches!(b.1, K::Int | K::Dbl) {
             return None;
         }
@@ -845,11 +865,50 @@ impl Walk<'_, '_> {
         Some(self.b.ins().fcmp(cc, x, y))
     }
 
+    /// A comparison with an INT64 / UINT64 side and a whole number on the
+    /// other, exact (`rapidr_value::wide::compare`): signed, unsigned, or —
+    /// one of each — a negative signed side is below any UINT64. Against a
+    /// DOUBLE: the interpreter's (`None`).
+    fn compare_wide(&mut self, cmp: Cmp, a: Entry, b: Entry) -> Option<V> {
+        if !a.1.whole() || !b.1.whole() {
+            return None;
+        }
+        let (ua, ub) = (a.1 == K::U64, b.1 == K::U64);
+        let cc = |unsigned: bool| match (cmp, unsigned) {
+            (Cmp::Eq, _) => IntCC::Equal,
+            (Cmp::Ne, _) => IntCC::NotEqual,
+            (Cmp::Lt, false) => IntCC::SignedLessThan,
+            (Cmp::Le, false) => IntCC::SignedLessThanOrEqual,
+            (Cmp::Gt, false) => IntCC::SignedGreaterThan,
+            (Cmp::Ge, false) => IntCC::SignedGreaterThanOrEqual,
+            (Cmp::Lt, true) => IntCC::UnsignedLessThan,
+            (Cmp::Le, true) => IntCC::UnsignedLessThanOrEqual,
+            (Cmp::Gt, true) => IntCC::UnsignedGreaterThan,
+            (Cmp::Ge, true) => IntCC::UnsignedGreaterThanOrEqual,
+        };
+        if ua == ub {
+            return Some(self.b.ins().icmp(cc(ua), a.0, b.0));
+        }
+        // (one signed, one unsigned: a negative signed side is the smaller)
+        let signed = if ua { b.0 } else { a.0 };
+        let negative = self.b.ins().icmp_imm_s(IntCC::SignedLessThan, signed, 0);
+        let unsigned = self.b.ins().icmp(cc(true), a.0, b.0);
+        let a_smaller = !ua;
+        let when_negative = match cmp {
+            Cmp::Eq => false,
+            Cmp::Ne => true,
+            Cmp::Lt | Cmp::Le => a_smaller,
+            Cmp::Gt | Cmp::Ge => !a_smaller,
+        };
+        let fixed = self.b.ins().iconst(types::I8, i64::from(when_negative));
+        Some(self.b.ins().select(negative, fixed, unsigned))
+    }
+
     /// `Value::to_bool`: whether a jump on it is taken.
     fn truth(&mut self, (v, k): Entry) -> Option<V> {
         Some(match k {
             K::Bool => v,
-            K::Int => self.b.ins().icmp_imm_s(IntCC::NotEqual, v, 0),
+            K::Int | K::I64 | K::U64 => self.b.ins().icmp_imm_s(IntCC::NotEqual, v, 0),
             K::Dbl => {
                 let z = self.b.ins().f64const(0.0);
                 self.b.ins().fcmp(FloatCC::NotEqual, v, z)
@@ -862,7 +921,8 @@ impl Walk<'_, '_> {
     /// `Value::to_i64` (the bitwise operators' operand, an index).
     fn as_i64(&mut self, (v, k): Entry) -> Option<V> {
         Some(match k {
-            K::Int => v,
+            // (`to_i64` of an INT64 its number, of a UINT64 its bits)
+            K::Int | K::I64 | K::U64 => v,
             K::Dbl => self.b.ins().fcvt_to_sint_sat(types::I64, v),
             K::Bool => {
                 let n = self.b.ins().uextend(types::I64, v);
@@ -886,25 +946,37 @@ impl Walk<'_, '_> {
             });
         }
         let kind = NumKind::from_code(code)?;
-        let out = if kind.is_integer() { K::Int } else { K::Dbl };
+        // (a store into an INT64 / UINT32 makes an INT64, into a UINT64 a
+        // UINT64: rapidr_value::wide's to_int64 & co.)
+        let out = match kind {
+            NumKind::UInt64 => K::U64,
+            k if k.is_wide() => K::I64,
+            k if k.is_integer() => K::Int,
+            _ => K::Dbl,
+        };
         match (kind, k) {
+            (NumKind::Int64, K::Int | K::I64 | K::U64) => return Some((v, K::I64)),
+            (NumKind::UInt64, K::Int | K::I64 | K::U64) => return Some((v, K::U64)),
+            (NumKind::UInt32, K::Int | K::I64 | K::U64) => return Some((self.b.ins().band_imm_u(v, 0xFFFF_FFFF), K::I64)),
             (NumKind::Double, K::Dbl) => return Some((v, K::Dbl)),
-            (NumKind::Double, K::Int) => return Some((self.b.ins().fcvt_from_sint(types::F64, v), K::Dbl)),
-            (NumKind::Single, K::Dbl | K::Int) => {
+            (NumKind::Double, K::Int | K::I64 | K::U64) => return Some((self.as_f64((v, k)), K::Dbl)),
+            (NumKind::Single, K::Dbl | K::Int | K::I64 | K::U64) => {
                 let f = self.as_f64((v, k));
                 let s = self.b.ins().fdemote(types::F32, f);
                 return Some((self.b.ins().fpromote(types::F64, s), K::Dbl));
             }
-            (NumKind::Long | NumKind::Dword, K::Int) => return Some((self.int32_of(v), K::Int)),
-            (NumKind::Byte, K::Int) => {
+            // (an INT64 into a classic type: as an Integer of its number;
+            // a UINT64 through the helper — its number may be past i64)
+            (NumKind::Long | NumKind::Dword, K::Int | K::I64) => return Some((self.int32_of(v), K::Int)),
+            (NumKind::Byte, K::Int | K::I64) => {
                 let n = self.int32_of(v);
                 return Some((self.b.ins().band_imm_u(n, 0xFF), K::Int));
             }
-            (NumKind::Word, K::Int) => {
+            (NumKind::Word, K::Int | K::I64) => {
                 let n = self.int32_of(v);
                 return Some((self.b.ins().band_imm_u(n, 0xFFFF), K::Int));
             }
-            (NumKind::Short, K::Int) => {
+            (NumKind::Short, K::Int | K::I64) => {
                 let n = self.int32_of(v);
                 let s = self.b.ins().ireduce(types::I16, n);
                 return Some((self.b.ins().sextend(types::I64, s), K::Int));
@@ -932,6 +1004,8 @@ impl Walk<'_, '_> {
             .iter()
             .map(|a| match a.1 {
                 K::Int => Value::Integer(3),
+                K::I64 => Value::Int64(3),
+                K::U64 => Value::UInt64(3),
                 K::Dbl => Value::Double(2.5),
                 K::Bool => Value::Boolean(true),
                 _ => Value::Null,
@@ -962,11 +1036,12 @@ impl Walk<'_, '_> {
         if code == rapidr_vm::fast::direct_code("ABS") {
             match arg.1 {
                 K::Dbl => return Some((self.b.ins().fabs(arg.0), K::Dbl)),
-                K::Int => {
+                K::Int | K::I64 => {
                     let neg = self.b.ins().ineg(arg.0);
                     let lt = self.b.ins().icmp_imm_s(IntCC::SignedLessThan, arg.0, 0);
-                    return Some((self.b.ins().select(lt, neg, arg.0), K::Int));
+                    return Some((self.b.ins().select(lt, neg, arg.0), arg.1));
                 }
+                K::U64 => return Some(arg),
                 _ => {}
             }
         }
@@ -1237,9 +1312,9 @@ impl Walk<'_, '_> {
                 Op::Neg => {
                     let (v, k) = pop!();
                     match k {
-                        K::Int => {
+                        K::Int | K::I64 | K::U64 => {
                             let r = self.b.ins().ineg(v);
-                            stack.push((r, K::Int));
+                            stack.push((r, k));
                         }
                         K::Dbl => {
                             let r = self.b.ins().fneg(v);
@@ -1276,6 +1351,15 @@ impl Walk<'_, '_> {
                             },
                             K::Bool,
                         ),
+                        // (an INT64 / UINT64 side: all 64 bits, wide::bitwise)
+                        (x, y) if (x.wide() || y.wide()) && x.whole() && y.whole() => (
+                            match insn.op {
+                                Op::And => self.b.ins().band(a.0, b.0),
+                                Op::Or => self.b.ins().bor(a.0, b.0),
+                                _ => self.b.ins().bxor(a.0, b.0),
+                            },
+                            if x == K::U64 || y == K::U64 { K::U64 } else { K::I64 },
+                        ),
                         (K::Int, K::Int) => {
                             let (x, y) = (self.int32_of(a.0), self.int32_of(b.0));
                             (
@@ -1302,6 +1386,10 @@ impl Walk<'_, '_> {
                             let n = self.int32_of(v);
                             let r = self.b.ins().bnot(n);
                             stack.push((r, K::Int));
+                        }
+                        K::I64 | K::U64 => {
+                            let r = self.b.ins().bnot(v);
+                            stack.push((r, k));
                         }
                         _ => bail!(),
                     }
@@ -1422,6 +1510,14 @@ impl Walk<'_, '_> {
                 }
                 Op::ForStepL => {
                     let (Some(var), Some(step)) = (self.leaf(Mode::L, o[0], &kinds), self.leaf(Mode::L, o[1], &kinds)) else { bail!() };
+                    // (a 64-bit counter: past its type's end the loop ends,
+                    // the counter as it was — wide::for_step)
+                    if var.1.wide() {
+                        let Some((r, ok)) = self.for_step_wide(var, step) else { bail!() };
+                        self.store_local(&mut kinds, o[0] as u16, r);
+                        self.branch(ok, o[2] as usize, next, at, &kinds, &stack);
+                        return Ok(());
+                    }
                     let Some(r) = self.arith(Bin::Add, var, step) else { bail!() };
                     self.store_local(&mut kinds, o[0] as u16, r);
                     self.edge(o[2] as usize, at, &kinds, &stack);
@@ -1429,6 +1525,14 @@ impl Walk<'_, '_> {
                 }
                 Op::ForStepG => {
                     let (Some(var), Some(step)) = (self.load_global(o[0] as u32), self.leaf(Mode::L, o[1], &kinds)) else { bail!() };
+                    if var.1.wide() {
+                        let Some((r, ok)) = self.for_step_wide(var, step) else { bail!() };
+                        if !self.store_global(o[0] as u32, r) {
+                            bail!();
+                        }
+                        self.branch(ok, o[2] as usize, next, at, &kinds, &stack);
+                        return Ok(());
+                    }
                     let Some(r) = self.arith(Bin::Add, var, step) else { bail!() };
                     if !self.store_global(o[0] as u32, r) {
                         bail!();
@@ -1539,10 +1643,41 @@ impl Walk<'_, '_> {
         }
     }
 
+    /// A 64-bit FOR counter's step (`rapidr_value::wide::for_step`): the
+    /// counter after it — the same one when the step would pass the type's
+    /// end — and whether the loop goes on. A step of another kind (a
+    /// DOUBLE, a UINT64 on an INT64): the interpreter's.
+    fn for_step_wide(&mut self, var: Entry, step: Entry) -> Option<(Entry, V)> {
+        let (v, s) = (var.0, step.0);
+        let r = self.b.ins().iadd(v, s);
+        let ok = match (var.1, step.1) {
+            // (signed + signed: no overflow when the sign of r is either's)
+            (K::I64, K::Int | K::I64) => {
+                let x = self.b.ins().bxor(v, r);
+                let y = self.b.ins().bxor(s, r);
+                let both = self.b.ins().band(x, y);
+                self.b.ins().icmp_imm_s(IntCC::SignedGreaterThanOrEqual, both, 0)
+            }
+            // (unsigned + signed: up without a carry, down without a borrow)
+            (K::U64, K::Int | K::I64) => {
+                let up = self.b.ins().icmp(IntCC::UnsignedGreaterThanOrEqual, r, v);
+                let down = self.b.ins().icmp(IntCC::UnsignedLessThanOrEqual, r, v);
+                let negative = self.b.ins().icmp_imm_s(IntCC::SignedLessThan, s, 0);
+                self.b.ins().select(negative, down, up)
+            }
+            (K::U64, K::U64) => self.b.ins().icmp(IntCC::UnsignedGreaterThanOrEqual, r, v),
+            _ => return None,
+        };
+        Some(((self.b.ins().select(ok, r, v), var.1), ok))
+    }
+
     /// `a MOD b` / `a \ b` on two Integers (`fast::modulo`,
     /// `Value::checked_int_div`): both as 32-bit integers
     /// (`int32_of`), by zero the interpreter's "Division by zero".
     fn int_div(&mut self, modulo: bool, a: Entry, b: Entry, at: usize, kinds: &[K], pre: &[Entry]) -> Option<Entry> {
+        if (a.1.wide() || b.1.wide()) && a.1.whole() && b.1.whole() {
+            return self.int_div_wide(modulo, a, b, at, kinds, pre);
+        }
         if a.1 != K::Int || b.1 != K::Int {
             return None;
         }
@@ -1552,6 +1687,41 @@ impl Walk<'_, '_> {
         let x = self.int32_of(a.0);
         let r = if modulo { self.b.ins().srem(x, y) } else { self.b.ins().sdiv(x, y) };
         Some((r, K::Int))
+    }
+
+    /// `a \ b` / `a MOD b` with an INT64 / UINT64 side (`wide::div_mod`):
+    /// exact, by zero the interpreter's error; both signed, or unsigned
+    /// with no negative side (a negative one: the interpreter's, in 128
+    /// bits).
+    fn int_div_wide(&mut self, modulo: bool, a: Entry, b: Entry, at: usize, kinds: &[K], pre: &[Entry]) -> Option<Entry> {
+        let (ua, ub) = (a.1 == K::U64, b.1 == K::U64);
+        let zero = self.b.ins().icmp_imm_s(IntCC::Equal, b.0, 0);
+        self.cond_exit(zero, at, kinds, pre, Why::Error);
+        if ua != ub {
+            // (one of each: unsigned while the signed side isn't negative —
+            // `u MOD 7`; a negative one is the interpreter's, in 128 bits)
+            let signed = if ua { b.0 } else { a.0 };
+            let negative = self.b.ins().icmp_imm_s(IntCC::SignedLessThan, signed, 0);
+            self.cond_exit(negative, at, kinds, pre, Why::Guard);
+        }
+        if ua || ub {
+            let r = if modulo { self.b.ins().urem(a.0, b.0) } else { self.b.ins().udiv(a.0, b.0) };
+            return Some((r, K::U64));
+        }
+        // (the smallest INT64 \ -1 is itself, MOD -1 is 0: no trap)
+        let minus_one = self.b.ins().icmp_imm_s(IntCC::Equal, b.0, -1);
+        let one = self.b.ins().iconst(types::I64, 1);
+        let safe = self.b.ins().select(minus_one, one, b.0);
+        let r = if modulo {
+            let m = self.b.ins().srem(a.0, safe);
+            let z = self.b.ins().iconst(types::I64, 0);
+            self.b.ins().select(minus_one, z, m)
+        } else {
+            let q = self.b.ins().sdiv(a.0, safe);
+            let n = self.b.ins().ineg(a.0);
+            self.b.ins().select(minus_one, n, q)
+        };
+        Some((r, K::I64))
     }
 }
 

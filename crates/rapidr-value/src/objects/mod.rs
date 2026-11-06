@@ -267,7 +267,7 @@ pub fn read_or_own(path: &str) -> Result<Vec<u8>, String> {
 /// ([`read_or_own`]). A number that is no resource's is a file's name, as
 /// before.
 pub fn picture_bytes(v: &Value) -> Result<Vec<u8>, String> {
-    if matches!(v, Value::Integer(_) | Value::Double(_)) {
+    if matches!(v, Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) {
         if let Some(b) = crate::resources::bytes(v.to_i64()) {
             return Ok(b.to_vec());
         }
@@ -1222,7 +1222,7 @@ pub fn create_form_surface(id: &str, color: i64) {
 /// is the usual light grey.
 pub fn form_color(v: &Value) -> i64 {
     match v {
-        Value::Integer(_) | Value::Double(_) => color_bgr(v.to_i64()) as i64,
+        Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => color_bgr(v.to_i64()) as i64,
         // (never set: the button face, the theme's — a form's clBtnFace)
         Value::Null => color_bgr(crate::component_defaults::CL_BTN_FACE) as i64,
         other => {
@@ -1586,6 +1586,19 @@ pub fn rect_of(v: &Value, props: PropReader) -> (i64, i64, i64, i64) {
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
     ensure_printer(id);
     let method = method.to_lowercase();
+    // (QREGISTRY's WriteInteger keeps a REG_DWORD's 32 bits, as RapidQ's
+    // does: a 64-bit value beyond them is refused, never cut —
+    // docs/big-numbers-audit.md)
+    if method == "writeinteger" && with(id, |o| matches!(o, Object::Registry(_))).unwrap_or(false) {
+        if let Some(v @ (Value::Int64(_) | Value::UInt64(_))) = args.get(1) {
+            let n = crate::wide::kind_of(v).map_or(0, |w| w.exact());
+            if !(i32::MIN as i128..=u32::MAX as i128).contains(&n) {
+                return Some(Err(crate::exception(&format!(
+                    "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
+                ))));
+            }
+        }
+    }
     // (linked data: an RCSV's, an RDataSource's — datascience::link)
     if let Some(r) = crate::datascience::link::call(id, &method, args) {
         return Some(r);
@@ -2372,7 +2385,7 @@ pub fn stream_load(id: &str, bytes: Vec<u8>) {
 /// `.BMP`, or a BMP file.
 pub fn load_image(v: &Value) -> Result<Bitmap, String> {
     // A `$RESOURCE` handle (`AddBMPHandle GRID_BMP`).
-    if matches!(v, Value::Integer(_) | Value::Double(_)) {
+    if matches!(v, Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) {
         let bytes = crate::resources::bytes(v.to_i64()).ok_or_else(|| format!("no resource {}", v.to_i64()))?;
         let mut b = Bitmap::default();
         b.load_bmp_bytes(&bytes)?;

@@ -158,6 +158,9 @@ fn memstream_kind(kind: i64) -> Option<crate::numeric::NumKind> {
         5 => NumKind::Dword,
         6 => NumKind::Single,
         8 => NumKind::Double,
+        super::memstream::NUM_INT64 => NumKind::Int64,
+        super::memstream::NUM_UINT64 => NumKind::UInt64,
+        super::memstream::NUM_UINT32 => NumKind::UInt32,
         _ => return None,
     })
 }

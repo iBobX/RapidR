@@ -29,6 +29,16 @@ fn edge_values() -> Vec<Value> {
         Value::Integer(1 << 53),
         Value::Integer((1 << 53) + 1),
         Value::Integer(-(1 << 53) - 1),
+        // (RapidR's 64-bit kinds: the generic path, the same answers)
+        Value::Int64(0),
+        Value::Int64(-1),
+        Value::Int64(i64::MAX),
+        Value::Int64(i64::MIN),
+        Value::Int64((1 << 53) + 1),
+        Value::UInt64(0),
+        Value::UInt64(u64::MAX),
+        Value::UInt64(1 << 63),
+        Value::UInt64(7),
     ];
     for f in [0.0, -0.0, 0.5, 2.5, -2.5, 2.7, -2.7, 3.0, 1e10, 1e300, -1e300, f64::INFINITY, f64::NEG_INFINITY, f64::NAN, 9007199254740992.0, 4294967295.0] {
         v.push(Value::Double(f));
@@ -44,6 +54,8 @@ fn konst(v: &Value) -> Const {
         Value::Boolean(b) => Const::Bool(*b),
         Value::String(s) => Const::Str(s.as_str().to_string()),
         Value::Null => Const::Null,
+        Value::Int64(n) => Const::Int64(*n),
+        Value::UInt64(n) => Const::UInt64(*n),
         _ => unreachable!("no constant"),
     }
 }
@@ -52,6 +64,8 @@ fn konst(v: &Value) -> Const {
 fn exact(v: &Value) -> String {
     match v {
         Value::Integer(n) => format!("I{n}"),
+        Value::Int64(n) => format!("W{n}"),
+        Value::UInt64(n) => format!("U{n}"),
         Value::Double(f) => format!("D{:016x}", f.to_bits()),
         Value::Boolean(b) => format!("B{b}"),
         Value::String(s) => format!("S{:?}", s.as_str()),
@@ -419,6 +433,12 @@ fn the_for_test_and_step_are_their_expansions() {
                     }
                     asm.run()
                 };
+                // (a 64-bit counter's step past its type's end ends the loop
+                // instead of wrapping: not the expansion's — wide::for_step,
+                // docs/big-numbers-design.md; the conformance cases hold it)
+                if rapidr_value::wide::is_wide(var) && rapidr_value::wide::for_step(var, step).is_none() {
+                    continue;
+                }
                 assert_eq!(program(true), program(false), "FOR step of {var:?} by {step:?} (global {global})");
             }
         }

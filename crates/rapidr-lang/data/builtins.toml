@@ -65,6 +65,7 @@ internal = [
   "__to_long",
   "__to_short",
   "__to_single",
+  "__to_uint32",
   "__to_uint64",
   "__to_word",
   "__varptr_elem",
@@ -133,7 +134,7 @@ doc = "Plays a short beep on the system's sound output (without sound, the termi
 name = "BIN$"
 syntax = "BIN$(Integer)"
 group = "Strings"
-doc = "The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first."
+doc = "The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first. An INT64, UINT64 or UINT32 shows all 64 bits."
 
 [[builtin]]
 name = "CALLBACK"
@@ -449,15 +450,91 @@ doc = "The handle of the window that has the keyboard focus."
 
 [[builtin]]
 name = "HEX$"
-syntax = "HEX$(Number)"
+syntax = "HEX$(Number [, Digits])"
+params = "Number AS VARIANT, [Digits AS INTEGER]"
+returns = "STRING"
 group = "Strings"
-doc = "The hexadecimal digits of a number's 32 bits, always 8 of them: `HEX$(255)` is `000000FF`. A real number is rounded half to even first."
+doc = "The hexadecimal digits of a number's 32 bits, always 8 of them: `HEX$(255)` is `000000FF`. A real number is rounded half to even first. An INT64, UINT64 or UINT32 shows 8 digits, 16 when it needs more than 32 bits (a negative INT64 needs all 64). RapidR's `Digits` (1 to 16) gives at least that many, never cutting the number: `HEX$(255, 2)` is `FF`."
+effects = ["none"]
+example = "Number = 255\nDigits = 4\nDIM big AS UINT64 = 18446744073709551615\nPRINT HEX$(Number); \"|\"; HEX$(Number, Digits); \"|\"; HEX$(big)"
+expect = "000000FF|00FF|FFFFFFFFFFFFFFFF"
 
 [[builtin]]
 name = "HEXTODEC"
 syntax = "HEXTODEC(Hex$)"
 group = "Strings"
 doc = "The number a string of hexadecimal digits stands for (`&H` or `0x` in front allowed): `HEXTODEC(\"FF\")` is 255; 0 when it isn't hexadecimal."
+
+[[builtin]]
+name = "HIBYTE"
+syntax = "HIBYTE(Number)"
+params = "Number AS VARIANT"
+returns = "INTEGER"
+group = "Numbers"
+origin = "rapidr"
+doc = "Bits 8 to 15 of a number (bit 0 is the rightmost), 0 to 255: the high byte of its low word. `HIBYTE(&H1234)` is `&H12`."
+effects = ["none"]
+example = "Number = &H1234\nPRINT HIBYTE(Number); \"|\"; HEX$(HIBYTE(&HF58ACBFB), 2)"
+expect = "18|CB"
+
+[[builtin]]
+name = "HIWORD"
+syntax = "HIWORD(Number)"
+params = "Number AS VARIANT"
+returns = "INTEGER"
+group = "Numbers"
+origin = "rapidr"
+doc = "Bits 16 to 31 of a number (bit 0 is the rightmost), 0 to 65535: the high word of a Windows message's `lParam`, a 32-bit colour's top half. `HIWORD(&HF58ACBFB)` is `&HF58A`."
+effects = ["none"]
+example = "Number = &HF58ACBFB\nPRINT HEX$(HIWORD(Number), 4); \"|\"; HIWORD(65536 * 3 + 7)"
+expect = "F58A|3"
+
+[[builtin]]
+name = "LOBYTE"
+syntax = "LOBYTE(Number)"
+params = "Number AS VARIANT"
+returns = "INTEGER"
+group = "Numbers"
+origin = "rapidr"
+doc = "Bits 0 to 7 of a number (bit 0 is the rightmost), 0 to 255. `LOBYTE(&H1234)` is `&H34`."
+effects = ["none"]
+example = "Number = &H1234\nPRINT LOBYTE(Number); \"|\"; LOBYTE(-1)"
+expect = "52|255"
+
+[[builtin]]
+name = "LOWORD"
+syntax = "LOWORD(Number)"
+params = "Number AS VARIANT"
+returns = "INTEGER"
+group = "Numbers"
+origin = "rapidr"
+doc = "Bits 0 to 15 of a number (bit 0 is the rightmost), 0 to 65535: the low word of a Windows message's `lParam`. `LOWORD(&HF58ACBFB)` is `&HCBFB`."
+effects = ["none"]
+example = "Number = &HF58ACBFB\nPRINT HEX$(LOWORD(Number), 4); \"|\"; LOWORD(65536 * 3 + 7)"
+expect = "CBFB|7"
+
+[[builtin]]
+name = "GETBITS"
+syntax = "GETBITS(Number, Start, Count)"
+params = "Number AS VARIANT, Start AS INTEGER, Count AS INTEGER"
+returns = "INTEGER"
+group = "Numbers"
+origin = "rapidr"
+doc = "`Count` bits of a number from bit `Start` on (bit 0 is the rightmost), as a number from 0: `GETBITS(&HF58ACBFB, 28, 4)` is 15. A classic number has 32 bits, an INT64, UINT64 or UINT32 64; a UINT64 or INT64 gives one of its type. Bits outside the number stop the program with a message naming them."
+effects = ["none"]
+example = "Number = &HF58ACBFB\nStart = 28\nCount = 4\nDIM big AS UINT64 = 18446744073709551615\nPRINT GETBITS(Number, Start, Count); \"|\"; GETBITS(Number, 0, 8); \"|\"; GETBITS(big, 32, 32)"
+expect = "15|251|4294967295"
+
+[[builtin]]
+name = "SETBITS"
+syntax = "SETBITS(Number, Start, Count, Bits)"
+params = "Number AS VARIANT, Start AS INTEGER, Count AS INTEGER, Bits AS VARIANT"
+group = "Numbers"
+origin = "rapidr"
+doc = "The number with `Count` bits from bit `Start` on (bit 0 is the rightmost) replaced by the low `Count` bits of `Bits`: `SETBITS(0, 4, 4, 15)` is `&HF0`. It returns the new number (the variable changes only when stored back: `flags = SETBITS(flags, 3, 1, 1)`). A classic number has 32 bits (bit 31 set makes it negative, as a LONG), an INT64, UINT64 or UINT32 64. Bits outside the number stop the program with a message naming them."
+effects = ["none"]
+example = "Number = 0\nStart = 4\nCount = 4\nBits = 15\nDIM w AS UINT32 = &HF58ACBFB\nPRINT SETBITS(Number, Start, Count, Bits); \"|\"; HEX$(SETBITS(w, 0, 16, &H1234))"
+expect = "240|F58A1234"
 
 [[builtin]]
 name = "IIF"

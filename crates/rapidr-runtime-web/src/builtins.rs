@@ -589,7 +589,7 @@ pub fn rp_playwav(source: &Value, options: &Value) {
     });
     let options = options.to_i64();
     let src = match source {
-        Value::Integer(_) | Value::Double(_) => match rapidr_value::resources::bytes(source.to_i64()) {
+        Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => match rapidr_value::resources::bytes(source.to_i64()) {
             Some(b) => format!("data:audio/wav;base64,{}", rapidr_value::objects::codec::base64_encode(&b)),
             None => return,
         },

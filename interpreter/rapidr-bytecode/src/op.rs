@@ -565,6 +565,17 @@ impl Op {
         Op::from_u8(base + cmp as u8)
     }
 
+    /// Which of the decoded operands is a conversion's kind
+    /// (`NumKind::code`, `NO_KIND`, `ARG_ROUND`), if one is.
+    pub fn kind_operand(self) -> Option<usize> {
+        match self {
+            Op::ToNum => Some(0),
+            Op::StoreLocalNum | Op::ConvLocal | Op::ConvArgLocal | Op::StoreGlobalNum | Op::ASetLS | Op::ASetGS => Some(1),
+            Op::ASetLL | Op::ASetLG | Op::ASetGL | Op::ASetGG => Some(2),
+            _ => None,
+        }
+    }
+
     /// Whether this is one of 2.123's fused instructions (a module using
     /// one needs [`crate::FAST_OPS_SINCE`]).
     pub fn is_fused(self) -> bool {

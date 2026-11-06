@@ -281,7 +281,9 @@ pub fn normalize(kind: &Kind, v: &Value) -> Option<Value> {
         v => parse_int(&v.to_string_val()),
     };
     Some(match kind {
-        Kind::Int => Value::Integer(num(v)?),
+        // (an INT64 / UINT64 kept as the number it is)
+        Kind::Int if crate::wide::is_wide(v) => v.clone(),
+        Kind::Int => crate::wide::whole_number(num(v)?),
         Kind::Float => match v {
             Value::Integer(i) => Value::Double(*i as f64),
             Value::Double(d) => Value::Double(*d),
@@ -522,5 +524,17 @@ impl FontPart {
             FontPart::Color => Value::Integer(crate::component_defaults::CL_WINDOW_TEXT),
             _ => Value::Integer(0),
         }
+    }
+}
+
+#[cfg(test)]
+mod big_number_tests {
+    use super::*;
+
+    #[test]
+    fn a_sixty_four_bit_int_is_kept() {
+        assert_eq!(normalize(&Kind::Int, &Value::UInt64(u64::MAX)), Some(Value::UInt64(u64::MAX)));
+        assert_eq!(normalize(&Kind::Int, &Value::String("9007199254740993".into())), Some(Value::Int64(9007199254740993)));
+        assert!(matches!(normalize(&Kind::Int, &Value::String("42".into())), Some(Value::Integer(42))));
     }
 }

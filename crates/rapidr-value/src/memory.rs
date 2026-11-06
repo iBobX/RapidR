@@ -48,6 +48,11 @@ pub enum Kind {
     Dword,
     Single,
     Double,
+    /// INT64 and UINT64 (RapidR's): 8 bytes, little-endian.
+    Int64,
+    UInt64,
+    /// UINT32 (RapidR's): 4 bytes, read back unsigned.
+    UInt32,
     /// A variable-length STRING: stored as the address of its characters.
     Str,
     /// `STRING * n`: n bytes.
@@ -74,6 +79,9 @@ impl Kind {
             "DWORD" => Kind::Dword,
             "SINGLE" => Kind::Single,
             "DOUBLE" => Kind::Double,
+            "INT64" => Kind::Int64,
+            "UINT64" => Kind::UInt64,
+            "UINT32" => Kind::UInt32,
             "STRING" => Kind::Str,
             "" | "VARIANT" => Kind::Variant,
             _ if has_layout(&t) => Kind::Udt(t),
@@ -86,8 +94,8 @@ impl Kind {
         Some(match self {
             Kind::Byte => 1,
             Kind::Word | Kind::Short => 2,
-            Kind::Long | Kind::Dword | Kind::Single | Kind::Str => 4,
-            Kind::Double => 8,
+            Kind::Long | Kind::Dword | Kind::Single | Kind::Str | Kind::UInt32 => 4,
+            Kind::Double | Kind::Int64 | Kind::UInt64 => 8,
             Kind::Fixed(n) => *n,
             Kind::Udt(_) | Kind::Variant => return None,
         })
@@ -152,6 +160,9 @@ pub fn size_of_type(type_name: &str) -> Option<usize> {
 fn variant_kind(v: &Value) -> Kind {
     match v {
         Value::Double(_) => Kind::Double,
+        // (a 64-bit value all 8 of its bytes)
+        Value::Int64(_) => Kind::Int64,
+        Value::UInt64(_) => Kind::UInt64,
         Value::String(_) => Kind::Str,
         Value::Object(o) => Kind::Udt(o.type_name.to_ascii_uppercase()),
         _ => Kind::Long,
@@ -170,7 +181,8 @@ pub fn encode(v: &Value, kind: &Kind, out: &mut Vec<u8>) {
     match kind {
         Kind::Byte => out.push(v.to_i64() as u8),
         Kind::Word | Kind::Short => out.extend_from_slice(&(v.to_i64() as u16).to_le_bytes()),
-        Kind::Long | Kind::Dword => out.extend_from_slice(&(v.to_i64() as u32).to_le_bytes()),
+        Kind::Long | Kind::Dword | Kind::UInt32 => out.extend_from_slice(&(v.to_i64() as u32).to_le_bytes()),
+        Kind::Int64 | Kind::UInt64 => out.extend_from_slice(&crate::wide::of(v, *kind == Kind::UInt64).to_le_bytes()),
         Kind::Single => out.extend_from_slice(&(v.to_f64() as f32).to_le_bytes()),
         Kind::Double => out.extend_from_slice(&v.to_f64().to_le_bytes()),
         Kind::Fixed(n) => {
@@ -226,6 +238,9 @@ pub fn decode(bytes: &[u8], kind: &Kind, old: &Value) -> (Value, usize) {
         Kind::Short => (Value::Integer(i16::from_le_bytes(take(2)[..2].try_into().unwrap()) as i64), 2),
         Kind::Long => (Value::Integer(i32::from_le_bytes(take(4)[..4].try_into().unwrap()) as i64), 4),
         Kind::Dword => (Value::Integer(u32::from_le_bytes(take(4)[..4].try_into().unwrap()) as i64), 4),
+        Kind::UInt32 => (Value::Int64(u32::from_le_bytes(take(4)[..4].try_into().unwrap()) as i64), 4),
+        Kind::Int64 => (Value::Int64(i64::from_le_bytes(take(8))), 8),
+        Kind::UInt64 => (Value::UInt64(u64::from_le_bytes(take(8))), 8),
         Kind::Single => (Value::Double(f32::from_le_bytes(take(4)[..4].try_into().unwrap()) as f64), 4),
         Kind::Double => (Value::Double(f64::from_le_bytes(take(8))), 8),
         Kind::Fixed(n) => {
@@ -551,7 +566,8 @@ fn string_address(text: &str) -> i64 {
 /// (its first element) gets its block.
 pub fn address_of(v: &Value) -> Result<i64, String> {
     match v {
-        Value::Integer(n) => Ok(*n),
+        Value::Integer(n) | Value::Int64(n) => Ok(*n),
+        Value::UInt64(n) => Ok(*n as i64),
         Value::Double(d) => Ok(*d as i64),
         Value::Boolean(b) => Ok(if *b { -1 } else { 0 }),
         Value::Object(o) => object_address(o),
@@ -1050,6 +1066,27 @@ pub fn rp_port_io(name: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// INT64 / UINT64 fields take their 8 bytes, a UINT32 its 4, and read
+    /// back as their type (2.122.1 encoded a 64-bit field as a LONG).
+    #[test]
+    fn sixty_four_bit_fields_take_eight_bytes() {
+        register_layout("TBIG64", "a:BYTE,n:INT64,u:UINT64,w:UINT32");
+        assert_eq!(size_of_type("TBIG64"), Some(1 + 8 + 8 + 4));
+        assert_eq!(size_of_type("INT64"), Some(8));
+        assert_eq!(size_of_type("UINT32"), Some(4));
+        let mut b = Vec::new();
+        encode(&Value::UInt64(u64::MAX - 1), &Kind::UInt64, &mut b);
+        encode(&Value::Int64(-2), &Kind::Int64, &mut b);
+        encode(&Value::Int64(4119514107), &Kind::UInt32, &mut b);
+        assert_eq!(b.len(), 20);
+        let (u, n) = decode(&b, &Kind::UInt64, &Value::Null);
+        assert_eq!((u, n), (Value::UInt64(u64::MAX - 1), 8));
+        assert_eq!(decode(&b[8..], &Kind::Int64, &Value::Null).0, Value::Int64(-2));
+        assert_eq!(decode(&b[16..], &Kind::UInt32, &Value::Null).0, Value::Int64(4119514107));
+        // (a VARIANT holding one: its 8 bytes)
+        assert_eq!(size_of(&Value::UInt64(1), &Kind::Variant), 8);
+    }
     use crate::{rp_new_array, v_dbl, v_int, v_str};
 
     fn udt() -> Value {

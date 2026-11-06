@@ -21,7 +21,7 @@ fn exact(n: i64) -> bool {
 /// Whether a value holds nothing to free: a number, a boolean, Null.
 #[inline(always)]
 pub fn plain(v: &Value) -> bool {
-    matches!(v, Value::Integer(_) | Value::Double(_) | Value::Boolean(_) | Value::Null)
+    matches!(v, Value::Integer(_) | Value::Double(_) | Value::Boolean(_) | Value::Null | Value::Int64(_) | Value::UInt64(_))
 }
 
 /// `*slot = v`. `Value`'s drop is a call the VM's loop doesn't inline: the
@@ -244,6 +244,22 @@ comparison!(lt, lt_other, |x: i64, y: i64| x < y, |x: f64, y: f64| x.is_nan() ||
 comparison!(le, le_other, |x: i64, y: i64| x <= y, |x: f64, y: f64| x.is_nan() || y.is_nan() || x <= y, rp_le);
 comparison!(gt, gt_other, |x: i64, y: i64| x > y, |x: f64, y: f64| !(x.is_nan() || y.is_nan()) && x > y, rp_gt);
 comparison!(ge, ge_other, |x: i64, y: i64| x >= y, |x: f64, y: f64| !(x.is_nan() || y.is_nan()) && x >= y, rp_ge);
+
+/// Whether a FOR counter is one of RapidR's 64-bit kinds (its step then
+/// goes through [`for_next_wide`]).
+#[inline(always)]
+pub fn wide(v: &Value) -> bool {
+    matches!(v, Value::Int64(_) | Value::UInt64(_))
+}
+
+/// A 64-bit FOR counter's step (`ForStep`): `var + step`, or `None` when
+/// it would pass its type's limit — the loop ends there
+/// (`rapidr_value::wide::for_step`).
+#[cold]
+#[inline(never)]
+pub fn for_next_wide(var: &Value, step: &Value) -> Option<Value> {
+    rapidr_value::wide::for_step(var, step)
+}
 
 /// `ToNum operand` on `v`: the conversion for a store into a declared
 /// numeric type, or `ARG_ROUND`'s rounding. A value that already has the

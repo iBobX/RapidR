@@ -1414,11 +1414,24 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let top = read_u32(code, &mut ip)?;
                     let locals = &mut self.frames.last_mut().unwrap().locals;
                     let v = locals.get(var as usize).ok_or_else(|| VmError::BadLocalSlot(var))?;
-                    let next = fast::add(v, locals.get(step as usize).ok_or_else(|| VmError::BadLocalSlot(step))?);
-                    fast::put(&mut locals[var as usize], next);
-                    ip = top as usize;
-                    tick!();
-                    back_edge!(top as usize);
+                    let s = locals.get(step as usize).ok_or_else(|| VmError::BadLocalSlot(step))?;
+                    'step: {
+                        let next = if fast::wide(v) {
+                            // (a 64-bit counter's step past its type's
+                            // limit ends the loop: the exit is the next
+                            // instruction)
+                            match fast::for_next_wide(v, s) {
+                                Some(n) => n,
+                                None => break 'step,
+                            }
+                        } else {
+                            fast::add(v, s)
+                        };
+                        fast::put(&mut locals[var as usize], next);
+                        ip = top as usize;
+                        tick!();
+                        back_edge!(top as usize);
+                    }
                 }
                 raw::ForStepG => {
                     let var = read_u32(code, &mut ip)? as usize;
@@ -1428,11 +1441,20 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     };
                     let step = leaf!(L);
                     let top = read_u32(code, &mut ip)?;
-                    let next = fast::add(v, step);
-                    self.store_global(module, var, next)?;
-                    ip = top as usize;
-                    tick!();
-                    back_edge!(top as usize);
+                    'step: {
+                        let next = if fast::wide(v) {
+                            match fast::for_next_wide(v, step) {
+                                Some(n) => n,
+                                None => break 'step,
+                            }
+                        } else {
+                            fast::add(v, step)
+                        };
+                        self.store_global(module, var, next)?;
+                        ip = top as usize;
+                        tick!();
+                        back_edge!(top as usize);
+                    }
                 }
                 raw::AGetLS | raw::AGetGS => {
                     let at = self.pop()?;

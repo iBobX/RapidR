@@ -243,7 +243,7 @@ fn limits(id: &str) -> rapidr_archive::Limits {
 /// into the program): its bytes and the name to show.
 #[cfg(feature = "archive")]
 fn source_bytes(v: &Value) -> Result<(Vec<u8>, String), String> {
-    if matches!(v, Value::Integer(_) | Value::Double(_)) {
+    if matches!(v, Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) {
         if let Some(b) = crate::resources::bytes(v.to_i64()) {
             return Ok((b.to_vec(), String::new()));
         }

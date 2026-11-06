@@ -96,7 +96,9 @@ e = "18446744073709551615"
 PRINT e
 PRINT STR$(z * 1.5)
 
-' Classic: a LONG, and numbers without an INT64, stay 32 bits
+' A LONG stays 32 bits; a literal beyond 32 bits is an INT64 in a program
+' that uses 64-bit types (one without keeps RapidQ's reading:
+' big_numbers_classic.bas)
 DIM l AS LONG
 l = 4000000000
 PRINT l; " "; 2147483648; " "; HEX$(4294967296 + 5)

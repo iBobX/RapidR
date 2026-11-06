@@ -1699,7 +1699,8 @@ impl RustCodegen {
                 self.emit_statement(s);
             }
             self.write_indent();
-            let _ = writeln!(self.output, "gs(\"{var}\", &gv(\"{var}\") + &{step_tmp});");
+            // (a 64-bit counter's step past its type's limit ends the loop)
+            let _ = writeln!(self.output, "match rp_for_next(&gv(\"{var}\"), &{step_tmp}) {{ Some(__next) => gs(\"{var}\", __next), None => break {lbl} }}");
         } else {
             self.write_indent();
             let _ = writeln!(self.output, "let {end_tmp} = {end};");
@@ -1714,7 +1715,7 @@ impl RustCodegen {
                 self.emit_statement(s);
             }
             self.write_indent();
-            let _ = writeln!(self.output, "{var} = &{var} + &{step_tmp};");
+            let _ = writeln!(self.output, "match rp_for_next(&{var}, &{step_tmp}) {{ Some(__next) => {var} = __next, None => break {lbl} }}");
         }
         self.indent -= 1;
         self.line("}");
@@ -3061,7 +3062,10 @@ fn dim_default(d: &DimStatement) -> String {
 
 fn default_value_for_type(type_name: &str) -> String {
     match type_name.to_uppercase().as_str() {
-        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "SHORT" | "INT64" | "UINT64" => "v_int(0)".to_string(),
+        "INTEGER" | "BYTE" | "WORD" | "DWORD" | "LONG" | "SHORT" => "v_int(0)".to_string(),
+        // (RapidR's 64-bit kinds from the start)
+        "INT64" | "UINT32" => "Value::Int64(0)".to_string(),
+        "UINT64" => "Value::UInt64(0)".to_string(),
         "DOUBLE" | "SINGLE" | "CURRENCY" => "v_dbl(0.0)".to_string(),
         "STRING" => "v_str(\"\")".to_string(),
         _ => "v_null()".to_string(),
@@ -3216,6 +3220,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "ceil" => Some(format!("rp_ceil(&{a0})")),
         "floor" => Some(format!("rp_floor(&{a0})")),
         "round" => Some(format!("rp_round(&{a0})")),
+        // (RapidR's HEX$(x, digits): at least that many)
+        "hex" if args.len() > 1 => Some(format!("rp_hex_digits(&{a0}, &{a1})")),
         "hex" => Some(format!("rp_hex(&{a0})")),
         "oct" => Some(format!("rp_oct(&{a0})")),
         "bin" => Some(format!("rp_bin(&{a0})")),
@@ -3310,6 +3316,11 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__to_single" => Some(format!("numeric::to_single(&{a0})")),
         "__to_int64" => Some(format!("numeric::to_int64(&{a0})")),
         "__to_uint64" => Some(format!("numeric::to_uint64(&{a0})")),
+        "__to_uint32" => Some(format!("numeric::to_uint32(&{a0})")),
+        // (RapidR's) the bit functions (rapidr_value::wide).
+        "loword" | "hiword" | "lobyte" | "hibyte" | "getbits" | "setbits" => {
+            Some(format!("wide::rp_bits({name:?}, &[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")))
+        }
         // INT64 / UINT64 shown and operated on in 64 bits (rapidr_ast::numeric).
         "__str64" | "__hex64" | "__idiv64" | "__mod64" | "__cmp64" | "__bits64" => {
             Some(format!("wide::rp({name:?}, &[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", ")))

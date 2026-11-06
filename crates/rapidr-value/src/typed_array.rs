@@ -26,8 +26,8 @@ use crate::{runtime_error, Value, MAX_ARRAY_ELEMENTS};
 const MAX_OVERFLOW: usize = 1 << 16;
 
 /// The numbers a typed array holds: one Rust type per declared type (BYTE
-/// `u8`, WORD `u16`, SHORT `i16`, INTEGER / LONG / DWORD `i32`, INT64 /
-/// UINT64 `i64`, SINGLE `f32`, DOUBLE `f64`). Stores are already converted
+/// `u8`, WORD `u16`, SHORT `i16`, INTEGER / LONG / DWORD `i32`, INT64
+/// `i64`, UINT64 `u64`, SINGLE `f32`, DOUBLE `f64`). Stores are already converted
 /// to the type (`rapidr_ast::numeric`), so each fits exactly.
 pub trait Elem: Copy + Default + PartialEq + std::fmt::Debug + 'static {
     /// The element as the `Value` a `BasicArray` of its type holds.
@@ -44,7 +44,22 @@ macro_rules! int_elem {
         }
     )*};
 }
-int_elem!(u8, u16, i16, i32, i64);
+int_elem!(u8, u16, i16, i32);
+
+// (RapidR's 64-bit kinds: an element reads as the INT64 / UINT64 it is)
+impl Elem for i64 {
+    #[inline]
+    fn to_value(self) -> Value {
+        Value::Int64(self)
+    }
+}
+
+impl Elem for u64 {
+    #[inline]
+    fn to_value(self) -> Value {
+        Value::UInt64(self)
+    }
+}
 
 impl Elem for f32 {
     #[inline]

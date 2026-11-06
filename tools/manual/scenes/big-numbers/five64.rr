@@ -1,0 +1,21 @@
+' The five 64-bit items and the bit functions, run in Studio (F5).
+$APPTYPE CONSOLE
+DIM u AS UINT64 = 18446744073709551615
+DIM i AS INT64
+DIM n AS INTEGER
+DIM w AS UINT32 = &HF58ACBFB
+DIM s AS STRING
+FOR i = 9007199254740993 TO 9007199254740995
+    n = n + 1
+NEXT i
+SELECT CASE u
+CASE 9223372036854775808 TO 18446744073709551614
+    s = "above 2^63"
+CASE 18446744073709551615
+    s = "the top"
+END SELECT
+PRINT "FOR past 2^53: "; n; " turns | SELECT CASE: "; s
+PRINT FORMAT$("FORMAT$: %d = &H%x", u, u)
+PRINT "Joined: " & u & " | " + STR$(u - 1)
+PRINT "Bits: &H"; HEX$(HIWORD(w), 4); " &H"; HEX$(LOWORD(w), 4); " "; LOBYTE(w); " "; GETBITS(w, 28, 4); " &H"; HEX$(SETBITS(w, 0, 16, &H1234))
+PRINT "UINT32 "; w; ", UINT64 "; u; ", INT64 "; -9223372036854775807 - 1
