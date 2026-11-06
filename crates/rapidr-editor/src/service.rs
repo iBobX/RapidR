@@ -388,6 +388,32 @@ pub trait LanguageService {
     fn set_project(&mut self, main: &str, targets: &str) {
         let _ = (main, targets);
     }
+    /// Starts the analysis of `file`'s program — its problems, `file`'s
+    /// semantic colours and helpers — for the texts last given, in the
+    /// background where the service has one (RapidR's: a worker thread, or
+    /// steps between frames on the web); [`LanguageService::analyzed`] says
+    /// when it's done. A service that answers on the asking thread has
+    /// nothing to start.
+    fn analyze(&mut self, file: &str) {
+        let _ = file;
+    }
+    /// Whether what [`LanguageService::analyze`] started is done for the
+    /// texts as they are now — [`LanguageService::diagnostics`],
+    /// [`LanguageService::semantic_tokens`] and [`LanguageService::helpers`]
+    /// of `file` then answer at once — or can't be (they're then made when
+    /// asked). Texts changed since: the work for them is asked for, and it's
+    /// not done yet.
+    fn analyzed(&mut self, file: &str) -> bool {
+        let _ = file;
+        true
+    }
+    /// The version of everything the service was given — any file's text,
+    /// the project —: a new number at each change. An editor whose problems
+    /// and colours were made for another version asks again (another file of
+    /// its program changed: what it shows may have changed with it).
+    fn generation(&self) -> u64 {
+        0
+    }
     /// The characters that open completion by themselves (`.`).
     fn completion_triggers(&self) -> &'static [char] {
         &['.']

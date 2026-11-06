@@ -131,7 +131,10 @@ SUB MarkdownOutline(d AS INTEGER)
   DIM parentNode(7) AS INTEGER
   OutlineTree.Clear
   SymbolIcons.Clear
+  SymbolIconKeys = 0
   OutlineCount = 0
+  OutlineShownDoc = -1
+  OutlineShownText = ""
   text = MdDoc(d).Headings
   n = TALLY(text, CHR$(10))
   SymbolIcons.AddIcon "symbols/module"

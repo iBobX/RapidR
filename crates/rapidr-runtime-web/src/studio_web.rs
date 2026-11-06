@@ -202,3 +202,9 @@ pub fn call(type_name: &str, name: &str, method: &str, args: &[Value]) -> Option
 pub fn poll() -> bool {
     rapidr_studio::poll(Web)
 }
+
+/// RLanguageService's Analyze: the next step of its work (the page has no
+/// threads: a step a frame), OnAnalyzed when it's in.
+pub fn poll_analyses() -> bool {
+    rapidr_studio::langsvc::poll(Web)
+}

@@ -147,6 +147,7 @@ DECLARE SUB MenuPicked(Sender AS RMenuItem)
 DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
 DECLARE SUB StudioShown
+DECLARE SUB RefreshOutlineIcons
 DECLARE SUB StudioClose(Action AS INTEGER)
 DECLARE SUB PaneChanged(Name AS STRING)
 DECLARE SUB DocumentActivated(Name AS STRING)

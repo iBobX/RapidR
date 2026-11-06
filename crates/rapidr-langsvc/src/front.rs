@@ -37,6 +37,9 @@ pub struct Parsed {
     /// The origin map's exact segments by (file, source start): a byte of
     /// a file found by a binary search, not a walk through them all.
     by_source: Vec<(usize, usize, usize)>,
+    /// Each routine's statement by its name ([`Parsed::routine`]): made the
+    /// first time one is asked for.
+    routines: std::sync::OnceLock<HashMap<String, Vec<usize>>>,
 }
 
 /// The program's other open files, for the preprocessor: those in the
@@ -66,10 +69,57 @@ pub fn parse(path: &Path, text: &str, options: &PreprocessOptions, open: &[(Path
     let mut by_source: Vec<(usize, usize, usize)> =
         tools.preprocessed.origins.segments.iter().enumerate().filter(|(_, s)| s.exact).map(|(k, s)| (s.file, s.src_start, k)).collect();
     by_source.sort_unstable();
-    Parsed { root: path.to_path_buf(), source: tools.preprocessed.source.clone(), program: tools.program.clone(), tools, paths, by_source }
+    Parsed { root: path.to_path_buf(), source: tools.preprocessed.source.clone(), program: tools.program.clone(), tools, paths, by_source, routines: std::sync::OnceLock::new() }
+}
+
+/// Where each routine is among `statements` (indices, into a TYPE's
+/// methods after its own): its name's key, the first in the program's
+/// order as `context::routine_statement` finds it — a SUB, a FUNCTION, a
+/// DECLARE of a library's, a TYPE's method.
+fn index_routines(statements: &[rapidr_ast::Statement], at: &mut Vec<usize>, out: &mut HashMap<String, Vec<usize>>) {
+    use rapidr_ast::Statement;
+    for (i, st) in statements.iter().enumerate() {
+        at.push(i);
+        let name = match st {
+            Statement::Subroutine(s) => Some(&s.name),
+            Statement::Function(f) => Some(&f.name),
+            Statement::Declare(d) if d.lib.is_some() => Some(&d.name),
+            Statement::Type(t) => {
+                index_routines(&t.methods, at, out);
+                None
+            }
+            _ => None,
+        };
+        if let Some(name) = name {
+            out.entry(crate::model::name_key(name)).or_insert_with(|| at.clone());
+        }
+        at.pop();
+    }
 }
 
 impl Parsed {
+    /// The SUB, FUNCTION, library DECLARE or TYPE method called `name` (the
+    /// first in the program's order): from an index made once per parse —
+    /// completion asks for every routine's, thousands with a Win32 header
+    /// (docs/speed-audit-2026-11.md, "Studio: the edit pause").
+    pub fn routine(&self, name: &str) -> Option<&rapidr_ast::Statement> {
+        let index = self.routines.get_or_init(|| {
+            let mut out = HashMap::new();
+            index_routines(&self.program.statements, &mut Vec::new(), &mut out);
+            out
+        });
+        let path = index.get(&crate::model::name_key(name))?;
+        let (first, rest) = path.split_first()?;
+        let mut st = self.program.statements.get(*first)?;
+        for &i in rest {
+            match st {
+                rapidr_ast::Statement::Type(t) => st = t.methods.get(i)?,
+                _ => return None,
+            }
+        }
+        Some(st)
+    }
+
     /// Where a span of the AST is in the program's files; `None` for text
     /// no file has (a directive's generated code, a macro's expansion,
     /// RapidR's own libraries).

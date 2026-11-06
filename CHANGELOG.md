@@ -34,6 +34,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ### Changed
 - **`HEX$` of an `INT64` / `UINT64`** shows 8 digits, 16 when the number needs more than 32 bits (2.122.1 always gave 16); `HEX$(x, 16)` gives 16.
 - **In a program that uses `INT64`, `UINT64` or `UINT32`**, a whole-number literal beyond 32 bits is an `INT64` (`PRINT 3000000000` shows 3000000000); a program without them keeps the classic 32-bit reading.
+- **`RLanguageService.Analyze`, `Ready` and `OnAnalyzed`**: a program starts the check of its code away from its own work and hears when it's done; `Outline`, `Diagnostics` and `ProjectDiagnostics` then answer at once. Manual ([the code editor](docs/manual/studio-editor.md#in-your-own-programs-rlanguageservice), English and Spanish), `examples/studio/language_service.rr`.
+
+### Changed
+- **RapidR Studio never waits for the code check**: the problems, the colours of the program's names and the Outline are made on a thread of their own (on the web, a step between frames) and shown when they're in, one analysis for the editor and the panes. A pause in typing cost the UI 52–75 ms in a 5,000-line program and over 1.5 s in a 17,800-line Win32 header; now its longest stretch is 5 and 15 ms ([docs/speed-audit-2026-11.md](docs/speed-audit-2026-11.md), "Studio: the edit pause"). The Outline and Quick Open are rebuilt only when they changed, each icon is drawn once, and the command palette no longer matches its whole list again for each command added while it is closed.
 - **`run_program` doesn't run code with errors**: the AI is told the first ones and that Problems must be 0; with warnings it runs and says them first.
 - **`find_example` also finds RapidR's examples** by their file name, the components and builtins they use and their words (`RJson` names `rapidr_describe` and the examples that use it).
 - **A message box's buttons** can be clicked by their short name (`b0`) as `app_layout` lists them, or their caption; **`app_screenshot`** says in words what the picture shows.
@@ -50,6 +54,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **A link can't drive RapidR Studio on the web** (SEC-35): `?do=` from a link opens a page of the manual and nothing else; Studio's other commands run from it only on the tests' pages.
 - **A program can't keep its windows' frame over Studio** (SEC-36): Studio stops clipping the program's frame only while you hold the mouse in it, a few seconds at most.
 - **A program run in the browser gets only its folder's files** (SEC-37): an `$INCLUDE "..\x.inc"` still works on the desktop, as classic programs expect.
+
+### Fixed
+- **RapidR Studio stopped answering for seconds on a big project** (its own hang reports, RAI at work: "Not Responding" in the Problems pane's fill and the commands' state): every problem was placed by counting the lines before it, the Problems list and the Coach read their rows from the start again for each one, the command palette matched its whole list again for every command's state and every Quick Open item, and RAI's applied changes analysed the program on the UI thread. With 2,000 problems a pause now costs the UI 6 ms instead of 0.8 s.
+- **A file could keep problems or colours made while its program was mid-change** (Robert saw platform.rr lose its colours after a burst of RAI's changes and Save All, until it was reopened): an editor was checked again only when its own text changed. Now every open file is checked again when another file of the program changes, a result is shown only for the text it was made from, and a check the service couldn't take at once is asked again, never dropped. Test: rapidr-ui-render `a_burst_of_applied_changes_never_leaves_an_editor_without_its_colours`.
 
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed
 

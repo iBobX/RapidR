@@ -275,6 +275,17 @@ pantalla oye el encabezado como “ui.rr, 1 error”. La lista se abre por arrib
 cuando Studio vuelve a comprobar el código mientras lees, se queda donde la
 desplazaste.
 
+Escribir nunca espera a la comprobación. Studio comprueba el programa aparte
+del editor (en un hilo propio; en el navegador, un poco cada vez entre
+fotogramas) y muestra los problemas, los colores de los nombres de tu programa
+y la Estructura cuando termina, un momento después de que dejas de escribir.
+Por grande que sea el programa, y con archivos de inclusión grandes (una
+cabecera Win32 de miles de líneas), una tecla que pulsas se atiende enseguida. Cuando cambian
+varios archivos a la vez (los cambios de RAI aplicados, Guardar todo, archivos
+cambiados fuera de Studio), cada archivo abierto se vuelve a comprobar cuando
+se asientan: ninguno se queda con un problema o un color de un momento que el
+programa ya dejó atrás.
+
 ![Problemas: ui.rr con el ícono de un formulario y 1 en una píldora, su error en 17:5 debajo; luego globals.rr con 1, su nota en 3:12: RServerSocket funciona solo en el escritorio: el entorno de ejecución web no lo tiene (3 usos)](../images/studio-editor/problems-grouped.png)
 
 Las notas sobre lo que funciona en un solo entorno de ejecución (el escritorio o
@@ -324,6 +335,35 @@ verdadero. Studio lo subraya, y la corrección escribe la prueba que funciona,
 `IF FILEEXISTS(f) = 0 THEN` (`DIREXISTS`, igual):
 
 ![IF NOT FILEEXISTS("notes.txt") está subrayado; Ctrl+. ofrece Write FILEEXISTS("notes.txt") = 0](../images/studio-editor/not-fileexists.png)
+
+### En tus propios programas: RLanguageService
+
+La comprobación que hace Studio es un componente que tus programas también
+pueden usar: **RLanguageService**. Dale el texto con `Update`, empieza su
+comprobación con `Analyze`, y responde con `OnAnalyzed` cuando termina. Tu
+programa sigue mientras tanto, así que escribir en tu propio editor tampoco
+espera nunca. Entonces `Outline`, `Diagnostics` y `ProjectDiagnostics`
+responden al instante, y `Ready` dice si todavía lo hacen (el texto no cambió
+desde entonces):
+
+```basic
+DIM Lang AS RLanguageService
+Lang.OnAnalyzed = Analyzed
+Lang.Update "sample.rr", Code.Text
+Lang.Analyze "sample.rr"
+
+SUB Analyzed(File AS STRING)
+    IF Lang.Ready("sample.rr") = 0 THEN EXIT SUB   ' se volvió a escribir
+    PRINT Lang.Outline("sample.rr")
+END SUB
+```
+
+[examples/studio/language_service.rr](../../../examples/studio/language_service.rr)
+es una ventana completa: un editor de código, su estructura al lado y cuántos
+errores tiene, que siguen al código un momento después de que dejas de
+escribir.
+
+![language_service.rr: un editor de código con SUB Greet y FUNCTION Twice; al lado la lista muestra sub Greet (line 1) y function Twice (line 5), y debajo: No errors.](../images/studio-editor/language-service.png)
 
 ## Ayuda al escribir
 

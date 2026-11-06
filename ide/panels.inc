@@ -104,6 +104,8 @@ END SUB
 ' date as the code changes (InspectActive).
 DIM QuickId(800) AS STRING
 DIM QuickCount AS INTEGER
+' (what Quick Open's items were made from: the same again, they stay)
+DIM QuickShownKey AS STRING
 
 SUB AddQuick(Id AS STRING, Title AS STRING, Category AS STRING, Icon AS STRING)
   IF QuickCount > 800 THEN EXIT SUB
@@ -114,7 +116,26 @@ END SUB
 
 SUB RefreshQuickOpen
   DIM i AS INTEGER, n AS INTEGER, d AS INTEGER, text AS STRING, row AS STRING, kind AS STRING, nm AS STRING, detail AS STRING
-  DIM rowAt AS INTEGER, rowEnd AS INTEGER
+  DIM rowAt AS INTEGER, rowEnd AS INTEGER, key AS STRING
+  ' (made from the project's files and the active file's outline: the same
+  ' as last time — the usual pause in typing —, the items stay as they are)
+  d = ActiveCode
+  key = Application.Language + CHR$(1) + STR$(d) + CHR$(1)
+  IF ProjectOpen THEN
+    FOR i = 0 TO Proj.FileCount - 1
+      key = key + Proj.FullPath(i) + CHR$(9)
+    NEXT
+  END IF
+  IF d >= 0 THEN
+    ' (not analysed yet: its items stay until it is — LangAnalyzed)
+    IF IsBasicFile(DocFile(d)) THEN
+      IF Lang.Ready(DocFile(d)) = 0 THEN EXIT SUB
+    END IF
+    text = Lang.Outline(DocFile(d))
+    key = key + CHR$(1) + text
+  END IF
+  IF key = QuickShownKey THEN EXIT SUB
+  QuickShownKey = key
   FOR i = 0 TO QuickCount - 1
     Palette.RemoveCommand QuickId(i)
   NEXT
@@ -124,13 +145,13 @@ SUB RefreshQuickOpen
       AddQuick "open:" + Proj.FullPath(i), Proj.File(i), TR$("Open"), "files/" + FileExt(Proj.File(i))
     NEXT
   END IF
-  d = ActiveCode
   IF d < 0 THEN EXIT SUB
-  text = Lang.Outline(DocFile(d))
   n = TALLY(text, CHR$(10))
   ' (each row where the last one ended, as FillOutline reads them)
   rowAt = 1
   FOR i = 1 TO n
+    ' (Quick Open's 800 are made: the rest of a big file's rows not read)
+    IF QuickCount > 800 THEN EXIT FOR
     rowEnd = INSTR(rowAt, text, CHR$(10))
     row = MID$(text, rowAt, rowEnd - rowAt)
     rowAt = rowEnd + 1
@@ -917,6 +938,9 @@ END SUB
 
 SUB ClearProblems
   OutputBox.ClearProblems
+  ' (FillProblemsOf fills it again whatever it showed)
+  ProblemsShownText = ""
+  ProblemsShownPath = ""
 END SUB
 
 ' (Kind: 0 error, 1 warning, 2 information, 3 a file's heading — Message

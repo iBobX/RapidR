@@ -1,0 +1,85 @@
+' language_service.rr: an outline and a problem count that follow the code
+' as you type, the way RapidR Studio's Outline and Problems do — and,
+' like Studio, typing never waits for the check: RLanguageService's
+' Analyze works away from the program (on its own thread; on the web, a
+' step between frames) and OnAnalyzed says when the answers are in.
+'
+'   rapidr run studio/language_service.rr
+'
+' Type in the code: a moment after you stop, the list shows its SUBs and
+' FUNCTIONs and the line under it how many problems the compiler finds
+' (write "Nope 1" to see one).
+
+DECLARE SUB Typed
+DECLARE SUB Pause
+DECLARE SUB Analyzed(File AS STRING)
+
+DIM Lang AS RLanguageService
+DIM CodeFile AS STRING
+
+CREATE Form AS RForm
+    Caption = "Outline as you type"
+    Width = 720
+    Height = 400
+    Center
+    CREATE Code AS RCodeEditor
+        Left = 10: Top = 10: Width = 470: Height = 340
+        OnChange = Typed
+    END CREATE
+    CREATE Outline AS RListBox
+        Left = 490: Top = 10: Width = 204: Height = 310
+    END CREATE
+    CREATE Said AS RLabel
+        Left = 490: Top = 330: Width = 204
+        Caption = "Type in the code."
+    END CREATE
+    CREATE Waiting AS RTimer
+        Interval = 400
+        Enabled = 0
+        OnTimer = Pause
+    END CREATE
+END CREATE
+
+' The code's file name (the service knows a text by its file's name; it
+' needn't exist: the text is the editor's).
+CodeFile = CURDIR$ + "/sample.rr"
+Lang.OnAnalyzed = Analyzed
+Code.Text = "SUB Greet(Who AS STRING)" + CHR$(10) + "    PRINT " + CHR$(34) + "Hello, " + CHR$(34) + "; Who" + CHR$(10) + "END SUB" + CHR$(10) + CHR$(10) + "FUNCTION Twice(n AS INTEGER) AS INTEGER" + CHR$(10) + "    Result = n * 2" + CHR$(10) + "END FUNCTION" + CHR$(10) + CHR$(10) + "Greet " + CHR$(34) + "world" + CHR$(34) + CHR$(10)
+Pause
+
+' Each key: the check waits until typing pauses.
+SUB Typed
+    Waiting.Enabled = 0
+    Waiting.Enabled = 1
+END SUB
+
+' Typing paused: the new text given, its analysis started — the program
+' goes on at once.
+SUB Pause
+    Waiting.Enabled = 0
+    Said.Caption = "Checking..."
+    Lang.Update CodeFile, Code.Text
+    Lang.Analyze CodeFile
+END SUB
+
+' The analysis is in: the outline and the problems answer at once.
+SUB Analyzed(File AS STRING)
+    DIM text AS STRING, row AS STRING, n AS INTEGER, i AS INTEGER, problems AS STRING
+    ' (typed again since: the next pause asks again)
+    IF Lang.Ready(CodeFile) = 0 THEN EXIT SUB
+    Outline.Clear
+    text = Lang.Outline(CodeFile)
+    n = TALLY(text, CHR$(10))
+    FOR i = 1 TO n
+        row = FIELD$(text, CHR$(10), i)
+        Outline.AddItems FIELD$(row, CHR$(9), 2) + " " + FIELD$(row, CHR$(9), 3) + " (line " + FIELD$(row, CHR$(9), 5) + ")"
+    NEXT
+    problems = Lang.Diagnostics(CodeFile)
+    IF Lang.ErrorCount = 0 THEN
+        Said.Caption = "No errors."
+    ELSE
+        Said.Caption = LTRIM$(STR$(Lang.ErrorCount)) + " error(s): " + FIELD$(FIELD$(problems, CHR$(10), 1), CHR$(9), 4)
+    END IF
+END SUB
+
+Form.ShowModal

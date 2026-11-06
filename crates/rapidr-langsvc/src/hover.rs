@@ -167,7 +167,7 @@ pub(crate) fn symbol_facts(s: &Snapshot, sym: &Symbol) -> Facts {
     };
     let code = match (&decl, sym.kind) {
         (Some((line, _, _)), SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) => {
-            context::routine_statement(&s.parsed.program, &sym.name).map(|st| crate::signature::routine_label(st).0).unwrap_or_else(|| line.clone())
+            s.parsed.routine(&sym.name).map(|st| crate::signature::routine_label(st).0).unwrap_or_else(|| line.clone())
         }
         (Some((line, _, _)), _) if !line.is_empty() => line.clone(),
         (None, SymbolKind::Constant) if rapidr_lang::constant(&sym.name).is_some() => {

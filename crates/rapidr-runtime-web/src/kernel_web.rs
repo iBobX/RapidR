@@ -610,6 +610,11 @@ fn frame() {
     lists::pre_paint(Web, &forms::shown_forms());
     sync();
     host::with(|h, store| h.desk.tick(store, rapidr_ui_kernel::tick::now()));
+    // (RapidR Studio's RLanguageService: an Analyze's next step — no threads
+    // here: the analysis runs a step a frame — and OnAnalyzed when it's in)
+    if rapidr_studio::langsvc::analyzing() {
+        crate::studio_web::poll_analyses();
+    }
     dispatch_pending();
     // (what the handlers changed, into this frame)
     sync();
@@ -623,7 +628,9 @@ fn frame() {
 fn arm_deadline() {
     let now = rapidr_ui_kernel::tick::now();
     let kernel = host::with(|h, _| h.next_wake()).flatten();
-    let next = [kernel, script::next_step(), rapidr_ui_app::timers::next_due(), rapidr_ui_app::dialogs::hook_wake(), rapidr_ui_app::hands::next_wake()].into_iter().flatten().min();
+    // (an analysis under way: its next step in the next frame's time)
+    let analysis = rapidr_studio::langsvc::analyzing().then(|| now + std::time::Duration::from_millis(16));
+    let next = [kernel, script::next_step(), rapidr_ui_app::timers::next_due(), rapidr_ui_app::dialogs::hook_wake(), rapidr_ui_app::hands::next_wake(), analysis].into_iter().flatten().min();
     let Some(at) = next else { return };
     let ms = at.saturating_duration_since(now).as_secs_f64() * 1000.0;
     let Some(w) = web_sys::window() else { return };

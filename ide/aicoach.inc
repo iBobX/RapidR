@@ -105,17 +105,17 @@ END FUNCTION
 ' The error a learner would ask about: the program's first compiler error
 ' ("main.rr:12: …"), else the last run's run-time error; "" none.
 FUNCTION AICoachErrorText AS STRING
-  DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING
+  DIM text AS STRING, row AS STRING
   IF ProjectOpen AND ProjectMain <> "" THEN
     text = ProblemsText(ProjectMain)
-    n = TALLY(text, CHR$(10))
-    FOR i = 1 TO n
-      row = FIELD$(text, CHR$(10), i)
-      IF FIELD$(row, CHR$(9), 1) = "error" THEN
-        Result = ProjectRel(FIELD$(row, CHR$(9), 5)) + ":" + FIELD$(row, CHR$(9), 2) + ": " + FIELD$(row, CHR$(9), 4)
-        EXIT FUNCTION
-      END IF
-    NEXT
+    ' (errors come first — the files with errors first, in each its errors
+    ' first —: the first row is an error, or there is none; going through
+    ' every row with FIELD$ took seconds with thousands of notes)
+    row = LEFT$(text, INSTR(text + CHR$(10), CHR$(10)) - 1)
+    IF FIELD$(row, CHR$(9), 1) = "error" THEN
+      Result = ProjectRel(FIELD$(row, CHR$(9), 5)) + ":" + FIELD$(row, CHR$(9), 2) + ": " + FIELD$(row, CHR$(9), 4)
+      EXIT FUNCTION
+    END IF
   END IF
   Result = AICoachRunError
 END FUNCTION

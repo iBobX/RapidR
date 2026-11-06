@@ -9,6 +9,8 @@
 //! |---|---|
 //! | `Update(File, Text)` | the editor's text of a file (unsaved) |
 //! | `Close(File)` | the file is read from its store again |
+//! | `Analyze(File)` | starts the analysis of `File` for the texts given so far — its outline, its problems, the project's — off the UI thread (a worker; on the web, a step between frames); returns at once. **OnAnalyzed(File)** comes when it's done: `Outline`, `Diagnostics` and `ProjectDiagnostics` then answer at once |
+//! | `Ready(File)` → 1 / 0 | whether they answer at once now (the analysis made for the texts as they are) |
 //! | `Outline(File)` → text | `depth, kind, name, detail, line` — kind: `sub`, `function`, `type`, `field`, `method`, `event`, `component`, `constant`, `variable`, `label`; line from 1 |
 //! | `Diagnostics(File)` → text | `severity, line, column, message, file` — severity: `error`, `warning`, `note`; line and column from 1; the compiler's own messages |
 //! | `ProjectDiagnostics` → text | the open project's problems (`Project`: its main file), as Problems lists them: the program compiled whole (a module is never checked alone), grouped by file — the files with errors first — and in a file errors, warnings, notes; what works on one runtime only once per component, with how many uses (S5). The same fields as `Diagnostics` |
@@ -17,6 +19,11 @@
 //! | `ErrorCount` | errors in the last Diagnostics or ProjectDiagnostics |
 //! | `CompatMode` | `"rapidq"`: RapidR's extensions reported (a RapidQ-compatible project) |
 //!
+//! Asked for its outline or problems without `Analyze` first (or before
+//! OnAnalyzed), the service answers exactly all the same: it waits for the
+//! analysis under way, or makes it (docs/speed-audit-2026-11.md, "Studio:
+//! the edit pause").
+//!
 //! The language service grows here (completion, hover, rename … for the
 //! editor: I3's UI wiring).
 
@@ -24,10 +31,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use rapidr_langsvc::{Analysis, OutlineItem, OutlineKind, Options, Targets};
+use rapidr_langsvc::{Analysis, OutlineItem, OutlineKind, Options, Targets, Want};
 use rapidr_value::Value;
 
-use crate::{int_arg, slashes, text_arg};
+use crate::{int_arg, slashes, text_arg, Host};
 
 #[derive(Default)]
 struct Service {
@@ -37,6 +44,12 @@ struct Service {
     /// The open project's main file ("" none).
     project: String,
     targets: Targets,
+    /// `Analyze(File)`'s file, until its analysis is in (OnAnalyzed).
+    analyzing: Option<PathBuf>,
+    /// The last Outline's text: its file and the analysis's generation it
+    /// was made for (Studio's Outline and Quick Open both ask after a
+    /// pause: a big include's thousands of rows made once).
+    outline_text: Option<(PathBuf, u64, String)>,
 }
 
 impl Service {
@@ -46,7 +59,22 @@ impl Service {
 
     fn analysis(&mut self) -> &mut Analysis {
         let options = self.options();
-        self.analysis.get_or_insert_with(|| Analysis::new(options))
+        self.analysis.get_or_insert_with(|| {
+            // (its parses and compiles off the UI thread: Analyze, OnAnalyzed)
+            let mut a = Analysis::new(options);
+            a.set_background(true);
+            a
+        })
+    }
+
+    /// What Studio's panes show of a file: its outline, its problems — the
+    /// project's, when there is one.
+    fn wants(&self) -> Vec<Want> {
+        let mut w = vec![Want::Outline, Want::Diagnostics];
+        if !self.project.is_empty() {
+            w.push(Want::Project(PathBuf::from(&self.project)));
+        }
+        w
     }
 
     /// The project and its targets told to the analysis and to the code
@@ -181,6 +209,18 @@ fn line_of(text: &str, starts: &[usize], offset: usize) -> usize {
     starts.partition_point(|&s| s <= offset)
 }
 
+/// [`line_col`] of `offset`, from `text`'s line starts (the same line and
+/// column for every offset: a test compares).
+fn line_col_at(text: &str, starts: &[usize], offset: usize) -> (usize, usize) {
+    let offset = offset.min(text.len());
+    if !text.is_char_boundary(offset) {
+        return line_col(text, offset);
+    }
+    let line = starts.partition_point(|&s| s <= offset);
+    let start = starts[line - 1];
+    (line, text[start..offset].chars().count() + 1)
+}
+
 fn outline_lines(items: &[OutlineItem], text: &str, depth: usize, out: &mut String) {
     outline_rows(items, text, &line_starts(text), depth, out);
 }
@@ -225,6 +265,20 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             with(name, |s| s.analysis().close(&file));
             Value::Null
         }
+        // (Analyze(File): its outline and problems made off the UI thread;
+        // OnAnalyzed(File) when they're in — poll)
+        "analyze" => {
+            with(name, |s| {
+                let w = s.wants();
+                s.analysis().request(&file, &w);
+                s.analyzing = Some(file);
+            });
+            Value::Null
+        }
+        "ready" => crate::flag(with(name, |s| {
+            let w = s.wants();
+            s.analysis().ready(&file, &w)
+        })),
         // (the Help pane: Help(Word, [OfType]) — crate::help)
         "help" => Value::String(crate::help::text(&text_arg(args, 0), &text_arg(args, 1)).into()),
         // (HelpPage(Word, [OfType], [File], [Line], [Column], [CanInsert]):
@@ -272,10 +326,18 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             Value::String(out.into())
         }
         "outline" => Value::String(with(name, |s| {
+            let generation = s.analysis().generation();
+            if let Some((f, g, text)) = &s.outline_text {
+                if *f == file && *g == generation {
+                    return text.clone();
+                }
+            }
             let a = s.analysis();
+            let items = a.outline(&file);
             let text = a.text(&file).unwrap_or_default();
             let mut out = String::new();
-            outline_lines(&a.outline(&file), &text, 0, &mut out);
+            outline_lines(&items, &text, 0, &mut out);
+            s.outline_text = Some((file, generation, out.clone()));
             out
         }).into()),
         // ManualPage(Page): a page of the manual in Studio's language
@@ -297,7 +359,11 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let project = (method == "projectdiagnostics").then(|| PathBuf::from(&s.project)).filter(|p| !p.as_os_str().is_empty());
             let a = s.analysis();
             let mut out = String::new();
-            let mut texts: HashMap<PathBuf, String> = HashMap::new();
+            // (each file's text and where its lines start: a problem placed by
+            // a binary search, not by counting the newlines before it — with
+            // thousands of problems that count was most of Problems' fill, the
+            // hang reports' ProblemsText)
+            let mut texts: HashMap<PathBuf, (String, Vec<usize>)> = HashMap::new();
             let mut errors = 0;
             let found = match &project {
                 Some(main) => a.project_diagnostics(main),
@@ -310,8 +376,12 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 }
             };
             for d in found {
-                let text = texts.entry(d.file.clone()).or_insert_with(|| a.text(&d.file).unwrap_or_default());
-                let (line, col) = line_col(text, d.start);
+                let (text, starts) = texts.entry(d.file.clone()).or_insert_with(|| {
+                    let t = a.text(&d.file).unwrap_or_default();
+                    let starts = line_starts(&t);
+                    (t, starts)
+                });
+                let (line, col) = line_col_at(text, starts, d.start);
                 let severity = format!("{:?}", d.severity).to_ascii_lowercase();
                 if severity == "error" {
                     errors += 1;
@@ -328,6 +398,42 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         }).into()),
         _ => return None,
     })
+}
+
+/// Each Analyze's work looked at (the window loop's turn: crate::poll):
+/// in — OnAnalyzed(File) fired —, or, the texts changed since it was asked
+/// (an Update after it), asked again for them, so an Analyze is always
+/// answered, for the texts as they are. Whether one is still under way.
+pub fn poll<H: Host>(host: H) -> bool {
+    let mut done: Vec<(String, PathBuf)> = Vec::new();
+    let mut under_way = false;
+    SERVICES.with(|all| {
+        for (name, s) in all.borrow_mut().iter_mut() {
+            let Some(file) = s.analyzing.clone() else { continue };
+            let w = s.wants();
+            let a = s.analysis();
+            // (failed in the background: the answers are made when asked)
+            if a.ready(&file, &w) || a.failed() {
+                s.analyzing = None;
+                done.push((name.clone(), file));
+            } else {
+                if !a.pending() {
+                    a.request(&file, &w);
+                }
+                under_way = true;
+            }
+        }
+    });
+    // (the handlers after the services are let go: they ask them)
+    for (name, file) in done {
+        host.fire(&name, "onanalyzed", &[Value::String(slashes(&file.to_string_lossy()).into())]);
+    }
+    under_way
+}
+
+/// Whether an Analyze is under way (the window loop looks again soon).
+pub fn analyzing() -> bool {
+    SERVICES.with(|all| all.borrow().values().any(|s| s.analyzing.is_some()))
 }
 
 /// The files `text` (of `file`) includes, and theirs, that aren't on a disk
@@ -391,6 +497,7 @@ mod tests {
             let starts = super::line_starts(text);
             for offset in 0..text.len() + 3 {
                 assert_eq!(super::line_of(text, &starts, offset), line_col(text, offset).0, "{text:?} at {offset}");
+                assert_eq!(super::line_col_at(text, &starts, offset), line_col(text, offset), "{text:?} at {offset}");
             }
         }
     }
@@ -437,6 +544,76 @@ mod tests {
         // (the build's version: the workspace's)
         assert_eq!(get("ls-help", "version").unwrap().to_string_val(), env!("CARGO_PKG_VERSION"));
         assert_eq!(line_col_offset("ab\ncé d", 2, 3), Some(6));
+    }
+
+    thread_local! {
+        static FIRED: RefCell<Vec<(String, String, String)>> = const { RefCell::new(Vec::new()) };
+    }
+
+    #[derive(Clone, Copy)]
+    struct Heard;
+    impl Host for Heard {
+        fn fire(self, name: &str, event: &str, args: &[Value]) {
+            FIRED.with(|f| f.borrow_mut().push((name.to_string(), event.to_string(), args.first().map(Value::to_string_val).unwrap_or_default())));
+        }
+        fn launch(self, _p: &str, _a: &[String], _t: &str, _s: bool) -> Result<Box<dyn crate::Transport>, String> {
+            Err("no".into())
+        }
+        fn list_files(self, _folder: &str) -> Vec<String> {
+            Vec::new()
+        }
+    }
+
+    /// The window loop's turns until an OnAnalyzed comes (a minute at most).
+    fn until_analyzed() -> Vec<(String, String, String)> {
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        loop {
+            super::poll(Heard);
+            let fired = FIRED.with(|f| std::mem::take(&mut *f.borrow_mut()));
+            if !fired.is_empty() {
+                return fired;
+            }
+            assert!(std::time::Instant::now() < until, "OnAnalyzed never came");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+
+    /// Analyze (docs/speed-audit-2026-11.md, "Studio: the edit pause"):
+    /// it returns at once, OnAnalyzed(File) comes when the work is in, and
+    /// the outline and problems then are what a synchronous analysis says;
+    /// an Update after Analyze is answered for the new text, never the old.
+    #[test]
+    fn analyze_answers_in_the_background_for_the_text_as_it_is() {
+        let f = Value::String("/w/analyze.rr".into());
+        let call = |m: &str, args: &[Value]| call("ls-analyze", m, args).unwrap();
+        let src = "SUB Greet(Who AS STRING)\n    PRINT Who\nEND SUB\nFUNCTION Twice(n AS INTEGER) AS INTEGER\n    Result = n * 2\nEND FUNCTION\nGreet \"x\"\nNope 1\n";
+        call("update", &[f.clone(), Value::String(src.into())]);
+        call("analyze", &[f.clone()]);
+        assert!(super::analyzing());
+        let fired = until_analyzed();
+        assert_eq!(fired, vec![("ls-analyze".to_string(), "onanalyzed".to_string(), "/w/analyze.rr".to_string())]);
+        assert!(!super::analyzing());
+        assert_eq!(call("ready", &[f.clone()]).to_i64(), 1);
+        let outline = call("outline", &[f.clone()]).to_string_val();
+        let problems = call("diagnostics", &[f.clone()]).to_string_val();
+        assert!(outline.contains("sub\tGreet") && outline.contains("function\tTwice"), "{outline}");
+        assert!(problems.starts_with("error\t8\t"), "{problems}");
+        // (the same as a fresh synchronous analysis of the same text)
+        let mut sync = Analysis::new(Options::default());
+        sync.update(PathBuf::from("/w/analyze.rr"), src.to_string());
+        let mut want = String::new();
+        outline_lines(&sync.outline(Path::new("/w/analyze.rr")), src, 0, &mut want);
+        assert_eq!(outline, want);
+        // An Update after Analyze, before the work is in: OnAnalyzed comes
+        // for the new text.
+        let fixed = src.replace("Nope 1\n", "");
+        call("analyze", &[f.clone()]);
+        call("update", &[f.clone(), Value::String(fixed.into())]);
+        assert_eq!(call("ready", &[f.clone()]).to_i64(), 0, "not for the new text yet");
+        until_analyzed();
+        assert_eq!(call("ready", &[f.clone()]).to_i64(), 1);
+        assert_eq!(call("diagnostics", &[f.clone()]).to_string_val(), "", "the new text's problems: none");
+        assert_eq!(get("ls-analyze", "errorcount").unwrap().to_i64(), 0);
     }
 
     /// Help > About says the version of the build: the workspace's.

@@ -430,7 +430,7 @@ fn names(s: &Snapshot, pre: usize, out: &mut Out) {
         };
         let detail = match sym.kind {
             SymbolKind::Sub | SymbolKind::Function | SymbolKind::External => {
-                context::routine_statement(&s.parsed.program, &sym.name).map(crate::signature::routine_label).map(|(l, _)| l)
+                s.parsed.routine(&sym.name).map(crate::signature::routine_label).map(|(l, _)| l)
             }
             SymbolKind::Component => sym.ty.as_deref().map(|t| rapidr_lang::resolve_component(t).map_or_else(|| pretty_component(t), |c| c.spelling())),
             _ => sym.ty.as_ref().map(|t| format!("AS {t}")),

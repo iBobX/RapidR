@@ -348,6 +348,13 @@ pub struct CodeEditor {
     /// is ever drawn — a file opens with its squiggles, not after the first
     /// edit. The view takes it.
     pub diagnose_wanted: bool,
+    /// The language service's version (`LanguageService::generation`) the
+    /// problems and colours shown were made for: when the service's moves
+    /// on — another file of the program changed, a burst of applied
+    /// changes, a project switched — the view asks again, so what it shows
+    /// is never left from texts the program has since left. `None` while
+    /// it is asking (or has never been told).
+    pub service_gen: Option<u64>,
     /// Places the view follows through edits (a snippet's tab stops): the
     /// byte, and whether text typed at it goes before it (`true`: the
     /// place stays at the typed text's start).
@@ -632,6 +639,7 @@ impl CodeEditor {
             line_edits: Vec::new(),
             generation: 0,
             diagnose_wanted: false,
+            service_gen: None,
             anchors: Vec::new(),
             requests: Vec::new(),
             folds: Vec::new(),

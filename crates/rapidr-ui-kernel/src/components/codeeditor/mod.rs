@@ -107,6 +107,9 @@ pub struct Service {
     pub synced: Option<(u64, u64)>,
     /// When to ask for diagnostics (after typing stops).
     pub diagnose_at: Option<Instant>,
+    /// The service's analysis asked for and not in yet: when to look again
+    /// (lang.rs: the editor never waits for it).
+    pub analysis_at: Option<Instant>,
     /// When to ask for a hover (the mouse resting) and where.
     pub hover_at: Option<(Instant, usize)>,
     /// Signature help follows the caret while it's open.
@@ -220,7 +223,7 @@ impl CodeUi {
     /// The deadline the view needs next (the soonest of its own).
     pub fn next_wake(&self) -> Option<Instant> {
         let s = &self.service;
-        [self.idle_at, s.diagnose_at, s.hover_at.map(|h| h.0), self.ctrl_at].into_iter().flatten().min()
+        [self.idle_at, s.diagnose_at, s.analysis_at, s.hover_at.map(|h| h.0), self.ctrl_at].into_iter().flatten().min()
     }
 }
 
@@ -537,9 +540,10 @@ impl ComponentKind for CodeEditor {
     }
 
     fn pending(&self, id: &str) -> bool {
-        // (the program's requests, and a text set from outside waiting for
-        // its diagnosis: lang::tick)
-        with_code(id, |c| !c.requests.is_empty() || c.diagnose_wanted).unwrap_or(false)
+        // (the program's requests, a text set from outside waiting for its
+        // diagnosis, and problems and colours made for texts the language
+        // service has since left: lang::tick)
+        with_code(id, |c| !c.requests.is_empty() || c.diagnose_wanted || lang::outdated(c)).unwrap_or(false)
     }
 
     fn context_menu(&self, cx: &mut Cx) -> Option<MenuState> {

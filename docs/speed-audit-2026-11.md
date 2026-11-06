@@ -1099,3 +1099,304 @@ to the desktop's `.expected` (the web conformance run).
 - **Beautiful**: the same pixels on both runtimes (the parity case's
   captures); smooth resizing in the browser.
 - **Legal**: no new dependency; no `unsafe`.
+
+## Studio: the edit pause
+
+The EDIT-PAUSE lane (2026-11-05, hot spot 5's second part and "Left for
+the lead"): after step 2 a pause in typing still cost RapidR Studio's UI
+thread 52–150 ms, most of it the compiler's own checks, and with RapidQ's
+big include files far more. The goal: every key and caret move under one
+frame (16 ms) whatever the program's size, the analysis off the UI thread.
+
+### What a pause did
+
+Per pause, on the UI thread: the code editor's service (350 ms after the
+last key) parsed the program, named its symbols, compiled it for its
+problems, made its colours and its helpers; 250 ms later Studio's
+`AnalyzerTick` gave the same text to its own `RLanguageService` — a second
+analysis — which parsed, named and compiled it again for the Outline and
+Problems, then refilled the Outline (one image-list icon drawn per item:
+6,085 SVG rasterizations for `windows.inc`), rebuilt Quick Open (hundreds
+of commands removed and added again, each one matching and sorting the
+command palette's whole list: quadratic) and set every command's state
+(the same, each a palette match again). `analysis_bench` (new, in
+`crates/rapidr-langsvc/examples/`) on the 5,000-line program: a snapshot
+(parse and names) 64 ms, the compiler's checks 59 ms, and the project's
+problems compiled again 58 ms; with `rapidq2.inc` and `windows.inc`
+included, a snapshot 1.0 s.
+
+### The design
+
+- **One analysis per text version** (`crates/rapidr-langsvc/src/cache.rs`):
+  a parse is kept by everything it was made from — the main file's path
+  and text, the editor's text of every open file, the preprocessor's
+  options and the user's include folders, compared whole, never by a hash —
+  and the files it read from the disk (or the web page's store), read again
+  and compared before it is taken; a program whose preprocessing failed
+  (an `$INCLUDE` not found) is never kept. The code editor's analysis and
+  Studio's panes' take the same parse; the compiler's checks are made once
+  on it (`Snapshot::compiled`). Each file's colours, helpers and outline
+  are kept until a text changes.
+- **The analysis on a worker thread** (`crates/rapidr-langsvc/src/background.rs`):
+  an analysis set to work in the background sends a job — its generation
+  (a new number at every change of a text or an option), every open file's
+  text, the options, and what it wants (the program's problems, a file's
+  colours, helpers, outline, the project's problems) — to one worker
+  thread, which brings a mirror of that analysis to those texts and makes
+  what was wanted with the very same code a synchronous call runs. The UI
+  takes the work in only when it is for the texts as they are now; older
+  work is dropped, and a newer job supersedes an older one (the worker
+  leaves it between two of its steps). Plain data crosses threads (texts,
+  paths, the parse and diagnostics behind `Arc`s, `Send + Sync` checked at
+  compile time): never a runtime `Value`. An exact question meanwhile (a
+  definition, a rename, the problems before Run) waits for the work under
+  way rather than make it twice. A panic in the worker is caught: that
+  generation is then made on the asking thread, as before.
+- **The code editor never waits** (`components/codeeditor/lang.rs`): when
+  typing pauses it asks for its file's analysis (`LanguageService::analyze`),
+  looks about every frame whether it's in (`analyzed`, 16 ms), and takes the
+  problems, colours and helpers in at once. The service busy (asked from
+  inside one of its own answers) means "again in a moment", never "nothing".
+  Each editor remembers the service's generation its colours were made for
+  (`service_gen`); when another file of the program changes it asks again
+  once things settle — the colours-lost-after-a-burst case below.
+- **Studio's panes** (`ide/documents.inc`): `AnalyzerTick` gives the text
+  and calls `Lang.Analyze`; `OnAnalyzed` (`LangAnalyzed`) fills the Outline
+  and Problems from answers that are ready — unless the text changed since
+  (the next pause asks again). Every other caller of `Lang.Outline`,
+  `Diagnostics` and `ProjectDiagnostics` (Run's check, the AI tools,
+  switching documents) gets the same exact answers as before, waiting for
+  the work under way when there is some. New members of RLanguageService:
+  `Analyze(File)`, `Ready(File)`, `OnAnalyzed(File)` (the registry — Help
+  and the AI's facet —, Spanish, the manual's
+  [code editor](manual/studio-editor.md#in-your-own-programs-rlanguageservice)
+  page, `examples/studio/language_service.rr`).
+- **What the panes do with the answers**: the Outline is rebuilt only when
+  its text changed (typing inside a SUB, a letter typed and taken back:
+  nothing to do; what was folded stays folded) and each icon is drawn once
+  per fill (`SymbolIcon`); Quick Open is rebuilt only when the project's
+  files, the outline or the language changed, and stops reading at its 800
+  items; the command palette matches its list again only while it is shown
+  (Show starts its highlight again) and only when a command's state really
+  changed (`CommandEnabled`).
+- **Found on the way, while typing** (the "typing" scenario, new in
+  `studio_caret.py`: 30 letters and spaces at the script's pace): the
+  first word typed told the analysis the editor's keyword case, which
+  threw every analysis away (`set_options`), so the next question parsed
+  the whole program on the UI thread — 2.5 s with RapidQ's big includes,
+  once a session; the case now changes only the case (`Analysis::set_case`:
+  nothing else reads it). Completion at a word start looked each visible
+  SUB, FUNCTION and DECLARE up in the whole program's statements
+  (thousands with a Win32 header: quadratic); an index made once per parse
+  answers it (`Parsed::routine`, the same first match — a test compares).
+  The owner-draw turn hashed every tree's thousands of items at each turn
+  of the loop before asking whether anyone wanted its images; the Outline's
+  text is made once per analysis (Studio's Outline and Quick Open both ask).
+- **Studio's hang reports** (Robert's of 2026-11-02, RAI working on a big
+  project, "Not Responding" for 6–9 s in `ProblemsText`, `UpdateCommands`
+  and `AIDotsPaint`): `ProblemsText` placed every problem by counting the
+  newlines from its file's start (Rust's `line_col`, now each file's line
+  starts and a binary search: `line_col_at`, the same line and column for
+  every offset — a test compares), then `FillProblemsOf` read row *i* with
+  `FIELD$` through every row before it and counted each file's problems
+  the same way (now the rows one after the other, each file's counts in one
+  pass, and nothing done when the problems shown are the same);
+  `AICoachErrorText` went through every row for the first error (errors
+  come first: the first row is one, or there is none). `UpdateCommands`
+  set every command's state in the palette, each a match and sort of the
+  whole list (with Quick Open's hundreds of symbols: seconds) — fixed above.
+  And `AnalyzeActive`, called after RAI's changes are applied, a document
+  switched to, a file changed outside, a theme or a project setting
+  changed, now asks for the analysis in the background when it isn't made
+  for the texts yet (the panes follow in `LangAnalyzed`); only Run and
+  Build wait for the errors (`ProgramErrors`), as they must. `AIDotsPaint`
+  is four drawing calls on a 21 × 11 canvas from a 60 ms timer while RAI
+  works: it was where the UI thread was found, not what held it (left as
+  it is).
+- **The web Studio**: the page's wasm has no threads (no atomics, no
+  shared memory in RapidR's web build), so the same jobs run on the UI
+  thread **in steps between frames** — one want a step (the parse and
+  names, the problems, the colours …), each when the editor's look (a frame) or
+  the page's next frame comes, never inside a keystroke. A key pressed
+  while a step runs waits for that step; the longest is the parse and names
+  of the program (it grows with the program).
+
+### Before and after
+
+RapidR Studio on the headless host (`tools/bench/ui/studio_caret.py` with
+the new `RAPIDR_TEST_BUSY`: the UI thread's own busy stretches and CPU),
+release builds of this lane's first commit (the measuring hook only) and of
+its work, run back to back on the same Mac (shared with other lanes: load
+average 15–70 while these ran). "Longest" is the longest the UI thread
+stayed busy at once after the scenario started: what a key pressed at that
+moment waits for. The programs: the generated 5,000-line program; the same
+with RapidQ's `rapidq2.inc` and `windows.inc` included (8,501 + 17,832
+lines; local copies, never in the repository); `windows.inc` itself; the
+5,000 lines with 2,000 statements in error (2,000 problems).
+
+| Scenario | longest, before | longest, after | the UI thread's CPU, before → after |
+|---|--:|--:|--:|
+| an edit round (a letter typed and taken back, a pause), 5,000 lines | 53–100 ms | **5.4–7.0 ms** | 40–52 → 8–35 ms a round |
+| a caret move, 5,000 lines | 3.1–107 ms | **4.1–4.6 ms** | |
+| typing 30 letters and spaces, 5,000 lines | 755–891 ms | **16.1–17.7 ms** ¹ | 56–74 → 2.1–3.5 ms a key |
+| an edit round, with RapidQ's big includes | 84–1,075 ms | **6.4–18.4 ms** ² | 19–78 → 11–42 ms a round |
+| typing, with RapidQ's big includes | 3,786–7,081 ms | **13.2–13.9 ms** | 454–494 → 3.4–8.8 ms a key |
+| an edit round in `windows.inc` (17.8 k lines, 6,085 outline items) | 651–1,607 ms | **14.3–15.0 ms** | 345–2,234 → 6–56 ms a round |
+| typing in `windows.inc` | 1,711–2,654 ms | **14.1–14.6 ms** | 186–475 → 1.4–2.5 ms a key |
+| a caret move in `windows.inc` | 10.6 ms | **3.6 ms** | 5.8 → 0 ms a move |
+| an edit round with 2,000 problems | 783–1,411 ms | **5.1–6.3 ms** | 806–831 → under 20 ms a round |
+| opening the 5,000 lines (Studio's start included; the whole process's CPU) | 1.5–1.6 s | **1.1–1.4 s** | |
+| opening `windows.inc` (the same) | 3.5–4.5 s | **2.1–2.2 s** | |
+| opening the program with 2,000 problems (the same) | 4.1–4.2 s | **1.6–1.7 s** | |
+
+The ranges are over the runs made during the lane; the last pair, the
+lane's final build (rebased on `development`) and the baseline run back to
+back at a load average of 13–21 (`tools/bench/ui/studio_caret.py`, one
+scenario after the other), is in each of them. The whole process's CPU
+(the worker included) per edit round fell too, in the 5,000-line program
+39–52 → 21–38 ms: one parse and one compile per version instead of two.
+
+¹ About 10 ms of it is the designer: the 5,000-line program has a form,
+and at a pause that changed the text Studio gives the designer the new
+text (`DesignRead`), whose `Document::set_text` preprocesses and parses
+the whole file again on the UI thread (sampled: `parse_source_for_tools`
+under `DesignSurface::open_source`). The edit round doesn't show it (the
+text is back to what the designer has). See Left.
+
+² 18.4 ms once, at the load of the final pair; run again, 6.4 ms (p99
+6.4 ms).
+
+The web Studio (headless Chromium, the page's main thread per animation
+frame, `tools/bench/ui/web_edit_pause.mjs`, before and after built the
+same way and run back to back): during an edit round's pause in the
+5,000-line program the longest frame was 45–50 ms before, **24–25 ms**
+after (the longest step: the parse and names of the program), p95 1.3–1.9
+→ 0.8 ms; a key 24–25 ms both (its frame's CPU-drawn pixels).
+
+`codeeditor_bench --service --lines 5000` (typing with the service, no
+pause in it): key → display list p99 4.2 ms, key → pixels p99 8.6 ms,
+the same before and after on a quiet machine. The 21 ms of the audit was
+the machine's load on the CPU renderer's pixels; the bench never pauses,
+so the analysis was never in it.
+
+`analysis_bench` (`crates/rapidr-langsvc/examples/`), what one analysis
+costs the worker now: the 5,000-line program a snapshot 64 ms, its
+compiler's checks 59 ms (made once per version); with RapidQ's big
+includes a snapshot 1.0 s — the squiggles come that long after a pause
+there, the UI never waiting for them.
+
+### Tests
+
+- `crates/rapidr-langsvc/tests/background.rs`: what the worker makes is
+  what a synchronous analysis makes, each made afresh without the shared
+  parses — the problems, the main file's problems, the project's problems,
+  the colours, the outline and the helpers of every example and a ninth of
+  the conformance cases, and of a project on the disk with its module
+  open; the panes' analysis takes the editor's parse (`Arc::ptr_eq`); an
+  `$INCLUDE` changed on the disk is parsed again (its new SUB seen); work
+  for older texts is never taken for newer ones; an exact question waits
+  for the work under way.
+- `crates/rapidr-ui-render/tests/edit_pause.rs`, with the real service as
+  Studio installs it: **a burst of applied changes** (main.rr without
+  `Helper` — platform.rr's call of it an error —, then platform.rr, then
+  main.rr with `Helper` again, then Save All) leaves both editors with
+  exactly the colours, problems and lexical colours freshly opened editors
+  show. With the generation check switched off the test fails: platform.rr
+  keeps "Unknown SUB or FUNCTION 'Helper'" from the broken moment — the
+  class of bug Robert saw (an editor analysed again only when its own text
+  changed), fixed. And **typing never waits**: a key and every turn while a
+  1,500-SUB program is analysed under 16 ms, and the analysis made for the
+  older text is never shown for the newer one.
+
+- `rapidr-studio`'s `analyze_answers_in_the_background_for_the_text_as_it_is`:
+  `Analyze` returns at once, `OnAnalyzed` comes, the outline is a fresh
+  synchronous analysis's, and an `Update` after `Analyze` is answered for
+  the new text. `context`'s `the_routine_index_finds_what_the_search_finds`.
+- Checked on the lane's build: the unit tests of rapidr-langsvc,
+  rapidr-studio, rapidr-ui-kernel, rapidr-ui-render, rapidr-value,
+  rapidr-ui-app, rapidr-lang and rapidr-editor (all passed but
+  `school_lock::the_test_file_never_replaces_the_computers`, which fails the
+  same way on the build before this lane); `rapidr lang export --all
+  --check`, the i18n checks (Studio 1663/1663), the words and RapidQ-mention
+  checks; the example run, and built natively and run (its outline and "No
+  errors." from OnAnalyzed); Studio's flows on the desktop (the editor,
+  outline, problems, palette, include, designer and debugging cases: 130
+  passed, `debug-commands-stepping` failing the same way on the build
+  before this lane) and on the web page (the editor, outline, problems,
+  palette and include cases: 143 checks, all passed).
+- Studio's goldens: 79 of 81 identical. `designer-pins@2x` (light, dark,
+  high contrast) differs in the Outline's icons only: the Outline now fills
+  when the analysis is in, after Studio's window is shown, so its icons get
+  their 2 × drawing; the build before filled it twice before the window
+  was shown (traced: `Screen.Scale` 1 at both fills) and showed the 1 ×
+  drawing enlarged. The new images wait for a person's look
+  (`tools/visual/gallery.py studio approve designer-pins`); Studio also
+  draws the Outline's icons again when its window shows, and at every
+  pause that finds the Outline unchanged (`RefreshOutlineIcons`): a
+  window moved to a screen of another scale gets them at the next pause.
+
+### The guard
+
+`tools/bench/ui_bench caret` (the `perf` stage of `tools/regress.sh`) now
+measures, besides the whole process's CPU, the UI thread's CPU and its
+longest stretch for a caret move, an edit round, and an edit round in the
+program of 1,000 `$DEFINE`s, held to `tools/bench/ui_budgets.json`
+(`caret_move_ui_busy`, `edit_round_ui_busy`, `edit_round_defines_ui_busy`:
+16 ms each). An analysis back on the UI thread misses them. The UI
+thread's CPU is taken in the scenario's run itself (each busy stretch's
+line carries the thread's CPU so far): the table's CPU column is the
+difference of two runs, which is mostly how differently Studio's start
+went in them (it came out below zero more than once); taken in the run, an
+edit round costs the UI thread 12 ms, with the 1,000 `$DEFINE`s too,
+spread over stretches of at most 4–5 ms.
+
+### Left
+
+- **An include's own parse kept while it doesn't change**: what is kept
+  here is a whole program's parse for one version of its texts (the
+  editor's and the panes' share it; switching documents back and forth
+  finds it). An edit in the main file still preprocesses and parses its
+  includes again, on the worker: about 1 s for the 5,000-line program with
+  RapidQ's two big includes, so its squiggles come about a second after a
+  pause (the UI never waits for them). Keeping an include's preprocessed
+  text and parse needs the preprocessor and the parser to work a file at a
+  time (an include's text depends on the `$DEFINE`s before it, and the
+  parser reads one preprocessed text): a lane of its own.
+- **The designer's own parse at a pause**: in a file with a form, a pause
+  that changed the text has the designer read the file again on the UI
+  thread (its parse of the whole file, about 10 ms in 5,000 lines, more in
+  a bigger form file). The worker's parse of the same text could be handed
+  to it, but the designer's text must stay in step with the code editor's
+  for the patches it writes (a control dragged in a split view right after
+  typing), so taking its read off the pause needs that guarded first: a
+  lane of its own, with the designer's tests.
+- **The web's steps**: the longest is the parse and names of the program;
+  the preprocessor, the parser and the names as steps of their own would
+  shorten what a key can wait for in a big program on the web.
+- While an analysis is under way, the code editor looks once a frame
+  whether it's in, and the kernel draws a ticked form again (it marks it
+  changed whatever the tick did): a redraw a frame for as long as the
+  analysis takes (a few dozen ms in 5,000 lines, about a second with
+  RapidQ's big includes). The worker waking the window loop when it's done
+  would draw only then — the kernel's ticks saying whether they changed
+  anything, or a cross-thread wake: for the SMOOTH lane.
+- The lexical colours (keywords, strings, comments) are made on demand for
+  the lines drawn (`rapidr_editor::highlight`): looked at, no way to lose
+  them found; the lost colours reproduced and fixed here were the
+  service's.
+
+### The pillars
+
+- **Fast**: a pause in typing costs Studio's UI thread a few milliseconds
+  instead of 50–1,600; one parse and one compile per version instead of
+  two; the Outline, Quick Open and the palette no longer quadratic.
+- **Easy to use**: nothing to learn — Studio just never stops; programs
+  get `Analyze` / `OnAnalyzed`, with an example and a manual section.
+- **Accessible**: the problems a screen reader hears follow as before
+  (announced when the caret line's change); keys are never held up, so
+  keyboard and screen-reader users stay in step.
+- **Beautiful**: no frame lost while typing; colours never left from a
+  program state that is gone.
+- **Legal**: no new dependency (std's threads, channels and locks only);
+  RapidQ's include files were only read locally, never added to the
+  repository.

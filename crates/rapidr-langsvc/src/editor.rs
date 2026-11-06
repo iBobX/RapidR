@@ -9,13 +9,23 @@
 //! desktop, the web runtime built with its `langsvc` feature (RapidR
 //! Studio in the browser). Every RCODEEDITOR of a program there then has
 //! its completion and hover help for RapidQ / RapidR BASIC.
+//!
+//! Installed, it works in the background (background.rs): a code editor
+//! asks for its file's analysis when typing pauses
+//! ([`ed::LanguageService::analyze`]) and takes the problems, colours and
+//! helpers in once they're made for its text — the UI thread never parses
+//! or compiles the program for it.
 
 use std::path::{Path, PathBuf};
 
 use rapidr_editor::service as ed;
 
 use crate::case::{self, CaseScope, IdentifierCase, KeywordCase};
-use crate::{Analysis, CompletionKind, Options, OutlineKind, Severity, TokenKind};
+use crate::{Analysis, CompletionKind, Options, OutlineKind, Severity, TokenKind, Want};
+
+/// What a code editor shows of its file's analysis: its program's
+/// problems, its colours, its helpers.
+const EDITOR_WANTS: [Want; 3] = [Want::RootDiagnostics, Want::Tokens, Want::Helpers];
 
 /// The language id of RapidQ / RapidR BASIC in `rapidr_editor::Languages`.
 pub const LANGUAGE: &str = "rapidr-basic";
@@ -43,22 +53,22 @@ impl EditorService {
         &mut self.analysis
     }
 
-    /// The case asked for, in the analysis's options (only when it changes:
-    /// new options drop every analysis).
+    /// The case asked for, in the analysis's options (the analysis kept: no
+    /// answer but the case's depends on it).
     fn set_case(&mut self, keywords: KeywordCase, identifiers: IdentifierCase) {
         let now = &self.analysis.options().case;
         if now.keywords != keywords || now.identifiers != identifiers {
-            let mut options = self.analysis.options().clone();
-            options.case.keywords = keywords;
-            options.case.identifiers = identifiers;
-            self.analysis.set_options(options);
+            self.analysis.set_case(crate::CaseOptions { keywords, identifiers });
         }
     }
 }
 
-/// Makes RapidR's language service the one this thread's editors ask.
+/// Makes RapidR's language service the one this thread's editors ask,
+/// its analyses made in the background.
 pub fn install() {
-    ed::install(Box::new(EditorService::new()));
+    let mut service = EditorService::new();
+    service.analysis.set_background(true);
+    ed::install(Box::new(service));
 }
 
 fn path(file: &str) -> PathBuf {
@@ -286,6 +296,25 @@ impl ed::LanguageService for EditorService {
 
     fn case_triggers(&self) -> &'static [char] {
         case::TRIGGERS
+    }
+
+    fn analyze(&mut self, file: &str) {
+        self.analysis.request(&path(file), &EDITOR_WANTS);
+    }
+
+    fn analyzed(&mut self, file: &str) -> bool {
+        let file = path(file);
+        if self.analysis.ready(&file, &EDITOR_WANTS) {
+            return true;
+        }
+        // (the texts changed since it was asked — another editor's file —:
+        // the work for these asked for, waited for)
+        self.analysis.request(&file, &EDITOR_WANTS);
+        !self.analysis.pending()
+    }
+
+    fn generation(&self) -> u64 {
+        self.analysis.generation()
     }
 
     fn helpers(&mut self, file: &str) -> Vec<ed::HelperSite> {

@@ -20,6 +20,7 @@
 //! their docs, origins (RapidQ's or RapidR's) and gaps — comes from the
 //! language registry, `rapidr_lang` (the IDE's one source).
 
+pub mod background;
 pub mod case;
 pub mod diagnostics;
 pub mod editor;
@@ -30,6 +31,7 @@ pub mod model;
 pub mod text;
 pub mod words;
 
+mod cache;
 mod compat;
 mod complete;
 mod context;
@@ -42,7 +44,7 @@ mod signature;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 pub use case::{CaseOptions, CaseScope, IdentifierCase, KeywordCase};
 pub use diagnostics::FileDiagnostic;
@@ -53,9 +55,10 @@ pub use rapidr_diagnostics::Severity;
 // (what [`Analysis::helpers`] answers: an argument's name, a colour …)
 pub use rapidr_editor::service::{HelperKind, HelperSite};
 pub use text::LineIndex;
+pub use background::Want;
 
 /// How a project is analysed.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Options {
     /// A RapidQ-compatible project: RapidR's extensions are reported
     /// (docs/q-and-r-components.md §5).
@@ -278,6 +281,11 @@ pub struct Snapshot {
     /// (a view of an older analysis while the user types: the edits made
     /// since, in order, which offsets are mapped across)
     edits: Vec<Shift>,
+    /// What the compiler says of the program ([`diagnostics::compile`]),
+    /// made the first time it's asked: one compile per parse, whoever asks
+    /// — the code editor's problems, the project's — and wherever this
+    /// parse is shared (the analyses of the same texts: cache.rs).
+    compiled: Arc<OnceLock<Vec<FileDiagnostic>>>,
 }
 
 /// One edit of a file since an analysis was made of it: its bytes
@@ -332,7 +340,12 @@ impl Shift {
 
 impl Snapshot {
     fn new(parsed: Parsed, model: SemanticModel) -> Snapshot {
-        Snapshot { parsed: Arc::new(parsed), model: Arc::new(model), edits: Vec::new() }
+        Snapshot { parsed: Arc::new(parsed), model: Arc::new(model), edits: Vec::new(), compiled: Arc::default() }
+    }
+
+    /// The compiler's diagnostics of the program (made once per parse).
+    pub fn compiled(&self) -> &[FileDiagnostic] {
+        self.compiled.get_or_init(|| diagnostics::compile(&self.parsed))
     }
 
     /// Whether the program is a RapidR program (its main file a `.rr`):
@@ -392,11 +405,41 @@ pub struct Analysis {
     /// The project's problems ([`Analysis::project_diagnostics`]), until a
     /// file changes.
     project_diags: Option<(PathBuf, Vec<FileDiagnostic>)>,
+    /// Each file's colours, helpers and outline, until a file changes.
+    tokens: HashMap<PathBuf, Vec<SemanticToken>>,
+    helper_sites: HashMap<PathBuf, Vec<rapidr_editor::service::HelperSite>>,
+    outlines: HashMap<PathBuf, Vec<OutlineItem>>,
+    /// The texts' and options' version: a new number at every change, so
+    /// that work made for older ones is never taken for theirs
+    /// ([`Analysis::poll`]).
+    generation: u64,
+    /// The work done in the background ([`Analysis::set_background`]):
+    /// this analysis's link to the worker (background.rs).
+    background: Option<background::Client>,
 }
 
 impl Analysis {
     pub fn new(options: Options) -> Self {
         Analysis { options, ..Default::default() }
+    }
+
+    /// Everything made from the texts and options is made again: they
+    /// changed (a new generation).
+    fn changed(&mut self) {
+        self.snapshots.clear();
+        self.diagnostics.clear();
+        self.project_diags = None;
+        self.tokens.clear();
+        self.helper_sites.clear();
+        self.outlines.clear();
+        self.generation += 1;
+    }
+
+    /// The version of the texts and options (it changes with every change):
+    /// what an editor compares to know whether what it shows is still made
+    /// from the texts as they are.
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     pub fn options(&self) -> &Options {
@@ -405,10 +448,18 @@ impl Analysis {
 
     pub fn set_options(&mut self, options: Options) {
         self.options = options;
-        self.snapshots.clear();
-        self.diagnostics.clear();
-        self.project_diags = None;
+        self.changed();
         self.stale.clear();
+    }
+
+    /// The case typing and formatting put words in. Nothing the analysis
+    /// made depends on it (only [`Analysis::case_edits`] reads it), so it's
+    /// all kept: the code editor tells it at the first word typed, and that
+    /// once threw the whole analysis away and parsed the program again on
+    /// the UI thread — 2.5 s in a program with RapidQ's big include files
+    /// (docs/speed-audit-2026-11.md, "Studio: the edit pause").
+    pub fn set_case(&mut self, case: CaseOptions) {
+        self.options.case = case;
     }
 
     /// A file's new text (the editor's, whole).
@@ -435,9 +486,7 @@ impl Analysis {
         }
         self.docs.insert(file, text);
         // (files include each other: every analysis is redone on demand)
-        self.snapshots.clear();
-        self.diagnostics.clear();
-        self.project_diags = None;
+        self.changed();
     }
 
     /// The analysis typing's questions are answered from: the current one
@@ -448,7 +497,7 @@ impl Analysis {
             return Some(s.clone());
         }
         if let Some((s, edits)) = self.stale.get(file) {
-            return Some(Arc::new(Snapshot { parsed: s.parsed.clone(), model: s.model.clone(), edits: edits.clone() }));
+            return Some(Arc::new(Snapshot { parsed: s.parsed.clone(), model: s.model.clone(), edits: edits.clone(), compiled: s.compiled.clone() }));
         }
         self.snapshot(file)
     }
@@ -462,9 +511,7 @@ impl Analysis {
     /// The editor closed a file: it's read from the disk again.
     pub fn close(&mut self, file: &Path) {
         self.docs.remove(file);
-        self.snapshots.clear();
-        self.diagnostics.clear();
-        self.project_diags = None;
+        self.changed();
         self.stale.remove(file);
     }
 
@@ -484,9 +531,7 @@ impl Analysis {
     pub fn set_roots(&mut self, roots: Vec<PathBuf>) {
         if self.options.roots.as_ref() != Some(&roots) {
             self.options.roots = Some(roots);
-            self.snapshots.clear();
-            self.diagnostics.clear();
-        self.project_diags = None;
+            self.changed();
         }
     }
 
@@ -508,6 +553,13 @@ impl Analysis {
     pub fn snapshot(&mut self, file: &Path) -> Option<Arc<Snapshot>> {
         if let Some(s) = self.snapshots.get(file) {
             return Some(s.clone());
+        }
+        // (the background's work for these texts, when it's under way: taken
+        // rather than made twice)
+        if self.settle() {
+            if let Some(s) = self.snapshots.get(file) {
+                return Some(s.clone());
+            }
         }
         if let Some((_, s)) = self.includer(file) {
             self.snapshots.insert(file.to_path_buf(), s.clone());
@@ -554,10 +606,18 @@ impl Analysis {
             return Some(s.clone());
         }
         let text = self.text(root)?;
-        let open: Vec<(PathBuf, String)> = self.docs.iter().map(|(p, t)| (p.clone(), t.clone())).collect();
-        let parsed = front::parse(root, &text, &self.preprocess_options(), &open);
-        let model = model::analyze(&parsed.program, Some(&parsed.source));
-        let s = Arc::new(Snapshot::new(parsed, model));
+        let mut open: Vec<(PathBuf, String)> = self.docs.iter().map(|(p, t)| (p.clone(), t.clone())).collect();
+        // (in the paths' order: the same texts are the same input, whatever
+        // order the editors gave them in — cache.rs)
+        open.sort();
+        let options = self.preprocess_options();
+        // (an analysis of the same texts already made — the code editor's
+        // and Studio's panes ask for the same program —: one parse for both)
+        let s = cache::snapshot(root, text, &options, open, |root, text, options, open| {
+            let parsed = front::parse(root, text, options, open);
+            let model = model::analyze(&parsed.program, Some(&parsed.source));
+            Snapshot::new(parsed, model)
+        });
         self.stale.remove(root);
         self.snapshots.insert(root.to_path_buf(), s.clone());
         Some(s)
@@ -572,6 +632,11 @@ impl Analysis {
         if let Some(d) = self.diagnostics.get(file) {
             return d.clone();
         }
+        if self.settle() {
+            if let Some(d) = self.diagnostics.get(file) {
+                return d.clone();
+            }
+        }
         // (a form or module the open program includes: what the program's
         // analysis says of it — its names are the program's)
         let (s, only) = match self.includer(file).filter(|_| !is_inc(file)) {
@@ -581,7 +646,7 @@ impl Analysis {
                 None => return Vec::new(),
             },
         };
-        let mut out = diagnostics::compile(&s.parsed);
+        let mut out = s.compiled().to_vec();
         if only {
             out.retain(|d| d.file == file);
         }
@@ -618,8 +683,15 @@ impl Analysis {
                 return d.clone();
             }
         }
+        if self.settle() {
+            if let Some((m, d)) = &self.project_diags {
+                if m == main {
+                    return d.clone();
+                }
+            }
+        }
         let Some(s) = self.root_snapshot(main) else { return Vec::new() };
-        let compiler = diagnostics::compile(&s.parsed);
+        let compiler = s.compiled().to_vec();
         let mut out = compiler.clone();
         let folder = main.parent().map(Path::to_path_buf);
         let own = |f: &Path| folder.as_ref().is_none_or(|d| d.as_os_str().is_empty() || f.starts_with(d));
@@ -735,13 +807,29 @@ impl Analysis {
     }
 
     pub fn outline(&mut self, file: &Path) -> Vec<OutlineItem> {
+        if let Some(o) = self.outlines.get(file) {
+            return o.clone();
+        }
         let Some(s) = self.snapshot(file) else { return Vec::new() };
-        navigate::outline(&s, file)
+        if let Some(o) = self.outlines.get(file) {
+            return o.clone();
+        }
+        let o = navigate::outline(&s, file);
+        self.outlines.insert(file.to_path_buf(), o.clone());
+        o
     }
 
     pub fn semantic_tokens(&mut self, file: &Path) -> Vec<SemanticToken> {
+        if let Some(t) = self.tokens.get(file) {
+            return t.clone();
+        }
         let Some(s) = self.snapshot(file) else { return Vec::new() };
-        navigate::semantic_tokens(&s, file)
+        if let Some(t) = self.tokens.get(file) {
+            return t.clone();
+        }
+        let t = navigate::semantic_tokens(&s, file);
+        self.tokens.insert(file.to_path_buf(), t.clone());
+        t
     }
 
     /// The file formatted (`indent`: one level, e.g. four spaces):
@@ -786,9 +874,17 @@ impl Analysis {
     /// its lines' help — from the program's analysis, made again when the
     /// text changed (an editor asks when typing pauses).
     pub fn helpers(&mut self, file: &Path) -> Vec<rapidr_editor::service::HelperSite> {
+        if let Some(h) = self.helper_sites.get(file) {
+            return h.clone();
+        }
         let Some(text) = self.text(file) else { return Vec::new() };
         let Some(s) = self.snapshot(file) else { return Vec::new() };
-        helpers::helpers(&s, file, &text)
+        if let Some(h) = self.helper_sites.get(file) {
+            return h.clone();
+        }
+        let h = helpers::helpers(&s, file, &text);
+        self.helper_sites.insert(file.to_path_buf(), h.clone());
+        h
     }
 
     /// Fixes for the diagnostics in a range of a file.
@@ -834,3 +930,4 @@ pub fn sort_problems(out: &mut [FileDiagnostic], main: &Path) {
 fn is_inc(p: &Path) -> bool {
     p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("inc"))
 }
+
