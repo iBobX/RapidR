@@ -1,0 +1,60 @@
+' Separate FOR loops in the THEN and the ELSE of an IF inside an outer loop
+' (an audio engine's voice loop): each FOR has hidden locals of its own (its
+' end and its step), unset on the way that didn't run it. Compiled by the
+' JIT (docs/jit-design.md 12.8) with the interpreter's answers, in a SUB and
+' in the main program's loop; a SELECT CASE with a FOR in each CASE too.
+DIM buf(127) AS DOUBLE, total AS DOUBLE, hits AS LONG
+
+SUB Render(n AS INTEGER, mode AS INTEGER)
+  DIM v AS INTEGER, i AS INTEGER
+  FOR v = 0 TO 7
+    IF (v + mode) MOD 2 = 0 THEN
+      FOR i = 0 TO n - 1
+        buf(i) = buf(i) * 0.5 + v * 0.25
+      NEXT
+    ELSE
+      FOR i = 0 TO n - 1 STEP 2
+        buf(i) = buf(i) - 0.125
+      NEXT
+    END IF
+  NEXT
+END SUB
+
+SUB Mix(kind AS INTEGER)
+  DIM k AS INTEGER
+  SELECT CASE kind MOD 3
+    CASE 0
+      FOR k = 0 TO 31
+        buf(k) = buf(k) + 1
+      NEXT
+    CASE 1
+      FOR k = 31 TO 0 STEP -4
+        buf(k) = buf(k) * 0.75
+      NEXT
+    CASE ELSE
+      hits = hits + 1
+  END SELECT
+END SUB
+
+DIM blk AS INTEGER, j AS INTEGER, v AS INTEGER, i AS INTEGER
+FOR blk = 1 TO 3000
+  Render 64, blk AND 1
+  Mix blk
+NEXT
+FOR blk = 1 TO 3000
+  FOR v = 0 TO 3
+    IF (v + blk) MOD 3 = 0 THEN
+      FOR i = 64 TO 79
+        buf(i) = buf(i) * 0.5 + v
+      NEXT
+    ELSE
+      FOR i = 64 TO 79 STEP 3
+        buf(i) = buf(i) - 0.5
+      NEXT
+    END IF
+  NEXT
+NEXT
+FOR j = 0 TO 127
+  total = total + buf(j)
+NEXT
+PRINT total; " "; hits; " "; i; " "; v

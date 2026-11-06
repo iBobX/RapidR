@@ -178,11 +178,51 @@ Filtered voice, loudest sample: 1.747212  (32 ms)
 ```
 
 - **What it compiles**: numbers, booleans, `FOR` and the other loops,
-  `IF`, arithmetic and comparisons, conversions into typed variables,
+  `IF` and `SELECT CASE`, arithmetic and comparisons — a comparison
+  counted in arithmetic too (`n * (a < b)`: a true one is -1) —,
+  conversions into typed variables, `IIF` on numbers, a `DIM` inside one
+  branch of an `IF` or a `SELECT CASE` (and a `FOR` loop in each),
   one-index arrays of numbers, the maths functions (`ABS`, `SIN`, `INT` …)
-  and calls between such routines. Text, objects, components, `PRINT`,
-  files and the like stay with the interpreter; a loop that uses them at
-  every turn is left interpreted as a whole.
+  and calls between such routines.
+  Text, objects, components, `PRINT`, files and the like stay with the
+  interpreter; a loop that uses them at every turn is left interpreted as
+  a whole. ([hot_cpu.rr](../../examples/basics/hot_cpu.rr): a tiny CPU's
+  core, the way emulators are written, compiled whole.)
+- **What stays interpreted, and where**: `rapidr run --verbose` names each
+  loop or routine it left interpreted with its file and line and the
+  statement that keeps it there, and the places compiled code handed back
+  to the interpreter most often — so you can see what a hot routine
+  needs (often a line of text handling that could move out of the loop):
+
+  ```
+  ' game.rr: a routine called every frame that builds a text each time
+  DIM score AS LONG, label AS STRING
+  SUB Draw(frame AS INTEGER)
+    score = score + frame MOD 7
+    label = "Score: " + STR$(score)
+  END SUB
+  DIM f AS INTEGER
+  FOR f = 1 TO 5000
+    Draw f
+  NEXT
+  PRINT label
+  ```
+
+  ```
+  $ rapidr run --verbose game.rr
+  JIT: on
+  Score: 14997
+  JIT: 0 loop(s) and 0 routine(s) compiled ...; 1 place(s) left interpreted
+    Draw (game.rr:3) stays interpreted: an instruction it leaves to the interpreter (LoadConst "Score: ") at game.rr:5: label = "Score: " + STR$(score)
+  ```
+
+  (`Draw` builds a text at every call: it stays interpreted; building the
+  text where it is shown, after the loop, lets `Draw` compile. A routine
+  that only *sometimes* goes the interpreter's way — a `PRINT` once in a
+  thousand calls — is compiled all the same, and leaves for the interpreter
+  on that way only; `--verbose` lists where compiled code went back to the
+  interpreter most often, and a routine whose compiled code turned out to go
+  back on most calls as "used no more".)
 - **The debugger**: under the debugger with a breakpoint or a step,
   everything runs interpreted, as always. Without one (F5 with no
   breakpoint), compiled code runs — and Pause, or a breakpoint set while it

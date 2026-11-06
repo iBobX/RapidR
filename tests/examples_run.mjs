@@ -119,6 +119,9 @@ export const cases = [
   // (the JIT's: the same answers compiled, interpreted, native and on the web)
   { file: "basics/hot_loops.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Checksum of 5,000,000 turns: 391530", "Clamped sum of 1,000,000 calls: 62243775", "Filtered voice, loudest sample: 1.747212"] },
+  // (an emulator's core: IIF, a DIM in one CASE, a comparison in arithmetic — compiled whole, the same answers)
+  { file: "basics/hot_cpu.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["Steps: 1000000, A = 64, PC = 128", "Zero results: 3906, carries: 503906", "Flags now: Z0 S0 C0 H1"] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
   // debugging/ (the debugger's example: here it runs on its own)

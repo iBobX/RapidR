@@ -91,6 +91,13 @@ impl NativeHost {
             }
             return Ok(v_null());
         }
+        // (`rapidr run --verbose` of a program that ENDs: the process ends
+        // here, inside the VM's run — what the JIT did is said first)
+        if key == "end" && verbose() {
+            if let Some(report) = jit_report_now() {
+                eprintln!("{report}");
+            }
+        }
         if key == "lbound" || key == "ubound" {
             let arr = args.first().cloned().unwrap_or_else(v_null);
             let dim = args.get(1).map(|v| v.to_i64()).unwrap_or(1);
@@ -588,6 +595,21 @@ fn verbose() -> bool {
     VERBOSE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// The compiled program's text, its lines (kept only for `--verbose`).
+static PROGRAM_TEXT: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// `rapidr run --verbose` of a source file: the program as the runtime
+/// compiled it (its `$INCLUDE`s in place), so what the JIT says names
+/// each place's statement as well as its file and line. Nothing is kept
+/// without `--verbose`.
+pub fn set_program_text(text: &str) {
+    if verbose() {
+        if let Ok(mut lines) = PROGRAM_TEXT.lock() {
+            *lines = text.lines().map(str::to_string).collect();
+        }
+    }
+}
+
 /// The JIT on `vm` where this build and the computer have one
 /// (docs/jit-design.md; `RAPIDR_JIT=off|on|always`): what was done, or why
 /// the interpreter runs alone.
@@ -609,11 +631,25 @@ pub fn install_jit(vm: &mut Vm<'_, NativeHost>) -> String {
 pub fn jit_report(vm: &Vm<'_, NativeHost>) -> Option<String> {
     #[cfg(feature = "jit")]
     {
-        rapidr_jit::report(vm)
+        let lines = PROGRAM_TEXT.lock().map(|l| l.clone()).unwrap_or_default();
+        rapidr_jit::report_with(vm, &|n| lines.get((n as usize).checked_sub(1)?).cloned())
     }
     #[cfg(not(feature = "jit"))]
     {
         let _ = vm;
+        None
+    }
+}
+
+/// What this thread's JIT did so far, while its VM runs (`END`).
+fn jit_report_now() -> Option<String> {
+    #[cfg(feature = "jit")]
+    {
+        let lines = PROGRAM_TEXT.lock().map(|l| l.clone()).unwrap_or_default();
+        rapidr_jit::report_now(&|n| lines.get((n as usize).checked_sub(1)?).cloned())
+    }
+    #[cfg(not(feature = "jit"))]
+    {
         None
     }
 }

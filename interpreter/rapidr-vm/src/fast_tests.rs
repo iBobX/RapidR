@@ -704,6 +704,9 @@ fn direct_maths_skip_only_a_host_that_lets_them() {
     let len = asm.m.add_string("LEN");
     asm.push(&Value::Double(2.25)).op(Op::CallBuiltin).u32(sqr).u8(1).store_global("ga");
     asm.push(&Value::String("abc".into())).op(Op::CallBuiltin).u32(len).u8(1).store_global("gb");
+    // (IIF: the VM's own too — the arm the condition picks, as it is)
+    let iif = asm.m.add_string("IIF");
+    asm.push(&Value::Boolean(false)).push(&Value::Integer(7)).push(&Value::String("no".into())).op(Op::CallBuiltin).u32(iif).u8(3).store_global("result");
     asm.op(Op::Halt);
     let f = Function { name: "__main".into(), n_locals: 4, code: std::mem::take(&mut asm.code), ..Default::default() };
     asm.m.entry = asm.m.add_function(f);
@@ -712,7 +715,9 @@ fn direct_maths_skip_only_a_host_that_lets_them() {
     vm.run(&asm.m).unwrap();
     let ga = vm.global_index(&asm.m, "ga").unwrap();
     assert_eq!(exact(vm.globals[ga].as_ref().unwrap()), exact(&Value::Double(1.5)));
-    assert_eq!(host.heard, ["LEN"], "SQR ran in the VM, LEN in the host");
+    let gc = vm.global_index(&asm.m, "result").unwrap();
+    assert_eq!(exact(vm.globals[gc].as_ref().unwrap()), exact(&Value::String("no".into())));
+    assert_eq!(host.heard, ["LEN"], "SQR and IIF ran in the VM, LEN in the host");
     // (the stub host doesn't opt in: it hears SQR)
     let mut stub = StubHost::default();
     let mut vm = Vm::new(&mut stub);

@@ -356,7 +356,9 @@ case passes it (no false alarm).
   own kinds, worked out from the kinds the form was entered with (an entry
   form: the frame's values then; checked again at every entry) and the
   bytecode. Where two paths meet with different kinds, the second one
-  leaves for the interpreter.
+  leaves for the interpreter — since §12.8 only for a stack entry, an
+  array or text: a local holding a number (or Null) on one path and
+  another kind on the other is a `K::Dyn` there.
 - **Every way out is an exit with a record**: where the interpreter goes
   on (the instruction compiled code stopped *before*: nothing of it has
   happened), each local and stack entry and its kind. A callee that leaves
@@ -388,6 +390,8 @@ case passes it (no false alarm).
   interpreter, or kinds that disagree, inside it is not compiled (it would
   leave at every turn). `RAPIDR_JIT=always` compiles it all the same, at
   the first turn or call — the tests' way: every exit taken, often.
+  (Since §12.8: only when *every* run passes such a place; a rare way back
+  is compiled, and given up if it turns out not to be rare.)
 - **Deopts**: a form whose values keep being of other kinds (more than 10
   times) is not used again.
 - **Depth**: compiled calls inside compiled calls go as deep as the
@@ -646,3 +650,154 @@ never the suite's. End to end, `rapidr run` on the main thread (macOS,
 8 MiB: 8,159 KB free there): the PoC with 6,000 locals 700 deep died
 with SIGSEGV before (exit 139) and prints 1184802448 after, as the
 interpreter does ("8 at the machine stack's room").
+
+### 12.8 A real program's core: IIF, a DIM in one branch, rare ways back (JIT-GAPS, 2026-11-06)
+
+RapidR8Bit (an 8-bit computer and its Z80 core, written in RapidR) got
+about 8 % from tier 1: its hot routines stayed interpreted. Its JIT probe
+(one SUB per construct the core uses) and `--verbose` named two constructs,
+the core, once those compiled, showed three more, and a music app's audio
+engine a sixth (FOR loops in both branches of an IF). What each is and how
+it compiles:
+
+- **`IIF(c, a, b)`** (~145 in the CPU core: `flagC = IIF(v > 255, 1, 0)`).
+  Its semantics are unchanged: a function — both arms are arguments,
+  worked out before the call, their side effects (a FUNCTION called in an
+  arm) both happen, in order — giving the arm `Value::to_bool(c)` picks, as
+  it is (`rp_iif`; RapidR has always done so, and the bytecode is the same).
+  - **The VM** now calls it itself for hosts that let it call the maths
+    builtins (`Host::DIRECT_MATHS`: the desktop, Studio's session, the
+    web): a three-argument direct builtin (`rapidr_vm::direct_builtin3`),
+    no trip through the host, the same `rp_iif` both hosts call (a test
+    compares them on every condition and pair of arms). Not one of
+    `PURE_MATHS`: that list means "gives a number" to the compiler, and
+    IIF's arms may be text. The interpreter is faster on IIF too.
+  - **Compiled**: arms of one kind → a `select` on the condition's truth
+    (the very truth `JumpIf` uses: a NaN is true). Arms of two kinds whose
+    result is stored into a typed variable or converted (`gd = IIF(c, 1,
+    0.5)`: the next instruction is a `StoreLocalNum` / `StoreGlobalNum` /
+    `ToNum`) → each arm converted as the store converts, then the one
+    picked: the conversion is a function of the value, so this is the
+    value the store makes of the arm the interpreter picks; the store is
+    done with it. Arms of two kinds used otherwise (`x + IIF(c, 1, 0.5)`),
+    text arms or a text condition: the interpreter's.
+- **A local of two kinds where paths meet: `K::Dyn`** (a `DIM t AS
+  INTEGER` inside one `CASE`: an Integer after that branch, Null after the
+  others — "Conflict" before). `DIM` is unchanged (it sets the variable
+  each time it runs, as before). Where two paths meet with a local holding
+  a scalar of one kind on one and of another (or Null) on the other, the
+  local is a `Dyn` there: its 64 bits and its kind's code in two
+  variables; a path into such a block widens its value into them. A store
+  makes it of the stored kind again; a read of a `Dyn` leaves for the
+  interpreter ("kinds that disagree", at the read — the routine stays
+  interpreted in the default mode if every run reads it). Every exit
+  writes a `Dyn` back as the value it holds (bits and kind): the frame the
+  interpreter and the debugger see is exactly the interpreter's. A block
+  is built for the kinds of the first path that reaches it; a later path
+  with other kinds records the meeting and the walk is made again with the
+  blocks' kinds (at most 8 more walks; they only ever add `Dyn`s, and the
+  form's builds after the first start from what the first found — `Env`
+  keeps them by routine, loop head and entry kinds). Stack entries, arrays
+  and text that differ still leave, as before. **The same covers separate
+  FOR loops in an IF's branches** (an audio engine's voice loop: a FOR in
+  the THEN, another in the ELSE, inside an outer loop): each FOR keeps its
+  end and step in hidden locals of its own, Null on the way that didn't run
+  it — "Conflict" at END IF before, so the routine stayed interpreted; now
+  they are `Dyn`s there, and each FOR sets its own before it reads them.
+  Locals that start as Null and are set on one way only, the same.
+- **A comparison counted in arithmetic** (the opcode fetch: `memory(addr -
+  romReadOffset * (addr < 16384))`): a boolean or Null with an Integer or
+  a Double in `+ - * /` is `Value`'s own operation — both as floats, a
+  true -1: a Double; `-` of a boolean or Null a Double (-0 for false and
+  Null); `AND` / `OR` / `XOR` / `NOT` with a boolean, a Double or Null on
+  one side work on `Value::bits` (a true -1, a Double rounded half to
+  even, past 32 bits or a NaN -2147483648, Null 0) and give an Integer.
+  With an INT64 / UINT64: the interpreter's.
+- **A global array read after its index** (`memory(a + IIF(…))`: an
+  index with a call in it is worked out after the array is loaded, so
+  bcgen emits `LoadGlobal memory; …; AGet 1`): the `LoadGlobal` of a
+  global array pushes a `K::Arr` stack entry (its handle), the plain
+  `AGet 1` / `ASet 1` after it read and write through the helpers as the
+  fused forms do. An exit with such an entry on the stack names the global
+  in its record (`ExitRecord::arrays`) and the interpreter's stack gets the
+  array the global holds — the very value its `LoadGlobal` pushed (compiled
+  code never makes a global hold another array). Such an entry never
+  crosses into another block (it leaves there).
+- **Rare ways back** (the policy, §12.2's "not worth it"): the CPU step
+  calls a routine of the host's when the program prints a character (a
+  few times a frame, among ~20,000 instructions); before, any instruction
+  left to the interpreter anywhere in a routine or loop kept it
+  interpreted. Now a form is refused only when **every run passes** such a
+  place (`engine.rs` `unavoidable`: a walk from the form's start that never
+  steps on the place reaches no return, no turn back to the loop's head and
+  no way out of the loop). Otherwise it is compiled and leaves on that way
+  only. A safety net for ways that turn out not to be rare: each entry
+  form counts its runs that left at such a place and the loop turns its
+  runs made (a register, handed over at the exit); after 64 runs, a form
+  whose runs mostly left there having made fewer than 16 turns on average
+  is used no more ("compiled code used no more" in `--verbose`).
+- **`rapidr run --verbose` names places**: each loop or routine left
+  interpreted with its file and line, why, the instruction (`CallBuiltin
+  MID$`, `LoadConst "Score: "`) and the place that keeps it there with its
+  statement; the places compiled code went back to the interpreter from
+  most often (not returns or loop ends) with their counts; a compile that
+  took 20 ms or more; how much of the compile time was the code
+  generator's. The statement is the program's text as `rapidr run`
+  compiled it (the CLI hands it to the host only with `--verbose`; a
+  `.rrbc` has none: file and line only). A program that ENDs prints the
+  report too (END ends the process inside the VM's run: the host asks the
+  JIT for it there, `rapidr_jit::report_now`).
+- **Exits share one buffer per form** (an exit ends the run: no two at
+  once): the emulator's largest compiled frame went from 85 KB to 8 KB,
+  the code from 1,007 KB to 663 KB.
+
+**Numbers** (RapidR8Bit's frame benchmark, a copy of its `repro/vm_speed.sh`:
+Lesson 13, the Z80 plasma, at Real speed for 30 s; CPU ms of one emulated
+frame; before and after this lane run alternately twice, on an M4 Max other
+lanes were loading — load average 15 to 60 —; the native build is the same
+for both):
+
+| `rapidr run` | before | after |
+|---|--:|--:|
+| `RAPIDR_JIT=off` (the interpreter) | 14.18 / 14.33 | 12.86 / 12.87 |
+| the default (`on`) | 15.39 / 14.43 | **0.56 / 0.59** |
+| `RAPIDR_JIT=always` | 16.86 / 17.11 | 0.57 / 0.58 |
+| frames a second, default | 23.0 / 23.9 | 50.7 / 50.8 (Real speed's 50) |
+| audio underruns in 27 s, default | 622 / 646 | 3 / 0 |
+| native build | 3.67 | 3.67 |
+
+The interpreter alone is 10 % faster (IIF no longer goes through the host);
+with the JIT a frame costs 25 times less than before and about 6 times less
+than the native build (whose generated Rust keeps the core's globals as
+`Value`s). The price is a pause at start: the CPU step (196 locals, ~50 KB
+of bytecode) compiles in 170–290 ms, and again as the frame loop's callee
+(90–140 ms): 280–500 ms once (the first second's longest tick gap 540 ms
+against 260 ms before). The probe: 0.38 s → 0.02 s CPU; FOR loops in both
+branches (30,000 blocks): 0.42 s → 0.08 s. `tools/bench/vm_bench`: every
+budget met, the same numbers before and after within the machine's noise
+(alternate runs).
+
+What is left: the start-up pause (compiling on a worker thread, §3's second
+step; exits that write fewer locals — an exit writes every local of a
+routine that isn't Null there, and a 196-local routine has hundreds of
+exits); a routine compiled twice, as an entry form and as a callee; IIF
+with arms of two kinds used in arithmetic (`x + IIF(c, 1, 0.5)`) and text
+arms; a local of two kinds read after the paths meet (it leaves there).
+
+Tests: `tests/iif_and_branches.rs` (the probe: every routine compiled in the
+default mode; IIF's arms' side effects; IIF of every kind into typed
+variables, conditions of every kind; DIMs in branches of SELECT CASE and IF
+in a SUB and in the main program's loop; a `Dyn` read after the meeting
+and one left behind by a loop; comparisons in arithmetic; a global array
+read after its index, the array REDIMmed by the interpreter in between; a
+rare way back compiled, one on every run refused, a frequent one given up;
+the report's places and statements), `edge_values.rs` (IIF on every pair of
+edge values with twelve conditions, as it is and into every numeric kind;
+the plain `AGet 1` / `ASet 1`; booleans and Null now compiled in the plain
+operations' existing pairs), the VM's and the native host's tests of the
+direct IIF, `fuzz_mutate.rs` seeds for the three constructs, conformance
+`vm_jit_emulator_core.rr` and `vm_jit_for_in_branches.rr` (vm, vm-jit and
+native alike), and
+RapidR8Bit's own checks (`--self-test`: 40 hardware checks, the Z80 core's
+ten groups among them; `--decode-test`, `--asm-test`) with
+`RAPIDR_JIT=off`, `on` and `always`: the same output.

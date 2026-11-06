@@ -49,6 +49,7 @@ use crate::kinds::K;
 pub const CTX_GLOBALS: i32 = 0;
 pub const CTX_INTERRUPT: i32 = 8;
 pub const CTX_STACK_LIMIT: i32 = 16;
+pub const CTX_TURNS: i32 = 24;
 
 /// A function's array handles: the module's global arrays, or the entry
 /// frame's local ones.
@@ -101,9 +102,20 @@ pub struct ExitRecord {
     pub locals: Vec<(u16, K)>,
     /// The operand stack (the frame's part), bottom first.
     pub stack: Vec<K>,
+    /// The stack entries that are a global array (`K::Arr`, `LoadGlobal`
+    /// of one before its `AGet`): their depth and the global's name — the
+    /// array the global holds then (compiled code never makes a global
+    /// hold another array).
+    pub arrays: Vec<(u16, u32)>,
     pub why: Why,
     /// The form it belongs to (the engine's index; set when committed).
     pub form: usize,
+    /// The program's line there (the compiled program's: the module's
+    /// source map gives the file's), 0 when not known; and, where it
+    /// leaves at an instruction compiled code doesn't run, that
+    /// instruction (`rapidr run --verbose`).
+    pub line: u32,
+    pub what: String,
 }
 
 /// What kind of form is built.
@@ -157,6 +169,12 @@ pub struct Env {
     pub garrays: Vec<(u32, K)>,
     gaindex: HashMap<u32, usize>,
     pub callees: HashMap<(u32, Vec<K>), CalleeInfo>,
+    /// The kinds the blocks of each form take where paths meet (`K::Dyn`
+    /// locals), found by its walks: a form built again — a batch builds
+    /// each a few times — starts from them (they only ever add a `Dyn`
+    /// where two paths of that form, entered with those kinds, met with
+    /// different ones).
+    joins: HashMap<JoinKey, HashMap<usize, Vec<K>>>,
     /// Each global's declared kind (a `StoreGlobalNum` of it anywhere).
     declared: HashMap<u32, K>,
     names: u32,
@@ -185,7 +203,7 @@ impl Env {
                 ip = insn.next;
             }
         }
-        Env { globals: Vec::new(), gindex: HashMap::new(), garrays: Vec::new(), gaindex: HashMap::new(), callees: HashMap::new(), declared, names: 0, direct_maths: false }
+        Env { globals: Vec::new(), gindex: HashMap::new(), garrays: Vec::new(), gaindex: HashMap::new(), callees: HashMap::new(), joins: HashMap::new(), declared, names: 0, direct_maths: false }
     }
 
     /// Global `name`'s buffer index and kind (fixed the first time).
@@ -306,6 +324,66 @@ fn ty(k: K) -> Option<ir::Type> {
     }
 }
 
+/// The kinds of the locals where two paths meet ([`K::meet`]): `None`
+/// when one differs in a way compiled code can't hold.
+fn meet_all(a: &[K], b: &[K]) -> Option<Vec<K>> {
+    if a.len() != b.len() {
+        return None;
+    }
+    a.iter().zip(b).map(|(x, y)| x.meet(*y)).collect()
+}
+
+/// The instruction at `ip` in a few words (`rapidr run --verbose`): its
+/// name and the name it is about — `CallBuiltin MID$`, `LoadGlobal s`,
+/// `Mul`.
+pub fn what(m: &Module, f: &rapidr_bytecode::Function, ip: usize) -> String {
+    let Some(insn) = decode(&f.code, ip) else { return String::new() };
+    let mut text = format!("{:?}", insn.op);
+    for (o, v) in insn.op.layout().iter().zip(&insn.operands) {
+        let name = match o {
+            rapidr_bytecode::Operand::Global | rapidr_bytecode::Operand::Str => m.strings.get(*v as usize).cloned(),
+            rapidr_bytecode::Operand::Func => m.functions.get(*v as usize).map(|f| f.name.clone()),
+            rapidr_bytecode::Operand::Local => f.local_names.get(*v as usize).filter(|n| !n.is_empty()).cloned(),
+            // (a text constant: the text, short)
+            rapidr_bytecode::Operand::Const => match m.consts.get(*v as usize) {
+                Some(Const::Str(t)) => Some(format!("{:?}", if t.chars().count() > 24 { format!("{}...", t.chars().take(21).collect::<String>()) } else { t.clone() })),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(n) = name {
+            text.push(' ');
+            text.push_str(&n);
+            break;
+        }
+    }
+    text
+}
+
+/// A kind `Value::bits` makes a 32-bit integer of for AND / OR / XOR
+/// (not a 64-bit one: those are `wide::bitwise`'s).
+fn basic(k: K) -> bool {
+    matches!(k, K::Int | K::Bool | K::Dbl | K::Null)
+}
+
+/// Whether `insn` reads a local that is a `K::Dyn` here (a store into
+/// one is fine: it becomes of the stored kind).
+fn reads_dyn(insn: &rapidr_bytecode::disasm::Insn, kinds: &[K]) -> bool {
+    let writes_first = matches!(insn.op, Op::StoreLocal | Op::StoreLocalNum | Op::MoveLocal);
+    insn.op
+        .layout()
+        .iter()
+        .zip(&insn.operands)
+        .enumerate()
+        .any(|(i, (o, v))| *o == rapidr_bytecode::Operand::Local && !(writes_first && i == 0) && kinds.get(*v as usize) == Some(&K::Dyn))
+}
+
+/// A path with locals of kinds `from` can go into a block built for
+/// `to`: the same kinds, or a `K::Dyn` there for a scalar or a `Dyn`.
+fn fits(from: &[K], to: &[K]) -> bool {
+    from.len() == to.len() && from.iter().zip(to).all(|(&f, &t)| f == t || (t == K::Dyn && (f.scalar() || f == K::Dyn)))
+}
+
 /// What building a form found out.
 #[derive(Debug, Default, Clone)]
 pub struct FormOut {
@@ -368,35 +446,69 @@ pub fn build(
         ip = insn.next;
     }
     let frontend = jm.isa().frontend_config();
-    let b = FunctionBuilder::new(func, fctx);
-    let mut w = Walk {
-        m,
-        f,
-        fi,
-        kind: kind.clone(),
-        b,
-        jm,
-        helpers,
-        env,
-        obs,
-        used_hint,
-        leaders,
-        blocks: HashMap::new(),
-        work: Vec::new(),
-        vars: HashMap::new(),
-        frefs: HashMap::new(),
-        out: FormOut::default(),
-        ctx: None,
-        locals_ptr: None,
-        record_base,
-        larray_index: HashMap::new(),
-    };
-    w.run(entry_kinds)?;
-    let Walk { mut b, out, .. } = w;
-    b.seal_all_blocks();
-    b.finalize(frontend);
-    Ok(out)
+    // (paths that meet with a local of different kinds — a DIM inside one
+    // CASE branch — make it a `K::Dyn` there: found while walking, the
+    // block was already built for the first path's kinds, so the walk is
+    // made again with the kinds every block takes, until none changes)
+    let key: JoinKey = (fi, match kind {
+        FormKind::Entry { ip, .. } => Some(*ip),
+        FormKind::Callee { .. } => None,
+    }, match kind {
+        FormKind::Entry { .. } => entry_kinds.to_vec(),
+        FormKind::Callee { params } => params.clone(),
+    });
+    let mut joins: HashMap<usize, Vec<K>> = env.joins.get(&key).cloned().unwrap_or_default();
+    let mut rounds = 0;
+    loop {
+        let b = FunctionBuilder::new(&mut *func, &mut *fctx);
+        let mut w = Walk {
+            m,
+            f,
+            fi,
+            kind: kind.clone(),
+            b,
+            jm: &mut *jm,
+            helpers,
+            env: &mut *env,
+            obs,
+            used_hint,
+            leaders: leaders.clone(),
+            blocks: HashMap::new(),
+            work: Vec::new(),
+            vars: HashMap::new(),
+            frefs: HashMap::new(),
+            out: FormOut::default(),
+            ctx: None,
+            locals_ptr: None,
+            record_base,
+            larray_index: HashMap::new(),
+            arr_vals: HashMap::new(),
+            exit_slot: None,
+            joins: std::mem::take(&mut joins),
+            rejoin: false,
+        };
+        w.run(entry_kinds)?;
+        let Walk { mut b, out, joins: found, rejoin, .. } = w;
+        b.seal_all_blocks();
+        b.finalize(frontend);
+        if !rejoin || rounds >= MAX_REJOINS {
+            env.joins.insert(key, found);
+            return Ok(out);
+        }
+        rounds += 1;
+        joins = found;
+        *func = ir::Function::with_name_signature(func.name.clone(), func.signature.clone());
+    }
 }
+
+/// A form, for the kinds its blocks take: its routine, its loop head (an
+/// entry form) and the kinds it is entered with.
+type JoinKey = (u32, Option<usize>, Vec<K>);
+
+/// Walks made again for paths that meet with other kinds (each makes
+/// more locals `K::Dyn`, never fewer: a few at most); past them the
+/// second path leaves, as before.
+const MAX_REJOINS: usize = 8;
 
 /// A value on the abstract operand stack: the code generator's value (a
 /// dummy for Null) and its kind.
@@ -426,10 +538,27 @@ struct Walk<'a, 'b> {
     locals_ptr: Option<V>,
     record_base: usize,
     larray_index: HashMap<u16, usize>,
+    /// The global arrays on the stack (`K::Arr` entries: a `LoadGlobal` of
+    /// one, then its `AGet 1` / `ASet 1`): the global's name and the handle
+    /// and element kind compiled code reaches it by.
+    arr_vals: HashMap<V, (u32, (i64, usize, K))>,
+    /// The buffer every exit hands its values over in (one for the form:
+    /// an exit ends its run, so no two are ever in use at once), and how
+    /// many values it holds.
+    exit_slot: Option<(ir::StackSlot, usize)>,
+    /// The kinds of the locals at the blocks where paths meet with
+    /// different ones (`K::Dyn` there), from the walk before.
+    joins: HashMap<usize, Vec<K>>,
+    /// A meeting found that the blocks built don't allow for: walk again.
+    rejoin: bool,
 }
 
 /// The stack entry slot of depth `d` (its variables beside the locals').
 const STACK_VARS: u32 = 0x1_0000;
+/// A `K::Dyn` local's kind code, in a variable beside its bits'.
+const DYN_TAGS: u32 = 0x2_0000;
+/// The variable counting the loop turns of a run.
+const TURNS_VAR: u32 = 0x3_0000;
 
 impl Walk<'_, '_> {
     fn is_entry(&self) -> bool {
@@ -447,9 +576,53 @@ impl Walk<'_, '_> {
         if let Some(v) = self.vars.get(&(slot, k)) {
             return *v;
         }
-        let v = self.b.declare_var(ty(k).expect("a variable of a scalar kind"));
+        // (a `K::Dyn`'s bits: 64 of them, whatever its kind)
+        let t = if k == K::Dyn { types::I64 } else { ty(k).expect("a variable of a scalar kind") };
+        let v = self.b.declare_var(t);
         self.vars.insert((slot, k), v);
         v
+    }
+
+    /// The loop turns this run of the form has made (an entry form's exit
+    /// writes them to `Ctx::turns`).
+    fn turns_var(&mut self) -> Variable {
+        self.var(TURNS_VAR, K::Int)
+    }
+
+    /// A `K::Dyn` local's two variables: its bits and its kind's code.
+    fn dyn_vars(&mut self, slot: u32) -> (Variable, Variable) {
+        (self.var(slot, K::Dyn), self.var(DYN_TAGS + slot, K::Int))
+    }
+
+    /// Going from a point with locals of kinds `from` to a block whose
+    /// locals are of kinds `to` (the same, or `K::Dyn` where paths meet):
+    /// each local that becomes a `Dyn` there gets its bits and its kind.
+    fn widen(&mut self, from: &[K], to: &[K]) {
+        for (s, (&f, &t)) in from.iter().zip(to).enumerate() {
+            if t != K::Dyn || f == K::Dyn {
+                continue;
+            }
+            let bits = if f == K::Null {
+                self.b.ins().iconst(types::I64, 0)
+            } else {
+                let var = self.var(s as u32, f);
+                let v = self.b.use_var(var);
+                self.value_to_bits(v, f)
+            };
+            let tag = self.b.ins().iconst(types::I64, i64::from(f.code()));
+            let (bv, tv) = self.dyn_vars(s as u32);
+            self.b.def_var(bv, bits);
+            self.b.def_var(tv, tag);
+        }
+    }
+
+    /// The kinds of the block at `target` for a path coming with `kinds`:
+    /// the path's, met with what the walk before found there.
+    fn block_kinds(&self, target: usize, kinds: &[K]) -> Vec<K> {
+        match self.joins.get(&target) {
+            Some(h) if h.len() == kinds.len() => meet_all(h, kinds).unwrap_or_else(|| kinds.to_vec()),
+            _ => kinds.to_vec(),
+        }
     }
 
     fn fref(&mut self, id: FuncId) -> ir::FuncRef {
@@ -475,6 +648,9 @@ impl Walk<'_, '_> {
         self.b.switch_to_block(first);
         let params = self.b.block_params(first).to_vec();
         self.ctx = Some(params[0]);
+        let turns = self.turns_var();
+        let zero = self.b.ins().iconst(types::I64, 0);
+        self.b.def_var(turns, zero);
         let mut kinds = entry_kinds.to_vec();
         let n_locals = self.f.n_locals as usize;
         kinds.resize(n_locals, K::Null);
@@ -510,7 +686,9 @@ impl Walk<'_, '_> {
             }
         };
         let block = self.b.create_block();
-        self.blocks.insert(start, (block, kinds, Vec::new()));
+        let bk = self.block_kinds(start, &kinds);
+        self.widen(&kinds, &bk);
+        self.blocks.insert(start, (block, bk, Vec::new()));
         self.b.ins().jump(block, NO);
         self.work.push(start);
         while let Some(ip) = self.work.pop() {
@@ -549,7 +727,7 @@ impl Walk<'_, '_> {
         let mut locals = Vec::new();
         let mut vals = Vec::new();
         for (s, &k) in kinds.iter().enumerate() {
-            if !k.scalar() {
+            if !k.scalar() && k != K::Dyn {
                 continue;
             }
             // (an entry form writes back only what it took: the locals it
@@ -561,28 +739,56 @@ impl Walk<'_, '_> {
                 continue;
             }
             locals.push((s as u16, k));
-            if k != K::Null {
+            if k == K::Dyn {
+                // (its bits, then its kind's code: written back as it is)
+                let (bv, tv) = self.dyn_vars(s as u32);
+                let bits = self.b.use_var(bv);
+                let tag = self.b.use_var(tv);
+                vals.push(bits);
+                vals.push(tag);
+            } else if k != K::Null {
                 let var = self.var(s as u32, k);
                 let v = self.b.use_var(var);
                 vals.push(self.value_to_bits(v, k));
             }
         }
-        for &(v, k) in stack {
-            if k != K::Null {
+        let mut arrays = Vec::new();
+        for (d, &(v, k)) in stack.iter().enumerate() {
+            if k == K::Arr {
+                arrays.push((d as u16, self.arr_vals.get(&v).map_or(u32::MAX, |a| a.0)));
+            } else if k.words() == 1 {
                 vals.push(self.value_to_bits(v, k));
             }
         }
-        let rec = ExitRecord { fn_index: self.fi, ip: ip as u32, locals, stack: stack.iter().map(|e| e.1).collect(), why, form: 0 };
+        let what = if why.unclean() { what(self.m, self.f, ip) } else { String::new() };
+        let line = self.f.get_line_for_ip(ip).unwrap_or(0);
+        let rec = ExitRecord { fn_index: self.fi, ip: ip as u32, locals, stack: stack.iter().map(|e| e.1).collect(), arrays, why, form: 0, line, what };
         let id = self.record_base + self.out.records.len();
         self.out.records.push(rec);
         let n = vals.len();
-        let slot = self.b.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, (8 * n.max(1)) as u32, 3));
+        // (the form's one buffer, room for every local twice — a `Dyn` is
+        // two words — and a deep stack; an exit with more, a slot of its own)
+        let cap = 2 * self.f.n_locals as usize + 64;
+        let slot = match self.exit_slot {
+            Some((slot, room)) if n <= room => slot,
+            _ if n <= cap => {
+                let slot = self.b.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, (8 * cap) as u32, 3));
+                self.exit_slot = Some((slot, cap));
+                slot
+            }
+            _ => self.b.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, (8 * n.max(1)) as u32, 3)),
+        };
         let addr = self.b.ins().stack_addr(types::I64, slot, 0);
         for (i, v) in vals.into_iter().enumerate() {
             self.b.ins().store(MemFlagsData::trusted(), v, addr, (i * 8) as i32);
         }
         let fref = self.fref(self.helpers.exit);
         let ctx = self.ctx();
+        if entry {
+            let var = self.turns_var();
+            let turns = self.b.use_var(var);
+            self.b.ins().store(MemFlagsData::trusted(), turns, ctx, CTX_TURNS);
+        }
         let idv = self.b.ins().iconst(types::I32, id as i64);
         let nv = self.b.ins().iconst(types::I32, n as i64);
         self.b.ins().call(fref, &[ctx, idv, addr, nv]);
@@ -621,25 +827,52 @@ impl Walk<'_, '_> {
     fn edge(&mut self, target: usize, at: usize, kinds: &[K], stack: &[Entry]) {
         if target <= at {
             self.interrupt_check(target, kinds, stack);
+            // (a turn made, counted in a register; an entry form's exit
+            // hands the count over: `Ctx::turns`)
+            let var = self.turns_var();
+            let n = self.b.use_var(var);
+            let n = self.b.ins().iadd_imm_s(n, 1);
+            self.b.def_var(var, n);
         }
         if !self.in_region(target) {
             return self.exit_now(target, kinds, stack, Why::LoopExit);
+        }
+        // (a global array on the stack doesn't go into another block: the
+        // interpreter's from there)
+        if stack.iter().any(|e| !e.1.scalar()) {
+            return self.exit_now(target, kinds, stack, Why::Planned);
         }
         if target >= self.f.code.len() {
             // (the code's end: the routine returns)
             return self.ret(target, kinds, stack, None);
         }
         let skinds: Vec<K> = stack.iter().map(|e| e.1).collect();
-        let block = match self.blocks.get(&target) {
-            Some((blk, k, s)) if k.as_slice() == kinds && *s == skinds => *blk,
-            Some(_) => return self.exit_now(target, kinds, stack, Why::Conflict),
+        let (block, bk) = match self.blocks.get(&target) {
+            Some((blk, k, s)) if *s == skinds && fits(kinds, k) => (*blk, k.clone()),
+            Some((_, k, s)) => {
+                // (kinds that meet: the block is built for both in the next
+                // walk; this path leaves meanwhile)
+                if *s == skinds {
+                    if let Some(met) = meet_all(k, kinds) {
+                        let met = match self.joins.get(&target) {
+                            Some(h) if h.len() == met.len() => meet_all(h, &met).unwrap_or(met),
+                            _ => met,
+                        };
+                        self.joins.insert(target, met);
+                        self.rejoin = true;
+                    }
+                }
+                return self.exit_now(target, kinds, stack, Why::Conflict);
+            }
             None => {
                 let blk = self.b.create_block();
-                self.blocks.insert(target, (blk, kinds.to_vec(), skinds));
+                let bk = self.block_kinds(target, kinds);
+                self.blocks.insert(target, (blk, bk.clone(), skinds));
                 self.work.push(target);
-                blk
+                (blk, bk)
             }
         };
+        self.widen(kinds, &bk);
         for (d, &(v, k)) in stack.iter().enumerate() {
             if k != K::Null {
                 let var = self.var(STACK_VARS + d as u32, k);
@@ -788,8 +1021,48 @@ impl Walk<'_, '_> {
         match k {
             K::Dbl => v,
             K::U64 => self.b.ins().fcvt_from_uint(types::F64, v),
+            // (`Value::to_f64`: a true -1, a false and Null 0)
+            K::Bool => {
+                let t = self.b.ins().f64const(-1.0);
+                let f = self.b.ins().f64const(0.0);
+                self.b.ins().select(v, t, f)
+            }
+            K::Null => self.b.ins().f64const(0.0),
             _ => self.b.ins().fcvt_from_sint(types::F64, v),
         }
+    }
+
+    /// The 32-bit integer AND / OR / XOR / NOT work on (`Value::bits`,
+    /// RapidQ's FISTP): a true -1, an Integer as `int32_of`, a Double
+    /// rounded half to even (a NaN or beyond 32 bits -2147483648), Null 0.
+    fn basic_bits(&mut self, (v, k): Entry) -> V {
+        match k {
+            K::Int => self.int32_of(v),
+            K::Bool => {
+                let n = self.b.ins().uextend(types::I64, v);
+                self.b.ins().ineg(n)
+            }
+            K::Dbl => {
+                let r = self.b.ins().nearest(v);
+                let lo = self.b.ins().f64const(-2147483648.0);
+                let hi = self.b.ins().f64const(2147483647.0);
+                let above = self.b.ins().fcmp(FloatCC::GreaterThanOrEqual, r, lo);
+                let below = self.b.ins().fcmp(FloatCC::LessThanOrEqual, r, hi);
+                let inside = self.b.ins().band(above, below);
+                let n = self.b.ins().fcvt_to_sint_sat(types::I64, r);
+                let min = self.b.ins().iconst(types::I64, i64::from(i32::MIN));
+                self.b.ins().select(inside, n, min)
+            }
+            _ => self.b.ins().iconst(types::I64, 0),
+        }
+    }
+
+    /// `c ? a : b` for two values of one kind (IIF's arm).
+    fn pick(&mut self, c: V, a: Entry, b: Entry) -> Entry {
+        if a.1 == K::Null {
+            return (self.dummy(), K::Null);
+        }
+        (self.b.ins().select(c, a.0, b.0), a.1)
     }
 
     /// `rapidr_value::format::int32_of`: beyond 32 bits, -2147483648.
@@ -806,7 +1079,22 @@ impl Walk<'_, '_> {
     fn arith(&mut self, bin: Bin, a: Entry, b: Entry) -> Option<Entry> {
         let num = |k: K| matches!(k, K::Int | K::Dbl | K::I64 | K::U64);
         if !num(a.1) || !num(b.1) {
-            return None;
+            // (a boolean or Null with a number that isn't 64-bit — `n * (a
+            // < b)`, BASIC's way to count a comparison —: `Value`'s own
+            // operation, on floats, a true -1: a Double)
+            let plain = |k: K| matches!(k, K::Int | K::Dbl | K::Bool | K::Null);
+            if !plain(a.1) || !plain(b.1) {
+                return None;
+            }
+            let (x, y) = (self.as_f64(a), self.as_f64(b));
+            let r = match bin {
+                Bin::Add => self.b.ins().fadd(x, y),
+                Bin::Sub => self.b.ins().fsub(x, y),
+                Bin::Mul => self.b.ins().fmul(x, y),
+                Bin::Div => self.b.ins().fdiv(x, y),
+                _ => return None,
+            };
+            return Some((r, K::Dbl));
         }
         // (an INT64 / UINT64 with a whole number: 64-bit, wrapping; a UINT64
         // on either side makes one — rapidr_value::wide::arith)
@@ -1216,14 +1504,18 @@ impl Walk<'_, '_> {
             }
             let insn = decode(code, ip).ok_or_else(|| Unbuilt(format!("undecodable at {ip}")))?;
             let at = ip;
-            let next = insn.next;
+            let mut next = insn.next;
             let o = &insn.operands;
             let pre = stack.clone();
             // (an instruction compiled code doesn't run: the interpreter's,
             // from here)
+            // (an instruction compiled code doesn't run, or one that reads
+            // a local whose kind differs on the ways that meet before it —
+            // `K::Dyn`: the interpreter's, from here)
             macro_rules! bail {
                 () => {{
-                    self.exit_now(at, &kinds, &pre, Why::Planned);
+                    let why = if reads_dyn(&insn, &kinds) { Why::Conflict } else { Why::Planned };
+                    self.exit_now(at, &kinds, &pre, why);
                     return Ok(());
                 }};
             }
@@ -1263,12 +1555,39 @@ impl Walk<'_, '_> {
                 },
                 Op::StoreLocal => {
                     let v = pop!();
+                    if !v.1.scalar() {
+                        bail!();
+                    }
                     self.store_local(&mut kinds, o[0] as u16, v);
                 }
                 Op::LoadGlobal => match self.load_global(o[0] as u32) {
                     Some(e) => stack.push(e),
-                    None => bail!(),
+                    None => {
+                        // (a global array, read by the `AGet 1` after its
+                        // index — `memory(a + IIF(…))`: an index with a call
+                        // in it is worked out after the array is read)
+                        let Some(arr) = self.array(Mode::G, o[0], &kinds) else { bail!() };
+                        let v = self.b.ins().iconst(types::I64, arr.1 as i64);
+                        self.arr_vals.insert(v, (o[0] as u32, arr));
+                        stack.push((v, K::Arr));
+                    }
                 },
+                Op::AGet | Op::ASet if o[0] == 1 => {
+                    let value = if insn.op == Op::ASet { Some(pop!()) } else { None };
+                    let idx = pop!();
+                    let arr = pop!();
+                    let Some(&(_, handle)) = self.arr_vals.get(&arr.0).filter(|_| arr.1 == K::Arr) else { bail!() };
+                    let Some(i) = self.as_i64(idx) else { bail!() };
+                    match value {
+                        // (the value as it is: ASet converts nothing)
+                        Some(v) if v.1.scalar() => self.aset(handle, i, v, at, &kinds, &pre),
+                        Some(_) => bail!(),
+                        None => {
+                            let v = self.aget(handle, i, at, &kinds, &pre);
+                            stack.push(v);
+                        }
+                    }
+                }
                 Op::StoreGlobal => {
                     let v = pop!();
                     if !self.store_global(o[0] as u32, v) {
@@ -1320,6 +1639,13 @@ impl Walk<'_, '_> {
                             let r = self.b.ins().fneg(v);
                             stack.push((r, K::Dbl));
                         }
+                        // (`-&Value` of a boolean or Null: a Double, -0 for
+                        // a false or Null)
+                        K::Bool | K::Null => {
+                            let x = self.as_f64((v, k));
+                            let r = self.b.ins().fneg(x);
+                            stack.push((r, K::Dbl));
+                        }
                         _ => bail!(),
                     }
                 }
@@ -1360,8 +1686,11 @@ impl Walk<'_, '_> {
                             },
                             if x == K::U64 || y == K::U64 { K::U64 } else { K::I64 },
                         ),
-                        (K::Int, K::Int) => {
-                            let (x, y) = (self.int32_of(a.0), self.int32_of(b.0));
+                        // (two Integers — or a boolean, a Double, Null with
+                        // one: `(pc - 8 * (c = 1)) AND 255` — as the 32-bit
+                        // integers `Value::bits` makes of them)
+                        (x, y) if basic(x) && basic(y) => {
+                            let (x, y) = (self.basic_bits(a), self.basic_bits(b));
                             (
                                 match insn.op {
                                     Op::And => self.b.ins().band(x, y),
@@ -1390,6 +1719,11 @@ impl Walk<'_, '_> {
                         K::I64 | K::U64 => {
                             let r = self.b.ins().bnot(v);
                             stack.push((r, k));
+                        }
+                        K::Dbl | K::Null => {
+                            let n = self.basic_bits((v, k));
+                            let r = self.b.ins().bnot(n);
+                            stack.push((r, K::Int));
                         }
                         _ => bail!(),
                     }
@@ -1440,15 +1774,62 @@ impl Walk<'_, '_> {
                 }
                 Op::RetVal => {
                     let v = pop!();
+                    if !v.1.scalar() {
+                        bail!();
+                    }
                     self.ret(at, &kinds, &stack, Some(v));
                     return Ok(());
                 }
                 Op::CallBuiltin => {
                     let name = m.strings.get(o[0] as usize).map(String::as_str).unwrap_or("");
+                    // (IIF(c, a, b): both arms already worked out, as the
+                    // interpreter has them — the one the condition picks,
+                    // as it is: `rapidr_value::builtins::rp_iif`, which the
+                    // hosts that let compiled code call the maths call too)
+                    if self.env.direct_maths && o[1] == 3 && rapidr_bytecode::builtins::is_builtin(name) && rapidr_bytecode::builtins::builtin_key(name) == "iif" {
+                        let no = pop!();
+                        let yes = pop!();
+                        let cond = pop!();
+                        let Some(c) = self.truth(cond) else { bail!() };
+                        if yes.1 == no.1 && yes.1.scalar() {
+                            stack.push(self.pick(c, yes, no));
+                        } else if yes.1.scalar() && no.1.scalar() && !self.leaders.get(next).copied().unwrap_or(true) {
+                            // (arms of two kinds stored into a typed variable
+                            // or converted, as `flagC = IIF(v > 255, 1, 0.5)`:
+                            // each arm converted as the store converts, then
+                            // the one picked — the very value the store makes
+                            // of the arm the interpreter picks)
+                            let Some(after) = decode(code, next) else { bail!() };
+                            let conv = match after.op {
+                                Op::StoreLocalNum | Op::StoreGlobalNum => after.operands[1] as u8,
+                                Op::ToNum => after.operands[0] as u8,
+                                _ => bail!(),
+                            };
+                            let (Some(y), Some(n)) = (self.convert(yes, conv), self.convert(no, conv)) else { bail!() };
+                            if y.1 != n.1 {
+                                bail!();
+                            }
+                            let r = self.pick(c, y, n);
+                            match after.op {
+                                Op::StoreLocalNum => self.store_local(&mut kinds, after.operands[0] as u16, r),
+                                Op::StoreGlobalNum => {
+                                    if !self.store_global(after.operands[0] as u32, r) {
+                                        bail!();
+                                    }
+                                }
+                                _ => stack.push(r),
+                            }
+                            next = after.next;
+                        } else {
+                            bail!();
+                        }
+                        ip = next;
+                        continue;
+                    }
                     let code = if self.env.direct_maths { rapidr_vm::fast::direct_code(name) } else { 0 };
-                    // (one argument; SHL and SHR two)
-                    let argc = if code >= 128 { 2 } else { 1 };
-                    if code == 0 || o[1] as usize != argc {
+                    // (one argument; SHL and SHR two; IIF's three: above)
+                    let argc = rapidr_vm::fast::direct_arity(code);
+                    if code == 0 || argc > 2 || o[1] as usize != argc {
                         bail!();
                     }
                     let b = pop!();
@@ -1769,7 +2150,7 @@ pub fn build_stub(m: &Module, fi: u32, params: &[K], func: &mut ir::Function, fc
     b.ins().return_(&[one, zero]);
     b.seal_all_blocks();
     b.finalize(frontend);
-    Ok(ExitRecord { fn_index: fi, ip: 0, locals, stack: Vec::new(), why: Why::Planned, form: usize::MAX })
+    Ok(ExitRecord { fn_index: fi, ip: 0, locals, stack: Vec::new(), arrays: Vec::new(), why: Why::Planned, form: usize::MAX, line: f.get_line_for_ip(0).unwrap_or(0), what: String::new() })
 }
 
 /// A new function of the code generator for a form.

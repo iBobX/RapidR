@@ -23,6 +23,14 @@ pub enum K {
     I64,
     /// `Value::UInt64`: an `i64` register holding its bits.
     U64,
+    /// A local whose kind differs on the paths that meet at a point (a
+    /// `DIM` inside one `CASE` branch: an Integer there, Null on the other
+    /// way): its 64 bits and its kind travel at run time, two registers,
+    /// and an exit writes back exactly what it holds. Compiled code stores
+    /// into it (it becomes of the stored kind) but doesn't read it as a
+    /// number: a read leaves for the interpreter. Never a stack entry, a
+    /// parameter or a global; `K::of` never gives it.
+    Dyn,
 }
 
 impl K {
@@ -65,7 +73,31 @@ impl K {
             K::Other => 5,
             K::I64 => 6,
             K::U64 => 7,
+            K::Dyn => 8,
         }
+    }
+
+    /// The 64-bit words a value of this kind takes in an exit's buffer:
+    /// none for Null (nor for an array: the exit's record names the global
+    /// that holds it), its bits and its kind's code for a [`K::Dyn`].
+    pub fn words(self) -> usize {
+        match self {
+            K::Null | K::Arr | K::Other => 0,
+            K::Dyn => 2,
+            _ => 1,
+        }
+    }
+
+    /// Two paths meeting with these kinds of a local: the kind it has
+    /// there — the same one, or [`K::Dyn`] for two scalars (or a `Dyn`)
+    /// that differ; `None` when one is an array or text (the second path
+    /// leaves for the interpreter).
+    pub fn meet(self, other: K) -> Option<K> {
+        if self == other {
+            return Some(self);
+        }
+        let joins = |k: K| k.scalar() || k == K::Dyn;
+        (joins(self) && joins(other)).then_some(K::Dyn)
     }
 
     pub fn from_code(c: u32) -> K {

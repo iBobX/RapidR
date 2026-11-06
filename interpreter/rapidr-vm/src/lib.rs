@@ -43,7 +43,7 @@ pub mod jit;
 #[cfg(test)]
 mod fast_tests;
 
-pub use fast::{direct_builtin, direct_builtin2, direct_names};
+pub use fast::{direct_builtin, direct_builtin2, direct_builtin3, direct_names};
 pub use host::{Host, StubHost};
 pub use jit::{Jit, JitAnswer, JitView};
 pub use rapidr_bytecode as bytecode;

@@ -1276,6 +1276,8 @@ fn compile_to_bytecode_plain(path: &str) -> Result<rapidr_bcgen::Compiled, Strin
     let mut compiled = rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines).map_err(|e| {
         remap(e.lines().map(|l| format!("{path}:{l}")).collect::<Vec<_>>().join("\n"))
     })?;
+    // (`rapidr run --verbose`: the statements the JIT's report names)
+    rapidr_vm_host_native::set_program_text(&pre.source);
     // Run-time errors name the file and line (file names only).
     let origins = pre.line_map.iter().map(|(file, line)| (file.as_deref().and_then(|f| f.to_str()), *line as u32));
     compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(path, origins);

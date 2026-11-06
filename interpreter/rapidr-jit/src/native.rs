@@ -21,9 +21,9 @@ use rapidr_value::BasicArray;
 
 use crate::kinds::{bits_of, value_of, K};
 
-/// What compiled code is handed: the first three fields at the offsets
-/// `compile.rs` reads (`CTX_GLOBALS`, `CTX_INTERRUPT`, `CTX_STACK_LIMIT`);
-/// the rest only the helpers touch.
+/// What compiled code is handed: the first four fields at the offsets
+/// `compile.rs` reads (`CTX_GLOBALS`, `CTX_INTERRUPT`, `CTX_STACK_LIMIT`,
+/// `CTX_TURNS`); the rest only the helpers touch.
 #[repr(C)]
 pub struct Ctx {
     /// The module's globals buffer (one `u64` per global compiled code
@@ -42,6 +42,11 @@ pub struct Ctx {
     /// compiled call takes at least that much: never more frames than
     /// `MAX_CALL_DEPTH` allows).
     pub stack_limit: u64,
+    /// The loop turns the entry form made in this run (its every backward
+    /// jump, counted in a register and written here at its exit): how much
+    /// a run did before it went back to the interpreter (`engine.rs`'s
+    /// rare-way policy).
+    pub turns: u64,
     /// The exits taken, innermost frame first: record and values.
     pub exits: Vec<(u32, Vec<u64>)>,
     pub garrays: Vec<Option<Rc<RefCell<BasicArray>>>>,
@@ -53,6 +58,7 @@ const _: () = {
     assert!(std::mem::offset_of!(Ctx, globals) == crate::compile::CTX_GLOBALS as usize);
     assert!(std::mem::offset_of!(Ctx, interrupt) == crate::compile::CTX_INTERRUPT as usize);
     assert!(std::mem::offset_of!(Ctx, stack_limit) == crate::compile::CTX_STACK_LIMIT as usize);
+    assert!(std::mem::offset_of!(Ctx, turns) == crate::compile::CTX_TURNS as usize);
 };
 
 /// The interrupt byte outside debug mode: never raised.

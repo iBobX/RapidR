@@ -386,6 +386,48 @@ fn maths_builtins() {
     }
 }
 
+/// `IIF(c, a, b)` (docs/jit-design.md §12.8): every condition's truth,
+/// arms of every pair of kinds — as they are, and stored or converted into
+/// each numeric kind (where arms of two kinds compile: each converted, the
+/// one picked) —: the arm the interpreter picks, of its kind and bits.
+#[test]
+fn iif() {
+    let conds: Vec<Value> = if cfg!(debug_assertions) {
+        vec![Value::Integer(0), Value::Double(f64::NAN), Value::Boolean(true), Value::Null, Value::String("x".into())]
+    } else {
+        vec![Value::Integer(0), Value::Integer(-1), Value::Double(-0.0), Value::Double(0.5), Value::Double(f64::NAN), Value::Boolean(true), Value::Boolean(false), Value::Null, Value::String("x".into()), Value::String(String::new().into()), Value::Int64(1), Value::UInt64(0)]
+    };
+    for cond in &conds {
+        let iif = |c: &mut Case| {
+            let kc = c.m.add_const(konst(cond));
+            let s = c.m.add_string("IIF");
+            c.load_k(kc).op(Op::StoreLocal).u16(3);
+            c.op(Op::LoadLocal).u16(3).op(Op::LoadLocal).u16(0).op(Op::LoadLocal).u16(1).op(Op::CallBuiltin).u32(s).u8(3);
+        };
+        let ran = check(&format!("IIF({cond:?}, a, b)"), |c| {
+            iif(c);
+            c.store_r();
+        });
+        assert!(ran > 0, "IIF({cond:?}, a, b) never ran compiled");
+        let kinds: Vec<u8> = if cfg!(debug_assertions) { vec![3, 5, 8] } else { (0..10).chain([rapidr_value::numeric::ARG_ROUND]).collect() };
+        for kind in kinds {
+            let r = Case::new(&Value::Null, &Value::Null).r;
+            check(&format!("IIF({cond:?}, a, b) StoreGlobalNum {kind}"), |c| {
+                iif(c);
+                c.op(Op::StoreGlobalNum).u32(r).u8(kind);
+            });
+            check(&format!("IIF({cond:?}, a, b) StoreLocalNum {kind}"), |c| {
+                iif(c);
+                c.op(Op::StoreLocalNum).u16(4).u8(kind).op(Op::LoadLocal).u16(4).store_r();
+            });
+            check(&format!("IIF({cond:?}, a, b) ToNum {kind}"), |c| {
+                iif(c);
+                c.op(Op::ToNum).u8(kind).store_r();
+            });
+        }
+    }
+}
+
 #[test]
 fn for_loops() {
     // (counter a, end b, steps 1, -1, 0.5, 0, NaN: the test's branch, the
@@ -420,6 +462,17 @@ fn one_index_arrays() {
     });
     check("AGetLS", |c| {
         c.op(Op::LoadLocal).u16(0).op(Op::AGetLS).u16(5).store_r();
+    });
+    // (the global array read first, its index after — `arr(i + IIF(…))` —
+    // and written so: the plain AGet / ASet of one index)
+    check("LoadGlobal arr; AGet 1", |c| {
+        let arr = c.arr;
+        c.op(Op::LoadGlobal).u32(arr).op(Op::LoadLocal).u16(0).op(Op::AGet).u8(1).store_r();
+    });
+    check("LoadGlobal arr; ASet 1", |c| {
+        let arr = c.arr;
+        c.op(Op::LoadGlobal).u32(arr).op(Op::LoadLocal).u16(0).op(Op::LoadLocal).u16(1).op(Op::ASet).u8(1);
+        c.op(Op::LoadGlobal).u32(arr).op(Op::LoadLocal).u16(0).op(Op::AGet).u8(1).store_r();
     });
     for kind in [NO_KIND, 5, 3] {
         check(&format!("ASetGL {kind}"), |c| {

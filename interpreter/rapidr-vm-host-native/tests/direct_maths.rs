@@ -51,4 +51,21 @@ fn the_host_answers_every_direct_builtin_as_the_vm_does() {
             }
         }
     }
+    // (IIF, the VM's one direct builtin of three arguments — and compiled
+    // code's: every condition, every pair of arms, as the host answers;
+    // with fewer arguments, the missing ones Null for both)
+    for spelled in ["IIF", "iif"] {
+        let direct = rapidr_vm::direct_builtin3(spelled).expect("IIF is direct");
+        for c in &values {
+            for a in values.iter().step_by(3) {
+                for b in values.iter().step_by(4) {
+                    let by_host = host.call_builtin(spelled, &[c.clone(), a.clone(), b.clone()]).unwrap_or_else(|e| panic!("{spelled}: {e}"));
+                    assert_eq!(exact(&by_host), exact(&direct(c, a, b)), "{spelled}({c:?}, {a:?}, {b:?})");
+                }
+            }
+            let by_host = host.call_builtin(spelled, std::slice::from_ref(c)).unwrap();
+            assert_eq!(exact(&by_host), exact(&direct(c, &Value::Null, &Value::Null)), "{spelled}({c:?})");
+        }
+    }
+    assert!(rapidr_vm::direct_builtin3("MID$").is_none() && rapidr_vm::direct_builtin3("SHL").is_none() && rapidr_vm::direct_builtin("IIF").is_none());
 }

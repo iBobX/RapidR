@@ -47,6 +47,11 @@ const SEEDS: &[&str] = &[
     "SUB bump(BYREF n AS INTEGER)\nn = n + 1\nEND SUB\nDIM i AS INTEGER\nDIM c AS INTEGER\nFOR i = 1 TO 120\nbump(c)\nNEXT\nPRINT c\n",
     "DIM i AS INTEGER\nDIM s AS INTEGER\nFOR i = 1 TO 200\nIF (i AND 1) = 0 AND i > 10 THEN\ns = s + (i OR 3)\nEND IF\nNEXT\nPRINT s\n",
     "DIM i AS INTEGER\nDIM j AS INTEGER\nDIM s AS INTEGER\nFOR i = 1 TO 30\nFOR j = 1 TO 30\ns = s + i * j\nNEXT\nNEXT\nPRINT s\n",
+    // (IIF, a DIM in one branch, comparisons counted in arithmetic:
+    // docs/jit-design.md §12.8)
+    "DIM i AS INTEGER\nDIM s AS INTEGER\nDIM f AS DOUBLE\nFOR i = 1 TO 200\ns = s + IIF(i MOD 3 = 0, i, -1)\nf = IIF(i > 100, 2, 0.5)\nNEXT\nPRINT s; f\n",
+    "SUB op(n AS INTEGER)\nSELECT CASE n AND 3\nCASE 1\nDIM t AS INTEGER\nt = n * 2\nPRINT t;\nCASE 2\nDIM w AS DOUBLE\nw = n / 4\nEND SELECT\nEND SUB\nDIM i AS INTEGER\nFOR i = 1 TO 120\nop(i)\nNEXT\n",
+    "DIM i AS INTEGER\nDIM s AS DOUBLE\nFOR i = 1 TO 200\ns = s + i * (i < 50) - (i > 150) + -(i = 7)\nNEXT\nPRINT s\n",
 ];
 
 /// A host that calls the pure maths builtins itself (so the JIT may compile
