@@ -141,7 +141,10 @@ del tipo.
 ## En todos los entornos
 
 `rapidr run` (con el JIT encendido o apagado), las compilaciones nativas
-(`rapidr build`) y la web dan las mismas respuestas; los casos de
-conformidad `big_numbers_*` de `tests/conformance/cases` lo comprueban. La
+(`rapidr build`), la web y la versión alfa para Windows 7 (32 bits) dan las
+mismas respuestas; los casos de conformidad `big_numbers_*` de
+`tests/conformance/cases` lo comprueban. En Windows de 32 bits, una función
+de DLL declarada con `DECLARE` recibe un argumento `INT64` / `UINT64` como
+sus 8 bytes y devuelve uno completo. La
 lista completa de lugares revisados está en las notas para desarrolladores
 (`docs/big-numbers-audit.md`).

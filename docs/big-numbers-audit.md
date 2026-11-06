@@ -104,8 +104,9 @@ Unreleased says what was fixed.
 | SIZEOF, VARPTR, MEMCPY, a TYPE passed to a DLL | an INT64 field encoded as a LONG (4 bytes: cut) | 8 bytes (UINT32 4), read back as the type | unit (memory), everywhere |
 | PEEK / POKE | bytes | bytes (unchanged) | — |
 | GET / PUT records, MKI$ / CVI-style | — | not in RapidQ (KEYWORD.LST, RC.EXE) nor RapidR: a program's binary numbers go through streams (the rows above) | — |
-| DLL call: an INT64 / UINT64 result | a classic number (PRINT -2147483648 past 32 bits) | the 64-bit value (x64, ARM64: the register; x86: EDX:EAX) | Windows VM (§6) |
-| DLL call: an INT64 by value on 32-bit Windows | **4 bytes pushed**: the stack the DLL reads was wrong | 8 bytes, low word first | Windows 7 build (§6) |
+| DLL call: an INT64 / UINT64 result | a classic number (PRINT -2147483648 past 32 bits) | the 64-bit value (x64, ARM64: the register; x86: EDX:EAX) | `tools/win7/tests/dll_calls64.rr` on Windows 7 x86 (GetTickCount64: a UINT64, VARTYPE 21) |
+| DLL call: an INT64 by value on 32-bit Windows | **4 bytes pushed**: the stack the DLL reads was wrong | 8 bytes, low word first | `dll_calls64.rr` on Windows 7 x86: VarR8FromI8(4294967301) right, 2000 calls and MulDiv after them, the stack balanced |
+| DLL call: an INT64 BYREF | its buffer encoded as a LONG (4 bytes): what the DLL wrote read back cut | 8 bytes | `dll_calls64.rr` on Windows 7 x86: VarI8FromR8 → -9007199254740992 |
 | DLL call: UINT32 parameters and results | not a type | a number (4 bytes), the result unsigned | unit (dll) |
 
 ## 5. Data, components, tools
@@ -139,4 +140,4 @@ Unreleased says what was fixed.
 | Immediate pane | the same VM as the program | the same | — |
 | AI tools (RAI, MCP) reading a program's values | the debugger's text | the debugger's text, every digit | — (same path as Variables) |
 | RMcpServer tool arguments | JSON text | JSON text, read exactly by RJson | everywhere (`JSON`) |
-| Windows 7 (32-bit x86) | i686 build | i686 build with the 8-byte INT64 DLL argument (§4); the build compiles | the Windows 7 build (`tools/win7/build.sh`) |
+| Windows 7 (32-bit x86) | i686 build | the same; the 8-byte INT64 DLL argument (§4) | `tools/win7/build.sh i686` (2026-11-05), the rapidr.exe run in the real Windows 7 VM (UTM, 6.1.7600): big_numbers_promised, _input, _everywhere, _classic and int64_uint64 print their `.expected` exactly, `dll_calls64.rr` and the example right (the interpreter: the JIT isn't built for 32-bit x86) |

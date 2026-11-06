@@ -129,8 +129,10 @@ one that doesn't fit, naming the type's range.
 
 ## On every runtime
 
-`rapidr run` (with the JIT on or off), native builds (`rapidr build`) and
-the web give the same answers; the conformance cases `big_numbers_*` in
-`tests/conformance/cases` check it.
+`rapidr run` (with the JIT on or off), native builds (`rapidr build`), the
+web and the Windows 7 (32-bit) alpha give the same answers; the
+conformance cases `big_numbers_*` in `tests/conformance/cases` check it.
+On 32-bit Windows a `DECLARE`d DLL function gets an `INT64` / `UINT64`
+argument as its 8 bytes and returns one whole.
 The full list of places checked is in the developer notes
 (`docs/big-numbers-audit.md`).
