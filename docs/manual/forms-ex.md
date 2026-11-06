@@ -15,7 +15,8 @@ macOS, Linux and the web:
   program posts).
 
 Everything an `RForm` has, an `RFormEx` has too: put `RFormEx` where you
-would write `RForm`.
+would write `RForm`. In RapidR Studio, **FormEx** in the toolbox (Additional)
+adds a new form file that creates one.
 
 ![RFormEx: files dropped on the white box, the tray, see-through and on top](images/forms-ex/form-ex.png)
 

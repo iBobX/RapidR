@@ -1,3 +1,4 @@
+<!-- translated-from: forms-ex.md 37d75840281e900c -->
 # RFormEx: un formulario con más
 
 `RFormEx` es un formulario que hace más que un `RForm`, de forma nativa en
@@ -15,7 +16,8 @@ Windows, macOS, Linux y la web:
   otro programa envía).
 
 Todo lo que tiene un `RForm` también lo tiene un `RFormEx`: escribe `RFormEx`
-donde escribirías `RForm`.
+donde escribirías `RForm`. En RapidR Studio, **FormEx** en el cuadro de
+herramientas (Adicionales) añade un archivo de formulario nuevo que crea uno.
 
 ![RFormEx: archivos soltados en el recuadro blanco, la bandeja, translúcido y encima](../images/forms-ex/form-ex.png)
 
