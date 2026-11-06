@@ -147,11 +147,66 @@ Before something with consequences is turned on (AI apps working in Studio, a lo
 |---|---|
 | "Let AI apps use RapidR Studio?" + four rows + Turn On / **Cancel** | A 12-line paragraph in a warning message box with OK / Cancel |
 
+## Notifications
+
+Three levels and a history, so nothing is bigger than what it says and nothing is lost. Pick the lowest level that does the job. The reasons, and what people love and hate about each pattern, are in [docs/research/notifications.md](research/notifications.md). RapidR's component for it is `RNotify` (and `RNotifyBar`, the strip): every program gets the same behaviour, RapidR Studio uses them first.
+
+| Level | Use it when | Where | How it behaves |
+|---|---|---|---|
+| **Information**: a *toast* | something happened and there is nothing to decide ("5 files were reloaded", "Copied", "Build finished") | bottom-right of the area it speaks about (the editor area for an editor's news), 12 px from each edge | small, stacks (3 at most), hides by itself, never takes the focus |
+| **Decision**: a *strip* | the person must choose before work goes on ("main.rr changed on disk while you were editing it") | one line across the top of **that editor only**, under its tabs | stays until answered, asked once, keyboard reachable |
+| **Consent**: a *dialog* | something with consequences is about to be turned on or lost ([Confirmations and consent](#confirmations-and-consent)) | the middle of the window | modal; the safe answer is the default |
+| **History**: a *bell* | a toast was missed, or a message needs another look | the status bar's right end, with a count of unseen messages | opens the recent list; each line keeps its action |
+
+A toast is never used for something that needs an answer (it can vanish), a failure that stops the person's work (that is a strip, or the message in the place it happened), or a message that would repeat every few seconds (say it once, then keep a count).
+
+### The toast
+
+- **Anatomy** (left to right): a 4-px mark in the kind's border colour, 12, a 16-px icon (`info`, `success`, `warning`, `error`), 8, the text (`UIFont`, regular, one or two lines; never bold), 12, up to two action links (`LinkFont`, `page.link`, a verb of one or two words: **Show**, **Undo**, **Open**), 8, a close button (a 16-px cross in a 24 x 24 target), 8.
+- **Card:** `card` fill, a 1-px `border`, radius 8, a soft shadow; in high contrast a 2-px frame in the text colour and no shadow. 40 px tall for one line (the compact control's 24 and 8 above and below), 52 for two; **360 wide** (at most 440 with two actions; never wider than its area less 24). Long text is cut with an ellipsis in the middle; its tooltip and the history have the whole of it.
+- **Kinds** map to the status colours ([Colour](#colour)): `info` blue, `success` teal, `warning` amber, `danger` red (named `error` in RNotify). The icon and the words say it; the colour agrees. Red only for something that went wrong.
+- **Stacking:** the newest is nearest the corner, the others above it, 8 apart. At most **three**: a fourth moves the oldest into the history at once. Messages with the same **key** replace each other ("5 files" becomes "7 files"), so a burst is one toast. Several things happening together (many files) are **one** toast with their names: up to three, then "+N" ("main.rr, form1.rr, utils.inc +2"); never a bare count when there are names.
+- **Time:** it stays `3000 ms + 80 ms per character (+2000 ms with an action)`, at least 5 s and at most 20 s; a warning one and a half times as long; an **error stays until it is closed**. The time **stops while the mouse is over it or the keyboard is on it** and starts again, with 2 s at least, when both have left. Esc closes the toast that has the focus. Settings has a choice, "Notifications stay: normal, longer, until I close them" (WCAG 2.2.1).
+- **Motion:** it slides up 12 px while it fades in, 160 ms; it fades out in 120 ms. With `Application.ReducedMotion` it appears and goes at once ([Motion](#motion)).
+- **Focus and keyboard:** a toast **never takes the keyboard** by itself (one deliberate exception in Studio: the toast of the program the assistant just made has the keyboard on its first button, Run It, because that is what the person came for; Escape gives it back) ([Focus and keyboard](#focus-and-keyboard)). The pane-cycling key (F6) reaches the stack while a toast shows: the arrows move between toasts, Tab between a toast's action and its close button, Enter presses, Esc closes and puts the focus back where it was. The history's key (Ctrl+Shift+N) opens the list.
+- **Screen readers:** the toast is a group in the accessibility tree (its words and its actions in its name, its buttons inside it), and its words are announced once as a polite live message: it is read **once**, when the reader has finished, never as an interruption. Only an error is assertive.
+- **Words:** what happened, past tense, with the names: "main.rr was reloaded", not "Success!". No "Error:" or "Warning:" in front: the icon says it. A sentence, no title, no exclamation mark. Never a secret: a key or a token is scrubbed before a notification shows or keeps it, as the Output pane does.
+
+### The decision strip
+
+- **One line, 36 px** (the compact control's 24 and 6 above and below; 33 in the classic look), across the top of the one editor it is about, under its tabs and above its views, which move down: it covers nothing. It is **not** across the whole work area, and never over another editor.
+- **Anatomy:** the warning colour's 4-px mark (`status.warning.border`), 12, the 16-px icon, 8, the question in bold (`UIFont`), then the **compact buttons** (24 px, 8 apart, 12 from the right edge, the main choice nearest the edge) with mnemonics. No primary button unless one answer is clearly the expected one.
+- **Narrow:** the question is cut with an ellipsis (its whole in the tooltip and for the screen reader) down to 24 characters; below that the buttons go on a second line under it from where the words start, as the inline question strip in a pane.
+- **Keyboard and screen readers:** F6 reaches it (it comes first in that editor's order), Tab moves between its buttons, Enter presses one, Esc gives the focus back to the editor without choosing: the question stays. It is announced **assertively, once**, when it appears, never again when it is redrawn.
+- It goes away when answered, when the thing it asks about is gone (the file closed) or when the answer becomes known some other way (the file saved).
+
+### The history
+
+- **The bell** is the status bar's right-hand chip: the `notifications` icon and a count of **unseen** messages (nothing when there are none; "9+" over nine), the icon 12 px in the bar's font size, `AccessibleName` "Notifications" with the count. Clicking it, Enter or Space on it, or Ctrl+Shift+N opens the list.
+- **The list** is a card above the bell, 360 wide, at most eight rows tall and then it scrolls: each row the kind's icon, the time ("14:32"), the text (wrapped, whole) and its action link again; **Clear** at the foot. The last 50 messages are kept for the session. Opening the list marks everything seen.
+- Nothing is lost: a toast that went before it was read is in the list, with its action still working (an action whose file or thing is gone says so; it never fails silently).
+
+| Do | Don't |
+|---|---|
+| "5 files were reloaded: main.rr, form1.rr, utils.inc +2" and **Show** | Five toasts, or a card two lines high with two big buttons |
+| A one-line strip on the editor: "main.rr changed on disk while you were editing it" | A card across the whole work area for one file |
+| **Undo** in the toast for something that can be undone | "Are you sure?" before a reversible action |
+| The same message replaced by its newer count | The same message ten times |
+| A time that fits the length, stopped while the mouse is on it | A fixed two seconds |
+
+Where Studio's messages go: files reloaded, copied, a build finished, a version saved, the assistant's new program ready, a chat deleted (with Undo): **toasts**. A file changed under unsaved edits, a file deleted under edits, "Studio closed unexpectedly last time" with its report: **strip** (on the editor, or across the window under the tool bar when it is about Studio itself). Turning on AI apps, deleting a project: **dialog**. Every toast is also in the history and, when it is about the program's state, in the status bar's line. **One place says it**: while a strip asks, the status bar does not repeat its sentence (the Output keeps a line, as a log); a toast's confirmation is not repeated in the pane's own status line.
+
 ## Tabs
 
 - **Every tab has an icon and its name** (16 px icon, 6, the name in Title Case), in pane tab strips, dialogs and documents alike — never a bare word.
 - **Selected tab:** the accent underline (2 px) and the text in the normal colour; the others dim. No box around a tab's text: the keyboard focus ring goes around the whole tab.
-- **When narrow:** a tab strip that can't fit every name shows icons only, each with its name as tooltip and `AccessibleName` — never a cut name ("P…").
+- **A pane's tabs, when narrow:** a tab strip that can't fit every name shows icons only, each with its name as tooltip and `AccessibleName` — never a cut name ("P…"). The panes' icons differ from each other, so an icon tells which pane it is.
+- **Document tabs keep their names.** A document's icon is the same for every file of a kind (every `.rr` file has the same page), so an icon alone tells nothing: a document tab is **never icons only**.
+  - **Width:** as wide as its name needs (up to 260 px) and **never narrower than 112 px** (the 16-px icon, 6, at least 8 characters of the name, the 20-px close button, and the padding).
+  - **A long name** is cut in the **middle**: "form_invoi…ces.rr", so the beginning and the extension stay; the tooltip and the accessible name have it whole. Two open files with the same name show their folder after it ("main.rr · tests").
+  - **When the tabs don't fit:** the strip **scrolls**. Two 24-px arrow buttons at the right end of the strip (before the view switch) move it a tab at a time; the mouse wheel and a two-finger swipe over the strip scroll it; the shown tab is always scrolled into view (Ctrl+Tab, a click on a name in the list, opening a file). A tab half seen at an edge is simply clipped by the strip, its name is never replaced by an icon.
+  - **All open tabs:** a 24-px list button at the right end ("Open tabs", a chevron) opens a card with **every** open document and a search field (type to filter, the arrows to move, Enter to open, Esc to close): each row its icon, its name and, dim, its folder; a dot marks one with unsaved changes. It is the way to a tab that has scrolled out of sight.
+  - The shown tab, the close button, the unsaved dot and the middle click to close do not change.
 - **More than five pages** (Settings, Project Options): a category list at the left (icon + name, one row each) with a search box, not a row of tabs.
 - Tab order: Ctrl+Tab / Ctrl+Shift+Tab move between tabs; the arrows move along the strip when it has the focus.
 
@@ -207,6 +262,7 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 - The status bar's paused colour (`statusbar.debugging`, `#B45309`) is outside the brand palette.
 - Settings > AI: the links block (an `RMarkdownView`) draws a white `window` block across the dialog's face (settings.inc).
 - The design audit of 2026-10-30 ([docs/design-audit-2026-10.md](design-audit-2026-10.md)) lists the rest: Settings' long pages (the redesign), Set Up RAI's empty half, Keyboard Shortcuts and About as message boxes, the Help field's missing magnifier, two rows of Toolbox and Outline at 720, the dialogs the size test doesn't reach yet, 200 % text (no setting yet).
+- Notifications (2026-11-06): the old cards and banners are gone (files changed outside Studio, a chat deleted, the assistant's new program, the crash report offer). Still panel-made rows inside the Assistant pane, not RNotify or RNotifyBar: the review bar (a decision, "Review the changes": it would fit the strip's anatomy), the queued-message row and the coach's hint strip. They are the pane's own controls rather than messages, and move with the Assistant pane's redesign. Messages the Output pane and the status bar keep as a log are unchanged.
 - Pane headers differ: the review window's 44, A New Program's 64, Set Up RAI's 56 (ai.inc, aisetup.inc); a two-line pane header is 52.
 
 ## Checklist before you merge UI
@@ -222,5 +278,7 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 9. `python3 tools/check_design.py` passes; `node tests/studio_shell.mjs`, `node tests/studio_flows.mjs` and the goldens pass (approve only the scenes you changed, and say which).
 10. Plain words, no other product's name (`python3 tools/check_words.py`); a consent is a question with rows and verb buttons, the safe one the default.
 11. Text in a list or log can be copied: a right-click menu with "&Copy" (Ctrl+C) and "Copy &All".
-12. Tabs have icons and names (icons only when narrow, never a cut name); a dialog fits 1280 × 720 with scrolling content and pinned buttons.
+12. Tabs have icons and names (a pane's tabs icons only when narrow, never a cut name; a document's tab never icons only); a dialog fits 1280 × 720 with scrolling content and pinned buttons.
 13. Scrolled, resized and dragged: smooth, no flicker, no jumping sizes.
+14. A message the person didn't ask for is a toast (something happened), a strip on its editor (a choice) or a dialog (a consequence) — never a card across the window or a message box; at most three toasts, merged by key, polite for screen readers, never a secret, always in the history ([Notifications](#notifications)).
+15. Document tabs show their names (the middle of a long one cut, 112 px at least), scroll with arrows, and have the list of all open tabs.
