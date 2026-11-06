@@ -1830,6 +1830,10 @@ msgid "The app's icon, made into every size each system shows."
 msgstr ""
 
 #: ide/build.inc
+msgid "32-bit Windows builds interpreted apps: Build makes one, and it runs the same program."
+msgstr ""
+
+#: ide/build.inc
 msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
 msgstr ""
 
@@ -1843,6 +1847,10 @@ msgstr ""
 
 #: ide/build.inc
 msgid "Off: the Rust RapidR generates is deleted after the build."
+msgstr ""
+
+#: ide/build.inc
+msgid "Compiled (not on 32-bit Windows)"
 msgstr ""
 
 #: ide/build.inc
@@ -1969,6 +1977,14 @@ msgstr ""
 
 #: ide/chrome.inc
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
+msgstr ""
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+msgstr ""
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."
 msgstr ""
 
 #: ide/commands.inc
@@ -2416,6 +2432,18 @@ msgid "&Build Web App (.zip)"
 msgstr ""
 
 #: ide/commands.inc
+msgid "&Build (Interpreted App)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Web App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Reveal the &App"
+msgstr ""
+
+#: ide/commands.inc
 msgid "&Build"
 msgstr ""
 
@@ -2425,14 +2453,6 @@ msgstr ""
 
 #: ide/commands.inc
 msgid "Build &Interpreted App"
-msgstr ""
-
-#: ide/commands.inc
-msgid "Build &Web App"
-msgstr ""
-
-#: ide/commands.inc
-msgid "Reveal the &App"
 msgstr ""
 
 #: ide/commands.inc

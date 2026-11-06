@@ -293,6 +293,15 @@ def main():
                 check(False, f"rapidr notices {kind}: {r.stderr.strip()[:300]}")
                 continue
             check_lists(r.stdout, kind, f"notices {kind}")
+            # (the desktop's symbols subset: its name, its own copyright line and the whole OFL in every
+            # desktop and tools file; never in the web's, which has its chunks —
+            # docs/legal/review-2026-11-06-symbols-subset.md F3)
+            own = "RapidR Symbols Subset: Copyright 2022 The Noto Project Authors"
+            if kind == "web":
+                check("RapidR Symbols Subset" not in r.stdout, f"notices {kind}: no RapidR Symbols Subset (the web has its own fonts)")
+            else:
+                check("RapidR Symbols Subset" in r.stdout and own in r.stdout and "SIL OPEN FONT LICENSE" in r.stdout,
+                      f"notices {kind}: RapidR Symbols Subset with its copyright and the OFL")
 
     print(f"\n{'FAILED: ' + str(len(failures)) if failures else 'notices: all ok'}")
     return 1 if failures else 0

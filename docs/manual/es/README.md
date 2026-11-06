@@ -21,6 +21,7 @@ saber en qué destaca RapidR? [Por qué RapidR](why-rapidr.md).
 | [Por qué RapidR](why-rapidr.md) | Lo que RapidR hace mejor, solo con números medidos (con sus condiciones y los scripts que los produjeron), y lo que no afirma |
 | [Galería](showcase.md) | Programas más grandes escritos a partir de una sola idea, cada uno con una imagen y sus mejores líneas explicadas: fuegos artificiales, un visualizador MIDI que lee el propio archivo de la canción, y más |
 | [Primeros pasos](getting-started.md) | Qué descarga elegir (el SDK o el Runtime), instalar en Windows, macOS y Linux, tus primeros programas de consola y de interfaz gráfica, ejecutar (`rapidr run`), compilar (`build-bc`), crear ejecutables (`build`) y la web |
+| [Windows antiguos (7, 8, XP)](old-windows.md) | Qué funciona en Windows 7 y 8 de 32 bits y en Windows XP sin nada más (la descarga de XP no es oficial): Studio, F5, Compilar (aplicación interpretada), los diálogos Abrir y Guardar del propio XP, los idiomas y el aviso de fuente china; qué no todavía (compilación nativa, el JIT, un lector de pantalla y los proveedores de IA en XP) |
 
 ## RapidR Studio
 

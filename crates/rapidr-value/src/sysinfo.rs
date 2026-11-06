@@ -25,7 +25,7 @@ const GB: u64 = 1024 * MB;
 pub struct Facts {
     /// "macOS", "Windows", "Linux" (a browser's: what it says it runs on).
     pub os: String,
-    /// "27.2", "11 24H2 (26100)", "Ubuntu 24.04".
+    /// "27.2", "11 24H2 (26100)", "6.1 (7601)" (Windows 7), "Ubuntu 24.04".
     pub os_version: String,
     /// "arm64", "x86_64", "x86".
     pub arch: String,
@@ -352,6 +352,24 @@ fn unix_disk(path: &std::path::Path) -> Option<(u64, u64)> {
     Some((st.f_blocks as u64 * unit, st.f_bavail as u64 * unit))
 }
 
+/// Windows' version as RSystemInfo.OSVersion says it, from its numbers:
+/// 10 and 11 by name with their display version and build ("11 24H2
+/// (26100)": 11 is 10.0 with a build from 22000 on), the ones before by
+/// number with their build ("5.1 (2600)" XP, "6.0" Vista, "6.1 (7601)" 7,
+/// "6.2" 8, "6.3" 8.1).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn windows_version_text(major: u32, minor: u32, build: u32, display: &str) -> String {
+    let build_text = if build == 0 { String::new() } else { format!("({build})") };
+    let name = if major >= 10 {
+        if build >= 22000 { "11".to_string() } else { "10".to_string() }
+    } else {
+        format!("{major}.{minor}")
+    };
+    // (only 10 and 11 have a display version)
+    let display = if major >= 10 { display.trim() } else { "" };
+    [name, display.to_string(), build_text].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ")
+}
+
 #[cfg(windows)]
 mod os {
     use super::Facts;
@@ -360,13 +378,12 @@ mod os {
     pub fn read(f: &mut Facts, battery: bool) {
         use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
         f.os = "Windows".into();
-        if let Ok(k) = LOCAL_MACHINE.open(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion") {
-            let build = k.get_string("CurrentBuild").unwrap_or_default();
-            let display = k.get_string("DisplayVersion").unwrap_or_default();
-            // (Windows 11 still says "Windows 10" in ProductName: the build
-            // tells them apart)
-            let major = if build.parse::<u32>().unwrap_or(0) >= 22000 { "11" } else { "10" };
-            f.os_version = [major.to_string(), display, if build.is_empty() { String::new() } else { format!("({build})") }].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+        // (the version Windows really is: RtlGetVersion, which, unlike
+        // GetVersionEx, doesn't say 6.2 to a program without a manifest on 8.1
+        // and later; the registry adds 10's and 11's display version, "24H2")
+        let display = LOCAL_MACHINE.open(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion").ok().and_then(|k| k.get_string("DisplayVersion").ok()).unwrap_or_default();
+        if let Some((major, minor, build)) = rtl_version() {
+            f.os_version = super::windows_version_text(major, minor, build, &display);
         }
         if let Ok(k) = LOCAL_MACHINE.open(r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") {
             f.cpu = k.get_string("ProcessorNameString").unwrap_or_default().trim().to_string();
@@ -394,6 +411,17 @@ mod os {
                 f.battery_level = (has && p.BatteryLifePercent <= 100).then_some(p.BatteryLifePercent as u32);
             }
         }
+    }
+
+    /// Windows' own version numbers: (major, minor, build).
+    fn rtl_version() -> Option<(u32, u32, u32)> {
+        use windows_sys::Wdk::System::SystemServices::RtlGetVersion;
+        use windows_sys::Win32::System::SystemInformation::OSVERSIONINFOW;
+        let mut v: OSVERSIONINFOW = unsafe { std::mem::zeroed() };
+        v.dwOSVersionInfoSize = std::mem::size_of::<OSVERSIONINFOW>() as u32;
+        // SAFETY: an OSVERSIONINFOW with its size set, as the call wants
+        // (ntdll's, on every Windows from 2000 and XP on).
+        (unsafe { RtlGetVersion(&mut v) } == 0).then_some((v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber))
     }
 
     pub fn disk(path: &std::path::Path) -> Option<(u64, u64)> {
@@ -513,6 +541,22 @@ pub mod component {
 
 #[cfg(test)]
 mod tests {
+    /// OSVersion on each Windows: the real version (XP was "10 (2600)" and
+    /// 7 "10 (7601)" when the build alone decided between 10 and 11).
+    #[test]
+    fn windows_versions_are_named_as_they_are() {
+        use super::windows_version_text as v;
+        assert_eq!(v(5, 1, 2600, ""), "5.1 (2600)", "XP");
+        assert_eq!(v(6, 0, 6002, ""), "6.0 (6002)", "Vista");
+        assert_eq!(v(6, 1, 7601, ""), "6.1 (7601)", "7");
+        assert_eq!(v(6, 2, 9200, ""), "6.2 (9200)", "8");
+        assert_eq!(v(6, 3, 9600, ""), "6.3 (9600)", "8.1");
+        assert_eq!(v(10, 0, 19045, "22H2"), "10 22H2 (19045)", "10");
+        assert_eq!(v(10, 0, 26100, "24H2"), "11 24H2 (26100)", "11");
+        assert_eq!(v(10, 0, 22000, ""), "11 (22000)", "11 21H2, no display version");
+        assert_eq!(v(6, 1, 7601, "stray"), "6.1 (7601)", "only 10 and 11 have a display version");
+    }
+
     use super::*;
 
     #[test]

@@ -1867,6 +1867,10 @@ msgid "The app's icon, made into every size each system shows."
 msgstr "O ícone do app, gerado em todos os tamanhos que cada sistema mostra."
 
 #: ide/build.inc
+msgid "32-bit Windows builds interpreted apps: Build makes one, and it runs the same program."
+msgstr "No Windows de 32 bits são compilados apps interpretados: Compilar faz um, e ele executa o mesmo programa."
+
+#: ide/build.inc
 msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
 msgstr "O Rust é gratuito: Compilar app nativo oferece instalá-lo. O interpretado não precisa dele."
 
@@ -1881,6 +1885,10 @@ msgstr "Deixado em {path}, ao lado do app, para ler."
 #: ide/build.inc
 msgid "Off: the Rust RapidR generates is deleted after the build."
 msgstr "Desligado: o Rust que o RapidR gera é excluído depois da compilação."
+
+#: ide/build.inc
+msgid "Compiled (not on 32-bit Windows)"
+msgstr "Compilado (não no Windows de 32 bits)"
 
 #: ide/build.inc
 msgid "Compiled (Rust not installed)"
@@ -2007,6 +2015,14 @@ msgstr "Lin {line}, Col {col}"
 #: ide/chrome.inc
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
 msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. Instale o pacote gratuito fonts-noto-cjk (por exemplo: sudo apt install fonts-noto-cjk) e abra o Studio de novo."
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. No Windows XP: Painel de controle > Opções regionais e de idioma > Idiomas > Instalar arquivos para idiomas do Leste Asiático (precisa do CD do Windows). Em um Windows mais novo: Configurações > Hora e idioma > Idioma > adicionar Chinês (simplificado); as fontes vêm junto. Depois abra o Studio de novo."
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."
+msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. Adicione Chinês (simplificado) nas configurações de idioma do sistema e abra o Studio de novo."
 
 #: ide/commands.inc
 msgid "&New Project..."
@@ -2453,6 +2469,18 @@ msgid "&Build Web App (.zip)"
 msgstr "Compilar app &web (.zip)"
 
 #: ide/commands.inc
+msgid "&Build (Interpreted App)"
+msgstr "&Compilar (app interpretado)"
+
+#: ide/commands.inc
+msgid "Build &Web App"
+msgstr "Compilar &app web"
+
+#: ide/commands.inc
+msgid "Reveal the &App"
+msgstr "&Mostrar o app"
+
+#: ide/commands.inc
 msgid "&Build"
 msgstr "&Compilar"
 
@@ -2463,14 +2491,6 @@ msgstr "Compilar app &nativo"
 #: ide/commands.inc
 msgid "Build &Interpreted App"
 msgstr "Compilar app &interpretado"
-
-#: ide/commands.inc
-msgid "Build &Web App"
-msgstr "Compilar &app web"
-
-#: ide/commands.inc
-msgid "Reveal the &App"
-msgstr "&Mostrar o app"
 
 #: ide/commands.inc
 msgid "&Continue"

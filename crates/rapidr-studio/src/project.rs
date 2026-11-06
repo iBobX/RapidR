@@ -849,7 +849,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         }
         // (the desktop only asks whether Rust is there; the web builds nothing)
         "new" => {
-            let interpreted = host.rapidr().is_some_and(|r| !crate::build::rust_ready(&r));
+            let interpreted = host.rapidr().is_some_and(|r| !crate::build::native_builds_here() || !crate::build::rust_ready(&r));
             changing(&|m| new(m, &s(0), &s(1), &s(2), interpreted))
         }
         "close" => changing(&|m| {
@@ -897,6 +897,8 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         // (the desktop asks `rapidr setup --rust`; the web has nothing to ask,
         // and Build says on its own that it is the desktop's)
         "rustready" => flag(host.rapidr().is_none_or(|r| crate::build::rust_ready(&r))),
+        // (0 on 32-bit Windows: its one Build makes the interpreted app)
+        "nativebuilds" => flag(crate::build::native_builds_here()),
         // (Rust installed by `rapidr setup`, run like a build: its lines come
         // back as OnBuildOutput, its end as OnBuildDone; nothing but Rust is
         // set up: no `rapidr` link on the PATH)
@@ -1419,6 +1421,20 @@ mod tests {
             assert_eq!(get("pn", "buildkind").unwrap().to_string_val(), kind);
         }
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Native builds everywhere but 32-bit Windows (there Build makes the
+    /// interpreted app, no Rust question); the 64-bit systems keep asking
+    /// for Rust as before. This Studio (a 64-bit test build) makes them.
+    #[test]
+    fn native_builds_everywhere_but_32_bit_windows() {
+        use crate::build::native_builds_on;
+        assert!(native_builds_on(true, 64), "64-bit Windows: native builds (and the Rust question) as before");
+        assert!(native_builds_on(false, 64), "macOS / Linux 64-bit");
+        assert!(native_builds_on(false, 32), "a 32-bit Linux is not this rule's");
+        assert!(!native_builds_on(true, 32), "32-bit Windows: the interpreted app, no Rust question");
+        assert_eq!(crate::build::native_builds_here(), !(cfg!(windows) && usize::BITS == 32));
+        assert_eq!(call(Quiet, "pn32", "nativebuilds", &[]).unwrap().to_i64(), i64::from(crate::build::native_builds_here()));
     }
 
     #[test]

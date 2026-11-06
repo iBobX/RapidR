@@ -103,6 +103,8 @@ def render(pkgs):
         "License 1.1. The Noto fonts' chunks, and \"RapidR Han Subset\" (the common",
         "Simplified Chinese characters, a Modified Version of Noto Sans SC under a",
         "family name of its own), ship beside the web runtime with their `OFL.txt`.",
+        "\"RapidR Symbols Subset\" (58 symbols cut from Noto Sans Symbols 2, renamed) is",
+        "built into the desktop and drawn only on a computer with no system fonts.",
         "",
         f"**{len(pkgs)} libraries** under {len(by_license)} license expressions.",
         "",

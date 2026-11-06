@@ -128,8 +128,22 @@ impl Default for TextSystem {
 
 impl TextSystem {
     pub fn new() -> Self {
-        let mut font_cx = FontContext::new();
+        Self::with_fonts(FontContext::new())
+    }
+
+    /// A text system on `font_cx` (the system's fonts, as `new` makes it; a
+    /// test's collection without them, as plain Windows XP has none).
+    fn with_fonts(mut font_cx: FontContext) -> Self {
+        // (the system's families, before RapidR's own are added)
+        let system_families = font_cx.collection.family_names().count();
         register_builtin_fonts(&mut font_cx.collection);
+        let last_resort = symbols_last_resort(system_families, cfg!(target_arch = "wasm32"));
+        #[cfg(not(target_arch = "wasm32"))]
+        if last_resort {
+            let info = FontInfoOverride { family_name: Some(SYMBOLS_FAMILY), ..FontInfoOverride::default() };
+            font_cx.collection.register_fonts(Blob::new(Arc::new(SYMBOLS_SUBSET)), Some(info));
+        }
+        LAST_RESORT.with(|l| l.set(last_resort));
         // (a canvas's text asks this engine for the characters its built-in
         // faces lack: `install_canvas_fallback`)
         install_canvas_fallback();
@@ -228,6 +242,29 @@ fn canvas_fallback(c: char) -> Option<rapidr_value::objects::text::FallbackFont>
     })
 }
 
+/// The family of RapidR's last-resort symbols: a subset of Noto Sans Symbols 2
+/// (✓ ✗ ⚠ ★ ...; `fonts/fallback/fonts.toml` [symbols], OFL 1.1,
+/// `crates/rapidr-value/fonts/RapidRSymbolsSubset-OFL.txt`), built into the
+/// desktop and drawn only where the computer has no system fonts at all.
+pub const SYMBOLS_FAMILY: &str = "RapidR Symbols Subset";
+#[cfg(not(target_arch = "wasm32"))]
+static SYMBOLS_SUBSET: &[u8] = include_bytes!("../../../rapidr-value/fonts/RapidRSymbolsSubset-Regular.otf");
+
+thread_local! {
+    /// Whether this thread's text systems found no system fonts, so the
+    /// symbols subset is the last family of every font list (`styles`).
+    static LAST_RESORT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether RapidR's symbols subset joins the font list: only on a desktop
+/// whose system offers no fonts at all (`system_families` = 0: plain Windows
+/// XP, where DirectWrite is missing; a Linux with no fonts). A computer with
+/// system fonts never gets it — its own fonts draw what they drew before,
+/// the subset never in the way — and the web has its fallback chunks.
+pub fn symbols_last_resort(system_families: usize, web: bool) -> bool {
+    !web && system_families == 0
+}
+
 /// Registers RapidR's built-in faces (`rapidr_value::objects::text::BUILTIN_FACES`):
 /// Liberation's Regular faces whole, their designed Bold, Italic and Bold
 /// Italic (renamed files, cut to the Latin scripts) as members of the same
@@ -273,6 +310,10 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
     names.push(FontFamilyName::Generic(generic(face)));
     FALLBACKS.with(|f| names.extend(f.borrow().iter().map(|n| FontFamilyName::Named(Cow::Owned(n.clone())))));
     names.extend([FontFamilyName::Generic(GenericFamily::SystemUi), FontFamilyName::Generic(GenericFamily::Emoji)]);
+    // (a computer with no system fonts: RapidR's symbols, last of all)
+    if LAST_RESORT.with(std::cell::Cell::get) {
+        names.push(FontFamilyName::Named(Cow::Borrowed(SYMBOLS_FAMILY)));
+    }
     let mut out = vec![
         StyleProperty::FontFamily(FontFamily::List(Cow::Owned(names))),
         StyleProperty::FontSize(font_pixels(font)),
@@ -328,6 +369,62 @@ pub(crate) fn byte_of(s: &str, n: usize) -> usize {
 /// Characters before byte offset `b`.
 pub(crate) fn chars_to(s: &str, b: usize) -> usize {
     s[..b.min(s.len())].chars().count()
+}
+
+#[cfg(test)]
+mod symbols_tests {
+    use super::*;
+    use parley::fontique::CollectionOptions;
+
+    fn families() -> Vec<String> {
+        for p in styles(&Font::default(), 0) {
+            if let StyleProperty::FontFamily(FontFamily::List(list)) = p {
+                return list.iter().map(|n| format!("{n:?}")).collect();
+            }
+        }
+        Vec::new()
+    }
+
+    /// The symbols subset only where the system offers no fonts at all; never
+    /// on a computer with fonts, never on the web.
+    #[test]
+    fn the_symbols_subset_is_only_for_a_computer_with_no_fonts() {
+        assert!(symbols_last_resort(0, false), "plain Windows XP: no system fonts");
+        assert!(!symbols_last_resort(1, false));
+        assert!(!symbols_last_resort(500, false), "macOS, Windows 7 and later, Linux with fonts: unchanged");
+        assert!(!symbols_last_resort(0, true), "the web: its own fallback chunks");
+    }
+
+    /// This computer has fonts: its font list is what it was, with no subset
+    /// in it. A collection with no system fonts (as on plain XP) gets the
+    /// subset as the very last family, and ✓ ✗ ⚠ ✋ draw from it, not as a box.
+    #[test]
+    fn a_computer_with_no_fonts_draws_the_symbols_from_the_subset() {
+        let mut system = TextSystem::new();
+        let had = system.font_cx.collection.family_names().count();
+        assert!(had > 25, "this computer's own fonts are there ({had} families)");
+        assert!(!families().iter().any(|n| n.contains(SYMBOLS_FAMILY)), "{:?}", families());
+        let before = families();
+
+        let bare = FontContext { collection: Collection::new(CollectionOptions { shared: false, system_fonts: false }), source_cache: Default::default() };
+        let mut xp = TextSystem::with_fonts(bare);
+        let list = families();
+        assert!(list.last().is_some_and(|n| n.contains(SYMBOLS_FAMILY)), "{list:?}");
+        assert_eq!(&list[..list.len() - 1], &before[..], "only the subset is added, last");
+        for text in ["✓ Built", "✗ failed", "⚠", "✋"] {
+            let layout = xp.layout(text, &Font::default(), 0, 1.0);
+            for line in layout.lines() {
+                for item in line.items() {
+                    let parley::PositionedLayoutItem::GlyphRun(g) = item else { continue };
+                    assert!(g.glyphs().all(|gl| gl.id != 0), "{text}: a box");
+                }
+            }
+        }
+        // (back to this computer's: a text system with fonts takes the subset out)
+        let _ = TextSystem::new();
+        assert_eq!(families(), before);
+        let _ = &mut system;
+    }
 }
 
 #[cfg(test)]

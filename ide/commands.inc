@@ -240,6 +240,12 @@ SUB DefineCommands
     ' Studio's to build; here the program becomes a web app, a .zip that any
     ' web host serves)
     AddCmd "run.buildWeb", "&Build Web App (.zip)", "Run", "Ctrl+Shift+B", "", "project", "run.build"
+  ELSEIF Proj.NativeBuilds = 0 THEN
+    ' (32-bit Windows: no native builds there; the one Build makes the
+    ' interpreted app, and says so)
+    AddCmd "run.build", "&Build (Interpreted App)", "Run", "Ctrl+Shift+B", "", "project", ""
+    AddCmd "run.buildWeb", "Build &Web App", "Run", "", "", "project", "groups/web"
+    AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
   ELSE
     AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
     AddCmd "run.buildNative", "Build &Native App", "Run", "", "", "project", "run.build"

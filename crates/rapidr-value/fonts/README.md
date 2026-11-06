@@ -83,3 +83,18 @@ neither with a Reserved Font Name. `tools/fonts/subset_ui_fonts.py` subsets
 them to the Latin scripts without hinting (about 72 KB each); other
 characters come from the fallback fonts. RapidQ's font names never map to
 them: a program gets them by naming "Inter" or "JetBrains Mono".
+
+## RapidR Symbols Subset (the last resort for symbols)
+
+**RapidR Symbols Subset** (`RapidRSymbolsSubset-Regular.otf`, about 10 KB) is a
+Modified Version of Noto Sans Symbols 2 2.008 (the repository's
+`fonts/fallback/NotoSansSymbols2-Regular.otf`, pinned by SHA-256 in
+`fonts/fallback/fonts.toml` [symbols]): 58 symbols the faces above lack (check
+marks, crosses, warning signs, card suits, media controls), cut and renamed by
+`python3 tools/fonts.py symbols` (the OFL grants no right to the "Noto"
+trademark; the copyright, trademark notice and licence records stay in the
+file). Its licence, with Noto's copyright line and the credit, is
+`RapidRSymbolsSubset-OFL.txt`. The UI kernel (`rapidr_ui_kernel::text`) draws
+with it only on a computer that has no system fonts at all, such as plain
+Windows XP (no DirectWrite), as the very last family; a computer with system
+fonts never has it in its font list, so it draws what it drew before.

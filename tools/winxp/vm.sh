@@ -10,6 +10,9 @@
 #   tools/winxp/vm.sh exec  'dir C:\'           a command line in the VM (cmd.exe), its output and "#exit N"
 #                                               (LIMIT=<s>: stopped after that long, "#exit timeout")
 #   tools/winxp/vm.sh spawn 'C:\x\prog.exe'     a program with its own window, not waited for
+#   tools/winxp/vm.sh show  'C:\x\prog.exe'     the same, in the FRONT (helper v4+): prints the process numbers
+#                                               it made ("pid<TAB>name<TAB>command line"), to stop them by number
+#   tools/winxp/vm.sh shot  local.png           a picture of the XP desktop (C:\xp\xpshot.exe), as a PNG here
 #   tools/winxp/vm.sh update                    the VM's helper replaced by helper/START-HERE.vbs (helper v2+)
 #   tools/winxp/vm.sh keys 'Title' '{F5}'       keys typed into the window with that title (helper v3+)
 #   tools/winxp/vm.sh push  local 'C:\x\y.exe'  a file to the VM
@@ -63,6 +66,15 @@ case "${1:-}" in
         id="$(job exec "$*" "$L")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
     spawn)
         shift; id="$(job spawn "$*")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
+    show)
+        shift; id="$(job show "$*")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt" ;;
+    shot)
+        b="C:\\xp\\shot-$$.bmp"; tmp="${2%.png}.bmp"
+        id="$(job exec "C:\\xp\\xpshot.exe $b" 60)"; wait_for "$id"
+        id="$(job put "$b")"; wait_for "$id"
+        [ -f "$SHARE/results/$id.bin" ] || { tr -d '\r' < "$SHARE/results/$id.txt"; echo; exit 1; }
+        mv "$SHARE/results/$id.bin" "$tmp"; sips -s format png "$tmp" --out "$2" > /dev/null && rm -f "$tmp"
+        id="$(job exec "del $b" 30)"; wait_for "$id"; ls -l "$2" ;;
     keys)
         id="$(job keys "$2" "$3")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
     update)
@@ -80,5 +92,5 @@ case "${1:-}" in
     ps) id="$(job ps)"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt" ;;
     kill) id="$(job kill "$2")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
     quit) id="$(job quit)"; wait_for "$id" || true ;;
-    *) sed -n '2,22p' "$0" >&2; exit 2 ;;
+    *) sed -n '2,25p' "$0" >&2; exit 2 ;;
 esac

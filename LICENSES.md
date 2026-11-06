@@ -198,6 +198,22 @@ notice and the licence in every file, `OFL.txt` beside them, the notices
 naming the subset, the subset first for Han characters and for a Chinese UI
 only (docs/legal/review-2026-11-06-zh.md, docs/legal/i18n-zh-font.md).
 
+**The desktop's last-resort symbols.** `RapidR Symbols Subset`
+(`crates/rapidr-value/fonts/RapidRSymbolsSubset-Regular.otf`, about 10 KB) is a
+Modified Version of Noto Sans Symbols 2 2.008 (the committed
+`fonts/fallback/NotoSansSymbols2-Regular.otf`, SHA-256
+`9b0f186fea27f311018800fb3a01d44d59331dbcccf518d2dadcae894eb017c0`, pinned in
+`fonts.toml` [symbols]): 58 symbols (check marks, crosses, warning signs, card
+suits, media controls ...) cut by `python3 tools/fonts.py symbols` with the
+same subsetter options and renaming as the Chinese subset, Copyright 2022 The
+Noto Project Authors, the trademark notice and the licence records kept, its
+own OFL text beside it (`RapidRSymbolsSubset-OFL.txt`). It is built into the
+desktop UI kernel and drawn only on a computer that has no system fonts at all
+(plain Windows XP, which has no DirectWrite): a computer with system fonts
+never has it in its font list. It is OFL-1.1 only, bundled with the programs
+and never offered on its own; `python3 tools/fonts.py check` keeps these rules
+for it too, and every desktop program's `THIRD-PARTY-NOTICES.txt` credits it.
+
 > Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2: Copyright 2022 The
 > Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic,
 > https://github.com/notofonts/symbols). Noto Sans SC, Noto Sans KR (Noto

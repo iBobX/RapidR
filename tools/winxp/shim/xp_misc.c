@@ -49,8 +49,10 @@
  * so the emulation is exercised on Windows 7. It never changes the shipped XP flavour. */
 int xp_misc_force_ours;
 #define FORCED_REAL(type, dll, name) (xp_misc_force_ours ? (type)0 : REAL(type, dll, name))
+#define FORCED_OURS xp_misc_force_ours
 #else
 #define FORCED_REAL(type, dll, name) REAL(type, dll, name)
+#define FORCED_OURS 0
 #endif
 
 /* ---------------------------------------------------------------- ntdll pieces XP has */
@@ -563,7 +565,6 @@ int WINAPI xp_WSASendMsg(HANDLE s, void *msg, ULONG flags, ULONG *sent, void *ov
     }
 
 GUI_HR(xp_CreateDXGIFactory1, CreateDXGIFactory1, W_DXGI, (const void *iid, void **out), (iid, out))
-GUI_HR(xp_SHCreateItemFromParsingName, SHCreateItemFromParsingName, W_SHELL32, (const wchar16 *path, void *bc, const void *iid, void **out), (path, bc, iid, out))
 GUI_HR(xp_SHGetStockIconInfo, SHGetStockIconInfo, W_SHELL32, (int id, ULONG flags, void *info), (id, flags, info))
 GUI_HR(xp_DwmEnableBlurBehindWindow, DwmEnableBlurBehindWindow, W_DWMAPI, (HANDLE hwnd, const void *bb), (hwnd, bb))
 GUI_HR(xp_DwmSetWindowAttribute, DwmSetWindowAttribute, W_DWMAPI, (HANDLE hwnd, ULONG attr, const void *v, ULONG n), (hwnd, attr, v, n))
@@ -670,6 +671,69 @@ LONG WINAPI xp_GetDisplayConfigBufferSizes(ULONG flags, unsigned *paths, unsigne
 LONG WINAPI xp_QueryDisplayConfig(ULONG flags, unsigned *np, void *p, unsigned *nm, void *m, void *topo) { void *r = REAL(void *, W_USER32, "QueryDisplayConfig"); if (r) return ((LONG(WINAPI *)(ULONG, unsigned *, void *, unsigned *, void *, void *))r)(flags, np, p, nm, m, topo); return (LONG)ERROR_NOT_SUPPORTED; }
 LONG WINAPI xp_DisplayConfigGetDeviceInfo(void *packet) { void *r = REAL(void *, W_USER32, "DisplayConfigGetDeviceInfo"); if (r) return ((LONG(WINAPI *)(void *))r)(packet); return (LONG)ERROR_NOT_SUPPORTED; }
 
+/* listing a folder (Rust's std::fs::read_dir, and its metadata fallback): FindFirstFileExW with
+ * FindExInfoBasic (1), which skips the 8.3 name, came with Windows 7, as did the FIND_FIRST_EX_LARGE_FETCH
+ * flag (2); XP answers ERROR_INVALID_PARAMETER, so every folder listing failed there (Studio's language
+ * list, a program's DIR$ and RDirTree ...). Windows' own call first, always; only on that refusal, the
+ * same call with the standard level (0, which also fills the 8.3 name the caller ignores) and without
+ * the flag (Microsoft Learn: FindFirstFileExW, FINDEX_INFO_LEVELS). */
+HANDLE WINAPI xp_FindFirstFileExW(const wchar16 *name, int level, void *data, int search, void *filter, ULONG flags) {
+    typedef HANDLE(WINAPI * Fn)(const wchar16 *, int, void *, int, void *, ULONG);
+    Fn real = REAL(Fn, W_KERNEL32, "FindFirstFileExW");
+    HANDLE h;
+    if (!real) {
+        SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!FORCED_OURS) {
+        h = real(name, level, data, search, filter, flags);
+        if (h != INVALID_HANDLE_VALUE || GetLastError() != ERROR_INVALID_PARAMETER || (level != 1 && !(flags & 2UL))) return h;
+    }
+    return real(name, level == 1 ? 0 : level, data, search, filter, flags & ~2UL);
+}
+
+/* the keyboard (winit): MapVirtualKeyExW / MapVirtualKeyW with MAPVK_VK_TO_VSC_EX (4), a virtual key's
+ * scan code with the 0xE0 of the extended keys, came with Windows Vista. On XP that kind is unknown and
+ * the answer is 0 for every key, so winit's table of the keyboard layout stayed empty and a key pressed
+ * with Ctrl had no name: Studio's Ctrl shortcuts (Ctrl+S, Ctrl+Shift+B ...) did nothing, while typed text
+ * (WM_CHAR), the F keys and Alt+F4 worked. Windows' own answer first, always; only where it is 0 for kind
+ * 4, the scan code of kind 0 (MAPVK_VK_TO_VSC, which XP has), with 0xE0 for the keys of the extended
+ * block (arrows, Insert, Delete, Home, End, Page Up/Down, the right Ctrl and Alt, the Windows and Menu
+ * keys, keypad / and Num Lock, Print Screen, the browser and media keys), as Microsoft Learn documents
+ * kind 4 and the keyboard's scan codes. */
+#define MAPVK_VK_TO_VSC_EX 4u
+static unsigned vsc_ex(unsigned vk, unsigned scan) {
+    if (!scan) return 0;
+    switch (vk) {
+    case 0x21: case 0x22: case 0x23: case 0x24: /* Page Up, Page Down, End, Home */
+    case 0x25: case 0x26: case 0x27: case 0x28: /* the arrows */
+    case 0x2D: case 0x2E:                       /* Insert, Delete */
+    case 0x5B: case 0x5C: case 0x5D:            /* the Windows keys, Menu */
+    case 0x6F: case 0x90:                       /* keypad /, Num Lock */
+    case 0xA3: case 0xA5:                       /* right Ctrl, right Alt */
+        return 0xE000u | (scan & 0xFFu);
+    case 0x2C: /* Print Screen */
+        return 0xE037u;
+    default:
+        if (vk >= 0xA6 && vk <= 0xB7) return 0xE000u | (scan & 0xFFu); /* browser, volume, media keys */
+        return scan & 0xFFu;
+    }
+}
+unsigned WINAPI xp_MapVirtualKeyExW(unsigned code, unsigned kind, HANDLE hkl) {
+    typedef unsigned(WINAPI * Fn)(unsigned, unsigned, HANDLE);
+    Fn real = REAL(Fn, W_USER32, "MapVirtualKeyExW");
+    unsigned r = (real && !(FORCED_OURS && kind == MAPVK_VK_TO_VSC_EX)) ? real(code, kind, hkl) : 0;
+    if (r || kind != MAPVK_VK_TO_VSC_EX || !real) return r;
+    return vsc_ex(code, real(code, 0 /* MAPVK_VK_TO_VSC */, hkl));
+}
+unsigned WINAPI xp_MapVirtualKeyW(unsigned code, unsigned kind) {
+    typedef unsigned(WINAPI * Fn)(unsigned, unsigned);
+    Fn real = REAL(Fn, W_USER32, "MapVirtualKeyW");
+    unsigned r = (real && !(FORCED_OURS && kind == MAPVK_VK_TO_VSC_EX)) ? real(code, kind) : 0;
+    if (r || kind != MAPVK_VK_TO_VSC_EX || !real) return r;
+    return vsc_ex(code, real(code, 0));
+}
+
 /* ncrypt (schannel): freeing a null object succeeds */
 HRESULT WINAPI xp_NCryptFreeObject(void *h) { void *r = REAL(void *, W_NCRYPT, "NCryptFreeObject"); if (r) return ((HRESULT(WINAPI *)(void *))r)(h); return 0; }
 
@@ -702,7 +766,6 @@ XP_ANSWER(xp_DeleteProcThreadAttributeList, DeleteProcThreadAttributeList, 4)
 XP_ANSWER(xp_WSAPoll, WSAPoll, 12)
 XP_ANSWER(xp_WSASendMsg, WSASendMsg, 24)
 XP_ANSWER(xp_CreateDXGIFactory1, CreateDXGIFactory1, 8)
-XP_ANSWER(xp_SHCreateItemFromParsingName, SHCreateItemFromParsingName, 16)
 XP_ANSWER(xp_SHGetStockIconInfo, SHGetStockIconInfo, 12)
 XP_ANSWER(xp_DwmEnableBlurBehindWindow, DwmEnableBlurBehindWindow, 8)
 XP_ANSWER(xp_DwmSetWindowAttribute, DwmSetWindowAttribute, 16)
@@ -745,3 +808,6 @@ XP_ANSWER(xp_GetDisplayConfigBufferSizes, GetDisplayConfigBufferSizes, 12)
 XP_ANSWER(xp_QueryDisplayConfig, QueryDisplayConfig, 24)
 XP_ANSWER(xp_DisplayConfigGetDeviceInfo, DisplayConfigGetDeviceInfo, 4)
 XP_ANSWER(xp_NCryptFreeObject, NCryptFreeObject, 4)
+XP_ANSWER(xp_MapVirtualKeyExW, MapVirtualKeyExW, 12)
+XP_ANSWER(xp_FindFirstFileExW, FindFirstFileExW, 24)
+XP_ANSWER(xp_MapVirtualKeyW, MapVirtualKeyW, 8)
