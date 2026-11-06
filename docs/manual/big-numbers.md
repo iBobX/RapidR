@@ -104,6 +104,15 @@ PRINT HEX$(SETBITS(w, 0, 16, &H1234))            ' F58A1234
 A range outside the value's bits (`GETBITS(n, 30, 4)` on a `LONG`) stops the
 program with a message naming the bits; nothing is silently cut.
 
+## In the debugger
+
+The Variables and Watch panes and the values beside the code show every
+digit; a watch is worked out as the program would (`big + 1` of the largest
+`UINT64` is 0). Set Value on one reads the number typed exactly and refuses
+one that doesn't fit, naming the type's range.
+
+![Paused at a breakpoint: a UINT64 above 2^63, an INT64 past 2^53 and a VARIANT holding a UINT64, beside the code and in the Watch pane](images/big-numbers/watch.png)
+
 ## What stays as it was
 
 - `INTEGER`, `LONG` and `DWORD` are 32-bit signed, as in RapidQ: storing

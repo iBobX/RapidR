@@ -114,6 +114,16 @@ Un rango fuera de los bits del valor (`GETBITS(n, 30, 4)` sobre un `LONG`)
 detiene el programa con un mensaje que nombra los bits; nada se corta en
 silencio.
 
+## En el depurador
+
+Los paneles Variables y Observar y los valores junto al código muestran
+todas las cifras; una expresión observada se calcula como lo haría el
+programa (`big + 1` del mayor `UINT64` es 0). *Establecer valor...* sobre uno lee
+exactamente el número escrito y rechaza uno que no cabe, indicando el rango
+del tipo.
+
+![En pausa en un punto de interrupción: un UINT64 por encima de 2^63, un INT64 más allá de 2^53 y un VARIANT con un UINT64, junto al código y en el panel Observar](../images/big-numbers/watch.png)
+
 ## Lo que sigue como era
 
 - `INTEGER`, `LONG` y `DWORD` son de 32 bits con signo, como en RapidQ:
