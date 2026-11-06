@@ -61,7 +61,8 @@ never makes one of the new kinds, and every classic path is untouched
 
 A surface that holds fewer bits says so instead of cutting the number:
 an SQLite column (64-bit signed) refuses a UINT64 above 9223372036854775807
-with a message naming the value; the same rule for every place listed in
+with a message naming the value, QREGISTRY's WriteInteger (a REG_DWORD) a
+64-bit value beyond 32 bits; the same rule for every place listed in
 the audit. Numbers a component reads as pixels, counts or indexes are read
 as numbers are there (a Width of 5000000000 is a Width beyond any screen,
 as a DOUBLE of that size is today).
@@ -97,9 +98,18 @@ operator's other side, a store, a FOR counter's start / end / step, a
 SELECT CASE on one, a CONST AS INT64, an argument to an INT64 parameter),
 it is read as written: `&HFFFFFFFF` is 4294967295 there (so `i AND
 &HFFFFFFFF` keeps the low 32 bits, which 2.122.1 got wrong), `&H` up to 16
-digits, and a decimal above 9223372036854775807 a UINT64. Elsewhere a
-classic program sees what RapidQ sees; a decimal beyond 64 bits there is a
-DOUBLE, as RapidQ reads it (it was text before: a latent bug).
+digits, and a decimal above 9223372036854775807 a UINT64. In the rest of
+such a program (one with an INT64, UINT64 or UINT32 anywhere) a
+whole-number literal beyond 32 bits is an INT64 (a UINT64 above 2^63),
+DATA's too: `PRINT 3000000000` shows it, `3000000000 \ 2` is 1500000000;
+an `&H` of up to 8 digits standing alone keeps RapidQ's 32-bit reading
+there (`&HFFFFFFFF` is -1, as a Windows constant passed to a LONG needs).
+A program without these types sees what RapidQ sees (`PRINT 3000000000`
+is -2147483648); a decimal beyond 64 bits there is a DOUBLE, as RapidQ
+reads it (it was text before: a latent bug). The table beside the AST is
+keyed by the literal's place and its AST value's bits; a stale entry can
+only answer for a literal at the same place with the same AST value (the
+same text parsed again).
 
 `VAL` returns a DOUBLE, as RapidQ's; `u = VAL(s$)` into a 64-bit variable
 is read exactly (the store of `VAL(x)` reads `x`'s text itself).
@@ -116,7 +126,8 @@ literals are read unsigned (§3), so `IF u = &HF58ACBFB` is true.
 ## 5. Jango's bit functions (RapidR's)
 
 Bit 0 is the rightmost. On a classic value they work on its 32 bits, on a
-64-bit one on its 64:
+64-bit one (INT64, UINT64, and a UINT32, whose value is an INT64) on its
+64:
 
 | Function | Result |
 |---|---|
