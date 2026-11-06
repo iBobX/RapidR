@@ -249,7 +249,7 @@ msgstr "{n} recebidos"
 # legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "about ${cost}"
-msgstr "cerca de US${cost}"
+msgstr "cerca de US$ {cost}"
 
 # legal
 #: crates/rapidr-ai/src/rai.rs
@@ -273,7 +273,7 @@ msgstr "Não há chave para guardar: defina antes APIKey."
 # legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "The key is kept in {place}."
-msgstr "A chave fica guardada em {place}."
+msgstr "A chave fica guardada {place}."
 
 # legal
 #: crates/rapidr-ai/src/rai.rs
@@ -284,6 +284,42 @@ msgstr "A chave não foi guardada: {error}."
 #: crates/rapidr-ai/src/rai.rs
 msgid "The key is forgotten."
 msgstr "A chave foi esquecida."
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "the macOS Keychain"
+msgstr "no Acesso às Chaves do macOS"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Windows Credential Manager"
+msgstr "no Gerenciador de Credenciais do Windows"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "the Secret Service (GNOME Keyring or KWallet)"
+msgstr "no Secret Service (GNOME Keyring ou KWallet)"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser tab, until it closes"
+msgstr "nesta aba do navegador, até ela fechar"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser, on this device"
+msgstr "neste navegador, neste dispositivo"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
+msgstr "na memória, até o programa terminar (este computador não tem um chaveiro que o RapidR possa usar)"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, for this session only"
+msgstr "na memória, só nesta sessão"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this program's memory, until it ends"
+msgstr "na memória deste programa, até ele terminar"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "an environment variable"
+msgstr "em uma variável de ambiente"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "({name} says: \"{said}\")"
@@ -1234,7 +1270,7 @@ msgstr "Você permitiu que a RAI comece a guardar versões"
 # legal
 #: crates/rapidr-studio/src/ai.rs
 msgid "You allowed RAI to use your running program for this run"
-msgstr "Você permitiu que a RAI use o seu programa em execução nesta execução"
+msgstr "Você permitiu que a RAI use o seu programa, só durante esta execução"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "You didn't allow RAI to change the versions"

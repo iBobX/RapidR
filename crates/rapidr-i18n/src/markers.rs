@@ -90,12 +90,22 @@ fn sorted(mut v: Vec<String>) -> Vec<String> {
     v
 }
 
+/// The names of `v`, each once: a translation may say a placeholder more
+/// than once (Portuguese names {client} again where English has "It": the
+/// legal review's R2) or once where the English says it twice — it may not
+/// lose one or invent one.
+fn names(v: &[String]) -> Vec<String> {
+    let mut v = sorted(v.to_vec());
+    v.dedup();
+    v
+}
+
 /// What `translation` lost or added of `source`'s markers, in plain words
 /// (empty: it keeps them all).
 pub fn check(source: &str, translation: &str) -> Vec<String> {
     let (s, t) = (markers(source), markers(translation));
     let mut out = Vec::new();
-    if sorted(s.placeholders.clone()) != sorted(t.placeholders.clone()) {
+    if names(&s.placeholders) != names(&t.placeholders) {
         out.push(format!("placeholders differ: {} in the source, {} in the translation", list(&s.placeholders, "{", "}"), list(&t.placeholders, "{", "}")));
     }
     if sorted(s.percents.clone()) != sorted(t.percents.clone()) {
@@ -176,6 +186,10 @@ mod tests {
         assert!(check("&Open {file}", "&Abrir {file}").is_empty());
         assert!(check("Hello, {name}!", "¡Hola, {Name}!").is_empty());
         assert_eq!(check("Hello, {name}!", "¡Hola, {nombre}!").len(), 1);
+        // (a placeholder said again is the same placeholder: {client} for "It"; one lost or invented is not)
+        assert!(check("{client} asks. It may see {what}.", "{client} pede. {client} pode ver {what}.").is_empty());
+        assert_eq!(check("{client} asks. It may see {what}.", "{client} pede. Pode ver.").len(), 1);
+        assert_eq!(check("{client} asks.", "{client} pede {what}.").len(), 1);
         assert_eq!(check("&Open", "Abrir").len(), 1);
         assert_eq!(check("&Open", "&Ab&rir").len(), 1);
         assert_eq!(check("Set `Caption`", "Pon `Título`").len(), 1);

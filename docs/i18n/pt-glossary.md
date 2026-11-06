@@ -101,6 +101,8 @@ The test for every word: would a 12-year-old in São Paulo, Recife or Porto Aleg
 - `{name}`, `{n}`, `{file}` and the like are never translated or split; they may move within the sentence.
 - **Whole sentences only.** Don't translate fragments.
 - **No article before a placeholder** of unknown gender, and no *de/em + o* contraction in front of one (*do*, *no* can't be formed): write "Arquivo: {file}" or "Erro em {file}", not "O {thing}".
+- **A place carries its own preposition** (the legal review's R6). Where a key is kept is a placeholder (`{store}`, `{place}`, `{source}`) filled with a phrase that already has its *em*: *no Acesso às Chaves do macOS*, *no Gerenciador de Credenciais do Windows*, *nesta aba do navegador*, *neste navegador*, *na memória*, *na memória deste programa*, *em uma variável de ambiente*. The sentence says "guardada {store}", never "guardada em {store}" (it would read "em o Acesso às Chaves", "em a memória"). `crates/rapidr-i18n/tests/catalogs.rs` keeps it so.
+- **A placeholder may be said again** where the English says "it" and the Portuguese would be unclear ("{client} pode ver tudo o que o programa mostra", not "Ele pode ver…", which could be read as the button).
 
 ### 1.10 Length
 
@@ -109,6 +111,16 @@ Portuguese runs 15 to 25% longer than English. The controls do not grow, so **sh
 ### 1.11 Texts that carry legal weight
 
 The consent dialogs, the AI cost and privacy notes, the secret-check warnings and the "what is sent" texts were written point by point after a legal review. They are translated **by meaning, row by row, dropping nothing**, marked `# legal` in the .po files, and listed with their translations in [docs/legal/i18n-pt-legal-texts.md](../legal/i18n-pt-legal-texts.md) for the lawyer's review. Licences, notices and the legal files (`LICENSE`, `NOTICE`, `LEGAL.md`) are **not translated**: the English text is the one that applies.
+
+The lawyer's review of 2026-11-06 ([review-2026-11-06-pt-br.md](../legal/review-2026-11-06-pt-br.md): OK with changes, applied) fixed these words for every legal text:
+
+- **The age is said**: "para quem tem 18 anos ou mais", never "para adultos" (in Brazil *adultos* labels adult content). 13 (GitHub's rule) and 18 stay as the English has them.
+- **Who may help a child**: *responsável* for the adult in charge; *professor* in the lines a child reads; *docente* only in School Lock's teacher-facing lines.
+- **"Nothing waits for you"** says whose approval: "Nada espera pela sua aprovação", and the other "waits for you" lines say "esperando a sua aprovação".
+- **Where something is kept is said where it is kept**: "guarda neste computador, e só nele, uma lista…" (the list is local, not the AI apps' actions).
+- **A sandbox promises no isolation**: "roda com restrições (sandbox)", with the four blocked things named with *nem* each (DLLs, SENDMESSAGE, SHELL, RUN); never "ambiente isolado".
+- **Money**: "centavo de dólar" and "US$ {cost}", never a bare *centavo* or *$*. **Privacy**: "conforme a política de privacidade dele/dela", the name Brazilians know.
+- **Pt-BR stays "beta"** in Settings > Language until a native reader has read the 120 texts.
 
 ## 2. The terms
 
@@ -285,7 +297,8 @@ The consent dialogs, the AI cost and privacy notes, the secret-check warnings an
 | context, effort, compact (a chat) | contexto, esforço, compactar | |
 | AI apps | apps de IA | |
 | School Lock | Bloqueio escolar | |
-| teacher / parent | docente / responsável | gender-neutral |
+| teacher / parent | professor (a child reads it) or docente (School Lock, a teacher reads it) / responsável | gender-neutral *responsável*; *professor* as Brazilians use it, generic |
+| request (to the AI) / request (of a client to a server) / a user's request | solicitação / requisição / pedido | |
 | IT (a school's) | TI | |
 | local history | histórico local | |
 | Timeline | Linha do tempo | |

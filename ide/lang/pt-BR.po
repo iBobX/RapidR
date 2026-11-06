@@ -863,17 +863,17 @@ msgstr[1] "{n} modelos de {provider}: escolha um."
 # legal
 #: ide/ai.inc
 msgid "The key is kept in {store} as {q}{name}{q}: the program names it, never the key."
-msgstr "A chave fica guardada em {store} como {q}{name}{q}: o programa usa o nome dela, nunca a chave."
+msgstr "A chave fica guardada {store} como {q}{name}{q}: o programa usa o nome dela, nunca a chave."
 
 # legal
 #: ide/ai.inc
 msgid "A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it."
-msgstr "Uma chave ({hint}) está guardada em {store} como {q}{name}{q}: o código usa o nome dela, nunca a chave. Digite outra para substituí-la."
+msgstr "Uma chave ({hint}) está guardada {store} como {q}{name}{q}: o código usa o nome dela, nunca a chave. Digite outra para substituí-la."
 
 # legal
 #: ide/ai.inc
-msgid "A key ({hint}) is found in the {source}: the code never holds it."
-msgstr "Há uma chave ({hint}) em {source}: o código nunca a contém."
+msgid "A key ({hint}) is found in {source}: the code never holds it."
+msgstr "Há uma chave ({hint}) {source}: o código nunca a contém."
 
 #: ide/aichats.inc
 msgid "Search:"
@@ -1270,7 +1270,7 @@ msgstr "Um serviço na &nuvem, com sua própria chave"
 # legal
 #: ide/aisetup.inc
 msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
-msgstr "Anthropic (Claude), OpenAI ou DeepSeek: em geral, as melhores respostas. Você cria uma chave no site do provedor e paga a ele pelo que usar: uma pergunta costuma custar de um décimo de centavo de dólar (modelos pequenos e rápidos) a alguns centavos de dólar (os maiores). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para esse provedor, sob os termos de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto."
+msgstr "Anthropic (Claude), OpenAI ou DeepSeek: em geral, as melhores respostas. Você cria uma chave no site do provedor e paga a ele pelo que usar: uma pergunta costuma custar de um décimo de centavo de dólar (modelos pequenos e rápidos) a alguns centavos de dólar (os maiores). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para esse provedor, conforme a política de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto."
 
 #: ide/aisetup.inc
 msgid "The AI models on this computer"
@@ -1683,22 +1683,22 @@ msgstr "Cole a chave que {name} deu a você (Obter uma chave abre a página), de
 # legal
 #: ide/aisetup.inc
 msgid "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr "Os modelos pequenos e rápidos do Claude (Haiku) custam cerca de um décimo de centavo de dólar por pergunta; o maior (Opus), alguns centavos de dólar. A Anthropic cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a Anthropic, sob os termos de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave."
+msgstr "Os modelos pequenos e rápidos do Claude (Haiku) custam cerca de um décimo de centavo de dólar por pergunta; o maior (Opus), alguns centavos de dólar. A Anthropic cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a Anthropic, conforme a política de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave."
 
 # legal
 #: ide/aisetup.inc
 msgid "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr "Os modelos pequenos da OpenAI (mini, nano) custam uma fração de centavo de dólar por pergunta; o maior, alguns centavos de dólar. A OpenAI cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a OpenAI, sob os termos de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave."
+msgstr "Os modelos pequenos da OpenAI (mini, nano) custam uma fração de centavo de dólar por pergunta; o maior, alguns centavos de dólar. A OpenAI cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a OpenAI, conforme a política de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave."
 
 # legal
 #: ide/aisetup.inc
 msgid "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr "Os modelos da DeepSeek custam uma fração de centavo de dólar por pergunta. A DeepSeek cobra da sua conta o que você usa (você paga adiantado no site dela). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a DeepSeek, na China, sob os termos de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave."
+msgstr "Os modelos da DeepSeek custam uma fração de centavo de dólar por pergunta. A DeepSeek cobra da sua conta o que você usa (você paga adiantado no site dela). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a DeepSeek, na China, conforme a política de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave."
 
 # legal
 #: ide/aisetup.inc
 msgid "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr "Você paga ao provedor pelo que usar. O que você envia — inclusive, enquanto seu programa é executado, o que as janelas dele mostram — vai para ele, sob os termos de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave."
+msgstr "Você paga ao provedor pelo que usar. O que você envia — inclusive, enquanto seu programa é executado, o que as janelas dele mostram — vai para ele, conforme a política de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave."
 
 # legal
 #: ide/aisetup.inc
@@ -2844,7 +2844,7 @@ msgstr "O que aparece"
 # legal
 #: ide/crash.inc
 msgid "RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords."
-msgstr "A versão do RapidR, seu sistema, onde ele parou, as últimas mensagens e os nomes das últimas chamadas de IA. Sua pasta pessoal aparece como ~; sem conteúdo de arquivos, chaves nem senhas."
+msgstr "A versão do RapidR, seu sistema, onde ele parou, as últimas mensagens dele e os nomes das últimas chamadas de IA. Sua pasta pessoal aparece como ~; sem conteúdo de arquivos, chaves nem senhas."
 
 #: ide/crash.inc
 msgid "You need"
@@ -2853,7 +2853,7 @@ msgstr "O que você precisa"
 # legal
 #: ide/crash.inc
 msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
-msgstr "Uma conta do GitHub. Os termos do GitHub pedem que você tenha 13 anos ou mais; um estudante mais novo pode pedir a um docente ou a um responsável que relate."
+msgstr "Uma conta do GitHub. Os termos do GitHub pedem que você tenha 13 anos ou mais; um estudante mais novo pode pedir a um professor ou a um responsável que relate."
 
 # legal
 #: ide/crash.inc ide/mcp.inc ide/settings.inc
@@ -3784,17 +3784,17 @@ msgstr "Apps de IA podem olhar — ler o projeto, verificar código, consultar c
 # legal
 #: ide/mcp.inc
 msgid "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
-msgstr "As alterações nos arquivos são feitas na hora (cada uma é um passo de Desfazer, listado no painel Apps de IA); executar o programa, observá-lo ou usá-lo, e perguntar à RAI continuam esperando por você."
+msgstr "As alterações nos arquivos são feitas na hora (cada uma é um passo de Desfazer, listado no painel Apps de IA); executar o programa, observá-lo ou usá-lo, e perguntar à RAI continuam esperando a sua aprovação."
 
 # legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
-msgstr "Nada espera por você: os apps de IA alteram arquivos, executam o programa, o observam e o usam, e perguntam à RAI por conta própria — e um programa pode fazer neste computador tudo o que você pode. Tudo continua listado, Parar encerra, e as ferramentas do próprio Studio nunca entregam chaves nem arquivos fora do projeto."
+msgstr "Nada espera pela sua aprovação: os apps de IA alteram arquivos, executam o programa, o observam e o usam, e perguntam à RAI por conta própria — e um programa pode fazer neste computador tudo o que você pode. Tudo continua listado, Parar encerra, e as ferramentas do próprio Studio nunca entregam chaves nem arquivos fora do projeto."
 
 # legal
 #: ide/mcp.inc
 msgid "AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
-msgstr "Os apps de IA podem olhar o projeto livremente; cada alteração, execução, olhada no seu programa em execução ou pergunta à RAI espera por você no painel Apps de IA: Permitir uma vez, Permitir nesta sessão ou Negar."
+msgstr "Os apps de IA podem olhar o projeto livremente; cada alteração, execução, olhada no seu programa em execução ou pergunta à RAI espera a sua aprovação no painel Apps de IA: Permitir uma vez, Permitir nesta sessão ou Negar."
 
 # legal
 #: ide/mcp.inc
@@ -3821,7 +3821,7 @@ msgstr "Permitir tudo para os apps de IA neste projeto?"
 # legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
-msgstr "Nada espera por você: os apps de IA alteram arquivos, executam o programa, o observam, clicam e digitam nele e perguntam à RAI (o que pode custar dinheiro) por conta própria."
+msgstr "Nada espera pela sua aprovação: os apps de IA alteram arquivos, executam o programa, o observam, clicam e digitam nele e perguntam à RAI (o que pode custar dinheiro) por conta própria."
 
 # legal
 #: ide/mcp.inc
@@ -3902,12 +3902,12 @@ msgstr "As chaves ou senhas dos seus provedores de IA: o seu chaveiro as guarda.
 # legal
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
-msgstr "O RapidR não envia nada disso a lugar nenhum, mas o app de IA pode repassar o que lê à empresa que o fabrica, sob os termos dessa empresa. Um programa pode mostrar dados privados, seus ou de outras pessoas, e clicar nele age como você: um botão real de Enviar, Pagar ou Excluir faz isso de verdade, então use dados de teste. Muitos apps de IA são só para adultos: se você tem menos de 18 anos, configure isto com um responsável ou um docente. Conecte apenas apps de IA em que você confia."
+msgstr "O RapidR não envia nada disso a lugar nenhum, mas o app de IA pode repassar o que lê à empresa que o desenvolve, sob os termos dessa empresa. Um programa pode mostrar dados privados, seus ou de outras pessoas, e clicar nele age como você: um botão real de Enviar, Pagar ou Excluir faz isso de verdade, então use dados de teste. Muitos apps de IA são só para quem tem 18 anos ou mais: se você tem menos de 18 anos, configure isto com um responsável ou um professor. Conecte apenas apps de IA em que você confia."
 
 # legal
 #: ide/mcp.inc
 msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
-msgstr "Compartilhe apenas o que você pode compartilhar: trabalhos escolares, o código de um empregador ou o código licenciado de outra pessoa podem não ser seus para compartilhar. Desative isto, ou use Redefinir token, para desconectar todos os apps de IA. O Studio guarda uma lista do que eles fizeram só neste computador; Limpar atividade a remove."
+msgstr "Compartilhe apenas o que você pode compartilhar: trabalhos escolares, o código de um empregador ou o código licenciado de outra pessoa podem não ser seus para compartilhar. Desative isto, ou use Redefinir token, para desconectar todos os apps de IA. O Studio guarda neste computador, e só nele, uma lista do que eles fizeram; Limpar atividade a remove."
 
 #: ide/mcp.inc
 msgid "AI apps can't start: School Lock is on (Tools > School Lock...)."
@@ -4102,7 +4102,7 @@ msgstr "{client} quer executar o seu programa ({what})."
 # legal
 #: ide/mcp.inc
 msgid "{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
-msgstr "{client} quer observar ou usar o seu programa em execução: {what}. Permitir uma vez vale para imagens, cliques e digitação até esta execução terminar. Ele pode ver tudo o que o programa mostra, inclusive dados privados."
+msgstr "{client} quer observar ou usar o seu programa em execução: {what}. Permitir uma vez vale para imagens, cliques e digitação até esta execução terminar. {client} pode ver tudo o que o programa mostra, inclusive dados privados."
 
 #: ide/mcp.inc
 msgid "{client} wants to ask RAI: {prompt}"
@@ -5716,7 +5716,7 @@ msgstr "&Lembrar neste dispositivo"
 # legal
 #: ide/settings.inc
 msgid "Kept in this browser's storage for the page: anyone using this browser profile could read it"
-msgstr "Guardada no armazenamento deste navegador para a página: qualquer pessoa que usar este perfil do navegador poderia lê-la"
+msgstr "Guardada no armazenamento deste navegador para a página: qualquer pessoa que usar este perfil do navegador pode lê-la"
 
 #: ide/settings.inc
 msgid "&Workspace ID:"
@@ -5813,7 +5813,7 @@ msgstr "Programas que a IA executa podem usar &DLLs e SHELL"
 # legal
 #: ide/settings.inc
 msgid "Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer."
-msgstr "Desativado, a escolha mais segura: um programa que a RAI ou um app de IA executa não pode chamar DLLs, SENDMESSAGE nem SHELL e RUN; o seu próprio Executar (F5) sempre pode. Ativado: os programas que eles executam podem fazer neste computador tudo o que as suas próprias execuções podem."
+msgstr "Desativado, a escolha mais segura: um programa que a RAI ou um app de IA executa não pode chamar DLLs, SENDMESSAGE, SHELL nem RUN; o seu próprio Executar (F5) sempre pode. Ativado: os programas que eles executam podem fazer neste computador tudo o que as suas próprias execuções podem."
 
 #: ide/settings.inc
 msgid "The provider's links"
@@ -5911,47 +5911,47 @@ msgstr "Enviar compartilha a sua mensagem, o chat até agora, as instruções do
 # legal
 #: ide/settings.inc
 msgid "the macOS Keychain"
-msgstr "o Acesso às Chaves do macOS"
+msgstr "no Acesso às Chaves do macOS"
 
 # legal
 #: ide/settings.inc
 msgid "Windows Credential Manager"
-msgstr "o Gerenciador de Credenciais do Windows"
+msgstr "no Gerenciador de Credenciais do Windows"
 
 # legal
 #: ide/settings.inc
 msgid "the Secret Service (GNOME Keyring or KWallet)"
-msgstr "o Secret Service (GNOME Keyring ou KWallet)"
+msgstr "no Secret Service (GNOME Keyring ou KWallet)"
 
 # legal
 #: ide/settings.inc
 msgid "this browser tab, until it closes"
-msgstr "esta aba do navegador, até ela fechar"
+msgstr "nesta aba do navegador, até ela fechar"
 
 # legal
 #: ide/settings.inc
 msgid "this browser, on this device"
-msgstr "este navegador, neste dispositivo"
+msgstr "neste navegador, neste dispositivo"
 
 # legal
 #: ide/settings.inc
 msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
-msgstr "memória, até o programa terminar (este computador não tem um chaveiro que o RapidR possa usar)"
+msgstr "na memória, até o programa terminar (este computador não tem um chaveiro que o RapidR possa usar)"
 
 # legal
 #: ide/settings.inc
 msgid "memory, for this session only"
-msgstr "memória, só nesta sessão"
+msgstr "na memória, só nesta sessão"
 
 # legal
 #: ide/settings.inc
 msgid "this program's memory, until it ends"
-msgstr "a memória deste programa, até ele terminar"
+msgstr "na memória deste programa, até ele terminar"
 
 # legal
 #: ide/settings.inc
 msgid "an environment variable"
-msgstr "uma variável de ambiente"
+msgstr "em uma variável de ambiente"
 
 # legal
 #: ide/settings.inc
@@ -5969,17 +5969,17 @@ msgstr "Testando a chave que você digitou ({hint}): OK ou Salvar chave a guarda
 # legal
 #: ide/settings.inc
 msgid "Your key {hint} is kept in {store}, never in a project."
-msgstr "Sua chave {hint} fica guardada em {store}, nunca em um projeto."
+msgstr "Sua chave {hint} fica guardada {store}, nunca em um projeto."
 
 # legal
 #: ide/settings.inc
 msgid "Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project."
-msgstr "Cole sua chave e pressione Salvar chave: ela fica guardada em {store} (ou neste dispositivo, se você marcar a caixa), nunca em um projeto."
+msgstr "Cole sua chave e pressione Salvar chave: ela fica guardada {store} (ou neste dispositivo, se você marcar a caixa), nunca em um projeto."
 
 # legal
 #: ide/settings.inc
 msgid "Paste your key and press Save Key: it is kept in {store}, never in a project."
-msgstr "Cole sua chave e pressione Salvar chave: ela fica guardada em {store}, nunca em um projeto."
+msgstr "Cole sua chave e pressione Salvar chave: ela fica guardada {store}, nunca em um projeto."
 
 #: ide/settings.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one)."
@@ -6007,7 +6007,7 @@ msgstr "Deixar a RAI trabalhar sozinha?"
 
 #: ide/settings.inc
 msgid "Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did."
-msgstr "Nada espera por você: a RAI altera os arquivos do projeto, executa o programa, o observa, clica e digita nele para testá-lo por conta própria, e depois relata o que fez."
+msgstr "Nada espera pela sua aprovação: a RAI altera os arquivos do projeto, executa o programa, o observa, clica e digita nele para testá-lo por conta própria, e depois relata o que fez."
 
 #: ide/settings.inc
 msgid "A program RAI runs can do anything you can on this computer, what it clicks in it is real (Send, Pay, Delete), it sees whatever the program shows, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of, with test data."
@@ -6037,7 +6037,7 @@ msgstr "Permitir que os programas que a IA executa usem DLLs e SHELL?"
 # legal
 #: ide/settings.inc
 msgid "Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run."
-msgstr "Desativado, um programa que a RAI ou um app de IA executa fica em ambiente isolado (sandbox): uma chamada de DLL (DECLARE ... LIB), SENDMESSAGE e SHELL ou RUN o interrompem com um erro que diz isso. Ativado, os programas que eles executam têm o mesmo poder que o seu próprio Executar."
+msgstr "Desativado, um programa que a RAI ou um app de IA executa roda com restrições (sandbox): uma chamada de DLL (DECLARE ... LIB), SENDMESSAGE e SHELL ou RUN o interrompem com um erro que diz isso. Ativado, os programas que eles executam têm o mesmo poder que o seu próprio Executar."
 
 # legal
 #: ide/settings.inc
@@ -6055,7 +6055,7 @@ msgstr "Os programas que a RAI e os apps de IA executam podem chamar DLLs e inic
 
 #: ide/settings.inc
 msgid "The programs RAI and AI apps run stay sandboxed"
-msgstr "Os programas que a RAI e os apps de IA executam continuam em ambiente isolado (sandbox)"
+msgstr "Os programas que a RAI e os apps de IA executam continuam com restrições (sandbox)"
 
 #: ide/settings.inc
 msgid "&Allow Full Power"

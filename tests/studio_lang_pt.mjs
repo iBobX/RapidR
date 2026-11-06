@@ -147,12 +147,17 @@ const SCENES = [
   { name: "project", open: HELLO, do: "wait,view.designer", delay: 6 },
   { name: "code", open: HELLO, do: "wait,view.code", delay: 6 },
   { name: "settings", open: "", do: "view.settings", window: 2 },
-  { name: "settings-ai", open: "", do: "ai.settings", window: 2 },
+  // (the legal review's R6: the key's place carries its preposition — "guardada na memória", never "em a memória" —;
+  // the setup's cost notes name the age — "quem tem 18 anos ou mais", not "adultos" —, a professor for a child)
+  { name: "settings-ai", open: "", do: "ai.settings", window: 2, expect: ["ela fica guardada na memória, só nesta sessão, nunca em um projeto."], none: ["guardada em ", "em a memória", "memory, for this session"] },
   { name: "setup-rai", open: "", do: "ai.setup", window: 2 },
   { name: "setup-rai-cloud", open: "", do: "ai.setup,ai:setupcloud,ai:setupnext", window: 2 },
   { name: "setup-rai-local", open: "", do: "ai.setup,ai:setuplocal,ai:setupnext", window: 2 },
   { name: "school-lock", open: "", do: "tools.schoolLock", window: 2 },
-  { name: "consent", open: "", do: "wait,mcp:consent", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" } },
+  { name: "consent", open: "", do: "wait,mcp:consent", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" }, expect: ["são só para quem tem 18 anos ou mais: se você tem menos de 18 anos, configure isto com um responsável ou um professor."], none: ["para adultos", "docente"] },
+  // (the APIKey row of an RAI in the designer: where the key is, in words — never the code word "environment")
+  { name: "designer-key-kept", open: "tests/fixtures/studio_ai/rai_form.rr", do: "wait,view.designer,pick:AI,prop:Provider=anthropic,prop:BaseURL=http://127.0.0.1:9,prop:APIKey=sk-ant-fake-designer-0000,row:APIKey,wait", delay: 8, expect: ["guardada na memória, só nesta"], none: ["guardada em ", "em a memória", "is kept in"] },
+  { name: "designer-key-env", open: "tests/fixtures/studio_ai/rai_form.rr", do: "wait,view.designer,pick:AI,prop:Provider=anthropic,prop:BaseURL=http://127.0.0.1:9,prop:APIKeySource=env:ANTHROPIC_API_KEY,row:APIKey,wait", delay: 8, env: { ANTHROPIC_API_KEY: "sk-ant-fake-env-0000" }, expect: ["em uma variável de ambiente: o"], none: ["em environment", "found in the", "no the"] },
   { name: "settings-aiapps", open: "", do: "mcp.settings", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" } },
   // (the Details link's row touches the pane's bottom edge in this window: its last pixel row is clipped
   // in English and Spanish too — the golden's ai-panel — and nothing of its letters is lost)
@@ -210,6 +215,7 @@ function runDesktop(scene) {
       RAPIDR_SCALE: "1",
       RAPIDR_MENU: "window",
       RAPIDR_TEST_CONTRAST: join(dir, "contrast.json"),
+      RAPIDR_TEST_A11Y: join(dir, "a11y.json"),
       RAPIDR_PRINT_TO: join(dir, "prints"),
       RAPIDR_REGISTRY: join(dir, "registry.reg"),
       RAPIDR_CONFIG_DIR: join(dir, "config"),
@@ -225,7 +231,8 @@ function runDesktop(scene) {
   const file = join(dir, `window-${scene.window || 1}.bmp`);
   if (!existsSync(file)) throw new Error("desktop: no capture");
   const report = existsSync(join(dir, "contrast.json")) ? JSON.parse(readFileSync(join(dir, "contrast.json"), "utf8")) : [];
-  return { bmp: readFileSync(file), report };
+  const a11y = existsSync(join(dir, "a11y.json")) ? readFileSync(join(dir, "a11y.json"), "utf8") : "";
+  return { bmp: readFileSync(file), report, a11y };
 }
 
 let failed = 0, passed = 0;
@@ -247,6 +254,13 @@ for (const scene of SCENES) {
     const nameOnly = (t) => { const ws = t.match(/[A-Za-z][A-Za-z']+/g) || []; return ws.length > 0 && ws.every((x) => NAMES.has(x.toLowerCase()) || programWords.has(x.toLowerCase())); };
     const cut = [...new Set(texts.filter((t) => t.cut && /\p{L}/u.test(t.text) && !nameOnly(t.text) && !/[/\\]/.test(t.text) && !/^[\w .-]+\.(rr|bas|inc|rrproj|rqw|csv|po|md)$/i.test(t.text) && !(t.rect && t.rect[3] < 4) && !(scene.cutOk || []).some((k) => k.test(t.text))).map((t) => t.text))];
     const boxes = texts.filter((t) => BOXY.test(t.text)).map((t) => t.text);
+    // (what a scene must say, and must not: the lines drawn and the accessibility tree's whole texts)
+    const shown = texts.map((t) => t.text.replace(/&/g, "")).concat([run.a11y || ""]);
+    if (scene.expect || scene.none) {
+      const missing = (scene.expect || []).filter((e) => !shown.some((t) => t.includes(e)));
+      const there = (scene.none || []).filter((e) => shown.some((t) => t.includes(e)));
+      check(`${name}: ${(scene.expect || []).join(" | ")}`, missing.length === 0 && there.length === 0, `missing ${JSON.stringify(missing)}, still there ${JSON.stringify(there)}`);
+    }
     check(`${name}: ${texts.length} texts in ${w ? w.form : "?"}, none English left`, texts.length > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
     if (STRICT_CUT) check(`${name}: nothing cut off`, cut.length === 0, cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
     else if (cut.length) console.log(`  cut: ${cut.join(" | ")}`);

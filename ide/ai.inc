@@ -3526,7 +3526,8 @@ SUB DesignAIKeyNote
   IF DesignAI.HasKey AND nm <> "" THEN
     Inspector.SetNote "APIKey", TR$("A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it.", "hint", DesignAI.KeyHint, "store", AIStoreName(DesignAI.KeyStore), "q", CHR$(34), "name", nm)
   ELSEIF DesignAI.HasKey THEN
-    Inspector.SetNote "APIKey", TR$("A key ({hint}) is found in the {source}: the code never holds it.", "hint", DesignAI.KeyHint, "source", DesignAI.KeySource)
+    ' (where it is, in words — "an environment variable" —, not the code word KeySource is)
+    Inspector.SetNote "APIKey", TR$("A key ({hint}) is found in {source}: the code never holds it.", "hint", DesignAI.KeyHint, "source", AIStoreName(DesignAI.KeyStore))
   ELSE
     Inspector.SetNote "APIKey", ""
   END IF

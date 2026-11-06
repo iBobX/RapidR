@@ -268,6 +268,42 @@ msgstr ""
 msgid "The key is forgotten."
 msgstr ""
 
+#: crates/rapidr-ai/src/rai.rs
+msgid "the macOS Keychain"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Windows Credential Manager"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "the Secret Service (GNOME Keyring or KWallet)"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser tab, until it closes"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser, on this device"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, for this session only"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this program's memory, until it ends"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "an environment variable"
+msgstr ""
+
 #: crates/rapidr-ai/src/wire.rs
 msgid "({name} says: \"{said}\")"
 msgstr ""

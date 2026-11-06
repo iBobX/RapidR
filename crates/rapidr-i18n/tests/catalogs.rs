@@ -100,6 +100,34 @@ fn translations_keep_their_markers_and_menus_their_keys() {
     }
 }
 
+/// What the lawyer's review of the Portuguese asked for
+/// (docs/legal/review-2026-11-06-pt-br.md) stays: where a key is kept comes
+/// with its own preposition (never "em {store}", "em a memória"), the age is
+/// said ("quem tem 18 anos ou mais", never "adultos": in Brazil that word is
+/// for adult content), "sandbox" promises no isolation, and "nothing waits
+/// for you" says whose approval.
+#[test]
+fn portuguese_keeps_the_legal_reviews_wording() {
+    for dir in ["ide/lang", "crates/rapidr-value/lang"] {
+        let file = po::read_messages(&fs::read_to_string(root().join(dir).join("pt-BR.po")).unwrap());
+        for m in file.iter().filter(|m| !m.is_header() && m.translated()) {
+            let pt = m.forms.join(" | ");
+            let said = format!("{dir}: {:?} -> {pt:?}", m.id);
+            for bad in ["em {store}", "guardada em {place}", "em {source}"," em a memória", " em o Acesso", " em esta aba", " em este navegador", "para adultos", "ambiente isolado", "Nada espera por você", "esperando por você no", "espera por você no", "nem SHELL e RUN"] {
+                assert!(!pt.contains(bad), "{bad:?} in {said}");
+            }
+            // (the English says adults: the Portuguese says the age)
+            if m.id.contains("for adults") {
+                assert!(pt.contains("18 anos ou mais"), "{said}");
+            }
+            // (a place of the key, said alone, carries "no / na / nesta / neste / em uma")
+            if ["the macOS Keychain", "Windows Credential Manager", "an environment variable", "this browser tab, until it closes", "memory, for this session only"].contains(&m.id.as_str()) {
+                assert!(["no ", "na ", "nesta ", "neste ", "em "].iter().any(|p| pt.starts_with(p)), "{said}");
+            }
+        }
+    }
+}
+
 /// A language is whole or not there: Studio's, the runtime's and the
 /// compiler's catalogs name the same languages (Preview 6: es, pt-BR,
 /// zh-Hans), each tag as `normalize_tag` writes it, and the catalog's own

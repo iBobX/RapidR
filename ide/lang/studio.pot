@@ -858,7 +858,7 @@ msgid "A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, nev
 msgstr ""
 
 #: ide/ai.inc
-msgid "A key ({hint}) is found in the {source}: the code never holds it."
+msgid "A key ({hint}) is found in {source}: the code never holds it."
 msgstr ""
 
 #: ide/aichats.inc

@@ -1,8 +1,8 @@
 # Brazilian Portuguese (pt-BR): texts that carry legal weight, for the lawyer's review
 
-Lane I18N-PT, Preview 6, 2026-11-06. Brazilian Portuguese (pt-BR) is a beta: an AI translation (Claude), not reviewed by a native speaker or a lawyer yet. Studio's Settings > Language marks it "beta".
+Lane I18N-PT, Preview 6, 2026-11-06. Brazilian Portuguese (pt-BR) is a beta: an AI translation (Claude), reviewed by the lawyer agent (below) but not by a native speaker yet. Studio's Settings > Language marks it "beta".
 
-What this is: every text that `ide/lang/es.po` and `crates/rapidr-value/lang/es.po` mark `# legal` (consent, permissions, cost and privacy notes, keys, age limits, School Lock, AI apps), 120 in all, in English and in Brazilian Portuguese. They are translated by meaning, row by row, dropping nothing, as the glossary asks ([docs/i18n/pt-glossary.md](../i18n/pt-glossary.md), 1.11). In the `.po` files the same texts carry `# legal` above them (`grep -B1 "^# legal" ide/lang/pt-BR.po`).
+What this is: every text that `ide/lang/es.po` and `crates/rapidr-value/lang/es.po` mark `# legal` (consent, permissions, cost and privacy notes, keys, age limits, School Lock, AI apps), 120 in all, in English and in Brazilian Portuguese, **as they are after the lawyer's changes**. They are translated by meaning, row by row, dropping nothing, as the glossary asks ([docs/i18n/pt-glossary.md](../i18n/pt-glossary.md), 1.11). In the `.po` files the same texts carry `# legal` above them (`grep -B1 "^# legal" ide/lang/pt-BR.po`).
 
 What to check, text by text:
 
@@ -11,15 +11,22 @@ What to check, text by text:
 3. Nothing reads as legal advice, and the wording is not stronger or weaker than the English.
 
 
-## Wording I am not sure of (flagged, not merged blindly)
+## Review status
 
-- **Money.** The English says "a tenth of a cent a question" and "a few cents" (US cents). In Brazil "centavo" first means a real's centavo, so the Portuguese says **"centavo de dólar"** (and the settings caption says "US$ por milhão de tokens"). This adds "de dólar", which the English leaves implicit. Keep, or ask for a different wording.
-- **"Parent or teacher".** Portuguese says **"um responsável ou um docente"** (a guardian or a teacher), a gender-neutral form that is standard in Brazilian schools, instead of "pai, mãe ou professor". "Responsável" also covers a legal guardian who is not a parent. Check that it is the right legal word for who may consent for a child under 18.
-- **Age.** "13 or older" (GitHub's terms) and "under 18" (cloud AI services) are kept as the English has them. 18 is also the age of majority in Brazil; the 13 is GitHub's, not Brazil's. No Brazilian rule on children online or on children's data (the LGPD, or Brazil's newer laws for children's use of digital services) was checked or is mentioned; RapidR collects no personal data of its own. This is for the lawyer, not for this translation.
-- **"Under its privacy terms".** Translated as "sob os termos de privacidade dele/dela". The English points to the provider's terms; the Portuguese does the same, without naming a Brazilian law (LGPD).
-- **School Lock.** "Bloqueio escolar" for "School Lock". "TI" stands for "IT" ("a TI da sua escola"). The password is a "forma embaralhada, sem volta" (a one-way scrambled form), not "criptografada": the English avoids the word "encrypted" and so does the Portuguese.
-- **"Nada é enviado" statements** ("RapidR sends none of this anywhere", "nothing is sent until you press Send") are translated literally; they are claims about the product, which the lawyer may want to confirm are true for every case.
-- **The copyright line** in About ("Copyright (c) 2025-2026 Ruta Internet SRL. Licença MIT.") has "Licença MIT" for "MIT licence": the licence itself is not translated, only this label.
+The lawyer agent reviewed these texts on 2026-11-06 ([docs/legal/review-2026-11-06-pt-br.md](review-2026-11-06-pt-br.md)): **OK with changes**. The six required groups (27 texts) and the seven recommended changes are applied in the strings below; the review's table says what each one was. The two source bugs it found are fixed for every language (V9: the key's place in RapidR's own text; S8: the APIKey row in Studio).
+
+Kept as decided in the review:
+
+- **"centavo de dólar"** for US cents (the providers bill in dollars; "centavo" alone reads as reais), and "US$" in the settings caption and the cost line.
+- **"responsável"** for the adult in charge; **"professor"** in the six lines a child reads (S24-S27, S36, S61), **"docente"** in the School Lock lines a teacher reads.
+- **"Bloqueio escolar"** for School Lock, **"Tutor"** for Coach.
+- The ages (13: GitHub's own rule; 18) as the English has them: "para quem tem 18 anos ou mais" (not "adultos", which in Brazil labels adult content).
+- "Licença MIT" in the copyright line (the licence text itself stays English).
+- "Nada é enviado" statements, literal; they are product claims already checked in `six-traps-preview4.md` and `local-ai-review.md`.
+
+Not for this translation, kept in mind (the review's Brazilian-law notes): no accounts, cloud service, chat, sharing, ads or telemetry without a new check against Brazil's law for children online (ECA Digital) and the LGPD; no limiting or disclaiming sentence in a dialog without a new review. Pt-BR stays marked "beta" in Settings > Language until a native reader has read these texts.
+
+A test keeps the review's wording from coming back (`portuguese_keeps_the_legal_reviews_wording` in `crates/rapidr-i18n/tests/catalogs.rs`), and the pt-BR walk checks the key notes and the 18-or-older line on screen (`tests/studio_lang_pt.mjs`).
 
 ---
 
@@ -53,17 +60,17 @@ What to check, text by text:
 **6.** `ide/ai.inc`
 
 - EN: The key is kept in {store} as {q}{name}{q}: the program names it, never the key.
-- PT-BR: A chave fica guardada em {store} como {q}{name}{q}: o programa usa o nome dela, nunca a chave.
+- PT-BR: A chave fica guardada {store} como {q}{name}{q}: o programa usa o nome dela, nunca a chave.
 
 **7.** `ide/ai.inc`
 
 - EN: A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it.
-- PT-BR: Uma chave ({hint}) está guardada em {store} como {q}{name}{q}: o código usa o nome dela, nunca a chave. Digite outra para substituí-la.
+- PT-BR: Uma chave ({hint}) está guardada {store} como {q}{name}{q}: o código usa o nome dela, nunca a chave. Digite outra para substituí-la.
 
 **8.** `ide/ai.inc`
 
-- EN: A key ({hint}) is found in the {source}: the code never holds it.
-- PT-BR: Há uma chave ({hint}) em {source}: o código nunca a contém.
+- EN: A key ({hint}) is found in {source}: the code never holds it.
+- PT-BR: Há uma chave ({hint}) {source}: o código nunca a contém.
 
 **9.** `ide/aichats.inc`
 
@@ -78,7 +85,7 @@ What to check, text by text:
 **11.** `ide/aisetup.inc`
 
 - EN: Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project.
-- PT-BR: Anthropic (Claude), OpenAI ou DeepSeek: em geral, as melhores respostas. Você cria uma chave no site do provedor e paga a ele pelo que usar: uma pergunta costuma custar de um décimo de centavo de dólar (modelos pequenos e rápidos) a alguns centavos de dólar (os maiores). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para esse provedor, sob os termos de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto.
+- PT-BR: Anthropic (Claude), OpenAI ou DeepSeek: em geral, as melhores respostas. Você cria uma chave no site do provedor e paga a ele pelo que usar: uma pergunta costuma custar de um décimo de centavo de dólar (modelos pequenos e rápidos) a alguns centavos de dólar (os maiores). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para esse provedor, conforme a política de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto.
 
 **12.** `ide/aisetup.inc`
 
@@ -145,22 +152,22 @@ What to check, text by text:
 **24.** `ide/aisetup.inc`
 
 - EN: Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.
-- PT-BR: Os modelos pequenos e rápidos do Claude (Haiku) custam cerca de um décimo de centavo de dólar por pergunta; o maior (Opus), alguns centavos de dólar. A Anthropic cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a Anthropic, sob os termos de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave.
+- PT-BR: Os modelos pequenos e rápidos do Claude (Haiku) custam cerca de um décimo de centavo de dólar por pergunta; o maior (Opus), alguns centavos de dólar. A Anthropic cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a Anthropic, conforme a política de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave.
 
 **25.** `ide/aisetup.inc`
 
 - EN: OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.
-- PT-BR: Os modelos pequenos da OpenAI (mini, nano) custam uma fração de centavo de dólar por pergunta; o maior, alguns centavos de dólar. A OpenAI cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a OpenAI, sob os termos de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave.
+- PT-BR: Os modelos pequenos da OpenAI (mini, nano) custam uma fração de centavo de dólar por pergunta; o maior, alguns centavos de dólar. A OpenAI cobra da sua conta o que você usa: defina um limite mensal no site dela. O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a OpenAI, conforme a política de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave.
 
 **26.** `ide/aisetup.inc`
 
 - EN: DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.
-- PT-BR: Os modelos da DeepSeek custam uma fração de centavo de dólar por pergunta. A DeepSeek cobra da sua conta o que você usa (você paga adiantado no site dela). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a DeepSeek, na China, sob os termos de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave.
+- PT-BR: Os modelos da DeepSeek custam uma fração de centavo de dólar por pergunta. A DeepSeek cobra da sua conta o que você usa (você paga adiantado no site dela). O que você envia — sua pergunta, o chat, as partes do seu projeto que a RAI lê e, enquanto seu programa é executado, o que as janelas dele mostram — vai para a DeepSeek, na China, conforme a política de privacidade dela. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave.
 
 **27.** `ide/aisetup.inc`
 
 - EN: You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.
-- PT-BR: Você paga ao provedor pelo que usar. O que você envia — inclusive, enquanto seu programa é executado, o que as janelas dele mostram — vai para ele, sob os termos de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para adultos: se você tem menos de 18 anos, peça a um responsável ou a um docente que crie a chave.
+- PT-BR: Você paga ao provedor pelo que usar. O que você envia — inclusive, enquanto seu programa é executado, o que as janelas dele mostram — vai para ele, conforme a política de privacidade dele. Sua chave fica no chaveiro deste computador, nunca em um projeto. Os serviços na nuvem são para quem tem 18 anos ou mais: se você tem menos de 18 anos, peça a um responsável ou a um professor que crie a chave.
 
 **28.** `ide/aisetup.inc`
 
@@ -200,12 +207,12 @@ What to check, text by text:
 **35.** `ide/crash.inc`
 
 - EN: RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords.
-- PT-BR: A versão do RapidR, seu sistema, onde ele parou, as últimas mensagens e os nomes das últimas chamadas de IA. Sua pasta pessoal aparece como ~; sem conteúdo de arquivos, chaves nem senhas.
+- PT-BR: A versão do RapidR, seu sistema, onde ele parou, as últimas mensagens dele e os nomes das últimas chamadas de IA. Sua pasta pessoal aparece como ~; sem conteúdo de arquivos, chaves nem senhas.
 
 **36.** `ide/crash.inc`
 
 - EN: A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it.
-- PT-BR: Uma conta do GitHub. Os termos do GitHub pedem que você tenha 13 anos ou mais; um estudante mais novo pode pedir a um docente ou a um responsável que relate.
+- PT-BR: Uma conta do GitHub. Os termos do GitHub pedem que você tenha 13 anos ou mais; um estudante mais novo pode pedir a um professor ou a um responsável que relate.
 
 **37.** `ide/crash.inc, ide/mcp.inc, ide/settings.inc`
 
@@ -240,17 +247,17 @@ What to check, text by text:
 **43.** `ide/mcp.inc`
 
 - EN: Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you.
-- PT-BR: As alterações nos arquivos são feitas na hora (cada uma é um passo de Desfazer, listado no painel Apps de IA); executar o programa, observá-lo ou usá-lo, e perguntar à RAI continuam esperando por você.
+- PT-BR: As alterações nos arquivos são feitas na hora (cada uma é um passo de Desfazer, listado no painel Apps de IA); executar o programa, observá-lo ou usá-lo, e perguntar à RAI continuam esperando a sua aprovação.
 
 **44.** `ide/mcp.inc`
 
 - EN: Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project.
-- PT-BR: Nada espera por você: os apps de IA alteram arquivos, executam o programa, o observam e o usam, e perguntam à RAI por conta própria — e um programa pode fazer neste computador tudo o que você pode. Tudo continua listado, Parar encerra, e as ferramentas do próprio Studio nunca entregam chaves nem arquivos fora do projeto.
+- PT-BR: Nada espera pela sua aprovação: os apps de IA alteram arquivos, executam o programa, o observam e o usam, e perguntam à RAI por conta própria — e um programa pode fazer neste computador tudo o que você pode. Tudo continua listado, Parar encerra, e as ferramentas do próprio Studio nunca entregam chaves nem arquivos fora do projeto.
 
 **45.** `ide/mcp.inc`
 
 - EN: AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny.
-- PT-BR: Os apps de IA podem olhar o projeto livremente; cada alteração, execução, olhada no seu programa em execução ou pergunta à RAI espera por você no painel Apps de IA: Permitir uma vez, Permitir nesta sessão ou Negar.
+- PT-BR: Os apps de IA podem olhar o projeto livremente; cada alteração, execução, olhada no seu programa em execução ou pergunta à RAI espera a sua aprovação no painel Apps de IA: Permitir uma vez, Permitir nesta sessão ou Negar.
 
 **46.** `ide/mcp.inc`
 
@@ -265,7 +272,7 @@ What to check, text by text:
 **48.** `ide/mcp.inc`
 
 - EN: Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own.
-- PT-BR: Nada espera por você: os apps de IA alteram arquivos, executam o programa, o observam, clicam e digitam nele e perguntam à RAI (o que pode custar dinheiro) por conta própria.
+- PT-BR: Nada espera pela sua aprovação: os apps de IA alteram arquivos, executam o programa, o observam, clicam e digitam nele e perguntam à RAI (o que pode custar dinheiro) por conta própria.
 
 **49.** `ide/mcp.inc`
 
@@ -330,17 +337,17 @@ What to check, text by text:
 **61.** `ide/mcp.inc`
 
 - EN: RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust.
-- PT-BR: O RapidR não envia nada disso a lugar nenhum, mas o app de IA pode repassar o que lê à empresa que o fabrica, sob os termos dessa empresa. Um programa pode mostrar dados privados, seus ou de outras pessoas, e clicar nele age como você: um botão real de Enviar, Pagar ou Excluir faz isso de verdade, então use dados de teste. Muitos apps de IA são só para adultos: se você tem menos de 18 anos, configure isto com um responsável ou um docente. Conecte apenas apps de IA em que você confia.
+- PT-BR: O RapidR não envia nada disso a lugar nenhum, mas o app de IA pode repassar o que lê à empresa que o desenvolve, sob os termos dessa empresa. Um programa pode mostrar dados privados, seus ou de outras pessoas, e clicar nele age como você: um botão real de Enviar, Pagar ou Excluir faz isso de verdade, então use dados de teste. Muitos apps de IA são só para quem tem 18 anos ou mais: se você tem menos de 18 anos, configure isto com um responsável ou um professor. Conecte apenas apps de IA em que você confia.
 
 **62.** `ide/mcp.inc`
 
 - EN: Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it.
-- PT-BR: Compartilhe apenas o que você pode compartilhar: trabalhos escolares, o código de um empregador ou o código licenciado de outra pessoa podem não ser seus para compartilhar. Desative isto, ou use Redefinir token, para desconectar todos os apps de IA. O Studio guarda uma lista do que eles fizeram só neste computador; Limpar atividade a remove.
+- PT-BR: Compartilhe apenas o que você pode compartilhar: trabalhos escolares, o código de um empregador ou o código licenciado de outra pessoa podem não ser seus para compartilhar. Desative isto, ou use Redefinir token, para desconectar todos os apps de IA. O Studio guarda neste computador, e só nele, uma lista do que eles fizeram; Limpar atividade a remove.
 
 **63.** `ide/mcp.inc`
 
 - EN: {client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data.
-- PT-BR: {client} quer observar ou usar o seu programa em execução: {what}. Permitir uma vez vale para imagens, cliques e digitação até esta execução terminar. Ele pode ver tudo o que o programa mostra, inclusive dados privados.
+- PT-BR: {client} quer observar ou usar o seu programa em execução: {what}. Permitir uma vez vale para imagens, cliques e digitação até esta execução terminar. {client} pode ver tudo o que o programa mostra, inclusive dados privados.
 
 **64.** `ide/mcp.inc`
 
@@ -405,12 +412,12 @@ What to check, text by text:
 **76.** `ide/settings.inc`
 
 - EN: Kept in this browser's storage for the page: anyone using this browser profile could read it
-- PT-BR: Guardada no armazenamento deste navegador para a página: qualquer pessoa que usar este perfil do navegador poderia lê-la
+- PT-BR: Guardada no armazenamento deste navegador para a página: qualquer pessoa que usar este perfil do navegador pode lê-la
 
 **77.** `ide/settings.inc`
 
 - EN: Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer.
-- PT-BR: Desativado, a escolha mais segura: um programa que a RAI ou um app de IA executa não pode chamar DLLs, SENDMESSAGE nem SHELL e RUN; o seu próprio Executar (F5) sempre pode. Ativado: os programas que eles executam podem fazer neste computador tudo o que as suas próprias execuções podem.
+- PT-BR: Desativado, a escolha mais segura: um programa que a RAI ou um app de IA executa não pode chamar DLLs, SENDMESSAGE, SHELL nem RUN; o seu próprio Executar (F5) sempre pode. Ativado: os programas que eles executam podem fazer neste computador tudo o que as suas próprias execuções podem.
 
 **78.** `ide/settings.inc`
 
@@ -420,47 +427,47 @@ What to check, text by text:
 **79.** `ide/settings.inc`
 
 - EN: the macOS Keychain
-- PT-BR: o Acesso às Chaves do macOS
+- PT-BR: no Acesso às Chaves do macOS
 
 **80.** `ide/settings.inc`
 
 - EN: Windows Credential Manager
-- PT-BR: o Gerenciador de Credenciais do Windows
+- PT-BR: no Gerenciador de Credenciais do Windows
 
 **81.** `ide/settings.inc`
 
 - EN: the Secret Service (GNOME Keyring or KWallet)
-- PT-BR: o Secret Service (GNOME Keyring ou KWallet)
+- PT-BR: no Secret Service (GNOME Keyring ou KWallet)
 
 **82.** `ide/settings.inc`
 
 - EN: this browser tab, until it closes
-- PT-BR: esta aba do navegador, até ela fechar
+- PT-BR: nesta aba do navegador, até ela fechar
 
 **83.** `ide/settings.inc`
 
 - EN: this browser, on this device
-- PT-BR: este navegador, neste dispositivo
+- PT-BR: neste navegador, neste dispositivo
 
 **84.** `ide/settings.inc`
 
 - EN: memory, until the program ends (this computer has no keychain RapidR can use)
-- PT-BR: memória, até o programa terminar (este computador não tem um chaveiro que o RapidR possa usar)
+- PT-BR: na memória, até o programa terminar (este computador não tem um chaveiro que o RapidR possa usar)
 
 **85.** `ide/settings.inc`
 
 - EN: memory, for this session only
-- PT-BR: memória, só nesta sessão
+- PT-BR: na memória, só nesta sessão
 
 **86.** `ide/settings.inc`
 
 - EN: this program's memory, until it ends
-- PT-BR: a memória deste programa, até ele terminar
+- PT-BR: na memória deste programa, até ele terminar
 
 **87.** `ide/settings.inc`
 
 - EN: an environment variable
-- PT-BR: uma variável de ambiente
+- PT-BR: em uma variável de ambiente
 
 **88.** `ide/settings.inc`
 
@@ -470,17 +477,17 @@ What to check, text by text:
 **89.** `ide/settings.inc`
 
 - EN: Your key {hint} is kept in {store}, never in a project.
-- PT-BR: Sua chave {hint} fica guardada em {store}, nunca em um projeto.
+- PT-BR: Sua chave {hint} fica guardada {store}, nunca em um projeto.
 
 **90.** `ide/settings.inc`
 
 - EN: Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.
-- PT-BR: Cole sua chave e pressione Salvar chave: ela fica guardada em {store} (ou neste dispositivo, se você marcar a caixa), nunca em um projeto.
+- PT-BR: Cole sua chave e pressione Salvar chave: ela fica guardada {store} (ou neste dispositivo, se você marcar a caixa), nunca em um projeto.
 
 **91.** `ide/settings.inc`
 
 - EN: Paste your key and press Save Key: it is kept in {store}, never in a project.
-- PT-BR: Cole sua chave e pressione Salvar chave: ela fica guardada em {store}, nunca em um projeto.
+- PT-BR: Cole sua chave e pressione Salvar chave: ela fica guardada {store}, nunca em um projeto.
 
 **92.** `ide/settings.inc`
 
@@ -490,7 +497,7 @@ What to check, text by text:
 **93.** `ide/settings.inc`
 
 - EN: Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run.
-- PT-BR: Desativado, um programa que a RAI ou um app de IA executa fica em ambiente isolado (sandbox): uma chamada de DLL (DECLARE ... LIB), SENDMESSAGE e SHELL ou RUN o interrompem com um erro que diz isso. Ativado, os programas que eles executam têm o mesmo poder que o seu próprio Executar.
+- PT-BR: Desativado, um programa que a RAI ou um app de IA executa roda com restrições (sandbox): uma chamada de DLL (DECLARE ... LIB), SENDMESSAGE e SHELL ou RUN o interrompem com um erro que diz isso. Ativado, os programas que eles executam têm o mesmo poder que o seu próprio Executar.
 
 **94.** `ide/settings.inc`
 
@@ -544,7 +551,7 @@ What to check, text by text:
 **5.** `crates/rapidr-ai/src/rai.rs`
 
 - EN: about ${cost}
-- PT-BR: cerca de US${cost}
+- PT-BR: cerca de US$ {cost}
 
 **6.** `crates/rapidr-ai/src/rai.rs`
 
@@ -564,7 +571,7 @@ What to check, text by text:
 **9.** `crates/rapidr-ai/src/rai.rs`
 
 - EN: The key is kept in {place}.
-- PT-BR: A chave fica guardada em {place}.
+- PT-BR: A chave fica guardada {place}.
 
 **10.** `crates/rapidr-ai/src/rai.rs`
 
@@ -609,7 +616,7 @@ What to check, text by text:
 **18.** `crates/rapidr-studio/src/ai.rs`
 
 - EN: You allowed RAI to use your running program for this run
-- PT-BR: Você permitiu que a RAI use o seu programa em execução nesta execução
+- PT-BR: Você permitiu que a RAI use o seu programa, só durante esta execução
 
 **19.** `crates/rapidr-studio/src/ai.rs`
 
