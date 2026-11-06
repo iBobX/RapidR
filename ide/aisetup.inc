@@ -31,6 +31,7 @@ DECLARE SUB AISuClosed(Action AS INTEGER)
 DECLARE SUB AISuLook
 DECLARE SUB AISuPicked
 DECLARE SUB AISuProvPicked
+DECLARE FUNCTION AICloudNote AS STRING
 DECLARE SUB AISuTest
 DECLARE SUB AISuKeyLinkClick
 DECLARE SUB AISuProbe1In(Count AS INTEGER)
@@ -303,6 +304,8 @@ SUB SetUpAISetup
   AISuTimer.Interval = 250
   AISuTimer.Enabled = 0
   AISuTimer.OnTimer = AISuTick
+  ' (the cloud choice also says what to send and where it works)
+  AISuCloudText.Caption = AISuCloudText.Caption + " " + AICloudNote
   AISuWeb = Flag(Proj.LocalAI("web") = "1")
   ' (the cloud providers, as RAI lists them: all but a compatible server)
   AISuProvCount = 0
@@ -967,8 +970,16 @@ SUB AISuProvPicked
     CASE ELSE
       AISuCostText.Caption = TR$("You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms." + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.")
   END SELECT
+  AISuCostText.Caption = AISuCostText.Caption + " " + AICloudNote
   AISuCostText.AccessibleDescription = AISuCostText.Caption
 END SUB
+
+' What a cloud service asks of you besides its price: send only what you
+' may share (other people's data, an employer's code, schoolwork), and a
+' provider may not serve where you live. Said with every cloud text.
+FUNCTION AICloudNote AS STRING
+  Result = TR$("Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send.") + " " + TR$("A provider may not offer its service where you live, and its servers may be in another country: check its terms.")
+END FUNCTION
 
 SUB AISuKeyLinkClick
   IF AISuCloud.KeysURL <> "" THEN AISetLinks.OpenLink AISuCloud.KeysURL

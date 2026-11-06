@@ -5,8 +5,14 @@
 # All are Noto fonts under the SIL Open Font License 1.1 (OFL.txt here), from
 # the Noto project's official GitHub release assets, pinned by version and
 # SHA-256. None declares a Reserved Font Name (their OFL.txt and the CJK
-# LICENSE have no "Reserved Font Name" line), so the subsets keep the fonts'
-# own names.
+# LICENSE have no "Reserved Font Name" line), so the OFL lets the subsets be
+# named anything. The OFL grants no trademark right though, and "Noto" is
+# Google's (name ID 7 in the fonts says so): a font RapidR cuts out of a Noto
+# font (a chunk, the Simplified Chinese subset) is given a neutral family
+# name of its own, written into the font file (`chunk_family`, [subset]
+# family); the copyright (Adobe's), the trademark notice and the licence
+# records stay in it, and OFL.txt travels with it
+# (docs/legal/review-2026-11-06-zh.md B-1, B-2).
 #
 # `committed` fonts are in this directory (unmodified, ~0.8 MB): a source
 # build without the network still covers symbols. The others are fetched by
@@ -41,6 +47,7 @@ member = "NotoSansSymbols2/unhinted/otf/NotoSansSymbols2-Regular.otf"
 # (Han, kana: Simplified Chinese's forms of the Han characters)
 [[font]]
 family = "Noto Sans SC"
+chunk_family = "RapidR Han"
 file = "NotoSansSC-Regular.otf"
 committed = false
 release = "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/18_NotoSansSC.zip"
@@ -50,6 +57,7 @@ member = "NotoSansSC-Regular.otf"
 # (Hangul)
 [[font]]
 family = "Noto Sans KR"
+chunk_family = "RapidR Hangul"
 file = "NotoSansKR-Regular.otf"
 committed = false
 release = "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/17_NotoSansKR.zip"
@@ -68,3 +76,25 @@ committed = false
 url = "https://raw.githubusercontent.com/googlefonts/noto-emoji/v2.051/fonts/Noto-COLRv1.ttf"
 sha256 = "0ae57fe58645638523ba35f388d93739d292539a9acb84df5700c81b1e1a28d2"
 split = false
+
+# The Simplified Chinese subset (docs/legal/i18n-zh-font.md): the common
+# characters in one file of about 0.8 MB, so a Chinese Studio on the web
+# fetches one file, not 24 of the 34 chunks. Cut from `from` by `python3
+# tools/fonts.py build`, never fetched on its own, never offered on its own
+# (the OFL: a font is not sold by itself). Listed in index.json before the
+# chunks it was cut from, which stay the fallback for a rarer character; the
+# page asks for it only when the UI language is `for` (Simplified Chinese).
+#
+#   characters = the 3,755 hanzi of GB 2312 level 1 (Python's `gb2312` codec:
+#                no downloaded word list) + every character the catalogs
+#                below show + CJK, full-width and general punctuation.
+[subset]
+from = "Noto Sans SC"
+family = "RapidR Han Subset"
+file = "RapidRHanSubset-Regular.otf"
+for = "zh-Hans"
+catalogs = [
+    "ide/lang/zh-Hans.po",
+    "crates/rapidr-value/lang/zh-Hans.po",
+    "crates/rapidr-diagnostics/lang/zh-Hans.po",
+]

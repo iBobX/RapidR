@@ -255,7 +255,7 @@ msgstr "约 {cost} 美元"
 # legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "KeyOwner is RapidR Studio's own: a program's keys are always its own."
-msgstr "KeyOwner 是 RapidR Studio 自己专用的：程序的密钥永远只属于程序自己。"
+msgstr "KeyOwner 是 RapidR Studio 自己专用的：程序的密钥始终是程序自己的。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "A new chat."

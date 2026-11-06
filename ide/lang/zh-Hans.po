@@ -866,12 +866,12 @@ msgstr[1] ""
 # legal
 #: ide/ai.inc
 msgid "The key is kept in {store} as {q}{name}{q}: the program names it, never the key."
-msgstr "密钥保存在 {store} 中，名称为 {q}{name}{q}：程序只引用这个名称，不含密钥本身。"
+msgstr "密钥保存在{store}中，名称为 {q}{name}{q}：程序里写的是这个名称，绝不会是密钥本身。"
 
 # legal
 #: ide/ai.inc
 msgid "A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it."
-msgstr "密钥（{hint}）保存在 {store} 中，名称为 {q}{name}{q}：代码只引用这个名称，不含密钥本身。输入另一个密钥可替换它。"
+msgstr "密钥（{hint}）保存在{store}中，名称为 {q}{name}{q}：代码里写的是这个名称，绝不会是密钥本身。输入另一个密钥可替换它。"
 
 # legal
 #: ide/ai.inc
@@ -1157,6 +1157,7 @@ msgstr "已选择构建"
 msgid "RAI writes changes for you to review and apply"
 msgstr "RAI 会写出更改，供你审阅和应用"
 
+# legal
 #: ide/aicoach.inc
 msgid "RAI gives hints one step at a time and never writes the answer into your code"
 msgstr "RAI 一步一步地给出提示，绝不会把答案写进你的代码"
@@ -1702,6 +1703,16 @@ msgstr "DeepSeek 的模型每个问题只需不到一美分。DeepSeek 会按你
 #: ide/aisetup.inc
 msgid "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
 msgstr "你需要按用量向服务商付费。你发送的内容——包括程序运行期间其窗口显示的内容——会发送给它，并受其隐私条款约束。你的密钥保存在这台电脑的钥匙串中，绝不会放进项目里。云服务面向成年人：如果你未满 18 岁，请让家长或老师来创建密钥。"
+
+# legal
+#: ide/aisetup.inc
+msgid "Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send."
+msgstr "只发送你有权发送的内容：他人的个人信息、雇主的代码或学校作业，你不一定有权发送。"
+
+# legal
+#: ide/aisetup.inc
+msgid "A provider may not offer its service where you live, and its servers may be in another country: check its terms."
+msgstr "服务商可能不在你所在的地区提供服务，其服务器也可能位于其他国家或地区：请查看其条款。"
 
 # legal
 #: ide/aisetup.inc
@@ -3796,7 +3807,7 @@ msgstr "对文件的更改会立即生效（每次更改是一步“撤销”，
 # legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
-msgstr "不再等待你：AI 应用会自行更改文件、运行程序、查看并使用程序，以及向 RAI 提问——而程序可以做你在这台电脑上能做的任何事。所有操作仍会列出，“停止”可结束一切，Studio 自带的工具也绝不会交出密钥或项目之外的文件。"
+msgstr "任何操作都不会等你确认：AI 应用会自行更改文件、运行程序、查看并使用程序，以及向 RAI 提问——而程序可以做你在这台电脑上能做的任何事。所有操作仍会列出，“停止”可以结束它，Studio 自带的工具也绝不会交出密钥或项目之外的文件。"
 
 # legal
 #: ide/mcp.inc
@@ -3828,7 +3839,7 @@ msgstr "对本项目中的 AI 应用全部允许？"
 # legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
-msgstr "不再等待你：AI 应用会自行更改文件、运行程序、查看程序、在程序中点击和输入，以及向 RAI 提问（这可能产生费用）。"
+msgstr "任何操作都不会等你确认：AI 应用会自行更改文件、运行程序、查看程序、在程序中点击和输入，以及向 RAI 提问（这可能产生费用）。"
 
 # legal
 #: ide/mcp.inc
@@ -3843,7 +3854,7 @@ msgstr "你仍然能看到"
 # legal
 #: ide/mcp.inc
 msgid "Everything they do, listed in the AI Apps pane; Stop ends it."
-msgstr "它们所做的一切，都列在“AI 应用”面板中；“停止”可结束一切。"
+msgstr "它们所做的一切，都列在“AI 应用”面板中；“停止”可以结束它。"
 
 # legal
 #: ide/mcp.inc ide/settings.inc
@@ -3889,7 +3900,7 @@ msgstr "它能做"
 # legal
 #: ide/mcp.inc
 msgid "It never sees"
-msgstr "它绝对看不到"
+msgstr "它绝不会看到"
 
 # legal
 #: ide/mcp.inc
@@ -3909,12 +3920,12 @@ msgstr "你的 AI 服务商密钥或密码：它们由你的钥匙串保管。"
 # legal
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
-msgstr "RapidR 不会把这些内容发送到任何地方，但 AI 应用可能会按其开发公司的条款，把它读取到的内容转交给该公司。程序可能显示私人数据（你的或他人的），而在其中点击就相当于以你的身份操作：真实的“发送”“支付”或“删除”按钮会真的执行，所以请使用测试数据。许多 AI 应用仅限成年人使用：如果你未满 18 岁，请在家长或老师的陪同下进行设置。只连接你信任的 AI 应用。"
+msgstr "RapidR 不会把这些内容发送到任何地方，但 AI 应用可能会把它读取到的内容转交给开发它的公司，并受该公司条款约束。程序可能显示私人数据（你的或他人的），而在其中点击就相当于以你的身份操作：真实的“发送”“支付”或“删除”按钮会真的执行，所以请使用测试数据。许多 AI 应用仅限成年人使用：如果你未满 18 岁，请在家长或老师的陪同下进行设置。只连接你信任的 AI 应用。"
 
 # legal
 #: ide/mcp.inc
 msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
-msgstr "只分享你有权分享的内容：学校作业、雇主的代码或他人获得许可的代码，可能不属于你，不能随意分享。关闭此项或重置令牌，可断开所有 AI 应用。Studio 只在这台电脑上保存它们所做操作的列表；“清除活动记录”会删除它。"
+msgstr "只分享你有权分享的内容：学校作业、雇主的代码，或受他人许可证约束的代码，你不一定有权分享。关闭此项或重置令牌，可断开所有 AI 应用。Studio 只在这台电脑上保存它们所做操作的列表；“清除活动记录”会删除它。"
 
 #: ide/mcp.inc
 msgid "AI apps can't start: School Lock is on (Tools > School Lock...)."
@@ -4109,7 +4120,7 @@ msgstr "{client} 想运行你的程序（{what}）。"
 # legal
 #: ide/mcp.inc
 msgid "{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
-msgstr "{client} 想查看或使用你正在运行的程序：{what}。“允许一次”涵盖截图、点击和输入，直到本次运行结束。它可能看到程序显示的一切，包括私人数据。"
+msgstr "{client} 想查看或使用你正在运行的程序：{what}。“允许一次”涵盖截图、点击和输入，直到本次运行结束。{client} 可能看到程序显示的一切，包括私人数据。"
 
 #: ide/mcp.inc
 msgid "{client} wants to ask RAI: {prompt}"
@@ -4118,7 +4129,7 @@ msgstr "{client} 想向 RAI 提问：{prompt}"
 # legal
 #: ide/mcp.inc
 msgid "RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program."
-msgstr "RAI 会自己为你工作，但对于 AI 应用提出的问题，它只会提出更改供你审阅，并且在运行你的程序之前先询问你。"
+msgstr "RAI 会自己为你工作，但对于 AI 应用提出的问题，它会提出更改供你审阅，并且在运行你的程序之前先询问你。"
 
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
@@ -5083,9 +5094,10 @@ msgstr "要锁定的内容:"
 msgid "&AI in Studio (RAI)"
 msgstr "Studio 中的 AI (RAI)(&A)"
 
+# legal
 #: ide/schoollock.inc
 msgid "The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI"
-msgstr "“AI 助手”面板、配置 RAI，以及 设置 > AI：不会向任何 AI 发送任何内容"
+msgstr "“AI 助手”面板、配置 RAI，以及设置 > AI：不会向任何 AI 发送任何内容"
 
 #: ide/schoollock.inc
 msgid "AI apps (&MCP)"
@@ -5234,7 +5246,7 @@ msgstr "在这台电脑上，使用此账户的所有人都无法使用 RapidR S
 # legal
 #: ide/schoollock.inc
 msgid "RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do."
-msgstr "RapidR 在这台电脑上只保存密码的单向加密形式，绝不保存密码本身。任何知道密码的人都可以解锁，直到 Studio 关闭，所以请保管好密码，不要告诉别人。忘记了？手册里面向老师的页面会告诉你怎么办。"
+msgstr "RapidR 在这台电脑上只保存密码的一种无法还原的打乱形式（单向哈希），绝不保存密码本身。任何知道密码的人都可以解锁，直到 Studio 关闭，所以请保管好密码，不要告诉别人。忘记了？手册里面向老师的页面会告诉你怎么办。"
 
 #: ide/schoollock.inc
 msgid "&Lock"
@@ -6016,7 +6028,7 @@ msgstr "让 RAI 自行工作？"
 # legal
 #: ide/settings.inc
 msgid "Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did."
-msgstr "不再等待你：RAI 会自行更改项目的文件、运行程序、查看程序、在其中点击和输入来测试它，然后报告它做了什么。"
+msgstr "任何操作都不会等你确认：RAI 会自行更改项目的文件、运行程序、查看程序、在其中点击和输入来测试它，然后报告它做了什么。"
 
 # legal
 #: ide/settings.inc
@@ -6031,7 +6043,7 @@ msgstr "每一步都显示在 RAI 的对话中；“撤销”和“版本”可�
 # legal
 #: ide/settings.inc
 msgid "RAI never sees your keys, or files outside the project."
-msgstr "RAI 绝对看不到你的密钥，也看不到项目之外的文件。"
+msgstr "RAI 绝不会看到你的密钥，也不会看到项目之外的文件。"
 
 # legal
 #: ide/settings.inc
@@ -6070,7 +6082,7 @@ msgstr "RAI 和 AI 应用运行的程序可以调用 DLL 并启动其他程序"
 # legal
 #: ide/settings.inc
 msgid "The programs RAI and AI apps run stay sandboxed"
-msgstr "RAI 和 AI 应用运行的程序保持沙盒隔离"
+msgstr "RAI 和 AI 应用运行的程序保持在沙盒中"
 
 #: ide/settings.inc
 msgid "&Allow Full Power"
@@ -6088,6 +6100,11 @@ msgstr "BASIC 再次强大起来：一份源码，桌面应用和 Web 应用都�
 #: ide/shell.inc
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 msgstr "Copyright (c) 2025-2026 Ruta Internet SRL。MIT 许可证。"
+
+# legal
+#: ide/shell.inc
+msgid "Licences and notices are in English; the English text applies."
+msgstr "许可证和声明只提供英文，以英文文本为准。"
 
 #: ide/shell.inc
 msgid "Save As"
@@ -6587,7 +6604,7 @@ msgstr[1] ""
 #: ide/versions.inc
 msgid "This line looks like a key or a password. Versions are often shared, and a secret saved in one stays in the timeline: take it out first, or save anyway if it isn't a real one."
 msgid_plural "These {n} lines look like keys or passwords. Versions are often shared, and a secret saved in one stays in the timeline: take them out first, or save anyway if they aren't real ones."
-msgstr[0] "这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的机密内容会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。"
+msgstr[0] "这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的密钥或密码会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。"
 msgstr[1] ""
 
 # legal

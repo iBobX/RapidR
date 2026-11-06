@@ -1,6 +1,8 @@
 # Simplified Chinese: fonts, and the licence check for the web subset
 
-For the lead's lawyer check (lane I18N-ZH, 2026-11-06). **Nothing has been added to the repository's fonts**: the subset described in section 4 is measured, not shipped, and the build tools that would make it are not changed. Only after your OK does it go in, with the OFL text in the notices (section 5).
+Lane I18N-ZH, 2026-11-06. Sections 1 to 5 are what I sent for the lawyer check before anything was added; the lawyer's review (`docs/legal/review-2026-11-06-zh.md`, part B) answered **OK with conditions B-1 to B-8**, and section 6 says how each one is met. The subset is now made by `python3 tools/fonts.py build` and checked by `python3 tools/fonts.py check` (part of `tools/regress.sh legal`).
+
+The subset's family name is **`RapidR Han Subset`**, not "Noto Sans SC Common" as in the first measurement (section 4): the OFL grants no right to Google's trademark "Noto" (section 5), so no font RapidR cuts out of a Noto font carries the name.
 
 ## 1. What was decided (the lead, on Robert's delegation)
 
@@ -55,7 +57,7 @@ A browser has no system fonts the wasm can draw with. `tools/fonts.py` already s
 
 **The subset**: the 3,755 characters of GB 2312 level 1 (the common Simplified Chinese characters: nearly all of everyday text), every character the Chinese catalogs use (803 Han; 5 of them outside level 1: 榄 橄 浏 镖 骰), and the CJK and full-width punctuation: **4,102 characters asked for, 4,070 of them in the font, 803 KiB**. A catalogs-only subset (1,118 characters) would be 177 KiB; a character in neither falls to the existing chunks. Made with fontTools' `pyftsubset` (`--layout-features= --no-hinting --name-IDs=* --notdef-outline`) from the pinned release file (SHA-256 of `NotoSansSC-Regular.otf`: `faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9`). The subset keeps the font's name table: copyright, trademark, designer, licence description and URL (name IDs 0, 7, 8, 9, 13, 14).
 
-**It must have a family name of its own**: a font family holds one face, and the page picks one font per family, so a subset named exactly `Noto Sans SC` would hide the chunks of the same name (the existing chunks are renamed `Noto Sans SC NNN` for that). The test above named it `Noto Sans SC Common`.
+**It must have a family name of its own**: a font family holds one face, and the page picks one font per family, so a subset named exactly `Noto Sans SC` would hide the chunks of the same name (the existing chunks are renamed `Noto Sans SC NNN` for that). The test above named it `Noto Sans SC Common`; the shipped name is `RapidR Han Subset` (section 6).
 
 It loads only when a character is missing, which on the web means a Chinese (or other CJK) character on screen: an English page never fetches it. The language isn't consulted; nothing loads at page start.
 
@@ -66,14 +68,31 @@ Checked on the pinned archive `18_NotoSansSC.zip` (not changed, from `target/fon
 - **`LICENSE` in the archive** (4,301 bytes, dated 2022-03-19): the SIL Open Font License 1.1, in full (text below). It has **no copyright line and no "Reserved Font Name" statement**: the words appear only in the licence's own definitions and clause 3 (`grep -n -i reserved` finds lines 21, 32 and 62, all boilerplate).
 - **The font's own name table** (`NotoSansSC-Regular.otf`, version 2.004): name ID 0 (copyright) is `© 2014-2021 Adobe (http://www.adobe.com/).`; ID 7 (trademark) `Noto is a trademark of Google Inc.`; ID 8 `Adobe`; ID 13 (licence) `This Font Software is licensed under the SIL Open Font License, Version 1.1. … See the SIL Open Font License for the specific language, permissions and limitations governing your use of this Font Software.`; ID 14 `http://scripts.sil.org/OFL`. **No Reserved Font Name is declared anywhere.**
 - **What follows** (OFL 1.1): clause 2 lets a Modified Version (glyphs removed: a subset) be used and distributed, with the copyright notice and the licence kept and the font under the OFL alone; clause 3 forbids a *Reserved Font Name* for a modified font, and there is none to forbid; clause 5 requires it be distributed under the OFL only. The repository's `fonts/fallback/OFL.txt` (shipped beside every chunk) carries the notice of every Noto font used.
-- **The trademark**: OFL grants no trademark right, and name ID 7 says "Noto" is Google's. The existing chunks are already named `Noto Sans SC NNN` (LICENSES.md §4 says renaming is allowed since no RFN is declared). A zero-risk alternative, if you prefer: name the subset family neutrally (for example `RapidR Han Subset`) and keep the credit in the notice ("a subset of Noto Sans SC by Adobe"); the notice names the font either way.
-- **Not verified**: I could not fetch the upstream repository (no network in this lane). The conclusion rests on the files above, which are the pinned official release.
+- **The trademark**: OFL grants no trademark right, and name ID 7 says "Noto" is Google's. The existing chunks are already named `Noto Sans SC NNN` (LICENSES.md §4 says renaming is allowed since no RFN is declared). The zero-risk alternative, which the lawyer preferred and section 6 does: name the subset family neutrally (`RapidR Han Subset`) and keep the credit in the notice ("a Modified Version of Noto Sans SC, (c) 2014-2021 Adobe"); the notice names the font either way.
+- **Not verified by me**: I could not fetch the upstream repository (no network in this lane). The lawyer fetched the upstream `Sans/LICENSE` and confirmed it opens the same way, with no copyright line and no Reserved Font Name (review, part B, "Facts confirmed").
 
-## 6. What I will do after your OK (and nothing before)
+## 6. Done, after the lawyer's OK: the eight conditions
 
-1. `tools/fonts.py`: a `subset` step that makes the file from the pinned source (the character list generated from GB 2312 level 1 and the catalogs, one command, reproducible), writes it into the web fonts folder with its own family name, and lists it **first** in `index.json` (the chunk finder takes the first chunk that has a character), so the existing chunks stay as the rare-character fallback.
-2. `tools/third_party_notices.py` and `LICENSES.md` §4: the subset named with the OFL text, as the chunks are.
-3. The size and speed above, as a test of the build.
+| # | Condition (review part B) | How it is met |
+|---|---|---|
+| **B-1** | each copy carries the copyright notice and the licence | `fonts/fallback/OFL.txt` (the whole OFL 1.1 with Adobe's line "(c) 2014-2021 Adobe" and now the credit of the Modified Versions) is copied into the web fonts folder by `build`, beside the subset and the chunks. The fonts keep name IDs 0 (copyright), 7 (trademark notice), 8, 9 (designers), 13 (licence) and 14 (its URL). `fonts.py check` fails when a font is in a folder without `OFL.txt`, or when a file lost ID 0 (Adobe), 7, or 13. |
+| **B-2** | a neutral family name, written into the file | `RapidR Han Subset` for the subset, `RapidR Han NNN` and `RapidR Hangul NNN` for the chunks (the lawyer's optional point, done in the same pass), in name IDs 1, 3, 4, 6 and 16 and the CFF names (`rename`, `tools/fonts.py`); the names are in `fonts/fallback/fonts.toml` (`chunk_family`, `[subset] family`). `check` fails when any of those IDs has "Noto" in it. The trademark notice (ID 7) stays: it is a notice, not a use. |
+| **B-3** | never sold by itself | No release asset, package or download of the font alone. It is in `lib/rapidr/web/fonts`, web bundles and `rapidr build --web` sites, as the chunks are. |
+| **B-4** | OFL only, not MIT | `LICENSES.md` §4, `docs/licensing.md` and the shipped notices say the fonts are OFL-1.1 Modified Versions; no MIT header is put on the font folder. |
+| **B-5** | the holders' names do not promote it | `OFL.txt` says the names are used to acknowledge their work and that they have not endorsed these fonts. |
+| **B-6** | notices | `tools/third_party_notices.py` (and the regenerated `THIRD_PARTY_NOTICES.md`), `LICENSES.md` §4 (the subset, its source SHA-256, how it is cut) and `crates/rapidr-cli/src/notices.rs` (every web build's `THIRD-PARTY-NOTICES.txt`; a unit test checks it names `RapidR Han Subset` and carries Adobe's line and the whole OFL). `check` fails when any of them stops naming the subset. |
+| **B-7** | same origin only | The loader (`crates/rapidr-runtime-web/src/fonts_web.rs`) fetches from the page's own `fonts/` folder (or the `RAPIDR_FONTS` the page sets); `check` fails when the file names a URL. No font CDN, no Google Fonts. |
+| **B-8** | provenance | The character list is built in `build` from Python's `gb2312` codec (level 1: rows 16 to 55) and the three Chinese catalogs, not from a downloaded word list; the font file comes only from the release archive pinned by SHA-256 in `fonts.toml`; `check` fails if that pin is missing. |
+
+The lead's own rule, **loaded only when the UI is Chinese**: the index marks the subset `"for": "zh-Hans"`, and the loader skips a file marked so unless the UI language is Simplified Chinese (`rapidr_ui_kernel::text::chinese_ui`, which is false for Traditional). A page in another language never fetches the subset, and one that shows a Han character takes the chunk as before. Nothing is fetched at page load for any language. In a Chinese UI the subset comes first, so one file serves the common characters and the chunks stay the fallback for a rarer one.
+
+**What the build makes** (`python3 tools/fonts.py build target/web/fonts`): the subset is cut right before the chunks of the font it comes from, so it is listed first among the files with Han characters; the chunks are unchanged apart from their names and still hold every character (an English page that shows Chinese text needs them). Size and speed are as measured in section 4; the real numbers of the shipped file are in the report with the web capture.
+
+## 7. What is left (not blocking)
+
+- **System fonts at run time** (review: OK, nothing to add). Keep: no system font reaches a PDF (`printer.rs` writes the standard Helvetica); if Chinese printing is added, embed the OFL subset, never a system font.
+- **The Chinese manual** should say once that Microsoft YaHei, SimSun, PingFang and Heiti are licensed for the computers they come with, and that an app which ships a Chinese font should use an open one such as Noto Sans SC (review, "User apps"). No Chinese manual exists yet.
+- **The hero screenshots of the Chinese Studio** can be taken on Linux with Noto Sans CJK SC if zero risk is wanted (review, "Screenshots and videos").
 
 ## Appendix: the licence text, exactly as in the archive (`LICENSE`, 92 lines)
 

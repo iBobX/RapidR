@@ -220,7 +220,11 @@ Export: see LEGAL.md, "Export", and §8 below.
   Noto Sans Symbols 2.003 and Symbols 2 2.008 (in the repository,
   unmodified), Noto Sans SC and KR from Noto CJK Sans 2.004 and Noto Color
   Emoji (COLRv1, noto-emoji's release tag v2.051) — fetched at build time,
-  pinned by SHA-256. All are OFL-1.1.
+  pinned by SHA-256. All are OFL-1.1. The web build's chunks of the CJK fonts
+  and the Simplified Chinese subset are Modified Versions under family names of
+  their own (`RapidR Han Subset`, `RapidR Han NNN`, `RapidR Hangul NNN`;
+  "Noto" is Google's trademark), OFL-only, never offered on their own
+  (LICENSES.md §4, docs/legal/review-2026-11-06-zh.md).
   - **No Reserved Font Name.** None of these fonts declares one: their
     `OFL.txt` / `LICENSE` have no Reserved Font Name line, and the CJK fonts'
     copyright string is "© 2014-2021 Adobe".

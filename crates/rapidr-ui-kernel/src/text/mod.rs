@@ -55,7 +55,7 @@ pub type MissingHook = Rc<dyn Fn(char)>;
 
 /// Whether the language the program speaks is Simplified Chinese (`zh`,
 /// `zh-Hans`, `zh-CN`, `zh-SG`: not Traditional, which has its own fonts).
-fn chinese_ui() -> bool {
+pub fn chinese_ui() -> bool {
     let tag = rapidr_value::i18n::language();
     tag == "zh" || tag.starts_with("zh-Hans") || tag.starts_with("zh-CN") || tag.starts_with("zh-SG")
 }

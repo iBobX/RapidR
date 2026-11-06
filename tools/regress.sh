@@ -271,6 +271,12 @@ if want legal; then echo "== legal"
   # in the web runtime or rapidr-runtime-core —
   # docs/legal/review-2026-11-05-cranelift.md C2, C4)
   python3 tools/check_jit_features.py || LEGAL_FAILED=1
+  # (the fonts the web build ships: the Simplified Chinese subset and the
+  # chunks have names of their own, not Noto's; Adobe's copyright, the
+  # trademark notice, the licence and OFL.txt travel with them; the notices
+  # name them; the subset only for a Chinese UI, from the page's own origin
+  # — docs/legal/review-2026-11-06-zh.md B-1 .. B-8)
+  python3 tools/fonts.py check || LEGAL_FAILED=1
   out=$(python3 tools/check_notices.py --rapidr ./rapidr 2>&1) || LEGAL_FAILED=1
   echo "$out" | grep -E "FAIL|notices: all ok"; fi
 [ $LEGAL_FAILED = 1 ] && { echo "LEGAL CHECKS FAILED"; exit 1; }

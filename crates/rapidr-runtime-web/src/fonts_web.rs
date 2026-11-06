@@ -7,6 +7,14 @@
 //! chunk with it is fetched, added to the kernel's text system, and every
 //! window is drawn again with it.
 //!
+//! One file is for a Chinese UI only: the Simplified Chinese subset
+//! (`"for": "zh-Hans"` in the index; fonts.toml [subset]), the common
+//! characters in one 0.8 MB file, listed before the chunks it was cut from.
+//! A page whose language is Chinese fetches it instead of 24 of the chunks;
+//! any other page never asks for it and takes a Han character's chunk, as
+//! before (docs/legal/i18n-zh-font.md). Everything comes from the page's own
+//! origin, as the chunks do.
+//!
 //! Where the chunks are: the page's `RAPIDR_FONTS` (a URL; the IDE's
 //! preview and the test pages set it), else `fonts/` beside the page (a
 //! bundle's, a `rapidr build --web` site's). Without them (an old build),
@@ -24,6 +32,20 @@ struct Chunk {
     family: String,
     file: String,
     ranges: Vec<(u32, u32)>,
+    /// The UI language it is for (`"for"` in the index), None: any page.
+    only: Option<String>,
+}
+
+impl Chunk {
+    /// Whether this page may fetch the chunk: a file made for the Simplified
+    /// Chinese UI only when the UI is Chinese.
+    fn allowed(&self) -> bool {
+        match self.only.as_deref() {
+            None => true,
+            Some("zh-Hans") => rapidr_ui_kernel::text::chinese_ui(),
+            Some(_) => false,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -106,7 +128,7 @@ fn missing(c: char) {
             return None;
         };
         let cp = c as u32;
-        let Some(chunk) = chunks.iter().find(|k| k.ranges.iter().any(|&(a, b)| a <= cp && cp <= b)) else {
+        let Some(chunk) = chunks.iter().find(|k| k.allowed() && k.ranges.iter().any(|&(a, b)| a <= cp && cp <= b)) else {
             s.none.insert(c);
             return None;
         };
@@ -169,7 +191,7 @@ async fn load_index() {
     }
 }
 
-/// The index: `{"chunks": [{"family", "file", "ranges": [[first, last] …]} …]}`.
+/// The index: `{"chunks": [{"family", "file", "ranges": [[first, last] …], "for"?} …]}`.
 fn parse_index(text: &str) -> Vec<Chunk> {
     let Ok(v) = js_sys::JSON::parse(text) else { return Vec::new() };
     let Ok(list) = js_sys::Reflect::get(&v, &JsValue::from_str("chunks")) else { return Vec::new() };
@@ -181,6 +203,7 @@ fn parse_index(text: &str) -> Vec<Chunk> {
             Some(Chunk {
                 family: get(&c, "family")?.as_string()?,
                 file: get(&c, "file")?.as_string()?,
+                only: get(&c, "for").and_then(|v| v.as_string()),
                 ranges: ranges
                     .iter()
                     .filter_map(|r| {

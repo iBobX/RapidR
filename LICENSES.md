@@ -161,7 +161,8 @@ SHA-256 in [`fonts/fallback/fonts.toml`](fonts/fallback/fonts.toml):
 - Noto Sans 2.015;
 - Noto Sans Symbols 2.003;
 - Noto Sans Symbols 2 2.008;
-- Noto Sans SC and Noto Sans KR from Noto CJK Sans 2.004;
+- Noto Sans SC and Noto Sans KR from Noto CJK Sans 2.004, and the subsets
+  RapidR cuts from them (`RapidR Han Subset`, `RapidR Han NNN`, `RapidR Hangul NNN`);
 - Noto Color Emoji (COLRv1) from the noto-emoji repository at its release tag v2.051.
 
 **Where they are.** Noto Sans and the two Symbols fonts are in
@@ -170,16 +171,38 @@ SHA-256 in [`fonts/fallback/fonts.toml`](fonts/fallback/fonts.toml):
 
 **What is shipped.** `tools/fonts.py` splits the fonts by Unicode range into
 the chunks the web runtime loads on demand: the runtime's `fonts/` folder,
-web bundles and `rapidr build --web` sites. A chunk of a CJK font is renamed
-`<family> NNN` (for example `Noto Sans SC 003`) so each loads as a family of
-its own. This subsetting and renaming are allowed by the OFL; none of these
-fonts declares a Reserved Font Name. `OFL.txt` travels with the chunks.
+web bundles and `rapidr build --web` sites. Each chunk of a CJK font is a
+Modified Version (glyphs removed) with a family name of its own, written into
+the font file: `RapidR Han NNN` (cut from Noto Sans SC) and `RapidR Hangul
+NNN` (from Noto Sans KR), so each loads as a family of its own. The OFL grants
+no right to Google's trademark "Noto" and requires no new name (none of these
+fonts declares a Reserved Font Name), so a font RapidR cuts out of a Noto font
+does not carry the name; its copyright (Adobe's), the trademark notice and the
+licence records stay in the file. `OFL.txt` travels with the chunks.
+
+**The Simplified Chinese subset.** `RapidR Han Subset`
+(`RapidRHanSubset-Regular.otf`, about 0.8 MB) is a Modified Version of Noto
+Sans SC 2.004 (source file SHA-256 `faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9`,
+from the release archive pinned in `fonts.toml`): the 3,755 hanzi of GB 2312
+level 1, every character the Chinese catalogs show, and the CJK, full-width
+and general punctuation, cut by `python3 tools/fonts.py build` with fontTools'
+subsetter (no layout features, no hinting, name records kept, `.notdef`
+outline kept). It is listed in `index.json` before the chunks it was cut from,
+which stay the fallback for a rarer character, and the web runtime fetches it
+only when the UI language is Simplified Chinese, from the page's own origin
+like every chunk. It is OFL-1.1 only (not MIT, whatever the programs around it
+are), bundled with the web runtime and never offered on its own.
+`python3 tools/fonts.py check` (part of `tools/regress.sh legal`) keeps these
+rules: no "Noto" in the new family names, Adobe's copyright, the trademark
+notice and the licence in every file, `OFL.txt` beside them, the notices
+naming the subset, the subset first for Han characters and for a Chinese UI
+only (docs/legal/review-2026-11-06-zh.md, docs/legal/i18n-zh-font.md).
 
 > Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2: Copyright 2022 The
 > Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic,
 > https://github.com/notofonts/symbols). Noto Sans SC, Noto Sans KR (Noto
-> Sans CJK): © 2014-2021 Adobe (http://www.adobe.com/). Noto Color Emoji:
-> Copyright 2022 Google Inc.
+> Sans CJK, and the Modified Versions cut from them, named above): © 2014-2021
+> Adobe (http://www.adobe.com/). Noto Color Emoji: Copyright 2022 Google Inc.
 >
 > This Font Software is licensed under the SIL Open Font License, Version
 > 1.1. The full license text is in
