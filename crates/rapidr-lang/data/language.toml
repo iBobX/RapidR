@@ -669,12 +669,17 @@ doc = "The base type of objects: `TYPE name EXTENDS RObject` makes a TYPE with m
 [[type]]
 name = "INT64"
 origin = "rapidr"
-doc = "A 64-bit signed whole number, from -9223372036854775808 to 9223372036854775807. PRINT, STR$ and HEX$ show it in full; `+ - *` wrap at 64 bits; `\\`, MOD, the comparisons and AND, OR, XOR, NOT, SHL, SHR work on all 64 bits. A DOUBLE stored into it is truncated toward zero (out of range: -9223372036854775808); text is read as VAL reads it, to the last digit. Literals up to 18446744073709551615 and `&H` with up to 16 digits are exact. With a DOUBLE in the expression the result is a DOUBLE, as usual."
+doc = "A 64-bit signed whole number, from -9223372036854775808 to 9223372036854775807. Its value keeps its type wherever it goes (a VARIANT, an array, a TYPE field, a property, the debugger, JSON): PRINT, STR$, `&` and `+` with text show every digit; `+ - *` wrap at 64 bits; `\\`, MOD and the comparisons are exact, against a DOUBLE too; AND, OR, XOR, NOT, SHL, SHR work on all 64 bits; a FOR counter stops at its type's end. A DOUBLE stored into it is truncated toward zero (out of range: -9223372036854775808); text is read as VAL reads it, to the last digit. Beside an INT64, a literal is read as written: `&H` up to 16 digits (`&HFFFFFFFF` is 4294967295), decimals up to 18446744073709551615. With a DOUBLE in the expression the result is a DOUBLE, as usual."
 
 [[type]]
 name = "UINT64"
 origin = "rapidr"
-doc = "A 64-bit unsigned whole number, from 0 to 18446744073709551615. It works as INT64 does, unsigned: PRINT, STR$, `\\`, MOD and the comparisons read it as unsigned. With an INT64 in the same expression the result is a UINT64; a comparison is exact (a UINT64 above 9223372036854775807 is greater than any INT64, and `u > -1` is true). A DOUBLE stored into it that is negative or too big gives 0; a whole number keeps its 64 bits (-1 is 18446744073709551615)."
+doc = "A 64-bit unsigned whole number, from 0 to 18446744073709551615. It works as INT64 does, unsigned: shown, compared and divided as the unsigned number it is wherever it goes. With an INT64 in the same expression the result is a UINT64; a comparison is exact (a UINT64 above 9223372036854775807 is greater than any INT64, and `u > -1` is true). A DOUBLE stored into it that is negative or too big gives 0; a whole number keeps its 64 bits (-1 is 18446744073709551615). `FOR u = 10 TO 0 STEP -1` stops at 0."
+
+[[type]]
+name = "UINT32"
+origin = "rapidr"
+doc = "A 32-bit unsigned whole number, from 0 to 4294967295 (DWORD is RapidQ's 32-bit signed type). A store keeps the low 32 bits (`-1` is 4294967295, `&HF58ACBFB` 4119514107); its value is worked out in 64 bits, so `u * 2` doesn't overflow, and PRINT shows every digit. HEX$ shows 8 digits. A DOUBLE stored into it that is negative or too big gives 0."
 
 [[type]]
 name = "CURRENCY"
