@@ -361,9 +361,12 @@ END SUB
 
 The wheel scrolls what is under the mouse, whichever control has the
 keyboard: a list, a memo, a grid, a tree, a scroll box or form with its own
-scroll bars — and an `RScrollBar`, which moves three `SmallChange` steps a
-notch (down or right forward; a horizontal bar takes a sideways turn, or
-Shift and the wheel) and fires its `OnChange`, as a click on its arrow does.
+scroll bars — and, in a RapidR program (a `.rr` file), an `RScrollBar`,
+which moves three `SmallChange` steps a notch (down or right forward; a
+horizontal bar takes a sideways turn, or Shift and the wheel) and fires its
+`OnChange`, as a click on its arrow does. In a classic program (`.bas`,
+`.rqw` …) the wheel leaves a scroll bar alone and fires nothing, exactly as
+RapidQ's does.
 
 Where nothing under the mouse scrolls by itself — a list you paint with
 labels on a panel, a canvas, a game — `OnMouseWheel (Delta, X, Y, Shift)`

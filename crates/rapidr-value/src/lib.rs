@@ -1365,6 +1365,25 @@ pub fn new_object_array(name: &str, type_name: &str, fields: &str, bounds: &[(i6
     Ok(ids)
 }
 
+thread_local! {
+    static RAPIDR_PROGRAM: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The program is a RapidR program — a `.rr` file, or one that says
+/// `$OPTION RAPIDR` — not a classic RapidQ one (`.bas`, `.rqw` …): the
+/// parser's first call (`__rapidr_program`). What RapidR adds to a classic
+/// component without the program asking for it (the mouse wheel moving a
+/// scroll bar) is a RapidR program's only; a classic program's components
+/// stay exactly RapidQ's.
+pub fn set_rapidr_program(on: bool) {
+    RAPIDR_PROGRAM.with(|r| r.set(on));
+}
+
+/// Whether the program is a RapidR program ([`set_rapidr_program`]).
+pub fn rapidr_program() -> bool {
+    RAPIDR_PROGRAM.with(std::cell::Cell::get)
+}
+
 pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
     // VARPTR, MEMCPY, SIZEOF, … (memory.rs).
     if let Some(r) = memory::shared(key, args) {
@@ -1461,6 +1480,10 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
     }
     if key == "__console_cp437" {
         console::set_cp437(true);
+        return Some(Ok(Value::Null));
+    }
+    if key == "__rapidr_program" {
+        set_rapidr_program(true);
         return Some(Ok(Value::Null));
     }
     if key == "__inkey_trapall" {

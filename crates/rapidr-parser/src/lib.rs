@@ -695,6 +695,15 @@ impl<'a> Parser<'a> {
             let call = body.remove(i);
             body.insert(0, call);
         }
+        // (a RapidR program — a .rr file, `$OPTION RAPIDR` — tells the
+        // runtime so first: what RapidR adds to a classic component without
+        // the program asking, the wheel moving a scroll bar, is a RapidR
+        // program's only; a classic file's components stay RapidQ's. At the
+        // first statement's line: no line of its own to stop at)
+        if self.rapidr {
+            let span = body.first().map(statement_span).unwrap_or_default();
+            body.insert(0, Statement::Call(CallStatement { span, callee: ident(span, RAPIDR_PROGRAM_CALL), args: Vec::new() }));
+        }
         if !self.data_items.is_empty() {
             let mut init = data_table_init(&self.data_items, &self.data_labels);
             init.append(&mut body);
@@ -3962,6 +3971,9 @@ fn input_chars(body: &mut Vec<Statement>) {
 
 /// The builtin `$OPTION CONSOLE CP437` calls (rapidr_value::console).
 const CONSOLE_CP437_CALL: &str = "__console_cp437";
+
+/// The builtin a RapidR program calls first (rapidr_value::set_rapidr_program).
+const RAPIDR_PROGRAM_CALL: &str = "__rapidr_program";
 
 /// A CONST named with a dot (`CONST Application.Path = LEFT$(…)`, RapidQ's
 /// music examples): `Application.Path` reads the constant — RC.EXE's

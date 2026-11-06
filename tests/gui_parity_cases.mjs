@@ -278,6 +278,11 @@ export const cases = [
   // which moves the bar; over the form's open area: nothing.
   { name: "wheel_scroll", events: "s.__wheel_8_70_1,s.__wheel_8_70_-1,s.__wheel_8_70_5,row1.__wheel_5_6_-2,f.__wheel_240_100_1", dump: "lk.caption,s.position",
     expect: ["lk.caption= pos3 pos0 pos10 wheel2@9,10 pos8", "s.position=8"] },
+  // A classic program's QSCROLLBAR and the wheel: nothing moves, nothing
+  // fires — RC.EXE's own run (WM_MOUSEWHEEL sent and posted to each bar's
+  // window and to the form's: Position 5, no OnChange, no OnScroll).
+  { name: "wheel_scroll_classic", events: "sv.__wheel_8_90_1,sv.__wheel_8_90_-1,sh.__wheel_100_8_1,form.__wheel_150_100_1", dump: "lk.caption,sv.position,sh.position",
+    expect: ["lk.caption=-", "sv.position=5", "sh.position=5"] },
   { name: "list_columns", events: "lst.__item_4,cb.__item_2", dump: "lbl.caption,lbl2.caption,cb.itemindex",
     expect: ["lbl.caption=i4 a4 cols2", "lbl2.caption=c2 0-18/112 18-38/112 38-60/112", "cb.itemindex=2"] },
   // QLISTBOX scrolls to what the program picks (Windows' LB_SETCURSEL and

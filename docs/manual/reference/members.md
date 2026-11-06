@@ -1235,7 +1235,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 <a id="rscrollbar"></a>
 ## RScrollBar
 
-A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and the mouse wheel over it (three SmallChanges a notch).
+A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and, in a RapidR program (a .rr file), the mouse wheel over it (three SmallChanges a notch; a classic program's doesn't move for the wheel, as RapidQ's).
 
 | Property | Type | Default | |
 |---|---|---|---|

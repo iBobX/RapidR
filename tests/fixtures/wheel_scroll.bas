@@ -4,8 +4,10 @@
 ' OnMouseWheel (Delta, X, Y, Shift) hears it (Delta 1 a notch up, -1 down;
 ' X, Y in the panel), even with the mouse on one of its labels; over the
 ' form's open area, with no handler bound there, nothing happens.
+' A RapidR program's (`$OPTION RAPIDR`, as every .rr file is): in a classic
+' program the wheel leaves a scroll bar alone, as RapidQ's (wheel_scroll_classic).
 ' tests/gui_parity_cases.mjs ("wheel_scroll").
-$INCLUDE "RAPIDQ.INC"
+$OPTION RAPIDR
 DECLARE SUB Changed
 DECLARE SUB RowsWheel (Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
 DIM Trail AS STRING

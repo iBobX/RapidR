@@ -216,9 +216,13 @@ impl ComponentKind for ScrollBar {
     /// wheel's up and down, a horizontal one its sideways turns and Shift
     /// + the wheel. Position stored, OnChange — as an arrow's click. A
     /// touchpad's fractions add up; at an end the wheel goes on to the
-    /// parent.
+    /// parent. A RapidR program's only (`rapidr_value::rapidr_program`):
+    /// RapidQ's QSCROLLBAR doesn't move for the wheel and fires nothing —
+    /// RC.EXE, 2026-11-05 (WM_MOUSEWHEEL sent and posted to the bar's
+    /// window, to the form's: Position and OnChange / OnScroll unchanged) —
+    /// so a classic program's scroll bar stays so.
     fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
-        if !cx.state.enabled {
+        if !cx.state.enabled || !rapidr_value::rapidr_program() {
             return false;
         }
         let turn = if vertical(cx.store, cx.id) {
@@ -323,8 +327,13 @@ mod tests {
 
     #[test]
     fn the_wheel_moves_the_bar_three_small_changes_a_notch() {
-        // (RAPIDR-ISSUES #17: the wheel over a scroll bar did nothing)
+        // (RAPIDR-ISSUES #17: the wheel over a scroll bar did nothing — a
+        // classic program's still doesn't, as RapidQ's: RC.EXE)
+        rapidr_value::set_rapidr_program(false);
         let (mut s, mut f, mut ts) = bar();
+        f.mouse_wheel(&s, &mut ts, (100.0, 18.0), (0.0, 1.0), Mods { shift: true, ..Mods::NONE });
+        assert_eq!(events(&mut f), vec![], "a classic program's bar");
+        rapidr_value::set_rapidr_program(true);
         // (a horizontal bar: Shift + the wheel, or a sideways turn)
         f.mouse_wheel(&s, &mut ts, (100.0, 18.0), (0.0, 1.0), Mods::NONE);
         assert_eq!(events(&mut f), vec![], "a plain wheel isn't a horizontal bar's");
