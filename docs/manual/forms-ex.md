@@ -105,8 +105,8 @@ nothing on other systems).
 
 | | Windows | macOS | Linux X11 | Linux Wayland | Web |
 |---|---|---|---|---|---|
-| `Transparent` | yes | yes | yes (with a compositor) | no | yes |
-| `TransparentClient` | yes | yes | yes | no | the page shows through; clicks still reach the form |
+| `Transparent` | yes | yes | not yet | not yet | yes |
+| `TransparentClient` | yes | yes | not yet | not yet | the page shows through; clicks still reach the form |
 | `fsStayOnTop` | yes | yes | yes | the compositor decides | above the page's other windows |
 
 Where a system can't do it, the window stays as it was and the program is

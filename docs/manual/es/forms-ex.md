@@ -107,8 +107,8 @@ END SUB
 
 | | Windows | macOS | Linux X11 | Linux Wayland | Web |
 |---|---|---|---|---|---|
-| `Transparent` | sí | sí | sí (con un compositor) | no | sí |
-| `TransparentClient` | sí | sí | sí | no | se ve la página a través; los clics siguen llegando al formulario |
+| `Transparent` | sí | sí | todavía no | todavía no | sí |
+| `TransparentClient` | sí | sí | todavía no | todavía no | se ve la página a través; los clics siguen llegando al formulario |
 | `fsStayOnTop` | sí | sí | sí | decide el compositor | encima de las demás ventanas de la página |
 
 Donde un sistema no puede hacerlo, la ventana queda como estaba y el programa

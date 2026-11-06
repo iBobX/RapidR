@@ -10,7 +10,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 |---|---|---|
 | <img src="../icons/light/components/form.svg" width="20" height="20" alt=""> | [`RForm`](members.md#rform) | everywhere |
 | <img src="../icons/light/components/formmdi.svg" width="20" height="20" alt=""> | [`RFormMDI`](members.md#rformmdi) | everywhere |
-| <img src="../icons/light/components/formex.svg" width="20" height="20" alt=""> | [`RFormEx`](members.md#rformex) | everywhere |
+| <img src="../icons/light/components/form.svg" width="20" height="20" alt=""> | [`RFormEx`](members.md#rformex) | everywhere |
 | <img src="../icons/light/components/panel.svg" width="20" height="20" alt=""> | [`RPanel`](members.md#rpanel) | everywhere |
 | <img src="../icons/light/components/tabcontrol.svg" width="20" height="20" alt=""> | [`RTabControl`](members.md#rtabcontrol) | everywhere |
 | <img src="../icons/light/components/toolbar.svg" width="20" height="20" alt=""> | [`RToolBar`](members.md#rtoolbar) | everywhere |

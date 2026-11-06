@@ -5,15 +5,17 @@
 //!   macOS, X11; on Wayland the compositor decides).
 //! - **No taskbar button** (RemoveTaskBar): Windows only.
 //! - **Opacity** (Transparent): a layered window's alpha on Windows,
-//!   NSWindow's alphaValue on macOS, `_NET_WM_WINDOW_OPACITY` on X11 (a
-//!   compositor shows it); not on Wayland.
+//!   NSWindow's alphaValue on macOS; not on Linux yet.
 //! - **The background a hole** (TransparentClient): the form's colour as a
-//!   layered window's colour key on Windows; on macOS and X11 the window's
-//!   outline made of the frame's pixels that aren't that colour (the
-//!   window draws on the CPU then: its pixels are read — [`mask`]); not on
-//!   Wayland.
+//!   layered window's colour key on Windows; on macOS the window's outline
+//!   made of the frame's pixels that aren't that colour (the window draws on
+//!   the CPU then: its pixels are read — [`mask`]); not on Linux yet.
 //!
-//! What a system can't do is said once on stderr, as ShapeForm's outline.
+//! (Linux: `_NET_WM_WINDOW_OPACITY` and an XFixes shape were tried on X11
+//! through XWayland, 2026-11-06, and showed nothing there, so neither is
+//! claimed: the window stays as it was until they are seen working on a real
+//! X11 session.) What a system can't do is said once on stderr, as
+//! ShapeForm's outline.
 
 use rapidr_ui_app::desktop::WindowSpec;
 use winit::window::{Window, WindowLevel};
@@ -31,10 +33,16 @@ pub fn asks(spec: &WindowSpec) -> bool {
 }
 
 /// Whether the window must draw on the CPU for its look: a colour key
-/// reads (macOS, X11) or is matched against (Windows' layered window,
-/// which a GPU swap chain doesn't take) the frame's pixels.
+/// reads (macOS) or is matched against (Windows' layered window, which a
+/// GPU swap chain doesn't take) the frame's pixels.
 pub fn needs_cpu(spec: &WindowSpec) -> bool {
-    spec.color_key
+    spec.color_key && keys_colours()
+}
+
+/// Whether this system's windows can have a colour key here (Windows,
+/// macOS).
+pub fn keys_colours() -> bool {
+    cfg!(any(target_os = "windows", target_os = "macos"))
 }
 
 /// The window's look applied: on top, taskbar, opacity and (Windows) the
@@ -52,7 +60,10 @@ pub fn apply(window: &Window, spec: &WindowSpec, key: u32) {
     {
         let _ = key;
         if !opacity(window, spec.alpha) && spec.alpha.is_some() {
-            once("Transparent: this window system can't make a window see-through (Wayland): it stays opaque");
+            once("Transparent: windows here can't be made see-through yet (Linux): it stays opaque");
+        }
+        if spec.color_key && !keys_colours() {
+            no_mask();
         }
     }
 }
@@ -70,49 +81,38 @@ fn once(message: &str) {
     });
 }
 
-/// The colour key on a system that can't cut a window (Wayland): said once.
+/// The colour key on a system that can't cut a window here (Linux): said
+/// once.
 pub fn no_mask() {
-    once("TransparentClient: this window system can't cut holes in a window (Wayland): it keeps its background");
+    once("TransparentClient: windows here can't have holes cut in them yet (Linux): it keeps its background");
 }
 
-/// (macOS, X11) Whole-window opacity; whether the system could.
+/// (macOS) Whole-window opacity; whether the system could.
 #[cfg(not(target_os = "windows"))]
 fn opacity(window: &Window, alpha: Option<u8>) -> bool {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    let Ok(handle) = window.window_handle() else { return false };
-    let a = f64::from(alpha.unwrap_or(255)) / 255.0;
-    match handle.as_raw() {
-        #[cfg(target_os = "macos")]
-        RawWindowHandle::AppKit(h) => {
-            use objc2::msg_send;
-            use objc2::runtime::AnyObject;
-            let view = h.ns_view.as_ptr().cast::<AnyObject>();
-            // SAFETY: the live window's view, on the main thread (the
-            // host's pump).
-            unsafe {
-                let w: *mut AnyObject = msg_send![view, window];
-                if !w.is_null() {
-                    let _: () = msg_send![w, setAlphaValue: a];
-                }
-            }
-            true
-        }
-        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
-        RawWindowHandle::Xlib(h) => {
-            use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
-            let display = window.display_handle().ok().and_then(|d| match d.as_raw() {
-                RawDisplayHandle::Xlib(x) => x.display,
-                _ => None,
-            });
-            match display {
-                Some(d) => x11::opacity(d.as_ptr(), h.window, alpha),
-                None => false,
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let Ok(handle) = window.window_handle() else { return false };
+        let RawWindowHandle::AppKit(h) = handle.as_raw() else { return false };
+        let a = f64::from(alpha.unwrap_or(255)) / 255.0;
+        let view = h.ns_view.as_ptr().cast::<AnyObject>();
+        // SAFETY: the live window's view, on the main thread (the host's
+        // pump).
+        unsafe {
+            let w: *mut AnyObject = msg_send![view, window];
+            if !w.is_null() {
+                let _: () = msg_send![w, setAlphaValue: a];
             }
         }
-        _ => {
-            let _ = a;
-            false
-        }
+        true
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (window, alpha);
+        false
     }
 }
 
@@ -177,34 +177,6 @@ pub fn mask(rgba: &[u8], width: usize, height: usize, key: u32, scale: f64) -> O
         }
     }
     out
-}
-
-#[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
-mod x11 {
-    use x11_dl::xlib::{Display, Xlib, PropModeReplace, XA_CARDINAL};
-
-    /// `_NET_WM_WINDOW_OPACITY` set (or taken away for an opaque window).
-    pub fn opacity(display: *mut std::ffi::c_void, window: std::ffi::c_ulong, alpha: Option<u8>) -> bool {
-        let Ok(xlib) = Xlib::open() else { return false };
-        let display = display.cast::<Display>();
-        // SAFETY: the live window's display and window (winit's Xlib
-        // connection); the property's data lives through the call.
-        unsafe {
-            let name = c"_NET_WM_WINDOW_OPACITY";
-            let atom = (xlib.XInternAtom)(display, name.as_ptr(), 0);
-            match alpha {
-                Some(a) if a < 255 => {
-                    let value: std::ffi::c_ulong = (u64::from(a) * 0xFFFF_FFFF / 255) as std::ffi::c_ulong;
-                    (xlib.XChangeProperty)(display, window, atom, XA_CARDINAL, 32, PropModeReplace, std::ptr::addr_of!(value).cast(), 1);
-                }
-                _ => {
-                    (xlib.XDeleteProperty)(display, window, atom);
-                }
-            }
-            (xlib.XFlush)(display);
-        }
-        true
-    }
 }
 
 #[cfg(target_os = "windows")]

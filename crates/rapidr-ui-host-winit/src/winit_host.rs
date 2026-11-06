@@ -919,7 +919,7 @@ impl Shim<'_> {
                 }
                 // (RFormEx's TransparentClient: the colour the background is
                 // drawn in is the hole — look.rs)
-                if k.spec.color_key {
+                if k.spec.color_key && crate::look::keys_colours() {
                     let key = crate::look::key_of(self.store, f);
                     if cfg!(target_os = "windows") {
                         if w.keyed.as_ref().map(|(c, _)| *c) != Some(key) {

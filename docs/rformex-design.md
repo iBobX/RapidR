@@ -132,8 +132,8 @@ Nothing else; the Help says so.
 |---|---|---|---|---|---|
 | OnDrag / DropPoint | winit's drop + the mouse position | same | same | same (position: last known pointer) | the page's drop (file read in) |
 | Tray | notification area | menu bar item | StatusNotifierItem | same | strip in the page |
-| Transparent | layered window (alpha) | window alpha | `_NET_WM_WINDOW_OPACITY` | not available (said once) | CSS opacity |
-| TransparentClient | layered window colour key | window mask from the frame | window shape from the frame | not available (said once) | the colour's pixels cleared in the page |
+| Transparent | layered window (alpha) | window alpha | not yet (said once) | not yet (said once) | CSS opacity |
+| TransparentClient | layered window colour key | window mask from the frame | not yet (said once) | not yet (said once) | the colour's pixels cleared in the page |
 | fsStayOnTop | always-on-top level | floating level | above state | compositor's choice | above the page's windows |
 | RemoveTaskBar | skip taskbar | nothing | nothing | nothing | nothing |
 | OnMinimise / OnGetFocus / OnLostFocus | the window system's events | same | same | same | the page's window frames |
@@ -141,7 +141,10 @@ Nothing else; the Help says so.
 
 A layered window (Windows' Transparent / TransparentClient) is drawn on the
 CPU (vello_cpu + softbuffer, GDI's presentation, which layered windows
-support everywhere); macOS' and X11's colour key read the CPU frame too. The
+support everywhere); macOS' colour key reads the CPU frame too. On Linux,
+`_NET_WM_WINDOW_OPACITY` and an XFixes shape were tried on X11 through XWayland
+(2026-11-06) and showed nothing, so neither is claimed until seen on a real X11
+session. The
 other forms keep the GPU.
 
 ## 6. The compatibility layer (QFormEx)

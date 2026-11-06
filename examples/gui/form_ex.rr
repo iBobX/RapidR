@@ -12,7 +12,7 @@
 ' - The slider sets how see-through the whole window is (Transparent);
 '   "Hole" lets the desktop show through the form's background colour
 '   (TransparentClient); "On top" keeps it above other windows.
-' Windows, macOS and Linux (see-through windows need X11 there), and a web
+' Windows, macOS and Linux (see-through and the hole: Windows, macOS and the web), and a web
 ' page (its own tray strip; the page shows through instead of the desktop).
 
 DECLARE SUB Dropped (File AS STRING)
