@@ -1,4 +1,4 @@
-<!-- translated-from: versions.md 0600d6d68169348a -->
+<!-- translated-from: versions.md 19ffcdcdc6b833a3 -->
 # Versiones: nunca pierdas tu trabajo
 
 **Versiones** conserva cada estado guardado de tu proyecto, muestra qué cambió
@@ -252,6 +252,13 @@ guardar versiones de un proyecto así, copia sus archivos, sin la carpeta oculta
 `.git`, en una carpeta nueva y empieza las versiones allí.
 
 ![El panel Versiones de un proyecto cuyo historial apunta fuera de su carpeta: una señal de advertencia, Versiones está desactivado para este proyecto, por qué, y el historial local que sigue guardando tus archivos](../images/versions/studio-blocked.png)
+
+Una versión puede tener un enlace (un archivo que apunta a otro lugar). Volver
+a esa versión, u obtener lo último de una carpeta compartida, escribe el enlace
+solo cuando apunta dentro del proyecto. Un enlace que apunta fuera
+(`/Users/…`, `../…`) detiene la acción antes de escribir nada, y no se cambia
+nada. Versiones nunca escribe un archivo a través de un enlace, ni quita uno a
+través de él.
 
 ## RRepository: versiones en tus propios programas
 

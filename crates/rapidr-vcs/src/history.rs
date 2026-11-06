@@ -282,6 +282,9 @@ impl Versions {
                 }
                 paths.push(p);
             }
+            // (the links it would put back, before any reference moves:
+            // SEC-32)
+            checkout::check_restore(self, before_tree, &paths)?;
         }
         let words = format!("Undid: {}", entry.words);
         let safety = self.safety_point(&words)?;

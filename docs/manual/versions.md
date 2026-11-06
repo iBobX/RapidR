@@ -241,6 +241,13 @@ versions there.
 
 ![The Versions pane of a project whose history points outside its folder: a warning sign, Versions are off for this project, why, and the local history that still keeps your saves](images/versions/studio-blocked.png)
 
+A version can hold a link (a file that points to another place). Going
+back to that version, or getting the latest from a shared folder, writes
+the link only when it points inside the project. A link that points
+outside (`/Users/…`, `../…`) stops the action before anything is written,
+and nothing is changed. Versions never write a file through a link, and
+never remove one through it.
+
 ## RRepository: versions in your own programs
 
 Studio's Versions pane is built on **RRepository**, a component any program

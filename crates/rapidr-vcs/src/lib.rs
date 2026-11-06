@@ -996,6 +996,8 @@ impl Versions {
             return fail(ErrorKind::NothingToSave, "The project is already as it was in that version.");
         }
         let v = self.version(target)?;
+        // (its links checked before the new version is saved: SEC-32)
+        checkout::check_switch(self, tree)?;
         let words = format!("Went back to \u{201C}{}\u{201D} ({})", first_line(&v.message), v.short_id());
         let safety = self.safety_point(&words)?;
         // (the version's message says what happened, as the history does:
@@ -1054,6 +1056,7 @@ impl Versions {
             }
         }
         let tree = editor.write().ctx("Could not write the version's list of files.")?.detach();
+        checkout::check_restore(self, tree, std::slice::from_ref(&path))?;
         let v = self.version(target)?;
         let words = format!("Went back to \u{201C}{}\u{201D} ({}) for {path}", first_line(&v.message), v.short_id());
         let safety = self.safety_point(&words)?;
