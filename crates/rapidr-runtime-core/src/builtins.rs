@@ -467,7 +467,7 @@ pub fn rp_beep() {
     {
         use std::time::Duration;
         std::thread::spawn(|| {
-            if let Ok((_stream, handle)) = rodio::OutputStream::try_default() {
+            if let Ok((_stream, handle)) = crate::sound::open_output() {
                 let source = rodio::source::SineWave::new(800.0)
                     .take_duration(Duration::from_millis(200));
                 let _ = handle.play_raw(rodio::source::Source::convert_samples(source));
@@ -490,7 +490,7 @@ pub fn rp_sound(freq: &Value, duration: &Value) {
     {
         use std::time::Duration;
         std::thread::spawn(move || {
-            if let Ok((_stream, handle)) = rodio::OutputStream::try_default() {
+            if let Ok((_stream, handle)) = crate::sound::open_output() {
                 let source = rodio::source::SineWave::new(freq_hz as f32)
                     .take_duration(Duration::from_millis(dur_ms));
                 let _ = handle.play_raw(rodio::source::Source::convert_samples(source));
@@ -510,12 +510,13 @@ pub fn rp_playsound(filename: &Value) -> Value {
     #[cfg(feature = "audio")]
     {
         std::thread::spawn(move || {
-            if let Ok((_stream, handle)) = rodio::OutputStream::try_default() {
+            if let Ok((_stream, handle)) = crate::sound::open_output() {
                 if let Ok(bytes) = crate::value::command_line::read_or_programs_own(&path, |p| std::fs::read(crate::value::paths::host(p)).map_err(|e| e.to_string())) {
                     if let Ok(source) = crate::sound::decode(bytes) {
-                        let sink = rodio::Sink::try_new(&handle).unwrap();
-                        sink.append(source);
-                        sink.sleep_until_end();
+                        if let Ok(sink) = rodio::Sink::try_new(&handle) {
+                            sink.append(source);
+                            sink.sleep_until_end();
+                        }
                     } else {
                         eprintln!("[ERROR] PlaySound: unsupported audio format: {}", path);
                     }

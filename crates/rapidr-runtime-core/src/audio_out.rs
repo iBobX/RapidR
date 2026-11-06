@@ -7,9 +7,11 @@
 //!   and channels to the device's). Its samples come from the stream's
 //!   lock-free queue on the device's own thread ([`StreamSource`]), which
 //!   never waits for the program.
-//! - **No device** (none on the computer, or a build without sound): a
-//!   clocked sink takes the samples in real time on a thread of its own and
-//!   plays nothing, so the program's timing goes on; Error says why.
+//! - **No device** (none on the computer, a computer whose sound system
+//!   RapidR can't use yet — Windows before Vista —, or a build without
+//!   sound): a clocked sink takes the samples in real time on a thread of its
+//!   own and plays nothing, so the program's timing goes on; Error says why
+//!   (sound.rs: never a crash).
 //! - **Under the tests** (sound.rs' `testing`: the GUI tests, the
 //!   conformance runner) the same clocked sink, keeping what it heard
 //!   (`__Heard`) — never the sound card.
@@ -40,7 +42,7 @@ pub fn install() {
     // doesn't spend while the program's sound is due)
     #[cfg(feature = "audio")]
     if !crate::sound::testing() {
-        let _ = crate::sound::has_output();
+        let _ = crate::sound::output_status();
     }
 }
 
@@ -58,14 +60,20 @@ fn start(id: &str, consumer: Consumer) -> Result<(), String> {
             clocked(consumer, true);
             return Ok(());
         }
-        if crate::sound::has_output() {
-            if crate::sound::play_source(&key(id), StreamSource::new(consumer)) {
-                return Ok(());
+        // (no output, or a backend that can't be asked: the reason in plain
+        // words, never a crash; the stream plays silently, in time)
+        match crate::sound::output_status() {
+            Ok(()) => {
+                if crate::sound::play_source(&key(id), StreamSource::new(consumer)) {
+                    return Ok(());
+                }
+                Err("The sound device refused the stream: it plays silently".into())
             }
-            return Err("The sound device refused the stream: it plays silently".into());
+            Err(why) => {
+                clocked(consumer, false);
+                Err(format!("{why}: the stream plays silently (its timing goes on)"))
+            }
         }
-        clocked(consumer, false);
-        Err("No sound device on this computer: the stream plays silently (its timing goes on)".into())
     }
     #[cfg(not(feature = "audio"))]
     {

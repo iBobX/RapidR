@@ -340,43 +340,48 @@ thread_local! {
 }
 
 /// Records from the default input, converted to the wave's format (the
-/// device's first channel, resampled by nearest frame).
+/// device's first channel, resampled by nearest frame). Every call into the
+/// backend is one guarded call (sound.rs): where it can't be asked (Windows
+/// before Vista) or there is no microphone, `false`, never a crash.
 #[cfg(feature = "audio")]
 fn mic_start(id: &str, rate: u32, bits: u16, channels: u16) -> bool {
-    use rodio::cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-    let host = rodio::cpal::default_host();
-    let Some(device) = host.default_input_device() else { return false };
-    let Ok(config) = device.default_input_config() else { return false };
-    let (dev_rate, dev_ch) = (config.sample_rate().0, usize::from(config.channels()));
     let bytes = Arc::new(Mutex::new(Vec::new()));
     let into = bytes.clone();
-    let step = f64::from(dev_rate) / f64::from(rate.max(1));
-    let mut phase = 0.0f64;
-    let stream = device.build_input_stream(
-        &config.into(),
-        move |data: &[f32], _: &rodio::cpal::InputCallbackInfo| {
-            let mut out = into.lock().unwrap();
-            let frames = data.len() / dev_ch.max(1);
-            while (phase as usize) < frames {
-                let s = data[(phase as usize) * dev_ch.max(1)].clamp(-1.0, 1.0);
-                for _ in 0..channels {
-                    if bits == 8 {
-                        out.push(((s * 127.0) + 128.0).round() as u8);
-                    } else {
-                        out.extend(((s * 32767.0).round() as i16).to_le_bytes());
+    let opened = crate::sound::microphone_backend().call(move || {
+        use rodio::cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+        let host = rodio::cpal::default_host();
+        let device = host.default_input_device().ok_or_else(|| "No microphone is available on this computer".to_string())?;
+        let config = device.default_input_config().map_err(|e| format!("The microphone can't be opened ({e})"))?;
+        let (dev_rate, dev_ch) = (config.sample_rate().0, usize::from(config.channels()));
+        let step = f64::from(dev_rate) / f64::from(rate.max(1));
+        let mut phase = 0.0f64;
+        let stream = device
+            .build_input_stream(
+                &config.into(),
+                move |data: &[f32], _: &rodio::cpal::InputCallbackInfo| {
+                    let mut out = into.lock().unwrap();
+                    let frames = data.len() / dev_ch.max(1);
+                    while (phase as usize) < frames {
+                        let s = data[(phase as usize) * dev_ch.max(1)].clamp(-1.0, 1.0);
+                        for _ in 0..channels {
+                            if bits == 8 {
+                                out.push(((s * 127.0) + 128.0).round() as u8);
+                            } else {
+                                out.extend(((s * 32767.0).round() as i16).to_le_bytes());
+                            }
+                        }
+                        phase += step;
                     }
-                }
-                phase += step;
-            }
-            phase -= frames as f64;
-        },
-        |_| {},
-        None,
-    );
-    let Ok(stream) = stream else { return false };
-    if stream.play().is_err() {
-        return false;
-    }
+                    phase -= frames as f64;
+                },
+                |_| {},
+                None,
+            )
+            .map_err(|e| format!("The microphone can't be opened ({e})"))?;
+        stream.play().map_err(|e| format!("The microphone can't be started ({e})"))?;
+        Ok(stream)
+    });
+    let Ok(stream) = opened else { return false };
     CAPTURES.with(|c| c.borrow_mut().insert(id.to_string(), Capture { _stream: stream, bytes }));
     true
 }

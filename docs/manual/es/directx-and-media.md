@@ -144,7 +144,15 @@ Speaker.Start
 - **En todas partes.** Igual en Windows, macOS y Linux, interpretado y nativo, y
   en el navegador. El dispositivo convierte tu `SampleRate` al suyo. Sin un
   dispositivo de sonido (o en un programa compilado sin sonido) el flujo se
-  reproduce en silencio, sin perder el ritmo, y `Error` dice por qué.
+  reproduce en silencio, sin perder el ritmo, y `Error` dice por qué: "No sound
+  output is available on this computer" (no hay salida de sonido), o en Windows
+  XP, cuyo sistema de sonido RapidR todavía no puede usar, "Sound output needs
+  Windows Vista or newer for now" (la salida de sonido necesita Windows Vista o
+  más nuevo, por ahora). Un programa nunca se detiene por su sonido: `PLAYWAV`,
+  `PLAYSOUND`, `BEEP`, `SOUND`, Play y Record de RWave y el sintetizador propio
+  de RMIDI quedan en silencio en los mismos casos (una canción MIDI sí suena en
+  el sintetizador GS Wavetable de Windows, también en XP, y RMIDIPort funciona
+  allí).
 
 ### Emuladores: sonido a partir de una línea de tiempo de niveles
 
