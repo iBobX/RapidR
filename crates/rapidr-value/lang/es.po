@@ -4066,3 +4066,39 @@ msgstr "{name}: los bits {from} a {to} están fuera de los {width} bits del valo
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
 msgstr "WriteInteger guarda 32 bits (un REG_DWORD): {n} no cabe; WriteString(name, STR$(n)) lo guarda completo"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "the macOS Keychain"
+msgstr "el Llavero de macOS"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Windows Credential Manager"
+msgstr "el Administrador de credenciales de Windows"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "the Secret Service (GNOME Keyring or KWallet)"
+msgstr "el Secret Service (GNOME Keyring o KWallet)"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser tab, until it closes"
+msgstr "esta pestaña del navegador, hasta que se cierre"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser, on this device"
+msgstr "este navegador, en este dispositivo"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
+msgstr "la memoria, hasta que el programa termine (esta computadora no tiene un llavero que RapidR pueda usar)"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, for this session only"
+msgstr "la memoria, solo durante esta sesión"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this program's memory, until it ends"
+msgstr "la memoria de este programa, hasta que termine"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "an environment variable"
+msgstr "una variable de entorno"

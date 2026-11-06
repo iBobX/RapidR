@@ -3064,7 +3064,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                 }
                 match keys::set_named_in(&a.scope(), &target, &a.key, remember) {
                     Ok(place) => {
-                        a.status = tr_ui_fill("The key is kept in {place}.", &[("place", &place)]);
+                        a.status = tr_ui_fill("The key is kept in {place}.", &[("place", &place_words(&place))]);
                         a.error.clear();
                         a.audit_log("key-kept", json!({"where": place}));
                         true
@@ -3219,6 +3219,27 @@ pub fn peek(name: &str) -> (String, String) {
 }
 
 /// (tests) The transcript of a conversation whose log is `log` (who, text).
+/// Where a key is kept (`keys::where_kept`'s words, English: Studio matches
+/// them, so `keys.rs` keeps them), in the person's language: each phrase is a
+/// text of its own, so `rapidr i18n runtime` finds it and the catalogs carry
+/// the preposition with it (Portuguese: *no* Acesso às Chaves, *nesta* aba,
+/// *na* memória). Studio's own list of these (`AIStoreName`) is the same
+/// words; a place nobody listed stays as it is.
+fn place_words(place: &str) -> String {
+    match place {
+        "the macOS Keychain" => tr_ui("the macOS Keychain"),
+        "Windows Credential Manager" => tr_ui("Windows Credential Manager"),
+        "the Secret Service (GNOME Keyring or KWallet)" => tr_ui("the Secret Service (GNOME Keyring or KWallet)"),
+        "this browser tab, until it closes" => tr_ui("this browser tab, until it closes"),
+        "this browser, on this device" => tr_ui("this browser, on this device"),
+        "memory, until the program ends (this computer has no keychain RapidR can use)" => tr_ui("memory, until the program ends (this computer has no keychain RapidR can use)"),
+        "memory, for this session only" => tr_ui("memory, for this session only"),
+        "this program's memory, until it ends" => tr_ui("this program's memory, until it ends"),
+        "an environment variable" => tr_ui("an environment variable"),
+        other => other.to_string(),
+    }
+}
+
 #[cfg(test)]
 pub(crate) fn transcript_of(log: &[(&str, &str)]) -> String {
     let a = Ai { log: log.iter().map(|(w, t)| (w.to_string(), t.to_string())).collect(), ..Ai::default() };
@@ -3242,6 +3263,37 @@ mod tests {
     }
 
     use super::*;
+
+    /// Where a key is kept is said in the person's language (V9 of the
+    /// Portuguese legal review: "A chave fica guardada the macOS Keychain."):
+    /// every place `keys::where_kept` names has its translation, the
+    /// preposition inside it for Portuguese, and the English stays English.
+    #[test]
+    fn a_keys_place_is_said_in_the_persons_language() {
+        let places = ["the macOS Keychain", "Windows Credential Manager", "the Secret Service (GNOME Keyring or KWallet)", "this browser tab, until it closes", "this browser, on this device", "memory, until the program ends (this computer has no keychain RapidR can use)", "memory, for this session only", "this program's memory, until it ends", "an environment variable"];
+        let said = |lang: &str, place: &str| {
+            rapidr_value::i18n::set_language(lang);
+            let out = tr_ui_fill("The key is kept in {place}.", &[("place", &place_words(place))]);
+            rapidr_value::i18n::set_language("");
+            out
+        };
+        assert_eq!(said("pt-BR", "the macOS Keychain"), "A chave fica guardada no Acesso às Chaves do macOS.");
+        assert_eq!(said("pt-BR", "memory, for this session only"), "A chave fica guardada na memória, só nesta sessão.");
+        assert_eq!(said("pt-BR", "this browser tab, until it closes"), "A chave fica guardada nesta aba do navegador, até ela fechar.");
+        assert_eq!(said("pt-BR", "an environment variable"), "A chave fica guardada em uma variável de ambiente.");
+        assert_eq!(said("es", "an environment variable"), "La clave se guarda en una variable de entorno.");
+        assert_eq!(said("en", "an environment variable"), "The key is kept in an environment variable.");
+        for lang in ["pt-BR", "es"] {
+            for place in places {
+                let out = said(lang, place);
+                assert!(!out.contains("the ") && !out.contains("memory") && !out.contains("Keychain ") && !out.contains("environment"), "{lang}: {out}");
+            }
+        }
+        // (a place nobody listed stays as it is)
+        rapidr_value::i18n::set_language("pt-BR");
+        assert_eq!(place_words("somewhere else"), "somewhere else");
+        rapidr_value::i18n::set_language("");
+    }
 
     fn local(window: u64) -> Ai {
         let mut a = Ai { provider: "compatible".into(), model: "m".into(), base_url: "http://127.0.0.1:9/v1".into(), max_tokens: 65535, ..Ai::default() };

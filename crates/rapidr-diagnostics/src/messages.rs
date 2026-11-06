@@ -180,7 +180,12 @@ pub fn identify(text: &str) -> Option<(&'static Message, Vec<(String, String)>, 
 // ------------------------------------------------------- translations --
 
 /// The languages compiled in (`lang/<tag>.po`), English aside.
-const CATALOGS: &[(&str, &str)] = &[("es", include_str!("../lang/es.po"))];
+const CATALOGS: &[(&str, &str)] = &[
+    ("es", include_str!("../lang/es.po")),
+    // (Preview 6, beta: an AI translation — lane I18N-PT / I18N-ZH)
+    ("pt-BR", include_str!("../lang/pt-BR.po")),
+    ("zh-Hans", include_str!("../lang/zh-Hans.po")),
+];
 
 /// The languages messages are translated into (their tags), the
 /// pseudo-language aside.
@@ -366,6 +371,23 @@ mod tests {
         assert_eq!(ids.len(), MESSAGES.len());
         for m in MESSAGES {
             assert!(m.id.len() == 6 && (m.id.starts_with("RQ") || m.id.starts_with("RR")), "{}", m.id);
+        }
+    }
+
+    /// Preview 6 (lane I18N-PT): every `lang/<tag>.po` is compiled in
+    /// (CATALOGS), and the system's `pt`, `zh_CN` … find the one RapidR has.
+    #[test]
+    fn every_catalog_file_is_compiled_in() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("lang");
+        let mut files: Vec<String> = std::fs::read_dir(dir).unwrap().flatten().filter_map(|e| e.file_name().to_string_lossy().strip_suffix(".po").map(String::from)).filter(|t| t != "xx").collect();
+        files.sort();
+        let mut tags: Vec<String> = languages().iter().map(|s| s.to_string()).collect();
+        tags.sort();
+        assert_eq!(files, tags);
+        assert!(tags.iter().any(|t| t == "pt-BR") && tags.iter().any(|t| t == "zh-Hans"));
+        for (asked, found) in [("pt", "pt-BR"), ("pt_BR", "pt-BR"), ("zh_CN", "zh-Hans"), ("zh", "zh-Hans"), ("zh-Hans-CN", "zh-Hans")] {
+            assert!(rapidr_i18n::fallback_chain(asked).iter().any(|t| t == found), "{asked}");
+            assert!(translations(asked).is_some(), "{asked}");
         }
     }
 

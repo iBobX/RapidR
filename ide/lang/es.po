@@ -855,7 +855,7 @@ msgstr "Hay una clave ({hint}) guardada en {store} como {q}{name}{q}: el código
 # legal
 #: ide/ai.inc
 #, review
-msgid "A key ({hint}) is found in the {source}: the code never holds it."
+msgid "A key ({hint}) is found in {source}: the code never holds it."
 msgstr "Hay una clave ({hint}) en {source}: el código nunca la contiene."
 
 #: ide/aichats.inc
@@ -5874,6 +5874,10 @@ msgstr "Se volvió a leer el PATH de los programas. {source}"
 #: ide/settings.inc
 msgid "System default"
 msgstr "Predeterminado del sistema"
+
+#: ide/settings.inc
+msgid "beta"
+msgstr "beta"
 
 #: ide/settings.inc
 msgid "Read the project, propose changes you review"
