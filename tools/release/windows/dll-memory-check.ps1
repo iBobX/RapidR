@@ -37,8 +37,10 @@ cmd /c "rmdir /s /q `"$src`" 2>nul" | Out-Null
 New-Item -ItemType Directory -Force $src, "$W\prints", "$W\config", $out | Out-Null
 # (copied in one read first: tar reading the share block by block can crawl)
 Copy-Item -Force "$Prep\src.tar" "$W\src.tar"
-& tar.exe -m -xf "$W\src.tar" -C $src
-if ($LASTEXITCODE -ne 0) { Write-Host "extracting the sources failed"; exit 1 }
+& tar.exe -m -xf "$W\src.tar" -C $src 2>&1 | Select-Object -First 5 | ForEach-Object { "tar: $_" } | Write-Host
+# (a file the antivirus won't let be written — smoke-win7-real.ps1, 2026-11-06 — isn't one
+# this check needs: tar goes on past it; only sources without the workspace stop here)
+if (-not (Test-Path "$src\Cargo.toml") -or -not (Test-Path "$src\crates\rapidr-value\src\memory.rs")) { Write-Host "extracting the sources failed"; exit 1 }
 if (-not (Test-Path "$W\target") -and (Test-Path "$env:USERPROFILE\rapidr-jit\host\target")) {
     Write-Host "== seeding the build cache from rapidr-jit\host"
     & robocopy "$env:USERPROFILE\rapidr-jit\host\target" "$W\target" /E /NFL /NDL /NJH /NJS /NP | Out-Null
