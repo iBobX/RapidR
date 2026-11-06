@@ -33,8 +33,6 @@ CREATE Form AS RForm
     Center
     CREATE Card AS RPanel
         Left = 16: Top = 44: Width = 200: Height = 8 * ROW_H + 8
-        BevelOuter = 0
-        Color = &HFFFFFF
         OnMouseWheel = CardWheel
     END CREATE
     CREATE Bar AS RScrollBar
