@@ -65,7 +65,7 @@ Preview 5's headless Studio checks more time on a busy Mac.
 | Lane | Runs | Where | Needs |
 |---|---|---|---|
 | `mac` | `smoke.sh` on both dmgs (native build included) | this Mac; scratch in `MATRIX_TMP` (default `/Volumes/RapidRBuild/build-matrix-tmp`) | Rust installed (the user's, only read) for the native build |
-| `linux` | `smoke.sh` on every `.tar.gz` and `.deb` of both architectures, in one detached job in the Ubuntu VM | the VM's `~/rapidr-release/dist/out` (sent by base64 if missing or different: slow) | the VM running (nobody needs to be logged in at its desktop: `ubuntu-vm.sh` then works as root and hands the scripts to the VM's user); `test-mode.token`; tools from `linux/setup-tools.sh`. `P5_DELAY` (10 s by default) reaches the VM job: Preview 5's headless checks of the x86_64 packages, run by Rosetta, need it |
+| `linux` | `smoke.sh` on every `.tar.gz` and `.deb` of both architectures, in one detached job in the Ubuntu VM | the VM's `~/rapidr-release/dist/out` (sent by base64 if missing or different: slow) | the VM running (nobody needs to be logged in at its desktop: `ubuntu-vm.sh` then works as root and hands the scripts to the VM's user); `test-mode.token`; tools from `linux/setup-tools.sh`. `P5_DELAY` (10 s by default) reaches the VM job: Preview 5's headless checks of the x86_64 packages, run by Rosetta, need it. The x86_64 packages' **Build Native** needs the VM's x86_64 Rust (`linux/setup-tools.sh x86rust`: rustup's own host in `~/rust-x86_64`, run by Rosetta; `linux/x86-env.sh` sets up its linking); without it those rows say `n/a` and why |
 | `windows` | `smoke.ps1` on the x64 and arm64 SDK installers (with `Native`) and Runtime installers | the Windows 11 VM, as the user, headless (`windows-vm.sh smoke`); an installer is copied into `…\rapidr-release\out` from the home share unless the VM has it with the same SHA-256 | the VM; `rapidr-release\src` (the release's conformance cases: run the matrix **before** `windows-vm.sh clean`, which removes it); the token |
 | `win7` | `smoke-win7.ps1` on the Windows 7 alpha zip | the same VM (x86 emulation) | the zip in `dist/<ver>/out/` or `MATRIX_WIN7_ZIP=<zip under your home>` |
 | `win7real` | `smoke-win7-real.ps1` on the same zip, through `tools/release/win7-vm.sh smoke` | Robert's UTM VM "Windows 7 x86": a **real Windows 7** (build 7600), run as the user at its desktop by a scheduled task; everything it makes is in `C:\rapidr-matrix` and removed at the end | the VM started by Robert with somebody logged in at its desktop; the guest agent (`tools/win7/vm.sh exec ver`); the zip as for `win7`; the test-mode token (copied into `C:\rapidr-matrix` only). About 6 minutes: most of it is sending the 84 MB zip |
@@ -90,9 +90,15 @@ These are known, so a green matrix is not read as more than it is:
   row keeps the **import-table check** on the Mac (`tools/win7/imports.py`: any function Windows 7 lacks is a red
   `other`, and it names the function); the real row confirms it, and the Windows 11 row still proves the package
   where Robert's Windows 7 VM is not running.
-- **Build Native on Linux x86_64.** The packages run by Rosetta in an aarch64 VM; there is no x86_64 Rust host
-  there, and a native build through Rosetta would quietly build for the VM's own architecture. Needs a
-  real x86_64 PC (or the user adding an x86_64 Ubuntu VM): the aarch64 rows cover the code path.
+- **Build Native on Linux x86_64 is tested through Rosetta, not on an x86 CPU.** (Since the x86-64 lane, 2026-11-05
+  night; before it the cell was `n/a`: the VM's own Rust is arm64, and a native build with it would quietly build
+  arm64 programs.) The x86_64 packages' native build is done by an **x86_64 Rust host that the arm64 VM runs by
+  Rosetta for Linux** (`~/rust-x86_64`, `linux/setup-tools.sh x86rust`), so what is built is x86_64 (the smoke test
+  checks it with `file`) and runs by Rosetta. What it still cannot see: a real x86 CPU (timing, CPU features: Rosetta
+  advertises AVX2 here), a real x86_64 distribution with its own gcc (the programs are linked by Zig against the
+  amd64 libraries, because the VM has no x86_64 gcc and apt is not used for this). Two Rosetta facts: rustc needs
+  `ROSETTA_DISABLE_AOT=1` (below), and without the x86_64 Rust installed the rows say `n/a` with that reason, never
+  a blank.
 - **macOS on Intel** and **Windows on real x64 hardware**: the universal macOS apps are checked statically
   (both slices present), the x64 installers run emulated on ARM.
 - **Smart App Control and other application-control policies** (below): the matrix runs on a Windows
@@ -322,6 +328,101 @@ behind Rosetta) and for Windows 7 (no Rust for it): the aarch64 rows cover the n
 - The x86_64 package's Preview 5 *Versions* check read its picture too early under Rosetta (`vertimeline.itemcount=2`, wanted 3)
   at the 5 s default, once, in a run with both machines busy: `P5_DELAY` is now passed into the VM job (15 s: green).
 - A time Parallels dropped was recorded as `0:00`; it is asked again.
+
+## Results: 2.122.1, part 3: x86-64 (X86-64 lane, 2026-11-05, night)
+
+Robert allowed one download: Rust's own x86-64 pieces from rust-lang's servers (rustup). With them the two things
+that were `n/a` or "not run" are run, and the JIT is tested on x86-64 in both VMs. Logs: `dist/2.122.1/build-matrix/x86-lane/`
+(the Linux rows' logs are in `build-matrix/logs/`; the earlier ones are kept in `build-matrix/before-x86/`).
+
+**Linux x86_64, Build Native** (`build-matrix.sh 2.122.1 --only linux`, `P5_DELAY=15`; the whole run 44:57; **ALL GREEN**):
+
+| system | package | run | Build (interp) | Build Native | built exe runs | other | time |
+|---|---|---|---|---|---|---|---|
+| Linux aarch64 | rapidr-2.122.1-linux-aarch64.tar.gz | ok | ok | ok | interp ok / native ok | ok | 5:58 |
+| Linux x86_64 (Rosetta) | rapidr-2.122.1-linux-x86_64.tar.gz | ok | ok | **ok** | interp ok / **native ok** | ok | 16:43 |
+| Linux aarch64 | rapidr-runtime-2.122.1-linux-aarch64.tar.gz | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:02 |
+| Linux x86_64 (Rosetta) | rapidr-runtime-2.122.1-linux-x86_64.tar.gz | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:06 |
+| Linux x86_64 (Rosetta) | rapidr-runtime_2.122.1_amd64.deb | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:02 |
+| Linux aarch64 | rapidr-runtime_2.122.1_arm64.deb | ok | n/a (Runtime) | n/a (Runtime) | n/a | ok | 0:02 |
+| Linux x86_64 (Rosetta) | rapidr_2.122.1_amd64.deb | ok | ok | **ok** | interp ok / **native ok** | ok | 16:05 |
+| Linux aarch64 | rapidr_2.122.1_arm64.deb | ok | ok | ok | interp ok / native ok | ok | 5:01 |
+
+For each x86_64 SDK package the native part is: `rapidr setup --yes` installs RapidR's Rust 1.98.1 **x86_64** toolchain into
+the throwaway rustup home (the defaults unchanged); a console program, a program with forms (release) and an RArchive
+program build offline from the shipped sources; the console and RArchive programs run (by Rosetta); `file` says the native
+executable is x86-64; the user's own x86_64 Rust is unchanged afterwards. 16 minutes instead of the aarch64 row's 5: rustc
+is translated at run time (below). The informational line of those two logs that prints the Rust version is wrong
+(`error: rustup could not choose a version…`: it ran before the toolchain existed); fixed afterwards in `smoke.sh`, no check
+depends on it.
+
+**The JIT on x86-64** (docs/jit-design.md §12.6):
+
+| | Linux x86-64 (Ubuntu VM, Rosetta) | Windows x64 (Windows 11 ARM64 VM, Prism emulation) |
+|---|---|---|
+| built | in the VM, x86_64 rustc 1.98.1 by Rosetta, linked by Zig | in the VM, `x86_64-pc-windows-msvc` cross-built by the VM's ARM64 Rust and MSVC's `HostARM64\x64` linker (27 min) |
+| the JIT's tests (every edge value) | 1, 4, 7, 17 passed, 0 failed (the 2 ignored are the same two as on arm64) | 1, 4, 7, 17 passed, 0 failed, the same two ignored (the 7-test binary took 589 s emulated) |
+| conformance, interpreter and `RAPIDR_JIT=always` | **668 passed, 0 failed** | **660 runs: clean in 2 of 5 tries of both backends (3 of 5 for each backend alone); the others lost 1-2 cases to a 30 s stall** (below) |
+| speed, wall ms with / without the JIT | `loop10m` 164 / 529, `fcalls` 169 / 474, `dsp_scalars` 174 / 334, `calls` 140 / 140 | `loop10m` 187-539 / 746-755, `fcalls` 169-347 / 728-1523, `dsp_scalars` 211-228 / 627-681, `calls` 170-235 / 211-276 (3 runs each, quiet machine) |
+
+The speed rows are what a translator makes of the JIT, not an x86 CPU's. The JIT's own start-up is the part that suffers: the
+code generator is a big program that Rosetta or Prism has to translate before it first runs, and compiling the same few
+routines took 60-70 ms under Rosetta against 0.6-1.7 ms in the VM's arm64 build, which eats the gain of a short program (`calls`
+on Linux: 140 / 140). The programs' own `ms` lines on Windows, JIT on / off: `fcalls` 15-42 / 546-838, `dsp_scalars` 34-35 / 413-462.
+
+**Windows x64 conformance: intermittent 30 s stalls, with the JIT off as well (open).** Every try of the whole suite (330 cases per
+backend; `vm` = the interpreter alone, `vm-jit` = `RAPIDR_JIT=always`; logs `x86-lane/windows-x64-*`):
+
+| try | machine | `vm` (JIT off) | `vm-jit` (JIT always) |
+|---|---|---|---|
+| first run (with the build) | busy: the Linux matrix's native builds ran at the same time | 1 failed: `canvas_rotate_get_put` (30 s stall) | 2 failed: `gosub_advanced` (30 s stall), `glass_frame_errors` (the compile-error case lost its expected diagnostics; no timeout printed) |
+| second whole run | quiet (9 % CPU) | all passed | 2 failed: `rapidq_form_first_show` (30 s stall in the compile step), `stream_bytes` (30 s stall after its `AB,` line) |
+| rounds 1, 2 | quiet | all passed | all passed |
+| round 3 | quiet | 1 failed: `canvas_rotate_get_put` (30 s stall again, after its `rot …` line) | all passed |
+
+What this says, and does not: the stalls are not the JIT's alone (two of them are in the JIT-off backend, the same case twice), and
+they do not repeat on demand: the five cases again 12 times each in both backends, alone, all passed (3-7 s for a round of six
+runs). A hang that the JIT caused with `RAPIDR_JIT=always` would be expected to come back on the same case; the four `vm-jit` casualties
+were four different cases, each once, and three whole `vm-jit` passes are 330 of 330. But four one-off failures (in two tries) cannot be told
+from the same thing the JIT-off side shows, so **this is not proof that the JIT is innocent on Windows x64**, only that nothing points at it.
+Two of the cases that stalled build a form (`canvas_rotate_get_put`, `rapidq_form_first_show`). There is one native baseline for the
+same VM: the JIT lane's last Windows ARM64 run passed 660 of 660 (its earlier tries failed on a shared work folder, fixed), so how often
+this happens natively is not known. Not investigated further (no code was to change): it needs a look at what a
+form case does when the process is started by the runner under Windows' x64 emulation (and with Bitdefender, which the VM runs).
+The first run's `rapidr run` timings (`loop10m` 16 s with the JIT) came from the busy moment, on the first run of a fresh binary, and are
+not to be quoted; the table above has the quiet ones.
+
+**Two things the lane found** (both fixed in `tools/release/`, on the lane's branch):
+
+- **x86_64 `rustc` crashes under Rosetta for Linux unless `ROSETTA_DISABLE_AOT=1`.** Every program that loads rustc's 150 MB
+  `librustc_driver.so` (rustc, rustdoc) died with SIGSEGV inside Rosetta's own runtime (fault address `0x8000…`, right after it
+  mapped its translation cache from `prlrosettad`; `strace` shows it); `cargo`, `rustup` and the programs Rust builds are fine.
+  Not the cache directory (a fresh `HOME` crashes too); `ROSETTA_ADVERTISE_AVX=1` does not help. Rosetta's own list of switches
+  (`strings /media/psf/RosettaLinux/rosetta`) has `DISABLE_AOT`: with `ROSETTA_DISABLE_AOT=1` rustc reports `host:
+  x86_64-unknown-linux-gnu` and builds. `linux/x86-env.sh` sets it for these builds only. Rosetta then translates at run time:
+  slower builds (16 minutes for an x86_64 row's native part instead of 5 for the arm64 one), the programs built are unchanged.
+- **`windows/detach.ps1` stopped every detached job** because one script of `tools/release/windows/` could not be copied
+  into the VM's `…\rapidr-release\scripts` folder: `smoke-win7-real.ps1` (added that day) answers *Access is denied* there, at that
+  one path only (any other name there, and that name in every other folder, work; there is no such file in the folder, so
+  something holds a stale entry; the VM also runs Bitdefender). A `windows-vm.sh jit` or `build` or `smoke` died silently
+  at that line. `detach.ps1` now copies file by file, warns, and fails only when one of the three scripts the job runs
+  (`job.ps1`, `user.ps1`, the job's own) is not this checkout's. The stale entry itself was left alone (why it is there is
+  not known).
+
+**What is new in the tools** (branch `x86-64-lane`): `linux/setup-tools.sh x86rust` (rustup-init from static.rust-lang.org,
+SHA-256 checked, into `~/rust-x86_64`, same Rust version as the VM's arm64 one, nothing of the arm64 Rust touched),
+`linux/x86-env.sh` (Rosetta switch, Zig as `cc`/linker, the amd64 pkg-config), `linux/jit-check.sh … x86_64`, and
+`smoke.sh` / `build-matrix.sh` / `linux-vm.sh smoke` using that Rust for the x86_64 packages. A VM without the x86_64 Rust still
+gets `n/a` for those cells, with the reason in the table.
+
+**What was real and what was emulated, now:**
+
+| Row | Ran on | Real or emulated |
+|---|---|---|
+| Linux x86_64, run / Build (interp) / Build Native / built programs | the Ubuntu VM, Rosetta for Linux | translated: a real Linux kernel and Apple's Rosetta, no x86 CPU; **the Rust compiler, its output and the programs are real x86_64**; the linker is Zig, not gcc |
+| JIT, Linux x86-64 | the same | the code generator's x86-64 backend and the System V x86-64 calling convention of its entry forms and helpers run as x86-64 code (translated) |
+| JIT, Windows x64 | Windows 11 ARM64 VM | translated by Windows' own x64 emulation: the Windows x64 calling convention of the entry forms and helpers (the one thing the Mac's Rosetta run could not cover) runs as x64 code |
+| everything above | | **not run on an x86 CPU**: timings, CPU feature detection and a real x86_64 gcc/glibc are what only a real PC shows |
 
 ## What this lane found, for the lead
 

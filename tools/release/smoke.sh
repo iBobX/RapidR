@@ -298,7 +298,7 @@ if [ "$KIND" = sdk ]; then
         mkdir -p "$RUSTUP_HOME" "$CARGO_HOME"
         case "$(uname)" in Darwin) host=aarch64-apple-darwin ;; *) host="$(uname -m)-unknown-linux-gnu" ;; esac
         # (Rosetta, the Zig linker and the amd64 libraries, for these builds only: x86-env.sh says why)
-        if [ $X86 = 1 ]; then host=x86_64-unknown-linux-gnu; x86_env "$T/x86-link"; echo "  (the VM's x86_64 Rust, run by Rosetta: $("$CARGO_BIN/rustc" --version 2>&1 | head -1))"; fi
+        if [ $X86 = 1 ]; then host=x86_64-unknown-linux-gnu; x86_env "$T/x86-link"; echo "  (the VM's x86_64 Rust, run by Rosetta: $(RUSTUP_HOME="$X86_HOME/rustup" CARGO_HOME="$X86_HOME/cargo" "$CARGO_BIN/rustc" --version 2>&1 | head -1))"; fi
         "$CARGO_BIN/rustup" set default-host "$host" > /dev/null 2>&1
         rust_state() { "$CARGO_BIN/rustup" default 2>&1; "$CARGO_BIN/rustup" show 2>&1 | grep -i "default host"; }
         before="$(rust_state)"
