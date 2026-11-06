@@ -457,5 +457,8 @@ Still waiting, and why:
   Quote in a New Question, Retry, Edit Question...): the RAI chat redesign's.
 - **Classic programs' PopupMenu from the keyboard** stays the right click
   alone until RC.EXE is checked (a question for the lead).
-- Some letters of 2a's own menus are shared in a menu (the code editor's
-  &Copy and Toggle &Comment): a small follow-up.
+- Some letters of 2a's own menus are still shared in a menu (the code
+  editor's Re&name Symbol and, while paused, Set &Next Statement; its
+  Versions submenu's S&how This Line's Change and Local &History): a small
+  follow-up. The code editor's &Copy and Toggle Co&mment no longer share
+  one, in the three languages too.

@@ -2186,7 +2186,7 @@ msgstr "Ir para a lin&ha..."
 
 #: ide/commands.inc
 msgid "Find &Next"
-msgstr "Localizar próxi&mo"
+msgstr "Loc&alizar próximo"
 
 #: ide/commands.inc
 msgid "Find Pre&vious"
@@ -2269,8 +2269,8 @@ msgid "Re&name Symbol..."
 msgstr "Renomear sím&bolo..."
 
 #: ide/commands.inc
-msgid "Toggle &Comment"
-msgstr "&Alternar comentário"
+msgid "Toggle Co&mment"
+msgstr "Alternar co&mentário"
 
 #: ide/commands.inc
 msgid "F&ormat Document"

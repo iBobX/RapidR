@@ -170,7 +170,7 @@ SUB DefineCommands
     AddCmd "nav.forward", "Navigate For&ward", "Edit", "Alt+Right", "", "", "nav.forward"
   END IF
   AddCmd "edit.rename", "Re&name Symbol...", "Edit", "", "F2", "code", "-"
-  AddCmd "edit.toggleComment", "Toggle &Comment", "Edit", "", "Ctrl+/", "code", "-"
+  AddCmd "edit.toggleComment", "Toggle Co&mment", "Edit", "", "Ctrl+/", "code", "-"
   AddCmd "edit.format", "F&ormat Document", "Edit", "", "Shift+Alt+F", "code", "-"
 
   ' ---- View ----

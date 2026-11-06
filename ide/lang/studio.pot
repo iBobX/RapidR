@@ -2232,7 +2232,7 @@ msgid "Re&name Symbol..."
 msgstr ""
 
 #: ide/commands.inc
-msgid "Toggle &Comment"
+msgid "Toggle Co&mment"
 msgstr ""
 
 #: ide/commands.inc

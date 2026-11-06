@@ -2218,7 +2218,7 @@ msgstr "&Buscar..."
 
 #: ide/commands.inc
 msgid "R&eplace..."
-msgstr "Ree&mplazar..."
+msgstr "Reempla&zar..."
 
 #: ide/commands.inc
 msgid "Find in F&iles..."
@@ -2319,8 +2319,8 @@ msgid "Re&name Symbol..."
 msgstr "Cambiar nombre del &símbolo..."
 
 #: ide/commands.inc
-msgid "Toggle &Comment"
-msgstr "Alternar &comentario"
+msgid "Toggle Co&mment"
+msgstr "Alternar co&mentario"
 
 #: ide/commands.inc
 msgid "F&ormat Document"

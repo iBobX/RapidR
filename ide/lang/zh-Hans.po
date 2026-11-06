@@ -2273,8 +2273,8 @@ msgid "Re&name Symbol..."
 msgstr "重命名符号(&N)..."
 
 #: ide/commands.inc
-msgid "Toggle &Comment"
-msgstr "切换注释(&C)"
+msgid "Toggle Co&mment"
+msgstr "切换注释(&M)"
 
 #: ide/commands.inc
 msgid "F&ormat Document"
