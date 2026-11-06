@@ -101,7 +101,7 @@ nothing on other systems).
 |---|---|
 | `Transparent` | 0 to 255: how opaque the whole window is — 255 opaque (to start with), 127 half, 0 invisible. Other values are ignored. |
 | `TransparentClient` | `True`: the form's background colour (`Color`) becomes a hole; the desktop shows through and clicks there reach what is behind. Controls stay, except their parts in exactly that colour. |
-| `FormStyle` | `fsStayOnTop`: above other programs' windows; `fsNormal`: an ordinary window again. |
+| `FormStyle` | `fsStayOnTop`: above other programs' windows; `fsNormal`: an ordinary window again (every form's `FormStyle` does this). |
 
 | | Windows | macOS | Linux X11 | Linux Wayland | Web |
 |---|---|---|---|---|---|

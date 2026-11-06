@@ -26,6 +26,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **Menus in RapidR's looks have 24-pixel rows** (a 24-pixel target, easier on touch and the web), 4 pixels inside their rounded frame, the keys in the quieter secondary colour; the classic look keeps its 20-pixel rows. A menu opened from the keyboard has its first item chosen.
 
 ### Fixed
+- **A form's `FormStyle = fsStayOnTop` keeps its window above other programs' windows** (it did nothing), as the classic compiler's QFORM does — checked against it: set in the `CREATE` block or after `Show`, the window is topmost. Windows, macOS and X11 (on Wayland the compositor decides; in a browser above the page's other windows).
 - **A radio button checked from code unchecks its group** (`B.Checked = 1` left `A.Checked` 1 — two on at once): the other radio buttons of its parent go off first, then its `OnClick`, as classic programs expect (checked against the classic compiler: in a `CREATE` block too, before and after the form shows; another parent's keep theirs). A conformance case holds the classic compiler's own output. RapidR Web Server issue #7.
 - **`RServerSocket.Stop` then `Start` on the same port works at once** (it failed with "Address already in use" while a thread still held the listener for 20 ms); RHttpServer's and RMcpServer's Stop too. RapidR Web Server issue #8.
 - **An `RListBox`'s `OnChange` fires on a click** that picks another item, as on the arrow keys, before `OnClick` (RapidR's own event: a classic QLISTBOX has none). GUI case `list_onchange`. Issue #9.

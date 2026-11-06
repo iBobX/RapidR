@@ -72,7 +72,7 @@ of RForm, plus:
 
 | Member | What it is |
 |---|---|
-| `FormStyle` | `fsStayOnTop`: the window stays above other programs' windows (Windows, macOS, X11; on Wayland the compositor decides; in a browser above the page's other windows). `fsNormal` (0) is an ordinary window again. RForm's FormStyle is unchanged (RapidQ's QFORM keeps fsNormal: §7 D5). |
+| `FormStyle` | `fsStayOnTop`: the window stays above other programs' windows (Windows, macOS, X11; on Wayland the compositor decides; in a browser above the page's other windows). `fsNormal` (0) is an ordinary window again. An RForm's FormStyle does the same (§7 D5). |
 | `Transparent` (int 0–255, 255) | The whole window — frame, title bar, controls — see-through: 255 opaque, 127 half, 0 invisible (it still takes the mouse). |
 | `TransparentClient` (bool, False) | The form's background colour (`Color`) becomes a hole: the desktop shows through it and clicks there go to what is behind. Controls stay, except their parts in exactly that colour. |
 | `RemoveTaskBar` | Windows: the window's button leaves the taskbar (a tray program). Elsewhere nothing: macOS shows the application in the Dock, not its windows. |
@@ -135,7 +135,7 @@ Nothing else; the Help says so.
 | Transparent | layered window (alpha) | window alpha | `_NET_WM_WINDOW_OPACITY` | not available (said once) | CSS opacity |
 | TransparentClient | layered window colour key | window mask from the frame | window shape from the frame | not available (said once) | the colour's pixels cleared in the page |
 | fsStayOnTop | always-on-top level | floating level | above state | compositor's choice | above the page's windows |
-| RemoveTaskBar | skip taskbar | nothing | skip taskbar hint | nothing | nothing |
+| RemoveTaskBar | skip taskbar | nothing | nothing | nothing | nothing |
 | OnMinimise / OnGetFocus / OnLostFocus | the window system's events | same | same | same | the page's window frames |
 | OnMessage | every message (§4) | tray + WM_SIZE + WM_MOVE | same | same | same |
 
@@ -165,19 +165,30 @@ other forms keep the GPU.
 
 ## 7. Decisions
 
-- **D1 DragZone empty = the whole form.** The include accepts a drop only
-  inside DragZone, which starts empty: a program that sets DragEnable and
-  OnDrag but no zone hears nothing. RFormEx takes an empty zone as the whole
-  form (a program written for the include sets a zone if it wants one, so it
-  behaves the same).
-- **D2 Transparent starts at 255** (opaque, what the window is); the
-  include's field read 0 until set.
-- **D3 OnMouseWheel is RForm's**: X, Y in the form's pixels and RapidR's
-  Shift (the include passed the screen position and Windows' key flags).
-- **D4 OnMinimise after the minimise** (the window system tells RapidR once
-  it happened); the include called it just before.
-- **D5 RForm's FormStyle stays as RapidQ's QFORM** (checked with RC.EXE);
-  only an RFormEx's fsStayOnTop puts the window on top.
+One rule decides D1 to D4 (approved 2026-11-06): extensions are additive and
+never change old behaviour. **A form written `QFormEx` behaves exactly as the
+include's; a form written `RFormEx` gets RapidR's behaviour.** Same object
+underneath: a per-instance "classic" flag (`rapidr_value::formex::is_classic`)
+set by how it was created — `rapidr_ast::formex` adds `__classic = 1` as the
+first statement of a `CREATE … AS QFormEx` (and after a `DIM … AS QFormEx`,
+and first in the constructor of a `TYPE … EXTENDS QFormEx`); the parser keeps
+the name `QFORMEX` as written for that pass.
+
+| | Written `QFormEx` (the include's) | Written `RFormEx` (RapidR's) |
+|---|---|---|
+| D1 an empty `DragZone` (as it starts) | takes no drop | the whole form |
+| D2 `Transparent` before it is set | reads 0; the window stays as it is until set | reads 255 (opaque) |
+| D3 `OnMouseWheel` | 1 / -1 each time, the screen position (as the include worked it out from lParam), Windows' MK_SHIFT 4 / MK_CONTROL 8 | RForm's: whole notches, form pixels, RapidR's Shift |
+| D4 `OnMinimise` | on Windows before the minimise (the host holds the window's SC_MINIMIZE, fires the event, then minimises); elsewhere once the system says it happened | once the window is minimised |
+
+- **D5 fsStayOnTop puts any form's window on top.** RC.EXE settled it in
+  the Windows VM (2026-11-06): a plain QFORM with `FormStyle = fsStayOnTop`,
+  in its CREATE or after Show, has WS_EX_TOPMOST — RapidR's RForm ignored it
+  (a code comment took RapidQ's FormStyle as fsNormal only). RForm now does
+  as RC.EXE's QFORM, and RFormEx the same, both names. (The same probe read
+  the include's QFormEx before anything is set: Transparent 0, TrayIconUpdate
+  2000, DragZone 0,0,0,0, FormStyle 0, TrayIconIndex 0, DragEnable 0,
+  TrayIconHint the program's title — the classic flavour's values.)
 - **D6 OnTrayClick is the right button's release**, as the include;
   RapidR's OnTrayMouseUp(Button) adds the others.
 - **D7 The tray icon goes when the form closes for good** (the include's own

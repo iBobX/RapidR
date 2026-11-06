@@ -99,7 +99,11 @@ fn animate<P: Program>(p: P, form: &str) {
 /// nothing was asked; its background a hole; on top; no taskbar button).
 pub fn look<P: Program>(p: P, form: &str) -> (Option<u8>, bool, bool, bool) {
     if !fx::is(form) {
-        return (None, false, false, false);
+        // (any form's fsStayOnTop puts its window on top: RC.EXE's QFORM
+        // does, checked 2026-11-06 — WS_EX_TOPMOST set from the CREATE and
+        // after Show alike)
+        let on_top = p.type_of(form).eq_ignore_ascii_case("RFORM") && fx::on_top(p.get(form, "formstyle").to_i64());
+        return (None, false, on_top, false);
     }
     let alpha = match p.get(form, "transparent") {
         _ if !fx::alpha_active(form) => None,
@@ -111,6 +115,14 @@ pub fn look<P: Program>(p: P, form: &str) -> (Option<u8>, bool, bool, bool) {
 
 fn look_changed<P: Program>(p: P, form: &str) {
     push_op(WindowOp::Look(lower(form), look(p, form)));
+}
+
+/// A form's FormStyle was set (any form's; an RFormEx's comes through
+/// [`set`]): fsStayOnTop puts the window on top, as RC.EXE's QFORM.
+pub fn form_style_changed<P: Program>(p: P, form: &str) {
+    if !fx::is(form) && p.type_of(form).eq_ignore_ascii_case("RFORM") {
+        look_changed(p, form);
+    }
 }
 
 /// A property of RFormEx `form` set by the program: `true` when it was one

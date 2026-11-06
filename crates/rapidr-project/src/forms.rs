@@ -33,15 +33,18 @@ pub fn line_end(text: &str) -> &'static str {
 }
 
 /// A new form file's text: `CREATE name AS RForm` (`QFORM` with RapidQ's
-/// names; `mdi`: an MDI main window, `RFormMDI` / `QFORMMDI`) with its
+/// names; `kind` "formmdi": an MDI main window, `RFormMDI` / `QFORMMDI`;
+/// "formex": a form with more, `RFormEx` / `QFORMEX`) with its
 /// Caption and RapidQ's starting size, hidden until the program shows it
 /// (`name.Show`, `name.ShowModal`).
-pub fn new_form_text(file_title: &str, name: &str, rapidq_names: bool, mdi: bool, eol: &str) -> String {
-    let ty = match (rapidq_names, mdi) {
-        (true, false) => "QFORM",
-        (false, false) => "RForm",
-        (true, true) => "QFORMMDI",
-        (false, true) => "RFormMDI",
+pub fn new_form_text(file_title: &str, name: &str, rapidq_names: bool, kind: &str, eol: &str) -> String {
+    let ty = match (rapidq_names, kind.to_ascii_lowercase().as_str()) {
+        (true, "formmdi") => "QFORMMDI",
+        (false, "formmdi") => "RFormMDI",
+        (true, "formex") => "QFORMEX",
+        (false, "formex") => "RFormEx",
+        (true, _) => "QFORM",
+        (false, _) => "RForm",
     };
     let caption = crate::basic_string(name);
     [
@@ -352,10 +355,11 @@ mod tests {
 
     #[test]
     fn new_files_in_the_programs_names() {
-        let f = new_form_text("Form2.rr", "Form2", false, false, "\n");
+        let f = new_form_text("Form2.rr", "Form2", false, "form", "\n");
         assert_eq!(f, "' Form2.rr: the program shows Form2 with Form2.Show\n\nCREATE Form2 AS RForm\n    Caption = \"Form2\"\n    Width = 320\n    Height = 240\nEND CREATE\n");
-        assert!(new_form_text("About.bas", "About", true, false, "\r\n").contains("CREATE About AS QFORM\r\n"));
-        assert!(new_form_text("Main2.rr", "Main2", false, true, "\n").contains("CREATE Main2 AS RFormMDI\n"));
+        assert!(new_form_text("About.bas", "About", true, "form", "\r\n").contains("CREATE About AS QFORM\r\n"));
+        assert!(new_form_text("Main2.rr", "Main2", false, "formmdi", "\n").contains("CREATE Main2 AS RFormMDI\n"));
+        assert!(new_form_text("Main3.rr", "Main3", false, "formex", "\n").contains("CREATE Main3 AS RFormEx\n"));
         assert!(uses_rapidq_names("$APPTYPE GUI\nCREATE Form1 AS QFORM\n", "main.rr"));
         assert!(!uses_rapidq_names("CREATE Form1 AS RForm\n", "main.bas"));
         assert!(uses_rapidq_names("PRINT 1\n", "main.bas") && !uses_rapidq_names("PRINT 1\n", "main.rr"));

@@ -950,6 +950,12 @@ impl WebHost {
                 if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(r.pixmap.data_as_u8_slice()), dw, dh) {
                     let _ = w.fctx.put_image_data(&image, 0.0, 0.0);
                 }
+                // (RFormEx's TransparentClient: the frame paints nothing under
+                // the inside, so its hole shows the page)
+                if f.spec.color_key && !w.minimized {
+                    let (ix, iy) = frame::inset(look.border, look.caption);
+                    let _ = w.fctx.clear_rect(ix as f64 * scale, iy as f64 * scale, w.inside.0 as f64 * scale, w.inside.1 as f64 * scale);
+                }
             }
             if drawn {
                 let tree = f.ui.access_tree(store, text);

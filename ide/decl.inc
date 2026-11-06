@@ -189,7 +189,7 @@ DECLARE SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
 DECLARE SUB DesignRead(d AS INTEGER)
 DECLARE SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
 DECLARE SUB DesignNames(d AS INTEGER)
-' (the toolbox's form being added: "form" / "formmdi", the hint after it — panels.inc)
+' (the toolbox's form being added: "form" / "formmdi" / "formex", the hint after it — panels.inc)
 DIM PendingFormKind AS STRING
 DIM PendingFormHint AS STRING
 DIM PendingFormAt AS DOUBLE

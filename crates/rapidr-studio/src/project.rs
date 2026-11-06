@@ -1147,10 +1147,11 @@ fn new_file_text(m: &Model, path: &str, kind: &str, main_text: &str) -> String {
     let eol = forms::line_end(main_text);
     let title = slashes(path).rsplit('/').next().unwrap_or("").to_string();
     match kind.to_ascii_lowercase().as_str() {
-        // ("formmdi": an MDI main window — the toolbox's RFormMDI)
-        "form" | "formmdi" => {
+        // ("formmdi": an MDI main window — the toolbox's RFormMDI;
+        // "formex": its RFormEx, a form with more)
+        "form" | "formmdi" | "formex" => {
             let rapidq = m.project.compat.rapidq_compatible || forms::uses_rapidq_names(main_text, &m.project.main);
-            forms::new_form_text(&title, &stem(path), rapidq, kind.eq_ignore_ascii_case("formmdi"), eol)
+            forms::new_form_text(&title, &stem(path), rapidq, kind, eol)
         }
         "module" => forms::new_module_text(&title, eol),
         _ => String::new(),

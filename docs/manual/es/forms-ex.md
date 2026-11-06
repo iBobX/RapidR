@@ -103,7 +103,7 @@ END SUB
 |---|---|
 | `Transparent` | De 0 a 255: qué tan opaca es toda la ventana; 255 opaca (al empezar), 127 a medias, 0 invisible. Los demás valores se ignoran. |
 | `TransparentClient` | `True`: el color de fondo del formulario (`Color`) se vuelve un hueco; se ve el escritorio a través y los clics allí llegan a lo que está detrás. Los controles quedan, salvo sus partes de exactamente ese color. |
-| `FormStyle` | `fsStayOnTop`: encima de las ventanas de otros programas; `fsNormal`: de nuevo una ventana común. |
+| `FormStyle` | `fsStayOnTop`: encima de las ventanas de otros programas; `fsNormal`: de nuevo una ventana común (el `FormStyle` de todo formulario hace esto). |
 
 | | Windows | macOS | Linux X11 | Linux Wayland | Web |
 |---|---|---|---|---|---|

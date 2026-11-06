@@ -300,6 +300,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if let Some(old) = left {
         crate::layout::parent_left(name, &old);
     }
+    // (a form's fsStayOnTop: its window on top, as RC.EXE's QFORM)
+    #[cfg(feature = "gui")]
+    if prop.eq_ignore_ascii_case("formstyle") {
+        rapidr_ui_app::formex::form_style_changed(crate::ui::program::Rt, name);
+    }
     updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();
