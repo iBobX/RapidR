@@ -18,6 +18,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **A message box's buttons** can be clicked by their short name (`b0`) as `app_layout` lists them, or their caption; **`app_screenshot`** says in words what the picture shows.
 - **`set_property`** is a change like the others: under Ask before changes the user sees it as a diff. Old tool names (`get_problems`, `layout`, `recipe`) keep working.
 
+### Security
+- **Versions never act outside the project's folder** (SEC-31, [docs/security/audit-2026-11-05-system.md](docs/security/audit-2026-11-05-system.md)). A project that came with a version history pointing elsewhere (a `core.worktree`, a `.git` file or link, a `commondir`, an index file, alternates, or links inside `.git`) isn't used: the Versions pane says *Versions are off for this project* and why, Output says it once, and nothing of it is read or written. RRepository's new `Blocked` says it to programs (ErrorKind `"outside-folder"`). Settings a repository can't change any more: `core.excludesFile`, `core.attributesFile`, the `.git` look-alike protections, and more.
+- **A version's links stay inside the project** (SEC-32): Go back, Undo and Get latest from a shared folder refuse a version with a link that points outside the project's folder, before anything is written; a file is never removed through a link.
+- **A project file can't point Run and Build outside its folder** (SEC-33): a `main`, icon or Build output folder naming a place outside it is set aside as the project opens (Studio and `rapidr build`) unless you chose it yourself in Studio; Output says which.
+
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed
 
 ### Added
