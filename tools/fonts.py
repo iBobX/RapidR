@@ -39,6 +39,7 @@ import io
 import json
 import os
 import shutil
+import struct
 import sys
 import tempfile
 import tomllib
@@ -90,6 +91,71 @@ def build_symbols():
     f.save(out)
     lacks = "".join(c for c in spec["characters"] if ord(c) not in have)
     print(f"{spec['file']}: {len(want)} characters, {os.path.getsize(out)} bytes" + (f" (the source lacks {lacks})" if lacks else ""))
+
+
+def _tables(data):
+    """An sfnt's (OpenType / TrueType) tables: tag -> (offset, length)."""
+    if data[:4] not in (b"OTTO", b"\x00\x01\x00\x00", b"true"):
+        raise ValueError("not an OpenType or TrueType font")
+    n = struct.unpack(">H", data[4:6])[0]
+    out = {}
+    for i in range(n):
+        tag, _, off, length = struct.unpack(">4sIII", data[12 + 16 * i:28 + 16 * i])
+        out[tag.decode("latin-1")] = (off, length)
+    return out
+
+
+def sfnt_names(data):
+    """The name table's strings, by name ID (Windows / Unicode records as UTF-16, Mac ones as Mac
+    Roman). Ours, from the OpenType specification's `name` table: no fontTools needed."""
+    off, _ = _tables(data)["name"]
+    _, count, strings = struct.unpack(">HHH", data[off:off + 6])
+    out = {}
+    for i in range(count):
+        plat, _, _, nid, length, soff = struct.unpack(">HHHHHH", data[off + 6 + 12 * i:off + 18 + 12 * i])
+        raw = data[off + strings + soff:off + strings + soff + length]
+        out.setdefault(nid, []).append(raw.decode("mac-roman" if plat == 1 else "utf-16-be", "replace"))
+    return out
+
+
+def sfnt_cmap(data):
+    """The characters an sfnt's `cmap` maps to a glyph (formats 4 and 12, the Unicode ones). Ours,
+    from the OpenType specification's `cmap` table: no fontTools needed."""
+    base, _ = _tables(data)["cmap"]
+    _, n = struct.unpack(">HH", data[base:base + 4])
+    chars = set()
+    for i in range(n):
+        plat, enc, sub = struct.unpack(">HHI", data[base + 4 + 8 * i:base + 12 + 8 * i])
+        if not (plat == 0 or (plat == 3 and enc in (1, 10))):
+            continue
+        t = base + sub
+        fmt = struct.unpack(">H", data[t:t + 2])[0]
+        if fmt == 4:
+            seg = struct.unpack(">H", data[t + 6:t + 8])[0] // 2
+            ends = struct.unpack(f">{seg}H", data[t + 14:t + 14 + 2 * seg])
+            p = t + 16 + 2 * seg
+            starts = struct.unpack(f">{seg}H", data[p:p + 2 * seg])
+            deltas = struct.unpack(f">{seg}h", data[p + 2 * seg:p + 4 * seg])
+            ro = p + 4 * seg
+            ranges = struct.unpack(f">{seg}H", data[ro:ro + 2 * seg])
+            for k in range(seg):
+                for c in range(starts[k], ends[k] + 1):
+                    if c == 0xFFFF:
+                        continue
+                    if ranges[k] == 0:
+                        g = (c + deltas[k]) & 0xFFFF
+                    else:
+                        a = ro + 2 * k + ranges[k] + 2 * (c - starts[k])
+                        g = struct.unpack(">H", data[a:a + 2])[0]
+                        g = (g + deltas[k]) & 0xFFFF if g else 0
+                    if g:
+                        chars.add(c)
+        elif fmt == 12:
+            groups = struct.unpack(">I", data[t + 12:t + 16])[0]
+            for k in range(groups):
+                a, b, g = struct.unpack(">III", data[t + 16 + 12 * k:t + 28 + 12 * k])
+                chars.update(c for c in range(a, b + 1) if g + (c - a))
+    return chars
 
 
 def sha256(data):
@@ -438,23 +504,30 @@ def check(out_dir=None):
             for enc in ("ascii", "utf-16-be", "mac-roman"):
                 raw = raw.replace(notice.encode(enc), b"")
             need(b"Noto" not in raw and "Noto".encode("utf-16-be") not in raw, f"{c['file']}: \"Noto\" is still in the file outside the trademark notice")
-    if TTFont:
-        # the symbols subset as built: its names neutral, the notices kept, a few KB,
-        # nothing but the listed characters (and what the source lacks of them)
+    # the symbols subset as built — read by this script itself (sfnt_names, sfnt_cmap), so the check
+    # never passes without looking at the committed file, fontTools or not
+    # (docs/legal/review-2026-11-06-symbols-subset.md F2): its names neutral, the notices kept, a few
+    # KB, nothing but the listed characters (and what the source lacks of them)
+    if True:
         out = os.path.join(ROOT, sym["file"])
         need(os.path.exists(out), f"{sym['file']} is missing (python3 tools/fonts.py symbols)")
         if os.path.exists(out):
-            ft = TTFont(out, lazy=True)
-            by = {}
-            for rec in ft["name"].names:
-                by.setdefault(rec.nameID, []).append(rec.toUnicode())
+            with open(out, "rb") as fh:
+                data = fh.read()
+            try:
+                by, cmap = sfnt_names(data), sfnt_cmap(data)
+            except (ValueError, IndexError, struct.error) as e:
+                by, cmap = {}, set()
+                need(False, f"{sym['file']} can't be read as an OpenType font ({e})")
+            need(bool(by) and bool(cmap), f"{sym['file']}: no name table or no character map read")
             for i in (1, 3, 4, 6, 16):
                 need(all("noto" not in v.lower() for v in by.get(i, [])), f"{sym['file']}: name ID {i} has \"Noto\" in it")
             need(all(sym["family"] in v for v in by.get(1, [])), f"{sym['file']}: family name ID 1 isn't `{sym['family']}`")
             need(any("Noto Project Authors" in v for v in by.get(0, [])), f"{sym['file']}: the copyright (name ID 0) is gone")
             need(any("trademark" in v.lower() for v in by.get(7, [])), f"{sym['file']}: the trademark notice (name ID 7) is gone")
             need(any("SIL Open Font License" in v for v in by.get(13, [])), f"{sym['file']}: the licence (name ID 13) is gone")
-            need(set(ft.getBestCmap()) <= {ord(c) for c in sym["characters"]}, f"{sym['file']} has characters [symbols] doesn't list")
+            need(cmap <= {ord(c) for c in sym["characters"]}, f"{sym['file']} has characters [symbols] doesn't list")
+            need("✓" in sym["characters"] and ord("✓") in cmap, f"{sym['file']} has no check mark (U+2713)")
             need(os.path.getsize(out) < 32 * 1024, f"{sym['file']} is over 32 KB (a few KB expected)")
             with open(out, "rb") as fh:
                 raw = fh.read()

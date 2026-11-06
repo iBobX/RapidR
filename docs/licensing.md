@@ -106,7 +106,7 @@ there), RapidR's own tools on macOS 404.
 | ISC | `libloading` | same | same |
 | Zlib | `foldhash` | same | same |
 | BSL-1.0 | `ryu`, `xxhash-rust` | + `clipboard-win`, `error-code` | as macOS |
-| Not crates | Rust std (MIT); Liberation fonts (OFL-1.1); SQLite (public domain); the Adobe Glyph List (BSD-3-Clause, in `read-fonts`) | + the toolchain's start-up code (§3.3) | + Cantarell (OFL-1.1, Wayland title bars); the Wayland protocol descriptions (MIT, HPND-sell-variant) and xcb-proto's (X11), from which crates' code is generated |
+| Not crates | Rust std (MIT); Liberation fonts (OFL-1.1); RapidR Symbols Subset (OFL-1.1, a modified subset of Noto Sans Symbols 2, §3.1: in every program with the UI kernel); SQLite (public domain); the Adobe Glyph List (BSD-3-Clause, in `read-fonts`) | + the toolchain's start-up code (§3.3) | + Cantarell (OFL-1.1, Wayland title bars); the Wayland protocol descriptions (MIT, HPND-sell-variant) and xcb-proto's (X11), from which crates' code is generated |
 | System, not shipped | libSystem, AppKit, Metal, Core Audio, Security (HTTPS), … | kernel32, user32, UCRT, SChannel (HTTPS), … | glibc, libgcc_s, OpenSSL 3 (`libssl.so.3`, HTTPS), libasound, fontconfig, X11, Wayland, xkbcommon |
 
 Nothing copyleft (GPL, LGPL, MPL, …), no TLS library and no data under a
@@ -159,7 +159,8 @@ loads nothing from third-party servers (a program can, of course, with
 
 `rapidr` contains the compiler, the VM and the whole desktop runtime
 (`tools-<os>`: 342 crates on macOS, 341 on Windows, 408 on Linux; the same
-permissive list, §4); `rapidrw` the
+permissive list, §4; not crates: the desktop's, above, with RapidR Symbols
+Subset among the fonts, §3.1); `rapidrw` the
 desktop launcher. The SDK also ships the runners and web runtime (with their
 notices, §1), the runtime's Rust sources and its crates.io dependencies'
  sources (`vendor/`: each crate with its own licence files; crates only other
@@ -216,9 +217,19 @@ Export: see LEGAL.md, "Export", and §8 below.
   Mono" (`tools/fonts/make_liberation_styles.py`), glyph outlines and
   copyright lines unchanged, the licence named in each file. RapidR Sans
   (Regular and Bold) is the same kind of derivative of Liberation Sans.
+- **RapidR Symbols Subset** (`crates/rapidr-value/fonts/RapidRSymbolsSubset-Regular.otf`,
+  9.7 KB): 58 symbols cut from Noto Sans Symbols 2 2.008 (the repository's
+  copy, pinned by SHA-256 in `fonts/fallback/fonts.toml` [symbols]), a
+  **Modified Version** with a family name of its own (OFL-1.1 only; "Noto" is
+  Google's trademark), built into the desktop UI kernel and drawn only on a
+  computer with no system fonts (plain Windows XP). Its copyright, trademark
+  notice and licence records stay in the file; its OFL text
+  (`RapidRSymbolsSubset-OFL.txt`) is in every desktop and tools
+  `THIRD-PARTY-NOTICES.txt` (`notices.rs`, `symbols_component`); never offered
+  on its own (LICENSES.md §4, docs/legal/review-2026-11-06-symbols-subset.md).
 - **Noto fallback fonts** (`fonts/fallback/`, Stage W7): Noto Sans 2.015,
   Noto Sans Symbols 2.003 and Symbols 2 2.008 (in the repository,
-  unmodified), Noto Sans SC and KR from Noto CJK Sans 2.004 and Noto Color
+  unmodified; the desktop's symbols subset above is cut from the latter), Noto Sans SC and KR from Noto CJK Sans 2.004 and Noto Color
   Emoji (COLRv1, noto-emoji's release tag v2.051) — fetched at build time,
   pinned by SHA-256. All are OFL-1.1. The web build's chunks of the CJK fonts
   and the Simplified Chinese subset are Modified Versions under family names of

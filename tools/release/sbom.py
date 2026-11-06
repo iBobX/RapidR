@@ -2,8 +2,8 @@
 """A CycloneDX 1.5 SBOM (JSON) of what a RapidR release ships, from the real
 dependency graph — the same list THIRD_PARTY_NOTICES.md is made from
 (tools/third_party_notices.py: the workspace's normal dependencies), plus the
-non-Cargo pieces LICENSES.md credits that a release ships (the Liberation
-fonts). The legacy web IDE's Monaco editor isn't shipped: the web bundle is
+non-Cargo pieces LICENSES.md credits that a release ships (the Liberation,
+JetBrains Mono and Inter fonts, RapidR Symbols Subset). The legacy web IDE's Monaco editor isn't shipped: the web bundle is
 RapidR Studio's (docs/security-audit.md SEC-17).
 
     python3 tools/release/sbom.py --out dist/<ver>/rapidr-<ver>.cdx.json
@@ -94,6 +94,24 @@ def main():
             "licenses": [{"license": {"id": "OFL-1.1"}}],
             "description": "the code editor's font, built into the runtimes (crates/rapidr-value/fonts)",
             "externalReferences": [{"type": "vcs", "url": "https://github.com/JetBrains/JetBrainsMono"}],
+        },
+        {
+            "type": "data",
+            "bom-ref": "inter@4.1",
+            "name": "Inter",
+            "version": "4.1",
+            "licenses": [{"license": {"id": "OFL-1.1"}}],
+            "description": "RapidR's UI font (Regular, SemiBold; Latin subset), built into the runtimes (crates/rapidr-value/fonts)",
+            "externalReferences": [{"type": "vcs", "url": "https://github.com/rsms/inter"}],
+        },
+        {
+            "type": "data",
+            "bom-ref": "rapidr-symbols-subset@2.008",
+            "name": "RapidR Symbols Subset",
+            "version": "2.008",
+            "licenses": [{"license": {"id": "OFL-1.1"}}],
+            "description": "58 symbols cut from Noto Sans Symbols 2 2.008 (a Modified Version under a family name of its own), built into the desktop UI kernel and drawn only on a computer with no system fonts (crates/rapidr-value/fonts)",
+            "externalReferences": [{"type": "vcs", "url": "https://github.com/notofonts/symbols"}],
         },
     ]
     # (bundled into the VS Code extension's dist/extension.js; listed in its THIRD_PARTY_NOTICES.md)
