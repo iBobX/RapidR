@@ -1743,7 +1743,7 @@ msgstr "Envía solo lo que puedas enviar: los datos personales de otras personas
 # legal
 #: ide/aisetup.inc
 msgid "A provider may not offer its service where you live, and its servers may be in another country: check its terms."
-msgstr "Es posible que un proveedor no ofrezca su servicio donde vives, y que sus servidores estén en otro país: revisa sus términos."
+msgstr "Un proveedor puede ofrecer su servicio solo en ciertos países, y sus servidores pueden estar en otro país: revisa sus términos."
 
 # legal
 #: ide/aisetup.inc
