@@ -797,7 +797,9 @@ impl Shim<'_> {
         let size = window.inner_size();
         // (an RFormEx's look: a colour key draws on the CPU — look.rs)
         let surface = if crate::look::needs_cpu(&spec) { cpu_surface(&window, size) } else { self.surface(&window, size) };
-        crate::look::apply(&window, &spec, crate::look::key_of(self.store, f));
+        if crate::look::asks(&spec) {
+            crate::look::apply(&window, &spec, crate::look::key_of(self.store, f));
+        }
         self.s.ids.insert(window.id(), f.to_string());
         // (the WindowState lane's: shown minimized)
         if spec.state == 1 {

@@ -558,7 +558,8 @@ Form.ShowModal
 ```
 
 The [CSV Explorer](data-science.md#tutorial-the-csv-explorer) example opens
-the CSV file dropped on it.
+the CSV file dropped on it. An [RFormEx](forms-ex.md) also hears each file on
+its own (`OnDrag`), only inside the area you choose, with where it landed.
 
 ## The mouse pointer
 

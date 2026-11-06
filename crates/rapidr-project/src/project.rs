@@ -823,7 +823,8 @@ pub fn kind_for_file(path: &Path) -> FileKind {
 }
 
 /// Whether the source creates a form at the top level
-/// (`CREATE x AS QFORM | RFORM | QFORMMDI | RFORMMDI`, any case).
+/// (`CREATE x AS QFORM | RFORM | QFORMMDI | RFORMMDI | QFORMEX | RFORMEX`,
+/// any case).
 pub fn defines_form(text: &str) -> bool {
     !top_level_forms(text).is_empty()
 }
@@ -847,7 +848,7 @@ pub fn top_level_forms(text: &str) -> Vec<String> {
                     let as_kw = words.next();
                     let ty = words.next().map(|t| t.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect::<String>().to_ascii_uppercase());
                     let name: String = name.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-                    if !name.is_empty() && as_kw.is_some_and(|w| w.eq_ignore_ascii_case("AS")) && matches!(ty.as_deref(), Some("QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI")) {
+                    if !name.is_empty() && as_kw.is_some_and(|w| w.eq_ignore_ascii_case("AS")) && matches!(ty.as_deref(), Some("QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI" | "QFORMEX" | "RFORMEX")) {
                         out.push(name);
                     }
                 }
@@ -1096,6 +1097,7 @@ mod tests {
         assert!(defines_form(form));
         assert_eq!(kind_for_source("f.bas", form), FileKind::Form);
         assert!(defines_form("CREATE Main AS RFormMDI\nEND CREATE"));
+        assert!(defines_form("CREATE Main AS RFormEx\nEND CREATE") && defines_form("create main as qformex\nend create"));
         assert!(defines_form("CREATE F AS QFORM ' comment"));
         assert!(!defines_form("CREATE B AS QBUTTON\nEND CREATE"));
         assert!(!defines_form(

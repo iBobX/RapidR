@@ -638,7 +638,7 @@ impl ComponentKind for ProjectTree {
                     })
                     .unwrap_or_default(),
                 // (a form: Enter opens it in the designer)
-                NodeKind::Component { ty, .. } if matches!(ty.as_str(), "QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI") => tr_ui("form"),
+                NodeKind::Component { ty, .. } if matches!(ty.as_str(), "QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI" | "QFORMEX" | "RFORMEX") => tr_ui("form"),
                 NodeKind::Component { .. } => tr_ui("component"),
             };
             item.level = Some(r.level + 1);

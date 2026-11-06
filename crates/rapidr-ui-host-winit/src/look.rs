@@ -24,6 +24,12 @@ pub fn key_of(store: &dyn rapidr_ui_kernel::Store, form: &str) -> u32 {
     rapidr_ui_kernel::paint::color_of(store, form).unwrap_or_else(|| rapidr_value::theme::current().face)
 }
 
+/// Whether the spec asks anything of the window's look (an ordinary
+/// window's is left alone: nothing is set on it).
+pub fn asks(spec: &WindowSpec) -> bool {
+    spec.alpha.is_some() || spec.color_key || spec.on_top || spec.skip_taskbar
+}
+
 /// Whether the window must draw on the CPU for its look: a colour key
 /// reads (macOS, X11) or is matched against (Windows' layered window,
 /// which a GPU swap chain doesn't take) the frame's pixels.
