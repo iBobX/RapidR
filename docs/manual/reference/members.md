@@ -322,6 +322,7 @@ A form with more: files dropped onto it one by one (OnDrag), its own icon in the
 | `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 | `OnLoad` | Fires when the content has loaded: the web view's page, a file read in the browser. |
 | `OnDropFiles(Files AS STRING)` | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rpanel"></a>
 ## RPanel

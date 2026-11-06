@@ -304,6 +304,10 @@ msgctxt "RR0046"
 msgid "it is declared in {place} already: a global name — a variable, CONST, SUB, FUNCTION or component, in any capitals — is the program's once; a SUB's own variables and parameters may reuse it"
 msgstr "ele já foi declarado em {place}: um nome global — uma variável, CONST, SUB, FUNCTION ou componente, com qualquer combinação de maiúsculas e minúsculas — existe uma só vez no programa; as variáveis e parâmetros próprios de uma SUB podem reutilizá-lo"
 
+msgctxt "RR0047"
+msgid "TYPE {name} isn't the QFormEx RapidR knows (Rapidq2.inc's): it differs in {members}. RapidR has its own QFormEx (RFormEx: the same members, without changing the window's code in memory), so it doesn't compile this TYPE: leave the TYPE (or its $INCLUDE) out to use RapidR's, or give your class another name (MyFormEx) to keep it"
+msgstr "TYPE {name} não é o QFormEx que o RapidR conhece (o de Rapidq2.inc): difere em {members}. O RapidR tem seu próprio QFormEx (RFormEx: os mesmos membros, sem alterar o código da janela na memória), então não compila este TYPE: deixe o TYPE (ou seu $INCLUDE) de fora para usar o do RapidR, ou dê outro nome à sua classe (MyFormEx) para mantê-la"
+
 #. The word that labels a hint under a compiler message
 msgctxt "hint.label"
 msgid "hint"
