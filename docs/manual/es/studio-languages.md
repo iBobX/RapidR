@@ -1,9 +1,15 @@
-<!-- translated-from: studio-languages.md 83a1d5f84a1c7542 -->
+<!-- translated-from: studio-languages.md e13b8058a4b5d51e -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
-errores del compilador y la Ayuda. **Español** va primero (Preview 5); portugués
-y chino van después. Mientras un idioma no esté completo, lo que aún no está
+errores del compilador y la Ayuda. **Español** fue el primero (Preview 5);
+**Português (Brasil)** y **中文（简体）** (chino simplificado) se suman en la
+Preview 6, para el texto de Studio, los mensajes de ejecución y los errores del
+compilador. Esos dos son una **beta**: una traducción hecha con IA que
+Configuración marca con «beta», y las personas que hablan el idioma son muy
+bienvenidas para corregirla (mira [Sugiere una palabra mejor](#sugiere-una-palabra-mejor)).
+El manual y la Ayuda de los componentes en portugués y chino llegan en la
+próxima versión. Mientras un idioma no esté completo, lo que aún no está
 traducido se muestra en inglés.
 
 ## Elegir el idioma
@@ -11,14 +17,18 @@ traducido se muestra en inglés.
 **Herramientas > Configuración > General > Idioma**:
 
 - **Predeterminado del sistema** (el inicial): el idioma de tu computadora
-  cuando Studio lo tiene; si no, inglés.
-- **English**, **Español** … uno por cada idioma que tiene Studio.
+  cuando Studio lo tiene (portugués para `pt`, `pt_BR`; chino para `zh`,
+  `zh_CN`, `zh_Hans`); si no, inglés.
+- **English**, **Español**, **Português (Brasil) - beta**, **中文（简体）- beta**:
+  uno por cada idioma que tiene Studio, con su propio nombre.
 
 Studio cambia al instante, sin volver a iniciarse: los menús, los paneles, los
 cuadros de diálogo abiertos y la barra de estado. Tu elección se conserva para la
 próxima vez. **Cancelar** en Configuración vuelve al idioma que tenías.
 
 ![Configuración > General > Idioma con Español elegido: su fila en español (Idioma), el resto de la página todavía en inglés en la muestra](../images/studio-languages/settings-language.png)
+
+![Configuración > General > Idioma en portugués (Idioma): Português (Brasil), con la marca beta después de su propio nombre](../images/studio-languages/language-beta.png)
 
 ![La barra de menús en español: Archivo, Edición, Ver, Proyecto, Ejecutar, Depurar](../images/studio-languages/menus-spanish.png)
 
@@ -83,10 +93,11 @@ Cada parte de RapidR tiene una plantilla y un archivo por idioma:
 | Las entradas del lenguaje (Ayuda, información flotante) | `crates/rapidr-lang/data/**/*.toml` | `crates/rapidr-lang/data/i18n/es/*.toml` |
 
 1. **Sigue el glosario**: [docs/i18n/glossary-es.md](../../i18n/glossary-es.md)
-   para el español (las palabras, el *tú*, las mayúsculas de oración, las letras
-   de los menús).
+   para el español y [docs/i18n/pt-glossary.md](../../i18n/pt-glossary.md) para
+   el portugués de Brasil (las palabras, el *tú* o el *você*, las mayúsculas de
+   oración, las letras de los menús).
 2. **Empieza el archivo desde su plantilla** (o ponlo al día):
-   `rapidr i18n update ide/lang/studio.pot ide/lang/pt.po`. Cada texto es un
+   `rapidr i18n update ide/lang/studio.pot ide/lang/pt-BR.po`. Cada texto es un
    `msgid`; escribe su traducción en `msgstr`.
 3. **Conserva las marcas**: los marcadores `{name}` (pueden cambiar de lugar, no
    de forma), `` `code` ``, un `&` antes de la letra del menú, y los `...` de un
@@ -104,9 +115,10 @@ Cada parte de RapidR tiene una plantilla y un archivo por idioma:
 8. **Las entradas del lenguaje**: una tabla `[docs]`, cada entrada con su nombre en
    mayúsculas: `"RBUTTON" = "…"`, `"RBUTTON.CAPTION" = "…"`, `"MID$" = "…"`.
 
-Un idioma nuevo para Studio es un archivo `ide/lang/<idioma>.po` nuevo:
-Configuración lo enumera con su propio nombre (*Português*, *中文（简体）*) en
-cuanto está allí.
+Un idioma nuevo para Studio es un archivo `ide/lang/<idioma>.po` nuevo (el
+nombre del archivo es la etiqueta del idioma: `es`, `pt-BR`, `zh-Hans`):
+Configuración lo enumera con su propio nombre (*Português (Brasil)*,
+*中文（简体）*) en cuanto está allí.
 
 ### El seudoidioma
 
@@ -121,12 +133,14 @@ en él (`tests/studio_lang.mjs`).
 
 ## Todavía no
 
-- El texto de Studio está en español (una primera versión que revisa Robert: cada
-  menú, menú contextual, panel, cuadro de diálogo y mensaje, los mensajes del
-  compilador y las sugerencias que van debajo, las palabras propias del panel
-  Ayuda alrededor de una entrada, y los cuadros de diálogo que muestra un
-  programa: los de color y fuente y los mensajes); el portugués y el chino van
-  después.
+- El texto de Studio está en español (cada menú, menú contextual, panel,
+  cuadro de diálogo y mensaje, los mensajes del compilador y las sugerencias
+  que van debajo, las palabras propias del panel Ayuda alrededor de una
+  entrada, y los cuadros de diálogo que muestra un programa: los de color y
+  fuente y los mensajes) y, como beta, en portugués de Brasil y en chino
+  simplificado (las mismas partes: el texto de Studio, los mensajes de
+  ejecución y los del compilador). La Ayuda de los componentes y el manual en
+  portugués y chino van después.
 - Los errores de ejecución de un programa en marcha están traducidos los más
   comunes (división por cero, un subíndice fuera de rango, quedarse sin `DATA`,
   un archivo que no se puede abrir o crear, un desbordamiento de pila, una

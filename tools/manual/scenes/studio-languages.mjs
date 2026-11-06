@@ -19,6 +19,16 @@ export const scenes = [
     crop: [0, 0, 660, 300],
   },
   {
+    // (Preview 6: Portuguese and Chinese are marked "beta" after their own
+    // names in the Language list: Studio in Portuguese, Settings' Language row)
+    name: "language-beta",
+    open: "",
+    do: "wait,lang:pt-BR,wait,view.settings",
+    window: 2,
+    delay: 7,
+    crop: [0, 0, 660, 120],
+  },
+  {
     name: "menus-spanish",
     open: "examples/gui/hello_form.rr",
     do: "wait,lang:es,wait",

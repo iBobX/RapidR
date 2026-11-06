@@ -1091,6 +1091,10 @@ SUB AIApplySettings
   AIFillEffort
   AIFilling = 0
   AIShowNote
+  ' (the note now names another provider — a longer line than before, in a
+  ' longer language: laid out again, so its Details link never sits beside
+  ' a line that no longer fits)
+  LayOutAIPanel
   AIChat.EmptyText = AIEmptyText
   AIEnableSend
 END SUB

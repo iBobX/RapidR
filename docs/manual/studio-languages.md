@@ -1,23 +1,32 @@
 # Studio in your language
 
 RapidR Studio speaks your language: its menus, dialogs, messages, the
-compiler's errors and Help. **Español** comes first (Preview 5);
-Portuguese and Chinese follow. Until a language is complete, what isn't
-translated yet shows in English.
+compiler's errors and Help. **Español** came first (Preview 5);
+**Português (Brasil)** and **中文（简体）** (Simplified Chinese) join it in
+Preview 6, for Studio's text, the run-time messages and the compiler's
+errors. Those two are a **beta**: an AI translation that Settings marks "beta",
+and people who speak the language are very welcome to correct it (see
+[Suggest a better word](#suggest-a-better-word)). The manual and the
+components' Help in Portuguese and Chinese come in the next release. Until a
+language is complete, what isn't translated yet shows in English.
 
 ## Choose the language
 
 **Tools > Settings > General > Language**:
 
 - **System default** (the start): your computer's language when Studio has
-  it, else English.
-- **English**, **Español** … one for each language Studio has.
+  it (Portuguese for `pt`, `pt_BR`; Chinese for `zh`, `zh_CN`, `zh_Hans`),
+  else English.
+- **English**, **Español**, **Português (Brasil) - beta**, **中文（简体）- beta**:
+  one for each language Studio has, by its own name.
 
 Studio changes at once, without starting again: the menus, the panes, the
 open dialogs and the status bar. Your choice is kept for the next time.
 **Cancel** in Settings goes back to the language you had.
 
 ![Settings > General > Language set to Español: its row in Spanish (Idioma), the rest of the page still in English in the sample](images/studio-languages/settings-language.png)
+
+![Settings > General > Language in Portuguese (Idioma): Português (Brasil), marked beta after its own name](images/studio-languages/language-beta.png)
 
 ![The menu bar in Spanish: Archivo, Edición, Ver, Proyecto, Ejecutar, Depurar](images/studio-languages/menus-spanish.png)
 
@@ -82,9 +91,11 @@ RapidR has a template and one file per language:
 | The language's entries (Help, hover) | `crates/rapidr-lang/data/**/*.toml` | `crates/rapidr-lang/data/i18n/es/*.toml` |
 
 1. **Follow the glossary**: [docs/i18n/glossary-es.md](../i18n/glossary-es.md)
-   for Spanish (the words, *tú*, sentence case, the menus' letters).
+   for Spanish and [docs/i18n/pt-glossary.md](../i18n/pt-glossary.md) for
+   Brazilian Portuguese (the words, *tú* or *você*, sentence case, the menus'
+   letters).
 2. **Start the file from its template** (or bring it up to date):
-   `rapidr i18n update ide/lang/studio.pot ide/lang/pt.po`. Each text is a
+   `rapidr i18n update ide/lang/studio.pot ide/lang/pt-BR.po`. Each text is a
    `msgid`; write its translation in `msgstr`.
 3. **Keep the markers**: `{name}` placeholders (they may move, never
    change), `` `code` ``, one `&` before the menu letter, and a menu's
@@ -101,8 +112,9 @@ RapidR has a template and one file per language:
 8. **The language's entries**: a `[docs]` table, each entry by its name in
    capitals — `"RBUTTON" = "…"`, `"RBUTTON.CAPTION" = "…"`, `"MID$" = "…"`.
 
-A new language for Studio is a new `ide/lang/<language>.po`: Settings lists
-it by its own name (*Português*, *中文（简体）*) as soon as it is there.
+A new language for Studio is a new `ide/lang/<language>.po` (the file's name
+is the language's tag: `es`, `pt-BR`, `zh-Hans`): Settings lists it by its own
+name (*Português (Brasil)*, *中文（简体）*) as soon as it is there.
 
 ### The pseudo-language
 
@@ -116,11 +128,13 @@ RapidR's tests run Studio's main scenes in it (`tests/studio_lang.mjs`).
 
 ## Not yet
 
-- Studio's text is in Spanish (a first pass that Robert reviews: every
-  menu, context menu, pane, dialog and message, the compiler's messages and
-  the hints under them, the Help pane's own words around an entry, and the
-  dialogs a program shows: the colour and font dialogs and message boxes);
-  Portuguese and Chinese follow.
+- Studio's text is in Spanish (every menu, context menu, pane, dialog and
+  message, the compiler's messages and the hints under them, the Help
+  pane's own words around an entry, and the dialogs a program shows: the
+  colour and font dialogs and message boxes) and, as a beta, in Brazilian
+  Portuguese and Simplified Chinese (the same parts: Studio's text, the
+  run-time messages and the compiler's). The components' Help and the manual
+  in Portuguese and Chinese come next.
 - A running program's run-time errors are translated for the common ones
   (division by zero, a subscript out of range, no more `DATA`, a file that
   can't be opened or created, a stack overflow, a variable that is not an

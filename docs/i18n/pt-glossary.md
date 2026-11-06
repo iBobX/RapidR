@@ -272,6 +272,27 @@ The consent dialogs, the AI cost and privacy notes, the secret-check warnings an
 
 (The Pro words are the Git commands, which Brazilians say in English.)
 
-### 2.9 The RAI row (ai.rs `WORDS`)
+### 2.9 RAI, School Lock and Versions
+
+| English | Português (Brasil) | Note |
+|---|---|---|
+| Coach / Build (RAI's two modes) | Tutor / Construir | "modo Tutor"; *Construir* is the AI's Build mode, not *Compilar* |
+| hint (a Coach's) | dica | a tooltip is a *dica* too |
+| provider | provedor | |
+| API key | chave de API | the secret; *senha* is a password |
+| keychain | chaveiro | the system's store (macOS calls it *Acesso às Chaves*) |
+| token (AI) | token | |
+| context, effort, compact (a chat) | contexto, esforço, compactar | |
+| AI apps | apps de IA | |
+| School Lock | Bloqueio escolar | |
+| teacher / parent | docente / responsável | gender-neutral |
+| IT (a school's) | TI | |
+| local history | histórico local | |
+| Timeline | Linha do tempo | |
+| experiment (Git's branch) | experimento | the Pro word is *branch* |
+| checkpoint (AI) | checkpoint | |
+| cloud service | serviço na nuvem | |
+
+### 2.10 The RAI row (ai.rs `WORDS`)
 
 `Studio is in Portuguese (Brazil). Say its words and RapidR's terms as Studio does, menu paths too (Ferramentas > Configurações)`: see `crates/rapidr-studio/src/ai.rs`, kept in sync with this glossary and under 900 characters.

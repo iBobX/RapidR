@@ -5644,7 +5644,7 @@ msgstr "Painéis de depuração"
 
 #: ide/settings.inc
 msgid "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
-msgstr "Automático: Variáveis, Inspeção, Pilha de chamadas e Pontos de interrupção aparecem ao lado da Saída enquanto um programa é executado. Exibir > Painéis de depuração (Ctrl+Shift+D) mostra ou oculta."
+msgstr "Automático: Variáveis, Inspeção, Pilha de chamadas e Pontos de interrupção aparecem ao lado da Saída durante a execução. Exibir > Painéis de depuração (Ctrl+Shift+D) mostra ou oculta."
 
 #: ide/settings.inc
 msgid "&Turn on the AI assistant"
