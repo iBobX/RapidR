@@ -629,7 +629,7 @@ fn arm_deadline() {
     let now = rapidr_ui_kernel::tick::now();
     let kernel = host::with(|h, _| h.next_wake()).flatten();
     // (an analysis under way: its next step in the next frame's time)
-    let analysis = rapidr_studio::langsvc::analyzing().then(|| now + std::time::Duration::from_millis(8));
+    let analysis = rapidr_studio::langsvc::analyzing().then(|| now + std::time::Duration::from_millis(16));
     let next = [kernel, script::next_step(), rapidr_ui_app::timers::next_due(), rapidr_ui_app::dialogs::hook_wake(), rapidr_ui_app::hands::next_wake(), analysis].into_iter().flatten().min();
     let Some(at) = next else { return };
     let ms = at.saturating_duration_since(now).as_secs_f64() * 1000.0;

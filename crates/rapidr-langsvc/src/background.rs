@@ -159,6 +159,9 @@ fn sync_mirror(mirror: &mut Analysis, options: &crate::Options, docs: &[(PathBuf
             mirror.update(p.clone(), t.clone());
         }
     }
+    // (a mirror never answers typing's quick questions: no older analysis
+    // kept for them)
+    mirror.stale.clear();
 }
 
 /// One of a job's wants, made by the mirror.

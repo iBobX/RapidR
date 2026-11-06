@@ -29,7 +29,7 @@ use crate::tick::{now, Instant};
 pub const DIAGNOSE_AFTER: Duration = Duration::from_millis(350);
 /// While the service analyses in the background, looked at this often
 /// (about a frame: the editor never waits for it).
-pub const ANALYSIS_POLL: Duration = Duration::from_millis(8);
+pub const ANALYSIS_POLL: Duration = Duration::from_millis(16);
 /// A hover this long after the mouse stops.
 pub const HOVER_AFTER: Duration = Duration::from_millis(500);
 /// Files bigger than this get no language service (as large-file modes).

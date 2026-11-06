@@ -279,8 +279,8 @@ Escribir nunca espera a la comprobación. Studio comprueba el programa aparte
 del editor (en un hilo propio; en el navegador, un poco cada vez entre
 fotogramas) y muestra los problemas, los colores de los nombres de tu programa
 y la Estructura cuando termina, un momento después de que dejas de escribir.
-Por grande que sea el programa, y con los archivos de inclusión grandes de
-RapidR o de RapidQ, una tecla que pulsas se atiende enseguida. Cuando cambian
+Por grande que sea el programa, y con archivos de inclusión grandes (una
+cabecera Win32 de miles de líneas), una tecla que pulsas se atiende enseguida. Cuando cambian
 varios archivos a la vez (los cambios de RAI aplicados, Guardar todo, archivos
 cambiados fuera de Studio), cada archivo abierto se vuelve a comprobar cuando
 se asientan: ninguno se queda con un problema o un color de un momento que el

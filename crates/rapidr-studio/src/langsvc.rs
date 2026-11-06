@@ -209,6 +209,18 @@ fn line_of(text: &str, starts: &[usize], offset: usize) -> usize {
     starts.partition_point(|&s| s <= offset)
 }
 
+/// [`line_col`] of `offset`, from `text`'s line starts (the same line and
+/// column for every offset: a test compares).
+fn line_col_at(text: &str, starts: &[usize], offset: usize) -> (usize, usize) {
+    let offset = offset.min(text.len());
+    if !text.is_char_boundary(offset) {
+        return line_col(text, offset);
+    }
+    let line = starts.partition_point(|&s| s <= offset);
+    let start = starts[line - 1];
+    (line, text[start..offset].chars().count() + 1)
+}
+
 fn outline_lines(items: &[OutlineItem], text: &str, depth: usize, out: &mut String) {
     outline_rows(items, text, &line_starts(text), depth, out);
 }
@@ -347,7 +359,11 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let project = (method == "projectdiagnostics").then(|| PathBuf::from(&s.project)).filter(|p| !p.as_os_str().is_empty());
             let a = s.analysis();
             let mut out = String::new();
-            let mut texts: HashMap<PathBuf, String> = HashMap::new();
+            // (each file's text and where its lines start: a problem placed by
+            // a binary search, not by counting the newlines before it — with
+            // thousands of problems that count was most of Problems' fill, the
+            // hang reports' ProblemsText)
+            let mut texts: HashMap<PathBuf, (String, Vec<usize>)> = HashMap::new();
             let mut errors = 0;
             let found = match &project {
                 Some(main) => a.project_diagnostics(main),
@@ -360,8 +376,12 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 }
             };
             for d in found {
-                let text = texts.entry(d.file.clone()).or_insert_with(|| a.text(&d.file).unwrap_or_default());
-                let (line, col) = line_col(text, d.start);
+                let (text, starts) = texts.entry(d.file.clone()).or_insert_with(|| {
+                    let t = a.text(&d.file).unwrap_or_default();
+                    let starts = line_starts(&t);
+                    (t, starts)
+                });
+                let (line, col) = line_col_at(text, starts, d.start);
                 let severity = format!("{:?}", d.severity).to_ascii_lowercase();
                 if severity == "error" {
                     errors += 1;
@@ -477,6 +497,7 @@ mod tests {
             let starts = super::line_starts(text);
             for offset in 0..text.len() + 3 {
                 assert_eq!(super::line_of(text, &starts, offset), line_col(text, offset).0, "{text:?} at {offset}");
+                assert_eq!(super::line_col_at(text, &starts, offset), line_col(text, offset), "{text:?} at {offset}");
             }
         }
     }

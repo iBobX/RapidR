@@ -262,7 +262,7 @@ Typing never waits for the check. Studio checks the program away from the
 editor (on a thread of its own; in the browser, a little at a time between
 frames) and shows the problems, the colours of your program's names and the
 Outline when the check is done, a moment after you stop. However big the
-program, and with RapidR's or RapidQ's big include files, a key you press
+program, and with big include files (a Win32 header of thousands of lines), a key you press
 is handled at once. When several files change at once (RAI's changes
 applied, Save All, files changed outside Studio), every open file is checked
 again once they settle: none keeps a problem or a colour from a moment the

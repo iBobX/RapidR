@@ -1,5 +1,5 @@
 {
-  "about": "The UI's and the editor's budgets (tools/bench/ui_bench --check; tools/regress.sh perf). Milliseconds: the fastest of the runs' medians (writes and steps: the program's own TIMER; check and Studio: CPU). Measured 2026-11-05 (SPEED-AUDIT, docs/speed-audit-2026-11.md) on an Apple-silicon Mac busy with other lanes — before the speed fixes / after: #12's 41 moves 12.5 / 0.16 ms (form shown 11.5 / 0.11), 800 place writes 1067 / 1.9, 200 caption writes 131 / 1.1, the 200-control resize step 4.0 / 1.0 (its writes 2.0 / 0.66; a real window's frame 29.2 / 10.7), 12 canvases' OnResize 8.5 / 0.39 (a real window's frame 28.7 / 18.8), check of 5,000 lines with 1,000 $DEFINEs 630 / 138, Studio's caret move 11.7 / 2.0, an edit round 372 / 52. The budgets leave room for a busy machine and still catch any of the old costs coming back (a scroll-bar pass per write, a registry scan per read, a search per $DEFINE per line, a re-count of the newlines per span).",
+  "about": "The UI's and the editor's budgets (tools/bench/ui_bench --check; tools/regress.sh perf). Milliseconds: the fastest of the runs' medians (writes and steps: the program's own TIMER; check and Studio: CPU). Measured 2026-11-05 (SPEED-AUDIT, docs/speed-audit-2026-11.md) on an Apple-silicon Mac busy with other lanes — before the speed fixes / after: #12's 41 moves 12.5 / 0.16 ms (form shown 11.5 / 0.11), 800 place writes 1067 / 1.9, 200 caption writes 131 / 1.1, the 200-control resize step 4.0 / 1.0 (its writes 2.0 / 0.66; a real window's frame 29.2 / 10.7), 12 canvases' OnResize 8.5 / 0.39 (a real window's frame 28.7 / 18.8), check of 5,000 lines with 1,000 $DEFINEs 630 / 138, Studio's caret move 11.7 / 2.0, an edit round 372 / 52. The budgets leave room for a busy machine and still catch any of the old costs coming back (a scroll-bar pass per write, a registry scan per read, a search per $DEFINE per line, a re-count of the newlines per span). EDIT-PAUSE (2026-11-05, docs/speed-audit-2026-11.md \"Studio: the edit pause\"): the UI thread's own measures — its longest busy stretch (what a key pressed then waits for) and its CPU — for a caret move, an edit round and an edit round in the program of 1,000 $DEFINEs; the analysis off the UI thread keeps every stretch under a frame (16 ms). Before / after on the 5,000-line program: an edit round's longest stretch 75-100 / 5-7 ms, its UI CPU 40-52 / 9-35 ms.",
   "budgets": {
     "moves41_hidden": 5,
     "moves41_shown": 5,
@@ -15,7 +15,12 @@
     "canvas12_frame_window": 25,
     "check_defines": 350,
     "caret_move": 8,
-    "edit_round": 200
+    "edit_round": 200,
+    "caret_move_ui_busy": 16,
+    "edit_round_ui_busy": 16,
+    "edit_round_ui_cpu": 40,
+    "edit_round_defines_ui_busy": 16,
+    "edit_round_defines_ui_cpu": 40
   },
   "systems": {
     "Linux": {
@@ -27,7 +32,12 @@
       "canvas12_frame": 25,
       "check_defines": 900,
       "caret_move": 20,
-      "edit_round": 500
+      "edit_round": 500,
+      "caret_move_ui_busy": 40,
+      "edit_round_ui_busy": 40,
+      "edit_round_ui_cpu": 100,
+      "edit_round_defines_ui_busy": 40,
+      "edit_round_defines_ui_cpu": 100
     }
   }
 }

@@ -127,6 +127,10 @@ SUB RefreshQuickOpen
     NEXT
   END IF
   IF d >= 0 THEN
+    ' (not analysed yet: its items stay until it is — LangAnalyzed)
+    IF IsBasicFile(DocFile(d)) THEN
+      IF Lang.Ready(DocFile(d)) = 0 THEN EXIT SUB
+    END IF
     text = Lang.Outline(DocFile(d))
     key = key + CHR$(1) + text
   END IF
@@ -934,6 +938,9 @@ END SUB
 
 SUB ClearProblems
   OutputBox.ClearProblems
+  ' (FillProblemsOf fills it again whatever it showed)
+  ProblemsShownText = ""
+  ProblemsShownPath = ""
 END SUB
 
 ' (Kind: 0 error, 1 warning, 2 information, 3 a file's heading — Message

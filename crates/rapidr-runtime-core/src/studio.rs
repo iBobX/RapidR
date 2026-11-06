@@ -168,7 +168,7 @@ pub fn poll_every() -> Option<std::time::Duration> {
     // (RLanguageService's Analyze under way: its work looked for about every
     // frame, the window loop never waiting for it)
     if rapidr_studio::langsvc::analyzing() {
-        Some(std::time::Duration::from_millis(8))
+        Some(std::time::Duration::from_millis(16))
     } else if rapidr_studio::build::any() || rapidr_studio::session::starting() {
         Some(std::time::Duration::from_millis(20))
     } else if rapidr_studio::session::any_running() {

@@ -9,6 +9,10 @@ DIM OutlineCount AS INTEGER
 ' pause, nothing is done: FillOutline)
 DIM OutlineShownDoc AS INTEGER
 DIM OutlineShownText AS STRING
+' (the problems shown: their text and whose — the same again, the list
+' stays as it is: FillProblemsOf; ClearProblems forgets them)
+DIM ProblemsShownText AS STRING
+DIM ProblemsShownPath AS STRING
 ' (SymbolIcons' icons by name, each added once a fill: SymbolIcon)
 DIM SymbolIconName(80) AS STRING
 DIM SymbolIconAt(80) AS INTEGER
@@ -187,20 +191,33 @@ END FUNCTION
 ' language service sorts them (errors first, grouped by file): each file's
 ' heading with how many of each kind, its problems under it.
 SUB FillProblemsOf(Path AS STRING)
-  DIM text AS STRING, n AS INTEGER, i AS INTEGER, j AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER
+  DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER
   DIM f AS STRING, errs AS INTEGER, warns AS INTEGER, notes AS INTEGER
-  ClearProblems
+  DIM rowAt AS INTEGER, rowEnd AS INTEGER, at AS INTEGER, nextAt AS INTEGER, rf AS STRING
   text = ProblemsText(Path)
+  ' (the same problems as shown: nothing to do — a pause in typing that
+  ' changed none of them)
+  IF text = ProblemsShownText AND Path = ProblemsShownPath THEN EXIT SUB
+  ClearProblems
+  ProblemsShownText = text
+  ProblemsShownPath = Path
   n = TALLY(text, CHR$(10))
+  ' (the rows one after the other, each where the last one ended — FIELD$
+  ' for row i went through every row before it, and each file's counts did
+  ' it again: thousands of problems took seconds, the hang reports'
+  ' ProblemsText)
+  rowAt = 1
   FOR i = 1 TO n
-    row = FIELD$(text, CHR$(10), i)
-    ' (a new file: its heading, its counts first)
+    rowEnd = INSTR(rowAt, text, CHR$(10))
+    row = MID$(text, rowAt, rowEnd - rowAt)
+    rowAt = rowEnd + 1
+    ' (a new file: its heading, its counts first — its rows are together)
     IF i = 1 OR FIELD$(row, CHR$(9), 5) <> f THEN
       f = FIELD$(row, CHR$(9), 5)
       errs = 0: warns = 0: notes = 0
-      FOR j = i TO n
-        IF FIELD$(FIELD$(text, CHR$(10), j), CHR$(9), 5) <> f THEN EXIT FOR
-        sev = FIELD$(FIELD$(text, CHR$(10), j), CHR$(9), 1)
+      at = rowEnd + 1
+      sev = FIELD$(row, CHR$(9), 1)
+      DO
         IF sev = "error" THEN
           errs = errs + 1
         ELSEIF sev = "warning" THEN
@@ -208,7 +225,14 @@ SUB FillProblemsOf(Path AS STRING)
         ELSE
           notes = notes + 1
         END IF
-      NEXT
+        IF at > LEN(text) THEN EXIT DO
+        nextAt = INSTR(at, text, CHR$(10))
+        IF nextAt = 0 THEN EXIT DO
+        rf = MID$(text, at, nextAt - at)
+        IF FIELD$(rf, CHR$(9), 5) <> f THEN EXIT DO
+        sev = FIELD$(rf, CHR$(9), 1)
+        at = nextAt + 1
+      LOOP
       ' (its heading: the Project pane's icon, the path from the project's
       ' folder, how many — a pill —, and the counts in words)
       AddFileHeading f, ProblemCounts(errs, warns, notes), errs + warns + notes
@@ -232,6 +256,17 @@ SUB AnalyzeActive
   IF d >= 0 THEN
     Lang.Update DocFile(d), CodeDoc(d).Text
     IF DocHasForm(d) THEN DesignRead d
+    ' (not analysed for this text yet — RAI's changes applied, a document
+    ' switched to, a file changed outside —: the analysis asked for, off the
+    ' UI thread, and the Outline, Problems and Quick Open follow when it's
+    ' in (LangAnalyzed); what they showed stays meanwhile. Run and Build ask
+    ' for the errors themselves, and wait for them: ProgramErrors)
+    IF Lang.Ready(DocFile(d)) = 0 THEN
+      Lang.Analyze DocFile(d)
+      RefreshProgramLook 0
+      InspectActive
+      EXIT SUB
+    END IF
   END IF
   FillOutline d
   FillProblems d
@@ -504,7 +539,8 @@ SUB LangAnalyzed(File AS STRING)
   IF d < 0 THEN EXIT SUB
   IF LCASE$(REPLACESUBSTR$(DocFile(d), "\", "/")) <> LCASE$(File) THEN EXIT SUB
   ' (typed since: CodeChanged started the Analyzer again — it asks then;
-  ' else the text is the one Analyze was given, and the answers are in)
+  ' else the text is the one Analyze was given, and the answers are in —
+  ' unless another file changed since: AnalyzeActive asks again then)
   IF Analyzer.Enabled THEN EXIT SUB
   IF Lang.Ready(DocFile(d)) = 0 THEN EXIT SUB
   AnalyzeActive

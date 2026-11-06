@@ -24,8 +24,9 @@ use rapidr_preprocessor::PreprocessOptions;
 use crate::Snapshot;
 
 /// How many programs are kept (the editor's and the panes' of the active
-/// one, a few documents switched between).
-const KEEP: usize = 4;
+/// one, a document or two switched between: a big program's parse is tens
+/// of megabytes).
+const KEEP: usize = 3;
 
 struct Kept {
     root: PathBuf,

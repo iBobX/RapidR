@@ -329,6 +329,9 @@ END SUB
 ' width laid out again (a longer language: nothing cut off).
 SUB StudioLanguageChanged
   DIM i AS INTEGER
+  ' (the Outline's and Problems' texts made again in the new language)
+  OutlineShownDoc = -1
+  ProblemsShownPath = ""
   FOR i = 0 TO CmdCount - 1
     IF Cmd(i).Tool >= 0 THEN
       IF CmdKeys(i) <> "" THEN ToolBar.ButtonHint Cmd(i).Id, PlainTitle(Cmd(i).Title) + " (" + CmdKeys(i) + ")" ELSE ToolBar.ButtonHint Cmd(i).Id, PlainTitle(Cmd(i).Title)
@@ -372,6 +375,7 @@ SUB StudioThemeChanged
   ' (the outline's icons drawn again in the new look)
   OutlineShownDoc = -1
   QuickShownKey = ""
+  ProblemsShownPath = ""
   ApplyChrome
   ' (the cards' titles are AutoSize: their fonts set again shrank them to
   ' their text — laid out again, as at the start)
