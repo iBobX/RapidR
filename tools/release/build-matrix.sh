@@ -180,9 +180,13 @@ lane_linux() {
     done
     bash "$ubu" send "$HERE/smoke.sh" "~/rapidr-release/smoke.sh"
     bash "$ubu" send "$HERE/p5check.sh" "~/rapidr-release/p5check.sh"
+    # (smoke.sh sources it from its own folder: the x86_64 packages' native build uses the VM's x86_64 Rust)
+    bash "$ubu" send "$HERE/linux/x86-env.sh" "~/rapidr-release/x86-env.sh"
     for f in $names; do list="$list $f"; done
     # One detached job in the VM; each package has its log, exit code and seconds in ~/rapidr-release/matrix/.
-    # (x86_64 packages run by Rosetta here: there is no x86_64 Rust toolchain host, so no native build for them.)
+    # (x86_64 packages run by Rosetta here. Their native build uses the VM's x86_64 Rust when it has one
+    # (linux/setup-tools.sh x86rust; the job writes 1 or 0 to matrix/x86native), else there is none for them:
+    # the VM's own arm64 Rust would build arm64 programs and prove nothing about the x86_64 package.)
     cat > "$script" <<EOF
 B="\$HOME/rapidr-release"; M="\$B/matrix"
 rm -rf "\$M"; mkdir -p "\$M"
@@ -190,8 +194,10 @@ setsid nohup bash -c '
   export PATH="\$HOME/.cargo/bin:\$PATH"; B="\$1"; M="\$2"; NATIVE="\$3"; shift 3
   export TMPDIR="\$B/tmp"; rm -rf "\$TMPDIR"; mkdir -p "\$TMPDIR"
   host="\$(uname -m)"
+  x86nat=0; if [ -f "\$B/x86-env.sh" ]; then . "\$B/x86-env.sh"; x86_available && x86nat="\$NATIVE"; fi
+  echo "\$x86nat" > "\$M/x86native"
   for n in "\$@"; do
-    case "\$n" in *"\$host"*|*_\$(dpkg --print-architecture).deb) nat="\$NATIVE" ;; *) nat=0 ;; esac
+    case "\$n" in *"\$host"*|*_\$(dpkg --print-architecture).deb) nat="\$NATIVE" ;; *x86_64*|*amd64*) nat="\$x86nat" ;; *) nat=0 ;; esac
     s=\$(date +%s)
     SMOKE_NATIVE=\$nat RAPIDR_AI_KEYSTORE=memory P5_DELAY=$P5_DELAY bash "\$B/smoke.sh" "\$B/dist/out/\$n" > "\$M/\$n.log" 2>&1
     echo \$? > "\$M/\$n.rc"; echo \$(( \$(date +%s) - s )) > "\$M/\$n.secs"
@@ -211,6 +217,13 @@ EOF
         [ -n "$code" ] && break
         vm_awake "$vm"
     done
+    # (did the x86_64 packages get a native build? the job says; asked again like the times)
+    local x86nat=""
+    for try in 1 2 3 4; do
+        printf 'cat "$HOME/rapidr-release/matrix/x86native" 2>/dev/null\n' > "$script"
+        x86nat="$(bash "$ubu" run "$script" 2>/dev/null | tail -1)"
+        case "$x86nat" in 0|1) break ;; *) x86nat="" ;; esac
+    done
     for f in $names; do
         printf 'cat "$HOME/rapidr-release/matrix/%s.secs" 2>/dev/null\n' "$f" > "$script"
         # (a call Parallels drops answers nothing: asked again, so a time is never recorded as 0:00)
@@ -221,7 +234,10 @@ EOF
         done
         bash "$ubu" fetch "~/rapidr-release/matrix/$f.log" "$LOGS/linux-$f.log" || echo "(could not fetch the log of $f)" > "$LOGS/linux-$f.log"
         local why=yes
-        case "$f" in *aarch64*|*arm64*) ;; *) why="no:x86_64 here runs by Rosetta; there is no x86_64 Rust host to build for it" ;; esac
+        case "$f" in
+            *aarch64*|*arm64*) ;;
+            *) [ $QUICK = 1 ] || [ "$x86nat" = 1 ] || why="no:x86_64 here runs by Rosetta and this VM has no x86_64 Rust (tools/release/linux/setup-tools.sh x86rust), so there is no native build for it" ;;
+        esac
         record "Linux $(linux_arch "$f")" "$f" "$(kind_of "$f")" "$why" "${secs:-0}" "$LOGS/linux-$f.log" "" linux
     done
     rm -f "$script"

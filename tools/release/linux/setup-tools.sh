@@ -11,6 +11,12 @@
 #                                      both Rust Linux targets
 #   sudo bash setup-tools.sh qemu      where Rosetta isn't there: a newer qemu-user for the other
 #                                      architecture's programs (24.04's crashes on Rust programs)
+#   bash setup-tools.sh x86rust        an arm64 VM with Rosetta: rustup's own x86_64 Linux host in
+#                                      ~/rust-x86_64 (RAPIDR_X86_RUST), beside the arm64 one (untouched),
+#                                      from static.rust-lang.org (rustup-init checked against its published
+#                                      SHA-256), the same Rust version as the arm64 one. Rosetta runs its
+#                                      rustc, so the JIT and the x86_64 packages' native builds can be
+#                                      tested as x86_64 (linux/x86-env.sh says how they link: Zig)
 #
 # The other architecture's programs (the smoke test's) run through binfmt: on an ARM VM
 # under Parallels, Rosetta for Linux (Parallels' VM settings: "Use Rosetta to run x86-64
@@ -175,5 +181,29 @@ EOF
         rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
         echo "zig: $(zig version) ($DIR); $(cargo-zigbuild --version)"
         ;;
-    *) echo "usage: $0 system|user|undo"; exit 2 ;;
+    x86rust)
+        # (the x86_64 Rust host the arm64 VM runs by Rosetta; its own rustup and cargo homes: the arm64 Rust
+        # in ~/.rustup and ~/.cargo is not touched, nor the user's PATH or shell files)
+        [ "$HOST" = arm64 ] && rosetta || { echo "x86rust is for an arm64 VM with Rosetta for Linux (binfmt RosettaLinux)"; exit 1; }
+        export PATH="$HOME/.cargo/bin:$PATH"
+        X86="${RAPIDR_X86_RUST:-$HOME/rust-x86_64}"
+        RUSTV="${RUST:-$(env -u RUSTUP_TOOLCHAIN rustc --version 2>/dev/null | awk '{print $2}' || true)}"
+        [ -n "$RUSTV" ] || { echo "no Rust version: this VM's rustc did not answer (set RUST=1.98.1)"; exit 1; }
+        TC="$RUSTV-x86_64-unknown-linux-gnu"
+        if [ ! -x "$X86/cargo/bin/rustup" ]; then
+            D="$(mktemp -d)"
+            U=https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu
+            curl --proto '=https' --tlsv1.2 -fsSL "$U/rustup-init" -o "$D/rustup-init"
+            curl --proto '=https' --tlsv1.2 -fsSL "$U/rustup-init.sha256" -o "$D/rustup-init.sha256"
+            want="$(awk '{print $1}' "$D/rustup-init.sha256")"; have="$(sha256sum "$D/rustup-init" | awk '{print $1}')"
+            [ -n "$want" ] && [ "$want" = "$have" ] || { echo "rustup-init: SHA-256 $have, static.rust-lang.org says $want"; rm -rf "$D"; exit 1; }
+            echo "rustup-init (x86_64): SHA-256 ok ($have)"
+            chmod +x "$D/rustup-init"
+            RUSTUP_HOME="$X86/rustup" CARGO_HOME="$X86/cargo" "$D/rustup-init" -y --no-modify-path --profile minimal \
+                --default-host x86_64-unknown-linux-gnu --default-toolchain "$TC"
+            rm -rf "$D"
+        fi
+        echo "x86_64 Rust: $(RUSTUP_HOME="$X86/rustup" CARGO_HOME="$X86/cargo" "$X86/cargo/bin/rustc" -vV | grep -E '^(release|host)' | paste -sd' ') ($X86)"
+        ;;
+    *) echo "usage: $0 system|user|undo|qemu|x86rust"; exit 2 ;;
 esac

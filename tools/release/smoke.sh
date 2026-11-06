@@ -21,6 +21,9 @@
 # from the shipped sources, an empty cargo home), and what a runtime-only
 # install refuses. SMOKE_NATIVE=0 skips the native build (minutes, ~2 GB: setup
 # downloads RapidR's toolchain into a throwaway RUSTUP_HOME / CARGO_HOME).
+# An x86_64 package in an arm64 Linux VM (Rosetta for Linux): its native build is done by the
+# VM's x86_64 Rust (linux/setup-tools.sh x86rust; x86-env.sh, sent beside this script), so what
+# is built, and run by Rosetta, is x86_64; without that Rust the native build is not run for it.
 set -uo pipefail
 ART="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 HERE="$(cd "$(dirname "$0")" && pwd)"   # (this script's folder: p5check.sh is beside it; the script changes folder later)
@@ -73,6 +76,16 @@ if [ -z "${RAPIDR_TEST_MODE:-}" ] && [ -f "$HOME/.rapidr/test-mode.token" ]; the
 # Rust, as the user has it (for the native build), before PATH is narrowed.
 CARGO_BIN="$(dirname "$(command -v cargo 2>/dev/null || echo "$HOME/.cargo/bin/cargo")")"
 BASE_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+# (an x86_64 package on an arm64 Linux: the VM's arm64 Rust would build arm64 programs, quietly, and
+# prove nothing about the x86_64 package; its x86_64 Rust is used instead, when the VM has it)
+X86=0
+case "$(uname)-$(uname -m)-$(basename "$ART")" in
+    Linux-aarch64-*x86_64*|Linux-aarch64-*amd64*)
+        if [ -f "$HERE/x86-env.sh" ]; then
+            . "$HERE/x86-env.sh"
+            if x86_available; then X86=1; CARGO_BIN="$X86_HOME/cargo/bin"; fi
+        fi ;;
+esac
 
 echo "== install $(basename "$ART") into $T"
 case "$ART" in
@@ -274,11 +287,18 @@ if [ "$KIND" = sdk ]; then
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
         echo "== rapidr setup and a native build: a throwaway rustup and cargo home, offline, the shipped sources"
         # (the user's own Rust is never touched: its default, read before and after)
-        users_rust() { env -u RUSTUP_HOME -u CARGO_HOME -u RUSTUP_TOOLCHAIN "$CARGO_BIN/rustup" default 2>&1; env -u RUSTUP_HOME -u CARGO_HOME -u RUSTUP_TOOLCHAIN "$CARGO_BIN/rustup" show active-toolchain 2>&1; }
+        users_rust() {
+            local e=(-u RUSTUP_HOME -u CARGO_HOME -u RUSTUP_TOOLCHAIN)
+            # (the x86_64 Rust has homes of its own: ~/rust-x86_64)
+            [ $X86 = 1 ] && e=(-u RUSTUP_TOOLCHAIN "RUSTUP_HOME=$X86_HOME/rustup" "CARGO_HOME=$X86_HOME/cargo")
+            env "${e[@]}" "$CARGO_BIN/rustup" default 2>&1; env "${e[@]}" "$CARGO_BIN/rustup" show active-toolchain 2>&1
+        }
         users_before="$(users_rust)"
         export RUSTUP_HOME="$T/rustup-home" CARGO_HOME="$T/cargo-home"
         mkdir -p "$RUSTUP_HOME" "$CARGO_HOME"
         case "$(uname)" in Darwin) host=aarch64-apple-darwin ;; *) host="$(uname -m)-unknown-linux-gnu" ;; esac
+        # (Rosetta, the Zig linker and the amd64 libraries, for these builds only: x86-env.sh says why)
+        if [ $X86 = 1 ]; then host=x86_64-unknown-linux-gnu; x86_env "$T/x86-link"; echo "  (the VM's x86_64 Rust, run by Rosetta: $(RUSTUP_HOME="$X86_HOME/rustup" CARGO_HOME="$X86_HOME/cargo" "$CARGO_BIN/rustc" --version 2>&1 | head -1))"; fi
         "$CARGO_BIN/rustup" set default-host "$host" > /dev/null 2>&1
         rust_state() { "$CARGO_BIN/rustup" default 2>&1; "$CARGO_BIN/rustup" show 2>&1 | grep -i "default host"; }
         before="$(rust_state)"
@@ -291,6 +311,11 @@ if [ "$KIND" = sdk ]; then
         check "rapidr build (native)" test -x ./native; [ -x ./native ] || tail -20 native.log
         CELL=nexe
         check "the native executable runs" has "$(./native 2>&1)" "native 42"
+        if [ "$(uname)" = Linux ] && command -v file > /dev/null; then
+            # (the package's own architecture: an x86_64 package's native build must be x86_64, whatever the VM is)
+            case "$(basename "$ART")" in *x86_64*|*amd64*) want="x86-64" ;; *) want="aarch64" ;; esac
+            check "the native executable is $want (what the package builds for)" has "$(file -b ./native)" "$want"
+        fi
         CELL=native
         # (a program with forms, release: what users build — it links the GUI
         # stack; a console program doesn't, and missed a broken Windows import
@@ -316,6 +341,7 @@ if [ "$KIND" = sdk ]; then
         fi
         rm -rf "$T/native-target"
         unset RUSTUP_HOME CARGO_HOME
+        [ $X86 = 1 ] && x86_env_unset
         CELL=other
         check "the user's own Rust unchanged (rustup default, active toolchain)" test "$(users_rust)" = "$users_before"
     else

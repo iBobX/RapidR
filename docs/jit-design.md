@@ -485,10 +485,29 @@ a copy run interpreted, 32 voices, the share of a 10 ms block):
   without the JIT: `loop10m` 244 / 490 ms, `fcalls` 171 / 288,
   `dsp_scalars` 166 / 354, `calls` 96 / 231 (a Windows process' start is
   a good part of each; the programs' own `ms` lines: `fcalls` 10,
-  `dsp_scalars` 13). x86-64 Windows: not run — the VM's Rust has no
-  `x86_64-pc-windows-msvc` target (the lane fetched nothing but the
-  reviewed crates); `rustup target add x86_64-pc-windows-msvc` in the VM,
-  then `tools/release/windows-vm.sh jit Target=x86_64-pc-windows-msvc`
-  (built there, run under Windows' own emulation). Its calling convention
-  for the entry forms and the helpers (Windows x64's own) is the one thing
-  the Rosetta run doesn't cover.
+  `dsp_scalars` 13).
+- Linux x86-64 (the same Ubuntu VM, by Rosetta for Linux; X86-64 lane,
+  2026-11-05): built there with rustup's x86_64 Rust (`linux/setup-tools.sh
+  x86rust`, run with `ROSETTA_DISABLE_AOT=1`, linked by Zig:
+  `linux/x86-env.sh`), `ubuntu-vm.sh run tools/release/linux/jit-check.sh
+  <src.tar.gz> x86_64`: the JIT's tests (every edge value) pass (the same
+  counts as arm64) and the conformance suite both ways (668 runs) passes;
+  compiled code runs (`loop10m` 164 / 529 ms with / without, `fcalls` 169 /
+  474, `dsp_scalars` 174 / 334; code generation 60-70 ms against 1-2 ms
+  natively, Rosetta translating the generator: `calls` 140 / 140). The code
+  generator's x86-64 backend and the System V x86-64 convention of the
+  entry forms and helpers, on Linux.
+- Windows x64 (the Windows 11 ARM64 VM, Windows' own x64 emulation;
+  `windows-vm.sh jit Target=x86_64-pc-windows-msvc` after `rustup target add
+  x86_64-pc-windows-msvc`): cross-built there; the JIT's tests (every edge
+  value) pass (1, 4, 7, 17; the 7-test binary took 589 s emulated), so Windows
+  x64's own calling convention for the entry forms and the helpers runs as
+  x64 code. Conformance both ways (660 runs): **intermittent 30 s stalls of
+  single runs, 1-2 cases per try in 3 of 5 tries, in the JIT-off backend too**
+  (the same case, `canvas_rotate_get_put`, twice; four different cases once
+  each with `RAPIDR_JIT=always`), none reproducing in 12 isolated runs of each,
+  and clean 330 / 330 passes of each backend on the quiet machine: not
+  attributed to the JIT, not proven innocent, details and logs in
+  docs/build-matrix.md ("part 3"). Wall times with / without on the quiet
+  machine: `loop10m` 187-539 / 746-755 ms, `fcalls` 169-347 / 728-1523,
+  `dsp_scalars` 211-228 / 627-681, `calls` 170-235 / 211-276.

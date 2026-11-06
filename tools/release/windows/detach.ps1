@@ -26,7 +26,20 @@ $ErrorActionPreference = "Stop"
 $base = "$UserProfile\rapidr-release"
 $Log = "$base\$Name.log"
 New-Item -ItemType Directory -Force "$base\scripts" | Out-Null
-Copy-Item -Force "$PSScriptRoot\*" "$base\scripts\"
+# (file by file: a script the VM will not replace -- a stale delete-pending entry, a file an antivirus holds
+# open; seen on 2026-11-05 with smoke-win7-real.ps1 -- must not stop a job that does not run it. The three
+# the job does run are checked below.)
+foreach ($f in Get-ChildItem -File $PSScriptRoot) {
+    try { Copy-Item -Force $f.FullName "$base\scripts\" -ErrorAction Stop }
+    catch { Write-Host "warning: could not copy $($f.Name) to $base\scripts: $($_.Exception.Message)" }
+}
+foreach ($need in @("job.ps1", "user.ps1", $Script)) {
+    $from = Join-Path $PSScriptRoot $need; $to = Join-Path "$base\scripts" $need
+    if (-not (Test-Path $from)) { Write-Host "no $need next to detach.ps1"; exit 1 }
+    if (-not (Test-Path $to) -or (Get-FileHash $from).Hash -ne (Get-FileHash $to).Hash) {
+        Write-Host "$need in $base\scripts is not this checkout's: it cannot be replaced"; exit 1
+    }
+}
 if ($Prep) {
     robocopy $Prep "$base\prep" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { Write-Host "copying $Prep failed (robocopy $LASTEXITCODE)"; exit 1 }
