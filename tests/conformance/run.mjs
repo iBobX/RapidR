@@ -197,6 +197,7 @@ for (const name of cases) {
   if (xfail.has("vm")) xfail.add("vm-jit");
   // `' skip-on: win32` (a process.platform name): a case whose outcome is
   // another on that system (a Windows DLL call succeeds there) isn't run.
+  // (`web` in the list: tests/web_conformance.mjs skips it.)
   const skipLine = text.split("\n")[0].match(/^'\s*skip-on:\s*([^—-]+)/i);
   if (skipLine && skipLine[1].split(",").map((s) => s.trim().toLowerCase()).includes(process.platform)) {
     console.log(`SKIP     ${name} (not on ${process.platform})`);

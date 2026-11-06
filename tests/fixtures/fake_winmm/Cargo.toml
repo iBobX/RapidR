@@ -1,0 +1,18 @@
+# A stand-in for Windows' winmm.dll MIDI input, for tests without a MIDI
+# device (docs/windows-dll-calls.md §7): its driver thread writes a SysEx
+# message into the buffer a MIDIHDR names AFTER midiInAddBuffer returned,
+# then posts MM_MIM_LONGDATA to the window midiInOpen was given — what a
+# real MIDI driver does. Not part of the workspace, never shipped: built by
+# tools/release/windows/dll-memory-check.ps1 in the Windows VM. Only std.
+[package]
+name = "fake_winmm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "lib.rs"
+
+[workspace]

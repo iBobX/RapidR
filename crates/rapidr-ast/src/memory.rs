@@ -20,7 +20,12 @@
 //!   a BYREF parameter becomes its address (`VARPTR(x)`), so the DLL writes
 //!   into the variable's mirror and the copy-back after the statement
 //!   updates the variable (docs/windows-dll-calls.md §1); `PEEK` / `POKE`
-//!   count as memory calls.
+//!   count as memory calls;
+//! * where a DLL or a driver may have written memory meanwhile (§7): the
+//!   globals' mirrors are copied back at the start of every event handler,
+//!   after the statements that wait (DOEVENTS, SLEEP, ShowModal, the
+//!   message boxes), and inside and after an IF / SELECT / FOR / WHILE / DO
+//!   whose own expression calls a DLL or a routine.
 //!
 //! A program without any of these is left untouched.
 
@@ -39,6 +44,23 @@ const MEMORY_METHODS: &[&str] = &["memcopyfrom", "memcopyto"];
 
 fn is_memory_method(callee: &Expression) -> bool {
     matches!(callee, Expression::MemberAccess(m) if MEMORY_METHODS.iter().any(|n| m.member.eq_ignore_ascii_case(n)))
+}
+
+/// The waits — builtins and methods during which the window system runs
+/// and a DLL or a driver may write the program's memory (winmm filling a
+/// buffer it was given): the mirrors are copied back after them
+/// (docs/windows-dll-calls.md §7).
+const WAITS: &[&str] = &["doevents", "sleep", "showmessage", "messagebox", "messagedlg", "inputbox"];
+
+/// The methods that wait (a form shown modally, a dialog).
+const WAIT_METHODS: &[&str] = &["showmodal", "execute"];
+
+fn is_wait(callee: &Expression) -> bool {
+    match callee {
+        Expression::Identifier(id) => WAITS.contains(&key(&id.name).as_str()),
+        Expression::MemberAccess(m) => WAIT_METHODS.iter().any(|n| m.member.eq_ignore_ascii_case(n)),
+        _ => false,
+    }
 }
 
 fn key(name: &str) -> String {
@@ -316,14 +338,17 @@ impl Pass<'_> {
     fn touches(&self, s: &Statement) -> bool {
         let mut found = false;
         let check = |e: &Expression, found: &mut bool| {
-            walk_expression(e, &mut |x| {
-                if let Expression::FunctionCall(fc) = x {
+            walk_expression(e, &mut |x| match x {
+                Expression::FunctionCall(fc) => {
                     if let Some(n) = callee_name(&fc.callee) {
                         let n = key(&n);
                         *found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains_key(&n);
                     }
-                    *found |= is_memory_method(&fc.callee);
+                    *found |= is_memory_method(&fc.callee) || is_wait(&fc.callee);
                 }
+                // (`IF Form.ShowModal = mrOk`: a wait read as a property)
+                Expression::MemberAccess(_) => *found |= is_wait(x),
+                _ => {}
             });
         };
         match s {
@@ -332,7 +357,7 @@ impl Pass<'_> {
                     let n = key(&n);
                     found |= MEMORY_CALLS.contains(&n.as_str()) || self.routines.contains(&n) || self.dlls.contains_key(&n);
                 }
-                found |= is_memory_method(&c.callee);
+                found |= is_memory_method(&c.callee) || is_wait(&c.callee);
                 for a in &c.args {
                     check(a, &mut found);
                 }
@@ -344,8 +369,18 @@ impl Pass<'_> {
             Statement::Print(_) | Statement::Return(_) => {
                 walk(std::slice::from_ref(s), &mut |_| {}, &mut |e| check(e, &mut found));
             }
-            Statement::If(i) => check(&i.condition, &mut found),
+            Statement::If(i) => {
+                check(&i.condition, &mut found);
+                for b in &i.elseif_branches {
+                    check(&b.condition, &mut found);
+                }
+            }
             Statement::While(w) => check(&w.condition, &mut found),
+            Statement::DoLoop(d) => {
+                if let Some(c) = &d.condition {
+                    check(c, &mut found);
+                }
+            }
             Statement::SelectCase(c) => check(&c.expression, &mut found),
             Statement::For(f) => {
                 check(&f.start, &mut found);
@@ -495,36 +530,121 @@ impl Pass<'_> {
         if self.mirrors.is_empty() {
             return;
         }
+        let mirrors = self.mirrors.clone();
+        let refreshes = |span: TextSpan| -> Vec<Statement> {
+            mirrors
+                .iter()
+                .map(|m| Statement::Call(CallStatement { span, callee: ident(span, "__mem_refresh"), args: vec![text(span, &m.key), m.target.clone(), text(span, &m.type_name)] }))
+                .collect()
+        };
         for_each_block_mut(stmts, &mut |block| {
             let mut out = Vec::with_capacity(block.len());
-            for s in block.drain(..) {
+            for mut s in block.drain(..) {
                 if !self.touches(&s) {
                     out.push(s);
                     continue;
                 }
                 let span = statement_span(&s);
-                let compound = matches!(s, Statement::If(_) | Statement::While(_) | Statement::SelectCase(_) | Statement::For(_));
-                for m in &self.mirrors {
-                    out.push(Statement::Call(CallStatement {
-                        span,
-                        callee: ident(span, "__mem_refresh"),
-                        args: vec![text(span, &m.key), m.target.clone(), text(span, &m.type_name)],
-                    }));
-                }
-                out.push(s);
-                if !compound {
-                    for m in &self.mirrors {
-                        out.push(Statement::Assignment(AssignmentStatement {
-                            span,
-                            target: m.target.clone(),
-                            value: call(span, "__mem_sync", vec![text(span, &m.key), m.target.clone(), text(span, &m.type_name)]),
-                        }));
+                // (a compound statement's own expressions — an IF's condition
+                // that calls a DLL — wrote memory before its bodies run: the
+                // copy-back at the start of each, and after it; a loop's
+                // condition runs again after its body: the refresh there)
+                match &mut s {
+                    Statement::If(i) => {
+                        let mut bodies: Vec<&mut Vec<Statement>> = vec![&mut i.then_body];
+                        bodies.extend(i.elseif_branches.iter_mut().map(|b| &mut b.body));
+                        bodies.push(&mut i.else_body);
+                        for b in bodies {
+                            b.splice(0..0, syncs(&mirrors, span));
+                        }
                     }
+                    Statement::SelectCase(c) => {
+                        for b in c.cases.iter_mut().map(|c| &mut c.body).chain(std::iter::once(&mut c.case_else)) {
+                            b.splice(0..0, syncs(&mirrors, span));
+                        }
+                    }
+                    Statement::For(f) => {
+                        f.body.splice(0..0, syncs(&mirrors, span));
+                    }
+                    Statement::While(w) => {
+                        w.body.splice(0..0, syncs(&mirrors, span));
+                        w.body.extend(refreshes(span));
+                    }
+                    Statement::DoLoop(d) => {
+                        d.body.splice(0..0, syncs(&mirrors, span));
+                        d.body.extend(refreshes(span));
+                    }
+                    _ => {}
                 }
+                out.extend(refreshes(span));
+                out.push(s);
+                out.extend(syncs(&mirrors, span));
             }
             *block = out;
         });
     }
+
+    /// A handler's start (an event's routine: `OnClick = H`, a form's
+    /// WndProc / OnMessage): the globals' mirrors copied back, so the
+    /// handler reads what a DLL or a driver wrote into them since — winmm's
+    /// SysEx buffer before its MM_MIM_LONGDATA (docs/windows-dll-calls.md
+    /// §7). After the event's own prologue (`rapidr_ast::event_params`).
+    fn handler_entry(&self, span: TextSpan, body: &mut Vec<Statement>) {
+        let globals: Vec<Mirror> = self.mirrors.iter().filter(|m| m.key.starts_with(':')).cloned().collect();
+        if globals.is_empty() {
+            return;
+        }
+        let at = body.iter().position(|s| matches!(s, Statement::Call(c) if callee_name(&c.callee).is_some_and(|n| n == "__event_done"))).map_or(0, |i| i + 1);
+        body.splice(at..at, syncs(&globals, span));
+    }
+}
+
+/// `x = __mem_sync(key, x, "TYPE")` for each of `mirrors`.
+fn syncs(mirrors: &[Mirror], span: TextSpan) -> Vec<Statement> {
+    mirrors
+        .iter()
+        .map(|m| {
+            Statement::Assignment(AssignmentStatement {
+                span,
+                target: m.target.clone(),
+                value: call(span, "__mem_sync", vec![text(span, &m.key), m.target.clone(), text(span, &m.type_name)]),
+            })
+        })
+        .collect()
+}
+
+/// The routines bound to events: `OnX = Name` (a CREATE's, `Obj.OnX =
+/// Name`), a form's `WndProc` / `OnMessage` (`OnWndProc` after
+/// `rapidr_ast::tray_calls`), a TYPE's own EVENT bodies.
+fn event_routines(stmts: &[Statement], routines: &HashSet<String>) -> HashSet<String> {
+    let mut out = HashSet::new();
+    walk(
+        stmts,
+        &mut |s| match s {
+            Statement::Assignment(a) => {
+                let event = match &a.target {
+                    Expression::Identifier(id) => id.name.as_str(),
+                    Expression::MemberAccess(m) => m.member.as_str(),
+                    _ => return,
+                };
+                let bound = (event.len() > 2 && event[..2].eq_ignore_ascii_case("on")) || event.eq_ignore_ascii_case("wndproc");
+                if let (true, Expression::Identifier(h)) = (bound, &a.value) {
+                    if routines.contains(&key(&h.name)) {
+                        out.insert(key(&h.name));
+                    }
+                }
+            }
+            Statement::Type(t) => {
+                let tn = key(&t.name);
+                for e in &t.events {
+                    out.insert(format!("{tn}__{}", key(&e.name)));
+                }
+            }
+            _ => {}
+        },
+        &mut |_| {},
+    );
+    out
 }
 
 fn statement_expr_span(e: &Expression) -> TextSpan {
@@ -827,10 +947,16 @@ pub fn lower(program: &Program) -> Program {
         }
     }
 
-    // 2. The refresh / copy-back around the statements that use memory.
+    // 2. The refresh / copy-back around the statements that use memory, and
+    //    at the start of the event handlers.
+    let handlers = event_routines(&program.statements, &routines);
     let sync = |mirrors: Vec<Mirror>, locals: Decls, routine: &str, body: &mut Vec<Statement>| {
         let mut pass = Pass { types: &types, globals: &globals, locals, routine: routine.into(), routines: &routines, dlls: &dlls, mirrors };
         pass.sync_blocks(body);
+        if handlers.contains(routine) {
+            let span = body.first().map(statement_span).unwrap_or_default();
+            pass.handler_entry(span, body);
+        }
     };
     for_each_routine(&mut program.statements, &mut |routine, params, body| {
         let mut m = local_mirrors.remove(routine).unwrap_or_default();

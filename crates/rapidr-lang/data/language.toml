@@ -175,7 +175,7 @@ doc = "Defines a FUNCTION that takes any number of arguments, read inside with `
 name = "DECLARE"
 syntax = "DECLARE SUB|FUNCTION name [LIB \"file\" [ALIAS \"name\"]] [(params)] [AS type]"
 group = "Routines"
-doc = "Declares a SUB or FUNCTION ahead of its body, or one in a shared library (`LIB`), callable in native builds; Windows API libraries are refused with a portable alternative named."
+doc = "Declares a SUB or FUNCTION ahead of its body, or one in a DLL (`LIB`), which runs for real on Windows, interpreted and in native builds: numbers go by value unless `BYREF`, STRINGs and TYPEs by address. What the DLL writes into them (also later, as a driver fills a buffer it was given) reaches the program at its next event, wait (`DOEVENTS`, `SLEEP`) or DLL call. On macOS, Linux and the web the call is an error that names the function."
 
 [[statement]]
 name = "CALL"

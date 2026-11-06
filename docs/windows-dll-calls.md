@@ -123,11 +123,12 @@ within 32 bits for exactly this: `GetDC`, `LoadCursorFromFile`,
   `midiOutPrepareHeader`, `midiOutLongMsg` and `midiOutUnprepareHeader` run
   with it on Windows 11 ARM64 and x64. (RapidQ counts a TYPE's array field
   as one 4-byte slot: its `SIZEOF` of that header is 36,
-  [rapidq-ground-truth.md](rapidq-ground-truth.md).) A structure the DLL
-  changes *after* the call has returned (`MIDIHDR.dwFlags`, `OVERLAPPED`)
-  is the program's TYPE copied over the DLL's memory when the next DLL call
-  starts: wait inside one call that blocks (`Sleep`), not by calling the DLL
-  in a loop.
+  [rapidq-ground-truth.md](rapidq-ground-truth.md).) A structure or buffer
+  the DLL changes *after* the call has returned (a driver filling
+  `MIDIHDR` and its buffer, `WAVEHDR`, `OVERLAPPED`) reaches the program
+  at its next event, wait or DLL call, and the program's other DLL calls
+  leave it alone (§7, since 2026-11-05; before, the next call wrote the
+  program's old copy over it).
 - `RAPIDR_SANDBOX` set (to anything but empty or 0): no library is loaded
   and every DLL call is a run-time error, and SHELL / SHELLWAIT / RUN start
   no program — the gate a run RapidR starts on someone else's behalf sets:
@@ -189,7 +190,11 @@ the first time a block is used in a call). So:
   — and that address is real as well);
 - after the call every block whose bytes changed is decoded back into the
   array / TYPE / variable it views (`memory::read_back`), and the mirrors'
-  variables are refreshed by the statement's `__mem_sync`.
+  variables are refreshed by the statement's `__mem_sync`;
+- the pages stay for the process's life, and what a DLL or a driver
+  writes there *later* reaches the program too, without the program's
+  other calls writing over it (§7: before a call only the bytes the
+  program changed since go in).
 
 The cost is the encoding of the live blocks per call, proportional to the
 program's VARPTR'd data; a program with no addresses handed out pays
@@ -347,7 +352,8 @@ RapidR's lexer does the same. (`&O` / `&B` aren't RapidQ's: `&oO7` printed
   the DECLARE's calling spec (`spec_of`, `Spec::parse`): shared by both
   compilers and every runtime.
 - `rapidr_value::memory` — the block registry; `backing` (real pages at
-  the block's address), `materialize` / `read_back` around a call;
+  the block's address), `materialize` / `read_back` around a call and
+  `catch_up` at the runtimes' looks (§7), the three-way `sync_block`;
   PEEK / POKE on managed memory.
 - `rapidr_value::console` — the console pages, PEEK / POKE / PCOPY there.
 - `rapidr_value::objects::stream_ops` — MemCopyFrom / MemCopyTo,
@@ -471,3 +477,184 @@ RapidR shows them as Latin-1 (`ÚÄ¿³ÀÙ`), as a RapidQ program's strings
 are read. Mapping console output through code page 437 would match RapidQ
 for box-drawing programs and change accented text in console programs;
 that choice is open.
+
+## 7. Memory a DLL writes later: MIDIHDR, WAVEHDR, OVERLAPPED (2026-11-05)
+
+A reported RapidQ program (MIDI SysEx in through winmm, 2026-11-05)
+hands winmm a `MIDIHDR` TYPE and a string buffer (`HdrIN.lpData =
+VARPTR(inBuffer)`, `midiInAddBuffer(hMidiIn, HdrIN, SIZEOF(HdrIN))`).
+winmm's driver fills them **after** midiInAddBuffer has returned, on a
+thread of its own, then posts `MM_MIM_LONGDATA` to the program's window,
+whose handler reads `HdrIN.dwBytesRecorded` and `inBuffer` and gives the
+buffer back. RapidQ handed the DLL the variables' own memory, so the
+handler saw what the driver wrote. RapidR's blocks (§2) are views of the
+program's values with real memory beside them, and they met only around a
+call: the handler read the values from before the driver's writes, and
+the next DLL call — any, `midiOutShortMsg` too — wrote the program's old
+copy over the driver's data (the header's `dwFlags` back to "queued", so
+winmm refused the buffer: `MIDIERR_STILLPLAYING`), and zeroed what the
+driver keeps in `dwReserved` after its first NUL. `waveInAddBuffer`'s
+`WAVEHDR`, an `OVERLAPPED` read, a buffer a callback fills: the same.
+
+### The two sides and how they meet
+
+Each block a DLL was given keeps, from the last time the two sides
+agreed, what the program's view encoded to and what its real bytes were
+(`memory::Backing`'s `seen` and `real`). Meeting is a three-way merge
+(`memory::sync_block`):
+
+| Since the last meeting | Real memory gets | The program's view gets |
+|---|---|---|
+| the program changed bytes (a field set, a variable assigned) | those bytes — only those, so a driver writing the others meanwhile loses nothing | — |
+| a DLL or a driver changed bytes | — | those bytes (decoded into the TYPE's fields, the array's elements, the variable's mirror) |
+| both changed the same byte | **the program's** | the program's stays |
+| neither | nothing is written | nothing changes |
+
+Bytes the program's view can't hold — a `STRING * n` field's bytes after
+its NUL (winmm's `dwReserved`, where the driver keeps its own pointers), a
+pointer of the DLL's in a STRING field — stay in real memory: the view
+shows what it can, and the program never "changed" them.
+
+The two sides meet:
+
+| Where | Runtime |
+|---|---|
+| every DLL call: before it (`materialize`) and after (`read_back`) | `rapidr_runtime_core::ffi` |
+| before every event handler runs (a window message's, a timer's, a click's …) | native builds `rapidr_value::events::call`, the interpreter `Vm::run_events` |
+| after every turn of the window system (ShowModal's loop, DOEVENTS, a dialog's wait, INPUT$'s) | `ui::kernel::pump` |
+| SLEEP; DOEVENTS in a console program | `builtins::rp_sleep`, `rp_doevents` |
+
+`memory::catch_up` is that look: a compare of each backed block's real
+bytes with the last meeting's (read volatile, a word at a time: another
+thread may be writing them), a merge only for a block that changed.
+Nothing for a program that never handed a DLL an address.
+
+Not on every read of a field: that is the interpreter's, the JIT's and
+native code's hottest path, for every program. So a loop that waits for
+a driver **without waiting** — `DO: LOOP UNTIL hdr.dwFlags AND
+WHDR_DONE`, no DOEVENTS, SLEEP or DLL call in it — never sees the flag
+change in RapidR (RapidQ's would). Waiting with `DOEVENTS` or `SLEEP`
+(what Windows' documentation asks of such loops anyway) works.
+
+### Plain variables
+
+A plain variable handed over by address (`VARPTR(inBuffer)`, a STRING or
+BYREF parameter) has a *mirror* (§2): its bytes, which the compilers copy
+back into the variable after a statement that may write memory
+(`rapidr_ast::memory`). Since this change they also copy them back
+
+- at the start of every event handler (a routine bound with `OnX = Name`,
+  a form's `WndProc` / `OnMessage`, a TYPE's own EVENT), after the
+  event's own prologue (`rapidr_ast::event_params`) — so the handler reads
+  `inBuffer` as the driver left it before it calls anything;
+- after the statements that wait: `DOEVENTS`, `SLEEP`, `SHOWMESSAGE`,
+  `MESSAGEBOX`, `MESSAGEDLG`, `INPUTBOX`, a form's `ShowModal`, a
+  dialog's `Execute`;
+- inside and after an `IF` / `ELSEIF` / `SELECT CASE` / `FOR` / `WHILE` /
+  `DO` whose own expression calls a DLL or a routine (before, the copy-back
+  was missing there: `IF GetWindowText(h, buf$, 260) THEN PRINT buf$`
+  printed the old `buf$`, inside the IF and after it); a loop's condition
+  gets the refresh before it again at the end of its body.
+
+The refresh before a statement (`__mem_refresh`) no longer overwrites a
+mirror whose bytes the memory side changed and the variable hasn't taken
+yet. A variable both assigned by the program and written by memory since
+they last agreed keeps **the program's value** — RapidQ's order: in
+`n = GetComputerName(s, n)` (BYREF `n`) the assignment comes after the
+call, and RC.EXE leaves `n` = 1, the result, not the 15 the DLL wrote
+(checked 2026-11-05; before, RapidR kept the DLL's 15). Within one
+expression a variable read after the DLL call that writes it still reads
+the value from before the statement (`strcat(c, "x") AND LEN(c) < 3`):
+the copy-back is per statement.
+
+### Memory safety
+
+Only memory RapidR owns is read or written: each block's pages (Windows,
+at the block's address) or buffer (other systems), kept for the process's
+life, so a driver writing late writes memory that is still the program's.
+
+**A TYPE or an array that no longer exists** (a SUB's local, once the SUB
+has returned) leaves its block dead: the looks stop comparing it, and
+once 32 more have died after it (a quarantine, `memory::QUARANTINE`) its
+address and its real memory, zeroed, go to the next array or TYPE that
+needs a block that size. Before, every call of a SUB that handed its
+local TYPE to a DLL took 8 KB of addresses and a page of real memory for
+good — 100,000 calls took 16 s, and after about 260,000 the program
+stopped ("out of memory for addresses"); now they take 1.3 s and the same
+33 blocks. The rule, as in RapidQ, where a SUB's local memory goes back
+when it returns: a driver given a SUB's local TYPE must be done with it
+before the SUB returns (winmm's `midiInAddBuffer` wants a header that
+lives as long as the device is open — a global, as in the examples); the
+quarantine only keeps a late write from landing in the very next one.
+Pointers a DLL returned (the stand-ins, §1) are never followed. The real
+bytes are copied out with volatile reads before they are compared or
+decoded, and only the bytes the program changed are written back.
+
+### Cost (Apple M4 Max, a busy machine, 2026-11-05)
+
+`tools/bench/dll_calls.bas`, the C library's `labs` 200,000 times,
+before → after:
+
+| | before | after |
+|---|---:|---:|
+| a call, no memory handed out | 2.1 µs | 2.1 µs |
+| a call with three blocks live (a MIDIHDR, a 1 KB string, 1,000 LONGs) | 8.3 µs | 8.5 µs |
+| the same, the header changed before each call | 8.4 µs | 8.5 µs |
+| `catch_up` with those blocks, nothing changed (a handler's start, a wait) | — | 0.22 µs |
+| `SLEEP 0` with the 1 KB string variable mirrored (now a wait: the copy-back around it) | 0.09 µs | 1.9 µs |
+
+A DLL call costs what it did, give or take 0.2 µs with blocks live (the
+encoding of the live blocks, as before, now compared with the last
+sync's; fewer bytes are written), the median of six runs each.
+A program whose SUB hands its local TYPE to a DLL in a loop is much
+faster than before (the blocks reused: 100,000 calls in 1.3 s, 16 s
+before). `tools/bench/vm_bench --check` meets
+every budget, with the JIT too: a program without VARPTR or DLL calls has
+none of this, and a handler's copy-back at its start doesn't keep the JIT
+from compiling its loops.
+
+### Tests
+
+- `rapidr_value::memory` unit tests: a driver thread writing a MIDIHDR and
+  its buffer after the "call" — read at a handler's start, kept through an
+  unrelated call, both sides changing the header, the driver's bytes after
+  `dwReserved`'s NUL kept, a variable assigned and written by memory. All
+  five fail on the model before this change.
+- `rapidr_runtime_core::ffi`: the same through real calls of the C
+  library (memmove hands back the pointers it was given).
+- Conformance: `dll_async_writes_macos` / `_windows` (libdispatch's
+  `dispatch_after_f`, Windows' `CreateTimerQueueTimer`: a system function
+  writing a TYPE and a string 0.2 s after the call returned — read after
+  SLEEP, kept through an unrelated call), `dll_async_writes_handler_macos` /
+  `_windows` (read in a timer's handler before it calls anything),
+  `dll_byref_assigned_macos` / `_windows` (RC.EXE's order),
+  `dll_condition_copyback_macos`, `dll_local_type_reuse_macos` (100,000
+  calls of a SUB handing its local TYPE to a DLL: the addresses stay
+  within 1 MB). The interpreter, the JIT and native builds; the web skips
+  them (`' skip-on: …, web`).
+- `rapidr_value::memory`: `a_subs_local_type_handed_to_a_dll_reuses_memory`
+  (100,000 such calls: at most 34 addresses and backings, each call's
+  real memory holding its own TYPE's bytes).
+- `tests/fixtures/fake_winmm`: a stand-in for winmm's MIDI input (its
+  driver writes the program's MIDIHDR and buffer after midiInAddBuffer
+  returned, keeps its own data in the reserved fields and refuses a header
+  that was written over or is still queued, posts MM_MIM_LONGDATA), with
+  `programs/sysex_in` — `tools/release/windows-vm.sh dllmem` builds it in
+  the Windows VM and runs the program (and copies of the reported one) against
+  it with this build and the one before.
+
+**Windows 11 (ARM64), 2026-11-06** (`windows-vm.sh dllmem`): the memory and
+DLL unit tests pass on real pages at the blocks' addresses; the DLL and
+memory conformance cases pass interpreted, with the JIT and native. The
+build before prints 0 where the timer queue's thread wrote 104, and
+`n = GetComputerName(s, n)` gives it 15 (RC.EXE: 1). Through the stand-in,
+`sysex_in` receives all three SysEx messages (6, 14 and 11 bytes) and gives
+the buffer back each time. The build before receives none: its
+midiInAddBuffer is refused (11), because the call before had zeroed the
+driver's reserved fields. The reported program, its form a QFORM, logs
+the three SysEx messages; the build before logs only the notes. As written,
+with Rapidq2.inc's QFORMEX, the program stops at startup with either build:
+QFORMEX subclasses the window by MEMCPYing 32-bit x86 code into memory
+HeapAlloc returned, which RapidR refuses (§2). The winmm examples pass,
+interpreted, as interpreted builds and natively. RapidQ's 175 DLL examples
+give the same outcomes with both builds (`dllmem CorpusOnly`).

@@ -810,10 +810,18 @@ export const cases = [
       events: `testbtn.onclick,${wait("status", 4)}`, dump: "notes.itemcount", expect: ["notes.itemcount=1"] },
     // (the GS Reset to the machine's own MIDI output — Windows' software
     // synth, which every normal install has: nothing audible — through the
-    // 64-bit MIDIHDR: prepare, send, MHDR_DONE, unprepare, close)
+    // 64-bit MIDIHDR: open, the header's size, prepare, send, MHDR_DONE,
+    // unprepare, close — 7 steps since the header line, 2026-10-24)
     { file: "windows/midi_sysex_out.rr", runtimes: ["run", "interp", "native"],
       events: "sendbtn.onclick", dump: "status.caption,steps.itemcount",
-      expect: ["status.caption=Sent 11 bytes to", "send 0, MHDR_DONE yes, unprepare 0, close 0.", "steps.itemcount=6"] },
+      expect: ["status.caption=Sent 11 bytes to", "send 0, MHDR_DONE yes, unprepare 0, close 0.", "steps.itemcount=7"] },
+    // (winmm asked for its MIDI inputs: "No MIDI input found …" where the
+    // machine has none, "n MIDI input(s) …" where it has; SysEx itself:
+    // tools/release/windows-vm.sh dllmem, through a stand-in for winmm)
+    { file: "windows/midi_sysex_in.rr", runtimes: ["run", "interp", "native"], env: { RAPIDR_CAPTURE_WINDOWS: "1" },
+      events: "", dump: "status.caption,messages.itemcount", expect: ["MIDI input", "messages.itemcount=0"] },
+    { file: "windows/midi_sysex_in.rr", runtimes: ["web"], events: "openbtn.onclick", dump: "status.caption,openbtn.enabled",
+      expect: ["status.caption=Windows only: MIDI input through winmm is Windows-only.", "openbtn.enabled=0"] },
     { file: "windows/midi_sysex_out.rr", runtimes: ["web"], events: "sendbtn.onclick", dump: "status.caption,sendbtn.enabled",
       expect: ["status.caption=Windows only: MIDI output through winmm is Windows-only.", "sendbtn.enabled=0"] },
     { file: "windows/wndproc_postmessage.rr", runtimes: ["web"], events: "postbtn.onclick", dump: "status.caption,postbtn.enabled",
@@ -831,6 +839,8 @@ export const cases = [
       expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "notes.itemcount=0"] },
     { file: "windows/midi_sysex_out.rr", runtimes: ["run", "interp", "native", "web"], events: "sendbtn.onclick", dump: "status.caption,sendbtn.enabled,steps.itemcount",
       expect: ["status.caption=Windows only: MIDI output through winmm is Windows-only.", "sendbtn.enabled=0", "steps.itemcount=0"] },
+    { file: "windows/midi_sysex_in.rr", runtimes: ["run", "interp", "native", "web"], events: "openbtn.onclick", dump: "status.caption,openbtn.enabled,messages.itemcount",
+      expect: ["status.caption=Windows only: MIDI input through winmm is Windows-only.", "openbtn.enabled=0", "messages.itemcount=0"] },
   ]),
   // web/: what only a web page has
   { file: "web/todo.rr", runtimes: ["web"], events: "addbtn.onclick", dump: "info.caption,tasks.itemcount",

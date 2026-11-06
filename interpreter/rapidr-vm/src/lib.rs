@@ -2099,6 +2099,9 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             }
             let depth = self.frames.len();
             let handler = event.handler;
+            // (the handler sees what a DLL or a driver wrote into the
+            // program's memory since: docs/windows-dll-calls.md §7)
+            rapidr_value::memory::catch_up();
             if let Err(e) = self.invoke(module, event, true) {
                 // (the handler it ended: the outermost one the error goes
                 // through is the last to say so — HandlerFailure::handler)

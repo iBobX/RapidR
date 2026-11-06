@@ -44,7 +44,7 @@
 | `FUNCTION name[(params)] AS type … END FUNCTION` | Defines a routine that returns a value: assign it to the function's name (or `Result`) inside the body. |
 | `SUBI name(…) … END SUBI` | Defines a SUB that takes any number of arguments, read inside with `PARAMVAL`, `PARAMSTR$`, `PARAMVALCOUNT` and `PARAMSTRCOUNT`. |
 | `FUNCTIONI name(…) AS type … END FUNCTIONI` | Defines a FUNCTION that takes any number of arguments, read inside with `PARAMVAL`, `PARAMSTR$`, `PARAMVALCOUNT` and `PARAMSTRCOUNT`. |
-| `DECLARE SUB\|FUNCTION name [LIB "file" [ALIAS "name"]] [(params)] [AS type]` | Declares a SUB or FUNCTION ahead of its body, or one in a shared library (`LIB`), callable in native builds; Windows API libraries are refused with a portable alternative named. |
+| `DECLARE SUB\|FUNCTION name [LIB "file" [ALIAS "name"]] [(params)] [AS type]` | Declares a SUB or FUNCTION ahead of its body, or one in a DLL (`LIB`), which runs for real on Windows, interpreted and in native builds: numbers go by value unless `BYREF`, STRINGs and TYPEs by address. What the DLL writes into them (also later, as a driver fills a buffer it was given) reaches the program at its next event, wait (`DOEVENTS`, `SLEEP`) or DLL call. On macOS, Linux and the web the call is an error that names the function. |
 | `CALL name[(args)]` | Calls a SUB (the arguments then in parentheses); calling it by its name alone does the same. |
 | `BIND pointer TO routine` | Stores the address of a SUB or FUNCTION in a variable, for `CALLFUNC`. |
 

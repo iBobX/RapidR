@@ -1,0 +1,285 @@
+' midi_sysex_in.rr: MIDI System Exclusive (SysEx) messages received from a
+' MIDI input with Windows' winmm, heard in the form's WndProc.
+'
+'   rapidr run midi_sysex_in.rr
+'
+' Windows only: on other systems the form says so and the buttons stay off.
+'
+' Pick the MIDI input and click Open; whatever SysEx a synthesiser sends
+' (a patch dump, its answer to an identity request) is listed in hex, with
+' the notes and controllers it plays. Close gives the input back.
+'
+' A long message comes in a buffer the program lends winmm, through a
+' MIDIHDR, the header Windows keeps while the driver fills it:
+'   midiInOpen              the input, CALLBACK_WINDOW: its messages go to
+'                           the form's window (MM_MIM_DATA, MM_MIM_LONGDATA)
+'   midiInPrepareHeader     the header and the buffer locked in memory
+'   midiInAddBuffer         the driver is given them, and the call returns
+'   midiInStart
+'   (later)                 the driver writes the message into the buffer,
+'                           its length into dwBytesRecorded and MHDR_DONE
+'                           into dwFlags, then posts MM_MIM_LONGDATA
+'   WndProc                 reads dwBytesRecorded and the buffer, then gives
+'                           the buffer back with midiInAddBuffer
+'   midiInStop, midiInReset (the buffer comes back, 0 bytes), then
+'   midiInUnprepareHeader, midiInClose
+'
+' The driver writes the header and the buffer on a thread of its own, after
+' midiInAddBuffer has returned: RapidR hands what it wrote to the program
+' when the handler starts (and at every wait and DLL call), and the
+' program's other DLL calls leave it alone.
+'
+' The header is MIDIHDR as Windows lays it out for this program: 120 bytes
+' on 64-bit Windows (pointers 8 bytes wide, each two LONGs here; gaps of 4
+' bytes after dwFlags and dwOffset), 64 bytes on 32-bit Windows (the Windows
+' 7 / 8 build of RapidR): every pointer one LONG. The program asks Windows
+' which one it is (PROCESSOR_ARCHITECTURE is "x86" in a 32-bit program) and
+' hands winmm the header's address (VARPTR), so the same calls take either.
+
+CONST MM_MIM_DATA = &H3C3
+CONST MM_MIM_LONGDATA = &H3C4
+CONST CALLBACK_WINDOW = &H10000
+CONST MHDR_DONE = &H1
+CONST BUFFER_SIZE = 1024
+
+' MIDIINCAPS has no pointers: the same on 32 and 64 bits.
+TYPE MIDIINCAPS
+    wMid AS WORD
+    wPid AS WORD
+    vDriverVersion AS LONG
+    szPname AS STRING * 32
+    dwSupport AS LONG
+END TYPE
+
+' MIDIHDR as 64-bit Windows lays it out (120 bytes).
+TYPE MIDIHDR
+    lpDataLo AS LONG            ' LPSTR lpData            offset 0
+    lpDataHi AS LONG
+    dwBufferLength AS LONG      ' DWORD                   offset 8
+    dwBytesRecorded AS LONG     ' DWORD                   offset 12
+    dwUserLo AS LONG            ' DWORD_PTR dwUser        offset 16
+    dwUserHi AS LONG
+    dwFlags AS LONG             ' DWORD                   offset 24
+    gap1 AS LONG                ' (padding to 8)
+    lpNextLo AS LONG            ' struct *lpNext          offset 32
+    lpNextHi AS LONG
+    reservedLo AS LONG          ' DWORD_PTR reserved      offset 40
+    reservedHi AS LONG
+    dwOffset AS LONG            ' DWORD                   offset 48
+    gap2 AS LONG                ' (padding to 8)
+    dwReserved(15) AS LONG      ' DWORD_PTR dwReserved[8] offset 56
+END TYPE
+
+' MIDIHDR as 32-bit Windows lays it out (64 bytes).
+TYPE MIDIHDR32
+    lpData AS LONG
+    dwBufferLength AS LONG
+    dwBytesRecorded AS LONG
+    dwUser AS LONG
+    dwFlags AS LONG
+    lpNext AS LONG
+    reserved AS LONG
+    dwOffset AS LONG
+    dwReserved(7) AS LONG
+END TYPE
+
+DECLARE FUNCTION midiInGetNumDevs LIB "winmm" ALIAS "midiInGetNumDevs" () AS LONG
+DECLARE FUNCTION midiInGetDevCapsA LIB "winmm" ALIAS "midiInGetDevCapsA" (uDeviceID AS LONG, caps AS MIDIINCAPS, cbCaps AS LONG) AS LONG
+DECLARE FUNCTION midiInOpen LIB "winmm" ALIAS "midiInOpen" (BYREF hMidiIn AS LONG, uDeviceID AS LONG, dwCallback AS LONG, dwInstance AS LONG, fdwOpen AS LONG) AS LONG
+' (the header by its address: the 64-bit or the 32-bit one)
+DECLARE FUNCTION midiInPrepareHeader LIB "winmm" ALIAS "midiInPrepareHeader" (hMidiIn AS LONG, lpHdr AS LONG, cbHdr AS LONG) AS LONG
+DECLARE FUNCTION midiInAddBuffer LIB "winmm" ALIAS "midiInAddBuffer" (hMidiIn AS LONG, lpHdr AS LONG, cbHdr AS LONG) AS LONG
+DECLARE FUNCTION midiInUnprepareHeader LIB "winmm" ALIAS "midiInUnprepareHeader" (hMidiIn AS LONG, lpHdr AS LONG, cbHdr AS LONG) AS LONG
+DECLARE FUNCTION midiInStart LIB "winmm" ALIAS "midiInStart" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION midiInStop LIB "winmm" ALIAS "midiInStop" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION midiInReset LIB "winmm" ALIAS "midiInReset" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION midiInClose LIB "winmm" ALIAS "midiInClose" (hMidiIn AS LONG) AS LONG
+
+DECLARE SUB HearMidi (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+DECLARE SUB OpenClick
+DECLARE SUB CloseClick
+DECLARE SUB FormClose (BYREF Action AS INTEGER)
+DECLARE SUB CloseDevice
+DECLARE SUB ListDevices
+DECLARE FUNCTION Recorded () AS LONG
+DECLARE FUNCTION GiveBack () AS LONG
+DECLARE FUNCTION HexBytes (s AS STRING) AS STRING
+DECLARE FUNCTION Num (x AS LONG) AS STRING
+
+DIM hIn AS LONG
+DIM hdr AS MIDIHDR, hdr32 AS MIDIHDR32, is32 AS INTEGER
+DIM buffer AS STRING       ' the bytes winmm fills: kept alive while it may
+DIM isOpen AS INTEGER, closing AS INTEGER, received AS LONG
+DIM onWindows AS INTEGER
+onWindows = (ENVIRON$("OS") = "Windows_NT")
+is32 = (UCASE$(ENVIRON$("PROCESSOR_ARCHITECTURE")) = "X86")
+
+CREATE Form AS RForm
+    Caption = "MIDI SysEx in"
+    Width = 560
+    Height = 400
+    Center
+    WndProc = HearMidi
+    OnClose = FormClose
+    CREATE DeviceLbl AS RLabel
+        Caption = "MIDI input": Left = 12: Top = 16: Width = 80
+    END CREATE
+    CREATE Devices AS RComboBox
+        Left = 96: Top = 12: Width = 250
+    END CREATE
+    CREATE OpenBtn AS RButton
+        Caption = "&Open"
+        Left = 356: Top = 11: Width = 90
+        OnClick = OpenClick
+    END CREATE
+    CREATE CloseBtn AS RButton
+        Caption = "&Close"
+        Left = 454: Top = 11: Width = 90
+        Enabled = 0
+        OnClick = CloseClick
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Pick a MIDI input and click Open."
+        Left = 12: Top = 46: Width = 532: Height = 34: AutoSize = 0: WordWrap = 1
+    END CREATE
+    CREATE Messages AS RListBox
+        Left = 12: Top = 84: Width = 532: Height = 270
+    END CREATE
+END CREATE
+
+' A number as text, without STR$'s space in front.
+FUNCTION Num (x AS LONG) AS STRING
+    Result = LTRIM$(STR$(x))
+END FUNCTION
+
+' Each byte of s as two hex digits.
+FUNCTION HexBytes (s AS STRING) AS STRING
+    DIM i AS LONG, t AS STRING
+    FOR i = 1 TO LEN(s)
+        t = t + RIGHT$("0" + HEX$(ASC(MID$(s, i, 1))), 2) + " "
+    NEXT
+    Result = RTRIM$(t)
+END FUNCTION
+
+' What the driver wrote into the header: the message's length.
+FUNCTION Recorded () AS LONG
+    IF is32 THEN Result = hdr32.dwBytesRecorded ELSE Result = hdr.dwBytesRecorded
+END FUNCTION
+
+' The buffer lent to the driver again (its result code).
+FUNCTION GiveBack () AS LONG
+    IF is32 THEN
+        Result = midiInAddBuffer(hIn, VARPTR(hdr32), SIZEOF(hdr32))
+    ELSE
+        Result = midiInAddBuffer(hIn, VARPTR(hdr), SIZEOF(hdr))
+    END IF
+END FUNCTION
+
+' The MIDI inputs, in the list (the device number is the item's position).
+SUB ListDevices
+    DIM i AS INTEGER, n AS INTEGER, r AS LONG
+    DIM caps AS MIDIINCAPS
+    Devices.Clear
+    n = midiInGetNumDevs()
+    FOR i = 0 TO n - 1
+        r = midiInGetDevCapsA(i, caps, SIZEOF(caps))
+        IF r = 0 THEN Devices.AddItems RTRIM$(caps.szPname) ELSE Devices.AddItems "MIDI input " + Num(i)
+    NEXT
+    IF n = 0 THEN
+        Status.Caption = "No MIDI input found: connect a MIDI interface or a synthesiser, then start the program again."
+        OpenBtn.Enabled = 0
+    ELSE
+        Devices.ItemIndex = 0
+        Status.Caption = Num(n) + " MIDI input(s). Pick one and click Open."
+    END IF
+END SUB
+
+SUB OpenClick
+    DIM r AS LONG
+    IF onWindows = 0 OR isOpen OR Devices.ItemIndex < 0 THEN EXIT SUB
+    r = midiInOpen(hIn, Devices.ItemIndex, Form.Handle, 0, CALLBACK_WINDOW)
+    IF r <> 0 THEN
+        Status.Caption = "midiInOpen failed (error " + Num(r) + "): is another program using the input?"
+        EXIT SUB
+    END IF
+    ' (the buffer, and the header that lends it: its address and its size)
+    buffer = STRING$(BUFFER_SIZE, 0)
+    IF is32 THEN
+        hdr32.lpData = VARPTR(buffer)
+        hdr32.dwBufferLength = BUFFER_SIZE
+        r = midiInPrepareHeader(hIn, VARPTR(hdr32), SIZEOF(hdr32))
+    ELSE
+        hdr.lpDataLo = VARPTR(buffer)
+        hdr.lpDataHi = 0
+        hdr.dwBufferLength = BUFFER_SIZE
+        r = midiInPrepareHeader(hIn, VARPTR(hdr), SIZEOF(hdr))
+    END IF
+    IF r = 0 THEN r = GiveBack()
+    IF r = 0 THEN r = midiInStart(hIn)
+    IF r <> 0 THEN
+        Status.Caption = "The input didn't start (error " + Num(r) + ")."
+        midiInClose(hIn)
+        EXIT SUB
+    END IF
+    isOpen = 1
+    closing = 0
+    OpenBtn.Enabled = 0
+    CloseBtn.Enabled = 1
+    Status.Caption = "Listening to " + Devices.Item(Devices.ItemIndex) + ": SysEx messages are listed as they come."
+END SUB
+
+SUB HearMidi (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+    DIM n AS LONG, status AS LONG
+    IF uMsg = MM_MIM_LONGDATA THEN
+        ' (the header and the buffer as the driver left them)
+        n = Recorded()
+        IF n > 0 THEN
+            received = received + 1
+            Messages.InsertItem 0, "SysEx, " + Num(n) + " bytes: " + HexBytes(LEFT$(buffer, n))
+            IF Messages.ItemCount > 200 THEN Messages.DelItems Messages.ItemCount - 1
+            Status.Caption = Num(received) + " SysEx message(s) received."
+        END IF
+        ' (given back for the next one, unless closing: then it stays ours)
+        IF isOpen AND closing = 0 THEN GiveBack()
+    ELSEIF uMsg = MM_MIM_DATA THEN
+        status = lParam AND &HFF
+        ' (active sensing and the clock, F8 to FE, many a second: not listed)
+        IF status < &HF8 THEN Messages.InsertItem 0, "status &H" + HEX$(status) + "   data " + Num((lParam \ &H100) AND &H7F) + " " + Num((lParam \ &H10000) AND &H7F)
+    END IF
+END SUB
+
+SUB CloseDevice
+    IF isOpen = 0 THEN EXIT SUB
+    closing = 1
+    midiInStop(hIn)
+    ' (the driver gives the buffer back, MHDR_DONE, 0 bytes)
+    midiInReset(hIn)
+    IF is32 THEN
+        midiInUnprepareHeader(hIn, VARPTR(hdr32), SIZEOF(hdr32))
+    ELSE
+        midiInUnprepareHeader(hIn, VARPTR(hdr), SIZEOF(hdr))
+    END IF
+    midiInClose(hIn)
+    isOpen = 0
+END SUB
+
+SUB CloseClick
+    CloseDevice
+    OpenBtn.Enabled = 1
+    CloseBtn.Enabled = 0
+    Status.Caption = "Closed."
+END SUB
+
+SUB FormClose (BYREF Action AS INTEGER)
+    ' (the device is the system's: always give it back)
+    CloseDevice
+END SUB
+
+IF onWindows THEN
+    ListDevices
+ELSE
+    OpenBtn.Enabled = 0
+    Devices.Enabled = 0
+    Status.Caption = "Windows only: MIDI input through winmm is Windows-only."
+END IF
+Form.ShowModal

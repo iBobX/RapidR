@@ -1,0 +1,7 @@
+in the IF: [abc]
+after the IF: [abc]
+in the WHILE: [x]
+in the WHILE: [xx]
+in the WHILE: [xxx]
+after the WHILE: [xxxx]
+in the CASE: [xyz]

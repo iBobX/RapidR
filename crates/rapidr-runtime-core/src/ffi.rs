@@ -1057,6 +1057,60 @@ mod tests {
         assert!(e.contains("memory a DLL returned"), "{e}");
     }
 
+    /// A DLL that writes the program's memory after its call returned (a
+    /// driver filling winmm's MIDIHDR and its buffer: docs/windows-dll-
+    /// calls.md §7). The "DLL" is the C library's memmove, which hands back
+    /// the real pointers it was given; the "driver" a thread that writes
+    /// there later. The program sees the writes at its next look (a
+    /// handler's start: `catch_up`), and an unrelated call made before that
+    /// doesn't write the program's old copy over them — before, both failed.
+    #[test]
+    fn a_dlls_later_writes_reach_the_program_and_survive_other_calls() {
+        let lib = if cfg!(windows) { "msvcrt" } else if cfg!(target_os = "macos") { "libSystem.B.dylib" } else { "libc.so.6" };
+        let fields = "lpData:LONG,dwBufferLength:LONG,dwBytesRecorded:LONG,dwUser:LONG,dwFlags:LONG";
+        memory::register_layout("TFFIHDR", fields);
+        let hdr = crate::value::Instance::new("hdr", "TFFIHDR", fields);
+        let buf = memory::varptr_var("ffi:inbuffer", &v_str(&"\0".repeat(16)), "STRING").unwrap();
+        hdr.set(0, buf.clone());
+        hdr.set(1, v_int(16));
+        let h = Value::Object(hdr.clone());
+        // (the calls: each pointer handed to the DLL, which keeps it)
+        let real_hdr = dll_call(lib, "memmove", "INT64|TFFIHDR:v,LONG:v,LONG:v", &[h.clone(), v_int(0), v_int(0)]).unwrap().to_i64() as usize;
+        let real_buf = dll_call(lib, "memmove", "INT64|LONG:v,LONG:v,LONG:v", &[buf.clone(), v_int(0), v_int(0)]).unwrap().to_i64() as usize;
+        assert!(real_hdr != 0 && real_buf != 0);
+        let driver = |bytes: [u8; 4], count: u32| {
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                // SAFETY: the blocks' real memory, kept for the process's
+                // life: the buffer's first bytes, the header's count and flags.
+                unsafe {
+                    std::ptr::copy_nonoverlapping(bytes.as_ptr(), real_buf as *mut u8, 4);
+                    std::ptr::write_unaligned((real_hdr + 8) as *mut u32, count);
+                    std::ptr::write_unaligned((real_hdr + 16) as *mut u32, 3);
+                }
+            })
+            .join()
+            .unwrap();
+        };
+        // 1. A handler's start.
+        driver([0xF0, 0x7E, 0x7F, 0xF7], 4);
+        assert_eq!(hdr.get(2).to_i64(), 0, "nothing looked yet");
+        memory::catch_up();
+        assert_eq!((hdr.get(2).to_i64(), hdr.get(4).to_i64()), (4, 3));
+        let s = memory::sync("ffi:inbuffer", &v_str(&"\0".repeat(16)), "STRING").to_string_val();
+        assert_eq!(crate::value::objects::codec::string_to_bytes(&s)[..4], [0xF0, 0x7E, 0x7F, 0xF7]);
+        // 2. An unrelated call before any look.
+        driver([0xF0, 0x41, 0x10, 0xF7], 9);
+        assert_eq!(dll_call(lib, "abs", "LONG|LONG:v", &[v_int(-7)]).unwrap(), v_int(7));
+        // SAFETY: as above.
+        assert_eq!(unsafe { std::ptr::read_unaligned((real_hdr + 8) as *const u32) }, 9, "still in real memory");
+        // SAFETY: as above.
+        assert_eq!(unsafe { std::slice::from_raw_parts(real_buf as *const u8, 4) }, [0xF0, 0x41, 0x10, 0xF7]);
+        assert_eq!(hdr.get(2).to_i64(), 9, "and the call was a look");
+        let s = memory::sync("ffi:inbuffer", &v_str(&s), "STRING").to_string_val();
+        assert_eq!(crate::value::objects::codec::string_to_bytes(&s)[..4], [0xF0, 0x41, 0x10, 0xF7]);
+    }
+
     /// CallWindowProc given the program's own memory (x86 machine code a
     /// RapidQ program wrote) is refused before anything runs.
     #[test]

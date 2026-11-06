@@ -47,13 +47,11 @@
 ' half stays 0.
 '
 ' Waiting. A driver may write MHDR_DONE into the header after midiOutLongMsg
-' has returned (Windows' GS Wavetable Synth is done before it returns). RapidR
-' copies its own TYPE over the header's memory when a DLL call starts and
-' reads it back when the call ends, so a flag the driver sets between two
-' calls could be written over. The wait is therefore calls that block,
-' kernel32's Sleep: the driver finishes meanwhile, and what it wrote is read
-' back into hdr when Sleep returns. It stops at the timeout (2 seconds), and
-' then midiOutReset takes the message back.
+' has returned (Windows' GS Wavetable Synth is done before it returns): what
+' it writes reaches hdr at the program's next wait or DLL call, so the loop
+' below waits with kernel32's Sleep (RapidR's own SLEEP would do as well) and
+' reads dwFlags after each. It stops at the timeout (2 seconds), and then
+' midiOutReset takes the message back.
 
 CONST MHDR_DONE = &H1
 CONST MHDR_PREPARED = &H2
@@ -120,7 +118,7 @@ DECLARE FUNCTION midiOutUnprepareHeader32 LIB "winmm" ALIAS "midiOutUnprepareHea
 DECLARE FUNCTION midiOutReset LIB "winmm" ALIAS "midiOutReset" (hMidiOut AS LONG) AS LONG
 DECLARE FUNCTION midiOutClose LIB "winmm" ALIAS "midiOutClose" (hMidiOut AS LONG) AS LONG
 DECLARE FUNCTION midiOutGetErrorTextA LIB "winmm" ALIAS "midiOutGetErrorTextA" (mmrError AS LONG, text AS STRING, cchText AS LONG) AS LONG
-' (RapidR's own SLEEP is not a DLL call, so it would not read the header back)
+' (Windows' own Sleep: a wait, as RapidR's SLEEP is)
 DECLARE SUB WinSleep LIB "kernel32" ALIAS "Sleep" (dwMilliseconds AS LONG)
 
 DECLARE SUB RefreshClick

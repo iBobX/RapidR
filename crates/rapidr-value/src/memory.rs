@@ -294,12 +294,19 @@ enum Target {
 #[derive(Default)]
 struct Mirror {
     bytes: Vec<u8>,
+    /// The memory side wrote `bytes` (MEMCPY, POKE, a DLL, a driver later:
+    /// docs/windows-dll-calls.md §7) since the variable last took them.
     dirty: bool,
+    /// The variable's bytes when it and the mirror last agreed: whether the
+    /// program assigned the variable since (its write wins: §7).
+    synced: Vec<u8>,
 }
 
 struct Block {
     reserved: usize,
     target: Target,
+    /// What it was made for (taken off `Space::by_key` when it's reused).
+    key: Key,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -321,7 +328,20 @@ struct Space {
     /// Every address handed to the program (VARPTR, Pointer, a UDT's or an
     /// element's address): what a native DLL call marshals (`is_issued`).
     issued: std::collections::HashSet<i64>,
+    /// The blocks of arrays and TYPEs, which can stop existing (a SUB's
+    /// local after the SUB): looked through when a block is made.
+    mortal: Vec<i64>,
+    /// Blocks whose array or TYPE no longer exists, oldest first: reused for
+    /// new ones once [`QUARANTINE`] more have died after them.
+    dead: std::collections::VecDeque<i64>,
 }
+
+/// How many dead blocks stay unused before the oldest is given to a new
+/// array or TYPE: a DLL told about a SUB's local TYPE that is still at work
+/// when the SUB ends writes into memory nothing uses for a while
+/// (docs/windows-dll-calls.md §7). Without reuse every call of such a SUB
+/// took 8 KB of addresses (and a page of real memory) for good.
+const QUARANTINE: usize = 32;
 
 fn issue(addr: i64) -> i64 {
     SPACE.with(|s| s.borrow_mut().issued.insert(addr));
@@ -367,14 +387,48 @@ fn block_for(key: Key, len: usize, target: impl FnOnce() -> Target) -> Result<i6
                 return Ok(base);
             }
         }
+        // (the arrays' and TYPEs' blocks that died since: to the dead list)
+        let Space { blocks, mortal, dead, .. } = &mut *s;
+        mortal.retain(|base| {
+            let gone = blocks.get(base).is_none_or(|b| !alive(&b.target));
+            if gone {
+                dead.push_back(*base);
+            }
+            !gone
+        });
+        let mortal_key = matches!(key, Key::Array(_) | Key::Object(_));
+        // A dead block past the quarantine, big enough: its address and
+        // its real memory again (nothing of the old view kept).
+        let reuse = s.dead.iter().take(s.dead.len().saturating_sub(QUARANTINE)).position(|b| s.blocks.get(b).is_some_and(|blk| blk.reserved >= len));
+        if let Some(i) = reuse {
+            let base = s.dead.remove(i).unwrap_or_default();
+            if let Some(old) = s.blocks.get(&base).map(|b| b.key.clone()) {
+                if s.by_key.get(&old) == Some(&base) {
+                    s.by_key.remove(&old);
+                }
+            }
+            if let Some(b) = s.blocks.get_mut(&base) {
+                b.target = target();
+                b.key = key.clone();
+            }
+            s.by_key.insert(key, base);
+            if mortal_key {
+                s.mortal.push(base);
+            }
+            renew_backing(base);
+            return Ok(base);
+        }
         let reserved = reserve_for(len);
         let base = s.next;
         if base + reserved as i64 >= LIMIT {
             return Err("out of memory for addresses (VARPTR)".into());
         }
         s.next = base + reserved as i64 + 4096;
-        s.blocks.insert(base, Block { reserved, target: target() });
+        s.blocks.insert(base, Block { reserved, target: target(), key: key.clone() });
         s.by_key.insert(key, base);
+        if mortal_key {
+            s.mortal.push(base);
+        }
         Ok(base)
     })
 }
@@ -549,7 +603,7 @@ fn string_address(text: &str) -> i64 {
     }
     let mut bytes = string_to_bytes(text);
     bytes.push(0);
-    let mirror = Rc::new(RefCell::new(Mirror { bytes, dirty: false }));
+    let mirror = Rc::new(RefCell::new(Mirror { synced: bytes.clone(), bytes, dirty: false }));
     let len = mirror.borrow().bytes.len();
     let key = Key::Mirror(format!("\u{0}str:{}", SPACE.with(|s| s.borrow().strings.len())));
     let addr = block_for(key, len, || Target::Mirror(mirror)).map_or(0, issue);
@@ -613,15 +667,39 @@ pub fn varptr_var(key: &str, v: &Value, type_name: &str) -> Result<Value, String
     }
     let bytes = mirror_bytes(v, &Kind::of(type_name));
     let len = bytes.len();
-    let mirror = Rc::new(RefCell::new(Mirror { bytes: bytes.clone(), dirty: false }));
-    let base = block_for(Key::Mirror(key.to_ascii_lowercase()), len, || Target::Mirror(mirror))?;
-    // An existing mirror: refreshed.
-    if let Ok((_, Target::Mirror(m))) = find(base) {
-        let mut m = m.borrow_mut();
-        m.bytes = bytes;
-        m.dirty = false;
+    let lower = key.to_ascii_lowercase();
+    let mirror = Rc::new(RefCell::new(Mirror { bytes: bytes.clone(), dirty: false, synced: bytes.clone() }));
+    let had = SPACE.with(|s| s.borrow().by_key.get(&Key::Mirror(lower.clone())).copied());
+    let base = block_for(Key::Mirror(lower), len, || Target::Mirror(mirror))?;
+    // An existing mirror: refreshed — the variable's value, unless the
+    // memory side changed it since and the program didn't (`take_value`).
+    if had == Some(base) {
+        if let Ok((_, Target::Mirror(m))) = find(base) {
+            take_value(&mut m.borrow_mut(), bytes);
+        }
     }
     Ok(Value::Integer(issue(base)))
+}
+
+/// The variable's bytes `bytes` into its mirror before a statement — unless
+/// the memory side wrote the mirror since the variable last took it (a DLL,
+/// a driver later: `catch_up`) and the program didn't assign the variable
+/// meanwhile: then the mirror keeps what memory holds, which the variable
+/// takes at its next `sync` (docs/windows-dll-calls.md §7).
+fn take_value(m: &mut Mirror, bytes: Vec<u8>) {
+    if m.dirty && bytes == m.synced {
+        return;
+    }
+    // (a longer value than the block holds keeps the old length: VARPTR
+    // again gives a bigger block)
+    if bytes.len() <= m.bytes.len() || m.bytes.is_empty() {
+        m.bytes = bytes.clone();
+    } else {
+        let n = m.bytes.len();
+        m.bytes.copy_from_slice(&bytes[..n]);
+    }
+    m.dirty = false;
+    m.synced = bytes;
 }
 
 /// A variable's bytes in its mirror: a STRING's characters and a NUL (as
@@ -649,21 +727,16 @@ pub fn refresh(key: &str, v: &Value, type_name: &str) {
     let Some(base) = base else { return };
     if let Ok((_, Target::Mirror(m))) = find(base) {
         let bytes = mirror_bytes(v, &Kind::of(type_name));
-        let mut m = m.borrow_mut();
-        // (a longer value than the block holds keeps the old length: VARPTR
-        // again gives a bigger block)
-        if bytes.len() <= m.bytes.len() || m.bytes.is_empty() {
-            m.bytes = bytes;
-        } else {
-            let n = m.bytes.len();
-            m.bytes.copy_from_slice(&bytes[..n]);
-        }
-        m.dirty = false;
+        take_value(&mut m.borrow_mut(), bytes);
     }
 }
 
-/// After a statement that wrote memory: the variable's value, taken back
-/// from its mirror if the statement wrote there.
+/// After a statement that wrote memory (and where memory may have changed
+/// meanwhile: a handler's start, after a wait — `rapidr_ast::memory`): the
+/// variable's value, taken back from its mirror if the memory side wrote
+/// there. If the program assigned the variable since the last sync too, its
+/// value wins (RapidQ's order: `r = Dll(r)` keeps what the function
+/// returned; docs/windows-dll-calls.md §7).
 pub fn sync(key: &str, v: &Value, type_name: &str) -> Value {
     let base = SPACE.with(|s| s.borrow().by_key.get(&Key::Mirror(key.to_ascii_lowercase())).copied());
     let Some(base) = base else { return v.clone() };
@@ -672,16 +745,25 @@ pub fn sync(key: &str, v: &Value, type_name: &str) -> Value {
     if !m.dirty {
         return v.clone();
     }
-    m.dirty = false;
     let kind = Kind::of(type_name);
-    match (&kind, v) {
+    let now = mirror_bytes(v, &kind);
+    if now != m.synced {
+        // (both changed: the program's assignment is the later write)
+        m.dirty = false;
+        take_value(&mut m, now);
+        return v.clone();
+    }
+    m.dirty = false;
+    let taken = match (&kind, v) {
         // A string keeps its length (its buffer was written in place).
         (Kind::Str, _) | (Kind::Variant, Value::String(_)) => {
             let n = m.bytes.len().saturating_sub(1);
             Value::String(bytes_to_string(&m.bytes[..n]).into())
         }
         _ => decode(&m.bytes, &kind, v).0,
-    }
+    };
+    m.synced = mirror_bytes(&taken, &kind);
+    taken
 }
 
 /// `QMemoryStream.Pointer`: the address of the stream's first byte.
@@ -746,11 +828,23 @@ pub fn udt_from_bytes(v: &Value, bytes: &[u8]) -> usize {
 
 /// Real bytes for a block, for the time a DLL may use them: at the block's
 /// own address where the system lets us put them, else in a buffer of ours.
+/// Kept for the process's life — a DLL or a driver may write them after its
+/// call returned (winmm's MIDIHDR, an OVERLAPPED: docs/windows-dll-calls.md
+/// §7) — with what each side held when they last agreed.
 struct Backing {
+    /// 8-byte aligned (pages, or a buffer of u64s).
     ptr: *mut u8,
     len: usize,
-    /// The buffer when the pages couldn't be at the address.
-    _own: Option<Box<[u8]>>,
+    /// The program's view of the block at the last sync (its bytes as RapidQ
+    /// lays them out): what the program changed since is what differs now.
+    seen: Vec<u8>,
+    /// The real bytes at the last sync (as long as the view was, at most
+    /// `len`): what a DLL or a driver changed since is what differs now.
+    real: Vec<u8>,
+    /// No sync yet: the program's view goes in whole.
+    fresh: bool,
+    /// What it viewed no longer exists: no look compares it any more.
+    retired: bool,
 }
 
 thread_local! {
@@ -792,24 +886,190 @@ fn pages_at(_base: i64, _len: usize) -> Option<*mut u8> {
     None
 }
 
-/// The real memory of the block at `base` (`reserved` bytes).
+/// The real memory of the block at `base` (`reserved` bytes), made the
+/// first time.
 fn backing_of(base: i64, reserved: usize) -> (*mut u8, usize) {
     BACKINGS.with(|b| {
         let mut b = b.borrow_mut();
         if let Some(k) = b.get(&base) {
             return (k.ptr, k.len);
         }
-        let k = match pages_at(base, reserved) {
-            Some(ptr) => Backing { ptr, len: reserved, _own: None },
-            None => {
-                let mut own = vec![0u8; reserved].into_boxed_slice();
-                Backing { ptr: own.as_mut_ptr(), len: reserved, _own: Some(own) }
-            }
-        };
-        let out = (k.ptr, k.len);
-        b.insert(base, k);
-        out
+        let ptr = pages_at(base, reserved).unwrap_or_else(|| {
+            // (kept for the process's life, as the pages are: a driver may
+            // still write it; u64s so it is aligned as pages are)
+            let own: Box<[u64]> = vec![0u64; reserved.div_ceil(8)].into_boxed_slice();
+            Box::into_raw(own) as *mut u64 as *mut u8
+        });
+        b.insert(base, Backing { ptr, len: reserved, seen: Vec::new(), real: Vec::new(), fresh: true, retired: false });
+        (ptr, reserved)
     })
+}
+
+/// A dead block given to a new array or TYPE (`block_for`): its real memory
+/// zeroed, and the new one's view goes in whole at the next sync.
+fn renew_backing(base: i64) {
+    BACKINGS.with(|b| {
+        if let Some(k) = b.borrow_mut().get_mut(&base) {
+            // SAFETY: the backing's own `len` bytes (a multiple of 8, the
+            // start aligned), ours for the process's life; the block's old
+            // array or TYPE no longer exists. Volatile, as every write there.
+            unsafe {
+                let w = k.ptr as *mut u64;
+                for i in 0..k.len / 8 {
+                    std::ptr::write_volatile(w.add(i), 0);
+                }
+            }
+            k.seen.clear();
+            k.real.clear();
+            k.fresh = true;
+            k.retired = false;
+        }
+    });
+}
+
+/// Whether the `was.len()` real bytes at `ptr` differ from `was`. Another
+/// thread (a driver) may be writing them, so they are read volatile, a word
+/// at a time.
+fn differs(ptr: *const u8, was: &[u8]) -> bool {
+    let (words, rest) = was.as_chunks::<8>();
+    // SAFETY: `ptr` is a backing's start, 8-byte aligned, with at least
+    // `was.len()` bytes that stay ours for the process's life.
+    unsafe {
+        let w = ptr as *const u64;
+        for (i, word) in words.iter().enumerate() {
+            if std::ptr::read_volatile(w.add(i)) != u64::from_ne_bytes(*word) {
+                return true;
+            }
+        }
+        let tail = ptr.add(words.len() * 8);
+        rest.iter().enumerate().any(|(i, &b)| std::ptr::read_volatile(tail.add(i)) != b)
+    }
+}
+
+/// A copy of the `n` real bytes at `ptr` (read as [`differs`] reads them).
+fn read_real(ptr: *const u8, n: usize) -> Vec<u8> {
+    let mut out = Vec::with_capacity(n);
+    // SAFETY: as in `differs`: `n` bytes of a backing, aligned.
+    unsafe {
+        let w = ptr as *const u64;
+        for i in 0..n / 8 {
+            out.extend_from_slice(&std::ptr::read_volatile(w.add(i)).to_ne_bytes());
+        }
+        for i in n / 8 * 8..n {
+            out.push(std::ptr::read_volatile(ptr.add(i)));
+        }
+    }
+    out
+}
+
+/// One block's two sides made one again, a three-way merge with what they
+/// held at the last sync (docs/windows-dll-calls.md §7): the bytes the
+/// program changed since go into real memory — only those, so a driver
+/// writing the others meanwhile loses nothing —, the bytes a DLL or a
+/// driver changed go into the program's view; a byte both changed is the
+/// program's. `prog` is the program's view now, when already encoded.
+fn sync_block(base: i64, t: &Target, prog: Option<Vec<u8>>) {
+    let prog = prog.unwrap_or_else(|| contents(t));
+    let Some((ptr, len, seen, was, fresh)) = BACKINGS.with(|b| {
+        b.borrow_mut().get_mut(&base).map(|k| (k.ptr, k.len, std::mem::take(&mut k.seen), std::mem::take(&mut k.real), k.fresh))
+    }) else {
+        return;
+    };
+    let n = prog.len().min(len);
+    let old = was.len();
+    let now = read_real(ptr, n.max(old));
+    let mut real = now[..n].to_vec();
+    let mut view = prog[..n].to_vec();
+    let mut foreign = false;
+    for i in 0..n {
+        let by_program = fresh || i >= old || seen.get(i) != Some(&prog[i]);
+        if by_program {
+            if now[i] != prog[i] {
+                // SAFETY: inside the backing (`i < n <= len`), ours.
+                unsafe { std::ptr::write_volatile(ptr.add(i), prog[i]) };
+                real[i] = prog[i];
+            }
+        } else if now[i] != was[i] {
+            view[i] = now[i];
+            foreign |= view[i] != prog[i];
+        }
+    }
+    // (a view that got shorter — a string given a shorter value: zeros
+    // after it again, as a fresh block has)
+    for (i, &b) in now.iter().enumerate().take(old.min(len)).skip(n) {
+        if b != 0 {
+            // SAFETY: inside the backing (`i < len`).
+            unsafe { std::ptr::write_volatile(ptr.add(i), 0) };
+        }
+    }
+    let seen = if foreign {
+        view.extend_from_slice(&prog[n..]);
+        set_contents(t, &view);
+        // (what the view holds now, as it encodes: a field that can't hold
+        // all the bytes — a STRING * n's after its NUL, a pointer that isn't
+        // the program's — keeps them in real memory only)
+        contents(t)
+    } else {
+        prog
+    };
+    BACKINGS.with(|b| {
+        if let Some(k) = b.borrow_mut().get_mut(&base) {
+            k.seen = seen;
+            k.real = real;
+            k.fresh = false;
+        }
+    });
+}
+
+/// Whether a backed block's real bytes changed since its last sync (a DLL,
+/// a driver, the call just made).
+fn real_changed(base: i64) -> bool {
+    BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| k.fresh || differs(k.ptr, &k.real)))
+}
+
+/// What DLLs and drivers wrote into the program's memory since its last
+/// look reaches the program's view (its TYPEs, arrays, streams, and the
+/// mirrors of its variables, which the variables take at their next sync:
+/// `rapidr_ast::memory`). The runtimes call it where such writes can have
+/// happened: before an event handler runs, after the window system's turn,
+/// after SLEEP and DOEVENTS (docs/windows-dll-calls.md §7). Costs a compare
+/// per block a DLL was ever given; nothing for a program that gave none.
+pub fn catch_up() {
+    // (the blocks whose real bytes changed, with their targets; and those
+    // of an array or a TYPE that no longer exists: never looked at again —
+    // a block's address is never given out again either)
+    let (changed, gone) = BACKINGS.with(|b| {
+        let b = b.borrow();
+        let mut changed: Vec<(i64, Target)> = Vec::new();
+        let mut gone: Vec<i64> = Vec::new();
+        if b.is_empty() {
+            return (changed, gone);
+        }
+        SPACE.with(|s| {
+            let s = s.borrow();
+            for (&base, k) in b.iter().filter(|(_, k)| !k.fresh && !k.retired) {
+                match s.blocks.get(&base).filter(|blk| alive(&blk.target)) {
+                    None => gone.push(base),
+                    Some(blk) if differs(k.ptr, &k.real) => changed.push((base, blk.target.clone())),
+                    Some(_) => {}
+                }
+            }
+        });
+        (changed, gone)
+    });
+    if !gone.is_empty() {
+        BACKINGS.with(|b| {
+            let mut b = b.borrow_mut();
+            for base in gone {
+                if let Some(k) = b.get_mut(&base) {
+                    k.retired = true;
+                }
+            }
+        });
+    }
+    for (base, t) in changed {
+        sync_block(base, &t, None);
+    }
 }
 
 /// The length of the plain variable whose address `addr` is (a VARPTR'd
@@ -828,31 +1088,40 @@ pub struct Materialized {
     ptr: *mut u8,
     /// The real memory's length (the block's reserved bytes).
     len: usize,
-    bytes: Vec<u8>,
-    /// What didn't fit the block's real memory (a variable that grew past
-    /// the room its address was given with): kept as it was.
-    tail: Vec<u8>,
 }
 
-/// Writes every live block's bytes into its real memory, for a DLL call.
+/// Before a DLL call: every live block's real memory holds what the program
+/// changed in it since the last sync, and the program's view what a DLL or
+/// a driver changed meanwhile (`sync_block`) — a block neither side changed
+/// is left as it is, the driver's writes in it too.
 pub fn materialize() -> Vec<Materialized> {
-    let live: Vec<(i64, usize, Target)> = SPACE.with(|s| {
-        s.borrow().blocks.iter().filter(|(_, b)| alive(&b.target)).map(|(&base, b)| (base, b.reserved, b.target.clone())).collect()
-    });
-    let mut out = Vec::with_capacity(live.len());
-    for (base, reserved, target) in live {
-        let mut bytes = contents(&target);
-        let (ptr, len) = backing_of(base, reserved);
-        let tail = if bytes.len() > len { bytes.split_off(len) } else { Vec::new() };
-        // SAFETY: `ptr` has `len` writable bytes (ours: committed pages or
-        // a buffer), and `bytes` is at most `len` long.
-        unsafe {
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr, bytes.len());
-            std::ptr::write_bytes(ptr.add(bytes.len()), 0, len - bytes.len());
+    let mut out: Vec<Materialized> = Vec::new();
+    let mut done: std::collections::HashSet<i64> = std::collections::HashSet::new();
+    // (encoding a TYPE can make blocks — a STRING field's characters —
+    // which this call's pointers need too: until no new one comes)
+    loop {
+        let live: Vec<(i64, usize, Target)> = SPACE.with(|s| {
+            s.borrow()
+                .blocks
+                .iter()
+                .filter(|(base, b)| !done.contains(*base) && alive(&b.target))
+                .map(|(&base, b)| (base, b.reserved, b.target.clone()))
+                .collect()
+        });
+        if live.is_empty() {
+            return out;
         }
-        out.push(Materialized { base, ptr, len, bytes, tail });
+        for (base, reserved, target) in live {
+            let prog = contents(&target);
+            let (ptr, len) = backing_of(base, reserved);
+            let same = BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| !k.fresh && k.seen == prog && !differs(k.ptr, &k.real)));
+            if !same {
+                sync_block(base, &target, Some(prog));
+            }
+            done.insert(base);
+            out.push(Materialized { base, ptr, len });
+        }
     }
-    out
 }
 
 /// The pointer a DLL gets for `addr`, after [`materialize`]: the real
@@ -872,18 +1141,16 @@ pub fn room_at(addr: i64, blocks: &[Materialized]) -> usize {
 }
 
 /// After the call: what the DLL wrote goes back into the arrays, TYPEs,
-/// variables and streams the blocks view.
+/// variables and streams the blocks view (what it writes later reaches them
+/// at the next [`catch_up`] or call).
 pub fn read_back(blocks: Vec<Materialized>) {
     for m in blocks {
-        let n = m.bytes.len();
-        // SAFETY: `n` bytes were written at `ptr` by `materialize`, and the
-        // memory stays ours.
-        let now = unsafe { std::slice::from_raw_parts(m.ptr, n) };
-        if now != m.bytes.as_slice() {
-            if let Ok((_, t)) = find(m.base) {
-                let mut all = now.to_vec();
-                all.extend_from_slice(&m.tail);
-                set_contents(&t, &all);
+        if !real_changed(m.base) {
+            continue;
+        }
+        if let Ok((base, t)) = find(m.base) {
+            if base == m.base {
+                sync_block(base, &t, None);
             }
         }
     }
@@ -1193,5 +1460,187 @@ mod tests {
         assert!(real_pointer(12345, &blocks).is_none());
         read_back(blocks);
         assert_eq!((a.rp_get(&[0]).to_i64(), a.rp_get(&[1]).to_i64()), (7, 9));
+    }
+
+    // -- A DLL's or a driver's writes after its call returned (§7) --------
+
+    const HDR_FIELDS: &str = "lpData:LONG,dwBufferLength:LONG,dwBytesRecorded:LONG,dwUser:LONG,dwFlags:LONG,lpNext:LONG,reserved:LONG,dwOffset:LONG,dwReserved:STRING*64";
+    const BYTES_RECORDED: usize = 8;
+    const FLAGS: usize = 16;
+    const RESERVED: usize = 32;
+    const SYSEX: [u8; 6] = [0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7];
+
+    /// A reported program's MIDIHDR (RapidQ's 32-bit layout), its buffer a
+    /// 16-character string handed over by VARPTR, after a "midiInAddBuffer":
+    /// (the header, the buffer's mirror key, the real pointers of both).
+    fn queued_header(key: &str) -> (Rc<Instance>, usize, usize) {
+        register_layout("TMIDIHDR", HDR_FIELDS);
+        let hdr = Instance::new("hdr", "TMIDIHDR", HDR_FIELDS);
+        let buf = varptr_var(key, &v_str(&"\0".repeat(16)), "STRING").unwrap().to_i64();
+        hdr.set(0, v_int(buf));
+        hdr.set(1, v_int(16));
+        let addr = address_of(&Value::Object(hdr.clone())).unwrap();
+        let blocks = materialize();
+        let (h, b) = (real_pointer(addr, &blocks).unwrap(), real_pointer(buf, &blocks).unwrap());
+        // (the call marks it MHDR_PREPARED | MHDR_INQUEUE, as winmm does)
+        // SAFETY: inside the header's real memory.
+        unsafe { std::ptr::write_unaligned((h + FLAGS) as *mut u32, 6) };
+        read_back(blocks);
+        assert_eq!(hdr.get(4).to_i64(), 6, "what the call wrote is read back");
+        (hdr, h, b)
+    }
+
+    /// The driver, on a thread of its own after the call returned: the SysEx
+    /// bytes into the buffer, their count and MHDR_DONE into the header.
+    fn driver(header: usize, buffer: usize) {
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            // SAFETY: the blocks' real memory, kept for the process's life.
+            unsafe {
+                std::ptr::copy_nonoverlapping(SYSEX.as_ptr(), buffer as *mut u8, SYSEX.len());
+                std::ptr::write_unaligned((header + BYTES_RECORDED) as *mut u32, SYSEX.len() as u32);
+                std::ptr::write_unaligned((header + FLAGS) as *mut u32, 3);
+            }
+        })
+        .join()
+        .unwrap();
+    }
+
+    fn real_u32(at: usize) -> u32 {
+        // SAFETY: inside a block's real memory.
+        unsafe { std::ptr::read_unaligned(at as *const u32) }
+    }
+
+    /// MM_MIM_LONGDATA's handler: before it runs (`catch_up`), the header's
+    /// fields and the buffer's variable hold what the driver wrote — before,
+    /// the handler read the values from before the driver's.
+    #[test]
+    fn a_drivers_later_writes_reach_the_handler() {
+        let (hdr, h, b) = queued_header("t1:inbuffer");
+        driver(h, b);
+        assert_eq!(hdr.get(BYTES_RECORDED / 4).to_i64(), 0, "nothing has looked yet");
+        catch_up();
+        assert_eq!((hdr.get(2).to_i64(), hdr.get(4).to_i64()), (6, 3), "dwBytesRecorded, dwFlags");
+        let stale = v_str(&"\0".repeat(16));
+        let got = sync("t1:inbuffer", &stale, "STRING").to_string_val();
+        assert_eq!(string_to_bytes(&got)[..6], SYSEX, "the buffer's variable takes the bytes");
+        assert_eq!(got.chars().count(), 16, "its length kept");
+        // (looked again, nothing new: nothing changes)
+        catch_up();
+        assert_eq!(sync("t1:inbuffer", &v_str(&got), "STRING").to_string_val(), got);
+    }
+
+    /// A DLL call the driver's block has nothing to do with (midiOutShortMsg)
+    /// leaves the driver's bytes in real memory — before, it wrote the
+    /// program's old copy of the header and the buffer over them.
+    #[test]
+    fn an_unrelated_call_keeps_what_the_driver_wrote() {
+        let (hdr, h, b) = queued_header("t2:inbuffer");
+        driver(h, b);
+        // The statement's refresh: the variable (not changed by the program)
+        // doesn't overwrite its mirror.
+        refresh("t2:inbuffer", &v_str(&"\0".repeat(16)), "STRING");
+        let blocks = materialize();
+        assert_eq!((real_u32(h + BYTES_RECORDED), real_u32(h + FLAGS)), (6, 3), "the header in real memory");
+        // SAFETY: the buffer's real memory (16 bytes and a NUL).
+        assert_eq!(unsafe { std::slice::from_raw_parts(b as *const u8, 6) }, SYSEX, "the buffer in real memory");
+        read_back(blocks);
+        assert_eq!(hdr.get(2).to_i64(), 6, "a call is a look too");
+        assert_eq!(string_to_bytes(&sync("t2:inbuffer", &v_str(&"\0".repeat(16)), "STRING").to_string_val())[..6], SYSEX);
+    }
+
+    /// Both sides changed the block since they last agreed: each keeps what
+    /// the other didn't touch; a field both wrote is the program's.
+    #[test]
+    fn both_sides_changed_the_block() {
+        let (hdr, h, b) = queued_header("t3:inbuffer");
+        driver(h, b);
+        hdr.set(3, v_int(77)); // dwUser, the program's
+        hdr.set(4, v_int(0)); // dwFlags: both wrote it
+        let blocks = materialize();
+        assert_eq!((real_u32(h + BYTES_RECORDED), real_u32(h + 12), real_u32(h + FLAGS)), (6, 77, 0));
+        read_back(blocks);
+        assert_eq!((hdr.get(2).to_i64(), hdr.get(3).to_i64(), hdr.get(4).to_i64()), (6, 77, 0));
+    }
+
+    /// Bytes a field can't hold (a STRING * 64's after its NUL: winmm's
+    /// dwReserved, where the driver keeps its own pointers) stay in real
+    /// memory when the program writes other fields — before, every call
+    /// zeroed them.
+    #[test]
+    fn a_drivers_bytes_the_view_cant_hold_are_kept() {
+        let (hdr, h, _) = queued_header("t4:inbuffer");
+        let private = [0u8, 0xAA, 0xBB, 0xCC, 0xDD, 0x01, 0x02, 0x03];
+        // SAFETY: inside the header's dwReserved, in real memory.
+        unsafe { std::ptr::copy_nonoverlapping(private.as_ptr(), (h + RESERVED) as *mut u8, private.len()) };
+        catch_up();
+        assert_eq!(hdr.get(8).to_string_val(), "", "the field reads up to its NUL");
+        hdr.set(3, v_int(5));
+        let blocks = materialize();
+        // SAFETY: as above.
+        assert_eq!(unsafe { std::slice::from_raw_parts((h + RESERVED) as *const u8, private.len()) }, private);
+        assert_eq!(real_u32(h + 12), 5);
+        read_back(blocks);
+    }
+
+    /// A plain variable's mirror: the program's assignment since the last
+    /// sync wins over what memory got (RapidQ's order: `r = Dll(r)` keeps
+    /// the result); without one, memory's value reaches the variable.
+    #[test]
+    fn a_variable_assigned_and_written_by_memory() {
+        let p = varptr_var("t5:r", &v_int(1), "LONG").unwrap().to_i64();
+        write(p, &42i32.to_le_bytes()).unwrap();
+        assert_eq!(sync("t5:r", &v_int(7), "LONG").to_i64(), 7, "assigned since: the program's");
+        assert_eq!(read(p, 4).unwrap(), 7i32.to_le_bytes(), "and the mirror holds it");
+        write(p, &42i32.to_le_bytes()).unwrap();
+        refresh("t5:r", &v_int(7), "LONG");
+        assert_eq!(read(p, 4).unwrap(), 42i32.to_le_bytes(), "the refresh keeps memory's write");
+        assert_eq!(sync("t5:r", &v_int(7), "LONG").to_i64(), 42, "not assigned: memory's");
+        refresh("t5:r", &v_int(9), "LONG");
+        assert_eq!(read(p, 4).unwrap(), 9i32.to_le_bytes(), "assigned: the refresh takes it");
+    }
+
+    /// A TYPE given to a DLL that no longer exists (a SUB's local, after
+    /// the SUB): the looks stop comparing its memory.
+    #[test]
+    fn a_block_that_no_longer_exists_is_left_alone() {
+        let base = {
+            let r = udt();
+            let a = address_of(&r).unwrap();
+            read_back(materialize());
+            a
+        };
+        assert!(BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| !k.retired)));
+        catch_up();
+        assert!(BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| k.retired)));
+        catch_up();
+    }
+
+    /// A SUB whose local TYPE is handed to a DLL, called 100,000 times: the
+    /// blocks of the TYPEs gone are given to the new ones (after the
+    /// quarantine), so the addresses and the real memory stop growing —
+    /// before, each call took 8 KB of addresses and a page for good.
+    #[test]
+    fn a_subs_local_type_handed_to_a_dll_reuses_memory() {
+        register_layout("TPT", "x:LONG,y:LONG");
+        let first = SPACE.with(|s| s.borrow().next);
+        let backings = BACKINGS.with(|b| b.borrow().len());
+        let mut addresses = std::collections::HashSet::new();
+        for i in 0..100_000i64 {
+            // (the SUB: its local, the call, the local gone at its end)
+            let pt = Instance::new("pt", "TPT", "x:LONG,y:LONG");
+            pt.set(0, v_int(i));
+            let a = address_of(&Value::Object(pt.clone())).unwrap();
+            let blocks = materialize();
+            let real = real_pointer(a, &blocks).unwrap();
+            // SAFETY: the TYPE's real memory, 8 bytes.
+            assert_eq!(unsafe { std::ptr::read_unaligned(real as *const i32) }, i as i32, "the new TYPE's bytes, not the old one's");
+            read_back(blocks);
+            addresses.insert(a);
+        }
+        let grown = SPACE.with(|s| s.borrow().next) - first;
+        assert!(addresses.len() <= QUARANTINE + 2, "{} addresses", addresses.len());
+        assert!(grown <= ((QUARANTINE + 2) * 8192) as i64, "{grown} bytes of addresses");
+        assert!(BACKINGS.with(|b| b.borrow().len()) - backings <= QUARANTINE + 2);
     }
 }

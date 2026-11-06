@@ -382,7 +382,12 @@ PRINT Square(1.5)             ' 2.250000000
   Windows**, in native builds and interpreted, with these rules: a
   number goes by value unless `BYREF`, a `STRING` and a `TYPE` by address
   (what the DLL writes shows in the variable), `VARPTR` addresses are real
-  pointers for the call. Up to 16 arguments, of which up to 8 `DOUBLE` /
+  pointers for the call. What a DLL writes there later — a driver filling
+  the `MIDIHDR` and the buffer `midiInAddBuffer` was given, a `WAVEHDR`,
+  an `OVERLAPPED` — reaches the program at its next event handler, wait
+  (`DOEVENTS`, `SLEEP`, `ShowModal`) or DLL call, and the program's other
+  DLL calls leave it alone; a loop that waits for such a flag waits with
+  `DOEVENTS` or `SLEEP` in it. Up to 16 arguments, of which up to 8 `DOUBLE` /
   `SINGLE`. A 64-bit pointer a DLL returns or writes into a `LONG` is kept
   as a 32-bit stand-in that turns back into the pointer when given to a
   DLL again. `SENDMESSAGE`, `POSTMESSAGE` and `KILLMESSAGE` are
