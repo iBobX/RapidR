@@ -1698,6 +1698,16 @@ msgstr "Você paga ao provedor pelo que usar. O que você envia — inclusive, e
 
 # legal
 #: ide/aisetup.inc
+msgid "Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send."
+msgstr "Envie só o que você pode compartilhar: dados pessoais de outras pessoas, o código de um empregador ou trabalhos escolares podem não ser seus para enviar."
+
+# legal
+#: ide/aisetup.inc
+msgid "A provider may not offer its service where you live, and its servers may be in another country: check its terms."
+msgstr "Um provedor pode não oferecer o serviço onde você mora, e os servidores dele podem estar em outro país: confira os termos dele."
+
+# legal
+#: ide/aisetup.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows."
 msgstr "Cole antes a sua chave de API: o provedor só lista os modelos para uma chave que ele conhece."
 
@@ -1989,6 +1999,10 @@ msgstr "{experiment} é o experimento em que você está (o Git chama isso de br
 #: ide/chrome.inc ide/editor.inc
 msgid "Ln {line}, Col {col}"
 msgstr "Lin {line}, Col {col}"
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
+msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. Instale o pacote gratuito fonts-noto-cjk (por exemplo: sudo apt install fonts-noto-cjk) e abra o Studio de novo."
 
 #: ide/commands.inc
 msgid "&New Project..."
@@ -4739,10 +4753,6 @@ msgid "Main and pop-up menus"
 msgstr "Menus principal e de contexto"
 
 #: ide/panes.inc
-msgid "Right-click menus and row actions"
-msgstr "Menus de contexto e ações de linha"
-
-#: ide/panes.inc
 msgid "Open, save, colour, font"
 msgstr "Abrir, salvar, cor, fonte"
 
@@ -4781,6 +4791,10 @@ msgstr "Um programa no estilo clássico"
 #: ide/panes.inc
 msgid "PRINT, FOR, SUB, FUNCTION"
 msgstr "PRINT, FOR, SUB, FUNCTION"
+
+#: ide/panes.inc
+msgid "Right-click menus and row actions"
+msgstr "Menus de contexto e ações de linha"
 
 #: ide/panes.inc
 msgid "The code shows its own values: colours, pictures, fonts"
@@ -6305,6 +6319,11 @@ msgstr "O BASIC voltou a ser poderoso: apps de desktop e web a partir de uma só
 #: ide/shell.inc
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 msgstr "Copyright (c) 2025-2026 Ruta Internet SRL. Licença MIT."
+
+# legal
+#: ide/shell.inc
+msgid "Licences and notices are in English; the English text applies."
+msgstr "Licenças e avisos estão em inglês; vale o texto em inglês."
 
 #: ide/shell.inc
 msgid "Save As"
