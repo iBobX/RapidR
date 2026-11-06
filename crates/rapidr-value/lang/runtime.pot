@@ -3572,6 +3572,30 @@ msgstr ""
 msgid "lines {from}–{to} removed"
 msgstr ""
 
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "Continue"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "Not now"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "SysEx messages"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "This program also wants to send and receive \"system exclusive\" (SysEx) messages. These can change settings stored inside a MIDI device and, on some devices, even replace its firmware. Allow it only for programs you trust."
+msgstr ""
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "MIDI devices"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "This program wants to use your MIDI devices (keyboards, controllers, synthesizers). Your browser will ask you to allow it. RapidR does not send the list of your devices anywhere."
+msgstr ""
+
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
 msgstr ""

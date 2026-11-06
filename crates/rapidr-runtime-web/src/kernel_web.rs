@@ -1343,6 +1343,26 @@ pub fn choice(title: &str, text: &str, labels: &[&str], default: Option<usize>, 
     }
 }
 
+/// The kernel's message box with `labels`, shown while the program waits
+/// for something else (RMIDIPort's explanation before the browser's MIDI
+/// prompt, media_web::port): `Ok` the answer at once (a test's hook), `Err`
+/// the dialog's wait to look at with `rapidr_ui_app::dialogs::finished`
+/// (its result `then`'s). `None`: no kernel dialogs here (a native web
+/// build: the page's own).
+pub fn open_choice(title: &str, text: &str, labels: &[&str], then: impl FnOnce(Option<usize>) -> Value + 'static) -> Option<Result<Value, u64>> {
+    if !dialogs_here() {
+        return None;
+    }
+    ensure();
+    let r = match rapidr_ui_app::dialogs::message_with_default(Web, title, text, labels, None, None, false, then) {
+        rapidr_ui_app::dialogs::Pending::Done(v) => Ok(v),
+        rapidr_ui_app::dialogs::Pending::Open(id) => Err(id),
+    };
+    schedule();
+    later();
+    Some(r)
+}
+
 /// INPUT with windows shown (no console to type in): the kernel's input
 /// box with `prompt`; the text typed is INPUT's (shown in the program's
 /// output after the prompt when `echo`, as a terminal shows it). `None`:

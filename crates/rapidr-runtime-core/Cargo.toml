@@ -46,9 +46,12 @@ rapidr-ui-render = { workspace = true, optional = true }
 # default symphonia (MPL-2.0).
 rodio = { version = "0.19", optional = true, default-features = false, features = ["wav", "vorbis", "flac"] }
 nanomp3 = { version = "0.2", optional = true }
-# QMIDI's MIDI output (media.rs): MIT; ALSA on Linux (rodio's already),
-# CoreMIDI on macOS, winmm on Windows.
-midir = { version = "0.11", optional = true }
+# QMIDI's MIDI output (media.rs) and RMIDIPort's devices (midi_port.rs):
+# MIT; ALSA on Linux (rodio's already; the system's libasound, dynamic),
+# CoreMIDI on macOS, winmm on Windows. No features: `jack` (LGPL libjack)
+# and `winrt` stay off (docs/legal/review-2026-11-05-midi.md, C1). Native
+# only: the browser's MIDI is RapidR's own code (rapidr-runtime-web).
+midir = { version = "0.11.1", optional = true }
 libloading = { version = "0.8", optional = true }
 arboard = { version = "3", optional = true, default-features = false }
 # QCOMPORT's serial ports (serial.rs): BSD-2-Clause OR Apache-2.0; libc on
@@ -102,7 +105,9 @@ gui = ["dep:rapidr-ui-kernel", "dep:rapidr-ui-app", "dep:rapidr-ui-host-winit", 
 # RNUM, RDATAFRAME, RPLOT: the shared model is rapidr-value's
 # (datascience/), the charts drawn by the kernel's renderer.
 datascience = ["dep:rapidr-ui-render", "dep:rapidr-ui-kernel"]
-audio = ["dep:rodio", "dep:nanomp3", "dep:midir"]
+audio = ["dep:rodio", "dep:nanomp3", "midi"]
+# MIDI devices (QMIDI's output, RMIDIPort): midir.
+midi = ["dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]
 # RARCHIVE and COMPRESS$ / DECOMPRESS$ (rapidr_value::objects::archive):

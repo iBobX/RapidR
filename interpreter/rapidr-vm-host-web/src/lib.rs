@@ -337,6 +337,9 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         // Host::take_events). Once its time slice is over, the program
         // pauses too, and the browser goes on (painting, new events).
         "doevents" => {
+            // (RMIDIPort: what arrived goes to its events now, as on the
+            // desktop — media_web::port)
+            rapidr_runtime_web::media_web::port::poll();
             // (with windows, the desktop's: the timers due now fire before it
             // returns, a wait the VM serves)
             if rapidr_runtime_web::kernel_web::doevents() {

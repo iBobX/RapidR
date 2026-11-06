@@ -232,6 +232,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if rapidr_value::objects::audioout::is_type(type_name) {
         crate::audio_out::install();
     }
+    // (RMIDIPort: its MIDI devices and events — midi_port.rs)
+    if rapidr_value::objects::midiport::is_type(type_name) {
+        crate::midi_port::install();
+    }
     // (QDXJOYSTICK: its gamepads' source)
     if type_name.eq_ignore_ascii_case("RDXJOYSTICK") {
         crate::joystick::install();
@@ -1303,6 +1307,10 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             rp_comp_set(name, &rapidr_value::objects::font::style_target(&t, p), v);
         }
         return v_null();
+    }
+    // (RMIDIPort's FillInputs / FillOutputs: the runtime fills the list)
+    if matches!(method_lower.as_str(), "fillinputs" | "filloutputs") && rapidr_value::objects::midiport::exists(name) {
+        return crate::midi_port::fill(name, method_lower == "fillinputs", args);
     }
     // A file dialog's Files(i): the folder (0), then the picked names.
     // (the I/O and media lane's: QCGI, QCOMPORT, QDOWNLOAD … — io.rs)

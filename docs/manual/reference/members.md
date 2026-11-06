@@ -4272,6 +4272,57 @@ Plays sound the program makes sample by sample, as it comes: an emulator's beepe
 |---|---|
 | `OnNeedData(Count AS INTEGER)` | The queue dropped under BufferMs: write about Count samples now (for stereo, both channels counted) to fill it again. Raised on the program's thread, never the sound device's, while it plays; asked again after a Write or half of BufferMs. |
 
+<a id="rmidiport"></a>
+## RMIDIPort
+
+MIDI in and out: lists the MIDI keyboards, controllers and synthesizers there are, opens one input and one output (by number or by name), raises events for what arrives — every message (OnMessage), notes (OnNoteOn, OnNoteOff), knobs and pedals (OnControl), whole System Exclusive messages (OnSysEx) — and sends notes, controls, program changes and SysEx. SysEx is off until the program asks for it: set IgnoreSysEx = False to receive SysEx (SysEx can change settings stored inside a device, and in a browser it is a separate permission). Events run on the program's thread, in order; a SysEx that arrives in pieces comes whole; nothing is lost in a burst (Dropped says if the program falls behind). In a browser the first use shows why the program asks, then the browser asks the user; a refusal is a plain message in Error. Make one RMIDIPort for each input to listen to. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `IgnoreSysEx` | bool | True | True (the start) drops System Exclusive messages that arrive: set IgnoreSysEx = False to receive SysEx (OnSysEx). SysEx can change settings stored inside a MIDI device, so a program asks for it; in a browser that asks the user for the SysEx permission, separately from notes. |
+| `IgnoreClock` | bool | True | True (the start) drops timing clock (&HF8, 24 a beat) and MIDI time code quarter frames (&HF1), which some devices send all the time. False gives them to OnMessage (a tempo display, syncing to a sequencer). |
+| `IgnoreActiveSensing` | bool | True | True (the start) drops active sensing (&HFE), the "still here" byte some keyboards send three times a second. |
+| `IsInputOpen` (read-only) | bool |  | True while an input is open (OpenInput). |
+| `IsOutputOpen` (read-only) | bool |  | True while an output is open (OpenOutput). |
+| `InputName` (read-only) | string |  | The name of the input that is open ("" when none). |
+| `OutputName` (read-only) | string |  | The name of the output that is open ("" when none). |
+| `Timestamp` (read-only) | float |  | When the message being handled arrived, in ms since the input opened (fractions kept): read it in an event to record what was played. |
+| `Queued` (read-only) | int |  | Messages that arrived and wait for their events. |
+| `Dropped` (read-only) | int |  | Messages lost since the input opened because they came faster than the program handled them (more than 32768 waiting). 0 is the goal; OnError says when it happens. |
+| `Error` (read-only) | string |  | Why the last call didn't work, in plain words ("" when it did): no such device, a device in use, nothing open, a data byte over 127, a SysEx without its F7, a browser that didn't allow MIDI or SysEx. |
+
+| Method | |
+|---|---|
+| `InputCount AS INTEGER` | How many MIDI inputs there are now (the list is read again). In a browser the first call asks the user first (the program waits for the answer). 0 when there are none; Error says why when MIDI isn't there at all. |
+| `OutputCount AS INTEGER` | How many MIDI outputs there are now, as InputCount. |
+| `InputDevice(Index AS INTEGER) AS STRING` | The name of input Index (0 is the first) in the list InputCount read; "" past its end. Two devices with one name are told apart: the second is "Name (2)". |
+| `OutputDevice(Index AS INTEGER) AS STRING` | The name of output Index, as InputDevice. |
+| `FillInputs(List AS VARIANT) AS INTEGER` | Reads the inputs again and puts their names in an RListBox or RComboBox (cleared first), the open one selected (none when none is open); returns how many. Then OpenInput(List.ItemIndex) opens the one picked. |
+| `FillOutputs(List AS VARIANT) AS INTEGER` | The outputs in a list box or combo box, as FillInputs. |
+| `OpenInput(Device AS VARIANT) AS INTEGER` | Opens an input: Device is its number in the list or its name (the exact name, else the first that contains it, any case: "keys" finds "USB Keys"). An input that was open is closed first. True when it opened; False, and Error says why (not there, in use by another program, a browser's refusal). |
+| `OpenOutput(Device AS VARIANT) AS INTEGER` | Opens an output, as OpenInput: then Send and the other Send methods go to it. |
+| `CloseInput` | Closes the input (what was waiting is dropped). Nothing open: nothing happens. |
+| `CloseOutput` | Closes the output. |
+| `Close` | Closes the input and the output. |
+| `Send(Status AS INTEGER, [Data1 AS INTEGER], [Data2 AS INTEGER]) AS INTEGER` | Sends one short message to the output: Status (&H90 note on + channel - 1, &HB0 control change, &HC0 program change …) and the data bytes it takes (0 to 127; a program change takes one, a clock none). True when it went out; False, and Error says why. |
+| `SendNoteOn(Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER) AS INTEGER` | Starts a note: Channel 1 to 16, Note 0 to 127 (60 is middle C), Velocity 1 to 127 (how hard; 0 stops it). True when it went out. |
+| `SendNoteOff(Channel AS INTEGER, Note AS INTEGER, [Velocity AS INTEGER]) AS INTEGER` | Stops a note started with SendNoteOn (Velocity 0 unless given). True when it went out. |
+| `SendControl(Channel AS INTEGER, Controller AS INTEGER, Value AS INTEGER) AS INTEGER` | Sends a control change: Controller 0 to 127 (7 volume, 10 pan, 64 sustain pedal, 123 all notes off), Value 0 to 127. True when it went out. |
+| `SendProgram(Channel AS INTEGER, Program AS INTEGER) AS INTEGER` | Chooses an instrument: Program 0 to 127 (on a General MIDI synthesizer 0 is a piano, 40 a violin). True when it went out. |
+| `SendSysEx(Data AS STRING) AS INTEGER` | Sends a whole System Exclusive message: a binary string that starts with F0 (CHR$(240)) and ends with F7 (CHR$(247)), every byte between 0 to 127, any length. SysEx can change settings stored inside a device, even its firmware on some: send only messages you know. In a browser the first one asks the user for the SysEx permission. True when it went out. |
+| `SendHex(Text AS STRING) AS INTEGER` | Sends bytes written in hex: "F0 7E 7F 06 01 F7" (the Identity Request), "90 3C 64" (a note). Spaces, commas, &H and 0x are allowed; each message must be whole. True when it went out; False, and Error says what is wrong. |
+| `Hex(Data AS STRING) AS STRING` | The bytes of a binary string in hex, "F0 7E 7F 06 01 F7": what a MIDI monitor shows (OnSysEx's Data). |
+
+| Event | |
+|---|---|
+| `OnMessage(Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)` | Every short message that arrives (notes, controls, program changes, pitch bend, aftertouch, start, stop, song position …), on the program's thread, in order: Status is the whole status byte (&H90 + channel - 1 for a note on), Data1 and Data2 its data bytes (0 when it has fewer). Running status is already expanded. OnNoteOn, OnNoteOff and OnControl come after it for theirs. |
+| `OnNoteOn(Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)` | A key went down: Channel 1 to 16, Note 0 to 127 (60 is middle C), Velocity 1 to 127. (A note on with velocity 0 is a note off and fires OnNoteOff.) |
+| `OnNoteOff(Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)` | A key came up: Channel 1 to 16, Note 0 to 127, Velocity (how fast it came up; often 0). |
+| `OnControl(Channel AS INTEGER, Controller AS INTEGER, Value AS INTEGER)` | A knob, slider, wheel or pedal moved (a control change): Channel 1 to 16, Controller 0 to 127 (1 the modulation wheel, 7 volume, 64 the sustain pedal), Value 0 to 127. |
+| `OnSysEx(Data AS STRING)` | A whole System Exclusive message arrived — only when IgnoreSysEx is False (set IgnoreSysEx = False to receive SysEx): Data is a binary string from F0 (CHR$(240)) to F7 (CHR$(247)), each character one byte (ASC 0 to 255). A message that came in pieces comes whole; Hex(Data) shows it in hex. |
+| `OnDevicesChanged` | A MIDI device was plugged in or out: read InputCount / OutputCount (or FillInputs) again. The desktop looks about once a second, a browser says at once. |
+| `OnError(Message AS STRING)` | Something went wrong while no call was being made: an open device was unplugged (it is closed), messages were dropped because the program fell behind, a SysEx was cut or longer than 1 MB. Message (also in Error) says it in plain words. |
+
 <a id="rdxscreen"></a>
 ## RDXScreen
 

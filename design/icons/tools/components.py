@@ -709,6 +709,19 @@ def midi(g):
         g.frect(x - 2, 4, 4, 9.5, fill="violet")
 
 
+@icon("midiport", C, "MIDI port (RMIDIPort)")
+def midiport(g):
+    """A MIDI socket: round, its key notch on top, five pins in an arc."""
+    g.circle(12, 12, 9, c="ink", fill="paper")
+    g.frect(10.5, 3, 3, 2.5, fill="violet")
+    import math
+    pins = (180, 135, 90, 45, 0) if g.size != 16 else (180, 90, 0)
+    for a in pins:
+        x = 12 + 5 * math.cos(math.radians(a))
+        y = 11 + 5 * math.sin(math.radians(a))
+        g.dot(x, y, 1.25 if g.size != 16 else 1.5, fill="violet")
+
+
 @icon("wave", C, "Wave sound (QWAVE)")
 def wave(g):
     hs = ((3.5, 3), (7, 9), (10.5, 15), (14, 7), (17.5, 11), (21, 4)) if g.size != 16 else ((3.5, 4), (8, 12), (12.5, 16), (17, 8), (21, 4))

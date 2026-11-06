@@ -34,6 +34,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // no real serial port, no MIDI output, QWAVE records the scripted tone)
 process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
 process.env.RAPIDR_TEST_COMPORT = "";
+// (RMIDIPort: the scripted devices only, none unless a case's)
+process.env.RAPIDR_TEST_MIDIPORT = process.env.RAPIDR_TEST_MIDIPORT || "";
 process.env.RAPIDR_TEST_MIDI = "";
 process.env.RAPIDR_TEST_WAVE_IN = "tone:440";
 const OUT = resolve(process.argv[2] || join(ROOT, "tests/conformance/.work/gui_captures"));

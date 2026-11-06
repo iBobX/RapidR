@@ -44,6 +44,7 @@ pub mod media;
 pub mod memstream;
 pub mod midifile;
 pub mod midiout;
+pub mod midiport;
 pub mod updown;
 pub mod menu;
 pub mod ops;
@@ -307,6 +308,10 @@ pub fn create(id: &str, type_name: &str) -> bool {
     }
     // (RAudioOut: sound made sample by sample — audioout.rs)
     if audioout::create(id, type_name) {
+        return true;
+    }
+    // (RMIDIPort: MIDI in and out — midiport.rs)
+    if midiport::create(id, type_name) {
         return true;
     }
     // (RARCHIVE: its own store, archive.rs)
@@ -1299,7 +1304,7 @@ pub fn exists(id: &str) -> bool {
 /// Forgets object `id` (a kernel-drawn dialog's components once it
 /// closes; a test's store starting again); whether there was one.
 pub fn remove(id: &str) -> bool {
-    if audioout::remove(id) {
+    if audioout::remove(id) || midiport::remove(id) {
         return true;
     }
     OBJECTS.with(|o| o.borrow_mut().remove(&id.to_lowercase()).is_some())
@@ -1360,6 +1365,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     }
     if audioout::exists(id) {
         return audioout::get(id, prop);
+    }
+    if midiport::exists(id) {
+        return midiport::get(id, prop);
     }
     if archive::exists(id) {
         return archive::get(id, prop);
@@ -1427,6 +1435,9 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     }
     if audioout::exists(id) {
         return audioout::set(id, &prop, val).map(Ok);
+    }
+    if midiport::exists(id) {
+        return midiport::set(id, &prop, val).map(Ok);
     }
     if archive::exists(id) {
         return archive::set(id, &prop, val);
@@ -1598,6 +1609,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     if audioout::exists(id) {
         return audioout::call(id, &method, args).map(Ok);
+    }
+    if midiport::exists(id) {
+        return midiport::call(id, &method, args).map(Ok);
     }
     if archive::exists(id) {
         return archive::call(id, &method, args);

@@ -128,6 +128,8 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
         // (RAudioOut: its model's properties; its sound device — audio_web.rs)
         "RAUDIOOUT" => crate::audio_web::install(),
+        // (RMIDIPort: its model's properties; its devices — media_web::port)
+        "RMIDIPORT" => crate::media_web::port::install(),
         // (QDXSCREEN's Direct3D: Render draws on the browser's WebGL 2,
         // through wgpu — made at the first Render)
         "RDXSCREEN" => rapidr_d3d_gpu::install(),
@@ -1572,6 +1574,10 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     if rapidr_value::objects::rqlib::exists(name) {
         return crate::io_web::method(name, &lmethod, args);
+    }
+    // (RMIDIPort: the browser asked first when it must — media_web::port)
+    if let Some(v) = crate::media_web::port::method(name, &lmethod, args) {
+        return v;
     }
     // A file dialog's Files(i): the folder (0), then the picked names.
     if lmethod == "files" && matches!(rp_comp_type(name).as_str(), "ROPENDIALOG" | "RSAVEDIALOG" | "RFILEDIALOG") {

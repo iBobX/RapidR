@@ -269,6 +269,8 @@ pub fn rp_doevents() {
     crate::database::poll();
     // (RAudioOut's OnNeedData, also in a console program)
     crate::audio_out::poll();
+    // (RMIDIPort's events, also in a console program)
+    crate::midi_port::poll();
 }
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).

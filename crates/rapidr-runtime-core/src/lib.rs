@@ -32,6 +32,8 @@ pub(crate) mod serial_list;
 pub(crate) mod media;
 /// RAudioOut's sound device and OnNeedData (sound made sample by sample).
 pub mod audio_out;
+/// RMIDIPort's devices (midir) and its events.
+pub mod midi_port;
 /// (I7) Linked data on the desktop: what `rapidr_value::datascience::link`
 /// asks of the runtime.
 pub(crate) mod links;

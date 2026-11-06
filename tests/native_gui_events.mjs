@@ -115,6 +115,8 @@ process.env.RAPIDR_TEST_CLIPBOARD = "1";
 // real serial port: QCOMPORT's scripted ones only, none unless a case's)
 process.env.RAPIDR_TEST_HTTP = (await startHttpServer()).address;
 process.env.RAPIDR_TEST_COMPORT = "";
+// (RMIDIPort: the scripted devices only, none unless a case's `midiport`)
+process.env.RAPIDR_TEST_MIDIPORT = "";
 // (QMIDI: no MIDI output; QWAVE records the scripted tone, never a
 // microphone — the GUI tests have no sound device either)
 process.env.RAPIDR_TEST_MIDI = "";
@@ -159,6 +161,7 @@ const dialogAnswers = (c) => ({
   ...(c.joystick === undefined ? {} : { RAPIDR_TEST_JOYSTICK: c.joystick }),
   // (`comport`: QCOMPORT's scripted ports)
   ...(c.comport === undefined ? {} : { RAPIDR_TEST_COMPORT: c.comport }),
+  ...(c.midiport === undefined ? {} : { RAPIDR_TEST_MIDIPORT: c.midiport }),
   // (`drop`: the files `form.__drop` drops on a form, OnDropFiles)
   ...(c.drop === undefined ? {} : { RAPIDR_TEST_DROP: c.drop }),
 });

@@ -78,6 +78,7 @@ SITES = {
     ("crates/rapidr-runtime-core/src/ui/kernel.rs", "design_surface_method"): "RDESIGNSURFACE",
     # --- web runtime
     ("crates/rapidr-runtime-web/src/io_web.rs", "method"): "RCOMPORT RDOWNLOAD " + MEDIA,
+    ("crates/rapidr-runtime-web/src/media_web/port.rs", "run"): "RMIDIPORT",
     ("crates/rapidr-runtime-web/src/kernel_web.rs", "set_prop"): "*",
     ("crates/rapidr-runtime-web/src/layout_web.rs", "after_set"): "*",
     ("crates/rapidr-runtime-web/src/network_web.rs", "http_method"): "RHTTP",
@@ -166,6 +167,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/media.rs", "*"): MEDIA,
     ("crates/rapidr-value/src/objects/memstream.rs", "*"): "RMEMORYSTREAM RFILESTREAM",
     ("crates/rapidr-value/src/objects/audioout.rs", "*"): "RAUDIOOUT",
+    ("crates/rapidr-value/src/objects/midiport.rs", "*"): "RMIDIPORT",
     ("crates/rapidr-value/src/objects/menu.rs", "*"): "RMAINMENU RMENUITEM RPOPUPMENU",
     ("crates/rapidr-value/src/objects/mod.rs", "call"): "*",
     ("crates/rapidr-value/src/objects/printer.rs", "*"): "RPRINTER",

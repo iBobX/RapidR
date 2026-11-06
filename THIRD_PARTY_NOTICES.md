@@ -491,7 +491,7 @@ their `OFL.txt`.
 | lru | 0.18.5 | <https://github.com/jeromefroe/lru-rs.git> |
 | lsp-types | 0.97.0 | <https://github.com/gluon-lang/lsp-types> |
 | memoffset | 0.9.1 | <https://github.com/Gilnaa/memoffset> |
-| midir | 0.11.0 | <https://github.com/Boddlnagg/midir> |
+| midir | 0.11.1 | <https://github.com/Boddlnagg/midir> |
 | mime_guess | 2.0.5 | <https://github.com/abonander/mime_guess> |
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
