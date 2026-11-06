@@ -274,7 +274,13 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (a component moved to another parent: the one it left follows —
+    // its layout and its scroll bars)
+    let left = prop.eq_ignore_ascii_case("parent").then(|| rp_comp_get(name, "parent").to_string_val());
     comp_set(name, prop, val);
+    if let Some(old) = left {
+        crate::layout::parent_left(name, &old);
+    }
     updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();
@@ -303,7 +309,23 @@ fn updown_buddy(name: &str, prop: &str) {
 /// sets itself (the user's input, a model) goes through [`rp_comp_set`].
 pub fn rp_prop_set(name: &str, prop: &str, val: Value) {
     let t = rp_comp_type(name);
-    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e));
+    // (a socket's Timeout the program gave it: RapidQ's calls — Connect(Host,
+    // Port), Read — then keep to it; they wait as long as it takes without
+    // one, as RapidQ's QSOCKET, which has none: network.rs)
+    if t == "RSOCKET" && prop.eq_ignore_ascii_case("timeout") {
+        set_property(name, "__timeoutset", v_bool(true));
+    }
+    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e), || radio_group_off(name));
+}
+
+/// A radio button the program turned on: its parent's other radio buttons
+/// go off (`rapidr_value::events::radio_group_off`, RapidQ's group).
+fn radio_group_off(name: &str) {
+    let parent = rp_comp_get(name, "parent").to_string_val();
+    if parent.trim().is_empty() {
+        return;
+    }
+    rapidr_value::events::radio_group_off(name, &get_children_of(&parent), |o| rp_comp_get(o, "checked").to_bool(), |o| rp_comp_set(o, "checked", v_int(0)));
 }
 
 fn comp_set(name: &str, prop: &str, val: Value) {
@@ -980,6 +1002,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if prop_lower == "visible" && ty == "RFORM" && rp_comp_get(name, "parent").to_string_val().is_empty() {
         let stored = || COMPONENTS.with(|c| c.borrow().get(key.as_ref()).and_then(|comp| comp.properties.get("visible")).is_some_and(Value::to_bool));
         return v_bool(crate::ui::window_shown(name).unwrap_or_else(stored));
+    }
+    // A socket's Connected (RapidR's): whether its connection is open now
+    // (network.rs — RAPIDR-ISSUES #13).
+    #[cfg(feature = "network")]
+    if prop_lower == "connected" && ty == "RSOCKET" {
+        return crate::network::connected(name);
     }
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if let Some(v) = crate::globals::get(name, prop_lower) {

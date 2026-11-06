@@ -110,6 +110,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
@@ -235,6 +236,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
@@ -516,6 +518,7 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 
@@ -566,6 +569,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rbevel"></a>
@@ -617,6 +621,7 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rglassframe"></a>
@@ -1230,7 +1235,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 <a id="rscrollbar"></a>
 ## RScrollBar
 
-A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max.
+A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and the mouse wheel over it (three SmallChanges a notch).
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -1858,6 +1863,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
@@ -1945,6 +1951,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rcanvas"></a>
@@ -2030,6 +2037,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
@@ -2458,7 +2466,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnChange` | The person moved the selection to another item: a click on another item, the arrow keys, Page Up / Down, Home or End; before that click's OnClick. A click on the item already selected fires OnClick only; the program's own ItemIndex = n fires nothing. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | A mouse button let go over the list (X, Y in the list): after OnClick, the item under the mouse picked — a click the program tells from the keyboard's picks. |
@@ -3768,8 +3776,8 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Host` | string |  | The server's host name or address. |
 | `BindAddress` *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
 | `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
-| `Connected` | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
-| `Timeout` | int |  | How long to wait for the network, in milliseconds. |
+| `Connected` | int |  | 1 while the connection Connect opened is open, or what the server sent is still to be read; 0 once either side closed it (Disconnect, the server's Stop) or before any. |
+| `Timeout` | int |  | Milliseconds: Connect(Host, Port) gives up after it, and each Read, ReadLine or ReadByte waits at most so long (then gives ""). Without one the program set, they wait as long as it takes, as the classic QSOCKET's do. While they wait, the program's windows keep painting. |
 | `Type` | int |  | The socket's type: a stream (TCP) or datagram (UDP) socket. |
 
 | Method | |
@@ -3791,7 +3799,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Write(Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteByte(Socket AS INTEGER, B AS BYTE)` | Writes one byte to the socket or stream. |
 | `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
-| `Disconnect` | Closes the connection. Same as `Close`. |
+| `Disconnect` | Closes the connection Connect opened: the server sees its client go at once, and Connected reads 0. |
 | `Send` *(web)* | Sends text over the WebSocket. Same as `Write`. |
 | `Receive` *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |
 

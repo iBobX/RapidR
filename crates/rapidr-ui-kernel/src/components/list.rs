@@ -761,9 +761,22 @@ pub fn item_rect(id: &str, i: usize, w: i64, h: i64) -> Option<Rect> {
 impl ListBox {
     /// The user picked item `i` (with Shift / Ctrl): selected as a click
     /// does, OnClick (a double click's second press: OnDblClick, Windows'
-    /// LBN_DBLCLK).
+    /// LBN_DBLCLK). The selection moved (another item, or MultiSelect's
+    /// set changed): RapidR's OnChange first — for a click as for the keys
+    /// (RAPIDR-ISSUES #9: a click changed ItemIndex and said nothing).
+    /// RapidQ's QLISTBOX has no OnChange (RC.EXE refuses it), so no classic
+    /// program hears anything new; a QFILELISTBOX (whose OnChange is
+    /// RapidQ's own, its folder read) keeps what it had.
     fn pick(cx: &mut Cx, i: usize, shift: bool, ctrl: bool, double: bool) {
-        with_list_mut(cx.id, |l| l.click(i as i64, shift, ctrl));
+        let selection = |l: &ItemList| (l.item_index, l.selected.clone());
+        let before = with_list(cx.id, selection);
+        let after = with_list_mut(cx.id, |l| {
+            l.click(i as i64, shift, ctrl);
+            selection(l)
+        });
+        if before != after && !double && cx.store.type_of(cx.id).eq_ignore_ascii_case("RLISTBOX") {
+            cx.change();
+        }
         if double {
             fire(cx, "ondblclick", Vec::new());
         } else {
@@ -1019,12 +1032,17 @@ mod tests {
             s.add("lst", "RLISTBOX", Some("f")).set("lst", "left", v_int(10)).set("lst", "top", v_int(10));
             s.call("lst", "additems", &[v_str("a"), v_str("b"), v_str("c")]);
         });
-        // (row 1 is 16 pixels down, inside the 2-pixel frame)
-        assert_eq!(click(&mut f, &s, &mut ts, 30.0, 12.0 + 16.0 + 4.0), vec![KernelEvent::Click("lst".into())]);
+        // (row 1 is 16 pixels down, inside the 2-pixel frame: RapidR's
+        // OnChange — the selection moved — then OnClick; RAPIDR-ISSUES #9)
+        assert_eq!(click(&mut f, &s, &mut ts, 30.0, 12.0 + 16.0 + 4.0), vec![KernelEvent::Change("lst".into()), KernelEvent::Click("lst".into())]);
         assert_eq!(with_list("lst", |l| l.item_index), Some(1));
+        // (the same item again, a click of its own: OnClick only)
+        f.forget_clicks();
+        assert_eq!(click(&mut f, &s, &mut ts, 30.0, 12.0 + 16.0 + 4.0), vec![KernelEvent::Click("lst".into())]);
         f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut crate::MemClipboard::default());
         assert_eq!(with_list("lst", |l| l.item_index), Some(2));
-        assert!(f.take_events().contains(&KernelEvent::Click("lst".into())));
+        let keyed = f.take_events();
+        assert!(keyed.contains(&KernelEvent::Change("lst".into())) && keyed.contains(&KernelEvent::Click("lst".into())), "{keyed:?}");
         assert!(f.test_action(&s, &mut ts, "lst", "__item_0"));
         assert_eq!(with_list("lst", |l| l.item_index), Some(0));
         // (the selected row white on blue)

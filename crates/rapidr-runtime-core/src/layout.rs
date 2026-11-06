@@ -245,6 +245,16 @@ pub(crate) fn after_set(name: &str, prop: &str) {
     }
 }
 
+/// `name` moved to another parent (`old` the one it had): the old one laid
+/// out again and its scroll bars follow (`engine::parent_left`; the web's
+/// `layout_web::parent_left`).
+pub(crate) fn parent_left(name: &str, old: &str) {
+    if busy() {
+        return;
+    }
+    engine::parent_left(&mut Rt, &name.to_lowercase(), old);
+}
+
 fn controls_of(parent: &str) -> (Vec<String>, Vec<Control>) {
     engine::controls_of(&Rt, &parent.to_lowercase())
 }

@@ -56,6 +56,7 @@ events = [
   { name = "OnDblClick" },
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseWheel", params = "Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER", origin = "rapidr", doc = "RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself." },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnEnter", origin = "rapidr", doc = "Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.)" },
@@ -137,6 +138,7 @@ events = [
   { name = "OnDblClick" },
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseWheel", params = "Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER", origin = "rapidr", doc = "RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself." },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
 ]
 
@@ -216,6 +218,7 @@ events = [
   { name = "OnClick" },
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnMouseWheel", params = "Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER", origin = "rapidr", doc = "RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself." },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnPaint" },
   { name = "OnDblClick" },

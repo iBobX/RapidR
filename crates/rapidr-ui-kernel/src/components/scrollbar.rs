@@ -42,6 +42,8 @@ struct Held {
 thread_local! {
     /// The bars held down now, by id.
     static HELD: RefCell<HashMap<String, Held>> = RefCell::new(HashMap::new());
+    /// What a touchpad's wheel turned short of a whole step, by id.
+    static WHEEL_REST: RefCell<HashMap<String, f64>> = RefCell::new(HashMap::new());
 }
 
 fn held(id: &str) -> Option<Held> {
@@ -208,6 +210,41 @@ impl ComponentKind for ScrollBar {
         cx.ui.wake = Some(now() + REPEAT);
     }
 
+    /// The wheel over the bar moves it, as over a list (RAPIDR-ISSUES #17:
+    /// it did nothing): a notch is three SmallChanges (Windows' three
+    /// lines a notch), down or right forward; a vertical bar takes the
+    /// wheel's up and down, a horizontal one its sideways turns and Shift
+    /// + the wheel. Position stored, OnChange — as an arrow's click. A
+    /// touchpad's fractions add up; at an end the wheel goes on to the
+    /// parent.
+    fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: crate::input::Mods) -> bool {
+        if !cx.state.enabled {
+            return false;
+        }
+        let turn = if vertical(cx.store, cx.id) {
+            if mods.shift { 0.0 } else { dy }
+        } else if dx != 0.0 {
+            dx
+        } else if mods.shift {
+            dy
+        } else {
+            0.0
+        };
+        if turn == 0.0 {
+            return false;
+        }
+        let small = store::int(cx.store, cx.id, "smallchange", 1).max(1);
+        let rest = WHEEL_REST.with(|r| r.borrow().get(cx.id).copied().unwrap_or(0.0));
+        let lines = rest + turn * 3.0 * small as f64;
+        let whole = lines.trunc();
+        WHEEL_REST.with(|r| r.borrow_mut().insert(cx.id.to_string(), lines - whole));
+        if whole == 0.0 {
+            return true;
+        }
+        let v = values(cx.store, cx.id);
+        move_to(cx, v.clamp(v.position) + whole as i64)
+    }
+
     fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
         if k.mods.alt || k.mods.command {
             return false;
@@ -282,6 +319,33 @@ mod tests {
     fn click(s: &MemStore, f: &mut FormUi, ts: &mut TextSystem, x: f64, y: f64) {
         f.mouse_down(s, ts, x, y, Button::Left, Mods::NONE);
         f.mouse_up(s, ts, x, y, Button::Left, Mods::NONE);
+    }
+
+    #[test]
+    fn the_wheel_moves_the_bar_three_small_changes_a_notch() {
+        // (RAPIDR-ISSUES #17: the wheel over a scroll bar did nothing)
+        let (mut s, mut f, mut ts) = bar();
+        // (a horizontal bar: Shift + the wheel, or a sideways turn)
+        f.mouse_wheel(&s, &mut ts, (100.0, 18.0), (0.0, 1.0), Mods::NONE);
+        assert_eq!(events(&mut f), vec![], "a plain wheel isn't a horizontal bar's");
+        f.mouse_wheel(&s, &mut ts, (100.0, 18.0), (0.0, 1.0), Mods { shift: true, ..Mods::NONE });
+        assert_eq!(events(&mut f), vec![set(33), change()]);
+        f.mouse_wheel(&s, &mut ts, (100.0, 18.0), (-2.0, 0.0), Mods::NONE);
+        assert_eq!(events(&mut f), vec![set(24), change()]);
+        // (a vertical one: up and down; a touchpad's fractions add up; at
+        // an end nothing moves)
+        s.set("sb", "kind", v_int(1)).set("sb", "width", v_int(17)).set("sb", "height", v_int(200)).set("sb", "position", v_int(5)).set("sb", "max", v_int(10));
+        let mut f = FormUi::build(&s, "sbform", false);
+        f.paint(&s, &mut ts, 1.0);
+        f.mouse_wheel(&s, &mut ts, (18.0, 100.0), (0.0, 1.0), Mods::NONE);
+        assert_eq!(events(&mut f), vec![set(8), change()]);
+        f.mouse_wheel(&s, &mut ts, (18.0, 100.0), (0.0, -0.2), Mods::NONE);
+        assert_eq!(events(&mut f), vec![]);
+        f.mouse_wheel(&s, &mut ts, (18.0, 100.0), (0.0, -0.2), Mods::NONE);
+        assert_eq!(events(&mut f), vec![set(4), change()], "0.6 of a notch: one SmallChange");
+        s.set("sb", "position", v_int(10));
+        f.mouse_wheel(&s, &mut ts, (18.0, 100.0), (0.0, 1.0), Mods::NONE);
+        assert_eq!(events(&mut f), vec![]);
     }
 
     #[test]

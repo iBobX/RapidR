@@ -242,6 +242,9 @@ fn pump(timeout: Option<Duration>) {
         }
         return;
     };
+    // (the hang watchdog of a program: only one that shows a window can
+    // stop answering — rapidr-crash)
+    rapidr_crash::watchdog::set_windows_shown(forms::any_shown());
     crate::object::rp_in_host_callback(|| {
         let Ok(mut k) = k.try_borrow_mut() else { return };
         sync_desk(&mut k.desk);
@@ -1095,6 +1098,45 @@ pub fn gui_wait_task(mut poll: impl FnMut() -> Option<Value> + 'static) -> Value
             crate::object::rp_serve_program();
         },
     }
+}
+
+/// A builtin that holds the program until something outside it is done —
+/// SHELLWAIT's command, a socket's read — waits up to `max` with the
+/// program's windows served: they paint, move, resize and answer the
+/// system, so it never takes them for hung ("Application Not Responding"
+/// while RapidR Web Server waited for PHP, RUNTIME-BUGS 2026-11-05). None
+/// of the program's code runs meanwhile — no handler, no timer — as in
+/// RapidQ, whose wait runs nothing either: what the person does with the
+/// windows waits in the kernel's queue and is handled once the program
+/// goes on (its next DOEVENTS or wait). The tests' headless host has no
+/// system to answer: it sleeps `max`, counted as waiting.
+///
+/// `false` (nothing waited) when there are no windows to serve — a console
+/// program, before the first Show, inside the system's own loop (a native
+/// menu tracked): the caller then waits its own plain way
+/// ([`gui_waits_serve`] says so beforehand).
+pub fn gui_serve_waiting(max: Duration) -> bool {
+    if !gui_waits_serve() {
+        return false;
+    }
+    if headless() {
+        // (the tests' host has no system to answer: the wait is its turn
+        // all the same — the hang watchdog's "idle", as a real host's wait
+        // for events)
+        rapidr_crash::watchdog::idle();
+        std::thread::sleep(max);
+        rapidr_crash::watchdog::busy();
+        return true;
+    }
+    pump(Some(max));
+    true
+}
+
+/// Whether a blocking builtin's wait has windows to serve
+/// ([`gui_serve_waiting`]): one is shown, and the window loop isn't held
+/// by the system.
+pub fn gui_waits_serve() -> bool {
+    started() && !held() && forms::any_shown()
 }
 
 /// For the bytecode VM: `ShowModal` returns at once and leaves its wait to

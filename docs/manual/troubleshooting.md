@@ -177,6 +177,28 @@ desktop). The program goes on.
 — RapidR draws on the CPU when the only GPU is a software one; if
 detection fails, set `RAPIDR_RENDERER=cpu`.
 
+### Your program's window isn't answering
+
+A window answers the system — paints, moves, takes clicks — only while your
+program waits: `ShowModal`, `DOEVENTS`, a dialog, or a line that waits for
+something outside it (`SHELLWAIT`, a socket's `Read`), which keeps the
+window alive by itself. Code that runs long without waiting — a big loop, a
+long calculation — leaves the window stuck, and the system soon shows it as
+not responding.
+
+Run from RapidR Studio (or with `rapidr run`), your program says so when its
+window hasn't answered for 5 seconds, in the Output, with the line it is
+busy at:
+
+```
+[rapidr] Your program's window hasn't answered for 5 s: its code is still running and doesn't let the window take its turn. It is busy at server.rr line 812, in SUB Serve (OnTimer of Poll). A long loop needs a DOEVENTS now and then. A report was saved on this computer: ~/Library/Application Support/RapidR/crashes/…-program-…-hang.txt
+```
+
+and again once it answers ("Your program's window answers again (after 7
+s).") — nothing is sent anywhere. Put a `DOEVENTS` in that loop, every few
+hundred steps, or do the work in pieces from an `RTimer`.
+`RAPIDR_HANG_SECONDS` (2 to 120) changes the 5 seconds.
+
 **The program doesn't look like the classic Windows look** — programs are drawn
 in RapidR's own look unless they say `$THEME Classic` (the classic look;
 sizes and places are the same in both). Check also for a `RAPIDR_THEME`
@@ -262,6 +284,9 @@ where it was, with links to the line and to the report:
 Your program stopped: index out of bounds, at main.rr line 24, in SUB Tick (OnTimer of Ticker).
 RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer: View Report
 ```
+
+**When your program's window stops answering** for 5 seconds, a hang report
+is written too, and the Output says where it is busy ([above](#your-programs-window-isnt-answering)).
 
 **When Studio stops answering** for 5 seconds, a hang report is written at
 once and a small window asks: *RapidR Studio isn't responding* —

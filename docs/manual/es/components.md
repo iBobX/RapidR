@@ -136,6 +136,18 @@ DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed lo establece el OnClose del formula
 - **Los eventos que dispara tu propio código se ejecutan al instante**, dentro de
   la línea que los dispara ([más abajo](#eventos-que-dispara-tu-propio-código)):
   `Canvas.Repaint` ejecuta el `OnPaint` del lienzo antes de la línea siguiente.
+- **Una línea que espera algo de fuera del programa** —`SHELLWAIT` hasta que
+  termina su comando, el `Read` de un socket hasta que llega la respuesta o
+  pasa su `Timeout`— mantiene vivas las ventanas mientras tanto: se dibujan, se
+  mueven y cambian de tamaño, y el sistema nunca las muestra como que no
+  responden. Tu código sigue esperando allí, como antes: ningún controlador se
+  ejecuta hasta que esa línea termina, y lo que la persona hace clic o escribe
+  mientras tanto se atiende después.
+- **El código que se ejecuta mucho tiempo sin esperar** —un bucle sin
+  `DOEVENTS`— deja la ventana sin poder responder. Ejecutado desde RapidR
+  Studio (o con `rapidr run`), el programa lo dice a los 5 segundos, con la
+  línea en la que está ocupado
+  ([Solución de problemas](troubleshooting.md#la-ventana-de-tu-programa-no-responde)).
 
 Así, un controlador que dispara su propio evento se ejecuta dentro de sí mismo:
 un `Repaint` dentro del `OnPaint` del mismo lienzo, un `OnChange` que le da un
@@ -191,7 +203,7 @@ pruebas de compatibilidad lo cubre):
 | `RichEdit.Text` (el texto cambia) | OnChange: una vez antes de que su formulario se haya mostrado, **dos veces** después (el editor de texto enriquecido oye su propio cambio y el del texto) |
 | `RichEdit.SelText` | OnChange |
 | `CheckBox.Checked` (activado o desactivado, un cambio) | OnClick |
-| `RadioButton.Checked = 1` (estaba desactivado) | OnClick — el botón que desactiva no oye nada |
+| `RadioButton.Checked = 1` (estaba desactivado) | primero se desactivan los demás botones de opción de su padre, como con un clic —también en un bloque `CREATE`—, luego OnClick; el botón que desactiva no oye nada |
 | `ScrollBar.Position` (un cambio) | OnChange (no OnScroll) |
 | el mismo valor otra vez; `RadioButton.Checked = 0` | nada |
 | `ComboBox.ItemIndex`, `ComboBox.Text`, `ListBox.ItemIndex`, `TrackBar.Position`, `TabControl.TabIndex` | nada |
@@ -348,6 +360,59 @@ Messages.ItemIndex = Messages.ItemCount - 1
 (`TopIndex` lee la lista tal como se dibujó por última vez: establécelo y leerá
 lo que muestra la lista cuando la ventana la haya dibujado, un momento después.)
 
+El `OnChange` de un `RListBox` (de RapidR) te dice que la persona movió la
+selección a otro elemento —con un clic, las flechas, Re Pág / Av Pág, Inicio
+o Fin—, antes del `OnClick` de ese clic. Un clic en el elemento que ya estaba
+seleccionado dispara solo `OnClick`. Tu propio `ItemIndex = n` no dispara nada,
+como antes.
+
+```basic
+CREATE Planets AS RListBox
+    OnChange = Picked
+END CREATE
+
+SUB Picked
+    Said.Caption = "Elegiste: " + Planets.Item(Planets.ItemIndex)
+END SUB
+```
+
+## La rueda del mouse
+
+La rueda desplaza lo que está bajo el mouse, tenga quien tenga el teclado: una
+lista, un memo, una cuadrícula, un árbol, un cuadro de desplazamiento o un
+formulario con sus propias barras — y un `RScrollBar`, que avanza tres pasos de
+`SmallChange` por muesca (hacia abajo o a la derecha; una barra horizontal toma
+un giro lateral, o Shift y la rueda) y dispara su `OnChange`, como un clic en su
+flecha.
+
+Donde nada bajo el mouse se desplaza por sí mismo —una lista que dibujas con
+etiquetas sobre un panel, un lienzo, un juego—, `OnMouseWheel (Delta, X, Y,
+Shift)` (de RapidR) se lo dice a tu programa, en un formulario, un panel, un
+cuadro de desplazamiento, un cuadro de grupo, un bisel, una etiqueta, una imagen
+o un lienzo. Lo recibe el primero que tenga un controlador, desde el control
+bajo el mouse hacia arriba hasta su formulario:
+
+| Argumento | |
+|---|---|
+| `Delta` | muescas enteras: `1` una muesca alejándose de ti (arriba), `-1` hacia ti (abajo); los giros pequeños de un panel táctil se suman hasta una muesca |
+| `X`, `Y` | el mouse, en los píxeles de ese componente |
+| `Shift` | las teclas y los botones presionados, como en `OnMouseMove` |
+
+```basic
+CREATE Card AS RPanel
+    OnMouseWheel = CardWheel
+END CREATE
+
+SUB CardWheel (Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    Bar.Position = Bar.Position - Delta     ' una fila por muesca; el OnChange de Bar muestra las filas
+END SUB
+```
+
+[wheel_list.rr](../../../examples/gui/wheel_list.rr) es una lista dibujada
+completa que se desplaza así, con el `OnChange` de un `RListBox` al lado:
+
+![La lista dibujada después de dos muescas de la rueda (empieza en 3. Earth), y Mars elegido en la lista de al lado](../images/components/wheel-list.png)
+
 ## RUpDown: flechas que cambian un número
 
 Un componente `RUpDown` son dos botones de flecha pequeños que cambian `Position`
@@ -466,6 +531,8 @@ compilador anterior no la conoce).
 | `AutoComplete` en un campo de texto | la sugerencia de autocompletado del navegador, en la web |
 | `Placeholder = "Search the help"` en un campo de texto | la línea gris que se muestra mientras el campo está vacío, que dice qué escribir; nunca se lee de vuelta como el texto, desaparece cuando el usuario escribe (el cuadro de la Ayuda de RapidR Studio la usa) |
 | `Form.OnDropFiles (Files AS STRING)` | archivos arrastrados desde la computadora y soltados en la ventana (más abajo) |
+| `OnMouseWheel (Delta, X, Y, Shift)` en un formulario, panel, cuadro de desplazamiento, cuadro de grupo, bisel, etiqueta, imagen o lienzo | la rueda del mouse giró sobre él, donde nada se desplaza por sí mismo ([La rueda del mouse](#la-rueda-del-mouse)) |
+| `OnChange` en un cuadro de lista | la persona movió la selección: un clic en otro elemento, las flechas ([Listas](#las-listas-se-desplazan-hasta-lo-que-eliges)) |
 
 ### Archivos soltados en un formulario
 

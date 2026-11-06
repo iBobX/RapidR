@@ -87,6 +87,12 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
     // program's — rapidr-crash)
     rapidr_crash::install(if studio { rapidr_crash::App::Studio } else { rapidr_crash::App::Program });
     rapidr_crash::set_program_file(&program);
+    // (a program run from a command line: a window that stops answering is
+    // said, with where — rapidr-crash's watchdog; not a program opened from
+    // the desktop: nobody reads what it says)
+    if !studio && from == From::Command {
+        watch_program();
+    }
     rapidr_vm_host_native::set_program(&program, args);
     // (the runtime running it and the system's temporary folder, for a
     // program that runs others: the IDE)
@@ -95,6 +101,14 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
     }
     env::set_var("RAPIDR_TEMP", env::temp_dir());
     rapidr_vm_host_native::run_bytes(&bytes)
+}
+
+/// The program's hang watchdog (rapidr-crash): its window busy for 5 s
+/// (`RAPIDR_HANG_SECONDS`, 2 to 120) — a report on this computer, and the
+/// program's line said on standard error.
+fn watch_program() {
+    let secs = env::var("RAPIDR_HANG_SECONDS").ok().and_then(|s| s.trim().parse::<u64>().ok()).unwrap_or(5).clamp(2, 120);
+    rapidr_crash::watchdog::start_program(std::time::Duration::from_secs(secs));
 }
 
 /// `rapidr run --session <file> [args]`: the program under RapidR Studio
@@ -125,6 +139,8 @@ pub fn run_session(path: &str, args: Vec<String>) -> ExitCode {
     // Studio finds and offers when the run ends)
     rapidr_crash::install(rapidr_crash::App::Program);
     rapidr_crash::set_program_file(&program);
+    // (its window not answering: said in Studio's Output, with where)
+    watch_program();
     rapidr_vm_host_native::set_program(&program, args);
     if let Ok(exe) = env::current_exe() {
         env::set_var("RAPIDR_RUNTIME", exe);

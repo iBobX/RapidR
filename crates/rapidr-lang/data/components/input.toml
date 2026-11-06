@@ -508,7 +508,7 @@ visual = true
 size = [121, 17]
 default_event = "OnChange"
 sets = ["layout", "a11y"]
-doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max."
+doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and the mouse wheel over it (three SmallChanges a notch)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },

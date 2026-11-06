@@ -653,14 +653,46 @@ pub fn set_fires(type_name: &str, prop: &str, before: &Value, after: &Value, sho
 /// the component, `shown` says whether its form has been shown. Both
 /// runtimes' program sets (the VM hosts', a native build's) come here; the
 /// runtime's own sets (what the user did, a model's) don't.
-pub fn program_set(type_name: &str, prop: &str, get: impl Fn(&str) -> Value, set: impl FnOnce(), shown: impl FnOnce() -> bool, fire: impl Fn(&'static str)) {
+///
+/// A radio button the set turns on turns its group's others off first
+/// (`group_off`, the runtime's [`radio_group_off`]), as a click does: RC.EXE
+/// (2026-11-05, RUNTIME-BUGS) — `B.Checked = 1` leaves `A.Checked` 0, its
+/// OnClick reads A off already, in a CREATE block as later, before its form
+/// shows as after; a radio button of another parent keeps its own.
+pub fn program_set(type_name: &str, prop: &str, get: impl Fn(&str) -> Value, set: impl FnOnce(), shown: impl FnOnce() -> bool, fire: impl Fn(&'static str), group_off: impl FnOnce()) {
     let Some(watched) = set_watch(type_name, prop) else { return set() };
     let before = get(watched);
     set();
     let after = get(watched);
+    if radio_turned_on(type_name, watched, &before, &after) {
+        group_off();
+    }
     if let Some((event, times)) = set_fires(type_name, prop, &before, &after, shown()) {
         for _ in 0..times {
             fire(event);
+        }
+    }
+}
+
+/// Whether a set of a radio button's `watched` value (its Checked, read
+/// before and after) turned it on.
+fn radio_turned_on(type_name: &str, watched: &str, before: &Value, after: &Value) -> bool {
+    let t = type_name.to_ascii_uppercase();
+    let t = t.strip_prefix('R').or_else(|| t.strip_prefix('Q')).unwrap_or(&t);
+    t == "RADIOBUTTON" && watched == "checked" && !before.to_bool() && after.to_bool()
+}
+
+/// A radio button turned on: the other radio buttons among `siblings` (its
+/// parent's components, `(name, type)`) that are on (`checked`) go off
+/// (`off`, the runtime's own set: no event, as RapidQ's — "the button it
+/// turns off hears nothing"). One group is one parent's radio buttons, the
+/// UI kernel's click does the same (`components::radio`).
+pub fn radio_group_off(me: &str, siblings: &[(String, String)], checked: impl Fn(&str) -> bool, mut off: impl FnMut(&str)) {
+    for (name, type_name) in siblings {
+        let t = type_name.to_ascii_uppercase();
+        let is_radio = matches!(t.as_str(), "RRADIOBUTTON" | "QRADIOBUTTON");
+        if is_radio && !name.eq_ignore_ascii_case(me) && checked(name) {
+            off(name);
         }
     }
 }
@@ -701,9 +733,42 @@ mod set_tests {
         let value = RefCell::new(v_str("old"));
         let fired = RefCell::new(Vec::new());
         for _ in 0..2 {
-            program_set("REDIT", "text", |_| value.borrow().clone(), || *value.borrow_mut() = v_str("new"), || true, |e| fired.borrow_mut().push(e));
+            program_set("REDIT", "text", |_| value.borrow().clone(), || *value.borrow_mut() = v_str("new"), || true, |e| fired.borrow_mut().push(e), || unreachable!());
         }
-        program_set("REDIT", "left", |_| unreachable!(), || {}, || unreachable!(), |_| unreachable!());
+        program_set("REDIT", "left", |_| unreachable!(), || {}, || unreachable!(), |_| unreachable!(), || unreachable!());
         assert_eq!(*fired.borrow(), ["onchange"]);
+    }
+
+    #[test]
+    fn a_radio_button_turned_on_turns_its_group_off_before_its_on_click() {
+        // (RC.EXE: B.Checked = 1 — A goes off, then B's OnClick, which reads
+        // A off; B.Checked = 1 again, or = 0: nothing)
+        let checked = RefCell::new(HashMap::from([("a", true), ("b", false), ("c", true)]));
+        let trail = RefCell::new(Vec::<String>::new());
+        let siblings = [("a".to_string(), "RRADIOBUTTON".to_string()), ("b".to_string(), "RRADIOBUTTON".to_string()), ("lbl".to_string(), "RLABEL".to_string())];
+        let run = |to: bool| {
+            program_set(
+                "QRADIOBUTTON",
+                "Checked",
+                |_| crate::v_bool(checked.borrow()["b"]),
+                || {
+                    checked.borrow_mut().insert("b", to);
+                },
+                || true,
+                |e| trail.borrow_mut().push(format!("{e} a={}", checked.borrow()["a"])),
+                || {
+                    radio_group_off("B", &siblings, |n| checked.borrow()[n], |n| {
+                        checked.borrow_mut().insert(if n == "a" { "a" } else { "c" }, false);
+                        trail.borrow_mut().push(format!("off {n}"));
+                    })
+                },
+            )
+        };
+        run(true);
+        run(true);
+        run(false);
+        assert_eq!(*trail.borrow(), ["off a", "onclick a=false"]);
+        // (c is another parent's: not among B's siblings, still on)
+        assert!(checked.borrow()["c"]);
     }
 }

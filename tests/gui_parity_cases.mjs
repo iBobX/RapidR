@@ -264,6 +264,20 @@ export const cases = [
   // the Preview button, then d65 p97 u65 (a letter) and d40 u40 (an arrow).
   { name: "list_keys", events: "lst.__key_65,lst.__key_40,pv.onclick,lst.__key_65,lst.__key_40", dump: "lk.caption",
     expect: ["lk.caption=| d65 p97 u65 d40 u40 "] },
+  // RListBox's OnChange (RapidR's own: RapidQ's QLISTBOX has none) when the
+  // user moves the selection — a click on another item as the arrows do
+  // (RAPIDR-ISSUES #9: the click didn't), each before OnClick; a click on
+  // the item already selected: OnClick only (and Up on the first item:
+  // nothing). Before: " click1 click2 click2 click0 click3".
+  { name: "list_onchange", events: "l.__item_1,l.__key_40,l.__item_2,l.__item_0,l.__key_38,l.__key_35", dump: "lk.caption,l.itemindex",
+    expect: ["lk.caption= change1 click1 change2 click2 click2 change0 click0 change3 click3", "l.itemindex=3"] },
+  // The mouse wheel (RAPIDR-ISSUES #17: it did nothing on a scroll bar or a
+  // painted list): over the RScrollBar, one notch down then up (three
+  // SmallChanges each), five down (Max, 10); over a label on the panel,
+  // two up: the panel's OnMouseWheel (Delta 2, the mouse in the panel),
+  // which moves the bar; over the form's open area: nothing.
+  { name: "wheel_scroll", events: "s.__wheel_8_70_1,s.__wheel_8_70_-1,s.__wheel_8_70_5,row1.__wheel_5_6_-2,f.__wheel_240_100_1", dump: "lk.caption,s.position",
+    expect: ["lk.caption= pos3 pos0 pos10 wheel2@9,10 pos8", "s.position=8"] },
   { name: "list_columns", events: "lst.__item_4,cb.__item_2", dump: "lbl.caption,lbl2.caption,cb.itemindex",
     expect: ["lbl.caption=i4 a4 cols2", "lbl2.caption=c2 0-18/112 18-38/112 38-60/112", "cb.itemindex=2"] },
   // QLISTBOX scrolls to what the program picks (Windows' LB_SETCURSEL and

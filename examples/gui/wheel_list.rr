@@ -1,0 +1,122 @@
+' wheel_list.rr: a list you paint yourself, scrolled with the mouse wheel.
+'
+'   rapidr run gui/wheel_list.rr
+'
+' The planets are labels on a card (an RPanel), with an RScrollBar beside
+' them. Turn the mouse wheel over the rows: the card's OnMouseWheel
+' (Delta, X, Y, Shift) moves the bar a row a notch. Turn it over the bar
+' itself: the bar moves on its own (three steps a notch) and its OnChange
+' shows the rows again. The arrow keys and the bar's arrows work too.
+'
+' On the right, an RListBox's OnChange says which planet you picked: a
+' click on another item, or the arrow keys. And the two radio buttons pick
+' how many rows the card shows: the program checks "8 rows" when it starts
+' (`More.Checked = 1`), which unchecks "5 rows" as a click would.
+$THEME rapidr
+
+DECLARE SUB ShowRows
+DECLARE SUB BarMoved
+DECLARE SUB CardWheel (Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB Picked
+DECLARE SUB RowsChosen
+
+CONST ROW_H = 26
+DIM Planets(1 TO 12) AS STRING
+DIM Shown AS INTEGER          ' how many rows the card shows (5 or 8)
+DIM k AS INTEGER
+DIM Rows(1 TO 8) AS RLabel
+
+CREATE Form AS RForm
+    Caption = "Wheel list"
+    ClientWidth = 420
+    ClientHeight = 300
+    Center
+    CREATE Card AS RPanel
+        Left = 16: Top = 44: Width = 200: Height = 8 * ROW_H + 8
+        BevelOuter = 0
+        Color = &HFFFFFF
+        OnMouseWheel = CardWheel
+    END CREATE
+    CREATE Bar AS RScrollBar
+        Kind = sbVertical
+        Left = 220: Top = 44: Width = 16: Height = 8 * ROW_H + 8
+        Min = 0
+        OnChange = BarMoved
+    END CREATE
+    CREATE Five AS RRadioButton
+        Caption = "5 rows"
+        Left = 16: Top = 12: Width = 80
+        Checked = 1
+        OnClick = RowsChosen
+    END CREATE
+    CREATE More AS RRadioButton
+        Caption = "8 rows"
+        Left = 100: Top = 12: Width = 80
+        OnClick = RowsChosen
+    END CREATE
+    CREATE Pick AS RListBox
+        Left = 256: Top = 44: Width = 148: Height = 8 * ROW_H + 8
+        OnChange = Picked
+    END CREATE
+    CREATE Said AS RLabel
+        Left = 256: Top = 12: Width = 160
+        Caption = "Pick a planet"
+    END CREATE
+END CREATE
+
+FOR k = 1 TO 8
+    Rows(k).Parent = Card
+    Rows(k).Left = 10
+    Rows(k).Top = 4 + (k - 1) * ROW_H
+    Rows(k).Width = 180
+NEXT
+
+Planets(1) = "Mercury": Planets(2) = "Venus": Planets(3) = "Earth": Planets(4) = "Mars"
+Planets(5) = "Jupiter": Planets(6) = "Saturn": Planets(7) = "Uranus": Planets(8) = "Neptune"
+Planets(9) = "Ceres": Planets(10) = "Pluto": Planets(11) = "Haumea": Planets(12) = "Eris"
+FOR k = 1 TO 12
+    Pick.AddItems Planets(k)
+NEXT
+
+' (checked from code: "5 rows" goes off by itself, as a click would do it)
+More.Checked = 1
+RowsChosen
+
+' The rows from the bar's Position on.
+SUB ShowRows
+    DIM i AS INTEGER
+    FOR i = 1 TO 8
+        IF i <= Shown AND Bar.Position + i <= 12 THEN
+            Rows(i).Caption = STR$(Bar.Position + i) + ". " + Planets(Bar.Position + i)
+            Rows(i).Visible = 1
+        ELSE
+            Rows(i).Visible = 0
+        END IF
+    NEXT
+END SUB
+
+SUB BarMoved
+    ShowRows
+END SUB
+
+' The wheel over the card (or a row on it): a row a notch, up or down.
+SUB CardWheel (Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    DIM p AS INTEGER
+    p = Bar.Position - Delta
+    IF p < Bar.Min THEN p = Bar.Min
+    IF p > Bar.Max THEN p = Bar.Max
+    Bar.Position = p              ' (its OnChange shows the rows)
+END SUB
+
+SUB RowsChosen
+    IF More.Checked THEN Shown = 8 ELSE Shown = 5
+    Bar.Max = 12 - Shown
+    IF Bar.Position > Bar.Max THEN Bar.Position = Bar.Max
+    ShowRows
+END SUB
+
+SUB Picked
+    Said.Caption = "Picked: " + Pick.Item(Pick.ItemIndex)
+END SUB
+
+Form.ShowModal

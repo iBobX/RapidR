@@ -44,6 +44,8 @@
 //     OnMeasureItem's Height.
 //   * tests/fixtures/input_events.bas — key and mouse events with RapidQ's arguments.
 //   * tests/fixtures/list_keys.bas — keys typed in a QLISTBOX reach the form only with KeyPreview.
+//   * tests/fixtures/list_onchange.bas — RListBox's OnChange on a click that picks another item, as on the keys.
+//   * tests/fixtures/wheel_scroll.bas — the mouse wheel: an RScrollBar moved by it, a panel's OnMouseWheel (`__wheel_x_y_n`).
 //   * tests/fixtures/focus_order.bas — RapidR's OnEnter / OnExit by Tab and a click;
 //     handler_error.bas — a run-time error in a handler ends it (and the one
 //     that fired it), the form goes on; set_events.bas — the events a
