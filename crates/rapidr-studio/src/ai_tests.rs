@@ -897,7 +897,14 @@ fn studio_words_come_from_a_table_keyed_by_language() {
     // (short: the prompt is paid per question, this part cached)
     assert!(es.chars().count() < 900, "{} characters", es.chars().count());
     assert!(words_in("spanish").is_some());
-    assert!(words_in("English").is_none() && words_in("Portuguese").is_none() && words_in("").is_none());
+    assert!(words_in("English").is_none() && words_in("German").is_none() && words_in("").is_none());
+    // (Portuguese, Preview 6: pt-BR's own words by docs/i18n/pt-glossary.md; você, never tu)
+    let pt = words_in("Portuguese").expect("Portuguese has its words");
+    for term in ["build=compilar", "event handler=manipulador de evento", "Toolbox=Caixa de ferramentas", "Settings=Configurações", "Watch=Inspeção", "Ferramentas > Configurações", "você, never tu"] {
+        assert!(pt.contains(term), "{term} is missing from the Portuguese words");
+    }
+    assert!(pt.chars().count() < 900, "{} characters", pt.chars().count());
+    assert!(!pt.contains("ficheiro") && !pt.contains("ecrã"));
     // (what the RAI adds to the instructions is the table's)
     let h = Handle { name: "words-test".into() };
     assert_eq!(h.language_words("Spanish"), es);
