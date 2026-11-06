@@ -3,6 +3,16 @@ Noto Sans Symbols, Noto Sans Symbols 2: Copyright 2022 The Noto Project Authors 
 Noto Sans SC, Noto Sans KR (Noto Sans CJK): (c) 2014-2021 Adobe (http://www.adobe.com/)
 Noto Color Emoji: Copyright 2022 Google Inc.
 
+Modified Versions made for RapidR (Ruta Internet SRL): "RapidR Han Subset"
+(the common Simplified Chinese characters in one file) and "RapidR Han NNN"
+are cut from Noto Sans SC, "RapidR Hangul NNN" from Noto Sans KR (both Noto
+CJK Sans 2.004, (c) 2014-2021 Adobe). Glyphs were removed and the family name
+changed, nothing else: each file keeps that copyright notice, the trademark
+notice ("Noto is a trademark of Google Inc.") and the licence records, and no
+Reserved Font Name is declared. The names of the copyright holders and
+authors are used only to acknowledge their work, not to promote these fonts,
+which they have not endorsed.
+
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 https://scripts.sil.org/OFL

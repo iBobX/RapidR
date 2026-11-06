@@ -314,6 +314,110 @@ FUNCTION UITextWidth(Text AS STRING) AS INTEGER
   Result = StatusMeasure.TextWidth(REPLACESUBSTR$(Text, "&", ""))
 END FUNCTION
 
+' ---- Chinese on a computer with no font for it ---------------------------------
+' RapidR draws Chinese with the computer's own fonts and bundles none (their
+' licences allow it on the web only: docs/legal/i18n-zh-font.md). A Linux
+' with no CJK font shows empty boxes: Studio says so, in the language and in
+' English, and names the free package to install. It installs nothing. The
+' test: the canvas draws a character no font has as a "?", so a Chinese
+' character drawn the very same as "?" has no font. (RAPIDR_TEST_NO_CJK: the
+' note, whatever the fonts, for the tests that look at it.)
+DIM ZhProbeA AS RBitmap
+DIM ZhProbeB AS RBitmap
+
+FUNCTION ChineseFontMissing() AS INTEGER
+  DIM x AS INTEGER, y AS INTEGER
+  Result = 0
+  IF ENVIRON$("RAPIDR_TEST_NO_CJK") <> "" THEN
+    Result = 1
+    EXIT FUNCTION
+  END IF
+  ZhProbeA.Width = 20: ZhProbeA.Height = 20
+  ZhProbeB.Width = 20: ZhProbeB.Height = 20
+  ZhProbeA.FillRect 0, 0, 20, 20, 16777215
+  ZhProbeB.FillRect 0, 0, 20, 20, 16777215
+  ZhProbeA.TextOut 1, 1, "你", 0, 16777215
+  ZhProbeB.TextOut 1, 1, "?", 0, 16777215
+  FOR y = 0 TO 19
+    FOR x = 0 TO 19
+      IF ZhProbeA.Pixel(x, y) <> ZhProbeB.Pixel(x, y) THEN EXIT FUNCTION
+    NEXT
+  NEXT
+  Result = 1
+END FUNCTION
+
+' (Studio's Output, once at the start: only a Linux desktop Studio in Chinese
+' whose fonts have none for it — the web has its own font)
+SUB ChineseFontNote
+  DIM en AS STRING
+  IF LEFT$(Application.Language, 2) <> "zh" THEN EXIT SUB
+  IF ENVIRON$("RAPIDR_TEST_NO_CJK") = "" THEN
+    IF Proj.FileManager = "" OR Application.OS <> "Linux" THEN EXIT SUB
+  END IF
+  IF ChineseFontMissing() = 0 THEN EXIT SUB
+  en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
+  OutputLine en
+  OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again.")
+END SUB
+
+' ---- line breaks in Chinese, Japanese and Korean -------------------------------
+' Those scripts have no spaces between words, so a line may end between two of
+' their characters: rapidr_value::autosize::can_break_between, which wraps the
+' labels, with the same rules. The estimators of a wrapped text's height
+' (AISetLinesHigh, VerWrap; AITextHigh and AIStepsHigh in ai.inc are to
+' follow) take a word apart there with BreakUnits, as the label breaks it.
+
+' (a character of those scripts: ideographs, kana, hangul, their marks and
+' full-width forms)
+FUNCTION IsCjkChar(C AS STRING) AS INTEGER
+  DIM u AS LONG
+  Result = 0
+  IF C = "" THEN EXIT FUNCTION
+  u = ASC(C)
+  IF u < &H2E80 THEN EXIT FUNCTION
+  IF u <= &H303F THEN Result = 1: EXIT FUNCTION
+  IF u >= &H3040 AND u <= &H312F THEN Result = 1: EXIT FUNCTION
+  IF u >= &H3400 AND u <= &H4DBF THEN Result = 1: EXIT FUNCTION
+  IF u >= &H4E00 AND u <= &H9FFF THEN Result = 1: EXIT FUNCTION
+  IF u >= &HAC00 AND u <= &HD7AF THEN Result = 1: EXIT FUNCTION
+  IF u >= &HF900 AND u <= &HFAFF THEN Result = 1: EXIT FUNCTION
+  IF u >= &HFE30 AND u <= &HFE4F THEN Result = 1: EXIT FUNCTION
+  IF u >= &HFF00 AND u <= &HFFEF THEN Result = 1
+END FUNCTION
+
+' (whether a line may end between A and the B after it: one of them is of
+' those scripts, no line starts with a closing mark or ends with an opening
+' one)
+FUNCTION CanBreakBetween(A AS STRING, B AS STRING) AS INTEGER
+  Result = 0
+  IF A = " " OR B = " " THEN EXIT FUNCTION
+  IF IsCjkChar(A) = 0 AND IsCjkChar(B) = 0 THEN EXIT FUNCTION
+  IF INSTR("，。、；：？！）】》〉」』”’…—·％‰．］｝〕,.;:!?)]}%", B) > 0 THEN EXIT FUNCTION
+  IF INSTR("（【《〈「『“‘［｛〔([{", A) > 0 THEN EXIT FUNCTION
+  Result = 1
+END FUNCTION
+
+' (Wd with CHR$(1) at each place a line may end inside it: a word without
+' Chinese, Japanese or Korean comes back as it is)
+FUNCTION BreakUnits(Wd AS STRING) AS STRING
+  DIM j AS INTEGER, has AS INTEGER
+  Result = Wd
+  FOR j = 1 TO LEN(Wd)
+    IF ASC(MID$(Wd, j, 1)) >= &H2E80 THEN
+      has = 1
+      EXIT FOR
+    END IF
+  NEXT
+  IF has = 0 THEN EXIT FUNCTION
+  Result = ""
+  FOR j = 1 TO LEN(Wd)
+    IF j > 1 THEN
+      IF CanBreakBetween(MID$(Wd, j - 1, 1), MID$(Wd, j, 1)) = 1 THEN Result = Result + CHR$(1)
+    END IF
+    Result = Result + MID$(Wd, j, 1)
+  NEXT
+END FUNCTION
+
 ' Tools > Settings > General > Language: the language Studio speaks — ""
 ' the system's, "en", "es" … (StudioLanguageChanged follows, at once).
 SUB SetLanguage(Tag AS STRING)

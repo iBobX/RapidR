@@ -814,9 +814,11 @@ FUNCTION AILabelWide(Cur AS INTEGER, Text AS STRING) AS INTEGER
 END FUNCTION
 
 ' (how tall Text is, wrapped at spaces to W pixels in the dialog's font as
-' a WordWrap label wraps it; 0 for no text)
+' a WordWrap label wraps it — and between Chinese, Japanese or Korean
+' characters, BreakUnits —; 0 for no text)
 FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
   DIM lines AS INTEGER, cur AS STRING, wd AS STRING, i AS INTEGER, n AS INTEGER, t AS STRING
+  DIM um AS STRING, u AS STRING, sep AS STRING, k AS INTEGER
   Result = 0
   t = LTRIM$(RTRIM$(Text))
   IF t = "" THEN EXIT FUNCTION
@@ -824,14 +826,20 @@ FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
   n = TALLY(t, " ") + 1
   FOR i = 1 TO n
     wd = FIELD$(t, " ", i)
-    IF cur = "" THEN
-      cur = wd
-    ELSEIF AISetMeasure.TextWidth(cur + " " + wd) > W - 2 THEN
-      lines = lines + 1
-      cur = wd
-    ELSE
-      cur = cur + " " + wd
-    END IF
+    um = BreakUnits(wd)
+    sep = " "
+    FOR k = 1 TO TALLY(um, CHR$(1)) + 1
+      u = FIELD$(um, CHR$(1), k)
+      IF cur = "" THEN
+        cur = u
+      ELSEIF AISetMeasure.TextWidth(cur + sep + u) > W - 2 THEN
+        lines = lines + 1
+        cur = u
+      ELSE
+        cur = cur + sep + u
+      END IF
+      sep = ""
+    NEXT
   NEXT
   Result = lines * AISetMeasure.TextHeight(" ") + 2
 END FUNCTION

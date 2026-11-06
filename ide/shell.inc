@@ -12,9 +12,13 @@ END FUNCTION
 ' What Help > About says: the version is the build's own (the language
 ' service has it from the workspace's), not a number written here.
 FUNCTION AboutText AS STRING
-  DIM nl AS STRING
+  DIM nl AS STRING, lg AS STRING
   nl = CHR$(13) + CHR$(10)
   Result = TR$("RapidR Studio (RapidR {version})", "version", Lang.Version) + nl + TR$("BASIC is powerful again: desktop and web apps from one source.") + nl + nl + TR$("Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence.")
+  ' (the licences and notices are written in English only: said so in
+  ' any other language, where the English text is the one that applies)
+  lg = LEFT$(Application.Language, 2)
+  IF lg <> "" AND lg <> "en" THEN Result = Result + nl + TR$("Licences and notices are in English; the English text applies.")
 END FUNCTION
 
 ' (a test step: layout:size=WxH — Studio's window that big; layout:problems
@@ -586,6 +590,7 @@ SUB StartStudio
   FillProjectTree
   InspectActive
   OutputLine TR$("RapidR Studio is ready.")
+  ChineseFontNote
   LayOutWelcome
   ApplyPreview
   IF startFile <> "" THEN

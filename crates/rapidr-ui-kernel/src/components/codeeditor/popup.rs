@@ -103,6 +103,11 @@ fn completion_rects(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client:
 fn wrap(text: &str, font: &Font, width: i64) -> Vec<String> {
     let mut out = Vec::new();
     for para in text.split('\n') {
+        // (Chinese, Japanese, Korean: a line may end between two characters)
+        if para.chars().any(rapidr_value::autosize::is_cjk) {
+            out.extend(rapidr_value::autosize::wrap_line_by(para, width as f64, &mut |s| text_size(s, font).0 as f64));
+            continue;
+        }
         let mut line = String::new();
         for word in para.split(' ') {
             let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };

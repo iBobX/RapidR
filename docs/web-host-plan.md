@@ -606,7 +606,8 @@ None of these fonts declares a Reserved Font Name (LICENSES.md §4, docs/licensi
 
 **The chunks.** `python3 tools/fonts.py build target/web/fonts` (run by `tools/build_web_artifacts.sh`, fontTools, MIT) writes:
 - the three small fonts whole;
-- the CJK fonts split by codepoint into chunks of 900 characters (about 200–300 KB each), each renamed `<family> NNN` so it loads as a family of its own (fonts of one family name would be one family to fontique, which draws from the first);
+- the CJK fonts split by codepoint into chunks of 900 characters (about 200–300 KB each), each with a family name of its own, `RapidR Han NNN` / `RapidR Hangul NNN`, so it loads as a family of its own (fonts of one family name would be one family to fontique, which draws from the first; and "Noto" is not ours to use);
+- the Simplified Chinese subset `RapidR Han Subset` (fonts.toml `[subset]`: GB 2312 level 1, the Chinese catalogs' characters, punctuation; about 0.8 MB), listed before the chunks it was cut from and fetched only when the UI language is Chinese (`"for": "zh-Hans"` in the index);
 - `index.json`, saying which file has which characters, and the first font in the list keeps a character;
 - `OFL.txt`.
 

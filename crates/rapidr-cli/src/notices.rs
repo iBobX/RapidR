@@ -784,15 +784,7 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
     }
     // (the web runtime's fallback fonts: shipped beside it, fonts/)
     if matches!(kind, Kind::Web) {
-        out.push(Component {
-            name: "Noto fallback fonts (Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2, Noto Sans SC, Noto Sans KR, Noto Color Emoji)".into(),
-            version: "2.015 / 2.003 / 2.008 / CJK Sans 2.004 / emoji 2.051".into(),
-            declared: "OFL-1.1".into(),
-            used: "OFL-1.1".into(),
-            url: "https://github.com/notofonts".into(),
-            note: "Shipped beside the web runtime (fonts/) as subsets split by Unicode range, loaded as the page's text needs them; each CJK chunk is renamed \"<family> NNN\". None of these fonts declares a Reserved Font Name. The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own.".into(),
-            blocks: vec![Block { title: "Noto fonts — OFL-1.1".into(), text: NOTO_OFL.into() }],
-        });
+        out.push(web_fonts_component());
     }
     for (krate, header) in [("libsqlite3-sys", "sqlite3/sqlite3.h"), ("sqlite-wasm-rs", "sqlite3/sqlite3.h")] {
         if let Some(dir) = dir_of(krate) {
@@ -1117,6 +1109,23 @@ fn render(kind: &Kind, components: &[Component]) -> String {
     s
 }
 
+/// The fallback fonts shipped beside the web runtime (`fonts/`, made by
+/// `tools/fonts.py`): Noto fonts under the OFL, the subsets cut from them
+/// with the names of their own (docs/legal/review-2026-11-06-zh.md B-1, B-2,
+/// B-6; `python3 tools/fonts.py check` keeps this text and fonts.toml in
+/// step).
+fn web_fonts_component() -> Component {
+    Component {
+        name: "Noto fallback fonts (Noto Sans, Noto Sans Symbols, Noto Sans Symbols 2, Noto Sans SC, Noto Sans KR, Noto Color Emoji) and the subsets RapidR cut from them (RapidR Han Subset, RapidR Han, RapidR Hangul)".into(),
+        version: "2.015 / 2.003 / 2.008 / CJK Sans 2.004 / emoji 2.051".into(),
+        declared: "OFL-1.1".into(),
+        used: "OFL-1.1".into(),
+        url: "https://github.com/notofonts".into(),
+        note: "Shipped beside the web runtime (fonts/) as subsets split by Unicode range, loaded as the page's text needs them. \"RapidR Han Subset\" is a Modified Version of Noto Sans SC (Noto CJK Sans 2.004, (c) 2014-2021 Adobe): the common Simplified Chinese characters in one file, fetched only by a page whose language is Chinese; \"RapidR Han NNN\" and \"RapidR Hangul NNN\" are the chunks of Noto Sans SC and Noto Sans KR. A font cut from a Noto font has a family name of its own, written into the file, because the OFL grants no right to Google's trademark \"Noto\"; its copyright, trademark notice and licence records are kept, and this OFL text travels with it. None of these fonts declares a Reserved Font Name. The OFL lets the fonts be bundled with any software, commercial included; the fonts themselves may not be sold on their own, and RapidR offers none apart from the programs they are bundled with.".into(),
+        blocks: vec![Block { title: "Noto fonts and the subsets cut from them — OFL-1.1".into(), text: NOTO_OFL.into() }],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1124,6 +1133,19 @@ mod tests {
     fn ids(expr: &str, shipped: &[&str]) -> String {
         let shipped: BTreeSet<&str> = shipped.iter().copied().collect();
         choose(&parse_expr(expr).unwrap(), &shipped).unwrap().join(" AND ")
+    }
+
+    #[test]
+    fn the_web_notices_name_the_chinese_subset_with_its_licence() {
+        // (a web build of a Chinese program carries this: the subset's own
+        // name, Adobe's copyright, the whole OFL; no claim to the "Noto" name)
+        let c = web_fonts_component();
+        assert!(c.name.contains("RapidR Han Subset") && c.note.contains("RapidR Han Subset"), "{}", c.name);
+        assert!(c.note.contains("Modified Version") && c.note.contains("Adobe") && c.note.contains("Reserved Font Name"));
+        assert_eq!(c.used, "OFL-1.1");
+        let text = &c.blocks[0].text;
+        assert!(text.contains("(c) 2014-2021 Adobe") && text.contains("SIL OPEN FONT LICENSE Version 1.1"));
+        assert!(text.contains("RapidR Han Subset"), "OFL.txt credits the subset");
     }
 
     #[test]

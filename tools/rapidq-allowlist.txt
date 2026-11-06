@@ -51,6 +51,8 @@ ide/lang/es.po :: RapidQ programs
 # menu items, the dialog's title and its filter's name).
 ide/lang/pt-BR.po :: do RapidQ
 ide/lang/pt-BR.po :: RapidQ programs
+ide/lang/zh-Hans.po :: 导入 RapidQ
+ide/lang/zh-Hans.po :: RapidQ 程序
 ide/lang/zh-Hans.po :: RapidQ programs
 # Studio's own component for the importer (Studio.ImportRapidQ's description).
 crates/rapidr-lang/data/components/studio.toml :: Imports a RapidQ program

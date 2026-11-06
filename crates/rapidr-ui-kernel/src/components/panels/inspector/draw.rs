@@ -166,6 +166,18 @@ pub fn footer(p: &mut Painter, r: Rect, m: &Inspector, rows: &[Row], c: &Ctx) {
 fn wrapped(p: &mut Painter, r: Rect, text: &str, font: &Font, color: u32, lines: usize) {
     let (x, y, w, _) = r;
     let lh = text_size("Ag", font).1.max(1);
+    // (Chinese, Japanese, Korean: a line may end between two characters)
+    if text.chars().any(rapidr_value::autosize::is_cjk) {
+        let mut all = rapidr_value::autosize::wrap_line_by(text, w as f64, &mut |s| text_size(s, font).0 as f64);
+        if all.len() > lines && lines > 0 {
+            let rest = all.split_off(lines - 1).concat();
+            all.push(common::elide(&rest, font, w));
+        }
+        for (i, line) in all.iter().enumerate() {
+            p.text((x, y + i as i64 * lh, w, lh), line, font, color, Place::Left);
+        }
+        return;
+    }
     let mut out: Vec<String> = Vec::new();
     let mut cur = String::new();
     let words: Vec<&str> = text.split_whitespace().collect();

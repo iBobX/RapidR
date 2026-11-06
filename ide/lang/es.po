@@ -1737,6 +1737,16 @@ msgstr "Los modelos de DeepSeek cuestan una fracción de centavo por pregunta. D
 
 # legal
 #: ide/aisetup.inc
+msgid "Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send."
+msgstr "Envía solo lo que puedas enviar: los datos personales de otras personas, el código de un empleador o las tareas escolares pueden no ser tuyos para enviar."
+
+# legal
+#: ide/aisetup.inc
+msgid "A provider may not offer its service where you live, and its servers may be in another country: check its terms."
+msgstr "Un proveedor puede ofrecer su servicio solo en ciertos países, y sus servidores pueden estar en otro país: revisa sus términos."
+
+# legal
+#: ide/aisetup.inc
 msgid "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
 msgstr "Le pagas al proveedor por lo que usas. Lo que envías —incluido, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a él, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto. Los servicios en la nube son para personas adultas: si tienes menos de 18 años, pide a un padre, una madre o un docente que cree la clave."
 
@@ -6378,6 +6388,11 @@ msgstr "BASIC vuelve a ser potente: aplicaciones de escritorio y web desde un so
 #, review
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 msgstr "Copyright (c) 2025-2026 Ruta Internet SRL. Licencia MIT."
+
+# legal
+#: ide/shell.inc
+msgid "Licences and notices are in English; the English text applies."
+msgstr "Las licencias y los avisos están en inglés; se aplica el texto en inglés."
 
 #: ide/shell.inc
 msgid "Save As"

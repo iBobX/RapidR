@@ -69,7 +69,7 @@ END SUB
 FUNCTION PaletteCategory(Cat AS STRING) AS STRING
   DIM m AS INTEGER
   m = MenuIndex(Cat)
-  IF m >= 0 THEN Result = REPLACESUBSTR$(MI(m).Caption, "&", "") ELSE Result = TR$(Cat)
+  IF m >= 0 THEN Result = NoMnemonic(MI(m).Caption) ELSE Result = TR$(Cat)
 END FUNCTION
 
 SUB FillPalette

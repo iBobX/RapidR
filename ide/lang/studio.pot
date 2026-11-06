@@ -1664,6 +1664,14 @@ msgid "You pay the provider for what you use. What you send — including, while
 msgstr ""
 
 #: ide/aisetup.inc
+msgid "Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A provider may not offer its service where you live, and its servers may be in another country: check its terms."
+msgstr ""
+
+#: ide/aisetup.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows."
 msgstr ""
 
@@ -1953,6 +1961,10 @@ msgstr ""
 
 #: ide/chrome.inc ide/editor.inc
 msgid "Ln {line}, Col {col}"
+msgstr ""
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
 msgstr ""
 
 #: ide/commands.inc
@@ -6202,6 +6214,10 @@ msgstr ""
 
 #: ide/shell.inc
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+msgstr ""
+
+#: ide/shell.inc
+msgid "Licences and notices are in English; the English text applies."
 msgstr ""
 
 #: ide/shell.inc

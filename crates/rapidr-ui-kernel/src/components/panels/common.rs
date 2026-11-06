@@ -557,6 +557,20 @@ mod tests {
     }
 
     #[test]
+    fn chinese_wraps_between_characters() {
+        let f = Font { name: "Arial".into(), size: 10, color: 0, styles: 0 };
+        let text = "这是一段很长的中文说明没有空格所以只能在汉字之间换行，句末的标点不会出现在行首。";
+        let lines = wrap_words(text, &f, 120);
+        assert!(lines.len() > 1, "{lines:?}");
+        assert_eq!(lines.concat(), text);
+        // (no line starts with a closing mark, none is wider than the space)
+        assert!(lines.iter().all(|l| !l.starts_with('，') && !l.starts_with('。')), "{lines:?}");
+        assert!(lines.iter().all(|l| text_size(l, &f).0 <= 120), "{lines:?}");
+        // (Latin text wraps at its spaces as before)
+        assert_eq!(wrap_words("alpha beta", &f, 10), ["alpha", "beta"]);
+    }
+
+    #[test]
     fn text_is_cut_to_fit() {
         let f = Font { name: "Arial".into(), size: 10, color: 0, styles: 0 };
         assert_eq!(elide("Caption", &f, 1000), "Caption");
@@ -570,6 +584,12 @@ mod tests {
 pub fn wrap_words(text: &str, font: &Font, w: i64) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     for para in text.split('\n') {
+        // (Chinese, Japanese, Korean: no spaces between words, so a line may
+        // end between two characters)
+        if para.chars().any(rapidr_value::autosize::is_cjk) {
+            lines.extend(rapidr_value::autosize::wrap_line_by(para, w as f64, &mut |s| rapidr_value::objects::text::text_size(s, font).0 as f64));
+            continue;
+        }
         let mut cur = String::new();
         for word in para.split_whitespace() {
             let next = if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };

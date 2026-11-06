@@ -41,12 +41,26 @@ FUNCTION CmdIndex(Id AS STRING) AS INTEGER
 END FUNCTION
 
 ' A title as text, in Studio's language: no "&", no "..." (a translation
-' keeps the three dots: docs/i18n/glossary-es.md).
+' keeps the three dots: docs/i18n/glossary-es.md). Chinese has no letter of
+' its words to underline, so it writes the mnemonic after them, "(&S)", as
+' Windows does: a tip or a palette line leaves out all four characters.
 FUNCTION PlainTitle(Title AS STRING) AS STRING
   DIM t AS STRING
-  t = REPLACESUBSTR$(TR$(Title), "&", "")
+  t = NoMnemonic(TR$(Title))
   IF RIGHT$(t, 3) = "..." THEN t = LEFT$(t, LEN(t) - 3)
   Result = t
+END FUNCTION
+
+' A caption without its mnemonic: its "&", and Chinese's "(&S)" whole.
+FUNCTION NoMnemonic(Caption AS STRING) AS STRING
+  DIM t AS STRING
+  DIM p AS INTEGER
+  t = Caption
+  p = INSTR(t, "(&")
+  IF p > 0 THEN
+    IF MID$(t, p + 3, 1) = ")" THEN t = LEFT$(t, p - 1) + MID$(t, p + 4)
+  END IF
+  Result = REPLACESUBSTR$(t, "&", "")
 END FUNCTION
 
 ' The key a command answers to, as the user reads it.

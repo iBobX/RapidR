@@ -16,8 +16,9 @@ The fonts RapidR draws text with are credited there too (§4). They are
 the Liberation fonts, Inter and JetBrains Mono (RapidR's UI and code faces),
 and the Noto fallback fonts (Noto Sans, Noto Sans
 Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
-License 1.1. The Noto fonts' chunks ship beside the web runtime with
-their `OFL.txt`.
+License 1.1. The Noto fonts' chunks, and "RapidR Han Subset" (the common
+Simplified Chinese characters, a Modified Version of Noto Sans SC under a
+family name of its own), ship beside the web runtime with their `OFL.txt`.
 
 **697 libraries** under 24 license expressions.
 
