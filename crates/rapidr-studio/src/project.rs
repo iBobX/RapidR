@@ -304,6 +304,13 @@ pub fn program_files(program: &str, list: &dyn Fn(&str) -> Vec<String>) -> Resul
         if rel.eq_ignore_ascii_case(&main) {
             return Some((main.clone(), main_text.clone()));
         }
+        // (only files in its folder go to a browser's program: an
+        // `$INCLUDE "..\x.inc"` — RapidQ's rule, which the desktop keeps —
+        // or an absolute name isn't read for it;
+        // docs/security/audit-2026-11-05-web.md SEC-37)
+        if !inside_folder(rel) {
+            return None;
+        }
         read_project_file(&folder, rel)
     };
     let project = rapidr_project::implicit_from_resolver(&main, &resolve);
@@ -393,6 +400,13 @@ fn is_link(path: &str) -> bool {
 /// Project file `rel` of `folder` — its names in any case, as `$INCLUDE`
 /// finds it (`Inc\MyLib.INC` → `inc/mylib.inc`) — : its project path as
 /// the files name it, and its text.
+/// Whether project path `rel` stays in the project's folder: no `..` out of
+/// it, not absolute, no drive.
+fn inside_folder(rel: &str) -> bool {
+    let n = rapidr_project::normalize_path(rel);
+    !(n.is_empty() || n == ".." || n.starts_with("../") || n.starts_with('/') || n.contains(':'))
+}
+
 fn read_project_file(folder: &str, rel: &str) -> Option<(String, String)> {
     if let Ok(t) = read_text(&join(folder, rel)) {
         return Some((rel.to_string(), t));

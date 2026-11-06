@@ -88,6 +88,9 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  // (let the page run `?do=` — SEC-35 —, on Studio's ordinary runtime, so
+  // the browser's copy of Studio's files is kept: what this tests)
+  await page.addInitScript(() => { if (window === window.top) window.RAPIDR_STUDIO_ALLOW_DO = true; });
   const doSteps = `ai:on,ai:provider=compatible,ai:base=${MOCK_URL},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait`;
   const q = new URLSearchParams({ theme: "rapidr-light", fresh: "", window: "normal", do: doSteps });
   await page.goto(`${STUDIO_URL}/index.html?${q}`, { waitUntil: "load" });

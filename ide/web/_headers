@@ -6,6 +6,14 @@
 # No CORS: run.html, the program's sandboxed frame, gets the runtime from
 # Studio by message, never by fetching it. No Cross-Origin-Resource-Policy:
 # that frame's opaque origin loads the program's pictures from here.
+#
+# run.html: only Studio's own page may frame it. runtime/rapidr-webview.html,
+# the frame an RWEBVIEW's Html runs in, can't say that (its frame-ancestors
+# would have to match run.html, which is at an opaque origin, and no source
+# can): it is always sandboxed instead, at an opaque origin whoever frames
+# it, so what runs in it never reaches Studio's storage
+# (docs/security/audit-2026-11-05-web.md SEC-34). Nothing limits its Html
+# beyond what run.html's own sandbox already does.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -14,3 +22,7 @@
   Content-Security-Policy: frame-ancestors 'self'
 /index.html
   Content-Security-Policy: frame-ancestors 'self'
+/run.html
+  Content-Security-Policy: frame-ancestors 'self'
+/runtime/rapidr-webview.html
+  Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads

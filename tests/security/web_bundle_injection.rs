@@ -167,12 +167,38 @@ fn security_sec15_every_page_has_a_policy() {
     assert!(!csp.contains("'unsafe-eval'") && !csp.contains("script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'"), "{csp}");
     // (RDOM: pictures from the web in its markup, never scripts)
     assert!(csp.contains("img-src 'self' data: blob: https:"), "{csp}");
-    // The hosts' files say the same, with frame-ancestors, on the page only.
+    // The hosts' files say the same, with frame-ancestors, on the page.
     let headers = text(&files, "_headers");
     assert!(headers.contains("/index.html\n  Content-Security-Policy: ") && headers.contains("frame-ancestors 'self'"), "{headers}");
     assert!(headers.contains("X-Content-Type-Options: nosniff"), "{headers}");
     let htaccess = text(&files, ".htaccess");
     assert!(htaccess.contains("<Files \"index.html\">") && !htaccess.contains("Access-Control-Allow-Origin"), "{htaccess}");
+}
+
+/// SEC-34 (docs/security/audit-2026-11-05-web.md): the RWEBVIEW frame file
+/// ships in every bundle, so the hosts' files give it its own policy —
+/// framing only (no other site frames it), never the page's (which would
+/// stop its script and the Html it runs).
+#[test]
+fn security_sec34_the_webview_frame_has_its_own_policy() {
+    let files = bundle("demo", &HashMap::new(), &WebNeeds::scan("CREATE W AS RWEBVIEW\nEND CREATE\n"));
+    assert!(files.contains_key(WEBVIEW_FRAME_FILE));
+    let headers = text(&files, "_headers");
+    assert!(headers.contains(&format!("/{WEBVIEW_FRAME_FILE}\n  Content-Security-Policy: frame-ancestors 'self'\n")), "{headers}");
+    let htaccess = text(&files, ".htaccess");
+    assert!(htaccess.contains(&format!("<Files \"{WEBVIEW_FRAME_FILE}\">\n    Header always set Content-Security-Policy \"frame-ancestors 'self'\"\n  </Files>")), "{htaccess}");
+    assert_eq!(WEBVIEW_FRAME_POLICY, "frame-ancestors 'self'");
+    // (its rules aren't the page's: nothing limits the Html it runs)
+    let frame_rule = headers.split(&format!("/{WEBVIEW_FRAME_FILE}\n")).nth(1).unwrap_or("");
+    assert!(!frame_rule.contains("script-src") && !frame_rule.contains("default-src"), "{headers}");
+    // The file itself takes its Html only from its own site, or opaque from
+    // opaque, and has no <meta> policy (document.write would keep it).
+    let frame = text(&files, WEBVIEW_FRAME_FILE);
+    assert!(frame.contains("e.origin !== location.origin") && !frame.contains("http-equiv"), "{frame}");
+    // A native web build's site has the same files.
+    let site = native_site_files("demo", "demo", &HashMap::new(), &WebNeeds::default(), "");
+    let site_headers = &site.iter().find(|(n, _)| n == "_headers").expect("_headers").1;
+    assert!(site_headers.contains(&format!("/{WEBVIEW_FRAME_FILE}\n  Content-Security-Policy: {WEBVIEW_FRAME_POLICY}")), "{site_headers}");
 }
 
 #[test]
