@@ -1223,7 +1223,56 @@ included, a snapshot 1.0 s.
 
 ### Before and after
 
-TABLE
+RapidR Studio on the headless host (`tools/bench/ui/studio_caret.py` with
+the new `RAPIDR_TEST_BUSY`: the UI thread's own busy stretches and CPU),
+release builds of this lane's first commit (the measuring hook only) and of
+its work, run back to back on the same Mac (shared with other lanes: load
+average 15–70 while these ran). "Longest" is the longest the UI thread
+stayed busy at once after the scenario started: what a key pressed at that
+moment waits for. The programs: the generated 5,000-line program; the same
+with RapidQ's `rapidq2.inc` and `windows.inc` included (8,501 + 17,832
+lines; local copies, never in the repository); `windows.inc` itself; the
+5,000 lines with 2,000 statements in error (2,000 problems).
+
+| Scenario | longest, before | longest, after | the UI thread's CPU, before → after |
+|---|--:|--:|--:|
+| an edit round (a letter typed and taken back, a pause), 5,000 lines | 75–100 ms | **5.4–7.0 ms** | 40–52 → 9–35 ms a round |
+| a caret move, 5,000 lines | 15–107 ms | **4.6 ms** | |
+| typing 30 letters and spaces, 5,000 lines | 891 ms | **16.9 ms** | 74 → 2.1 ms a key |
+| an edit round, with RapidQ's big includes | 84–217 ms | **6.7 ms** | 76–78 ms → (below the noise of the two runs' difference) |
+| typing, with RapidQ's big includes | 7,081 ms | **13.2 ms** | 494 → 8.8 ms a key |
+| an edit round in `windows.inc` (17.8 k lines, 6,085 outline items) | 651–1,602 ms | **15.0 ms** | 345–2,234 → 46–56 ms a round |
+| typing in `windows.inc` | 2,654 ms | **14.1 ms** | 186 → 2.5 ms a key |
+| an edit round with 2,000 problems | 783–806 ms | **6.3 ms** | 806 → 20 ms a round |
+| opening `windows.inc` (Studio's start included; the whole process's CPU) | 3.6–4.5 s | **2.1–2.2 s** | |
+| opening the program with 2,000 problems (the same) | 4.2 s | **1.6 s** | |
+
+The "after" column is the lane's final build for the typing rows, the
+2,000 problems and `windows.inc`'s edit round, and the first working
+build (the analysis off the UI thread, before the fixes found while typing)
+for the other rows — the later fixes only take more away. The whole
+process's CPU (the worker included) per edit round fell too, in the
+5,000-line program 39–52 → 21–38 ms: one parse and one compile per version
+instead of two.
+
+The web Studio (headless Chromium, the page's main thread per animation
+frame, `tests/results/bench/web_edit_pause.mjs`, before and after built the
+same way and run back to back): during an edit round's pause in the
+5,000-line program the longest frame was 45–50 ms before, **24–25 ms**
+after (the longest step: the parse and names of the program), p95 1.3–1.9
+→ 0.8 ms; a key 24–25 ms both (its frame's CPU-drawn pixels).
+
+`codeeditor_bench --service --lines 5000` (typing with the service, no
+pause in it): key → display list p99 4.2 ms, key → pixels p99 8.6 ms,
+the same before and after on a quiet machine. The 21 ms of the audit was
+the machine's load on the CPU renderer's pixels; the bench never pauses,
+so the analysis was never in it.
+
+`analysis_bench` (`crates/rapidr-langsvc/examples/`), what one analysis
+costs the worker now: the 5,000-line program a snapshot 64 ms, its
+compiler's checks 59 ms (made once per version); with RapidQ's big
+includes a snapshot 1.0 s — the squiggles come that long after a pause
+there, the UI never waiting for them.
 
 ### Tests
 
