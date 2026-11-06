@@ -16,7 +16,7 @@ use gix::refs::Target;
 use gix::ObjectId;
 
 use crate::history::Entry;
-use crate::{checkout, edit_ref, fail, open_options, owned_by_me, BringInto, Ctx, ErrorKind, Person, Result, Versions};
+use crate::{checkout, confine, edit_ref, fail, open_options, owned_by_me, BringInto, Ctx, ErrorKind, Person, Result, Versions, SHARED_OUTSIDE};
 
 /// What sharing with a folder did.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,6 +64,9 @@ fn open_shared(bare: &Path, writing: bool) -> Result<gix::Repository> {
     if !remote.is_bare() {
         return fail(ErrorKind::NotAProject, "That folder is a project, not a shared folder of versions: share through a shared folder (Create shared folder).");
     }
+    // (its own versions only: no commondir, alternates or links that read
+    // or write elsewhere — the folder may be anyone's, SEC-31)
+    confine(&remote, bare, SHARED_OUTSIDE)?;
     if writing && !owned_by_me(bare) {
         return fail(ErrorKind::NotYours, "That shared folder belongs to another user account on this computer, so RapidR won't write into it. You can still get the latest from it.");
     }

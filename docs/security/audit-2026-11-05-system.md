@@ -25,9 +25,9 @@ IDs continue the `SEC-` series (last used SEC-30).
 
 | ID | Severity | Area | One line |
 |---|---|---|---|
-| SEC-31 | **High** | Versions (gitoxide) | A planted `.git/config` `core.worktree` makes Versions read and write files **outside** the opened project folder — opening the project is enough; one normal Versions action exfiltrates or overwrites outside files |
-| SEC-32 | Medium | Versions (gitoxide) | "Get latest from a folder" copies and checks out commits from an **untrusted** shared folder into the project worktree; crafted trees (symlink entries, mode bits) are written by gitoxide's checkout with no RapidR-side confinement — needs verifying before Preview 6's clone/sync |
-| SEC-33 | Low | Project loading | A planted `.rrproj` may set `main`, `icon`, `output` and `run.args` to absolute or `..` paths (`normalize_path` keeps them); opening is inert, but Run/Build then act on a file outside the project (still behind the download-quarantine prompt) |
+| SEC-31 | **High** | Versions (gitoxide) | A planted `.git/config` `core.worktree` makes Versions read and write files **outside** the opened project folder — opening the project is enough; one normal Versions action exfiltrates or overwrites outside files. **Fixed in `52b15a4b`** |
+| SEC-32 | Medium | Versions (gitoxide) | "Get latest from a folder" copies and checks out commits from an **untrusted** shared folder into the project worktree; crafted trees (symlink entries, mode bits) are written by gitoxide's checkout with no RapidR-side confinement — needs verifying before Preview 6's clone/sync. **Fixed in `0e632c98`** (gitoxide guards writing through a link; RapidR now refuses links leading out and removing through one) |
+| SEC-33 | Low | Project loading | A planted `.rrproj` may set `main`, `icon`, `output` and `run.args` to absolute or `..` paths (`normalize_path` keeps them); opening is inert, but Run/Build then act on a file outside the project (still behind the download-quarantine prompt). **Fixed in `ab5b3133`** |
 
 Nothing Critical. **SEC-31 should block Preview 6** unless fixed: Preview 6 adds
 GitHub publish / clone / sync (versions-plan G6), which makes opening someone
@@ -110,6 +110,56 @@ returned `["secret.txt"]`.
   override is denied by `isolated()`), so the post-open check is the pragmatic
   guard.
 
+**Fixed in `52b15a4b`** (SEC-FIX-SYSTEM, 2026-11-05).
+- `rapidr-vcs` `confine` (lib.rs), run at every open (`Versions::open`,
+  `open_read_only`, `start` — which opens an existing `.git` — and the shared
+  folder of Share / Get latest) before anything is read: the working folder
+  must canonicalise to the opened folder itself; the history must be the
+  folder's own `.git` (a real folder: a `.git` file `gitdir: …` or a `.git`
+  link is refused, a dangling one too, so Start never creates a history
+  through it); no `commondir` redirect; the index at `.git/index` (a planted
+  `gitoxide.core.indexFile` is refused); no `objects/info/alternates`; no
+  link inside `.git` that leads out or nowhere (reflogs and
+  `rapidr/history.jsonl` are appended to; ref and object folders written into).
+  Refused as `ErrorKind::OutsideFolder` with `HISTORY_OUTSIDE` /
+  `SHARED_OUTSIDE`, the finding in `Error::detail`.
+- `neutralize_programs` also strips, in memory: `core.worktree`,
+  `core.excludesFile`, `core.attributesFile` (read from anywhere: a FIFO
+  would hang a status), `core.protectNTFS` / `protectHFS` and
+  `gitoxide.core.protectWindows` (back to gitoxide's defaults, so a checkout
+  still refuses `.git` look-alikes and `..\x`), `gitoxide.core.indexFile` /
+  `shallowFile`, `gitoxide.ssh.commandWithoutShellFallback` (a program),
+  `diff.external`, the `include` / `includeIf` / `mailmap` / `url`
+  sections, and `http.*` files, cookies, proxy and `sslVerify` (lane G6).
+  `include.path` was already never followed (`isolated()`): tested.
+- `write_ignore_file` never writes through a `.gitignore` link
+  (`IGNORE_LINK`); What changed? and the secret scan read a link as where it
+  points, never the file it points at.
+- Studio: RRepository's new `Blocked` (set by Folder / Refresh, every method
+  refusing the same, ErrorKind `"outside-folder"`); the Versions pane shows
+  *Versions are off for this project* with the reason and a warning icon, no
+  Start button, and Output says it once (and a screen reader hears it). EN +
+  ES through the i18n tools; manual `versions.md` (EN + ES), the
+  registry docs, `examples/studio/versions.rr`.
+- Tests: `crates/rapidr-vcs/tests/security_worktree_escape.rs` (the PoC's two
+  tests un-ignored, now asserting the refusal, plus 12: a relative worktree,
+  a worktree naming the project itself still opens, `.git` file / link /
+  dangling link, commondir, indexFile, alternates, links in `.git` (history,
+  reflog, an objects folder; one inside `.git` still opens), an include not
+  followed, a planted excludesFile not read, a shared folder's alternates,
+  a `.gitignore` link, What changed? on a link); `src/tests.rs`
+  `a_planted_protect_ntfs_off_is_stripped`;
+  `crates/rapidr-studio/src/repository.rs`
+  `a_history_pointing_outside_the_folder_is_blocked`,
+  `the_outside_folder_words_are_rapidr_vcs_s`. Mutation-checked: without
+  the stripping, the excludesFile and protectNTFS tests fail. Studio itself,
+  driven by its test hooks: `tests/studio_flows.mjs` `versions-blocked`
+  (light, dark, high contrast; contrast AA; the Local History button to a
+  screen reader) and `versions-blocked-es`; the manual's picture
+  `images/versions/studio-blocked.png` (`tools/manual/scenes/versions.mjs`).
+  A RapidR program reading `Repo.Blocked` / `ErrorKind` on such a folder was
+  run too.
+
 ---
 
 ### SEC-32 — Medium — Versions: "Get latest" checks out untrusted commits with no RapidR-side confinement
@@ -154,6 +204,35 @@ folder into a routine action.
   symlink entries whose target leaves the worktree (as the archive component
   does), before checkout.
 
+**Fixed in `0e632c98`** (SEC-FIX-SYSTEM, 2026-11-05). Verified first, with the PoC
+`crates/rapidr-vcs/tests/security_links.rs`:
+- **Writing through a link: gitoxide already guards it.** Its checkout opens
+  every file with no-follow and, for a folder of the path that is a link,
+  `create_leading_directory` replaces the link by a real folder (or errors);
+  links are created last. The audit's two-step (`a` a link, then `a/x`) and a
+  link planted in the folder before Go back / Get latest write nothing
+  outside: kept as proof (`a_link_already_in_the_folder_is_never_written_through`,
+  `get_latest_of_a_later_file_under_the_link_writes_nothing_outside`, both
+  green without RapidR's guard too).
+- **Creating a link that leads out: gitoxide does it** (any target). Added
+  `checkout::check_links`: every link a checkout writes must resolve inside
+  the project — absolute targets, `..` climbing out, and chains through the
+  folder's other links (`d -> .` then `x -> d/..`) are refused; a `..` after
+  a name that isn't a real folder yet is refused too (a later link could make
+  it lead out); when a checkout writes a link, the links it keeps are checked
+  again. Checked before anything is written, and before Go back / Go back for
+  a file / Undo save a version or move a reference (`check_switch`,
+  `check_restore`): `ErrorKind::OutsideFolder`, "This version has a link, …,
+  that points outside the project's folder (…), so Versions won't write it.
+  Nothing was changed." (EN + ES). Links inside the project keep working.
+- **Removing through a link: RapidR's own `remove_file` followed it** (found
+  by the PoC: restoring `d/x` with `d` a link to the victim's folder deleted
+  the victim's `x`). It now removes nothing when a folder of the path isn't
+  a real folder of the project.
+- Mutation-checked: without the two guards, four of the seven tests fail
+  (Get latest and Go back create the escaping link; the victim's file is
+  removed).
+
 ---
 
 ### SEC-33 — Low — A planted `.rrproj` can name files outside the project
@@ -174,6 +253,35 @@ running a program the user chose to open is by design.
 folder) a `main` / `icon` / `output` that is absolute or climbs out with `..`,
 so a project cannot point Studio's Run/Build at a file the user never saw in the
 tree. Low priority; mostly defence in depth.
+
+**Fixed in `ab5b3133`** (SEC-FIX-SYSTEM, 2026-11-05).
+- `rapidr-project`: `names_outside` (absolute — `/x`, `C:\x`, `\\server`, a
+  `:` — or climbing out with `..`), `Project::outside_settings`,
+  `Project::set_aside_outside`: `main`, `[build] icon` and `output` naming a
+  place outside are set aside (the project's first program file, RapidR's
+  icon, `build`) unless this computer's user chose that value for that
+  project; a project's own relative paths are untouched.
+- Who chose: Studio's Save records the outside settings the project has then
+  (Open set aside the others, so they are the user's — set in Studio) in
+  Studio's own folder (`outside-settings.txt`, never the project's: a project
+  can't approve itself). RProject's Open sets aside and says so in its new
+  `Warning`; Studio prints it in Output and tells a screen reader.
+  `rapidr build` (package.rs `project_for`) does the same, with a
+  `Warning:` line, so a build Studio starts and one from the command line
+  agree.
+- `run.args`: only told ("The arguments Run gives the program name places
+  outside the project's folder: …"), not set aside — they are data the
+  project's own program gets when the user runs it; they can't make Run or
+  Build act on a file the program couldn't. `run.cwd` is read by nothing
+  today (checked), so it isn't touched.
+- Tests: `rapidr-project` `settings_outside_the_folder_are_set_aside`;
+  `rapidr-studio` `open_sets_aside_settings_outside_the_folder` (Open, what
+  Build would be given, Save makes a value the user's, a project's own paths,
+  Spanish); `tests/studio_flows.mjs` `project-outside-settings` (Studio
+  opening such a project: the main file is the project's own, Output says
+  what was set aside); `rapidr build` of such a project run by hand: the
+  `Warning:` line, the app in the project's `build`, nothing written
+  outside. Manual `studio-projects.md` (EN + ES), the registry docs.
 
 ---
 
@@ -283,7 +391,7 @@ gitoxide runs no hooks and never shells out (local transport is refused — the
 objects are copied in-process, `folders.rs`); a folder owned by another account
 is refused for changes (`NotYours`) and only opened read-only; `git` is run only
 in a test (`repository.rs:887`, `#[cfg(test)]`). The secret scan runs before a
-save. The two gaps are SEC-31 (`core.worktree`) and SEC-32 (untrusted checkout).
+save. The two gaps are SEC-31 (`core.worktree`) and SEC-32 (untrusted checkout), both fixed (§1).
 
 ## 3. Note for the fix pass
 
@@ -297,3 +405,15 @@ save. The two gaps are SEC-31 (`core.worktree`) and SEC-32 (untrusted checkout).
   project folder.
 - No secret value appears in this document; the PoC uses only temp folders and
   placeholder data.
+
+## 4. The fix pass (SEC-FIX-SYSTEM, 2026-11-05)
+
+SEC-31 fixed in `52b15a4b`, SEC-32 in `0e632c98`, SEC-33 in `ab5b3133` (what each did is under
+its finding). Tests run: `cargo test -p rapidr-vcs -p rapidr-project -p rapidr-studio
+-p rapidr-cli` (the PoCs un-ignored and green), `rapidr i18n runtime --check` /
+`studio --check`, `rapidr lang export --all`, the doc-link, words and secrets checks,
+and `tests/studio_flows.mjs` versions-blocked, versions-blocked-es,
+project-outside-settings, versions-empty, versions-first on the desktop. Not run: the
+whole `tools/regress.sh` (web, visual gallery). Left for lane G6 (clone / sync / GitHub): the same
+`confine` runs on every repository Versions opens, so a clone is checked as it opens;
+what G6 adds over the network (a remote's URL, credentials) is its own review.

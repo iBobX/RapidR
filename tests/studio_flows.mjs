@@ -7008,6 +7008,61 @@ const CASES = [
     dump: { "versub.caption": /^Hello$/, "veremptytitle.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verstartbtn.primary": /^(1|-1|True)$/i, "verstartbtn.accessiblename": /^Start keeping versions of this project$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO, "verbranch.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
     webDump: { "veremptytitle.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
   },
+  // (SEC-31: a project that came with a `.git` whose config moves its
+  // working folder outside it — planted here by hand, an empty history
+  // whose core.worktree names a private folder beside the project. Opening
+  // it reads nothing of it: the pane says Versions are off and why, no
+  // Start, Output says it once; the private folder isn't listed.)
+  {
+    name: "versions-blocked",
+    ...V_OPEN,
+    fsck: false,
+    desktopOnly: true,
+    prepare: (p) => {
+      const outside = join(dirname(p), "private");
+      mkdirSync(outside, { recursive: true });
+      writeFileSync(join(outside, "secret.txt"), "private\n");
+      mkdirSync(join(p, ".git", "objects"), { recursive: true });
+      mkdirSync(join(p, ".git", "refs", "heads"), { recursive: true });
+      writeFileSync(join(p, ".git", "HEAD"), "ref: refs/heads/main\n");
+      writeFileSync(join(p, ".git", "config"), `[core]\n\trepositoryformatversion = 0\n\tbare = false\n\tworktree = ${outside}\n`);
+    },
+    do: "versions.pane",
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Local History...", "button"]],
+    dump: {
+      "repo.versioned": NO,
+      "repo.blocked": /^This project's version history points outside its folder, so Versions won't use it/,
+      "repo.changes": /^$/,
+      "veremptytitle.caption": /^Versions are off for this project$/,
+      "veremptytext.caption": /points outside its folder/,
+      "verstartbtn.visible": /^0$/,
+      "verlocalbtn.visible": /^1$/,
+      "outputbox.text": /Versions are off for this project: This project's version history points outside its folder/,
+    },
+  },
+  // (SEC-33: a project file naming places outside its folder — a main file,
+  // an icon, Build's output folder, an argument: set aside as it opens, and
+  // said in Output; the project's own main.rr is the main file)
+  {
+    name: "project-outside-settings",
+    ...V_OPEN,
+    fsck: false,
+    desktopOnly: true,
+    prepare: (p) => writeFileSync(join(p, "Hello.rrproj"), readFileSync(join(p, "Hello.rrproj"), "utf8").replace('main = "main.rr"', 'main = "../payload.rr"') + '\n[build]\nicon = "/Users/someone/.ssh/id_rsa"\noutput = "/Users/someone/.local/bin"\n\n[run]\nargs = ["/etc/passwd"]\n'),
+    do: "versions.pane",
+    delay: 4,
+    dump: {
+      "proj.mainfile": /^main\.rr$/,
+      "proj.icon": /^$/,
+      "proj.outputfolder": /^$/,
+      "proj.warning": /^This project's settings name places outside its folder, so RapidR doesn't use them: the main file \(\.\.\/payload\.rr\); the app's icon \(\/Users\/someone\/\.ssh\/id_rsa\); Build's output folder \(\/Users\/someone\/\.local\/bin\)\./,
+      "outputbox.text": /This project's settings name places outside its folder[\s\S]*The arguments Run gives the program name places outside the project's folder: \/etc\/passwd\./,
+    },
+  },
   {
     name: "versions-first",
     ...V_OPEN,
@@ -7416,6 +7471,29 @@ const CASES = [
     capture: true,
     dump: { "veremptytitle.caption": /^Aún no hay versiones$|^Todavía no hay versiones$|^No hay versiones/, "verstartbtn.caption": /^&Empezar a guardar versiones/, "outputbox.text": /\[versions\] problems=0/ },
     webDump: { "veremptytitle.caption": /^No disponible en un navegador$/, "verstartbtn.visible": /^0$/ },
+  },
+  // (SEC-31 in Spanish: the pane's and Output's words)
+  {
+    name: "versions-blocked-es",
+    ...V_OPEN,
+    fsck: false,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    prepare: (p) => {
+      mkdirSync(join(p, ".git", "objects"), { recursive: true });
+      mkdirSync(join(p, ".git", "refs", "heads"), { recursive: true });
+      writeFileSync(join(p, ".git", "HEAD"), "ref: refs/heads/main\n");
+      writeFileSync(join(p, ".git", "config"), `[core]\n\trepositoryformatversion = 0\n\tbare = false\n\tworktree = ${dirname(p)}\n`);
+    },
+    do: "versions.pane",
+    delay: 4,
+    capture: true,
+    dump: {
+      "veremptytitle.caption": /^Versiones está desactivado para este proyecto$/,
+      "veremptytext.caption": /^El historial de versiones de este proyecto apunta fuera de su carpeta/,
+      "verstartbtn.visible": /^0$/,
+      "outputbox.text": /Versiones está desactivado para este proyecto: El historial de versiones/,
+    },
   },
   // (EXTERNAL-CHANGES) Files changed outside Studio — another AI agent, an
   // editor, git — walked as a person sees it (the lane's acceptance): a

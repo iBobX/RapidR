@@ -5815,6 +5815,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Folder` (read-only) | string |  | The project's folder: its files' paths are relative to it. |
 | `Kind` (read-only) | string |  | What is open: "project" (a .rrproj), "file" (a source file and its includes), "v1" (a web IDE project, imported) or "" (nothing). |
 | `Error` (read-only) | string |  | Why the last Open, Save, New, AddFile or RemoveFile failed ("" when it worked). |
+| `Warning` (read-only) | string |  | What the last Open set aside from the project file, in plain words: a main file, icon or Build output folder naming a place outside the project's folder (absolute, or climbing out with ..) is not used — the first program file, RapidR's icon and build instead — unless this computer's user chose it (set in Studio, then the project saved); Run arguments naming such places are only told. "" when nothing was. `rapidr build` does the same. |
 | `Name` | string |  | The project's name. |
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |
@@ -6141,13 +6142,14 @@ A project's versions, in plain words (RapidR Studio's Versions pane is built on 
 | `Available` (read-only) | bool |  | True where versions can be kept (RapidR on a computer); False in a browser, where only the local history works. |
 | `Versioned` (read-only) | bool |  | True when the folder keeps versions (Start was used, here or by another Git tool). |
 | `ReadOnly` (read-only) | bool |  | True when the project's versions belong to another user account on this computer (a USB stick, another account's folder): they can be looked at, not changed. |
+| `Blocked` (read-only) | string |  | Why the folder's versions aren't used, in plain words: its version history (the .git folder) points outside the folder — a project from someone else could make Versions read or change other files that way —, so nothing of it is read and every method refuses (ErrorKind "outside-folder"). "" when they can be used. Set by Folder and Refresh. |
 | `Experiment` (read-only) | string |  | The experiment the project is on (Git calls it a branch): "main" until another is started. |
 | `ChangeCount` (read-only) | int |  | How many files differ from the last version (changed, new or removed), as the last Refresh, Folder or action found. |
 | `Changes` (read-only) | string |  | The files that differ from the last version, a line each: a letter — M changed, N new, D removed — and the path relative to Folder, separated by a tab. |
 | `Author` | string |  | Who saves the versions, by name ("": the account's name). |
 | `Email` | string |  | The email saved with each version ("" for none). |
 | `Error` (read-only) | string |  | Why the last action didn't happen, in plain words ("" when it did). |
-| `ErrorKind` (read-only) | string |  | What kind of reason Error gives: "secrets" — lines look like keys or passwords (Secrets lists them; SaveVersion with AllowSecrets saves anyway) —, "unsaved-changes" — save a version first —, "nothing-to-save", "refused" — Start won't version that folder (a drive, the home folder, a folder inside another one with versions) —, "not-available" (a browser) …; "" when the last action worked. |
+| `ErrorKind` (read-only) | string |  | What kind of reason Error gives: "secrets" — lines look like keys or passwords (Secrets lists them; SaveVersion with AllowSecrets saves anyway) —, "unsaved-changes" — save a version first —, "nothing-to-save", "refused" — Start won't version that folder (a drive, the home folder, a folder inside another one with versions) —, "outside-folder" — it would read or write outside the project's folder: its history points elsewhere (Blocked says so), or a version has a link to a place outside it —, "not-available" (a browser) …; "" when the last action worked. |
 | `Secrets` (read-only) | string |  | The lines that look like keys or passwords, from the last SaveVersion or CheckSecrets, a line each: the file, the line number, what it looks like, the line with the secret masked, separated by tabs. |
 | `CanUndo` (read-only) | string |  | What Undo would take back, in words ("Saved the version “Bigger button”"); "" when there is nothing to undo. |
 | `HistoryFolder` (read-only) | string |  | Where the local history is kept: the project's .rapidr/history folder (never part of a version). |

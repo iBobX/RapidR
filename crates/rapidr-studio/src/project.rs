@@ -46,6 +46,9 @@ struct Model {
     error: String,
     /// What the last Build made (an app or executable; "" none)
     built: String,
+    /// What Open set aside from the project file and why, in words:
+    /// settings naming places outside its folder (SEC-33); "" none.
+    warning: String,
 }
 
 thread_local! {
@@ -115,6 +118,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "folder" => Value::String(m.folder.clone().into()),
             "kind" => Value::String(m.kind.to_string().into()),
             "error" => Value::String(m.error.clone().into()),
+            "warning" => Value::String(m.warning.clone().into()),
             "name" => Value::String(m.project.name.clone().into()),
             "mainfile" => Value::String(m.project.main.clone().into()),
             "filecount" => Value::Integer(if m.kind.is_empty() { 0 } else { m.project.file_count() as i64 }),
@@ -210,7 +214,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 m.project.build.runs_on = if matches!(t.as_str(), "desktop" | "web" | "both") { t } else { "desktop".into() };
             }
             "includefolders" => set_include_folders(&v.to_string_val()),
-            "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
+            "filename" | "folder" | "kind" | "error" | "warning" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
             _ => return false,
         }
         true
@@ -433,8 +437,105 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
         }
         _ => return Err(tr_ui_fill("{path}: not a project or a source file", &[("path", &path)])),
     };
-    *m = Model { project, kind, file_name, folder, ..Model::default() };
+    let mut project = project;
+    // (SEC-33: the settings naming places outside the folder, set aside
+    // unless this computer's user chose them)
+    let warning = if kind == "file" { String::new() } else { outside_words(&set_aside_outside(&file_name, &mut project)) };
+    *m = Model { project, kind, file_name, folder, warning, ..Model::default() };
     Ok(())
+}
+
+/// SEC-33: the project settings naming places outside a project's folder
+/// that this computer's user chose — set in Studio, then the project saved
+/// — kept in Studio's own folder (never the project's: a project can't
+/// approve itself), a line each: the project file, the setting, its value,
+/// tabs between.
+fn chosen_store() -> String {
+    // (the unit tests' own file, never the user's Studio folder; `cfg!`,
+    // not the attribute: the text extractor stops at the tests' one)
+    if cfg!(test) {
+        return slashes(&std::env::temp_dir().join(format!("rapidr-outside-settings-{}.txt", std::process::id())).to_string_lossy());
+    }
+    join(&crate::recovery::studio_folder(), "outside-settings.txt")
+}
+
+/// The key a project file is known by in [`chosen_store`]: its full path,
+/// links resolved where there is a disk.
+fn project_key(file: &str) -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Ok(p) = std::fs::canonicalize(file) {
+        return slashes(&p.to_string_lossy());
+    }
+    full(file)
+}
+
+fn chosen_lines() -> Vec<String> {
+    rapidr_value::objects::read_file(&chosen_store()).map(|b| String::from_utf8_lossy(&b).lines().map(str::to_string).collect()).unwrap_or_default()
+}
+
+fn chosen_line(key: &str, o: &rapidr_project::OutsideSetting) -> String {
+    format!("{key}\t{}\t{}", o.setting, o.value.replace(['\t', '\n', '\r'], " "))
+}
+
+/// `project`'s settings outside its folder set aside, unless chosen here
+/// for the project file `file` ([`rapidr_project::Project::set_aside_outside`]):
+/// what was found. `rapidr build` does the same.
+pub fn set_aside_outside(file: &str, project: &mut Project) -> Vec<rapidr_project::OutsideSetting> {
+    if project.outside_settings().is_empty() {
+        return Vec::new();
+    }
+    let key = project_key(file);
+    let lines = chosen_lines();
+    project.set_aside_outside(&|o| lines.iter().any(|l| *l == chosen_line(&key, o)))
+}
+
+/// The settings outside the folder that `project` has now, recorded as
+/// chosen for `file` (Save: they are the user's — Open set aside any it
+/// didn't know).
+fn remember_chosen(file: &str, project: &Project) {
+    let outside: Vec<_> = project.outside_settings().into_iter().filter(|o| o.is_set_aside()).collect();
+    if outside.is_empty() {
+        return;
+    }
+    let key = project_key(file);
+    let mut lines = chosen_lines();
+    let before = lines.len();
+    for o in &outside {
+        let line = chosen_line(&key, o);
+        if !lines.contains(&line) {
+            lines.push(line);
+        }
+    }
+    if lines.len() != before {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = std::fs::create_dir_all(folder_of(&chosen_store()));
+        let _ = rapidr_value::objects::write_file(&chosen_store(), format!("{}\n", lines.join("\n")).as_bytes());
+    }
+}
+
+/// What Open (or `rapidr build`) says of the settings it set aside, in
+/// Studio's language; "" when there were none.
+pub fn outside_words(found: &[rapidr_project::OutsideSetting]) -> String {
+    let aside: Vec<String> = found
+        .iter()
+        .filter(|o| o.is_set_aside())
+        .map(|o| match o.setting {
+            "main" => tr_ui_fill("the main file ({value})", &[("value", &o.value)]),
+            "icon" => tr_ui_fill("the app's icon ({value})", &[("value", &o.value)]),
+            _ => tr_ui_fill("Build's output folder ({value})", &[("value", &o.value)]),
+        })
+        .collect();
+    let args: Vec<&str> = found.iter().filter(|o| !o.is_set_aside()).map(|o| o.value.as_str()).collect();
+    let mut words = Vec::new();
+    if !aside.is_empty() {
+        // (the text on the call's line: the extractor reads `tr_ui_fill("`)
+        let list = aside.join("; ");
+        words.push(tr_ui_fill("This project's settings name places outside its folder, so RapidR doesn't use them: {list}. A project from someone else could use them to read or write your other files. If you chose them yourself, set them again and save the project.", &[("list", &list)]));
+    }
+    if !args.is_empty() {
+        words.push(tr_ui_fill("The arguments Run gives the program name places outside the project's folder: {args}.", &[("args", &args.join(" "))]));
+    }
+    words.join(" ")
 }
 
 /// The project's files' kinds as their code on the disk (the page's store
@@ -459,6 +560,9 @@ fn save(m: &mut Model, to: &str) -> Result<(), String> {
         join(&m.folder, &format!("{}.rrproj", if m.project.name.is_empty() { "project" } else { &m.project.name }))
     };
     write_text(&file, &m.project.to_toml())?;
+    // (settings outside the folder it has now are the user's own: Open set
+    // aside the others — SEC-33)
+    remember_chosen(&file, &m.project);
     m.folder = folder_of(&file);
     m.file_name = file;
     m.kind = "project";
@@ -1200,6 +1304,66 @@ mod tests {
         fn list_files(self, folder: &str) -> Vec<String> {
             std::fs::read_dir(folder).map(|d| d.filter_map(|e| e.ok()).filter(|e| e.path().is_file()).map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default()
         }
+    }
+
+    /// SEC-33: a `.rrproj` from elsewhere naming files outside its folder:
+    /// Open sets main, icon and output aside and says so in Warning (the
+    /// arguments only told); a value the user sets in Studio and saves is
+    /// theirs, kept the next time; a project's own relative paths are
+    /// never touched.
+    #[test]
+    fn open_sets_aside_settings_outside_the_folder() {
+        let base = std::env::temp_dir().join(format!("rapidr-outside-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let _ = std::fs::remove_file(chosen_store());
+        let dir = base.join("downloaded");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("main.rr"), "PRINT 1\n").unwrap();
+        let file = slashes(&dir.join("evil.rrproj").to_string_lossy());
+        std::fs::write(
+            &file,
+            "format = 2\nname = \"evil\"\nmain = \"../payload.rr\"\n[[files]]\npath = \"main.rr\"\n[build]\nicon = \"/Users/v/.ssh/id_rsa\"\noutput = \"/Users/v/.local/bin\"\n[run]\nargs = [\"/etc/passwd\"]\n",
+        )
+        .unwrap();
+        rapidr_value::i18n::set_language("en");
+        let call = |m: &str, args: &[Value]| call(Quiet, "p_outside", m, args).unwrap();
+        let get = |p: &str| get("p_outside", p).unwrap().to_string_val();
+        assert_eq!(call("open", &[Value::String(file.clone().into())]).to_i64(), 1, "{}", get("error"));
+        assert_eq!(get("mainfile"), "main.rr");
+        assert_eq!((get("icon"), get("outputfolder")), (String::new(), String::new()));
+        let w = get("warning");
+        for part in ["outside its folder", "the main file (../payload.rr)", "the app's icon (/Users/v/.ssh/id_rsa)", "Build's output folder (/Users/v/.local/bin)", "/etc/passwd"] {
+            assert!(w.contains(part), "{part}: {w}");
+        }
+        // what Build would be given: the project's own folder only
+        let (args, _) = build_args("p_outside", "").unwrap();
+        assert!(!args.iter().any(|a| a.contains("/Users/v") || a.contains("payload")), "{args:?}");
+        // the file on disk is left as it was
+        assert!(std::fs::read_to_string(&file).unwrap().contains("../payload.rr"));
+
+        // in Studio's language
+        rapidr_value::i18n::set_language("es");
+        assert_eq!(call("open", &[Value::String(file.clone().into())]).to_i64(), 1);
+        assert!(get("warning").starts_with("La configuración de este proyecto nombra lugares fuera de su carpeta"), "{}", get("warning"));
+        rapidr_value::i18n::set_language("en");
+
+        // the user chooses an output folder outside, and saves: theirs now
+        let mine = slashes(&base.join("my-builds").to_string_lossy());
+        set("p_outside", "outputfolder", &Value::String(mine.clone().into()));
+        assert_eq!(call("save", &[]).to_i64(), 1, "{}", get("error"));
+        assert_eq!(call("open", &[Value::String(file.clone().into())]).to_i64(), 1);
+        assert_eq!(get("outputfolder"), mine);
+        assert!(!get("warning").contains("output folder"), "{}", get("warning"));
+
+        // a project's own paths: nothing set aside, nothing said
+        let own = slashes(&base.join("own/own.rrproj").to_string_lossy());
+        std::fs::create_dir_all(base.join("own")).unwrap();
+        std::fs::write(&own, "format = 2\nmain = \"src/main.rr\"\n[build]\nicon = \"art/icon.png\"\noutput = \"dist\"\n").unwrap();
+        assert_eq!(call("open", &[Value::String(own.into())]).to_i64(), 1);
+        assert_eq!((get("mainfile"), get("icon"), get("outputfolder"), get("warning")), ("src/main.rr".into(), "art/icon.png".into(), "dist".into(), String::new()));
+        rapidr_value::i18n::set_language("");
+        let _ = std::fs::remove_dir_all(&base);
+        let _ = std::fs::remove_file(chosen_store());
     }
 
     /// A host whose `rapidr` is a program that exits with a code of its own.

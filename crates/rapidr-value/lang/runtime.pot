@@ -1957,6 +1957,26 @@ msgid "{path}: not a project or a source file"
 msgstr ""
 
 #: crates/rapidr-studio/src/project.rs
+msgid "the main file ({value})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the app's icon ({value})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "Build's output folder ({value})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "This project's settings name places outside its folder, so RapidR doesn't use them: {list}. A project from someone else could use them to read or write your other files. If you chose them yourself, set them again and save the project."
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "The arguments Run gives the program name places outside the project's folder: {args}."
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
 msgid "no project is open"
 msgstr ""
 
@@ -2054,6 +2074,22 @@ msgstr ""
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to {what}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This version has a link, {file}, that points outside the project's folder ({target}), so Versions won't write it. Nothing was changed."
 msgstr ""
 
 #: crates/rapidr-studio/src/repository.rs

@@ -135,6 +135,20 @@ probably starts in main.rr* —; choose **MainFile** here to change it. And
 a main file that isn't there, the program's errors (in **Problems**), or a
 main file that ran and ended at once with no window and nothing printed.
 
+**A project's settings stay inside its folder.** A project file from
+someone else could name places outside the project's folder: a main file
+somewhere else, a private file as the app's icon, a folder your system runs
+programs from as Build's output folder. So when Studio opens a project, a
+main file, icon or output folder that is a full path (`/Users/…`, `C:\…`)
+or climbs out with `..` isn't used: the project's first program file,
+RapidR's icon and `build` are used instead, and Output says which —
+*This project's settings name places outside its folder, so RapidR doesn't
+use them: …*. Opening doesn't change the project file (saving it then
+leaves them out). One you choose
+yourself in Studio, then save the project, is yours: Studio remembers it on
+this computer, for that project, and uses it from then on. `rapidr build`
+does the same. Run arguments that name such places are only said.
+
 ## Selecting a file shows it
 
 Select a file in the Project pane and, a moment later, the editor shows it:

@@ -37,6 +37,9 @@ struct Repo {
     secrets: Vec<String>,
     versioned: bool,
     read_only: bool,
+    /// Why Versions won't use the folder's version history (it points
+    /// outside the folder: SEC-31), in Studio's language; "" when they can.
+    blocked: String,
     experiment: String,
     /// (state letter, path): M changed, N new, D removed.
     changes: Vec<(char, String)>,
@@ -65,6 +68,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
         "available" => flag(cfg!(not(target_arch = "wasm32"))),
         "versioned" => flag(r.versioned),
         "readonly" => flag(r.read_only),
+        "blocked" => text(r.blocked),
         "experiment" => text(r.experiment),
         "changecount" => Value::Integer(r.changes.len() as i64),
         "changes" => text(r.changes.iter().map(|(s, p)| format!("{s}\t{p}")).collect::<Vec<_>>().join("\n")),
@@ -103,6 +107,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
 fn refresh(r: &mut Repo) {
     r.versioned = false;
     r.read_only = false;
+    r.blocked.clear();
     r.experiment.clear();
     r.changes.clear();
     if r.folder.is_empty() {
@@ -334,6 +339,26 @@ pub fn in_language(words: &str) -> String {
             );
         }
     }
+    // (Versions refusing what would act outside the project's folder —
+    // SEC-31, SEC-32 — the same words as rapidr-vcs's HISTORY_OUTSIDE,
+    // SHARED_OUTSIDE and IGNORE_LINK: a test keeps them so)
+    match words {
+        "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there." => {
+            return tr_ui("This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there.");
+        }
+        "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer." => {
+            return tr_ui("That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer.");
+        }
+        "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again." => {
+            return tr_ui("The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again.");
+        }
+        _ => {}
+    }
+    if let Some(rest) = words.strip_prefix("This version has a link, ") {
+        if let Some((file, target)) = rest.strip_suffix("), so Versions won't write it. Nothing was changed.").and_then(|t| t.split_once(", that points outside the project's folder (")) {
+            return tr_ui_fill("This version has a link, {file}, that points outside the project's folder ({target}), so Versions won't write it. Nothing was changed.", &[("file", file), ("target", target)]);
+        }
+    }
     let t = tr_ui(words);
     if t.is_empty() {
         words.to_string()
@@ -368,6 +393,7 @@ mod engine {
             ErrorKind::ChangedMeanwhile => "changed-meanwhile",
             ErrorKind::Conflicts => "conflicts",
             ErrorKind::NotAProject => "not-versioned",
+            ErrorKind::OutsideFolder => "outside-folder",
             ErrorKind::Failed => "failed",
         }
     }
@@ -392,10 +418,24 @@ mod engine {
     }
 
     pub fn read_state(r: &mut Repo) -> Result<(), String> {
-        if !dir(r).join(".git").exists() {
+        // (a `.git` of any kind: a link that leads nowhere is refused, not
+        // taken for a folder without versions — SEC-31)
+        if std::fs::symlink_metadata(dir(r).join(".git")).is_err() {
             return Ok(());
         }
-        let v = open(r).map_err(|e| e.message)?;
+        let v = match open(r) {
+            Ok(v) => v,
+            Err(e) => {
+                let words = super::in_language(&e.message);
+                if e.kind == ErrorKind::OutsideFolder {
+                    // (said where the pane shows it, every method refusing
+                    // the same; nothing of the folder's history is read)
+                    r.blocked = words.clone();
+                }
+                r.kind = kind_word(e.kind).to_string();
+                return Err(words);
+            }
+        };
         r.versioned = true;
         r.read_only = v.is_read_only();
         r.experiment = v.current_experiment().unwrap_or_default();
@@ -961,6 +1001,70 @@ mod tests {
         assert_eq!(s(call(r, "localfiles", &[])), "main.rr");
         assert_eq!(s(call(r, "versionfiles", &[text("")])), "M\tmain.rr", "the history never shows as a change");
         fsck(t.path().join("Hello").as_path());
+    }
+
+    /// SEC-31: a project that came with a `.git` pointing outside its
+    /// folder (a planted `core.worktree`): opening it — setting Folder —
+    /// reads nothing of it and says why in Blocked; every method refuses
+    /// the same; nothing outside is listed, read or written. In Studio's
+    /// language.
+    #[test]
+    fn a_history_pointing_outside_the_folder_is_blocked() {
+        let t = tempfile::tempdir().unwrap();
+        let project = t.path().join("downloaded");
+        let outside = t.path().join("private");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("secret.txt"), "PRIVATE\n").unwrap();
+        let f = slashes(&project.to_string_lossy());
+        std::fs::create_dir_all(&f).unwrap();
+        std::fs::write(format!("{f}/main.rr"), "PRINT 1\n").unwrap();
+        let r = "repo_blocked";
+        set(r, "folder", &text(&f));
+        assert_eq!(n(call(r, "start", &[])), 1);
+        assert!(s(call(r, "saveversion", &[text("first")])).len() == 40);
+        let cfg = project.join(".git/config");
+        let mut c = std::fs::read_to_string(&cfg).unwrap();
+        c.push_str(&format!("\n[core]\n\tbare = false\n\tworktree = {}\n", outside.display()));
+        std::fs::write(&cfg, c).unwrap();
+
+        rapidr_value::i18n::set_language("en");
+        call(r, "refresh", &[]);
+        assert_eq!(n(get(r, "versioned")), 0);
+        assert_eq!(s(get(r, "blocked")), rapidr_vcs::HISTORY_OUTSIDE);
+        assert_eq!(s(get(r, "errorkind")), "outside-folder");
+        assert_eq!(s(get(r, "changes")), "", "nothing outside is listed");
+        for (m, args) in [("start", vec![]), ("saveversion", vec![text("x")]), ("timeline", vec![]), ("goback", vec![text("HEAD")]), ("checkpoint", vec![text("x")]), ("undo", vec![])] {
+            call(r, m, &args);
+            assert_eq!(s(get(r, "errorkind")), "outside-folder", "{m}");
+            assert_eq!(s(get(r, "error")), rapidr_vcs::HISTORY_OUTSIDE, "{m}");
+        }
+        assert_eq!(std::fs::read_dir(&outside).unwrap().count(), 1, "nothing was written outside");
+        assert_eq!(std::fs::read_to_string(outside.join("secret.txt")).unwrap(), "PRIVATE\n");
+
+        rapidr_value::i18n::set_language("es");
+        call(r, "refresh", &[]);
+        assert!(s(get(r, "blocked")).starts_with("El historial de versiones de este proyecto apunta fuera de su carpeta"), "{}", s(get(r, "blocked")));
+        rapidr_value::i18n::set_language("");
+
+        // the history put right: Blocked is "" again
+        std::fs::write(&cfg, std::fs::read_to_string(&cfg).unwrap().replace(&format!("\tworktree = {}\n", outside.display()), "")).unwrap();
+        call(r, "refresh", &[]);
+        assert_eq!(s(get(r, "blocked")), "");
+        assert_eq!(n(get(r, "versioned")), 1);
+    }
+
+    /// The words Studio translates are rapidr-vcs's own, character for
+    /// character (in_language matches them whole).
+    #[test]
+    fn the_outside_folder_words_are_rapidr_vcs_s() {
+        rapidr_value::i18n::set_language("es");
+        for words in [rapidr_vcs::HISTORY_OUTSIDE, rapidr_vcs::SHARED_OUTSIDE, rapidr_vcs::IGNORE_LINK] {
+            assert_ne!(in_language(words), words, "translated: {words}");
+        }
+        let link = "This version has a link, a, that points outside the project's folder (/Users/x), so Versions won't write it. Nothing was changed.";
+        let es = in_language(link);
+        assert!(es != link && es.contains("a") && es.contains("(/Users/x)"), "{es}");
+        rapidr_value::i18n::set_language("");
     }
 
     #[test]

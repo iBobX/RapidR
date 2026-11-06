@@ -228,6 +228,26 @@ account on your computer (or comes from a USB stick or a network drive)
 isn't opened for changes: Versions explains why and opens it read-only, to
 look at its versions.
 
+Versions never reach outside the project's folder either. A project that
+came from someone else could carry a version history (its hidden `.git`
+folder) set up to point somewhere else on your computer: another folder as
+its files, another project's history, a link to your own files. Studio
+checks every time it opens a project. When the history points outside,
+Versions are off for that project: the Versions pane says **Versions are
+off for this project** and why, Output says it once, and nothing of that
+history is read or changed. To keep versions of such a project, copy its
+files, without the hidden `.git` folder, into a new folder and start
+versions there.
+
+![The Versions pane of a project whose history points outside its folder: a warning sign, Versions are off for this project, why, and the local history that still keeps your saves](images/versions/studio-blocked.png)
+
+A version can hold a link (a file that points to another place). Going
+back to that version, or getting the latest from a shared folder, writes
+the link only when it points inside the project. A link that points
+outside (`/Users/…`, `../…`) stops the action before anything is written,
+and nothing is changed. Versions never write a file through a link, and
+never remove one through it.
+
 ## RRepository: versions in your own programs
 
 Studio's Versions pane is built on **RRepository**, a component any program
@@ -250,7 +270,8 @@ Its members are in the [reference](reference/components.md): `Start`,
 `VersionFiles`, `FileAt`, `GoBack`, `GoBackFile`, `Undo` and `CanUndo`,
 `History`, `Checkpoint`, and the local history's `Snapshot`, `LocalHistory`
 and `SnapshotText`. Errors are said in plain words (`Error`), their kind in
-`ErrorKind`.
+`ErrorKind`; `Blocked` says why a folder's versions aren't used (its
+history points outside it: `ErrorKind` is `"outside-folder"`).
 
 The code editor's side is RCodeEditor's `ChangeBase` (the gutter's marks
 against a version's text), `ChangeAt`, `ShowChange` and `RevertChange`;
