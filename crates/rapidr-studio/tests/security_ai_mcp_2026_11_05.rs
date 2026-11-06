@@ -4,6 +4,8 @@
 //! Each test says what must hold. The ones marked `#[ignore]` fail today:
 //! they are the finding's evidence, kept out of the default run so the
 //! build stays green; the fix lane removes the `#[ignore]` with its fix.
+//! (Lane SEC-FIX-AI, `fe4d1716`: SEC-40 and SEC-42 fixed, none is ignored
+//! now — they guard the fixes.)
 //! Everything happens in temporary folders with marker words; nothing
 //! touches the network, a keychain or the user's settings.
 //!
