@@ -19,8 +19,8 @@ The headline: **the JIT is defensive and, tier 1, sound by construction** — th
 VM carries no `unsafe`, every `unsafe` is isolated in `native.rs` with W^X, the
 verifier gates operand ranges before anything compiles, and compiled code leaves
 to the interpreter for every operation or operand it can't prove. A
-verify-preserving bytecode fuzzer (SEC-fuzz below) ran thousands of crafted
-modules through the JIT and the interpreter with **no divergence and no crash**.
+verify-preserving bytecode fuzzer (§2) ran 6066 crafted modules through the JIT
+and the interpreter with **no divergence and no crash**.
 The one real weakness is the native-stack depth bound (SEC-50).
 
 ---
@@ -216,12 +216,13 @@ killed and skipped by the parent instead of hanging the suite, and one CPU core 
 used, not many (important while other lanes build on this machine). Trials are
 seeded per `(seed, iter)`, so they are independent and resumable.
 
-**Result:** at 60 iterations/seed, **251 verified mutated modules ran both ways
-with zero divergence and zero crash** (82 endless-loop mutations skipped, handled
-by the kill-and-skip harness). A larger run (1500 iterations/seed) was underway at
-write-up and had surfaced no divergence. This is empirical backing for the static
-conclusion that the verifier is a sufficient precondition for tier 1 and that the
-JIT reproduces the interpreter exactly on crafted-but-verified bytecode.
+**Result:** at 1500 iterations/seed (seed `0x5DEECE66D`), **6066 verified mutated
+modules ran both ways with zero divergence and zero crash** (2021 endless-loop
+mutations skipped by the kill-and-skip harness; 103 minutes on one core). A first
+run at 60 iterations/seed gave 251 modules, also clean. This is empirical backing
+for the static conclusion that the verifier is a sufficient precondition for tier 1
+and that the JIT reproduces the interpreter exactly on crafted-but-verified
+bytecode.
 
 Knobs: `RAPIDR_FUZZ_ITERS`, `RAPIDR_FUZZ_SEED`. Run:
 `cargo test -p rapidr-jit --test fuzz_mutate -- --ignored --nocapture`.
