@@ -46,15 +46,21 @@ END FUNCTION
 ' Windows does: a tip or a palette line leaves out all four characters.
 FUNCTION PlainTitle(Title AS STRING) AS STRING
   DIM t AS STRING
+  t = NoMnemonic(TR$(Title))
+  IF RIGHT$(t, 3) = "..." THEN t = LEFT$(t, LEN(t) - 3)
+  Result = t
+END FUNCTION
+
+' A caption without its mnemonic: its "&", and Chinese's "(&S)" whole.
+FUNCTION NoMnemonic(Caption AS STRING) AS STRING
+  DIM t AS STRING
   DIM p AS INTEGER
-  t = TR$(Title)
+  t = Caption
   p = INSTR(t, "(&")
   IF p > 0 THEN
     IF MID$(t, p + 3, 1) = ")" THEN t = LEFT$(t, p - 1) + MID$(t, p + 4)
   END IF
-  t = REPLACESUBSTR$(t, "&", "")
-  IF RIGHT$(t, 3) = "..." THEN t = LEFT$(t, LEN(t) - 3)
-  Result = t
+  Result = REPLACESUBSTR$(t, "&", "")
 END FUNCTION
 
 ' The key a command answers to, as the user reads it.
