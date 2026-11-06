@@ -1,0 +1,2 @@
+7:1
+TYPE QFormEx isn't the QFormEx RapidR knows (Rapidq2.inc's): it differs in Blinking, OnDrag with 2 parameter(s) (1 there), OnTrayRightClick, Blink. RapidR has its own QFormEx (RFormEx: the same members, without changing the window's code in memory), so it doesn't compile this TYPE: leave the TYPE (or its $INCLUDE) out to use RapidR's, or give your class another name (MyFormEx) to keep it

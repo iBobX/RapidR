@@ -120,6 +120,10 @@ struct Win {
     /// to let it through outside the outline (shape.rs).
     outline: Option<Vec<(i64, i64, i64, i64)>>,
     passes: Option<bool>,
+    /// (RFormEx's TransparentClient, look.rs) The colour keyed and the
+    /// outline last given for it (macOS, X11), so a frame that changes
+    /// neither changes nothing.
+    keyed: Option<(u32, crate::look::Outline)>,
 }
 
 struct State {
@@ -632,6 +636,23 @@ impl Shim<'_> {
                         document_edited(&w.window, k.spec.modified);
                     }
                 }
+                // (RFormEx: on top, see-through, its background a hole —
+                // look.rs; a colour key draws on the CPU from now on)
+                HostCmd::Look(f) => {
+                    let key = crate::look::key_of(self.store, &f);
+                    if let (Some(w), Some(k)) = (self.s.wins.get_mut(&f), self.desk.forms.get_mut(&f)) {
+                        if crate::look::needs_cpu(&k.spec) && matches!(w.surface, Surface::Gpu(_)) {
+                            w.surface = cpu_surface(&w.window, w.window.inner_size());
+                        }
+                        crate::look::apply(&w.window, &k.spec, key);
+                        if !k.spec.color_key && w.keyed.take().is_some() {
+                            // (the outline it had: ShapeForm's, else none)
+                            apply_shape(&w.window, &f, &k.spec);
+                        }
+                        k.ui.dirty = true;
+                        w.window.request_redraw();
+                    }
+                }
                 HostCmd::Fullscreen(f) => {
                     if let Some(w) = self.s.wins.get_mut(&f) {
                         if !w.fullscreen {
@@ -774,7 +795,11 @@ impl Shim<'_> {
         window.set_visible(true);
         window.focus_window();
         let size = window.inner_size();
-        let surface = self.surface(&window, size);
+        // (an RFormEx's look: a colour key draws on the CPU — look.rs)
+        let surface = if crate::look::needs_cpu(&spec) { cpu_surface(&window, size) } else { self.surface(&window, size) };
+        if crate::look::asks(&spec) {
+            crate::look::apply(&window, &spec, crate::look::key_of(self.store, f));
+        }
         self.s.ids.insert(window.id(), f.to_string());
         // (the WindowState lane's: shown minimized)
         if spec.state == 1 {
@@ -806,7 +831,7 @@ impl Shim<'_> {
         }
         window.request_redraw();
         let outline = outline_of(f, &spec);
-        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false, outline, passes: None });
+        self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false, outline, passes: None, keyed: None });
     }
 
     /// The window's surface: the GPU's unless it has none (or the CPU was
@@ -837,9 +862,7 @@ impl Shim<'_> {
                 }
             }
         }
-        let ctx = softbuffer::Context::new(window.clone()).expect("softbuffer context");
-        let surface = softbuffer::Surface::new(&ctx, window.clone()).expect("softbuffer surface");
-        Surface::Cpu { surface, r: CpuRenderer::new(size.width, size.height) }
+        cpu_surface(window, size)
     }
 
     fn redraw(&mut self, f: &str) {
@@ -893,6 +916,27 @@ impl Shim<'_> {
                 r.copy_to(&mut buf);
                 if let Err(e) = buf.present() {
                     eprintln!("[rapidr] softbuffer present failed: {e}");
+                }
+                // (RFormEx's TransparentClient: the colour the background is
+                // drawn in is the hole — look.rs)
+                if k.spec.color_key && crate::look::keys_colours() {
+                    let key = crate::look::key_of(self.store, f);
+                    if cfg!(target_os = "windows") {
+                        if w.keyed.as_ref().map(|(c, _)| *c) != Some(key) {
+                            crate::look::apply(&w.window, &k.spec, key);
+                            w.keyed = Some((key, Vec::new()));
+                        }
+                    } else {
+                        let px = &r.pixmap;
+                        let rgba: Vec<u8> = px.data().iter().flat_map(|p| [p.r, p.g, p.b, p.a]).collect();
+                        let rects = crate::look::mask(&rgba, px.width() as usize, px.height() as usize, key, scale);
+                        if w.keyed.as_ref() != Some(&(key, rects.clone())) {
+                            if !crate::shape::apply(&w.window, Some(&rects), scale) {
+                                crate::look::no_mask();
+                            }
+                            w.keyed = Some((key, rects));
+                        }
+                    }
                 }
             }
         }
@@ -987,6 +1031,13 @@ impl Shim<'_> {
             }
         }
     }
+}
+
+/// A window's surface drawn on the CPU (vello_cpu, shown by softbuffer).
+fn cpu_surface(window: &Arc<Window>, size: PhysicalSize<u32>) -> Surface {
+    let ctx = softbuffer::Context::new(window.clone()).expect("softbuffer context");
+    let surface = softbuffer::Surface::new(&ctx, window.clone()).expect("softbuffer surface");
+    Surface::Cpu { surface, r: CpuRenderer::new(size.width, size.height) }
 }
 
 /// Whether a window's bottom-right corner is the system's: macOS rounds a
@@ -1138,6 +1189,8 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             }
             WindowEvent::RedrawRequested => self.redraw(&f),
             WindowEvent::Focused(false) => {
+                // (an RFormEx's OnLostFocus)
+                self.desk.focused(&f, false);
                 // (the DirectX lane's: inactive until one of its windows
                 // has the keyboard again)
                 self.s.active = false;
@@ -1151,6 +1204,8 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                 self.after_input(&f);
             }
             WindowEvent::Focused(true) => {
+                // (an RFormEx's OnGetFocus)
+                self.desk.focused(&f, true);
                 self.s.active = true;
                 self.s.key_form = Some(f.clone());
                 self.note_state(&f);
@@ -1254,6 +1309,20 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
             // (RapidR's OnDropFiles: the system gives the files of one drop
             // one at a time; the program hears them together)
             WindowEvent::DroppedFile(path) => {
+                // (where it landed, for an RFormEx's DragZone and DropPoint:
+                // the mouse on the screen, in the window's client area — the
+                // system's drag reports no place; the pointer last seen
+                // where the screen's can't be had)
+                let at = self.s.wins.get(&f).map(|w| {
+                    let inside = crate::platform::global_mouse()
+                        .and_then(|(gx, gy)| w.window.inner_position().ok().map(|p| p.to_logical::<f64>(w.window.scale_factor())).map(|p| (gx - p.x, gy - p.y)))
+                        .unwrap_or(w.cursor);
+                    let menu = self.desk.forms.get(&f).map_or(0, |k| k.ui.menu_offset);
+                    (inside.0.round() as i64, inside.1.round() as i64 - menu)
+                });
+                if let Some(at) = at {
+                    rapidr_value::formex::note_drop_at(&f, at);
+                }
                 self.desk.files_dropped(&f, &path.to_string_lossy());
                 self.after_input(&f);
             }

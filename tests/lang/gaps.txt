@@ -15,3 +15,8 @@
 # RArchive.MaxSize: 1 GB on the desktop, 256 MB in a browser (a page has less memory;
 # rapidr_archive::Limits::default_here) — by design, documented in the registry and archives.md.
 web: RARCHIVE.MaxSize = 268435456
+
+# RFormEx.Transparent: 255 (opaque) for a form written RFormEx; the registry's program writes the
+# RapidQ name, QFormEx, whose form behaves as Rapidq2.inc's: its Transparent field reads 0 until
+# the program sets it (rapidr_value::formex::transparent_default, docs/rformex-design.md §7 D2).
+RFORMEX.Transparent = 0

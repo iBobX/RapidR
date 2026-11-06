@@ -219,6 +219,8 @@ mod tests {
             constructor: vec![assign(member(ident("b"), "Parent"), ident("QCoolForm")), assign(ident("x"), ident("QFORM"))],
             events: vec![],
             template_params: vec![],
+            private: vec![],
+            event_templates: vec![],
         });
         let program = Program {
             span: span(),

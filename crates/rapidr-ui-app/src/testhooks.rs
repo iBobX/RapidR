@@ -31,7 +31,11 @@
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
 //! - `RAPIDR_TEST_DROP=a.csv;b.txt`: the files `form.__drop` drops on a
-//!   form (OnDropFiles).
+//!   form (OnDropFiles); `form.__drop_X_Y` at (X, Y) of its client area (an
+//!   RFormEx's OnDrag, DragZone, DropPoint). `form.__activate`,
+//!   `form.__deactivate` and `form.__minimise` are what the system says when
+//!   the window becomes active, stops being it, or the person minimises it
+//!   (RFormEx's OnGetFocus, OnLostFocus, OnMinimise).
 //! - `RAPIDR_TEST_COLOR_DIALOG=255;` / `RAPIDR_TEST_FONT_DIALOG=…`: what
 //!   each colour / font dialog answers in turn (empty: Cancel).
 //! - `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box
@@ -208,8 +212,16 @@ pub enum Action {
     /// `__close`: the window's close button.
     Close,
     /// (RapidR's OnDropFiles) `form.__drop`: `RAPIDR_TEST_DROP`'s files
-    /// (`a.csv;b.txt`) dropped on the form's window.
+    /// (`a.csv;b.txt`) dropped on the form's window; `form.__drop_X_Y` at
+    /// (X, Y) of its client area (an RFormEx's DragZone, DropPoint).
     Drop,
+    DropAt(i64, i64),
+    /// (RFormEx) `form.__activate` / `form.__deactivate`: the window became
+    /// the active one or stopped being it, as the system would say.
+    Activate(bool),
+    /// (RFormEx) `form.__minimise`: the person minimised the window (its
+    /// button), as the system would say it.
+    UserMinimise,
     /// (timers during native menu tracking) `__hold_ms`: the next pump held
     /// by the system for ms milliseconds, as a native menu the user keeps
     /// open holds it — the kernel's headless host pretends, ticking the
@@ -312,6 +324,12 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Close
     } else if event == "__drop" {
         Action::Drop
+    } else if let Some([x, y]) = nums("__drop_").and_then(|n| <[i64; 2]>::try_from(n).ok()) {
+        Action::DropAt(x, y)
+    } else if event == "__activate" || event == "__deactivate" {
+        Action::Activate(event == "__activate")
+    } else if event == "__minimise" || event == "__minimize" {
+        Action::UserMinimise
     } else if let Some((c, r)) = event.strip_prefix("__cell_").and_then(|rc| {
         let (c, r) = rc.split_once('_')?;
         Some((c.parse::<i64>().ok()?, r.parse::<i64>().ok()?))

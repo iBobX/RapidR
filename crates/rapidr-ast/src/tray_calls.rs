@@ -51,15 +51,26 @@ pub fn lower(program: &Program) -> Program {
             _ => None,
         })
         .collect();
-    // The program's forms (CREATE / DIM … AS QFORM): `X.WndProc = H`.
+    // The program's forms (CREATE / DIM … AS QFORM): `X.WndProc = H`. An
+    // RFormEx's OnMessage is its own event (the messages that aren't its
+    // other events: rapidr_value::formex), not another name for WndProc.
     let mut forms: HashSet<String> = HashSet::new();
+    let mut formexes: HashSet<String> = HashSet::new();
     walk(
         &program.statements,
         &mut |s| match s {
             Statement::Create(c) if is_form(&c.type_name) => {
                 forms.insert(c.name.to_ascii_lowercase());
+                if is_formex(&c.type_name) {
+                    formexes.insert(c.name.to_ascii_lowercase());
+                }
             }
-            Statement::Dim(d) if is_form(&d.type_name) => forms.extend(d.declarators.iter().map(|v| v.name.to_ascii_lowercase())),
+            Statement::Dim(d) if is_form(&d.type_name) => {
+                forms.extend(d.declarators.iter().map(|v| v.name.to_ascii_lowercase()));
+                if is_formex(&d.type_name) {
+                    formexes.extend(d.declarators.iter().map(|v| v.name.to_ascii_lowercase()));
+                }
+            }
             _ => {}
         },
         &mut |_| {},
@@ -78,10 +89,11 @@ pub fn lower(program: &Program) -> Program {
             }
         }
         Statement::Create(c) if is_form(&c.type_name) => {
+            let ex = is_formex(&c.type_name);
             for b in &mut c.body {
                 if let Statement::Assignment(a) = b {
                     if let Expression::Identifier(t) = &mut a.target {
-                        if is_wndproc_name(&t.name) && matches!(a.value, Expression::Identifier(_)) {
+                        if is_wndproc_name(&t.name) && !(ex && t.name.eq_ignore_ascii_case("onmessage")) && matches!(a.value, Expression::Identifier(_)) {
                             t.name = "OnWndProc".into();
                         }
                     }
@@ -90,7 +102,12 @@ pub fn lower(program: &Program) -> Program {
         }
         Statement::Assignment(a) => {
             if let Expression::MemberAccess(m) = &mut a.target {
-                if is_wndproc_name(&m.member) && matches!(m.object.as_ref(), Expression::Identifier(o) if forms.contains(&o.name.to_ascii_lowercase())) {
+                let object = match m.object.as_ref() {
+                    Expression::Identifier(o) => Some(o.name.to_ascii_lowercase()),
+                    _ => None,
+                };
+                let ex = object.as_ref().is_some_and(|o| formexes.contains(o)) && m.member.eq_ignore_ascii_case("onmessage");
+                if is_wndproc_name(&m.member) && !ex && object.is_some_and(|o| forms.contains(&o)) {
                     m.member = "OnWndProc".into();
                 }
             }
@@ -114,7 +131,11 @@ pub fn lower(program: &Program) -> Program {
 }
 
 fn is_form(type_name: &str) -> bool {
-    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RFORM" | "RFORMMDI")
+    matches!(canonical_type_name(type_name).to_ascii_uppercase().as_str(), "RFORM" | "RFORMMDI" | "RFORMEX")
+}
+
+fn is_formex(type_name: &str) -> bool {
+    canonical_type_name(type_name).eq_ignore_ascii_case(crate::formex::RFORMEX)
 }
 
 /// The QNOTIFYICONDATA argument (the second) named by a plain name: its id,

@@ -522,3 +522,65 @@ fn popup_at_opens_the_menu_inside_its_control() {
     assert_eq!(fired(), ["m.onpopup"]);
     assert_eq!(world(|w| w.popups.clone()), [("f".to_string(), "m".to_string(), 200, 84)]);
 }
+
+/// (RFormEx, crate::formex) The window's look as a window command: an
+/// RForm's fsStayOnTop on top (RC.EXE's QFORM is), an RFormEx's
+/// Transparent (out-of-range values ignored), its hole; a form written
+/// QFormEx asks nothing until its Transparent is set.
+#[test]
+fn formex_look_and_classic_transparent() {
+    form_with_button();
+    assert_eq!(crate::formex::look(Mem, "f"), (None, false, false, false));
+    Mem.store("f", "formstyle", v_int(3));
+    crate::formex::form_style_changed(Mem, "f");
+    assert_eq!(take_ops(), [WindowOp::Look("f".into(), (None, false, true, false))]);
+    make("x", "RFORM", None);
+    rapidr_value::formex::register("x");
+    assert!(crate::formex::set(Mem, "x", "transparent", &v_int(300)));
+    let stored = |p: &str| world(|w| w.props.get(&("x".to_string(), p.to_string())).cloned());
+    assert!(crate::formex::get(Mem, "x", "transparent", stored).is_some_and(|v| v.to_i64() == 255));
+    assert!(crate::formex::set(Mem, "x", "transparent", &v_int(100)));
+    assert!(crate::formex::set(Mem, "x", "transparentclient", &v_int(1)));
+    assert_eq!(take_ops().last(), Some(&WindowOp::Look("x".into(), (Some(100), true, false, false))));
+    make("q", "RFORM", None);
+    rapidr_value::formex::register("q");
+    assert!(crate::formex::set(Mem, "q", "__classic", &v_int(1)));
+    Mem.store("q", "transparent", v_int(0));
+    assert_eq!(crate::formex::look(Mem, "q").0, None, "a classic form's window stays as it is");
+    assert!(crate::formex::set(Mem, "q", "transparent", &v_int(0)));
+    assert_eq!(crate::formex::look(Mem, "q").0, Some(0));
+}
+
+/// (RFormEx) Drops: per file, inside the zone, DropPoint first; a classic
+/// form's empty zone takes none. The tray icon's own clicks as its events;
+/// the classic wheel's screen position.
+#[test]
+fn formex_drops_tray_and_wheel() {
+    make("x", "RFORM", None);
+    rapidr_value::formex::register("x");
+    Mem.store("x", "dragenable", v_int(1));
+    crate::formex::dropped(Mem, "x", &["a.txt", "b.txt"], (5, 6));
+    assert_eq!(fired(), ["x.ondrag[0]", "x.ondrag[0]"]);
+    assert_eq!(rapidr_value::formex::drop_point("x"), (5, 6));
+    Mem.store("x", "dragzone.right", v_int(10));
+    Mem.store("x", "dragzone.bottom", v_int(10));
+    crate::formex::dropped(Mem, "x", &["c.txt"], (20, 6));
+    assert_eq!(fired().len(), 2, "outside the zone");
+    make("q", "RFORM", None);
+    rapidr_value::formex::register("q");
+    rapidr_value::formex::set_classic("q");
+    Mem.store("q", "dragenable", v_int(1));
+    crate::formex::dropped(Mem, "q", &["a.txt"], (5, 6));
+    assert_eq!(fired().len(), 2, "a classic form's empty zone");
+    assert!(crate::formex::tray_message(Mem, "x", rapidr_value::formex::WM_TRAYICON, 0x205));
+    assert!(!crate::formex::tray_message(Mem, "x", 0x405, 0x205), "the program's own icon's message: WndProc's");
+    assert_eq!(fired()[2..], ["x.ontrayclick", "x.ontraymouseup[1]"]);
+    // (classic: 1 / -1, the screen: Left / Top and the frame RapidR accounts)
+    for (p, v) in [("left", 100), ("top", 50), ("borderstyle", 2)] {
+        Mem.store("q", p, v_int(v));
+    }
+    let [rot, x, y, keys] = crate::formex::wheel_args(Mem, "q", 3, (20, 30), rapidr_value::input::SS_CTRL);
+    assert_eq!((rot, keys), (1, 8));
+    assert!(x > 100 && y > 50, "{x}, {y}");
+    assert_eq!(crate::formex::wheel_args(Mem, "x", 3, (20, 30), 0), [3, 20, 30, 0]);
+}

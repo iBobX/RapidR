@@ -183,6 +183,21 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         rapidr_value::mdi::register(name);
         return rp_create_component(name, "RFORM");
     }
+    // An RFormEx is a QFORM with more (rapidr_value::formex): its TRAYICO
+    // (an RIMAGELIST of its own) and its tray animation's timer too.
+    if type_name.eq_ignore_ascii_case("RFORMEX") {
+        rapidr_value::formex::register(name);
+        rp_create_component(name, "RFORM");
+        #[cfg(feature = "gui")]
+        {
+            rp_create_component(&rapidr_ui_app::formex::tray_list(name), "RIMAGELIST");
+            let timer = rapidr_ui_app::formex::anim_timer(name);
+            rp_create_component(&timer, "RTIMER");
+            rp_comp_set(&timer, "enabled", v_int(0));
+            crate::ui::gui_register_timer(&timer);
+        }
+        return;
+    }
     let name_lower = name.to_lowercase();
     // Idempotent: if component already exists with the same type, skip
     let already_exists = COMPONENTS.with(|c| {
@@ -285,6 +300,11 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if let Some(old) = left {
         crate::layout::parent_left(name, &old);
     }
+    // (a form's fsStayOnTop: its window on top, as RC.EXE's QFORM)
+    #[cfg(feature = "gui")]
+    if prop.eq_ignore_ascii_case("formstyle") {
+        rapidr_ui_app::formex::form_style_changed(crate::ui::program::Rt, name);
+    }
     updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();
@@ -333,6 +353,17 @@ fn radio_group_off(name: &str) {
 }
 
 fn comp_set(name: &str, prop: &str, val: Value) {
+    // (an RFormEx's own members, and its TRAYICO's — rapidr_ui_app::formex)
+    #[cfg(feature = "gui")]
+    if rapidr_value::formex::is(name) {
+        let p = prop.to_ascii_lowercase();
+        if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(name, &p) {
+            return rp_comp_set(&sub, &member, val);
+        }
+        if rapidr_ui_app::formex::set(crate::ui::program::Rt, name, &p, &val) {
+            return;
+        }
+    }
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
         let t = rp_comp_type(name);
@@ -995,6 +1026,16 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let key = lower(name);
     let ty = comp_type_of(&key);
     let ty = ty.as_str();
+    // (an RFormEx's own members, and its TRAYICO's — rapidr_ui_app::formex)
+    #[cfg(feature = "gui")]
+    if ty == "RFORM" && (rapidr_ui_app::formex::reads(prop_lower) || prop_lower.starts_with("trayico.")) && rapidr_value::formex::is(&key) {
+        if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(&key, prop_lower) {
+            return rp_comp_get(&sub, &member);
+        }
+        if let Some(v) = rapidr_ui_app::formex::get(crate::ui::program::Rt, &key, prop_lower, |p| stored(&key, p)) {
+            return v;
+        }
+    }
     // Form.Scale (RapidR's): its screen's device pixels per pixel.
     #[cfg(feature = "gui")]
     if prop_lower == "scale" && ty == "RFORM" {
@@ -1323,6 +1364,16 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if let Some(v) = crate::globals::call(name, &method_lower, args) {
         return v;
+    }
+    // (an RFormEx's own methods, and its TRAYICO's — rapidr_ui_app::formex)
+    #[cfg(feature = "gui")]
+    if rapidr_value::formex::is(name) {
+        if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(name, &method_lower) {
+            return rp_comp_method(&sub, &member, args);
+        }
+        if let Some(v) = rapidr_ui_app::formex::call(crate::ui::program::Rt, name, &method_lower, args) {
+            return v;
+        }
     }
     // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members.rs).
     if let Some(v) = crate::form_members::method(name, &comp_type, &method_lower, args) {

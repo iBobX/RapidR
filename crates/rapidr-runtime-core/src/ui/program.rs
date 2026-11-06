@@ -94,6 +94,10 @@ impl Program for Rt {
     }
 
     fn timer_firing(self, id: &str) -> bool {
+        // (an RFormEx's tray animation: its next picture, no OnTimer)
+        if rapidr_ui_app::formex::tray_tick(self, id) {
+            return false;
+        }
         crate::directx::timer_fired(id)
     }
 

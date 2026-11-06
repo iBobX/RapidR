@@ -653,7 +653,7 @@ mod tests {
                 for &ty in group.members {
                     let Some(c) = rapidr_lang::component(ty).filter(|c| c.kind == rapidr_lang::Kind::Component) else { continue };
                     // (the form itself: Add Form; a menu item: inside a menu)
-                    if matches!(ty, "RFORM" | "RFORMMDI" | "RMENUITEM") {
+                    if matches!(ty, "RFORM" | "RFORMMDI" | "RFORMEX" | "RMENUITEM") {
                         continue;
                     }
                     let mut s = DesignSurface::default();

@@ -382,6 +382,9 @@ struct Ctx {
     items: Vec<String>,
     /// constants.toml's choice sets (`set = "…"`): whether each is a flag set.
     choice_sets: HashMap<String, bool>,
+    /// Every component's table by its name (upper case): what `extends`
+    /// names (its members are the derived component's too).
+    bases: HashMap<String, Table>,
 }
 
 const TYPES: &[(&str, &str)] = &[
@@ -585,7 +588,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         c,
         &[
             "name", "display", "rapidq", "from", "aliases", "kind", "group", "visual", "container", "size", "only", "where", "default_event", "sets", "origin",
-            "instance_of", "doc", "properties", "methods", "events", "example",
+            "instance_of", "doc", "properties", "methods", "events", "example", "extends",
         ],
         at,
     )?;
@@ -669,6 +672,50 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
             events.push(event(ctx, e, sf, Some(&set), &format!("{at} (set {set})"))?);
         }
     }
+    // (`extends = "RFORM"`: the base's members — its own and its sets' — that
+    // this component doesn't have itself, as the base has them)
+    if let Some(base_name) = s(c, "extends") {
+        let base = ctx.bases.get(&base_name.to_ascii_uppercase()).ok_or_else(|| format!("{at}: extends `{base_name}`, which isn't a component"))?;
+        if s(base, "extends").is_some() {
+            return Err(format!("{at}: extends `{base_name}`, which extends another (one level only)"));
+        }
+        let bf = if s(base, "rapidq").is_some() { "rapidq" } else { "rapidr" };
+        let bat = format!("{at} (from {base_name})");
+        let mut parts: Vec<(&Table, &str, Option<String>)> = vec![(base, bf, None)];
+        for set in strs(base, "sets", &bat)? {
+            let st = ctx.sets.get(&set).ok_or_else(|| format!("{bat}: set `{set}` isn't in sets.toml"))?;
+            parts.push((st, s(st, "origin").unwrap_or("rapidr"), Some(set)));
+        }
+        for (t, fam, set) in parts {
+            let set = set.as_deref();
+            for p in tables(t, "properties", &bat)? {
+                let pname = req(p, "name", &bat)?;
+                // (a member of that name already: the component's own wins)
+                if check("property", pname, &bat).is_err() {
+                    continue;
+                }
+                let (code, refs) = property(ctx, p, fam, set, &bat)?;
+                props.push(code);
+                prop_names.push(pname.to_ascii_lowercase());
+                range_uses.push((pname.to_string(), refs));
+            }
+            for m in tables(t, "methods", &bat)? {
+                let mname = req(m, "name", &bat)?;
+                if check("method", mname, &bat).is_err() {
+                    continue;
+                }
+                methods.push(method(ctx, m, fam, set, &bat)?);
+            }
+            for e in tables(t, "events", &bat)? {
+                let ename = req(e, "name", &bat)?;
+                if check("event", ename, &bat).is_err() {
+                    continue;
+                }
+                event_names.push(ename.to_ascii_lowercase());
+                events.push(event(ctx, e, fam, set, &bat)?);
+            }
+        }
+    }
     // (a range naming a property names one of this component's)
     for (pname, refs) in &range_uses {
         if let Some(r) = refs.iter().find(|r| !prop_names.contains(&r.to_ascii_lowercase())) {
@@ -688,7 +735,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
     };
     let doc = s(c, "doc").unwrap_or("");
     let code = format!(
-        "Component {{ name: {}, display: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, doc: {}, example: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
+        "Component {{ name: {}, display: {}, rapidq: {}, from: {}, aliases: &[{}], kind: {kind}, group: {}, origin: {}, visual: {}, container: {}, size: {size}, default_event: {}, runtimes: {}, where_note: {}, instance_of: {}, extends: {}, doc: {}, example: {}, properties: &[{}], methods: &[{}], events: &[{}] }}",
         lit(name),
         lit(display),
         opt(rapidq),
@@ -702,6 +749,7 @@ fn component(ctx: &Ctx, c: &Table, group: &str, global: bool, at: &str) -> Res<(
         runtimes(c, at)?,
         opt(s(c, "where")),
         opt(s(c, "instance_of")),
+        opt(s(c, "extends")),
         lit(doc),
         lit(s(c, "example").unwrap_or("")),
         props.join(",\n        "),
@@ -819,7 +867,14 @@ fn build(dir: &Path) -> Res<String> {
             items_names.push(req(o, "name", "items.toml")?.to_string());
         }
     }
-    let ctx = Ctx { constants, glossary, sets, items: items_names, choice_sets };
+    // (every component's table, for `extends`)
+    let mut bases = HashMap::new();
+    for path in paths.iter().filter(|p| p.strip_prefix(dir).is_ok_and(|r| r.starts_with("components"))) {
+        for c in tables(&load(path)?, "component", "components")? {
+            bases.insert(req(c, "name", "components")?.to_ascii_uppercase(), c.clone());
+        }
+    }
+    let ctx = Ctx { constants, glossary, sets, items: items_names, choice_sets, bases };
 
     let mut comps = Vec::new();
     let mut component_types = Vec::new();

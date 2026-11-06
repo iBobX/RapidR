@@ -37,7 +37,9 @@ fn is_library_type(s: &Statement) -> bool {
 }
 
 pub fn lower(program: &Program) -> Program {
-    let mut program = crate::method_equals::lower(program);
+    // (QFormEx, Rapidq2.inc's form: RapidR's RFormEx — crate::formex)
+    let program = crate::formex::lower(program);
+    let mut program = crate::method_equals::lower(&program);
     program.statements.retain(|s| !is_library_type(s));
     let made = instantiated_types(&program);
     for s in &mut program.statements {

@@ -52,6 +52,8 @@ pub mod timers;
 pub mod waits;
 // (the system tray's clicks: rapidr_value::tray)
 pub mod tray;
+// (RFormEx's members: rapidr_value::formex's model)
+pub mod formex;
 
 pub mod script;
 pub mod testhooks;

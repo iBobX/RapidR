@@ -33,6 +33,11 @@
 #                                            the one before (windows/dll-memory-check.ps1; %USERPROFILE%\rapidr-dllmem);
 #                                            Corpus: RapidQ's DLL examples interpreted with both, what differs
 #                                            (tools/dll_breadth.py, tools/dll_breadth_compare.py)
+#   tools/release/windows-vm.sh rformex [Conformance=formex_,…]
+#                                            RFormEx on Windows with the build `dllmem` made: the GUI
+#                                            cases headless, real windows (layered, topmost, OnMessage,
+#                                            OnMinimise before / after), then the conformance cases
+#                                            named (RFormEx's by default; windows/rformex-check.ps1)
 #   tools/release/windows-vm.sh stop         stop the release jobs running in the VM
 #   tools/release/windows-vm.sh clean [--dry-run] [--keep-out]
 #                                            remove everything the release and smoke scripts left in
@@ -160,6 +165,8 @@ case "${1:-}" in
         awake; profile
         job dll-memory-check.ps1 -Prep "$SHARE\\.release-share\\dllmem" "$@"
         ;;
+    # (RFormEx: windows/rformex-check.ps1, with the build `dllmem` made)
+    rformex) shift; job rformex-check.ps1 "$@" ;;
     stop) awake; wps stop.ps1 ;;
     clean)
         shift; flags=(-Delete)

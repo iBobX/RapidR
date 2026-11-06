@@ -477,6 +477,7 @@ pub static COMPONENTS: &[(&str, &str, bool)] = &[
     (r#"RDIGDISPLAY"#, r#"components/digdisplay"#, false),
     (r#"RFORM"#, r#"components/form"#, false),
     (r#"RFORMMDI"#, r#"components/formmdi"#, false),
+    (r#"RFORMEX"#, r#"components/form"#, false),
     (r#"RPANEL"#, r#"components/panel"#, false),
     (r#"RTABCONTROL"#, r#"components/tabcontrol"#, false),
     (r#"RTOOLBAR"#, r#"components/toolbar"#, false),
@@ -870,7 +871,7 @@ pub static DEBUG_KINDS: &[(&str, &str)] = &[
 /// The toolbox's groups (RToolbox), in order.
 pub static TOOLBOX_GROUPS: &[ToolboxGroup] = &[
     ToolboxGroup { id: r#"standard"#, title: r#"Standard"#, icon: r#"groups/standard"#, parent: r#""#, members: &[r#"RFORM"#, r#"RBUTTON"#, r#"RLABEL"#, r#"REDIT"#, r#"RMEMO"#, r#"RCHECKBOX"#, r#"RRADIOBUTTON"#, r#"RCOMBOBOX"#, r#"RLISTBOX"#, r#"RGROUPBOX"#, r#"RPANEL"#, r#"RIMAGE"#, r#"RSCROLLBAR"#, r#"RMAINMENU"#, r#"RMENUITEM"#, r#"RPOPUPMENU"#, r#"RTIMER"#] },
-    ToolboxGroup { id: r#"additional"#, title: r#"Additional"#, icon: r#"groups/additional"#, parent: r#""#, members: &[r#"RFORMMDI"#, r#"RCOOLBTN"#, r#"ROVALBTN"#, r#"RRICHEDIT"#, r#"RSTRINGGRID"#, r#"RLISTVIEW"#, r#"RTREEVIEW"#, r#"RTABCONTROL"#, r#"RHEADER"#, r#"RTRACKBAR"#, r#"RPROGRESSBAR"#, r#"RPROGRESS"#, r#"RUPDOWN"#, r#"RDATETIMEPICKER"#, r#"RTOOLBAR"#, r#"RSTATUSBAR"#, r#"RSPLITTER"#, r#"RSCROLLBOX"#, r#"RCANVAS"#, r#"RFILELISTBOX"#, r#"RDIRTREE"#, r#"RBEVEL"#, r#"RDIGDISPLAY"#, r#"RGLASSFRAME"#] },
+    ToolboxGroup { id: r#"additional"#, title: r#"Additional"#, icon: r#"groups/additional"#, parent: r#""#, members: &[r#"RFORMMDI"#, r#"RFORMEX"#, r#"RCOOLBTN"#, r#"ROVALBTN"#, r#"RRICHEDIT"#, r#"RSTRINGGRID"#, r#"RLISTVIEW"#, r#"RTREEVIEW"#, r#"RTABCONTROL"#, r#"RHEADER"#, r#"RTRACKBAR"#, r#"RPROGRESSBAR"#, r#"RPROGRESS"#, r#"RUPDOWN"#, r#"RDATETIMEPICKER"#, r#"RTOOLBAR"#, r#"RSTATUSBAR"#, r#"RSPLITTER"#, r#"RSCROLLBOX"#, r#"RCANVAS"#, r#"RFILELISTBOX"#, r#"RDIRTREE"#, r#"RBEVEL"#, r#"RDIGDISPLAY"#, r#"RGLASSFRAME"#] },
     ToolboxGroup { id: r#"dialogs"#, title: r#"Dialogs"#, icon: r#"groups/dialogs"#, parent: r#""#, members: &[r#"ROPENDIALOG"#, r#"RSAVEDIALOG"#, r#"RFILEDIALOG"#, r#"RCOLORDIALOG"#, r#"RFONTDIALOG"#] },
     ToolboxGroup { id: r#"system"#, title: r#"System"#, icon: r#"groups/system"#, parent: r#""#, members: &[r#"RFONT"#, r#"RBITMAP"#, r#"RIMAGELIST"#, r#"RSTRINGLIST"#, r#"RFILESTREAM"#, r#"RMEMORYSTREAM"#, r#"RARCHIVE"#, r#"RREGISTRY"#, r#"RSECRETS"#, r#"RSYSTEMINFO"#, r#"RPRINTER"#, r#"RRECT"#, r#"RNOTIFYICONDATA"#] },
     ToolboxGroup { id: r#"network"#, title: r#"Network"#, icon: r#"groups/network"#, parent: r#""#, members: &[r#"RSOCKET"#, r#"RSERVERSOCKET"#, r#"RHTTPSERVER"#, r#"RMCPSERVER"#, r#"RHTTP"#, r#"RDOWNLOAD"#, r#"RCGI"#, r#"RCOMPORT"#] },

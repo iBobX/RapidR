@@ -25,6 +25,9 @@
 //           first window shows at (x, y) of its client area (logical
 //           pixels; `clientWidth`, the window's ClientWidth, tells the
 //           capture's scale — RAPIDR_SCALE, or a real screen's)
+//   includes: ["File.inc", …] — files of tests/fixtures the program
+//           $INCLUDEs (the desktop finds them beside it; the browser's
+//           compiler is given them as the project's files)
 
 export const cases = [
   // RapidR Studio's panels (I1 / L-PANELS, rapidr_value::panels): each made,
@@ -42,10 +45,10 @@ export const cases = [
   // last come first, a disabled command is skipped.
   { name: "panel_toolbox", events: "box.__mousedown_60_15,box.__mouseup_60_15,box.__key_66,box.__key_85,box.__key_84,box.__key_13,box.__key_27,box.__key_27,box.__mousedown_100_109,box.__mousemove_150_109,box.__mousemove_400_150,box.__mouseup_400_150,box.__mousedown_100_109,box.__mousemove_150_109,box.__mouseup_500_80,box.__mousedown_100_40,box.__mouseup_100_40,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=108 RFormMDI RLabel []"] },
+    expect: ["lbl.caption= pick:RButton sel:RLabel drag:RLabel drop:RLabel>surface@108,118 drag:RLabel drop:RLabel>inner@28,28", "info.caption=109 RFormMDI RLabel []"] },
   { name: "panel_toolbox_keys", events: "box.__key_40,box.__key_40,box.__key_40,box.__key_40,box.__key_76,box.__key_37,box.__key_37,box.__key_40,box.__key_39,box.__key_35,box.__key_36,box.__key_13,breport.onclick",
     dump: "lbl.caption,info.caption",
-    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RRepository", "info.caption=125 RForm RRepository []"] },
+    expect: ["lbl.caption= sel:RForm sel:RButton sel:RLabel sel:RFormMDI sel:RRepository", "info.caption=126 RForm RRepository []"] },
   { name: "panel_palette", events: "bopen.onclick,pal.__key_83,pal.__key_65,pal.__key_40,pal.__key_13,bopen.onclick,pal.__key_27,bopen.onclick,edit1.__mousedown_5_5,edit1.__mouseup_5_5,bopen.onclick,pal.__mousedown_100_81,pal.__mouseup_100_81,bopen.onclick,pal.__key_83,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption= first:file.save run:file.saveall first:file.saveall cancel first:file.saveall cancel first:file.saveall run:file.save first:file.save", "info.caption=3 file.save [s] 1 5"] },
@@ -328,6 +331,32 @@ export const cases = [
   // handler hears nothing
   { name: "drop_files", events: "form.__drop,other.__drop", dump: "lbl.caption,lbl2.caption", drop: "drop_a.txt;drop_b.csv", inWork: true,
     expect: ["lbl.caption=2 drop_a.txt|drop_b.csv", "lbl2.caption=[x,y]"] },
+  // RFormEx (rapidr_value::formex): OnDrag per file (an empty DragZone the
+  // whole form, then only inside the zone; DropPoint), the form's own tray
+  // icon's right click / double click / releases, the wheel as an RForm's,
+  // OnMinimise after the minimise, focus once per change, a second form's
+  // OnMessage hearing the program's own tray icon; Lbl2: what the members
+  // read before they're set (Transparent 255, an out-of-range one ignored)
+  { name: "formex", headlessOnly: "the real window system's own focus changes come between the script's",
+    events: "main.__wheel_20_30_-1,main.__drop_10_20,zone.onclick,main.__drop_10_20,main.__drop_150_10,main.__tray_517,main.__tray_515,main.__tray_514,main.__activate,main.__deactivate,main.__activate,other.__tray_513,main.__minimise",
+    dump: "lbl.caption,lbl2.caption,lbl3.caption", drop: "a.txt;b.txt",
+    expect: [
+      "lbl.caption=wheel1,20,30,0 drag:a.txt@10,20 drag:b.txt@10,20 drag:a.txt@150,10 drag:b.txt@150,10 click up1 dbl up0 min1 ",
+      "lbl2.caption=t255 u2000 s0 f0 d1 c0 s1 t255 msg5,9:00000201o",
+      "lbl3.caption=get lost get ",
+    ] },
+  // QFormEx through an include (its stand-in, tests/fixtures/QFormEx.inc): the
+  // include's behaviour — an empty DragZone takes no drop, the wheel's
+  // 1 / -1 and screen position, Transparent 0 until set, OnShow's
+  // InheritOnShow; OnMinimise before the minimise on Windows (wsNormal in
+  // it), after it elsewhere
+  { name: "formex_classic", includes: ["QFormEx.inc"],
+    events: "main.__wheel_20_30_-1,main.__drop_10_20,zone.onclick,main.__drop_10_20,main.__drop_150_10,main.__minimise",
+    dump: "lbl.caption,lbl2.caption", drop: "a.txt;b.txt",
+    expect: [
+      `lbl.caption=wheel1,21,60,0 drag:a.txt@150,10 drag:b.txt@150,10 min${process.platform === "win32" ? 0 : 1} `,
+      "lbl2.caption=shown t0 u2000 s0",
+    ] },
   { name: "header", events: "header.__mousedown_20_5,header.__mouseup_20_5,header.__mousedown_120_5,header.__mouseup_120_5,header.__mousedown_100_5,header.__mousemove_140_5,header.__mouseup_140_5,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0 t0:100:0 t0:140:1 t0:140:2 r0 | 3 140 Chart 0000FF00"] },
   { name: "icons", events: "", dump: "lbl.caption,img.width,img2.width", expect: ["lbl.caption=16x16 00C85A14", "img.width=16", "img2.width=16"],

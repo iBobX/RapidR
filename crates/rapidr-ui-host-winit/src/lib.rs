@@ -29,6 +29,8 @@ pub mod menu;
 pub mod platform;
 // (ShapeForm: a form's outline on its window)
 pub mod shape;
+// (RFormEx: on top, see-through, its background a hole)
+pub mod look;
 pub mod tracking;
 // (the system tray: rapidr_value::tray)
 pub mod tray;

@@ -127,6 +127,43 @@ pub fn shell_notify_icon(message: i64, data: &Record) -> i64 {
     done
 }
 
+/// An icon of RapidR's own (an RFormEx's: `crate::formex`) put there,
+/// or changed when it is there already. Whether the tray changed.
+pub fn put(icon: TrayIcon) -> bool {
+    let done = TRAY.with(|t| {
+        let mut t = t.borrow_mut();
+        match t.icons.iter().position(|i| i.key() == icon.key()) {
+            Some(i) if t.icons[i] == icon => return false,
+            Some(i) => t.icons[i] = icon,
+            None => t.icons.push(icon),
+        }
+        t.revision += 1;
+        true
+    });
+    if done {
+        changed();
+    }
+    done
+}
+
+/// Icon `key` taken away: whether it was there.
+pub fn remove(key: (i64, i64)) -> bool {
+    let done = TRAY.with(|t| {
+        let mut t = t.borrow_mut();
+        let before = t.icons.len();
+        t.icons.retain(|i| i.key() != key);
+        let gone = t.icons.len() != before;
+        if gone {
+            t.revision += 1;
+        }
+        gone
+    });
+    if done {
+        changed();
+    }
+    done
+}
+
 /// The icons there now, in the order they were added.
 pub fn icons() -> Vec<TrayIcon> {
     TRAY.with(|t| t.borrow().icons.clone())

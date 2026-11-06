@@ -583,7 +583,9 @@ Form.ShowModal
 ```
 
 El ejemplo [CSV Explorer](data-science.md#tutorial-el-explorador-de-csv) abre el
-archivo CSV que se suelta en él.
+archivo CSV que se suelta en él. Un [RFormEx](forms-ex.md) además recibe cada
+archivo por separado (`OnDrag`), solo dentro del área que elijas, con el punto
+donde cayó.
 
 ## El puntero del mouse
 

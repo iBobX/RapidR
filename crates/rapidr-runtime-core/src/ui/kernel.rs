@@ -578,7 +578,17 @@ fn deliver_window_messages() {
             form = Some((hwnd, rapidr_value::handles::name_of(hwnd)));
         }
         let Some((_, Some(name))) = &form else { continue };
-        crate::object::rp_fire_event_args(name, "onwndproc", &[v_int(hwnd), v_int(i64::from(msg)), v_int(long_value(wparam as i64)), v_int(long_value(lparam))]);
+        let m = [hwnd, i64::from(msg), long_value(wparam as i64), long_value(lparam)];
+        crate::object::rp_fire_event_args(name, "onwndproc", &m.map(v_int));
+        // (an RFormEx: OnMessage hears what isn't one of its own events; a
+        // form written QFormEx hears OnMinimise before it minimises —
+        // rapidr_value::formex)
+        if rapidr_value::formex::is(name) {
+            if rapidr_value::formex::holds_message(name, m[1], m[2]) {
+                rapidr_ui_app::formex::minimise_asked(Rt, name);
+            }
+            rapidr_ui_app::formex::message(Rt, name, m);
+        }
     }
 }
 

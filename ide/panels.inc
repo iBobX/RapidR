@@ -333,8 +333,8 @@ SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
   dm = DocOf(ProjectMain)
   IF dm >= 0 THEN mainText = CodeDoc(dm).Text ELSE mainText = Proj.FileText(ProjectMain)
   IF FILEEXISTS(full) = 0 THEN
-    ' (the toolbox's RFormMDI: an MDI main window)
-    IF Kind = "form" AND PendingFormKind = "formmdi" THEN t = Proj.NewFileText(Path, "formmdi", mainText) ELSE t = Proj.NewFileText(Path, Kind, mainText)
+    ' (the toolbox's RFormMDI: an MDI main window; its RFormEx: a form with more)
+    IF Kind = "form" AND (PendingFormKind = "formmdi" OR PendingFormKind = "formex") THEN t = Proj.NewFileText(Path, PendingFormKind, mainText) ELSE t = Proj.NewFileText(Path, Kind, mainText)
     ' (as Studio saves a document: UTF-8, whole — a name in any language)
     IF Proj.WriteNewFile(full, t) = 0 THEN
       OutputLine TR$("Can't make {file}: {error}", "file", Path, "error", Proj.Error)
@@ -497,7 +497,7 @@ END SUB
 FUNCTION IsFormType(TypeName AS STRING) AS INTEGER
   DIM t AS STRING
   t = UCASE$(TypeName)
-  Result = Flag(t = "RFORM" OR t = "QFORM" OR t = "RFORMMDI" OR t = "QFORMMDI")
+  Result = Flag(t = "RFORM" OR t = "QFORM" OR t = "RFORMMDI" OR t = "QFORMMDI" OR t = "RFORMEX" OR t = "QFORMEX")
 END FUNCTION
 
 ' (Hint: what the status bar says once it is added — "" the usual)
@@ -508,7 +508,9 @@ SUB AddFormOfType(TypeName AS STRING, Hint AS STRING)
   END IF
   ' (a click then a double click: one form)
   IF PendingFormKind <> "" AND ABS(TIMER - PendingFormAt) < 1.5 THEN EXIT SUB
-  IF UCASE$(TypeName) = "RFORMMDI" OR UCASE$(TypeName) = "QFORMMDI" THEN PendingFormKind = "formmdi" ELSE PendingFormKind = "form"
+  PendingFormKind = "form"
+  IF UCASE$(TypeName) = "RFORMMDI" OR UCASE$(TypeName) = "QFORMMDI" THEN PendingFormKind = "formmdi"
+  IF UCASE$(TypeName) = "RFORMEX" OR UCASE$(TypeName) = "QFORMEX" THEN PendingFormKind = "formex"
   PendingFormHint = Hint
   PendingFormAt = TIMER
   AddProjectFile "form"

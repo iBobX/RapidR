@@ -133,6 +133,39 @@ Windows, RapidR hace en su lugar algo definido, y lo dice:
   IF FontDlg.Execute THEN FontDlg.SetFont(Label1.Font)
   ```
 
+### QFormEx
+
+Un include muy usado, `Rapidq2.inc`, define un formulario `QFormEx` que logra
+sus funciones extra (archivos soltados, un ícono en la bandeja, transparencia,
+los mensajes de la ventana) escribiendo código máquina en memoria y
+convirtiéndolo en el procedimiento de la ventana. RapidR nunca ejecuta código
+que un programa escribe en memoria, así que reemplaza ese formulario por su
+propio [RFormEx](forms-ex.md), de forma nativa y en todos los sistemas: el
+programa funciona sin cambios, y todo lo demás del include queda como está.
+
+- RapidR reconoce el `TYPE QFormEx EXTENDS QFORM` del include por sus miembros
+  públicos, se llame como se llame el archivo. Un `QFormEx` con otros
+  miembros (un include más antiguo o más nuevo, o tu propia clase con ese
+  nombre) no se adivina: el compilador se detiene en ese `TYPE` y dice qué
+  miembros difieren; cambia el nombre de tu clase (`MyFormEx`) o quita el
+  `TYPE` para usar el de RapidR.
+- Un formulario escrito `QFormEx` conserva el comportamiento del include donde
+  difiere de `RFormEx`: una `DragZone` vacía (como empieza) no acepta ningún
+  archivo, así que establece una zona; `Transparent` lee 0 hasta que se
+  establece, y la ventana queda como está hasta entonces; `OnMouseWheel`
+  recibe 1 o -1 cada vez, la posición del mouse en la pantalla y los
+  indicadores de teclas de Windows (4 Shift, 8 Ctrl); en Windows `OnMinimise`
+  llega justo antes de que la ventana se minimice (en los demás sistemas el
+  sistema avisa a RapidR cuando ya ocurrió). `InheritOnShow` e
+  `InheritOnClose` se aceptan y no hacen nada: RapidR hace ese trabajo por sí
+  mismo.
+- `OnMessage` recibe lo que recibía el del include: todos los mensajes menos
+  los que son eventos propios del formulario (consulta
+  [los mensajes de la ventana](forms-ex.md#los-mensajes-de-la-ventana-onmessage)).
+- Fuera de Windows, el propio `Rapidq2.inc` llama a Windows (`GetVersion`, al
+  cargarse), así que un programa que lo incluye se detiene ahí en macOS, Linux
+  y la web, como cualquier programa que llama a Windows.
+
 ## Extensiones
 
 Todo lo de aquí es propio de RapidR: solo RapidR compila un programa que lo usa.

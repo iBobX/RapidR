@@ -1,0 +1,13 @@
+A 255,2000,0,0,0,0,0
+B 0,2000,0
+alpha 100
+classic alpha 200
+style 3
+zone 10,20,110,70
+drop 0,0
+hint Tip
+shown 1
+index 0,0
+shown 0
+update 500
+done

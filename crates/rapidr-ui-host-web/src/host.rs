@@ -334,7 +334,7 @@ fn accepts_drop(form: &str) -> bool {
 /// Files dropped on form `id`'s window: each read whole into the page's
 /// files under its name (as a file the user picks in an Open dialog), then
 /// one OnDropFiles with their names, in order.
-fn drop_files(id: &str, list: web_sys::FileList) {
+fn drop_files(id: &str, list: web_sys::FileList, at: (i64, i64)) {
     let files: Vec<web_sys::File> = (0..list.length()).filter_map(|i| list.get(i)).collect();
     if files.is_empty() {
         return;
@@ -355,6 +355,8 @@ fn drop_files(id: &str, list: web_sys::FileList) {
             }
         }
         input(|h, _| {
+            let menu = h.desk.forms.get(&id).map_or(0, |f| f.ui.menu_offset);
+            rapidr_value::formex::note_drop_at(&id, (at.0, at.1 - menu));
             for name in &stored {
                 h.desk.files_dropped(&id, name);
             }
@@ -565,17 +567,30 @@ impl WebHost {
                 // (Form.Modified: the page's beforeunload reads it from the
                 // forms when the page is being left — runtime-web)
                 HostCmd::Modified(_) => {}
+                // (RFormEx: see-through, its background a hole, on top —
+                // the z-order below)
+                HostCmd::Look(f) => self.apply_look(&f),
             }
         }
-        // (z-order, and the active window's frame)
+        // (z-order, and the active window's frame; an RFormEx with
+        // fsStayOnTop above the page's other windows)
         let order = self.desk.stacking();
         for (i, id) in order.iter().enumerate() {
             if let Some(w) = self.wins.get(id) {
-                let _ = w.root.style().set_property("z-index", &(10 + i).to_string());
+                let top = self.desk.forms.get(id).is_some_and(|f| f.spec.on_top);
+                let _ = w.root.style().set_property("z-index", &(10 + i + if top { 100_000 } else { 0 }).to_string());
             }
         }
         let after = self.top();
         if before != after {
+            // (an RFormEx's OnLostFocus / OnGetFocus: the page's active
+            // window is the one on top)
+            if let Some(b) = &before {
+                self.desk.focused(b, false);
+            }
+            if let Some(a) = &after {
+                self.desk.focused(a, true);
+            }
             for id in [before, after].into_iter().flatten() {
                 self.frame_dirty(&id);
             }
@@ -588,6 +603,19 @@ impl WebHost {
         }
     }
 
+    /// (RFormEx, rapidr_value::formex) Form `id`'s window see-through as a
+    /// whole (Transparent: the element's opacity) and drawn again (its
+    /// background a hole: [`Self::render`]'s colour key).
+    fn apply_look(&mut self, id: &str) {
+        let Some(spec) = self.desk.forms.get(id).map(|f| f.spec.clone()) else { return };
+        if let Some(w) = self.wins.get_mut(id) {
+            let opacity = spec.alpha.map_or("1".to_string(), |a| format!("{:.3}", f64::from(a) / 255.0));
+            let _ = w.root.style().set_property("opacity", &opacity);
+            w.force = true;
+            w.frame_dirty = true;
+        }
+    }
+
     /// Form `id`'s window shown on top (made the first time).
     fn show(&mut self, id: &str) {
         // (a window shown takes the keyboard, from an embedded frame too)
@@ -595,8 +623,10 @@ impl WebHost {
         if !self.wins.contains_key(id) {
             if let Some(w) = self.make(id) {
                 self.wins.insert(id.to_string(), w);
-                // (an outline ShapeForm gave it before it showed)
+                // (an outline ShapeForm gave it before it showed; an
+                // RFormEx's look)
                 self.apply_shape(id);
+                self.apply_look(id);
             } else {
                 return;
             }
@@ -751,9 +781,13 @@ impl WebHost {
         }
         let _ = root.style().set_property("display", "none");
         doc.body()?.append_child(&root).ok()?;
+        // (an RFormEx's window can let the page through its background —
+        // TransparentClient, at any time: its canvases keep an alpha
+        // channel; every other window's are opaque, as always)
+        let see_through = rapidr_value::formex::is(id);
         let ctx_of = |c: &HtmlCanvasElement| -> Option<CanvasRenderingContext2d> {
             let opts = web_sys::ContextAttributes2d::new();
-            opts.set_alpha(false);
+            opts.set_alpha(see_through);
             c.get_context_with_context_options("2d", &opts).ok()??.dyn_into().ok()
         };
         let fctx = ctx_of(&frame)?;
@@ -835,7 +869,21 @@ impl WebHost {
                 }
                 let r = w.cpu.get_or_insert_with(|| CpuRenderer::new(dw, dh));
                 r.render(dw, dh, &list, text, &f.ui);
-                if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(r.pixmap.data_as_u8_slice()), dw, dh) {
+                if f.spec.color_key {
+                    // (RFormEx's TransparentClient: the background's colour
+                    // let through — the page shows there)
+                    let key = rapidr_ui_kernel::paint::color_of(store, &id).unwrap_or_else(|| rapidr_value::theme::current().face);
+                    let (kr, kg, kb) = ((key >> 16) as u8, (key >> 8) as u8, key as u8);
+                    let mut px = r.pixmap.data_as_u8_slice().to_vec();
+                    for p in px.as_chunks_mut::<4>().0 {
+                        if p[0] == kr && p[1] == kg && p[2] == kb {
+                            *p = [0, 0, 0, 0];
+                        }
+                    }
+                    if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&px), dw, dh) {
+                        let _ = w.ctx.put_image_data(&image, 0.0, 0.0);
+                    }
+                } else if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(r.pixmap.data_as_u8_slice()), dw, dh) {
                     let _ = w.ctx.put_image_data(&image, 0.0, 0.0);
                 }
                 let popups = if f.ui.popups_apart { Some(f.ui.paint_popups(store, text, scale)) } else { None };
@@ -905,6 +953,12 @@ impl WebHost {
                 r.render(dw, dh, &list, text, &f.ui);
                 if let Ok(image) = ImageData::new_with_u8_clamped_array_and_sh(Clamped(r.pixmap.data_as_u8_slice()), dw, dh) {
                     let _ = w.fctx.put_image_data(&image, 0.0, 0.0);
+                }
+                // (RFormEx's TransparentClient: the frame paints nothing under
+                // the inside, so its hole shows the page)
+                if f.spec.color_key && !w.minimized {
+                    let (ix, iy) = frame::inset(look.border, look.caption);
+                    let _ = w.fctx.clear_rect(ix as f64 * scale, iy as f64 * scale, w.inside.0 as f64 * scale, w.inside.1 as f64 * scale);
                 }
             }
             if drawn {
@@ -1175,7 +1229,9 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                     return;
                 }
                 if let Some(list) = e.data_transfer().and_then(|dt| dt.files()) {
-                    drop_files(&id, list);
+                    // (where it landed in the window's inside: an RFormEx's
+                    // DragZone and DropPoint)
+                    drop_files(&id, list, (i64::from(e.offset_x()), i64::from(e.offset_y())));
                 }
             });
         }

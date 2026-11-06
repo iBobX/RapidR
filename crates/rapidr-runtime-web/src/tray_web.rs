@@ -11,7 +11,7 @@
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 
-use rapidr_value::{tray, v_int};
+use rapidr_value::tray;
 
 use crate::page_web::{create_el, document};
 
@@ -24,12 +24,10 @@ pub fn changed() {
     }
 }
 
-/// Icon `key`'s mouse messages to its form's WndProc.
+/// Icon `key`'s mouse messages to its form's WndProc — an RFormEx's own
+/// icon's as its OnTrayClick … (the desktop's: rapidr_ui_app::tray).
 fn deliver(key: (i64, i64), mouse: &[i64]) {
-    for [hwnd, msg, wparam, lparam] in tray::clicked(key, mouse) {
-        let Some(form) = rapidr_value::handles::name_of(hwnd) else { continue };
-        crate::object_web::rp_fire_event_args(&form.to_uppercase(), "onwndproc", &[v_int(hwnd), v_int(msg), v_int(wparam), v_int(lparam)]);
-    }
+    rapidr_ui_app::tray::deliver(crate::kernel_web::Web, key, mouse);
 }
 
 fn render() {

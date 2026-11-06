@@ -8,6 +8,7 @@ Older programs name their components with a Q: `QBUTTON`, `QFORM`. RapidR reads 
 |---|---|
 | `QFORM` | [`RForm`](members.md#rform) |
 | `QFORMMDI` | [`RFormMDI`](members.md#rformmdi) |
+| `QFORMEX` | [`RFormEx`](members.md#rformex) |
 | `QPANEL` | [`RPanel`](members.md#rpanel) |
 | `QTABCONTROL` | [`RTabControl`](members.md#rtabcontrol) |
 | `QSTATUSBAR` | [`RStatusBar`](members.md#rstatusbar) |

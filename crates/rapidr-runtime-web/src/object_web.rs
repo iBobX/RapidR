@@ -100,6 +100,19 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         rapidr_value::mdi::register(name);
         return rp_create_component(name, "RFORM");
     }
+    // An RFormEx is a QFORM with more (rapidr_value::formex): its TRAYICO
+    // (an RIMAGELIST of its own) and its tray animation's timer too — the
+    // desktop's create.
+    if type_name.eq_ignore_ascii_case("RFORMEX") {
+        rapidr_value::formex::register(name);
+        rp_create_component(name, "RFORM");
+        rp_create_component(&rapidr_ui_app::formex::tray_list(name), "RIMAGELIST");
+        let timer = rapidr_ui_app::formex::anim_timer(name);
+        rp_create_component(&timer, "RTIMER");
+        rp_comp_set(&timer, "enabled", v_int(0));
+        gui_register_timer(&timer);
+        return;
+    }
     let uname = name.to_uppercase();
     let utype = type_name.to_uppercase();
 
@@ -634,6 +647,10 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     if let Some(old) = left {
         crate::layout_web::parent_left(name, &old);
     }
+    // (a form's fsStayOnTop: its window on top, as RC.EXE's QFORM)
+    if prop.eq_ignore_ascii_case("formstyle") {
+        rapidr_ui_app::formex::form_style_changed(crate::kernel_web::Web, name);
+    }
     updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links_web::apply();
@@ -677,6 +694,16 @@ fn radio_group_off(name: &str) {
 }
 
 fn comp_set(name: &str, prop: &str, val: Value) {
+    // (an RFormEx's own members, and its TRAYICO's — rapidr_ui_app::formex)
+    if rapidr_value::formex::is(name) {
+        let p = prop.to_ascii_lowercase();
+        if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(name, &p) {
+            return rp_comp_set(&sub, &member, val);
+        }
+        if rapidr_ui_app::formex::set(crate::kernel_web::Web, name, &p, &val) {
+            return;
+        }
+    }
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
         let t = rp_comp_type(name);
@@ -1277,6 +1304,19 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let uname = uname.as_ref();
     let ty = comp_type_of(uname);
     let ty = ty.as_str();
+    // (an RFormEx's own members, and its TRAYICO's — rapidr_ui_app::formex)
+    if ty == "RFORM" && (rapidr_ui_app::formex::reads(lprop) || lprop.starts_with("trayico.")) && rapidr_value::formex::is(uname) {
+        if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(uname, lprop) {
+            return rp_comp_get(&sub, &member);
+        }
+        let stored = |p: &str| match rp_comp_get_stored(uname, p) {
+            Value::Null => None,
+            v => Some(v),
+        };
+        if let Some(v) = rapidr_ui_app::formex::get(crate::kernel_web::Web, uname, lprop, stored) {
+            return v;
+        }
+    }
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::get(name, lprop) {
         return v;
@@ -1571,6 +1611,15 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     // Screen, Application, Clipboard, Mouse (globals_web.rs).
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
         return v;
+    }
+    // (an RFormEx's own methods, and its TRAYICO's — rapidr_ui_app::formex)
+    if rapidr_value::formex::is(name) {
+        if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(name, &lmethod) {
+            return rp_comp_method(&sub, &member, args);
+        }
+        if let Some(v) = rapidr_ui_app::formex::call(crate::kernel_web::Web, name, &lmethod, args) {
+            return v;
+        }
     }
     // HideTitleBar, ShapeForm, QFORM's MDI methods, StartDrag (form_members_web.rs).
     if let Some(v) = crate::form_members_web::method(name, &rp_comp_type(&uname), &lmethod, args) {

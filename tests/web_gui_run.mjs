@@ -61,7 +61,10 @@ export async function runCaseKernel(browser, c, dpr = 1, timeout = 30000) {
     await page.goto(`${URL_BASE}/tests/web_kernel.html`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
     const source = readFileSync(join(HERE, "fixtures", c.name + ".bas"), "utf8");
-    await page.evaluate(({ source, assets, env }) => {
+    // (`includes`: the fixtures' include files the program $INCLUDEs, its
+    // project's other files — what `compile_files` gives $INCLUDE)
+    const includes = Object.fromEntries((c.includes || []).map((f) => [f, readFileSync(join(HERE, "fixtures", f), "utf8")]));
+    await page.evaluate(({ source, assets, env, includes }) => {
       window.__rapidr_assets = assets;
       // (QDXJOYSTICK's gamepad: the tests' script, read at each look)
       if (env.RAPIDR_TEST_JOYSTICK !== undefined) window.RAPIDR_TEST_JOYSTICK = env.RAPIDR_TEST_JOYSTICK;
@@ -70,10 +73,10 @@ export async function runCaseKernel(browser, c, dpr = 1, timeout = 30000) {
       // (QMIDI: no MIDI output; QWAVE records a scripted tone, never the
       // microphone)
       window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
-      const bc = window.rr.compile(source, "fixture", assets);
+      const bc = Object.keys(includes).length ? window.rr.compile_files("fixture", { fixture: source, ...includes }, assets) : window.rr.compile(source, "fixture", assets);
       window.rr.rapidr_set_test_env(env);
       window.rr.rapidr_run_bc(bc);
-    }, { source, assets: assetMap(), env: hookEnv(c) });
+    }, { source, assets: assetMap(), env: hookEnv(c), includes });
     await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout, polling: 100 });
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
     return { results, errors, page };
