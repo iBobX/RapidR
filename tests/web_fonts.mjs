@@ -4,7 +4,11 @@
 // tools/fonts.py), each fetched the first time text needs it: in a label,
 // an edit and a window's title. A character no font has stays a box, and
 // text the built-in fonts have fetches nothing. The same in a `rapidr
-// bundle-bc` bundle, which carries the fonts beside its page.
+// bundle-bc` bundle, which carries the fonts beside its page. When the
+// program speaks Simplified Chinese (Application.Language = "zh-Hans") the
+// common characters come from one file, RapidR Han Subset (fonts.toml
+// [subset], docs/legal/i18n-zh-font.md), instead of the Noto Sans SC chunks;
+// in any other language that file is never fetched.
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo
 // served on http://localhost:8765):  node tests/web_fonts.mjs
@@ -69,8 +73,9 @@ Form.ShowModal
 `;
 
 const browser = await chromium.launch();
-/// The checks on a page `open` runs the program in (`kind`: which).
-async function check(kind, open) {
+/// The checks on a page `open` runs the program in (`kind`: which); `zh`: the
+/// program's language is Simplified Chinese (its source says so).
+async function check(kind, open, zh = false) {
   const say = (cond, msg) => ok(cond, `${kind}: ${msg}`);
   const page = await browser.newPage({ deviceScaleFactor: Number(process.env.RAPIDR_DPR || 1) });
   const errors = [];
@@ -89,7 +94,13 @@ async function check(kind, open) {
   const files = fetched.map((f) => f.split(" ")[1]);
   say(fetched.every((f) => f.startsWith("200 ")), `every font file came (${fetched.join(", ")})`);
   say(files.includes("index.json"), "the index was read");
-  say(files.some((f) => f.startsWith("NotoSansSC-Regular.")), "Chinese: a Noto Sans SC chunk was fetched");
+  if (zh) {
+    say(files.includes("RapidRHanSubset-Regular.otf"), "Chinese UI: the Simplified Chinese subset was fetched");
+    say(!files.some((f) => f.startsWith("NotoSansSC-Regular.")), "Chinese UI: no Noto Sans SC chunk (the subset has the characters)");
+  } else {
+    say(files.some((f) => f.startsWith("NotoSansSC-Regular.")), "Chinese: a Noto Sans SC chunk was fetched");
+    say(!files.includes("RapidRHanSubset-Regular.otf"), "not a Chinese UI: the Simplified Chinese subset was not fetched");
+  }
   say(files.some((f) => f.startsWith("NotoSansKR-Regular.")), "Korean: a Noto Sans KR chunk was fetched");
   say(files.includes("NotoSansSymbols2-Regular.otf"), "✓: Noto Sans Symbols 2 was fetched");
   say(files.includes("Noto-COLRv1.ttf"), "😀: Noto Color Emoji was fetched");
@@ -137,6 +148,13 @@ await check("page", async (page) => {
   await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
   await page.evaluate((src) => window.rr.rapidr_run_bc(window.rr.compile(src, "fonts", {})), SOURCE);
 });
+
+// (the same program in Simplified Chinese: the subset, one file, instead of the chunks)
+await check("page, zh-Hans", async (page) => {
+  await page.goto(`${URL_BASE}/${process.env.RAPIDR_KERNEL_PAGE || "tests/web_kernel.html"}`, { waitUntil: "load" });
+  await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
+  await page.evaluate((src) => window.rr.rapidr_run_bc(window.rr.compile(src, "fonts", {})), `Application.Language = "zh-Hans"\n${SOURCE}`);
+}, true);
 
 // (a bundle-bc bundle: the fonts in its zip, beside its index.html)
 if (!process.env.RAPIDR_KERNEL_PAGE) {

@@ -943,7 +943,7 @@ SUB LayOutAIPanel
   ' (what Send shares: one line with Details beside it — under it, with
   ' "What was sent" when that didn't fit beside Stop, when the line is
   ' long —; opened, the paragraph and Less under it)
-  dw = AIDimW(AINoteLink.Caption) + 4
+  dw = AIDimW(AINoteLink.Caption) + 8
   AIMeterMeasure.Font.Name = AINote.Font.Name: AIMeterMeasure.Font.Size = AINote.Font.Size
   tw = AIMeterMeasure.TextWidth(AINote.Caption) + 4
   nh = AITextHigh(AINote.Caption, w - 16, AINote.Font.Size)

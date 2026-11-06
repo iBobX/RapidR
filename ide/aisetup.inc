@@ -32,6 +32,7 @@ DECLARE SUB AISuLook
 DECLARE SUB AISuPicked
 DECLARE SUB AISuProvPicked
 DECLARE FUNCTION AICloudNote AS STRING
+DECLARE FUNCTION SentenceGap AS STRING
 DECLARE SUB AISuTest
 DECLARE SUB AISuKeyLinkClick
 DECLARE SUB AISuProbe1In(Count AS INTEGER)
@@ -144,6 +145,9 @@ CREATE AISetup AS RForm
     CREATE AISuCloudRadio AS RRadioButton
       Caption = TR$("A &cloud service, with your own key")
       OnClick = AISuPicked
+    END CREATE
+    CREATE AISuCloudNote AS RLabel
+      AutoSize = 0: WordWrap = 1
     END CREATE
     CREATE AISuCloudText AS RLabel
       AutoSize = 0: WordWrap = 1
@@ -265,6 +269,10 @@ CREATE AISetup AS RForm
       AutoSize = 0: WordWrap = 1
       AccessibleName = TR$("What it costs, and what is sent")
     END CREATE
+    CREATE AISuCostNote AS RLabel
+      Left = 24: Top = 320: Width = 560: Height = 40
+      AutoSize = 0: WordWrap = 1
+    END CREATE
   END CREATE
 END CREATE
 
@@ -304,8 +312,6 @@ SUB SetUpAISetup
   AISuTimer.Interval = 250
   AISuTimer.Enabled = 0
   AISuTimer.OnTimer = AISuTick
-  ' (the cloud choice also says what to send and where it works)
-  AISuCloudText.Caption = AISuCloudText.Caption + " " + AICloudNote
   AISuWeb = Flag(Proj.LocalAI("web") = "1")
   ' (the cloud providers, as RAI lists them: all but a compatible server)
   AISuProvCount = 0
@@ -359,6 +365,10 @@ SUB AISuFonts
   AISuLocalText.Font.Color = TC("page.dim")
   AISuCloudText.Font = UIFont
   AISuCloudText.Font.Color = TC("page.dim")
+  AISuCloudNote.Font = UIFont
+  AISuCloudNote.Font.Color = TC("page.dim")
+  AISuCostNote.Font = UIFont
+  AISuCostNote.Font.Color = TC("page.dim")
   AISuFoundText.Font = UIFont
   AISuFoundText.Font.Color = TC("page.text")
   AISuMemText.Font = UIFont
@@ -387,7 +397,7 @@ SUB AISuFonts
 END SUB
 
 SUB LayOutAISetup
-  DIM w AS INTEGER, bh AS INTEGER, fw AS INTEGER, h AS INTEGER, dy AS INTEGER, lk AS INTEGER, y AS INTEGER, ch AS INTEGER
+  DIM w AS INTEGER, bh AS INTEGER, fw AS INTEGER, h AS INTEGER, dy AS INTEGER, lk AS INTEGER, y AS INTEGER, ch AS INTEGER, raw AS INTEGER
   w = AISetup.ClientWidth
   IF w < 400 THEN w = 400
   bh = UiButtonH
@@ -418,8 +428,14 @@ SUB LayOutAISetup
   dy = dy + h - 44
   AISuCloudRadio.Left = 24: AISuCloudRadio.Top = 174 + dy: AISuCloudRadio.Width = w - 48: AISuCloudRadio.Height = 24
   h = AISetLinesHigh(AISuCloudText.Caption, w - 72)
+  raw = h
   IF h < 100 THEN h = 100
   AISuCloudText.Left = 48: AISuCloudText.Top = 200 + dy: AISuCloudText.Width = w - 72: AISuCloudText.Height = h
+  ' (what to send and where it works, a paragraph of its own under it)
+  AISuCloudNote.Caption = AICloudNote
+  AISuCloudNote.AccessibleName = AISuCloudNote.Caption
+  h = AISetLinesHigh(AISuCloudNote.Caption, w - 72)
+  AISuCloudNote.Left = 48: AISuCloudNote.Top = AISuCloudText.Top + raw + 12: AISuCloudNote.Width = w - 72: AISuCloudNote.Height = h
   ' (2: the memory, the list — or why none is there —, the chosen model,
   ' Check My Models and the licence, another address; 24 from the edges,
   ' 8 between, 16 between groups)
@@ -464,8 +480,13 @@ SUB LayOutAISetup
   IF h < 54 THEN h = 54
   AISuTestNote.Width = w - 130 - 24: AISuTestNote.Height = h
   h = AISetLinesHigh(AISuCostText.Caption, w - 48)
+  raw = h
   IF h < 130 THEN h = 130
   AISuCostText.Width = w - 48: AISuCostText.Height = h
+  AISuCostNote.Caption = AICloudNote
+  AISuCostNote.AccessibleName = AISuCostNote.Caption
+  h = AISetLinesHigh(AISuCostNote.Caption, w - 48)
+  AISuCostNote.Left = 24: AISuCostNote.Top = AISuCostText.Top + raw + 12: AISuCostNote.Width = w - 48: AISuCostNote.Height = h
 END SUB
 
 SUB AISuShowPage(P AS INTEGER)
@@ -970,15 +991,20 @@ SUB AISuProvPicked
     CASE ELSE
       AISuCostText.Caption = TR$("You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms." + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.")
   END SELECT
-  AISuCostText.Caption = AISuCostText.Caption + " " + AICloudNote
   AISuCostText.AccessibleDescription = AISuCostText.Caption
+  IF AISetup.Visible THEN LayOutAISetup
 END SUB
 
 ' What a cloud service asks of you besides its price: send only what you
 ' may share (other people's data, an employer's code, schoolwork), and a
 ' provider may not serve where you live. Said with every cloud text.
 FUNCTION AICloudNote AS STRING
-  Result = TR$("Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send.") + " " + TR$("A provider may not offer its service where you live, and its servers may be in another country: check its terms.")
+  Result = TR$("Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send.") + SentenceGap + TR$("A provider may not offer its service where you live, and its servers may be in another country: check its terms.")
+END FUNCTION
+
+' (what goes between two sentences: a space — Chinese has none)
+FUNCTION SentenceGap AS STRING
+  IF LEFT$(Application.Language, 2) = "zh" THEN Result = "" ELSE Result = " "
 END FUNCTION
 
 SUB AISuKeyLinkClick
