@@ -1,4 +1,4 @@
-' skip-on: darwin, linux — a Windows timer queue plays the driver (dll_async_writes_handler_macos: libdispatch)
+' skip-on: darwin, linux, web — a Windows timer queue plays the driver (dll_async_writes_handler_macos: libdispatch)
 ' What a driver writes into the program's memory after its call returned is
 ' there when an event's handler starts, before the handler calls anything:
 ' in a TYPE's fields and in a string variable handed over by VARPTR (as

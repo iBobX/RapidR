@@ -1,4 +1,4 @@
-' skip-on: win32, linux — macOS's libdispatch plays the driver (dll_async_writes_windows: a Windows timer queue)
+' skip-on: win32, linux, web — macOS's libdispatch plays the driver (dll_async_writes_windows: a Windows timer queue)
 ' A DLL that writes into the program's memory AFTER its call returned (a
 ' driver filling winmm's MIDIHDR and buffer, an OVERLAPPED's result): the
 ' program sees what it wrote after a wait, and a later DLL call that has

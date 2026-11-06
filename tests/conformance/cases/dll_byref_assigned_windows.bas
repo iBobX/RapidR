@@ -1,4 +1,4 @@
-' skip-on: darwin, linux — kernel32 (dll_byref_assigned_macos: the C library)
+' skip-on: darwin, linux, web — kernel32 (dll_byref_assigned_macos: the C library)
 ' A BYREF variable the DLL writes, assigned the function's result in the
 ' same statement: the assignment comes last, so the variable holds the
 ' result (RC.EXE, 2026-11-05: GetComputerNameA writes nSize = 15 and returns

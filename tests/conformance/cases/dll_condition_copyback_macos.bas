@@ -1,4 +1,4 @@
-' skip-on: win32, linux — the C library on macOS
+' skip-on: win32, linux, web — the C library on macOS
 ' A DLL call in an IF's, a WHILE's or a SELECT's own expression that writes
 ' a variable handed over (VARPTR, a STRING parameter): the statements
 ' inside and after see what it wrote, as with RapidQ's one memory

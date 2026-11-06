@@ -71,6 +71,13 @@ for (const name of names) {
   if (source.includes("\uFFFD")) {
     source = execFileSync(join(ROOT, "rapidr"), ["preprocess", join(CASES, file)], { encoding: "utf8" });
   }
+  // (`' skip-on: …, web` — the run.mjs marker naming the web: a case that
+  // calls a system's DLLs, which no page can)
+  const skipOn = /^'\s*skip-on:\s*([^—\-\n]*)/i.exec(source.split("\n")[0]);
+  if (skipOn && skipOn[1].split(",").some((s) => s.trim().toLowerCase() === "web")) {
+    console.log(`SKIP   ${name} (not on the web)`);
+    continue;
+  }
   const marker = /^'\s*xfail:\s*([^—\-\n]*)/i.exec(source.split("\n")[0]);
   const expectedFail = !!marker && /\bweb\b/i.test(marker[1]);
   const expected = norm(readFileSync(join(CASES, name + ".expected"), "utf8"));

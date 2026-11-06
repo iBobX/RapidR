@@ -1,4 +1,4 @@
-' skip-on: win32, linux — the C library on macOS (dll_byref_assigned_windows: kernel32, as RC.EXE ran it)
+' skip-on: win32, linux, web — the C library on macOS (dll_byref_assigned_windows: kernel32, as RC.EXE ran it)
 ' A BYREF variable the DLL writes, assigned the function's result in the
 ' same statement: the assignment comes last, so the variable holds the
 ' result, as RapidQ's (docs/windows-dll-calls.md §7). modf(7.5, ip)

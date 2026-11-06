@@ -403,7 +403,12 @@ PRINT Square(1.5)             ' 2.250000000
   Windows**, en las compilaciones nativas y en modo interpretado, con estas
   reglas: un número va por valor a menos que sea `BYREF`, un `STRING` y un `TYPE`
   van por dirección (lo que la DLL escribe se ve en la variable), las
-  direcciones de `VARPTR` son punteros reales para la llamada. Hasta 16
+  direcciones de `VARPTR` son punteros reales para la llamada. Lo que una DLL
+  escribe allí más tarde — un controlador que llena el `MIDIHDR` y el búfer que
+  recibió `midiInAddBuffer`, un `WAVEHDR`, un `OVERLAPPED` — llega al programa en
+  su próximo controlador de evento, espera (`DOEVENTS`, `SLEEP`, `ShowModal`) o
+  llamada a una DLL, y las demás llamadas del programa no lo pisan; un bucle que
+  espera una de esas marcas espera con `DOEVENTS` o `SLEEP` dentro. Hasta 16
   argumentos, de los cuales hasta 8 `DOUBLE` / `SINGLE`. Un puntero de 64 bits
   que una DLL devuelve o escribe en un `LONG` se guarda como un sustituto de
   32 bits que vuelve a convertirse en el puntero cuando se le da otra vez a una

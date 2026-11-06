@@ -32,7 +32,7 @@
 "CURRENCY" = "Un número para cantidades de dinero; RapidR lo guarda como un número de punto flotante de 64 bits."
 "DATA" = "Lista valores en el programa para que `READ` los lea, en orden."
 "DEC" = "Resta `amount` (1 si no se da) a una variable."
-"DECLARE" = "Declara una SUB o una FUNCTION antes de su cuerpo, o una de una biblioteca compartida (`LIB`), que se puede llamar en las compilaciones nativas; las bibliotecas de la API de Windows se rechazan y se indica una alternativa portable."
+"DECLARE" = "Declara una SUB o una FUNCTION antes de su cuerpo, o una de una DLL (`LIB`), que se ejecuta de verdad en Windows, interpretado y en las compilaciones nativas: los números van por valor salvo con `BYREF`, las STRING y los TYPE por dirección. Lo que la DLL escribe en ellos (también más tarde, como un controlador que llena un búfer que recibió) llega al programa en su próximo evento, espera (`DOEVENTS`, `SLEEP`) o llamada a una DLL. En macOS, Linux y la web la llamada es un error que nombra la función."
 "DEFBYTE" = "Declara variables o arreglos BYTE, opcionalmente con valores iniciales."
 "DEFCUR" = "Declara variables o arreglos CURRENCY, opcionalmente con valores iniciales."
 "DEFDBL" = "Declara variables o arreglos DOUBLE, opcionalmente con valores iniciales."

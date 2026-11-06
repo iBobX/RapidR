@@ -18,7 +18,14 @@
 # (This file is read as ANSI by Windows PowerShell: no character outside ASCII in its code.)
 param(
     [Parameter(Mandatory = $true)][string]$Prep,
-    [string]$Old = "$env:USERPROFILE\rapidr-jit\host\target\release\rapidr.exe"
+    [string]$Old = "$env:USERPROFILE\rapidr-jit\host\target\release\rapidr.exe",
+    # RapidQ's examples that call DLLs (-Prep's corpus-list.txt, tools/dll_corpus_list.py), each
+    # interpreted with this build and with -Old's (tools/dll_breadth.py), and what differs
+    [switch]$Corpus,
+    # only the corpus (the build, the tests and the programs skipped: a build there already)
+    [switch]$CorpusOnly,
+    # RapidQ's folder (its examples and includes: only read)
+    [string]$RapidQ = "\\Mac\Home\Downloads\Rapidq"
 )
 $ErrorActionPreference = "Continue"
 $ProgressPreference = "SilentlyContinue"
@@ -45,6 +52,7 @@ Write-Host "== $(& rustc -vV | Select-String host), building rapidr"
 & cargo build --release -q -p rapidr-cli 2>&1 | Select-String -Pattern "^error" -Context 0, 6 | Select-Object -First 20 | Write-Host
 if (-not (Test-Path "$W\target\release\rapidr.exe")) { Write-Host "the build failed"; Pop-Location; exit 1 }
 Copy-Item -Force "$W\target\release\rapidr.exe" "$src\rapidr.exe"
+if (-not $CorpusOnly) {
 Write-Host "== the memory model's tests, the DLL calls' tests"
 & cargo test --release -q -p rapidr-value --lib memory:: 2>&1 | Select-String -Pattern "test result|panicked|FAILED|^error" | Select-Object -First 20 | Write-Host
 if ($LASTEXITCODE -ne 0) { $fail = 1 }
@@ -60,7 +68,7 @@ if (Test-Path $node) {
     $c | Where-Object { $_ -match "^\s+\|" } | Select-Object -First 40 | Write-Host
     if (-not (($c -join "`n") -match "\d+ passed, \d+ known failures \(xfail\), 0 failed")) { $fail = 1 }
     Write-Host "== the examples that call winmm (rapidr run, interpreted build, native build)"
-    & $node tests\examples_run.mjs --runtimes run,interp,native midi_in midi_sysex_out *> "$W\examples.txt"
+    & $node tests\examples_run.mjs --runtimes run,interp,native windows/midi_in windows/midi_sysex *> "$W\examples.txt"
     $e = Get-Content "$W\examples.txt"
     $e | Where-Object { $_ -match "^Examples:|midi" } | Select-Object -First 20 | Write-Host
     if (-not (($e -join "`n") -match "Examples: \d+ checks passed, 0 failed")) { $fail = 1 }
@@ -113,6 +121,28 @@ foreach ($dir in $programs) {
     }
 }
 Remove-Item Env:\RAPIDR_CAPTURE, Env:\RAPIDR_CAPTURE_WINDOWS, Env:\RAPIDR_TEST_EVENTS, Env:\RAPIDR_TEST_DUMP, Env:\FAKE_WINMM_LOG -ErrorAction SilentlyContinue
+}
+if ($Corpus -or $CorpusOnly) {
+    $py = "$env:LOCALAPPDATA\Programs\Python\Python313-arm64\python.exe"
+    if (-not (Test-Path $py)) { $pc = Get-Command python.exe -ErrorAction SilentlyContinue; if ($pc) { $py = $pc.Source } }
+    if (-not (Test-Path "$Prep\corpus-list.txt")) { Write-Host "no corpus-list.txt in -Prep: the corpus skipped" }
+    elseif (-not (Test-Path $py)) { Write-Host "no python.exe: the corpus skipped" }
+    else {
+        Write-Host "== RapidQ's DLL examples, interpreted, this build and -Old's (tools/dll_breadth.py)"
+        # (names of their own: dll_breadth.py ends a program that hangs by its image name)
+        Copy-Item -Force "$src\rapidr.exe" "$W\rapidr-dllmem-new.exe"
+        if (Test-Path "$W\rapidr-old.exe") { Copy-Item -Force "$W\rapidr-old.exe" "$W\rapidr-dllmem-old.exe" }
+        foreach ($which in @("new", "old")) {
+            if (-not (Test-Path "$W\rapidr-dllmem-$which.exe")) { continue }
+            cmd /c "rmdir /s /q `"$W\breadth-$which`" 2>nul" | Out-Null
+            & $py tools\dll_breadth.py --rapidr "$W\rapidr-dllmem-$which.exe" --corpus "$RapidQ\examples" --include "$RapidQ\include" --list "$Prep\corpus-list.txt" --out "$W\breadth-$which" *> "$W\breadth-$which.txt"
+            Write-Host "   $which`: $((Get-Content "$W\breadth-$which\results.jsonl" -ErrorAction SilentlyContinue | Measure-Object).Count) programs"
+        }
+        & $py tools\dll_breadth_compare.py "$W\breadth-old\results.jsonl" "$W\breadth-new\results.jsonl" 2>&1 | Write-Host
+        Copy-Item -Force "$W\breadth-new\results.jsonl" "$out\dllmem-breadth-new.jsonl" -ErrorAction SilentlyContinue
+        Copy-Item -Force "$W\breadth-old\results.jsonl" "$out\dllmem-breadth-old.jsonl" -ErrorAction SilentlyContinue
+    }
+}
 Pop-Location
 if ($fail -eq 0) { Write-Host "dll-memory-check: all passed" } else { Write-Host "dll-memory-check: FAILED" }
 exit $fail

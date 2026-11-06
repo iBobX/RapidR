@@ -1,4 +1,4 @@
-' skip-on: win32, linux — macOS's libdispatch plays the driver (dll_async_writes_handler_windows: a Windows timer queue)
+' skip-on: win32, linux, web — macOS's libdispatch plays the driver (dll_async_writes_handler_windows: a Windows timer queue)
 ' What a driver writes into the program's memory after its call returned is
 ' there when an event's handler starts, before the handler calls anything:
 ' in a TYPE's fields and in a string variable handed over by VARPTR (as

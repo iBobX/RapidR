@@ -794,6 +794,8 @@ struct Backing {
     real: Vec<u8>,
     /// No sync yet: the program's view goes in whole.
     fresh: bool,
+    /// What it viewed no longer exists: no look compares it any more.
+    retired: bool,
 }
 
 thread_local! {
@@ -849,7 +851,7 @@ fn backing_of(base: i64, reserved: usize) -> (*mut u8, usize) {
             let own: Box<[u64]> = vec![0u64; reserved.div_ceil(8)].into_boxed_slice();
             Box::into_raw(own) as *mut u64 as *mut u8
         });
-        b.insert(base, Backing { ptr, len: reserved, seen: Vec::new(), real: Vec::new(), fresh: true });
+        b.insert(base, Backing { ptr, len: reserved, seen: Vec::new(), real: Vec::new(), fresh: true, retired: false });
         (ptr, reserved)
     })
 }
@@ -962,18 +964,40 @@ fn real_changed(base: i64) -> bool {
 /// after SLEEP and DOEVENTS (docs/windows-dll-calls.md §7). Costs a compare
 /// per block a DLL was ever given; nothing for a program that gave none.
 pub fn catch_up() {
-    let bases: Vec<i64> = BACKINGS.with(|b| {
+    // (the blocks whose real bytes changed, with their targets; and those
+    // of an array or a TYPE that no longer exists: never looked at again —
+    // a block's address is never given out again either)
+    let (changed, gone) = BACKINGS.with(|b| {
         let b = b.borrow();
+        let mut changed: Vec<(i64, Target)> = Vec::new();
+        let mut gone: Vec<i64> = Vec::new();
         if b.is_empty() {
-            return Vec::new();
+            return (changed, gone);
         }
-        b.iter().filter(|(_, k)| !k.fresh && differs(k.ptr, &k.real)).map(|(&base, _)| base).collect()
+        SPACE.with(|s| {
+            let s = s.borrow();
+            for (&base, k) in b.iter().filter(|(_, k)| !k.fresh && !k.retired) {
+                match s.blocks.get(&base).filter(|blk| alive(&blk.target)) {
+                    None => gone.push(base),
+                    Some(blk) if differs(k.ptr, &k.real) => changed.push((base, blk.target.clone())),
+                    Some(_) => {}
+                }
+            }
+        });
+        (changed, gone)
     });
-    for base in bases {
-        let target = SPACE.with(|s| s.borrow().blocks.get(&base).filter(|b| alive(&b.target)).map(|b| b.target.clone()));
-        if let Some(t) = target {
-            sync_block(base, &t, None);
-        }
+    if !gone.is_empty() {
+        BACKINGS.with(|b| {
+            let mut b = b.borrow_mut();
+            for base in gone {
+                if let Some(k) = b.get_mut(&base) {
+                    k.retired = true;
+                }
+            }
+        });
+    }
+    for (base, t) in changed {
+        sync_block(base, &t, None);
     }
 }
 
@@ -1001,6 +1025,7 @@ pub struct Materialized {
 /// is left as it is, the driver's writes in it too.
 pub fn materialize() -> Vec<Materialized> {
     let mut out: Vec<Materialized> = Vec::new();
+    let mut done: std::collections::HashSet<i64> = std::collections::HashSet::new();
     // (encoding a TYPE can make blocks — a STRING field's characters —
     // which this call's pointers need too: until no new one comes)
     loop {
@@ -1008,7 +1033,7 @@ pub fn materialize() -> Vec<Materialized> {
             s.borrow()
                 .blocks
                 .iter()
-                .filter(|(base, b)| alive(&b.target) && !out.iter().any(|m| m.base == **base))
+                .filter(|(base, b)| !done.contains(*base) && alive(&b.target))
                 .map(|(&base, b)| (base, b.reserved, b.target.clone()))
                 .collect()
         });
@@ -1022,6 +1047,7 @@ pub fn materialize() -> Vec<Materialized> {
             if !same {
                 sync_block(base, &target, Some(prog));
             }
+            done.insert(base);
             out.push(Materialized { base, ptr, len });
         }
     }
@@ -1501,5 +1527,21 @@ mod tests {
         assert_eq!(sync("t5:r", &v_int(7), "LONG").to_i64(), 42, "not assigned: memory's");
         refresh("t5:r", &v_int(9), "LONG");
         assert_eq!(read(p, 4).unwrap(), 9i32.to_le_bytes(), "assigned: the refresh takes it");
+    }
+
+    /// A TYPE given to a DLL that no longer exists (a SUB's local, after
+    /// the SUB): the looks stop comparing its memory.
+    #[test]
+    fn a_block_that_no_longer_exists_is_left_alone() {
+        let base = {
+            let r = udt();
+            let a = address_of(&r).unwrap();
+            read_back(materialize());
+            a
+        };
+        assert!(BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| !k.retired)));
+        catch_up();
+        assert!(BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| k.retired)));
+        catch_up();
     }
 }

@@ -25,12 +25,14 @@
 #                                            the JIT on Windows: this checkout's committed sources built
 #                                            in the VM, its tests, conformance with and without it
 #                                            (windows/jit-check.ps1; %USERPROFILE%\rapidr-jit)
-#   tools/release/windows-vm.sh dllmem [<folder of program folders>] [Old=<rapidr.exe in the VM>]
+#   tools/release/windows-vm.sh dllmem [<folder of program folders>] [Old=<rapidr.exe in the VM>] [Corpus | CorpusOnly]
 #                                            DLL memory (docs/windows-dll-calls.md §7): this checkout's
 #                                            committed sources built in the VM, the memory and DLL tests,
 #                                            the DLL conformance cases, the winmm examples, and programs
 #                                            receiving SysEx from a stand-in for winmm, with this build and
-#                                            the one before (windows/dll-memory-check.ps1; %USERPROFILE%\rapidr-dllmem)
+#                                            the one before (windows/dll-memory-check.ps1; %USERPROFILE%\rapidr-dllmem);
+#                                            Corpus: RapidQ's DLL examples interpreted with both, what differs
+#                                            (tools/dll_breadth.py, tools/dll_breadth_compare.py)
 #   tools/release/windows-vm.sh stop         stop the release jobs running in the VM
 #   tools/release/windows-vm.sh clean [--dry-run] [--keep-out]
 #                                            remove everything the release and smoke scripts left in
@@ -153,6 +155,8 @@ case "${1:-}" in
         trap 'rm -rf "$ROOT/.release-share"' EXIT
         git -C "$ROOT" archive --format=tar HEAD > "$ROOT/.release-share/dllmem/src.tar"
         if [ -n "${1:-}" ] && [ -d "$1" ]; then cp -R "$1" "$ROOT/.release-share/dllmem/programs"; shift; fi
+        # (Corpus / CorpusOnly: RapidQ's DLL examples, the list made here, where RapidQ's folder is)
+        case " $* " in *" Corpus "*|*" CorpusOnly "*) python3 "$ROOT/tools/dll_corpus_list.py" > "$ROOT/.release-share/dllmem/corpus-list.txt" ;; esac
         awake; profile
         job dll-memory-check.ps1 -Prep "$SHARE\\.release-share\\dllmem" "$@"
         ;;
