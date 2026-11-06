@@ -8,8 +8,9 @@
 #                                        packages into dist/<ver>/out/
 #   tools/release/linux-vm.sh wait       wait for a build already started, then fetch
 #   tools/release/linux-vm.sh smoke      tools/release/smoke.sh on every package
-#                                        there (the other architecture's under
-#                                        qemu-user: no native build)
+#                                        there (the other architecture's runs under Rosetta or
+#                                        qemu-user: its native build only with an x86_64 Rust on
+#                                        an arm64 VM with Rosetta, linux/setup-tools.sh x86rust)
 #   tools/release/linux-vm.sh clean [--dry-run] [--keep-out]
 #                                        remove everything the release and smoke scripts left in
 #                                        the VM (linux/clean.sh: ~/rapidr-release — builds, cargo
@@ -48,6 +49,7 @@ if [ "${1:-}" = smoke ]; then
     # (straight into the user's home: ubuntu-vm.sh sends as root while nobody is logged in at the VM's desktop)
     bash "$VM" send tools/release/smoke.sh "~/rapidr-release/smoke.sh"
     bash "$VM" send tools/release/p5check.sh "~/rapidr-release/p5check.sh"
+    bash "$VM" send tools/release/linux/x86-env.sh "~/rapidr-release/x86-env.sh"
     cat > "$SCRIPT" <<'EOF'
 B="$HOME/rapidr-release"
 rm -f "$B/smoke.done"
@@ -56,8 +58,10 @@ setsid nohup bash -c '
   # (the smoke works on the disk, not /tmp: the Ubuntu /tmp is a RAM disk of a
   # few GB, and a native build of a form filled it — "Disk quota exceeded")
   export TMPDIR="$B/tmp"; rm -rf "$TMPDIR"; mkdir -p "$TMPDIR"
+  # (x86_64 packages on an arm64 VM: built natively by its x86_64 Rust, when it has one)
+  x86nat=0; if [ -f "$B/x86-env.sh" ]; then . "$B/x86-env.sh"; x86_available && x86nat=1; fi
   for a in "$B"/dist/out/*.deb "$B"/dist/out/*.tar.gz; do
-    case "$a" in *"$host"*|*_$(dpkg --print-architecture).deb) native=1 ;; *) native=0 ;; esac
+    case "$a" in *"$host"*|*_$(dpkg --print-architecture).deb) native=1 ;; *x86_64*|*amd64*) native=$x86nat ;; *) native=0 ;; esac
     SMOKE_NATIVE=$native bash "$B/smoke.sh" "$a" || fail=1
   done > "$B/smoke.log" 2>&1
   rm -rf /tmp/rapidr-smoke.* "$TMPDIR"

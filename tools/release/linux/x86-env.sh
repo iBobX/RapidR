@@ -47,3 +47,9 @@ x86_env() {
     # opensslconf.h is; searched last, so the C library's headers stay Zig's)
     export CFLAGS_x86_64_unknown_linux_gnu="-idirafter /usr/include/x86_64-linux-gnu"
 }
+
+# (the build's environment ends where the build does: the checks after it run the package as it is)
+x86_env_unset() {
+    unset ROSETTA_DISABLE_AOT CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER CC_x86_64_unknown_linux_gnu CXX_x86_64_unknown_linux_gnu \
+        PKG_CONFIG_ALLOW_CROSS PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_LIBDIR CFLAGS_x86_64_unknown_linux_gnu
+}
