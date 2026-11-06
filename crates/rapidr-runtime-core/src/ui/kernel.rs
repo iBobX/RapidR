@@ -263,6 +263,9 @@ fn pump(timeout: Option<Duration>) {
         host.pump(timeout, desk, &RtStore);
         super::busy::wait_ended();
     });
+    // (what a DLL or a driver wrote into the program's memory meanwhile —
+    // before the messages it posted reach a handler: docs/windows-dll-calls.md §7)
+    rapidr_value::memory::catch_up();
 }
 
 thread_local! {

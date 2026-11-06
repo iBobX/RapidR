@@ -25,6 +25,12 @@
 #                                            the JIT on Windows: this checkout's committed sources built
 #                                            in the VM, its tests, conformance with and without it
 #                                            (windows/jit-check.ps1; %USERPROFILE%\rapidr-jit)
+#   tools/release/windows-vm.sh dllmem [<folder of program folders>] [Old=<rapidr.exe in the VM>]
+#                                            DLL memory (docs/windows-dll-calls.md §7): this checkout's
+#                                            committed sources built in the VM, the memory and DLL tests,
+#                                            the DLL conformance cases, the winmm examples, and programs
+#                                            receiving SysEx from a stand-in for winmm, with this build and
+#                                            the one before (windows/dll-memory-check.ps1; %USERPROFILE%\rapidr-dllmem)
 #   tools/release/windows-vm.sh stop         stop the release jobs running in the VM
 #   tools/release/windows-vm.sh clean [--dry-run] [--keep-out]
 #                                            remove everything the release and smoke scripts left in
@@ -138,6 +144,17 @@ case "${1:-}" in
         git -C "$ROOT" archive --format=tar HEAD > "$ROOT/.release-share/jit/src.tar"
         awake; profile
         job jit-check.ps1 -Prep "$SHARE\\.release-share\\jit" "$@"
+        ;;
+    dllmem)
+        shift
+        # (the committed sources, and the optional folder of program folders to run against the
+        # stand-in for winmm: windows/dll-memory-check.ps1)
+        rm -rf "$ROOT/.release-share" && mkdir -p "$ROOT/.release-share/dllmem"
+        trap 'rm -rf "$ROOT/.release-share"' EXIT
+        git -C "$ROOT" archive --format=tar HEAD > "$ROOT/.release-share/dllmem/src.tar"
+        if [ -n "${1:-}" ] && [ -d "$1" ]; then cp -R "$1" "$ROOT/.release-share/dllmem/programs"; shift; fi
+        awake; profile
+        job dll-memory-check.ps1 -Prep "$SHARE\\.release-share\\dllmem" "$@"
         ;;
     stop) awake; wps stop.ps1 ;;
     clean)

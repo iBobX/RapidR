@@ -276,6 +276,12 @@ pub fn call(handler: Handler, name: &str, event: &str, args: &[Value], indirect:
     // first statements, `sender_param`; a queued one's travels with it,
     // `QueuedEvent::fired`)
     let outer = if queued { None } else { Some(arm_sender(Some(args.len()))) };
+    // (a compiled handler sees what a DLL or a driver wrote into the
+    // program's memory since — winmm's buffer before its MM_MIM_LONGDATA:
+    // docs/windows-dll-calls.md §7; the VM's queued one when it runs)
+    if !queued {
+        crate::memory::catch_up();
+    }
     match handler {
         Handler::Arity0(f) => f(),
         Handler::Arity1(f) => f(a(&all, 0)),

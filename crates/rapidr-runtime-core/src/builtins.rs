@@ -271,6 +271,9 @@ pub fn rp_doevents() {
     crate::audio_out::poll();
     // (RMIDIPort's events, also in a console program)
     crate::midi_port::poll();
+    // (what a DLL or a driver wrote into the program's memory meanwhile:
+    // docs/windows-dll-calls.md §7)
+    crate::value::memory::catch_up();
 }
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).
@@ -281,6 +284,9 @@ pub fn rp_sleep(seconds: &Value) {
     if s.is_finite() && s > 0.0 {
         std::thread::sleep(std::time::Duration::from_secs_f64(s.min(86_400.0)));
     }
+    // (a program waiting for a DLL's or a driver's work sees what it wrote
+    // into the program's memory meanwhile: docs/windows-dll-calls.md §7)
+    crate::value::memory::catch_up();
 }
 
 /// A bare `COMMAND$` (RapidR's): the program's arguments, joined.
