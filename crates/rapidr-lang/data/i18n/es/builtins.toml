@@ -170,3 +170,4 @@
 "VARTYPE" = "Un código para la clase de valor que contiene un VARIANT, como los numera VB: 0 vacío, 2 entero, 5 double, 8 cadena, 9 objeto, 11 Boolean."
 "WSTRING" = "Una cadena convertida a caracteres anchos (UTF-16), para rutinas que reciben texto Unicode."
 "WSTRINGTOASCII" = "Una cadena ancha (UTF-16) convertida de vuelta a una cadena normal."
+"MOVETOTRASH" = "Mueve un archivo o una carpeta a la papelera del sistema (la Papelera de reciclaje en Windows), de donde la persona aún puede recuperarlo: True (-1) si se movió, 0 si no (no existe, su disco no tiene papelera, no hay permiso). A diferencia de `KILL`, nada se pierde para siempre. El navegador no tiene papelera: allí detiene el programa con un error en tiempo de ejecución que lo dice."

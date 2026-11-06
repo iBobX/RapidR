@@ -1,0 +1,35 @@
+' trash.rr: a file moved to the system's Trash (the Recycle Bin on
+' Windows) with MOVETOTRASH - it can still be put back from there, unlike
+' KILL, which deletes a file for good.
+'
+'   rapidr run trash.rr
+'
+' It writes a small file, trash-me.txt, in the folder it runs in, then
+' moves it to the Trash. Look in the Trash afterwards: the note is there,
+' and the Trash's Put Back (Restore) brings it here again. MOVETOTRASH
+' gives True when the file went, 0 when it didn't (it isn't there, its disk
+' has no Trash). A browser has no Trash: there it stops the program with an
+' error that says so.
+$APPTYPE CONSOLE
+
+CONST NOTE = "trash-me.txt"
+
+OPEN NOTE FOR OUTPUT AS #1
+PRINT #1, "A note nobody needs any more."
+CLOSE #1
+' (written? A folder that can't be written leaves no file: say so, stop)
+IF FILEEXISTS(NOTE) = 0 THEN
+    PRINT "Couldn't write " + NOTE + " in " + CURDIR$ + ": run it from a folder of yours."
+    END 1
+END IF
+PRINT NOTE + " written: "; FILELEN(NOTE); " bytes"
+
+IF MOVETOTRASH(NOTE) THEN
+    PRINT "Moved to the Trash: " + NOTE
+ELSE
+    PRINT "Not moved: its disk may have no Trash."
+END IF
+IF FILEEXISTS(NOTE) THEN PRINT "Still here: yes" ELSE PRINT "Still here: no"
+
+' (a file that isn't there: 0, and nothing else happens)
+IF MOVETOTRASH("no-such-file.txt") = 0 THEN PRINT "no-such-file.txt: not moved, it isn't there"

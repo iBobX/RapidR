@@ -563,6 +563,28 @@ The stream objects do the same with methods: `RFileStream` (older name
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` and `DIREXISTS` work with folders.
 In a browser, files are the page's own (see [The web](web.md)).
 
+### To the Trash: `MOVETOTRASH`
+
+`KILL` deletes a file for good. **`MOVETOTRASH(Path$)`** (RapidR's) moves a
+file or a folder to the system's Trash — the Recycle Bin on Windows, the
+desktop's Trash on Linux — where the person can still put it back, and
+gives True (-1) when it went, 0 when it didn't (it isn't there, its disk has
+no Trash, no permission):
+
+```basic
+IF MOVETOTRASH("old-notes.txt") THEN
+    PRINT "In the Trash: Put Back brings it here again"
+ELSE
+    PRINT "Not moved"
+END IF
+```
+
+The same in `rapidr run`, an interpreted build and a native one. A browser
+has no Trash: there `MOVETOTRASH` stops the program with a run-time error
+that says so. RapidR Studio's **Delete File...** (the Project tree's
+right-click menu) uses it. Example:
+[trash.rr](../../examples/basics/trash.rr).
+
 ### Text and bytes: accents, Chinese, emoji
 
 A string is made of characters and a file of bytes. RapidR keeps them

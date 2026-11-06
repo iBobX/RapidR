@@ -618,6 +618,12 @@ pub fn rp_direxists(path: &Value) -> Value {
     v_int(matches!(path.to_string_val().trim(), "." | "./" | ".\\") as i64)
 }
 
+/// MOVETOTRASH: a browser has no Trash — said plainly, as a run-time error
+/// (the desktop and native programs move the file there).
+pub fn rp_movetotrash(_path: &Value) -> Value {
+    crate::value::runtime_error("MOVETOTRASH isn't available in the browser: it has no Trash (a desktop or native program moves the file there)")
+}
+
 /// FILEEXISTS: a file the program saved this session or one of its
 /// project's files (object_web::web_file_exists).
 pub fn rp_fileexists(path: &Value) -> Value {

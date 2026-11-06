@@ -365,6 +365,15 @@ pub fn rp_direxists(path: &Value) -> Value {
     v_int(if crate::value::paths::host(&path.to_string_val()).is_dir() { 1 } else { 0 })
 }
 
+/// MOVETOTRASH (RapidR's): the file or folder moved to the system's Trash
+/// (the Recycle Bin), where it can be put back; True (-1) when it was, 0
+/// when not (it doesn't exist, its disk has no Trash, no permission) —
+/// rapidr_value::trash.
+pub fn rp_movetotrash(path: &Value) -> Value {
+    let p = crate::value::paths::host(&path.to_string_val());
+    v_int(if crate::value::trash::move_to_trash(&p).is_ok() { -1 } else { 0 })
+}
+
 /// FILEEXISTS: 1 for a file, 0 otherwise; with `*` / `?` in the name, 1
 /// when the first name the folder lists for the pattern is a file, as
 /// RapidQ's (crate::file_io::wildcard_file_exists).

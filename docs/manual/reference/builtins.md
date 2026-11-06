@@ -74,6 +74,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `LOF(FileNum)` | The length in bytes of a file opened with `OPEN`. |
 | `MKDIR Dir$` | Creates a folder. |
 | `OPEN FileName$ FOR mode AS #FileNum` | Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access under a file number (see `FREEFILE`). |
+| `MOVETOTRASH(Path$)` | Moves a file or a folder to the system's Trash (the Recycle Bin on Windows), where the person can still put it back: True (-1) when it was moved, 0 when not (it doesn't exist, its disk has no Trash, no permission). Unlike `KILL`, nothing is lost for good. The browser has no Trash: there it stops the program with a run-time error that says so. |
 | `RENAME File1$, File2$` | Renames (or moves) a file from the first name to the second. |
 | `RESOURCE(number%)` | The handle of the n-th resource built into the program with `$RESOURCE` (0 the first), for `EXTRACTRESOURCE`, `PLAYWAV` or a picture. |
 | `RESOURCECOUNT` *bare* | The number of resources built into the program with `$RESOURCE`. |
@@ -229,4 +230,4 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `TIMER` *bare* | The seconds since midnight (local time), with fractions, for timing parts of a program. |
 | `UNLOADLIBRARY(DLLName)` | Removes a DLL from memory — only one the program declared (`DECLARE … LIB "name"`), by that very name: `UNLOADLIBRARY("USER32")` unloads `LIB "USER32"`, while `UNLOADLIBRARY("USER32.DLL")` does nothing (capitals don't matter). A library not loaded, or not declared, does nothing; a later call to one of its functions loads it again, so unloading is never required (it is done when the program ends). Only on Windows is there a DLL to unload: elsewhere it does nothing, without an error. |
 
-168 builtins.
+169 builtins.

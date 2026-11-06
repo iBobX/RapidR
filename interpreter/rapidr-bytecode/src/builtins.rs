@@ -51,7 +51,7 @@ pub const BUILTINS: &[&str] = &[
     "iif", "input", "input_func", "insert", "instr", "int", "inv", "isnumeric",
     "kill", "unloadlibrary",
     "input_field", "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
-    "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "mousex", "mousey", "msgbox",
+    "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "mousex", "mousey", "movetotrash", "msgbox",
     "oct", "open",
     "pi", "playsound", "playwav", "pos", "print", "print_hash", "println",
     "rapidr__waitkey", "randomize", "rename", "resource", "resourcecount", "replace", "replacesubstr", "reverse", "rgb", "right", "rinstr", "rmdir",
@@ -74,7 +74,7 @@ pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__dat
 
 /// Builtins 2.123 brought (a module calling one needs
 /// [`crate::WIDE_SINCE`]: an older runtime names the version to get).
-pub const SINCE_2_123: &[&str] = &["__rapidr_program", "__to_uint32", "loword", "hiword", "lobyte", "hibyte", "getbits", "setbits"];
+pub const SINCE_2_123: &[&str] = &["__rapidr_program", "__to_uint32", "loword", "hiword", "lobyte", "hibyte", "getbits", "setbits", "movetotrash"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.

@@ -588,6 +588,28 @@ Los objetos de flujo hacen lo mismo con métodos: `RFileStream` (nombre anterior
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` y `DIREXISTS` trabajan con carpetas.
 En un navegador, los archivos son propios de la página (mira [La web](web.md)).
 
+### A la papelera: `MOVETOTRASH`
+
+`KILL` elimina un archivo para siempre. **`MOVETOTRASH(Path$)`** (de RapidR)
+mueve un archivo o una carpeta a la papelera del sistema —la Papelera de
+reciclaje en Windows, la papelera del escritorio en Linux—, de donde la
+persona aún puede recuperarlo, y da True (-1) si se movió, 0 si no (no
+existe, su disco no tiene papelera, no hay permiso):
+
+```basic
+IF MOVETOTRASH("notas-viejas.txt") THEN
+    PRINT "En la papelera: Recuperar lo trae aquí de nuevo"
+ELSE
+    PRINT "No se movió"
+END IF
+```
+
+Igual en `rapidr run`, en una compilación interpretada y en una nativa. Un
+navegador no tiene papelera: allí `MOVETOTRASH` detiene el programa con un
+error en tiempo de ejecución que lo dice. El **Eliminar archivo...** de
+RapidR Studio (el menú del clic derecho del árbol del proyecto) lo usa.
+Ejemplo: [trash.rr](../../../examples/basics/trash.rr).
+
 ### Texto y bytes: acentos, chino, emoji
 
 Una cadena de texto se compone de caracteres y un archivo de bytes. RapidR los
