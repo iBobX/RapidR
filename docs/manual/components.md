@@ -366,7 +366,7 @@ which moves three `SmallChange` steps a notch (down or right forward; a
 horizontal bar takes a sideways turn, or Shift and the wheel) and fires its
 `OnChange`, as a click on its arrow does. In a classic program (`.bas`,
 `.rqw` …) the wheel leaves a scroll bar alone and fires nothing, exactly as
-RapidQ's does.
+it always did.
 
 Where nothing under the mouse scrolls by itself — a list you paint with
 labels on a panel, a canvas, a game — `OnMouseWheel (Delta, X, Y, Shift)`

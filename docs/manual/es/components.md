@@ -385,7 +385,7 @@ formulario con sus propias barras — y, en un programa de RapidR (un archivo
 abajo o a la derecha; una barra horizontal toma un giro lateral, o Shift y la
 rueda) y dispara su `OnChange`, como un clic en su flecha. En un programa clásico
 (`.bas`, `.rqw` …) la rueda no mueve una barra de desplazamiento ni dispara nada,
-exactamente como la de RapidQ.
+exactamente como siempre.
 
 Donde nada bajo el mouse se desplaza por sí mismo —una lista que dibujas con
 etiquetas sobre un panel, un lienzo, un juego—, `OnMouseWheel (Delta, X, Y,

@@ -47,6 +47,7 @@ internal = [
   "__paramval",
   "__paramvalcount",
   "__quicksort",
+  "__rapidr_program",
   "__read",
   "__redim",
   "__restore",

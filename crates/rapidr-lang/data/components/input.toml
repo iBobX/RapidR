@@ -508,7 +508,7 @@ visual = true
 size = [121, 17]
 default_event = "OnChange"
 sets = ["layout", "a11y"]
-doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and, in a RapidR program (a .rr file), the mouse wheel over it (three SmallChanges a notch; a classic program's doesn't move for the wheel, as RapidQ's)."
+doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and, in a RapidR program (a .rr file), the mouse wheel over it (three SmallChanges a notch; a classic program's doesn't move for the wheel, as it always was)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Cursor", type = "enum", values = ["crDefault", "crNone", "crArrow", "crCross", "crIBeam", "crSize", "crSizeNESW", "crSizeNS", "crSizeNWSE", "crSizeWE", "crUpArrow", "crHourGlass", "crDrag", "crNoDrop", "crHSplit", "crVSplit", "crMultiDrag", "crSQLWait", "crNo", "crAppStart", "crHelp", "crHandPoint"], default = "crDefault" },
