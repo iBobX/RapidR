@@ -556,7 +556,7 @@ mod tests {
         fn fire(self, name: &str, event: &str, args: &[Value]) {
             FIRED.with(|f| f.borrow_mut().push((name.to_string(), event.to_string(), args.first().map(Value::to_string_val).unwrap_or_default())));
         }
-        fn launch(self, _p: &str, _a: &[String], _t: &str) -> Result<Box<dyn crate::Transport>, String> {
+        fn launch(self, _p: &str, _a: &[String], _t: &str, _s: bool) -> Result<Box<dyn crate::Transport>, String> {
             Err("no".into())
         }
         fn list_files(self, _folder: &str) -> Vec<String> {

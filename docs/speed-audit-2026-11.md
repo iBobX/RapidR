@@ -1317,8 +1317,9 @@ there, the UI never waiting for them.
   was shown (traced: `Screen.Scale` 1 at both fills) and showed the 1 ×
   drawing enlarged. The new images wait for a person's look
   (`tools/visual/gallery.py studio approve designer-pins`); Studio also
-  draws the Outline's icons again when its window shows or changes screen
-  (`RefreshOutlineIcons`).
+  draws the Outline's icons again when its window shows, and at every
+  pause that finds the Outline unchanged (`RefreshOutlineIcons`): a
+  window moved to a screen of another scale gets them at the next pause.
 
 ### The guard
 

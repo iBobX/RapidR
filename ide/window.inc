@@ -32,7 +32,6 @@ CREATE Studio AS RForm
   KeyPreview = 1
   OnResize = StudioResize
   OnShow = StudioShown
-  OnScaleChanged = StudioScaleChanged
   OnClose = StudioClose
   OnKeyDown = StudioKey
   CREATE MainMenu AS RMainMenu

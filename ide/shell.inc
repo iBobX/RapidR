@@ -368,12 +368,6 @@ SUB StudioShown
   END IF
 END SUB
 
-' (Studio's window moved to a screen with another scale: the Outline's icons
-' drawn for it)
-SUB StudioScaleChanged
-  RefreshOutlineIcons
-END SUB
-
 SUB StudioClose(Action AS INTEGER)
   ' (changes not saved: asked first; Cancel keeps Studio open)
   IF AskToSaveAll = 0 THEN
