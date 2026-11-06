@@ -156,19 +156,37 @@ fn average_char_width(font: &Font) -> i64 {
     crate::objects::text::average_char_width(font)
 }
 
+/// A Chinese, Japanese or Korean character (ideographs, kana, hangul, their
+/// punctuation and full-width forms): text in those scripts has no spaces
+/// between its words, so a line may end between two of its characters.
+pub fn is_cjk(c: char) -> bool {
+    matches!(c as u32, 0x2E80..=0x303F | 0x3040..=0x30FF | 0x3100..=0x312F | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF00..=0xFFEF | 0x20000..=0x2FA1F)
+}
+
+/// Whether a line may end between `a` and the `b` after it with no space
+/// there: when one of them is CJK (a break between two Latin letters is
+/// never allowed), and no line starts with a closing mark (，。、！？）”…)
+/// or ends with an opening one (（“《「) — the rules those scripts print by.
+pub fn can_break_between(a: char, b: char) -> bool {
+    const NO_START: &str = "，。、；：？！）】》〉」』”’…—·％‰．］｝〕,.;:!?)]}%";
+    const NO_END: &str = "（【《〈「『“‘［｛〔([{";
+    (is_cjk(a) || is_cjk(b)) && a != ' ' && b != ' ' && !NO_START.contains(b) && !NO_END.contains(a)
+}
+
 /// `line`'s pieces once wrapped at spaces to fit `width` (DT_WORDBREAK), as
 /// DrawText breaks them: as many characters as fit; when the next one is a
 /// space the line ends before it, otherwise at the last space that fits,
 /// that space kept (it counts in the width: RC.EXE's 184 for a 181-pixel
 /// line at Width 200); a word wider than `width` is a line of its own, not
-/// cut. Spaces starting the next line are skipped.
+/// cut. Spaces starting the next line are skipped. Between CJK characters
+/// a line may end as well ([`can_break_between`]): Chinese has no spaces.
 fn wrap_line(line: &str, font: &Font, width: i64) -> Vec<String> {
     wrap_line_by(line, width as f64, &mut |s| line_width(s, font) as f64)
 }
 
 /// [`wrap_line`] with the widths `width_of` gives (in pixels): a host's
 /// own measure of the text as it draws it.
-fn wrap_line_by(line: &str, width: f64, width_of: &mut dyn FnMut(&str) -> f64) -> Vec<String> {
+pub fn wrap_line_by(line: &str, width: f64, width_of: &mut dyn FnMut(&str) -> f64) -> Vec<String> {
     let chars: Vec<char> = line.chars().collect();
     let mut out = Vec::new();
     let mut start = 0;
@@ -183,10 +201,13 @@ fn wrap_line_by(line: &str, width: f64, width_of: &mut dyn FnMut(&str) -> f64) -
         while start + n < chars.len() && width_of(&chars[start..start + n + 1].iter().collect::<String>()) <= width {
             n += 1;
         }
+        // (the last place a line may end within what fits: after a space, or
+        // between two CJK characters)
+        let last_break = (start + 1..=start + n).rev().find(|&p| chars[p - 1] == ' ' || can_break_between(chars[p - 1], chars[p]));
         let end = if chars[start + n] == ' ' {
             start + n
-        } else if let Some(sp) = chars[start..start + n].iter().rposition(|&c| c == ' ') {
-            start + sp + 1
+        } else if let Some(p) = last_break {
+            p
         } else {
             // (a word wider than the width: up to its end)
             let mut e = start + n;
@@ -434,6 +455,26 @@ mod tests {
         // (a word wider than the width isn't cut: the label grows to it;
         // RapidQ: 37 × 39)
         assert_eq!(text_extent("Centred text again", &f, Some(30)), (39, 39));
+    }
+
+    #[test]
+    fn chinese_text_breaks_between_its_characters_and_other_text_as_before() {
+        // (10 pixels a character)
+        let mut w = |s: &str| s.chars().count() as f64 * 10.0;
+        // (no spaces in Chinese: five characters a line)
+        assert_eq!(wrap_line_by("一二三四五六七八九十", 50.0, &mut w), ["一二三四五", "六七八九十"]);
+        // (no line starts with a closing mark: the mark takes the character before it along)
+        assert_eq!(wrap_line_by("一二三四，五六", 40.0, &mut w), ["一二三", "四，五六"]);
+        // (nor ends with an opening one)
+        assert_eq!(wrap_line_by("一二三（四五六", 40.0, &mut w), ["一二三", "（四五六"]);
+        // (a Latin word and then Chinese: it breaks at the space or between the Chinese characters)
+        assert_eq!(wrap_line_by("ab 中文设置", 50.0, &mut w), ["ab 中文", "设置"]);
+        // (Latin text with spaces: as DrawText breaks it, the space kept)
+        assert_eq!(wrap_line_by("hello world", 80.0, &mut w), ["hello ", "world"]);
+        // (a Latin word wider than the width isn't cut)
+        assert_eq!(wrap_line_by("extraordinary", 50.0, &mut w), ["extraordinary"]);
+        assert!(is_cjk('字') && is_cjk('，') && is_cjk('あ') && is_cjk('한') && !is_cjk('a') && !is_cjk('é'));
+        assert!(can_break_between('字', '体') && !can_break_between('a', 'b') && !can_break_between('字', '。') && !can_break_between('（', '字'));
     }
 
     #[test]

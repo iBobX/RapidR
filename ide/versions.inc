@@ -638,28 +638,43 @@ END FUNCTION
 ' the lines, CHR$(10) between them.
 FUNCTION VerWrap(Text AS STRING, Room AS INTEGER, MaxLines AS INTEGER, Style AS INTEGER) AS STRING
   DIM t AS STRING, cur AS STRING, wd AS STRING, out AS STRING, i AS INTEGER, j AS INTEGER, n AS INTEGER, lines AS INTEGER
+  DIM um AS STRING, u AS STRING, sep AS STRING, k AS INTEGER, m AS INTEGER, stopped AS INTEGER
   t = LTRIM$(RTRIM$(Text))
   IF t = "" THEN EXIT FUNCTION
   n = TALLY(t, " ") + 1
   lines = 1
   FOR i = 1 TO n
     wd = FIELD$(t, " ", i)
-    IF cur = "" THEN
-      cur = wd
-    ELSEIF VerTextW(cur + " " + wd, Style) > Room THEN
-      IF MaxLines > 0 AND lines >= MaxLines THEN
-        ' (the last line: what's left of it, cut)
-        FOR j = i TO n
-          cur = cur + " " + FIELD$(t, " ", j)
-        NEXT
-        EXIT FOR
+    ' (a word of Chinese, Japanese or Korean ends a line between characters)
+    um = BreakUnits(wd)
+    m = TALLY(um, CHR$(1)) + 1
+    sep = " "
+    FOR k = 1 TO m
+      u = FIELD$(um, CHR$(1), k)
+      IF cur = "" THEN
+        cur = u
+      ELSEIF VerTextW(cur + sep + u, Style) > Room THEN
+        IF MaxLines > 0 AND lines >= MaxLines THEN
+          ' (the last line: what's left of it, cut)
+          cur = cur + sep + u
+          FOR j = k + 1 TO m
+            cur = cur + FIELD$(um, CHR$(1), j)
+          NEXT
+          FOR j = i + 1 TO n
+            cur = cur + " " + FIELD$(t, " ", j)
+          NEXT
+          stopped = 1
+          EXIT FOR
+        END IF
+        out = out + cur + CHR$(10)
+        lines = lines + 1
+        cur = u
+      ELSE
+        cur = cur + sep + u
       END IF
-      out = out + cur + CHR$(10)
-      lines = lines + 1
-      cur = wd
-    ELSE
-      cur = cur + " " + wd
-    END IF
+      sep = ""
+    NEXT
+    IF stopped = 1 THEN EXIT FOR
   NEXT
   ' (the last line cut with "…" when it doesn't fit)
   IF VerTextW(cur, Style) > Room AND LEN(cur) > 3 THEN

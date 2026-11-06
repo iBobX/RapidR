@@ -329,6 +329,12 @@ pub fn wrap(text: &str, font: &crate::objects::font::Font, width: i64) -> Vec<St
     use crate::objects::text::text_size;
     let mut out = Vec::new();
     for para in text.replace("\r\n", "\n").replace('\r', "\n").split('\n') {
+        // (Chinese, Japanese, Korean: no spaces between words, so a line may
+        // end between two characters)
+        if para.chars().any(crate::autosize::is_cjk) {
+            out.extend(crate::autosize::wrap_line_by(para, width as f64, &mut |s| text_size(s, font).0 as f64));
+            continue;
+        }
         let mut line = String::new();
         for word in para.split(' ') {
             let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };

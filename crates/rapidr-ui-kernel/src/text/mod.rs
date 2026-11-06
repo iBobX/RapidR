@@ -53,6 +53,30 @@ pub struct TextSystem {
 /// What hears of a character no loaded font has.
 pub type MissingHook = Rc<dyn Fn(char)>;
 
+/// Whether the language the program speaks is Simplified Chinese (`zh`,
+/// `zh-Hans`, `zh-CN`, `zh-SG`: not Traditional, which has its own fonts).
+fn chinese_ui() -> bool {
+    let tag = rapidr_value::i18n::language();
+    tag == "zh" || tag.starts_with("zh-Hans") || tag.starts_with("zh-CN") || tag.starts_with("zh-SG")
+}
+
+/// The system's own Simplified Chinese fonts, best first, tried for the
+/// characters the built-in faces lack when the UI is Chinese. RapidR bundles
+/// none (Apple's and Microsoft's licences forbid it): they are the computer's
+/// own, by name. The web (no system fonts: Noto's chunks, `fonts_web`) has none
+/// here; a family the computer lacks is skipped.
+fn chinese_families() -> &'static [&'static str] {
+    if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
+        &[]
+    } else if cfg!(target_os = "windows") {
+        &["Microsoft YaHei UI", "Microsoft YaHei", "SimSun"]
+    } else if cfg!(target_os = "macos") {
+        &["PingFang SC", "Heiti SC"]
+    } else {
+        &["Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Droid Sans Fallback"]
+    }
+}
+
 thread_local! {
     /// The families a character is looked for in after a QFONT's own face
     /// and before the system's: the fallback fonts a host loads (the web's
@@ -238,6 +262,13 @@ pub fn styles(font: &Font, color: u32) -> Vec<StyleProperty<'static, Ink>> {
     // stay even)
     if face == rapidr_value::objects::text::CODE_FACE {
         names.push(FontFamilyName::Named(Cow::Borrowed("Liberation Mono")));
+    }
+    // (a Chinese UI: the system's own Simplified Chinese fonts before the
+    // generic family — fontconfig's list for it has the Japanese Noto CJK
+    // first, and on an English Windows the system's choice for Han is a
+    // Japanese font that lacks many Simplified characters: boxes)
+    if chinese_ui() {
+        names.extend(chinese_families().iter().map(|n| FontFamilyName::Named(Cow::Borrowed(*n))));
     }
     names.push(FontFamilyName::Generic(generic(face)));
     FALLBACKS.with(|f| names.extend(f.borrow().iter().map(|n| FontFamilyName::Named(Cow::Owned(n.clone())))));

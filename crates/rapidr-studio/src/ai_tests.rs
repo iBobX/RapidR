@@ -1868,3 +1868,23 @@ fn a_change_studio_could_not_apply_is_tried_once_and_said() {
     assert!(!h.facts().contains("NOT applied"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Chinese's row of Studio's words (docs/i18n/zh-glossary.md), and the
+/// progress checklist said in Chinese.
+#[test]
+fn studio_words_and_steps_in_chinese() {
+    let zh = words_in("Chinese").expect("Chinese has its words");
+    for term in ["build=构建", "form=窗体", "component=组件", "Toolbox=工具箱", "Breakpoints=断点", "Settings=设置", "event handler=事件处理程序", "Call Stack=调用堆栈"] {
+        assert!(zh.contains(term), "{term} is missing from the Chinese words");
+    }
+    // (你, never 您; code stays code; menu paths as Studio shows them)
+    assert!(zh.contains("as 你, never 您") && zh.contains("stay English (RButton, Caption, PRINT, main.rr)") && zh.contains("工具 > 设置"));
+    // (short: the prompt is paid per question, this part cached)
+    assert!(zh.chars().count() < 900, "{} characters", zh.chars().count());
+    assert!(words_in("chinese").is_some());
+    rapidr_value::i18n::set_language("zh-Hans");
+    assert_eq!(crate::notes::ui_note("Read main.rr"), "已读取 main.rr");
+    assert_eq!(crate::notes::ui_note("Checked: 2 errors"), "已检查：2 个错误");
+    assert_eq!(crate::notes::ui_note("Checked the code"), "已检查代码");
+    rapidr_value::i18n::set_language("");
+}

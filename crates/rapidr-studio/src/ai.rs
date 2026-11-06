@@ -591,6 +591,10 @@ const WORDS: &[(&str, &str)] = &[
     // (docs/i18n/pt-glossary.md is where the words are decided)
 
     // Chinese (zh-Hans): its row, from docs/i18n/zh-glossary.md (lane I18N-ZH)
+    (
+        "Chinese",
+        "Studio is in Simplified Chinese. Say its words and RapidR's terms as Studio does, menu paths too (工具 > 设置): build=构建, app=应用, array=数组, event handler=事件处理程序, library=库, form=窗体, component=组件, property=属性, event=事件, method=方法, project=项目, Toolbox=工具箱, Properties=属性, Outline=大纲, Problems=问题, Output=输出, Run=运行, Debug=调试, Settings=设置, file=文件, folder=文件夹, window=窗口, Watch=监视, Call Stack=调用堆栈, Breakpoints=断点, Versions=版本, Coach mode=辅导模式, chat=对话. Speak to the person as 你, never 您. Use full-width Chinese punctuation in sentences and a space between Chinese and Latin letters or numbers. Code, names, keywords and file names stay English (RButton, Caption, PRINT, main.rr).",
+    ),
 ];
 
 /// Studio's words in `language` (its English name, "Spanish"), for the

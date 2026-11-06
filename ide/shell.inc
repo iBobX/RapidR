@@ -586,6 +586,7 @@ SUB StartStudio
   FillProjectTree
   InspectActive
   OutputLine TR$("RapidR Studio is ready.")
+  ChineseFontNote
   LayOutWelcome
   ApplyPreview
   IF startFile <> "" THEN

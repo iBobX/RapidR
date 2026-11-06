@@ -1955,6 +1955,10 @@ msgstr ""
 msgid "Ln {line}, Col {col}"
 msgstr ""
 
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
+msgstr ""
+
 #: ide/commands.inc
 msgid "&New Project..."
 msgstr ""

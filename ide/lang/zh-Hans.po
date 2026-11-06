@@ -601,6 +601,7 @@ msgstr "{file}（新建）"
 msgid "{accepted} of {n} change accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
 msgid_plural "{accepted} of {n} changes accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
 msgstr[0] "此文件已接受 {accepted}/{n} 处更改。F7：下一处更改；Enter 接受，Backspace 拒绝。"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "{file} is proposed twice"
@@ -654,6 +655,7 @@ msgstr "没有更改任何内容：{reason}。这些更改仍在等待（审阅�
 msgid "{name}: {n} file, previewed: nothing is written until you press Create"
 msgid_plural "{name}: {n} files, previewed: nothing is written until you press Create"
 msgstr[0] "{name}：{n} 个文件，仅预览：在你点击“创建”之前不会写入任何内容"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "Where the New Program Goes"
@@ -679,6 +681,7 @@ msgstr "已制作 {title}：顶部有“运行”按钮。"
 msgid "Made {title}, {n} error left: see the top."
 msgid_plural "Made {title}, {n} errors left: see the top."
 msgstr[0] "已制作 {title}，还剩 {n} 个错误：请看顶部。"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "The assistant made this program for you."
@@ -692,6 +695,7 @@ msgstr "▶  运行"
 msgid "The assistant made this program — it still has {n} error."
 msgid_plural "The assistant made this program — it still has {n} errors."
 msgstr[0] "助手制作了这个程序，但它还有 {n} 个错误。"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "▶  Run Anyway"
@@ -714,6 +718,7 @@ msgstr "错误"
 msgid "{status} The program has {n} error: Problems lists them."
 msgid_plural "{status} The program has {n} errors: Problems lists them."
 msgstr[0] "{status} 程序有 {n} 个错误：“问题”面板会列出它们。"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "Please fix the errors that are left."
@@ -791,6 +796,7 @@ msgstr "正在等待 {name} 的回答… {n} 秒"
 msgid "{n} earlier step"
 msgid_plural "{n} earlier steps"
 msgstr[0] "之前的 {n} 个步骤"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "This answer: {in} in ({cached} cached) · {out} out · part {part} of {parts}"
@@ -845,11 +851,13 @@ msgstr "↻ 刷新列表"
 msgid "{n} model from {provider}, fast, low-cost ones first: pick one."
 msgid_plural "{n} models from {provider}, fast, low-cost ones first: pick one."
 msgstr[0] "{provider} 提供了 {n} 个模型，速度快、费用低的排在前面：请选择一个。"
+msgstr[1] ""
 
 #: ide/ai.inc
 msgid "{n} model from {provider}: pick one."
 msgid_plural "{n} models from {provider}: pick one."
 msgstr[0] "{provider} 提供了 {n} 个模型：请选择一个。"
+msgstr[1] ""
 
 # legal
 #: ide/ai.inc
@@ -987,6 +995,7 @@ msgstr "返回对话"
 msgid "{title} — {n} question, {date}"
 msgid_plural "{title} — {n} questions, {date}"
 msgstr[0] "{title} — {n} 个问题，{date}"
+msgstr[1] ""
 
 #: ide/aichats.inc
 msgid "{item}: {q}{snippet}{q}"
@@ -1008,6 +1017,7 @@ msgstr "没有包含 {q}{text}{q} 的对话。"
 msgid "{n} chat"
 msgid_plural "{n} chats"
 msgstr[0] "{n} 段对话"
+msgstr[1] ""
 
 #: ide/aichats.inc
 msgid "Opened {q}{title}{q}."
@@ -1057,6 +1067,7 @@ msgstr "正在编辑你的问题。“发送”会替换原问题：它的回答
 msgid "Editing your question. Send replaces it: its answer and the {n} question after it move to a saved copy of this chat (in Chats)."
 msgid_plural "Editing your question. Send replaces it: its answer and the {n} questions after it move to a saved copy of this chat (in Chats)."
 msgstr[0] "正在编辑你的问题。“发送”会替换原问题：它的回答以及之后的 {n} 个问题会移到这段对话的一份已保存副本中（在“对话”里）。"
+msgstr[1] ""
 
 #: ide/aichats.inc
 msgid "{title} (before the edit)"
@@ -1423,11 +1434,13 @@ msgstr "正在查找这台电脑上的 AI 应用…"
 msgid "✓ Found {n} model in {k} local AI apps on this computer."
 msgid_plural "✓ Found {n} models in {k} local AI apps on this computer."
 msgstr[0] "✓ 在这台电脑的 {k} 个本地 AI 应用中找到了 {n} 个模型。"
+msgstr[1] ""
 
 #: ide/aisetup.inc
 msgid "✓ Found {n} model in a local AI app on this computer."
 msgid_plural "✓ Found {n} models in a local AI app on this computer."
 msgstr[0] "✓ 在这台电脑的一个本地 AI 应用中找到了 {n} 个模型。"
+msgstr[1] ""
 
 #: ide/aisetup.inc
 msgid "In a browser Studio can't look around this computer: Next asks for your local AI app's address."
@@ -1623,12 +1636,14 @@ msgstr "正在检查 {model}（第 {k}/{n} 个）：{step}…"
 msgid "The check stopped. {n} model isn't checked yet: Check My Models goes on with it."
 msgid_plural "The check stopped. {n} models aren't checked yet: Check My Models goes on with them."
 msgstr[0] "检查已停止。还有 {n} 个模型尚未检查：点击“检查我的模型”可继续。"
+msgstr[1] ""
 
 # legal
 #: ide/aisetup.inc
 msgid "Optional, about {n} minute: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
 msgid_plural "Optional, about {n} minutes: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
 msgstr[0] "可选，大约 {n} 分钟：Studio 会逐个加载适合这里的模型并试用——测试回答速度、能否使用 RAI 的工具，以及能否做出一个小应用——然后释放它（大小未知的模型也会试用）。期间会占用这台电脑的内存和处理器，并可能关闭其他应用已加载的模型。你可以随时停止。Studio 只会与这台电脑通信。"
+msgstr[1] ""
 
 #: ide/aisetup.inc
 msgid "Every model that fits is checked. Choose one, then Finish."
@@ -1701,6 +1716,7 @@ msgstr "密钥有效，但它无法用任何模型进行对话：请到服务商
 msgid "✓ The key works: {n} model. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
 msgid_plural "✓ The key works: {n} models. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
 msgstr[0] "✓ 密钥有效：共 {n} 个模型。第一个 {model} 速度快、费用低，是个不错的开始。选好后点击“完成”。"
+msgstr[1] ""
 
 #: ide/aisetup.inc
 msgid "Choose a model first: Studio lists the ones on this computer. Start your local AI app and Look Again if the list is empty."
@@ -1879,6 +1895,7 @@ msgstr "输出文件夹"
 msgid "Build: {n} error (see Problems)."
 msgid_plural "Build: {n} errors (see Problems)."
 msgstr[0] "构建：{n} 个错误（见“问题”面板）。"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "Can't build: the program has errors"
@@ -1975,6 +1992,10 @@ msgstr "{experiment} 是你当前所在的实验（Git 称之为分支）"
 #: ide/chrome.inc ide/editor.inc
 msgid "Ln {line}, Col {col}"
 msgstr "行 {line}，列 {col}"
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
+msgstr "这台电脑上找不到可以显示中文的字体，所以中文会显示为空白方框。请安装免费的软件包 fonts-noto-cjk（例如：sudo apt install fonts-noto-cjk），然后重新启动 Studio。"
 
 #: ide/commands.inc
 msgid "&New Project..."
@@ -2999,6 +3020,7 @@ msgstr "无法运行：没有主文件"
 msgid "Can't run: {n} error. The first is selected."
 msgid_plural "Can't run: {n} errors. The first is selected."
 msgstr[0] "无法运行：有 {n} 个错误。已选中第一个。"
+msgstr[1] ""
 
 #: ide/debug.inc
 msgid "Running {file}"
@@ -3208,6 +3230,7 @@ msgstr "无法复制：{error}"
 msgid "Copied the value ({n} character)"
 msgid_plural "Copied the value ({n} characters)"
 msgstr[0] "已复制该值（{n} 个字符）"
+msgstr[1] ""
 
 #: ide/debug.inc
 msgid "Can't show {expr}: {error}"
@@ -3241,11 +3264,13 @@ msgstr "{characters}，{lines}"
 msgid "{n} character"
 msgid_plural "{n} characters"
 msgstr[0] "{n} 个字符"
+msgstr[1] ""
 
 #: ide/debug.inc
 msgid "{n} line"
 msgid_plural "{n} lines"
 msgstr[0] "{n} 行"
+msgstr[1] ""
 
 #: ide/debug.inc
 msgid "Text of {expr}"
@@ -3291,11 +3316,13 @@ msgstr "已复制该断点"
 msgid "Copied {n} call"
 msgid_plural "Copied {n} calls"
 msgstr[0] "已复制 {n} 个调用"
+msgstr[1] ""
 
 #: ide/debug.inc
 msgid "Copied {n} breakpoint"
 msgid_plural "Copied {n} breakpoints"
 msgstr[0] "已复制 {n} 个断点"
+msgstr[1] ""
 
 #: ide/debug.inc ide/mcp.inc ide/panels.inc
 msgid "Copy &All"
@@ -3381,16 +3408,19 @@ msgstr "设计器：{message}"
 msgid "{n} error"
 msgid_plural "{n} errors"
 msgstr[0] "{n} 个错误"
+msgstr[1] ""
 
 #: ide/documents.inc
 msgid "{n} warning"
 msgid_plural "{n} warnings"
 msgstr[0] "{n} 个警告"
+msgstr[1] ""
 
 #: ide/documents.inc
 msgid "{n} note"
 msgid_plural "{n} notes"
 msgstr[0] "{n} 条备注"
+msgstr[1] ""
 
 #: ide/documents.inc
 msgid "{file} (deleted on disk)"
@@ -3460,6 +3490,7 @@ msgstr "{file} 在 Studio 之外被更改了，而你在其中还有未保存的
 msgid "{n} file was updated outside Studio."
 msgid_plural "{n} files were updated outside Studio."
 msgstr[0] "有 {n} 个文件在 Studio 之外被更新了。"
+msgstr[1] ""
 
 #: ide/external.inc ide/versions.inc
 msgid "Local history: {why}"
@@ -3481,6 +3512,7 @@ msgstr "{file} 在 Studio 之外被更新了"
 msgid "{n} file was updated outside Studio"
 msgid_plural "{n} files were updated outside Studio"
 msgstr[0] "有 {n} 个文件在 Studio 之外被更新了"
+msgstr[1] ""
 
 #: ide/external.inc
 msgid "{file} was deleted outside Studio: Save All makes it again"
@@ -3514,6 +3546,7 @@ msgstr "保留你的版本。保存时会先询问。"
 msgid "{n} file was updated outside Studio:"
 msgid_plural "{n} files were updated outside Studio:"
 msgstr[0] "有 {n} 个文件在 Studio 之外被更新了："
+msgstr[1] ""
 
 #: ide/external.inc
 msgid "Save {file} again?"
@@ -3911,6 +3944,7 @@ msgstr "AI 应用：{names}"
 msgid "{n} call"
 msgid_plural "{n} calls"
 msgstr[0] "{n} 次调用"
+msgstr[1] ""
 
 #: ide/mcp.inc
 msgid "AI apps: off"
@@ -4348,16 +4382,19 @@ msgstr "复制全部问题(&A)"
 msgid "Copied {n} problem"
 msgid_plural "Copied {n} problems"
 msgstr[0] "已复制 {n} 个问题"
+msgstr[1] ""
 
 #: ide/panels.inc
 msgid "Copied {n} line"
 msgid_plural "Copied {n} lines"
 msgstr[0] "已复制 {n} 行"
+msgstr[1] ""
 
 #: ide/panels.inc
 msgid "Copied {n} character"
 msgid_plural "Copied {n} characters"
 msgstr[0] "已复制 {n} 个字符"
+msgstr[1] ""
 
 #: ide/panels.inc
 msgid "Nothing selected to copy"
@@ -4715,6 +4752,7 @@ msgstr "重新打开 {name}"
 msgid "and the file you had open"
 msgid_plural "and the {n} files you had open"
 msgstr[0] "以及你打开过的 {n} 个文件"
+msgstr[1] ""
 
 #: ide/panes.inc
 msgid "where you left it"
@@ -4864,6 +4902,7 @@ msgstr "副本：{path}"
 msgid "Imported {file}, but {n} include file wasn't found: see Output"
 msgid_plural "Imported {file}, but {n} include files weren't found: see Output"
 msgstr[0] "已导入 {file}，但有 {n} 个包含文件未找到：请查看“输出”"
+msgstr[1] ""
 
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
@@ -4969,6 +5008,7 @@ msgstr "Studio 出了点问题：{message}。你的工作是安全的，Studio �
 msgid "Something went wrong in Studio ({n} time)"
 msgid_plural "Something went wrong in Studio ({n} times)"
 msgstr[0] "Studio 出了点问题（{n} 次）"
+msgstr[1] ""
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio"
@@ -4990,6 +5030,7 @@ msgstr "{names} 等另外 {n} 个"
 msgid "Studio closed before a file was saved: {names}. Restore puts your changes back in its editor (not saved yet; Undo goes back to the file)."
 msgid_plural "Studio closed before {n} files were saved: {names}. Restore puts your changes back in their editors (not saved yet; Undo goes back to the file)."
 msgstr[0] "Studio 在 {n} 个文件保存之前关闭了：{names}。“恢复”会把你的更改放回它们的编辑器中（尚未保存；“撤销”可回到文件原来的内容）。"
+msgstr[1] ""
 
 #: ide/safety.inc
 msgid "Restore your unsaved work?"
@@ -5015,6 +5056,7 @@ msgstr "无法恢复 {file}：它的副本会保留到下次启动。"
 msgid "Restored the unsaved work of {n} file (not saved yet)."
 msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
 msgstr[0] "已恢复 {n} 个文件的未保存工作（尚未保存）。"
+msgstr[1] ""
 
 #: ide/schoollock.inc
 msgid "School Lock"
@@ -5261,6 +5303,7 @@ msgstr "你可以再次尝试输入密码。"
 msgid "That isn't the password. {n} more try before a one-minute wait."
 msgid_plural "That isn't the password. {n} more tries before a one-minute wait."
 msgstr[0] "密码不对。再试 {n} 次后需要等待一分钟。"
+msgstr[1] ""
 
 #: ide/schoollock.inc
 msgid "Your school's IT set this lock: only IT can turn it off."
@@ -5454,11 +5497,13 @@ msgstr "{results}，在 {files} 中"
 msgid "{n} result"
 msgid_plural "{n} results"
 msgstr[0] "{n} 个结果"
+msgstr[1] ""
 
 #: ide/search.inc ide/versions.inc
 msgid "{n} file"
 msgid_plural "{n} files"
 msgstr[0] "{n} 个文件"
+msgstr[1] ""
 
 #: ide/search.inc
 msgid "(the first 1,990 shown)"
@@ -5472,6 +5517,7 @@ msgstr "在文件夹中搜索"
 msgid "Replaced in {n} file. {info}"
 msgid_plural "Replaced in {n} files. {info}"
 msgstr[0] "已在 {n} 个文件中替换。{info}"
+msgstr[1] ""
 
 #: ide/search.inc
 msgid "No references: put the caret on a name of the program (a variable, a SUB, a component)."
@@ -5501,6 +5547,7 @@ msgstr "帮助：{word}"
 msgid "{n} name matches. {first}"
 msgid_plural "{n} names match. {first}"
 msgstr[0] "有 {n} 个名称匹配。{first}"
+msgstr[1] ""
 
 #: ide/settings.inc
 msgid "Settings pages"
@@ -6136,11 +6183,13 @@ msgstr "刚刚"
 msgid "{n} minute ago"
 msgid_plural "{n} minutes ago"
 msgstr[0] "{n} 分钟前"
+msgstr[1] ""
 
 #: ide/versions.inc
 msgid "{n} hour ago"
 msgid_plural "{n} hours ago"
 msgstr[0] "{n} 小时前"
+msgstr[1] ""
 
 #: ide/versions.inc
 msgid "yesterday"
@@ -6150,6 +6199,7 @@ msgstr "昨天"
 msgid "{n} day ago"
 msgid_plural "{n} days ago"
 msgstr[0] "{n} 天前"
+msgstr[1] ""
 
 #: ide/versions.inc
 msgid "AI checkpoint: {what}, {when}"
@@ -6191,6 +6241,7 @@ msgstr "文件夹 {folder}，{changes}，{state}"
 msgid "{n} change"
 msgid_plural "{n} changes"
 msgstr[0] "{n} 处更改"
+msgstr[1] ""
 
 #: ide/versions.inc
 msgid "{file}: {state}"
@@ -6264,6 +6315,7 @@ msgstr "自上一个版本以来没有更改"
 msgid "{n} change not saved as a version"
 msgid_plural "{n} changes not saved as a version"
 msgstr[0] "{n} 处更改尚未保存为版本"
+msgstr[1] ""
 
 #: ide/versions.inc
 msgid "&Start Keeping Versions"
@@ -6369,12 +6421,14 @@ msgstr "{file}，第 {line} 行：{what}"
 msgid "and {n} more line"
 msgid_plural "and {n} more lines"
 msgstr[0] "以及另外 {n} 行"
+msgstr[1] ""
 
 # legal
 #: ide/versions.inc
 msgid "This line looks like a key or a password. Versions are often shared, and a secret saved in one stays in the timeline: take it out first, or save anyway if it isn't a real one."
 msgid_plural "These {n} lines look like keys or passwords. Versions are often shared, and a secret saved in one stays in the timeline: take them out first, or save anyway if they aren't real ones."
 msgstr[0] "这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的机密内容会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。"
+msgstr[1] ""
 
 # legal
 #: ide/versions.inc
@@ -6649,6 +6703,7 @@ msgstr "如果不保存，你的更改将会丢失。"
 msgid "You have {n} document with unsaved changes. Do you want to save it before quitting?"
 msgid_plural "You have {n} documents with unsaved changes. Do you want to save them before quitting?"
 msgstr[0] "你有 {n} 个文档含有未保存的更改。要在退出前保存它们吗？"
+msgstr[1] ""
 
 #: ide/workspace.inc
 msgid "Review Changes asks about each one. If you discard them, all your changes will be lost."
