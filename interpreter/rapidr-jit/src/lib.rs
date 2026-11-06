@@ -74,7 +74,30 @@ pub fn install_mode<H: Host + ?Sized>(vm: &mut Vm<'_, H>, mode: Mode) -> Result<
     }
 }
 
-/// What the JIT did in `vm`'s run (`rapidr run --verbose`).
+/// What the JIT did in `vm`'s run (`rapidr run --verbose`): what it
+/// compiled, what stays interpreted and where compiled code went back to
+/// the interpreter most — each place as its file and line.
 pub fn report<H: Host + ?Sized>(vm: &Vm<'_, H>) -> Option<String> {
     vm.jit().map(|j| j.report())
+}
+
+/// [`report`] with each place's statement: `text(n)` is the compiled
+/// program's line `n` (1-based), as the runtime compiled it.
+pub fn report_with<H: Host + ?Sized>(vm: &Vm<'_, H>, text: &dyn Fn(u32) -> Option<String>) -> Option<String> {
+    vm.jit().map(|j| j.report_with(text))
+}
+
+/// [`report_with`] for the JIT this thread installed last, while its VM
+/// runs: for a program that ENDs (the process ends there, inside the VM's
+/// run, before [`report`] could be asked). `None` without one.
+pub fn report_now(text: &dyn Fn(u32) -> Option<String>) -> Option<String> {
+    #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "ios"), not(target_family = "wasm")))]
+    {
+        engine::report_now(text)
+    }
+    #[cfg(not(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "ios"), not(target_family = "wasm"))))]
+    {
+        let _ = text;
+        None
+    }
 }

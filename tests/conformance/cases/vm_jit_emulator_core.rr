@@ -1,0 +1,64 @@
+' The constructs a CPU emulator's core is made of, compiled by the JIT
+' (docs/jit-design.md 12.8) with the interpreter's answers: IIF (both arms
+' worked out first, their side effects included; arms of one kind and of
+' two kinds stored into typed variables), a DIM inside one branch of a
+' SELECT CASE and of an IF, a comparison counted in arithmetic, a global
+' array read after its index, a rare way back to the interpreter.
+DIM mem(1023) AS INTEGER
+DIM regA AS INTEGER, regPC AS INTEGER, cyc AS LONG, calls AS LONG
+DIM flagC AS INTEGER, flagZ AS INTEGER, half AS DOUBLE, small AS BYTE
+DIM rom AS INTEGER, said AS STRING
+
+FUNCTION Arm(v AS INTEGER) AS INTEGER
+  calls = calls + 1
+  Result = v
+END FUNCTION
+
+SUB Alu(op AS INTEGER, v AS INTEGER)
+  DIM r AS INTEGER
+  SELECT CASE op AND 3
+    CASE 0
+      DIM sum AS INTEGER
+      sum = regA + v
+      r = sum
+    CASE 1
+      DIM diff AS INTEGER
+      diff = regA - v
+      r = diff
+    CASE 2
+      r = regA XOR v
+    CASE ELSE
+      r = (regA * 2 + flagC + 1) AND 511
+  END SELECT
+  flagC = IIF(r > 255 OR r < 0, 1, 0)
+  flagZ = IIF((r AND 255) = 0, 1, 0)
+  regA = r AND 255
+  half = IIF(flagC, 0.5, 2)
+  small = IIF(flagZ, 300 + v, -1)
+  IF regA > 250 THEN
+    DIM extra AS LONG
+    extra = regA - 250
+    cyc = cyc + extra
+  END IF
+  mem(regPC) = (mem(regPC) + regA + 1) AND 255
+  regPC = (regPC + 2 - 4 * (flagZ = 1)) AND 1023
+  cyc = cyc + IIF(op AND 4, Arm(7), Arm(4))
+  IF (cyc AND 2047) < 8 THEN said = said + "*"
+END SUB
+
+FUNCTION Fetch(addr AS INTEGER) AS INTEGER
+  Result = mem((addr + IIF(addr < 512, rom, 0)) AND 1023)
+END FUNCTION
+
+DIM i AS LONG, seed AS LONG
+seed = 7
+FOR i = 0 TO 1023
+  seed = (seed * 1103 + 12345) MOD 65536
+  mem(i) = seed AND 255
+NEXT
+rom = 256
+FOR i = 1 TO 20000
+  Alu Fetch(regPC), Fetch(regPC + 1)
+NEXT
+PRINT regA; " "; regPC; " "; cyc; " "; calls
+PRINT flagC; " "; flagZ; " "; half; " "; small; " "; LEN(said)

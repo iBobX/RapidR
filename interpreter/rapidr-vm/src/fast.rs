@@ -399,8 +399,22 @@ const DIRECT2: [(&str, Pure2); 2] = [("shl", rapidr_value::rp_shl), ("shr", rapi
 /// The first code of [`DIRECT2`]'s builtins.
 const TWO: u8 = 128;
 
+type Pure3 = fn(&Value, &Value, &Value) -> Value;
+
+/// The three-argument one: `IIF(condition, a, b)` — both arms are
+/// arguments, worked out before the call; the one the condition picks, as
+/// it is (`rp_iif`, what both hosts call for the name). Not a maths
+/// builtin for the compiler ([`rapidr_bytecode::builtins::PURE_MATHS`]:
+/// its arms may be text): only the VM runs it itself, and compiled code
+/// (docs/jit-design.md §12.8). Codes from [`THREE`] on.
+const DIRECT3: [(&str, Pure3); 1] = [("iif", rapidr_value::builtins::rp_iif)];
+
+/// The first code of [`DIRECT3`]'s builtins.
+const THREE: u8 = 192;
+
 /// A pool string's builtin code: the [`DIRECT`] builtin it names (its
-/// index + 1), a [`DIRECT2`] one ([`TWO`] + its index), or 0.
+/// index + 1), a [`DIRECT2`] one ([`TWO`] + its index), a [`DIRECT3`]
+/// one ([`THREE`] + its index), or 0.
 pub fn direct_code(name: &str) -> u8 {
     if !rapidr_bytecode::builtins::is_builtin(name) {
         return 0;
@@ -409,7 +423,20 @@ pub fn direct_code(name: &str) -> u8 {
     if let Some(i) = DIRECT.iter().position(|(k, _)| *k == key) {
         return i as u8 + 1;
     }
-    DIRECT2.iter().position(|(k, _)| *k == key).map_or(0, |i| TWO + i as u8)
+    if let Some(i) = DIRECT2.iter().position(|(k, _)| *k == key) {
+        return TWO + i as u8;
+    }
+    DIRECT3.iter().position(|(k, _)| *k == key).map_or(0, |i| THREE + i as u8)
+}
+
+/// How many arguments direct builtin `code` takes: 1, 2 (SHL, SHR) or 3
+/// (IIF).
+pub fn direct_arity(code: u8) -> usize {
+    match code {
+        c if c >= THREE => 3,
+        c if c >= TWO => 2,
+        _ => 1,
+    }
 }
 
 /// Runs direct builtin `code` (non-zero, from [`direct_code`]) on its
@@ -418,6 +445,9 @@ pub fn direct_code(name: &str) -> u8 {
 pub fn call_direct(code: u8, args: &[Value]) -> Value {
     let null = Value::Null;
     let arg = |i: usize| args.get(i).unwrap_or(&null);
+    if code >= THREE {
+        return DIRECT3[(code - THREE) as usize].1(arg(0), arg(1), arg(2));
+    }
     if code >= TWO {
         return DIRECT2[(code - TWO) as usize].1(arg(0), arg(1));
     }
@@ -434,7 +464,13 @@ pub fn direct_builtin(name: &str) -> Option<fn(&Value) -> Value> {
 /// The direct builtin for a name, if it is one with two arguments.
 pub fn direct_builtin2(name: &str) -> Option<fn(&Value, &Value) -> Value> {
     let code = direct_code(name);
-    (code >= TWO).then(|| DIRECT2[(code - TWO) as usize].1)
+    (TWO..THREE).contains(&code).then(|| DIRECT2[(code - TWO) as usize].1)
+}
+
+/// The direct builtin for a name, if it is one with three arguments (IIF).
+pub fn direct_builtin3(name: &str) -> Option<Pure3> {
+    let code = direct_code(name);
+    (code >= THREE).then(|| DIRECT3[(code - THREE) as usize].1)
 }
 
 /// The names of the direct builtins.

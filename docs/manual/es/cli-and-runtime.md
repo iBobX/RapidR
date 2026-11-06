@@ -191,12 +191,54 @@ Clamped sum of 1,000,000 calls: 62243775  (69 ms)
 Filtered voice, loudest sample: 1.747212  (32 ms)
 ```
 
-- **Qué compila**: números, booleanos, `FOR` y los demás bucles, `IF`,
-  aritmética y comparaciones, conversiones a variables con tipo, arreglos
-  de números de un índice, las funciones matemáticas (`ABS`, `SIN`, `INT`
-  …) y las llamadas entre esas rutinas. El texto, los objetos, los
-  componentes, `PRINT`, los archivos y similares siguen en el intérprete;
-  un bucle que los usa en cada vuelta queda interpretado entero.
+- **Qué compila**: números, booleanos, `FOR` y los demás bucles, `IF` y
+  `SELECT CASE`, aritmética y comparaciones —también una comparación
+  contada en la aritmética (`n * (a < b)`: una verdadera vale -1)—,
+  conversiones a variables con tipo, `IIF` con números, un `DIM` dentro de
+  una sola rama de un `IF` o de un `SELECT CASE` (y un bucle `FOR` en cada
+  una), arreglos de números de
+  un índice, las funciones matemáticas (`ABS`, `SIN`, `INT` …) y las
+  llamadas entre esas rutinas. El texto, los objetos, los componentes,
+  `PRINT`, los archivos y similares siguen en el intérprete; un bucle que
+  los usa en cada vuelta queda interpretado entero.
+  ([hot_cpu.rr](../../../examples/basics/hot_cpu.rr): el núcleo de una
+  CPU diminuta, escrito como se escriben los emuladores, compilado entero.)
+- **Qué queda interpretado, y dónde**: `rapidr run --verbose` nombra cada
+  bucle o rutina que dejó interpretado con su archivo y su línea y la
+  sentencia que lo retiene, y los lugares desde donde el código compilado
+  volvió al intérprete más veces; así se ve qué necesita una rutina
+  frecuente (a menudo, una línea de manejo de texto que puede salir del
+  bucle):
+
+  ```
+  ' game.rr: a routine called every frame that builds a text each time
+  DIM score AS LONG, label AS STRING
+  SUB Draw(frame AS INTEGER)
+    score = score + frame MOD 7
+    label = "Score: " + STR$(score)
+  END SUB
+  DIM f AS INTEGER
+  FOR f = 1 TO 5000
+    Draw f
+  NEXT
+  PRINT label
+  ```
+
+  ```
+  $ rapidr run --verbose game.rr
+  JIT: on
+  Score: 14997
+  JIT: 0 loop(s) and 0 routine(s) compiled ...; 1 place(s) left interpreted
+    Draw (game.rr:3) stays interpreted: an instruction it leaves to the interpreter (LoadConst "Score: ") at game.rr:5: label = "Score: " + STR$(score)
+  ```
+
+  (`Draw` arma un texto en cada llamada: queda interpretada; armar el texto
+  donde se muestra, después del bucle, deja compilar `Draw`. Una rutina que solo *a veces* toma el camino del intérprete —un
+  `PRINT` una vez cada mil llamadas— se compila igual, y vuelve al
+  intérprete solo por ese camino; `--verbose` lista dónde el código
+  compilado volvió al intérprete más veces, y marca como "used no more" una
+  rutina cuyo código compilado resultó volver en la mayoría de las
+  llamadas.)
 - **El depurador**: con un punto de interrupción o un paso activo, todo se
   ejecuta interpretado, como siempre. Sin ellos (F5 sin puntos de
   interrupción) se ejecuta el código compilado, y Pausa, o un punto de

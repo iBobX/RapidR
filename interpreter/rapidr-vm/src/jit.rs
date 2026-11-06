@@ -72,6 +72,13 @@ pub trait Jit {
     fn report(&self) -> String {
         String::new()
     }
+    /// [`Jit::report`], each place it names with its statement: `text`
+    /// gives the compiled program's line N (the runtime has it when it
+    /// compiled the program itself; a `.rrbc` has none).
+    fn report_with(&self, text: &dyn Fn(u32) -> Option<String>) -> String {
+        let _ = text;
+        self.report()
+    }
 }
 
 /// The countdowns of one function: loop turns and calls before the VM

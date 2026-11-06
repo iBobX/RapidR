@@ -5,7 +5,9 @@
 //! the interpreter would have it at the instruction compiled code stopped
 //! before (docs/jit-design.md §3, §4).
 
+use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
+use std::rc::{Rc, Weak};
 use std::time::{Duration, Instant};
 
 use cranelift_codegen::settings::{self, Configurable};
@@ -14,7 +16,7 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, FuncId, Linkage, Module as _};
 
 use rapidr_bytecode::disasm::decode;
-use rapidr_bytecode::{Module, Operand};
+use rapidr_bytecode::{Module, Op, Operand};
 use rapidr_value::Value;
 use rapidr_vm::{Frame, JitAnswer, JitView};
 
@@ -63,12 +65,53 @@ struct Form {
     disabled: bool,
     /// The loop around it was made hot (see `PROMOTE`).
     promoted: bool,
+    /// Its runs that went back to the interpreter at an instruction it
+    /// doesn't run, and the loop turns its runs made (see `RARE`).
+    unclean: u64,
+    turns: u64,
 }
+
+/// A form compiled with a way back to the interpreter that a run can go
+/// round (`unavoidable`): once it has run this often, it is used no more
+/// if most of its runs went back that way having made few loop turns —
+/// the way wasn't rare (docs/jit-design.md §12.8).
+const RARE: u64 = 64;
+/// Loop turns a run makes on average for its way back not to matter.
+const RARE_TURNS: u64 = 16;
+/// A compile this long is named by `--verbose` (the program waits for it,
+/// once).
+const SLOW_COMPILE: Duration = Duration::from_millis(20);
 
 /// Runs of an inner loop's form from the interpreter before the loop
 /// around it is compiled too (whose turns are few — its inner loop's
 /// were counted —: a synthesizer's voice loop around its samples' loop).
 const PROMOTE: u64 = 16;
+
+/// A local written back at an exit, of kind `k`, from the exit's values:
+/// none for a Null, its bits for a scalar, its bits and its kind's code for
+/// a `K::Dyn` (the kind it held there).
+fn local_value<'a>(k: K, vals: &mut impl Iterator<Item = &'a u64>) -> Option<Value> {
+    Some(match k {
+        K::Null => Value::Null,
+        K::Dyn => {
+            let bits = *vals.next()?;
+            value_of(K::from_code(*vals.next()? as u32), bits)
+        }
+        k => value_of(k, *vals.next()?),
+    })
+}
+
+/// Stack entry `d` (of kind `k`) of exit `rec`, from the exit's values: a
+/// global array is the one its global holds (the very value the
+/// interpreter's `LoadGlobal` pushed: compiled code never makes a global
+/// hold another array).
+fn stack_value<'a>(rec: &ExitRecord, d: usize, k: K, globals: &[Option<Value>], vals: &mut impl Iterator<Item = &'a u64>) -> Option<Value> {
+    if k == K::Arr {
+        let &(_, g) = rec.arrays.iter().find(|a| a.0 as usize == d)?;
+        return globals.get(g as usize)?.clone();
+    }
+    local_value(k, vals)
+}
 
 /// The innermost loop of `code` around `region` (its head), if any.
 fn enclosing_loop(code: &[u8], region: (usize, usize)) -> Option<usize> {
@@ -101,9 +144,80 @@ struct Stats {
     /// Entries refused: too little machine stack left there.
     low_stack: u64,
     compile_time: Duration,
+    /// Of it, the code generator's making the machine code (the rest is
+    /// RapidR's: the IR from the bytecode, its rounds).
+    codegen_time: Duration,
     runs: u64,
     exits: HashMap<&'static str, u64>,
     notes: Vec<String>,
+    /// The places left interpreted (`rapidr run --verbose`), at most
+    /// [`MAX_NOTES`].
+    refused: Vec<Refused>,
+}
+
+/// The most places left interpreted `--verbose` names.
+const MAX_NOTES: usize = 48;
+/// The places compiled code went back to the interpreter from most often
+/// that `--verbose` names.
+const TOP_EXITS: usize = 6;
+
+/// A loop or a routine left interpreted, and where and why
+/// (`rapidr run --verbose`).
+struct Refused {
+    /// "P2_Iif", "the main program's loop", and its place ("cpu.inc:812").
+    who: String,
+    place: String,
+    /// Where it can't be compiled (its place and compiled line), why, and
+    /// the instruction there; `None`: why only.
+    at: Option<(String, u32, Why, String)>,
+    why: String,
+}
+
+/// What a way back to the interpreter is, in words.
+fn words(why: Why) -> &'static str {
+    match why {
+        Why::Planned => "an instruction it leaves to the interpreter",
+        Why::Conflict => "kinds that disagree",
+        Why::LoopExit => "the end of a loop",
+        Why::Return => "a return",
+        Why::Guard => "a value of another kind",
+        Why::Error => "a run-time error",
+        Why::Interrupt => "the debugger",
+        Why::Depth => "deep calls",
+        Why::AfterCall { .. } => "a call",
+        Why::Pending => "a call not worked out",
+    }
+}
+
+/// A routine's name as `--verbose` says it.
+fn shown_name(name: &str) -> &str {
+    if name == "__main" {
+        "the main program"
+    } else {
+        name
+    }
+}
+
+/// Compiled line `line`'s place: its file and line there ("cpu.inc:812"),
+/// else "line N".
+fn place(map: &rapidr_bytecode::SourceMap, line: u32) -> String {
+    match map.locate(line) {
+        Some((file, l)) => format!("{file}:{l}"),
+        None if line > 0 => format!("line {line}"),
+        None => "?".into(),
+    }
+}
+
+/// A statement's text for `--verbose`: one line, spaces folded, at most
+/// 90 characters.
+fn statement(text: &str) -> String {
+    let folded: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if folded.chars().count() > 90 {
+        let cut: String = folded.chars().take(87).collect();
+        format!("{cut}...")
+    } else {
+        folded
+    }
 }
 
 /// Everything compiled for one module.
@@ -130,9 +244,64 @@ struct Compiled {
     /// The code generator failed beyond repair: nothing more compiled or
     /// run for this module.
     broken: Option<String>,
+    /// Where the last loop or routine refused can't be compiled, and why.
+    refused_at: Option<(usize, Why)>,
+    /// How often compiled code went back to the interpreter at each record
+    /// (the innermost frame's), and the module's routine names and source
+    /// map, for `--verbose`.
+    exit_counts: Vec<u64>,
+    names: Vec<String>,
+    map: rapidr_bytecode::SourceMap,
 }
 
+/// The JIT of one VM. Its state is shared with [`report_now`] (a program
+/// that ENDs: the process ends inside the VM's run, so `--verbose` asks
+/// for the report there), borrowed only while the VM asks it something.
 pub struct Engine {
+    inner: Rc<RefCell<Inner>>,
+}
+
+thread_local! {
+    /// This thread's last JIT ([`report_now`]).
+    static LAST: RefCell<Weak<RefCell<Inner>>> = const { RefCell::new(Weak::new()) };
+}
+
+impl Engine {
+    pub fn new(mode: Mode) -> Engine {
+        let inner = Rc::new(RefCell::new(Inner::new(mode)));
+        LAST.with(|l| *l.borrow_mut() = Rc::downgrade(&inner));
+        Engine { inner }
+    }
+}
+
+/// What this thread's JIT did so far ([`rapidr_vm::Jit::report_with`]), for
+/// a program about to end the process (`END`): `None` without one, or
+/// while it is busy.
+pub fn report_now(text: &dyn Fn(u32) -> Option<String>) -> Option<String> {
+    let inner = LAST.with(|l| l.borrow().upgrade())?;
+    let inner = inner.try_borrow().ok()?;
+    Some(rapidr_vm::Jit::report_with(&*inner, text))
+}
+
+impl rapidr_vm::Jit for Engine {
+    fn loop_head(&mut self, view: JitView<'_>, ip: usize, turns: u32) -> JitAnswer {
+        self.inner.borrow_mut().loop_head(view, ip, turns)
+    }
+    fn called(&mut self, view: JitView<'_>, calls: u32) -> JitAnswer {
+        self.inner.borrow_mut().called(view, calls)
+    }
+    fn first_ask(&self) -> (u32, u32) {
+        self.inner.borrow().first_ask()
+    }
+    fn report(&self) -> String {
+        self.inner.borrow().report()
+    }
+    fn report_with(&self, text: &dyn Fn(u32) -> Option<String>) -> String {
+        self.inner.borrow().report_with(text)
+    }
+}
+
+struct Inner {
     mode: Mode,
     state: Option<Compiled>,
     /// The JIT can't run (no memory for code, a module it couldn't set
@@ -141,9 +310,9 @@ pub struct Engine {
     stats: Stats,
 }
 
-impl Engine {
-    pub fn new(mode: Mode) -> Engine {
-        Engine { mode, state: None, off: None, stats: Stats::default() }
+impl Inner {
+    fn new(mode: Mode) -> Inner {
+        Inner { mode, state: None, off: None, stats: Stats::default() }
     }
 
     fn hot(&self) -> (u32, u32) {
@@ -178,23 +347,11 @@ impl Engine {
     }
 
     fn count_exit(&mut self, why: Why) {
-        let name = match why {
-            Why::Planned => "an instruction it leaves to the interpreter",
-            Why::Conflict => "kinds that disagree",
-            Why::LoopExit => "the end of a loop",
-            Why::Return => "a return",
-            Why::Guard => "a value of another kind",
-            Why::Error => "a run-time error",
-            Why::Interrupt => "the debugger",
-            Why::Depth => "deep calls",
-            Why::AfterCall { .. } => "a call",
-            Why::Pending => "a call not worked out",
-        };
-        *self.stats.exits.entry(name).or_default() += 1;
+        *self.stats.exits.entry(words(why)).or_default() += 1;
     }
 }
 
-impl Drop for Engine {
+impl Drop for Inner {
     fn drop(&mut self) {
         if let Some(jm) = self.state.as_mut().and_then(|s| s.jm.take()) {
             native::free(jm);
@@ -252,12 +409,88 @@ fn new_state(m: &Module, mode: Mode) -> Result<Compiled, String> {
         loops: HashMap::new(),
         starts: HashMap::new(),
         gbuf: Vec::new(),
-        ctx: Ctx { globals: std::ptr::null_mut(), interrupt: &native::NOT_INTERRUPTED, stack_limit: u64::MAX, exits: Vec::new(), garrays: Vec::new(), larrays: Vec::new() },
+        ctx: Ctx { globals: std::ptr::null_mut(), interrupt: &native::NOT_INTERRUPTED, stack_limit: u64::MAX, turns: 0, exits: Vec::new(), garrays: Vec::new(), larrays: Vec::new() },
         locals: Vec::new(),
         max_frame: 0,
         min_frame: usize::MAX,
         broken: None,
+        refused_at: None,
+        exit_counts: Vec::new(),
+        names: m.functions.iter().map(|f| f.name.clone()).collect(),
+        map: m.source_map.clone(),
     })
+}
+
+/// Of the places a form leaves for the interpreter at an instruction it
+/// doesn't run (or kinds that disagree), the first that every run of it
+/// passes — a routine's from its start to any return, a loop's turn from
+/// its head back to it (or out of it) —; `None` when each one can be gone
+/// round (docs/jit-design.md §12.8). A routine with a rare way out — an
+/// emulator's CPU step that prints a character once in a thousand
+/// instructions, a `CASE` that calls a routine of the host's — is worth
+/// compiling: it leaves on that way only; one that leaves on every run is
+/// not.
+fn unavoidable(code: &[u8], region: (usize, usize), start: usize, is_loop: bool, unclean: &[(usize, Why)]) -> Option<(usize, Why)> {
+    // (every instruction's successors in the region; a jump out of it, a
+    // return, the code's end: a run that got through)
+    let mut index = HashMap::new();
+    let mut succ: Vec<Vec<usize>> = Vec::new();
+    let mut done: Vec<bool> = Vec::new();
+    let mut ip = 0;
+    while let Some(insn) = decode(code, ip) {
+        index.insert(ip, succ.len());
+        let mut next: Vec<usize> = insn.op.layout().iter().zip(&insn.operands).filter(|(o, _)| **o == Operand::Target).map(|(_, v)| *v as usize).collect();
+        let ends = matches!(insn.op, Op::Ret | Op::RetVal | Op::Halt | Op::GosubRet);
+        if !ends && insn.op != Op::Jump {
+            next.push(insn.next);
+        }
+        done.push(ends);
+        succ.push(next);
+        ip = insn.next;
+    }
+    let mut seen_at: BTreeSet<usize> = BTreeSet::new();
+    for &(at, why) in unclean {
+        if !seen_at.insert(at) || seen_at.len() > 512 {
+            continue;
+        }
+        // (a walk from the start that never steps on `at`)
+        let mut visited = vec![false; succ.len()];
+        let mut todo = vec![start];
+        let mut through = false;
+        while let Some(ip) = todo.pop() {
+            if ip == at {
+                continue;
+            }
+            let Some(&i) = index.get(&ip) else {
+                // (the code's end: the routine returns)
+                through = true;
+                break;
+            };
+            if visited[i] {
+                continue;
+            }
+            visited[i] = true;
+            if done[i] {
+                through = true;
+                break;
+            }
+            for &t in &succ[i] {
+                // (round to the loop's head again, or out of the loop)
+                if (is_loop && t == start) || t < region.0 || t >= region.1 {
+                    through = true;
+                    break;
+                }
+                todo.push(t);
+            }
+            if through {
+                break;
+            }
+        }
+        if !through {
+            return Some((at, why));
+        }
+    }
+    None
 }
 
 /// The loop whose head is `head`: from it to the end of the last backward
@@ -310,7 +543,8 @@ impl Compiled {
                 let (cout, _) = self.build(m, spec.0, &ckind, &[], obs, None, compile::callee_signature(&spec.1))?;
                 let c = self.env.callees.get_mut(&spec).expect("a callee");
                 let before = (c.callable, c.ret);
-                if (strict && !cout.unclean.is_empty()) || cout.rets.len() > 1 {
+                let f = &m.functions[spec.0 as usize];
+                if (strict && unavoidable(&f.code, (0, f.code.len() + 1), 0, false, &cout.unclean).is_some()) || cout.rets.len() > 1 {
                     c.callable = Callable::No;
                 } else {
                     if c.ret.is_none() {
@@ -360,7 +594,8 @@ impl Compiled {
         self.env.direct_maths = view.direct_maths;
         let obs = Observed { globals: view.globals, locals: Some(&frame.locals) };
         let out = self.settle(m, fi, &kind, &entry, &obs, strict)?;
-        if let Some((at, why)) = out.unclean.first().filter(|_| strict) {
+        if let Some((at, why)) = unavoidable(&f.code, region, ip, !start, &out.unclean).filter(|_| strict) {
+            self.refused_at = Some((at, why));
             return Err(format!("{why:?} at byte {at}"));
         }
         // (the final builds: every callee form found callable, then the
@@ -405,7 +640,7 @@ impl Compiled {
             let hint = out.used_locals.clone();
             let sig = compile::entry_signature(self.jm());
             let (fout, func) = self.build(m, fi, &kind, &entry, &obs, Some(&hint), sig.clone())?;
-            if !fout.used_locals.is_subset(&hint) || (strict && !fout.unclean.is_empty()) {
+            if !fout.used_locals.is_subset(&hint) || (strict && unavoidable(&f.code, region, ip, !start, &fout.unclean).is_some()) {
                 return Err("its last build differed".into());
             }
             let name = self.env.next_name();
@@ -461,8 +696,17 @@ impl Compiled {
             runs: 0,
             disabled: false,
             promoted: false,
+            unclean: 0,
+            turns: 0,
         });
-        stats.compile_time += t0.elapsed();
+        let took = t0.elapsed();
+        stats.compile_time += took;
+        // (a long one said: the program paused that long, once)
+        if took >= SLOW_COMPILE && stats.notes.len() < 32 {
+            let name = shown_name(&f.name);
+            let who = if start { name.to_string() } else { format!("{name}'s loop") };
+            stats.notes.push(format!("{who} ({}): compiled in {:.0} ms", place(&m.source_map, f.get_line_for_ip(ip).unwrap_or(0)), took.as_secs_f64() * 1000.0));
+        }
         if start {
             stats.routines += 1;
         } else {
@@ -492,7 +736,10 @@ impl Compiled {
         let jm = self.jm.as_mut().expect("the module's compiled code");
         let mut ctx = jm.make_context();
         ctx.func = func;
-        jm.define_function(id, &mut ctx)?;
+        let t0 = Instant::now();
+        let defined = jm.define_function(id, &mut ctx);
+        stats.codegen_time += t0.elapsed();
+        defined?;
         if let Some(c) = ctx.compiled_code() {
             stats.code_bytes += c.code_buffer().len();
             // (its frame: below the frame pointer, then the frame pointer
@@ -581,6 +828,7 @@ impl Compiled {
         self.ctx.globals = self.gbuf.as_mut_ptr();
         self.ctx.interrupt = view.interrupt.map_or(&native::NOT_INTERRUPTED as *const u8, native::interrupt_byte);
         self.ctx.exits.clear();
+        self.ctx.turns = 0;
         let code = f.code;
         native::call_entry(code, &mut self.ctx, &mut self.locals);
         // (no reference to an array outlives the run)
@@ -613,9 +861,22 @@ impl Compiled {
         for (i, (r, vs)) in exits.iter().enumerate().rev() {
             let rec = self.records.get(*r as usize).ok_or_else(|| format!("exit record {r} unknown"))?;
             let func = view.module.functions.get(rec.fn_index as usize).ok_or("a routine unknown")?;
-            let named = rec.locals.iter().filter(|l| l.1 != K::Null).count() + rec.stack.iter().filter(|&&k| k != K::Null).count();
+            let named = rec.locals.iter().map(|l| l.1.words()).sum::<usize>() + rec.stack.iter().map(|k| k.words()).sum::<usize>();
             if named != vs.len() {
                 return Err(format!("exit record {r}: {} values for {named}", vs.len()));
+            }
+            // (a local whose kind travels with it: one compiled code holds)
+            let mut at = 0;
+            for &(_, k) in &rec.locals {
+                if k == K::Dyn && !K::from_code(vs[at + 1] as u32).scalar() {
+                    return Err(format!("exit record {r}: a local of kind {}", vs[at + 1]));
+                }
+                at += k.words();
+            }
+            // (each global array on its stack named, and holding one)
+            let arrays = rec.stack.iter().filter(|&&k| k == K::Arr).count();
+            if arrays != rec.arrays.len() || rec.arrays.iter().any(|&(d, g)| rec.stack.get(d as usize) != Some(&K::Arr) || !matches!(view.globals.get(g as usize), Some(Some(Value::Array(_))))) {
+                return Err(format!("exit record {r}: a global array on the stack it doesn't name"));
             }
             let room = if i == exits.len() - 1 { top.locals.len() } else { func.n_locals as usize };
             if rec.locals.iter().any(|l| l.0 as usize >= room) || rec.ip as usize > func.code.len() {
@@ -642,14 +903,15 @@ impl Compiled {
         let top = view.frames.last_mut()?;
         let mut vals = v0.iter();
         for &(s, k) in &rec0.locals {
-            let v = if k == K::Null { Value::Null } else { value_of(k, *vals.next()?) };
+            let v = local_value(k, &mut vals)?;
             if let Some(slot) = top.locals.get_mut(s as usize) {
                 *slot = v;
             }
         }
         top.ip = rec0.ip as usize;
-        for &k in &rec0.stack {
-            view.stack.push(if k == K::Null { Value::Null } else { value_of(k, *vals.next()?) });
+        for (d, &k) in rec0.stack.iter().enumerate() {
+            let v = stack_value(rec0, d, k, view.globals, &mut vals)?;
+            view.stack.push(v);
         }
         // (the callees that went back to the interpreter: real frames now,
         // each above its caller)
@@ -661,7 +923,7 @@ impl Compiled {
             let mut locals = vec![Value::Null; func.n_locals as usize];
             let mut vals = vs.iter();
             for &(s, k) in &rec.locals {
-                let v = if k == K::Null { Value::Null } else { value_of(k, *vals.next()?) };
+                let v = local_value(k, &mut vals)?;
                 *locals.get_mut(s as usize)? = v;
             }
             let stack_base = view.stack.len();
@@ -678,8 +940,9 @@ impl Compiled {
                 nested: false,
                 stack_base,
             });
-            for &k in &rec.stack {
-                view.stack.push(if k == K::Null { Value::Null } else { value_of(k, *vals.next()?) });
+            for (d, &k) in rec.stack.iter().enumerate() {
+                let v = stack_value(rec, d, k, view.globals, &mut vals)?;
+                view.stack.push(v);
             }
             caller = rec;
         }
@@ -688,7 +951,7 @@ impl Compiled {
     }
 }
 
-impl Engine {
+impl Inner {
     /// Runs form `form` and puts the program back; `true` when it ran.
     fn enter(&mut self, view: &mut JitView<'_>, form: usize) -> bool {
         let Some(st) = self.state.as_mut() else { return false };
@@ -719,6 +982,14 @@ impl Engine {
             panic!("RapidR's JIT left the program in a state it can't describe ({bug}): please report it; RAPIDR_JIT=off runs it without the JIT");
         }
         let why = st.apply(view, &exits);
+        // (where: the innermost frame's way back, for --verbose)
+        if let Some(&(r, _)) = exits.first() {
+            let r = r as usize;
+            if st.exit_counts.len() <= r {
+                st.exit_counts.resize(st.records.len().max(r + 1), 0);
+            }
+            st.exit_counts[r] += 1;
+        }
         // (compiled code always leaves through an exit; one that names no
         // frame would be the JIT's own bug: the run is reported, and the
         // form never used again)
@@ -731,6 +1002,24 @@ impl Engine {
             let f = &mut st.forms[form];
             f.deopts += 1;
             f.disabled |= f.deopts > MAX_DEOPTS;
+        }
+        // (a way back that wasn't rare: most runs took it, having done
+        // little — the interpreter alone is as fast)
+        let turns = st.ctx.turns;
+        let f = &mut st.forms[form];
+        f.turns = f.turns.saturating_add(turns);
+        if matches!(why, Why::Planned | Why::Conflict) {
+            f.unclean += 1;
+        }
+        if f.runs >= RARE && !f.disabled && f.unclean * 2 > f.runs && f.turns < f.runs.saturating_mul(RARE_TURNS) && self.mode != Mode::Always {
+            f.disabled = true;
+            let (fi, region) = (f.fi, f.region);
+            if self.stats.notes.len() < 32 {
+                let name = st.names.get(fi as usize).map_or("?", String::as_str);
+                let line = view.module.functions.get(fi as usize).and_then(|f| f.get_line_for_ip(region.0)).unwrap_or(0);
+                let who = if region.0 == 0 { shown_name(name).to_string() } else { format!("{}'s loop", shown_name(name)) };
+                self.stats.notes.push(format!("{who} ({}): compiled code used no more, most of its runs went back to the interpreter", place(&st.map, line)));
+            }
         }
         // (a deep call stopped by the machine stack's room, or by the VM's
         // room for frames: "deep calls")
@@ -752,9 +1041,16 @@ impl Engine {
             Ok(form) => Some(form),
             Err(e) => {
                 stats.rejected += 1;
-                if stats.notes.len() < 32 {
-                    let name = view.module.functions.get(fi as usize).map_or("?", |f| f.name.as_str());
-                    stats.notes.push(format!("{name} at byte {ip}: stays interpreted ({e})"));
+                let st = self.state.as_mut().expect("set up");
+                let refused_at = st.refused_at.take();
+                if stats.refused.len() < MAX_NOTES {
+                    let m = view.module;
+                    let f = m.functions.get(fi as usize);
+                    let name = shown_name(f.map_or("?", |f| f.name.as_str()));
+                    let line = |at: usize| f.and_then(|f| f.get_line_for_ip(at)).unwrap_or(0);
+                    let who = if start { name.to_string() } else { format!("{name}'s loop") };
+                    let at = refused_at.map(|(at, why)| (place(&m.source_map, line(at)), line(at), why, f.map_or(String::new(), |f| compile::what(m, f, at))));
+                    stats.refused.push(Refused { who, place: place(&m.source_map, line(ip)), at, why: e });
                 }
                 None
             }
@@ -764,7 +1060,7 @@ impl Engine {
     }
 }
 
-impl rapidr_vm::Jit for Engine {
+impl rapidr_vm::Jit for Inner {
     fn loop_head(&mut self, mut view: JitView<'_>, ip: usize, turns: u32) -> JitAnswer {
         let (loop_hot, _) = self.hot();
         let Some(fi) = view.frames.last().map(|f| f.fn_index) else { return JitAnswer::NOT_YET };
@@ -861,38 +1157,78 @@ impl rapidr_vm::Jit for Engine {
     }
 
     fn report(&self) -> String {
+        self.report_with(&|_| None)
+    }
+
+    fn report_with(&self, text: &dyn Fn(u32) -> Option<String>) -> String {
         if let Some(off) = &self.off {
             return format!("JIT: off for this program ({off})");
         }
         let s = &self.stats;
-        let mut text = format!(
-            "JIT: {} loop(s) and {} routine(s) compiled ({} called from compiled code), {} KB of code in {:.1} ms; ran {} time(s)",
+        let mut out = format!(
+            "JIT: {} loop(s) and {} routine(s) compiled ({} called from compiled code), {} KB of code in {:.1} ms ({:.1} making machine code); ran {} time(s)",
             s.loops,
             s.routines,
             s.callees,
             s.code_bytes.div_ceil(1024),
             s.compile_time.as_secs_f64() * 1000.0,
+            s.codegen_time.as_secs_f64() * 1000.0,
             s.runs
         );
         if s.rejected > 0 {
-            text.push_str(&format!("; {} place(s) left interpreted", s.rejected));
+            out.push_str(&format!("; {} place(s) left interpreted", s.rejected));
         }
         if let Some(free) = s.stack_free {
-            text.push_str(&format!("; machine stack {} KB free, frames up to {} KB", free / 1024, s.max_frame.div_ceil(1024)));
+            out.push_str(&format!("; machine stack {} KB free, frames up to {} KB", free / 1024, s.max_frame.div_ceil(1024)));
         }
         if s.low_stack > 0 {
-            text.push_str(&format!("; {} entry(ies) interpreted: too little machine stack left", s.low_stack));
+            out.push_str(&format!("; {} entry(ies) interpreted: too little machine stack left", s.low_stack));
         }
         let mut exits: Vec<_> = s.exits.iter().collect();
         exits.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
         if !exits.is_empty() {
             let parts: Vec<String> = exits.iter().map(|(w, n)| format!("{n} at {w}")).collect();
-            text.push_str(&format!("; back to the interpreter: {}", parts.join(", ")));
+            out.push_str(&format!("; back to the interpreter: {}", parts.join(", ")));
+        }
+        // (the statement at a compiled line, when the runtime has the
+        // program's text)
+        let said = |line: u32| text(line).map(|t| statement(&t)).filter(|t| !t.is_empty()).map(|t| format!(": {t}")).unwrap_or_default();
+        for r in &s.refused {
+            match &r.at {
+                Some((place, line, why, what)) => {
+                    let what = if what.is_empty() { String::new() } else { format!(" ({what})") };
+                    out.push_str(&format!("\n  {} ({}) stays interpreted: {}{what} at {place}{}", r.who, r.place, words(*why), said(*line)));
+                }
+                None => out.push_str(&format!("\n  {} ({}) stays interpreted ({})", r.who, r.place, r.why)),
+            }
+        }
+        // (where compiled code went back most — not its ordinary ends, a
+        // return or a loop's end)
+        if let Some(st) = &self.state {
+            // (one place however many forms left there: a routine compiled
+            // as an entry and as a callee has a record each)
+            let mut places: HashMap<(u32, u32, &'static str, &str), (u64, usize)> = HashMap::new();
+            for (r, &n) in st.exit_counts.iter().enumerate() {
+                let Some(rec) = st.records.get(r).filter(|rec| n > 0 && !matches!(rec.why, Why::Return | Why::LoopExit)) else { continue };
+                let e = places.entry((rec.fn_index, rec.line, words(rec.why), rec.what.as_str())).or_insert((0, r));
+                e.0 += n;
+            }
+            let mut top: Vec<(u64, usize)> = places.into_values().collect();
+            top.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            if !top.is_empty() {
+                out.push_str("\n  back to the interpreter most at:");
+            }
+            for &(n, r) in top.iter().take(TOP_EXITS) {
+                let rec = &st.records[r];
+                let who = shown_name(st.names.get(rec.fn_index as usize).map_or("?", String::as_str));
+                let what = if rec.what.is_empty() { String::new() } else { format!(" ({})", rec.what) };
+                out.push_str(&format!("\n    {} in {who}: {n} time(s), {}{what}{}", place(&st.map, rec.line), words(rec.why), said(rec.line)));
+            }
         }
         for n in &s.notes {
-            text.push_str(&format!("\n  {n}"));
+            out.push_str(&format!("\n  {n}"));
         }
-        text
+        out
     }
 }
 

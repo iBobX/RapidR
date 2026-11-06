@@ -540,8 +540,13 @@ expect = "240|F58A1234"
 [[builtin]]
 name = "IIF"
 syntax = "IIF(Condition, TrueValue, FalseValue)"
+params = "Condition AS VARIANT, TrueValue AS VARIANT, FalseValue AS VARIANT"
+returns = "VARIANT"
 group = "Numbers"
 doc = "`TrueValue` when the condition is true, else `FalseValue`. Both are evaluated before the choice."
+effects = ["none"]
+example = "Condition = 7 > 5\nTrueValue = 1\nFalseValue = 2.5\nPRINT IIF(Condition, TrueValue, FalseValue); \"|\"; IIF(0, TrueValue, FalseValue); \"|\"; IIF(Condition, \"big\", \"small\")"
+expect = "1|2.500000000|big"
 
 [[builtin]]
 name = "INITARRAY"

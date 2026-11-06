@@ -1,0 +1,79 @@
+' hot_cpu.rr: a tiny 8-bit CPU, made fast while it runs. An emulator's
+' core is written the way BASIC programs often are: flags set with IIF,
+' a variable DIMmed inside one CASE of a SELECT, and a comparison counted
+' in arithmetic (n * (a < b): a true comparison is -1). RapidR's JIT
+' compiles all of it to machine code as the program runs, with the very
+' same answers (docs/manual/cli-and-runtime.md).
+'
+'   rapidr run basics/hot_cpu.rr
+'   rapidr run --verbose basics/hot_cpu.rr        what the JIT compiled, and
+'                                                 the line of anything it left
+'   RAPIDR_JIT=off rapidr run basics/hot_cpu.rr   the interpreter alone, to compare
+'
+' (Windows: set RAPIDR_JIT=off first. The web runs it interpreted.)
+$APPTYPE CONSOLE
+
+' The machine: 256 bytes of memory, an accumulator, a program counter and
+' four flags (zero, sign, carry, half carry).
+DIM mem(255) AS INTEGER
+DIM regA AS INTEGER, regPC AS INTEGER, steps AS LONG
+DIM flagZ AS INTEGER, flagS AS INTEGER, flagC AS INTEGER, flagH AS INTEGER
+DIM zeros AS LONG, carries AS LONG
+
+' The flags after an 8-bit result (before it is cut to 8 bits).
+SUB SetFlags(r AS INTEGER, a AS INTEGER, b AS INTEGER)
+  flagC = IIF(r > 255 OR r < 0, 1, 0)
+  flagH = IIF(((a XOR b XOR r) AND 16) <> 0, 1, 0)
+  flagZ = IIF((r AND 255) = 0, 1, 0)
+  flagS = IIF((r AND 128) <> 0, 1, 0)
+  zeros = zeros + flagZ
+  carries = carries + flagC
+END SUB
+
+' One instruction: its opcode, then one byte of operand.
+SUB StepCPU
+  DIM op AS INTEGER, arg AS INTEGER
+  op = mem(regPC)
+  arg = mem((regPC + 1) AND 255)
+  regPC = (regPC + 2) AND 255
+  SELECT CASE op AND 7
+    CASE 0, 1
+      DIM sum AS INTEGER
+      sum = regA + arg
+      SetFlags sum, regA, arg
+      regA = sum AND 255
+    CASE 2
+      DIM diff AS INTEGER
+      diff = regA - arg
+      SetFlags diff, regA, arg
+      regA = diff AND 255
+    CASE 3
+      regA = regA XOR arg
+      SetFlags regA, regA, arg
+    CASE 4
+      ' (a jump back when the carry is set: -1 times the comparison)
+      regPC = (regPC - 8 * (flagC = 1)) AND 255
+    CASE ELSE
+      regA = (regA * 2 + flagC) AND 255
+  END SELECT
+  steps = steps + 1
+END SUB
+
+' A program of 128 instructions, made from a seed.
+DIM i AS INTEGER, seed AS LONG
+seed = 12345
+FOR i = 0 TO 255
+  seed = (seed * 1103 + 12345) MOD 65536
+  mem(i) = seed AND 255
+NEXT
+
+DIM t AS DOUBLE
+t = TIMER
+DIM n AS LONG
+FOR n = 1 TO 1000000
+  StepCPU
+NEXT
+PRINT "Steps: "; steps; ", A = "; regA; ", PC = "; regPC
+PRINT "Zero results: "; zeros; ", carries: "; carries
+PRINT "Flags now: Z"; flagZ; " S"; flagS; " C"; flagC; " H"; flagH
+PRINT "(" ; INT((TIMER - t) * 1000); " ms)"

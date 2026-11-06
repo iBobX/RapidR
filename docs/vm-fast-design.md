@@ -124,7 +124,13 @@ maths builtin* — `ABS`, `INT`, `FIX`, `FRAC`, `SGN`, `SQR`, `SIN`, `COS`,
 shared, not copied each time; strings are copied on write). A pure builtin
 is called directly: the same `rapidr_value::builtins` function both hosts
 call, without the host, the name lookup, `catch_unwind` or the event check
-(none of them fires events, waits or raises an error). A host opts in
+(none of them fires events, waits or raises an error). `IIF(c, a, b)` is
+called directly too (since JIT-GAPS, 2026-11-06: a three-argument entry,
+`rapidr_vm::direct_builtin3`): its arms are its arguments, worked out
+before the call as always, and `rp_iif` gives the one the condition picks,
+as it is — no event, no wait, no error; it is not one of `PURE_MATHS` (the
+compiler's list of calls that give a number: IIF's arms may be text), so
+the bytecode is unchanged. A host opts in
 (`Host::DIRECT_MATHS`); the desktop, Studio's session and the web runtime
 do, a test host that answers SIN itself doesn't. A string added to the
 pool later (the debugger's snippets extend a copy of the module) is past
