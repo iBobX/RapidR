@@ -488,6 +488,26 @@ fn float_and_dock_back() {
 }
 
 #[test]
+fn dock_back_on_a_pane_that_does_not_float_does_nothing() {
+    let mut m = ide();
+    let before = m.layout.clone();
+    // (a docked pane, an unknown name, "": no change, no crash)
+    for p in ["properties", "nosuchpane", ""] {
+        let o = m.dock_back(vec![p.to_string()]);
+        assert!(!o.changed && o.events.is_empty(), "{p}");
+    }
+    assert_eq!(m.layout, before);
+    // (a floating one goes back)
+    let docked = m.layout.root.clone();
+    m.float_pane("properties", None);
+    m.floated("properties", (500, 200, 300, 360));
+    let o = m.dock_back(vec!["properties".to_string()]);
+    assert!(o.changed);
+    assert_eq!(m.layout.root, docked);
+    assert!(m.layout.floating.is_empty());
+}
+
+#[test]
 fn drops_move_panes_and_never_onto_themselves() {
     let mut m = ide();
     let o = m.user(User::Drop("explorer".into(), Target::Beside(Anchor::Pane("properties".into()), Side::Top)));

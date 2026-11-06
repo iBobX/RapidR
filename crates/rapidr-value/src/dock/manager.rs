@@ -1120,8 +1120,15 @@ impl Manager {
     }
 
     /// A floating group's panes back where they were docked.
-    pub(crate) fn dock_back(&mut self, group: Vec<String>) -> Outcome {
+    pub(crate) fn dock_back(&mut self, mut group: Vec<String>) -> Outcome {
         let mut out = Outcome::default();
+        // (only panes this manager knows that are floating now: DockBack on a
+        // docked, hidden or unknown pane does nothing, as the other calls)
+        let floating: Vec<String> = self.layout.floating.iter().flat_map(|f| f.panes.iter().cloned()).collect();
+        group.retain(|p| self.pane(p).is_some() && floating.contains(p));
+        if group.is_empty() {
+            return out;
+        }
         let mut first: Option<String> = None;
         for p in group {
             let before = self.pane(&p).and_then(|i| i.place.clone());
