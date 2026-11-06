@@ -2057,6 +2057,22 @@ msgid "Went back to {what}"
 msgstr ""
 
 #: crates/rapidr-studio/src/repository.rs
+msgid "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This version has a link, {file}, that points outside the project's folder ({target}), so Versions won't write it. Nothing was changed."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
 msgid "Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project)."
 msgstr ""
 

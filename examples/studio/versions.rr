@@ -38,6 +38,10 @@ END SUB
 
 Repo.Folder = Folder
 Repo.Author = "Ana"
+' (a folder whose version history points outside it — a project from
+' someone else could — isn't used: Blocked says why, and every method
+' refuses. A new folder like this one never is.)
+IF Repo.Blocked <> "" THEN PRINT "Versions are off for this folder: "; Repo.Blocked
 SaveMain("PRINT " + CHR$(34) + "Hello" + CHR$(34) + CHR$(10))
 
 IF Repo.Start = 0 THEN

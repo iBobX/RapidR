@@ -3998,3 +3998,19 @@ msgstr "Buscando cómo hacerlo"
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Noting what's missing"
 msgstr "Anotando lo que falta"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there."
+msgstr "El historial de versiones de este proyecto apunta fuera de su carpeta, así que Versiones no lo usará: podría leer o cambiar archivos que no son del proyecto. Si el proyecto te lo dio otra persona, copia sus archivos sin la carpeta oculta .git en una carpeta nueva y empieza las versiones allí."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer."
+msgstr "Las versiones de esa carpeta compartida apuntan fuera de ella, así que Versiones no la usará: podría leer o cambiar otros archivos de esta computadora."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again."
+msgstr "El .gitignore del proyecto es un enlace a otro archivo, así que Versiones no lo escribirá. Cámbialo por un archivo propio y vuelve a empezar las versiones."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This version has a link, {file}, that points outside the project's folder ({target}), so Versions won't write it. Nothing was changed."
+msgstr "Esta versión tiene un enlace, {file}, que apunta fuera de la carpeta del proyecto ({target}), así que Versiones no lo escribirá. No se cambió nada."

@@ -6913,3 +6913,15 @@ msgstr "Una aplicación de IA guardó la versión «{message}» ({id})"
 #: ide/tools.inc
 msgid "Went back to version {version}: a new version ({id}). Undo in Versions takes it back."
 msgstr "Se volvió a la versión {version}: una versión nueva ({id}). Deshacer en Versiones lo revierte."
+
+#: ide/versions.inc
+msgid "Versions are off for this project: {why}"
+msgstr "Versiones está desactivado para este proyecto: {why}"
+
+#: ide/versions.inc
+msgid "Versions are off for this project"
+msgstr "Versiones está desactivado para este proyecto"
+
+#: ide/versions.inc
+msgid "Studio still keeps a copy of each file every time you save it. Local History shows them."
+msgstr "Studio sigue guardando una copia de cada archivo cada vez que lo guardas. Historial local las muestra."

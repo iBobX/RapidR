@@ -158,6 +158,11 @@ DIM VerBmp(7) AS RBitmap
 DIM VerMeasure AS RBitmap
 ' (the header's second line, whole: cut to fit, its tooltip says it all)
 DIM VerSubFull AS STRING
+' (the empty state's icon: "timeline", or "warning" when Versions won't
+' use the project's history — Repo.Blocked)
+DIM VerEmptyIconName AS STRING
+' (the folder whose blocked history Output was told of: said once)
+DIM VerBlockedSaid AS STRING
 ' (a test's look at the pane: the layout report's problems — VersionsStep)
 DIM VerEyes AS RWindowCapture
 
@@ -538,7 +543,8 @@ SUB ApplyVersionsChrome
   VerEmptyTitle.Font.Color = TC("page.text")
   VerEmptyText.Font = UIFont
   VerEmptyText.Font.Color = TC("page.dim")
-  VerBmp(3).LoadIcon "timeline", 24
+  IF VerEmptyIconName = "" THEN VerEmptyIconName = "timeline"
+  VerBmp(3).LoadIcon VerEmptyIconName, 24
   VerEmptyIcon.BMPHandle = VerBmp(3)
   VerLocalNote.Font = DimFont
   VerLocalNote.Font.Color = TC("page.dim")
@@ -714,6 +720,18 @@ SUB VerRefresh
     IF Repo.Folder <> Proj.Folder THEN Repo.Folder = Proj.Folder ELSE Repo.Refresh
   ELSE
     Repo.Folder = ""
+  END IF
+  ' (its history points outside its folder — a project from someone else
+  ' could: Versions are off for it, said once in Output and to a screen
+  ' reader; the pane says it too)
+  IF ProjectOpen AND Repo.Blocked <> "" THEN
+    IF VerBlockedSaid <> Proj.Folder THEN
+      VerBlockedSaid = Proj.Folder
+      OutputLine TR$("Versions are off for this project: {why}", "why", Repo.Blocked)
+      Application.Announce TR$("Versions are off for this project")
+    END IF
+  ELSE
+    VerBlockedSaid = ""
   END IF
   IF VerAuthor <> "" THEN Repo.Author = VerAuthor
   ' (the changes: a line each, walked once — thousands stay quick)
@@ -923,7 +941,7 @@ END SUB
 
 ' The pane's words and which of its parts show.
 SUB VerShowState
-  DIM vis AS INTEGER, k AS INTEGER, u AS STRING
+  DIM vis AS INTEGER, k AS INTEGER, u AS STRING, blocked AS STRING, icon AS STRING
   vis = Flag(Repo.Versioned <> 0)
   VerBranch.Visible = vis
   VerCount.Visible = vis
@@ -940,9 +958,19 @@ SUB VerShowState
   VerEmptyIcon.Visible = Flag(vis = 0)
   VerEmptyTitle.Visible = Flag(vis = 0)
   VerEmptyText.Visible = Flag(vis = 0)
-  VerStartBtn.Visible = Flag(vis = 0 AND Repo.Available <> 0 AND ProjectOpen <> 0)
+  ' (a history that points outside the project's folder: Versions are off
+  ' for it, said in the pane, and no Start — it would only refuse)
+  blocked = ""
+  IF ProjectOpen THEN blocked = Repo.Blocked
+  VerStartBtn.Visible = Flag(vis = 0 AND Repo.Available <> 0 AND ProjectOpen <> 0 AND blocked = "")
   VerLocalNote.Visible = Flag(vis = 0 AND ProjectOpen <> 0)
   VerLocalBtn.Visible = Flag(vis = 0 AND ProjectOpen <> 0)
+  IF blocked <> "" THEN icon = "warning" ELSE icon = "timeline"
+  IF icon <> VerEmptyIconName THEN
+    VerEmptyIconName = icon
+    VerBmp(3).LoadIcon icon, 24
+    VerEmptyIcon.BMPHandle = VerBmp(3)
+  END IF
   IF ProjectOpen THEN VerSubFull = ProjectName ELSE VerSubFull = TR$("No project open")
   IF ProjectOpen = 0 THEN
     VerEmptyTitle.Caption = TR$("No project open")
@@ -952,6 +980,10 @@ SUB VerShowState
     VerEmptyTitle.Caption = TR$("Not in a browser")
     VerEmptyText.Caption = TR$("Versions need RapidR Studio on your computer: a browser can't keep them yet.")
     VerLocalNote.Caption = TR$("Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them.")
+  ELSEIF blocked <> "" THEN
+    VerEmptyTitle.Caption = TR$("Versions are off for this project")
+    VerEmptyText.Caption = blocked
+    VerLocalNote.Caption = TR$("Studio still keeps a copy of each file every time you save it. Local History shows them.")
   ELSEIF vis = 0 THEN
     VerEmptyTitle.Caption = TR$("No versions yet")
     VerEmptyText.Caption = TR$("A version keeps all your files as they are now, with a few words about what changed, so you can always go back. Git calls versions commits.")

@@ -96,9 +96,29 @@ pub enum ErrorKind {
     Conflicts,
     /// The folder isn't a project with versions (or is a shared folder).
     NotAProject,
+    /// The versions would read or write outside the project's folder: its
+    /// version history points elsewhere ([`HISTORY_OUTSIDE`]: a planted
+    /// `core.worktree`, a `.git` that is a link, …), a shared folder's
+    /// does ([`SHARED_OUTSIDE`]), or a version has a link to a place
+    /// outside it. Nothing was read or changed.
+    OutsideFolder,
     /// The disk or the repository refused (see [`Error::detail`]).
     Failed,
 }
+
+/// Why a project's versions aren't used ([`ErrorKind::OutsideFolder`]):
+/// its version history (`.git`) points outside its folder, so working on
+/// it could read or change files that aren't the project's. What exactly
+/// is in [`Error::detail`].
+pub const HISTORY_OUTSIDE: &str = "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there.";
+
+/// Why a shared folder isn't used ([`ErrorKind::OutsideFolder`]): its
+/// versions point outside it.
+pub const SHARED_OUTSIDE: &str = "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer.";
+
+/// Why [`write_ignore_file`] didn't write ([`ErrorKind::OutsideFolder`]):
+/// the project's `.gitignore` is a link to another file.
+pub const IGNORE_LINK: &str = "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again.";
 
 /// What went wrong, in words a beginner understands.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -305,9 +325,14 @@ pub fn is_system_file(path: &str) -> bool {
 /// Writes RapidR's `.gitignore` in `dir` (the versions-plan's "git init +
 /// RapidR's .gitignore"): a new one with [`IGNORE_LINES`], or — the
 /// project has its own — `.rapidr/` added at its end when it isn't there
-/// (nothing else in it is changed). Whether the file was written.
+/// (nothing else in it is changed). Whether the file was written. A
+/// `.gitignore` that is a link is never written through (it could be any
+/// file on the computer): [`ErrorKind::OutsideFolder`], [`IGNORE_LINK`].
 pub fn write_ignore_file(dir: &Path) -> Result<bool> {
     let path = dir.join(".gitignore");
+    if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err(outside(IGNORE_LINK, format!("{} is a link", path.display())));
+    }
     match std::fs::read_to_string(&path) {
         Ok(text) => {
             if text.lines().any(|l| matches!(l.trim(), ".rapidr" | ".rapidr/" | "/.rapidr" | "/.rapidr/")) {
@@ -337,6 +362,108 @@ fn owned_by_me(path: &Path) -> bool {
     gix::sec::identity::is_path_owned_by_current_user(path).unwrap_or(false)
 }
 
+/// Whether `dir` has a `.git` of any kind: a folder, a file, a link (one
+/// that leads nowhere too — `exists()` would say no and versioning would
+/// start through it).
+fn has_git_entry(dir: &Path) -> bool {
+    std::fs::symlink_metadata(dir.join(".git")).is_ok()
+}
+
+/// An [`ErrorKind::OutsideFolder`] error: `words` for the person, what was
+/// found as the detail.
+fn outside(words: &str, detail: String) -> Error {
+    Error { kind: ErrorKind::OutsideFolder, message: words.to_string(), detail, secrets: Vec::new() }
+}
+
+/// SEC-31 (docs/security/audit-2026-11-05-system.md): a repository's own
+/// files can point gitoxide elsewhere — `core.worktree`, a `commondir`
+/// file, `gitoxide.core.indexFile`, `objects/info/alternates`, links
+/// inside `.git` — and opening one is enough for Studio to read its state.
+/// So whatever `repo` (opened for the folder `dir`) would read or write
+/// must be `dir`'s own: its working folder is `dir` (links resolved; a
+/// shared folder has none), its history is `dir/.git` (`dir` itself for a
+/// shared folder) and nothing in it leads out. `words` say why it isn't
+/// used; the detail says what was found. Checked at every open, before
+/// anything is read: one check guards every action.
+fn confine(repo: &gix::Repository, dir: &Path, words: &str) -> Result<()> {
+    let refuse = |detail: String| Err(outside(words, detail));
+    let canon = |p: &Path| p.canonicalize().ok();
+    let Some(root) = canon(dir) else {
+        return refuse(format!("{} could not be resolved", dir.display()));
+    };
+    let git = match repo.workdir() {
+        // (a shared folder: the folder is the history)
+        None => root.clone(),
+        Some(_) => {
+            if !std::fs::symlink_metadata(dir.join(".git")).is_ok_and(|m| m.is_dir()) {
+                return refuse(format!("{} is not a folder of the project's own", dir.join(".git").display()));
+            }
+            root.join(".git")
+        }
+    };
+    if canon(repo.git_dir()).as_deref() != Some(git.as_path()) {
+        return refuse(format!("the history is {}, not {}", repo.git_dir().display(), git.display()));
+    }
+    if canon(repo.common_dir()).as_deref() != Some(git.as_path()) {
+        return refuse(format!("a commondir file makes the history {}", repo.common_dir().display()));
+    }
+    if let Some(work) = repo.workdir() {
+        if canon(work).as_deref() != Some(root.as_path()) {
+            return refuse(format!("core.worktree makes the working folder {}", work.display()));
+        }
+    }
+    let index = repo.index_path();
+    if index.file_name() != Some(std::ffi::OsStr::new("index")) || index.parent().and_then(canon).as_deref() != Some(git.as_path()) {
+        return refuse(format!("gitoxide.core.indexFile makes the file list {}", index.display()));
+    }
+    if let Some(line) = alternates(&git) {
+        return refuse(format!("objects/info/alternates reads versions from {line}"));
+    }
+    if let Some(link) = link_leading_out(&git, &git, 0) {
+        return refuse(format!("{} is a link to a place outside the history", link.display()));
+    }
+    Ok(())
+}
+
+/// The first other object store `objects/info/alternates` names, if any:
+/// versions read from elsewhere.
+fn alternates(git: &Path) -> Option<String> {
+    let text = std::fs::read(git.join("objects").join("info").join("alternates")).ok()?;
+    String::from_utf8_lossy(&text).lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string)
+}
+
+/// The first link under `dir` (inside the history `git`, canonical) that
+/// leads outside `git` or nowhere — what gitoxide and the history of
+/// actions would write through (`logs/…` reflogs are appended to,
+/// `rapidr/history.jsonl` too, refs and objects written into folders).
+/// The files inside `objects/xx/` and `objects/pack/` aren't looked at:
+/// they are only ever replaced, never written through, and there can be
+/// many. Too deep a tree counts as one.
+fn link_leading_out(dir: &Path, git: &Path, depth: usize) -> Option<std::path::PathBuf> {
+    if depth > 32 {
+        return Some(dir.to_path_buf());
+    }
+    let objects = dir == git.join("objects");
+    for entry in std::fs::read_dir(dir).ok()?.flatten() {
+        let Ok(kind) = entry.file_type() else { continue };
+        let path = entry.path();
+        if kind.is_symlink() {
+            if !path.canonicalize().is_ok_and(|t| t.starts_with(git)) {
+                return Some(path);
+            }
+        } else if kind.is_dir() {
+            let name = entry.file_name();
+            let packed = objects && (name == "pack" || (name.len() == 2 && name.to_string_lossy().bytes().all(|b| b.is_ascii_hexdigit())));
+            if !packed {
+                if let Some(found) = link_leading_out(&path, git, depth + 1) {
+                    return Some(found);
+                }
+            }
+        }
+    }
+    None
+}
+
 /// A project folder under versions.
 pub struct Versions {
     repo: gix::Repository,
@@ -351,7 +478,9 @@ impl Versions {
     /// existing repository is opened instead). `person` is who works on
     /// it (Studio's Settings > Versions).
     pub fn start(dir: &Path, person: &Person) -> Result<Versions> {
-        if dir.join(".git").exists() {
+        // (a `.git` of any kind — a link that leads nowhere too — is opened,
+        // and so checked, never written through)
+        if has_git_entry(dir) {
             return Versions::open(dir, person);
         }
         std::fs::create_dir_all(dir).ctx("Could not create the project's folder (is the drive read-only?).")?;
@@ -361,7 +490,7 @@ impl Versions {
         let repo = gix::ThreadSafeRepository::init_opts(dir, gix::create::Kind::WithWorktree, gix::create::Options::default(), open_options())
             .ctx("Could not start versioning this folder (it may be read-only).")?
             .to_thread_local();
-        Versions::from_repo(repo, person, false)
+        Versions::from_repo(repo, dir, person, false)
     }
 
     /// Open the project at `dir` (its own folder only: a repository in a
@@ -380,10 +509,16 @@ impl Versions {
     }
 
     fn open_checked(dir: &Path, person: &Person, read_only: bool, mine: fn(&Path) -> bool) -> Result<Versions> {
-        if !dir.join(".git").exists() {
+        if !has_git_entry(dir) {
             return fail(ErrorKind::NotAProject, "This folder has no versions yet: start versioning it first.");
         }
         let git_dir = dir.join(".git");
+        // (a `.git` that is a file — `gitdir: …` — or a link is another
+        // folder's history: refused before gitoxide follows it, read-only
+        // too)
+        if !std::fs::symlink_metadata(&git_dir).is_ok_and(|m| m.is_dir()) {
+            return Err(outside(HISTORY_OUTSIDE, format!("{} is not a folder of the project's own (a link, or a file naming another folder's history)", git_dir.display())));
+        }
         if !read_only && !(mine(dir) && mine(&git_dir)) {
             return fail(
                 ErrorKind::NotYours,
@@ -393,13 +528,17 @@ impl Versions {
             );
         }
         let repo = gix::open_opts(dir, open_options()).ctx("Could not open the versions of this folder (they may be damaged).")?;
-        Versions::from_repo(repo, person, read_only)
+        Versions::from_repo(repo, dir, person, read_only)
     }
 
-    fn from_repo(mut repo: gix::Repository, person: &Person, read_only: bool) -> Result<Versions> {
+    /// `repo`, opened (or started) for the folder `dir`: confined to it
+    /// ([`confine`]), and with nothing configured that could start a
+    /// program ([`neutralize_programs`]).
+    fn from_repo(mut repo: gix::Repository, dir: &Path, person: &Person, read_only: bool) -> Result<Versions> {
         if repo.workdir().is_none() {
             return fail(ErrorKind::NotAProject, "This is a shared folder of versions (it has no project files): open the project instead, or get the latest from it.");
         }
+        confine(&repo, dir, HISTORY_OUTSIDE)?;
         neutralize_programs(&mut repo)?;
         Ok(Versions { repo, person: person.clone(), read_only })
     }
@@ -603,6 +742,11 @@ impl Versions {
             if change.state == FileState::Deleted || only.is_some_and(|o| !o.iter().any(|p| p == &change.path)) {
                 continue;
             }
+            // (a link is saved as where it points, never as what it
+            // points at: nothing to scan)
+            if !is_plain_file(&self.folder().join(&change.path)) {
+                continue;
+            }
             let Ok(new) = std::fs::read(self.folder().join(&change.path)) else { continue };
             if new.len() > secrets::MAX_SCANNED || new.iter().take(8000).any(|b| *b == 0) {
                 continue;
@@ -729,11 +873,17 @@ impl Versions {
                 (Some(t), FileState::Changed | FileState::Deleted) => self.blob_at(t, &change.path)?.unwrap_or_default(),
                 _ => Vec::new(),
             };
+            let path = self.folder().join(&change.path);
             let new = if change.state == FileState::Deleted {
+                Vec::new()
+            } else if let Some(target) = link_target(&path) {
+                // (a link as a version keeps it: where it points — never the
+                // file it points at, which may be anywhere)
+                target
+            } else if !is_plain_file(&path) {
                 Vec::new()
             } else {
                 // the stored form of the working file (line endings as stored)
-                let path = self.folder().join(&change.path);
                 let file = std::fs::File::open(&path).ctx(&format!("Could not read {}.", change.path))?;
                 let mut data = Vec::new();
                 use std::io::Read;
@@ -1076,14 +1226,26 @@ fn delete_ref(repo: &gix::Repository, name: &str, expected: Target, who: &Person
 }
 
 /// Remove everything from the repository's in-memory configuration that
-/// would make gitoxide start a program (the file on disk is untouched).
+/// would make gitoxide start a program, or read or write a file outside
+/// the project, or weaken its own checks (the file on disk is untouched).
+/// Paths: `core.worktree` (already refused by [`confine`] when it leads
+/// out; gone here so nothing later can use it), `core.excludesFile` /
+/// `core.attributesFile` (files read from anywhere: a FIFO would hang a
+/// status), `gitoxide.core.indexFile` / `shallowFile`, `include.path` and
+/// `includeIf` (never followed: the repository is opened isolated),
+/// `mailmap.file`, `http.*` files, cookies, proxy and `sslVerify` (lane G6,
+/// network), `url.*.insteadOf` (where a push would go). Checks:
+/// `core.protectNTFS` / `protectHFS` and `gitoxide.core.protectWindows`
+/// go back to gitoxide's defaults (a checkout refuses names like
+/// `.git` with an invisible character in it, or `..\x`).
 fn neutralize_programs(repo: &mut gix::Repository) -> Result<()> {
     let mut config = repo.config_snapshot_mut();
     let mut remove_ids = Vec::new();
     let mut strip: Vec<(gix::config::file::SectionId, &'static [&'static str])> = Vec::new();
     for (section, id) in config.sections_and_ids() {
         let name = section.header().name().to_str_lossy().to_ascii_lowercase();
-        let sub = section.header().subsection_name().is_some();
+        let subsection = section.header().subsection_name().map(|s| s.to_str_lossy().to_ascii_lowercase());
+        let sub = subsection.is_some();
         match name.as_str() {
             // filter.<driver>.clean / smudge / process
             "filter" => remove_ids.push(id),
@@ -1091,8 +1253,20 @@ fn neutralize_programs(repo: &mut gix::Repository) -> Result<()> {
             "credential" => remove_ids.push(id),
             // diff.<driver>.textconv / command; merge.<driver>.driver
             "diff" | "merge" if sub => remove_ids.push(id),
+            "diff" => strip.push((id, &["external"])),
             "gpg" => remove_ids.push(id),
-            "core" => strip.push((id, &["fsmonitor", "sshcommand", "askpass", "gitproxy", "hookspath", "editor", "pager"])),
+            "include" | "includeif" | "mailmap" | "url" => remove_ids.push(id),
+            "core" => strip.push((
+                id,
+                &["fsmonitor", "sshcommand", "askpass", "gitproxy", "hookspath", "editor", "pager", "worktree", "excludesfile", "attributesfile", "protectntfs", "protecthfs"],
+            )),
+            "gitoxide" => match subsection.as_deref() {
+                Some("core") => strip.push((id, &["indexfile", "shallowfile", "protectwindows"])),
+                Some("ssh") => strip.push((id, &["commandwithoutshellfallback"])),
+                None => strip.push((id, &["editor", "visual"])),
+                _ => {}
+            },
+            "http" => strip.push((id, &["sslcainfo", "sslcapath", "sslcert", "sslkey", "cookiefile", "savecookies", "proxy", "sslverify"])),
             "remote" => strip.push((id, &["uploadpack", "receivepack", "vcs"])),
             "ssh" => strip.push((id, &["variant"])),
             _ => {}
@@ -1111,6 +1285,23 @@ fn neutralize_programs(repo: &mut gix::Repository) -> Result<()> {
     }
     config.commit().ctx("Could not apply the safe settings to this project.")?;
     Ok(())
+}
+
+/// Whether `path` is a file of its own (not a link, a folder, a FIFO …):
+/// what is read for a diff or the secret scan.
+fn is_plain_file(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_file())
+}
+
+/// Where the link at `path` points, as Git stores it (`/` separators);
+/// `None` when it isn't a link.
+fn link_target(path: &Path) -> Option<Vec<u8>> {
+    if !std::fs::symlink_metadata(path).ok()?.file_type().is_symlink() {
+        return None;
+    }
+    let target = std::fs::read_link(path).ok()?;
+    let bytes = gix::path::into_bstr(target).ok()?;
+    Some(bytes.iter().map(|b| if *b == b'\\' && cfg!(windows) { b'/' } else { *b }).collect())
 }
 
 fn is_binary(data: &[u8]) -> bool {

@@ -5,7 +5,7 @@
 // views in the diff views example (examples/studio/diff_views.rr): the text
 // view with its changed words, the form view (the form before and after, the
 // changes listed), the table view of two CSV files.
-import { cpSync, mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -41,9 +41,23 @@ const FIRST = "versions.pane,versions.start,versions:author=Ana,versions:save=fi
 const EDIT = 'code:PRINT "Done."=>PRINT "All done!",file.save';
 const SECOND = `${FIRST},${EDIT},versions:save=second`;
 
+// (SEC-31: a project that came with a history pointing outside its folder —
+// an empty `.git` whose core.worktree names the folder above, planted here)
+const blocked = (work, root) => {
+  const r = hello(work, root);
+  const p = join(work, "Projects", "Hello");
+  mkdirSync(join(p, ".git", "objects"), { recursive: true });
+  mkdirSync(join(p, ".git", "refs", "heads"), { recursive: true });
+  writeFileSync(join(p, ".git", "HEAD"), "ref: refs/heads/main\n");
+  writeFileSync(join(p, ".git", "config"), `[core]\n\trepositoryformatversion = 0\n\tbare = false\n\tworktree = ${work}\n`);
+  return r;
+};
+
 export const scenes = [
   // a project without versions: what they are, Start Versioning
   { name: "studio-start", setup: hello, do: "versions.pane", delay: 5, crop: [0, 68, 640, 420] },
+  // a history pointing outside the project's folder: Versions are off for it
+  { name: "studio-blocked", setup: blocked, do: "versions.pane", delay: 5, crop: [0, 68, 640, 420] },
   // two versions saved, one change since: the Versions pane, its timeline
   // (the left column a little wider than at first)
   { name: "studio-timeline", setup: hello, do: `${SECOND},code:PRINT "All done!"=>PRINT "Bye",file.save,versions.pane,versions:width=360,wait`, delay: 6, crop: [0, 68, 640, 560] },

@@ -240,6 +240,19 @@ de tu computadora (o que viene de una memoria USB o de una unidad de red) no se
 abre para hacer cambios: Versiones explica por qué y lo abre en solo lectura,
 para mirar sus versiones.
 
+Versiones tampoco llega nunca fuera de la carpeta del proyecto. Un proyecto
+que te dio otra persona podría traer un historial de versiones (su carpeta
+oculta `.git`) preparado para apuntar a otro lugar de tu computadora: otra
+carpeta como sus archivos, el historial de otro proyecto, un enlace a tus
+propios archivos. Studio lo comprueba cada vez que abre un proyecto. Cuando el
+historial apunta fuera, Versiones queda desactivado para ese proyecto: el panel
+Versiones dice **Versiones está desactivado para este proyecto** y por qué,
+Salida lo dice una vez, y no se lee ni se cambia nada de ese historial. Para
+guardar versiones de un proyecto así, copia sus archivos, sin la carpeta oculta
+`.git`, en una carpeta nueva y empieza las versiones allí.
+
+![El panel Versiones de un proyecto cuyo historial apunta fuera de su carpeta: una señal de advertencia, Versiones está desactivado para este proyecto, por qué, y el historial local que sigue guardando tus archivos](../images/versions/studio-blocked.png)
+
 ## RRepository: versiones en tus propios programas
 
 El panel Versiones de Studio está construido sobre **RRepository**, un
@@ -261,7 +274,9 @@ Sus miembros están en la [referencia](../reference/components.md): `Start`,
 `SaveVersion` (con `CheckSecrets` y `Secrets`), `Timeline`, `VersionFiles`,
 `FileAt`, `GoBack`, `GoBackFile`, `Undo` y `CanUndo`, `History`, `Checkpoint`, y
 `Snapshot`, `LocalHistory` y `SnapshotText` del historial local. Los errores se
-dicen en palabras sencillas (`Error`), y su clase en `ErrorKind`.
+dicen en palabras sencillas (`Error`), y su clase en `ErrorKind`; `Blocked` dice
+por qué no se usan las versiones de una carpeta (su historial apunta fuera de
+ella: `ErrorKind` es `"outside-folder"`).
 
 La parte del editor de código es `ChangeBase` de RCodeEditor (las marcas del
 margen frente al texto de una versión), `ChangeAt`, `ShowChange` y
