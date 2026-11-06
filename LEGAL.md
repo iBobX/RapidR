@@ -109,7 +109,11 @@ each one comes from.
   (`libssl3`, present on every current distribution) for HTTPS and for the
   AES and key derivation of the keyring session that protects the AI
   component's keys; if you package it (e.g. as a `.deb`), list it as a
-  dependency. Nothing of OpenSSL is inside your program.
+  dependency. Nothing of OpenSSL is inside your program. Sound and MIDI use
+  the system's ALSA library (`libasound2`, LGPL-2.1 or later), linked from
+  the system: list it as a dependency too, and don't copy it into what you
+  ship (an AppImage, a Flatpak, a container image or an archive); a copy
+  inside your package would make the LGPL's conditions apply to you.
 - **Your toolchain on Windows.** With the `gnullvm` toolchain (LLVM-MinGW,
   open source) nothing is needed. With Microsoft's `msvc` toolchain, the
   Visual Studio Build Tools licence applies to you as the developer (it is
@@ -202,6 +206,11 @@ is called Versions, and it is built on Git). Their owners' notices:
   and Zstandard are names or marks of their owners. RapidR uses these names
   only to say which file formats it reads and writes (the `RArchive`
   component), and is independent of all of them.
+- MIDI is a name or mark of its owners (the MIDI Manufacturers Association
+  and, in Japan, AMEI); Web MIDI is the name of a W3C specification. RapidR
+  uses "MIDI" only to say which standard its MIDI components (`RMIDI`,
+  `RMIDIPort`) speak; it uses no MIDI logo, claims no certification or
+  approval, and is independent of the owners.
 
 - OpenAI is a trademark of OpenAI, Inc.; Anthropic and Claude are trademarks
   of Anthropic, PBC; DeepSeek, Ollama, LM Studio, xAI, OpenRouter and Llama

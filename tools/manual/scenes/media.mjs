@@ -16,4 +16,12 @@ export const scenes = [
   // frame above, the frame's 882 samples below
   { name: "beeper", program: "examples/media/beeper.rr", delay: 1,
     env: { RAPIDR_TEST_EVENTS: `startbtn.onclick,${wait("info", 40)}` } },
+  // RMIDIPort on the tests' scripted devices (never a real one): the
+  // monitor with an Identity Request and a test note looped back
+  { name: "midi-monitor", program: "examples/media/midi_monitor.rr", delay: 1,
+    env: { RAPIDR_TEST_MIDIPORT: "loop:RapidR Loopback;out:Test Synth", RAPIDR_TEST_EVENTS: `outlist.__item_0,sendbtn.onclick,${wait("info", 4)},notebtn.onclick,${wait("info", 4)}` } },
+  // a scripted synthesizer answering the Identity Request (maker 7D: the
+  // ID for tests and education)
+  { name: "midi-sysex", program: "examples/media/midi_sysex_port.rr", delay: 1,
+    env: { RAPIDR_TEST_MIDIPORT: "synth:Test Synth", RAPIDR_TEST_EVENTS: `outlist.__item_0,sendbtn.onclick,${wait("info", 4)}` } },
 ];

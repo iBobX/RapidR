@@ -3,6 +3,10 @@
 '
 '   rapidr run midi_sysex_out.rr
 '
+' For SysEx in your own programs use RMIDIPort's SendSysEx / SendHex and
+' OnSysEx instead: every system, no headers or pointers
+' (examples/media/midi_sysex_port.rr). This one shows the Windows API itself.
+'
 ' Windows only: on other systems the form says so and Send stays off.
 '
 ' Pick the MIDI output, write the message's bytes in hex (it starts with F0

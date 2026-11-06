@@ -169,6 +169,8 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | [tone_generator.rr](media/tone_generator.rr) | `RAudioOut`: a sine, square, sawtooth or noise made sample by sample in `OnNeedData`, its frequency in musical steps, an oscilloscope of the samples played | run · interp · native · web | `rapidr run media/tone_generator.rr` |
 | [beeper.rr](media/beeper.rr) | `RAudioOut` as an emulator uses it: a one-bit speaker flipped at exact cycle times, 882 samples a frame from an `RTimer`, the bit and the sound drawn | run · interp · native · web | `rapidr run media/beeper.rr` |
 | [chiptune.rr](media/chiptune.rr) | `RAudioOut`: a three-voice square-wave music player (RapidR's own tune) with a piano roll | run · interp · native · web | `rapidr run media/chiptune.rr` |
+| [midi_monitor.rr](media/midi_monitor.rr) | `RMIDIPort`: everything a MIDI keyboard, controller or synthesizer sends, in hex and in words (notes, controls, whole SysEx messages); a message typed in hex sent back out; the lists follow devices plugged in or out | run · interp · native · web | `rapidr run media/midi_monitor.rr` |
+| [midi_sysex_port.rr](media/midi_sysex_port.rr) | `RMIDIPort`: SysEx with a synthesizer — pick its input and output, send a Universal message (Identity Request, GM System On, Master Volume) or your own in hex, read its Identity Reply decoded; a note and a chord to check the cable | run · interp · native · web | `rapidr run media/midi_sysex_port.rr` |
 
 ### directx/ — DirectX 2D and Direct3D
 
