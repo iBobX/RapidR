@@ -78,6 +78,19 @@ FUNCTION SymbolIcon(Name AS STRING) AS INTEGER
   END IF
 END FUNCTION
 
+' The Outline's icons drawn again — the same ones, in the same order: the
+' items' indexes stay — for the window's scale now: icons made before the
+' window was shown (the panes fill when the analysis is in, which at the
+' start can be before), or on another screen, were drawn for that one.
+SUB RefreshOutlineIcons
+  DIM i AS INTEGER
+  IF SymbolIconKeys = 0 OR SymbolIcons.Count <> SymbolIconKeys THEN EXIT SUB
+  SymbolIcons.Clear
+  FOR i = 0 TO SymbolIconKeys - 1
+    SymbolIcons.AddIcon SymbolIconName(i)
+  NEXT
+END SUB
+
 ' (an outline kind's icon in SymbolIcons)
 FUNCTION OutlineIcon(Kind AS STRING, Detail AS STRING) AS INTEGER
   DIM t AS STRING
@@ -102,7 +115,10 @@ SUB FillOutline(d AS INTEGER)
     ' (the outline shown already — typing inside a SUB, a letter typed and
     ' taken back —: nothing to do; a big file's thousands of items aren't
     ' added again after every pause, and what was folded stays folded)
-    IF d = OutlineShownDoc AND text = OutlineShownText AND OutlineTree.ItemCount = OutlineCount THEN EXIT SUB
+    IF d = OutlineShownDoc AND text = OutlineShownText AND OutlineTree.ItemCount = OutlineCount AND SymbolIcons.Count = SymbolIconKeys THEN
+      RefreshOutlineIcons
+      EXIT SUB
+    END IF
   END IF
   OutlineTree.Clear
   SymbolIcons.Clear

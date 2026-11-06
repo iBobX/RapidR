@@ -359,10 +359,19 @@ END SUB
 ' (the keyboard starts in the Project pane, as it always has: the Welcome
 ' page's cards are Tab stops, and come first in the window)
 SUB StudioShown
+  ' (the Outline's icons for the window's scale: the panes may have been
+  ' filled before it was shown — documents.inc)
+  RefreshOutlineIcons
   IF ActiveDoc < 0 THEN
     ' (S2: the offer to reopen the last project has the keyboard: Enter)
     IF StartShift > 0 THEN ReopenRow.SetFocus ELSE Dock.FocusPane("projecttree")
   END IF
+END SUB
+
+' (Studio's window moved to a screen with another scale: the Outline's icons
+' drawn for it)
+SUB StudioScaleChanged
+  RefreshOutlineIcons
 END SUB
 
 SUB StudioClose(Action AS INTEGER)
