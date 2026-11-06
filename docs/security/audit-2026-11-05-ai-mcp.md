@@ -25,9 +25,9 @@ Earlier audits: `docs/security-audit.md` (2026-10-08, SEC-14…20),
 
 | ID | Severity | Area | One line |
 |---|---|---|---|
-| SEC-40 | **Medium** | AI tools, confinement | The source-reading tools and `compare_versions` read project files through the project's own file list and git history, without the path confinement `read_file` enforces (SEC-23) — out-of-project and hidden files reach the model |
-| SEC-41 | Low | AI run, native power | An AI- or RAI-initiated `run_program` does not set `RAPIDR_SANDBOX`: under *Allow everything* / *auto* the run has full `DECLARE…LIB` / `SHELL` / `VARPTR` power (SEC-10's gate still not wired to AI-initiated runs) |
-| SEC-42 | Low | AI tools, integrity | `set_property`'s `value` is written into the source as given, so a "set one property" change can carry extra source lines — the designer's "smallest edit" invariant and the Review diff's meaning break |
+| SEC-40 | **Medium** | AI tools, confinement | The source-reading tools and `compare_versions` read project files through the project's own file list and git history, without the path confinement `read_file` enforces (SEC-23) — out-of-project and hidden files reach the model — **fixed** (`fe4d1716`) |
+| SEC-41 | Low | AI run, native power | An AI- or RAI-initiated `run_program` does not set `RAPIDR_SANDBOX`: under *Allow everything* / *auto* the run has full `DECLARE…LIB` / `SHELL` / `VARPTR` power (SEC-10's gate still not wired to AI-initiated runs) — **fixed** (`fe4d1716`) |
+| SEC-42 | Low | AI tools, integrity | `set_property`'s `value` is written into the source as given, so a "set one property" change can carry extra source lines — the designer's "smallest edit" invariant and the Review diff's meaning break — **fixed** (`fe4d1716`) |
 
 **Nothing is Critical or High. By the Critical/High rule, nothing in this area
 blocks Preview 6.** SEC-40 is the one worth fixing before shipping: it
@@ -39,6 +39,19 @@ explicit consent; SEC-42 is defence-in-depth (the AI already has
 ---
 
 ### SEC-40 — Medium — Source-reading tools and `compare_versions` aren't confined to the project
+
+**Status: fixed** (lane SEC-FIX-AI). Fixed in `fe4d1716`: one rule,
+`ai_tools::readable` (`project_path`'s — no `..` above the folder, nothing
+absolute, no link out of it — and never a hidden part), used by
+`Project::text` (so every whole-project tool and every proposal's base),
+`resolve` (every `path` argument, RAI's too), `list_files` / `files_note`,
+`ai::outside_path_ok`, and `compare_versions` / `list_versions` for every path
+from the file list, the editors and both versions' trees (the refused ones
+counted, never named). The reading tools' answers are key-redacted
+(`ai_tools::redacted`). The three proof tests run (no `#[ignore]`) and pass;
+`ai_tools::tests::every_read_follows_the_one_rule` adds the outline, the
+listing, RAI's `read_file` / `write_file` of a hidden file and a key in a
+form's caption.
 
 **Where.**
 - `crates/rapidr-studio/src/ai_tools.rs` — `Project::text` (`:403`),
@@ -121,6 +134,25 @@ answer.
 
 ### SEC-41 — Low — An AI-initiated run is not sandboxed (SEC-10 still open for AI runs)
 
+**Status: fixed** (lane SEC-FIX-AI). Fixed in `fe4d1716`: a run started
+while one of Studio's tools is answered (`run_program`, `debug`'s steps —
+`ToolsCalling`, `ide/tools.inc`) sets `RProgramSession.Sandboxed`, and the
+desktop host gives the child `RAPIDR_SANDBOX=1`, unless the user turned on
+Settings > AI's new *Programs the AI runs may use DLLs and SHELL*
+(`AIRunFullPower`, off by default, a consent question before it turns on).
+The gate now also covers `SHELL` / `SHELLWAIT` / `RUN`
+(`rapidr_value::dll::sandboxed`, one test for both), and `ENVIRON` can't
+remove `RAPIDR_SANDBOX`; a program the run starts inherits it. The run's
+answer and `studio_status` say what is blocked and what to tell the user
+(F5, the setting), so a model doesn't loop. The user's own Run is
+unchanged. Tests: `tests/studio_mcp.mjs sandbox` (an AI app's run refused at
+SHELL, a debug-started run too, full power when allowed, the user's F5
+not sandboxed), `tests/security/peek_poke_unowned_memory.mjs` (SHELL,
+SHELLWAIT, RUN, ENVIRON), `rapidr_value::environ::tests::the_sandbox_stays`.
+What the sandbox does **not** block (said in the tool's answer): files, the
+network, the program's own windows — it is the native-power gate of SEC-10,
+not an operating-system sandbox.
+
 **Where.** `ide/debug.inc:778` `StartProgram` (what `run_program` calls,
 `ide/tools.inc:288`) runs the program exactly as the user's own Run does: no
 `RAPIDR_SANDBOX` is set for a run that RAI or an AI app started. The runtime
@@ -165,6 +197,17 @@ asserting an AI-started run refuses `DECLARE…LIB`).
 ---
 
 ### SEC-42 — Low — `set_property` writes its value into the source verbatim
+
+**Status: fixed** (lane SEC-FIX-AI). Fixed in `fe4d1716`:
+`ai_tools::one_value` checks the value before the designer writes it — no
+control character, and read by RapidR's own lexer and parser as
+`v = <value>` with a line after it: one assignment ending where the value
+ends, the next line still its own (no `:` and a second statement, no `_`
+continuation, no comment). Refused with "can't be set to …: that is more
+than one value … Give the value alone, on one line". The proof test runs and
+passes; `ai_tools::tests::a_property_value_is_one_value` covers what the
+designer writes (numbers, constants, `&H`, sums of flags, quoted text with
+`""`, `CHR$` joins) and the refusals.
 
 **Where.** `crates/rapidr-studio/src/ai_tools.rs:1837` `set_property` →
 `:1864` builds `source` from `value` (for a typed or quoted property, the raw

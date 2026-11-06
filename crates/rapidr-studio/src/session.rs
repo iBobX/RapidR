@@ -215,6 +215,9 @@ struct Model {
     next_app: i64,
     /// The look a program that names none is drawn in ($THEME's names).
     theme: String,
+    /// The next start is sandboxed (`Sandboxed`, SEC-41): a run RAI or an
+    /// AI app started — no DLL call, SENDMESSAGE, SHELL or RUN.
+    sandboxed: bool,
 }
 
 impl Model {
@@ -424,6 +427,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
             "browserurl" => Value::String(browser::url(name).into()),
             "theme" => Value::String(m.theme.clone().into()),
+            "sandboxed" => flag(m.sandboxed),
             _ => return None,
         })
     })
@@ -459,6 +463,7 @@ pub fn set<H: Host>(_host: H, name: &str, prop: &str, v: &Value) -> bool {
             }
             "state" | "currentfile" | "currentline" | "exitcode" | "error" | "stopreason" | "stopmessage" | "localsref" | "globalsref" | "componentsref" | "browserurl" => {}
             "theme" => m.theme = v.to_string_val(),
+            "sandboxed" => m.sandboxed = v.to_bool(),
             _ => return false,
         }
         true
@@ -480,11 +485,11 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         }
         "refreshshellpath" => Value::String(crate::login_path::refresh().map(|s| s.path).unwrap_or_default().into()),
         "start" => {
-            let (program, run_args, theme, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.theme.clone(), m.session.state() != State::Stopped));
+            let (program, run_args, theme, sandboxed, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.theme.clone(), m.sandboxed, m.session.state() != State::Stopped));
             if running {
                 return Some(r(Err("the program is running already".into())));
             }
-            let started = host.launch(&program, &run_args, &theme).and_then(|t| with(name, |m| {
+            let started = host.launch(&program, &run_args, &theme, sandboxed).and_then(|t| with(name, |m| {
                 m.forget();
                 m.session.start(t)
             }));
@@ -1089,7 +1094,7 @@ pub(crate) mod tests {
             fn fire(self, name: &str, event: &str, _args: &[Value]) {
                 FIRED.with(|f| f.borrow_mut().push(format!("{name}.{event}")));
             }
-            fn launch(self, _program: &str, _args: &[String], _theme: &str) -> Result<Box<dyn Transport>, String> {
+            fn launch(self, _program: &str, _args: &[String], _theme: &str, _sandboxed: bool) -> Result<Box<dyn Transport>, String> {
                 // (the frame's stop: the page's script calls back at once)
                 Ok(Box::new(ChannelTransport::new(
                     |_json| Ok(()),

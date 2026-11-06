@@ -5975,6 +5975,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `BreakOnError` | bool | False | Stop at the statement of a run-time error (StopReason "exception", StopMessage the error). |
 | `StopOnEntry` | bool | False | Stop at the program's first statement when it starts. |
 | `Theme` | string |  | The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR's look): `classic` previews it in the classic look. |
+| `Sandboxed` | bool | False | The next Start runs the program sandboxed (RAPIDR_SANDBOX): a DLL call (DECLARE … LIB), SENDMESSAGE / POSTMESSAGE and SHELL / SHELLWAIT / RUN stop it with a run-time error instead, and a program it starts in turn is sandboxed too — what RapidR Studio sets for a run RAI or an AI app starts. The web's frame has none of those for any run. |
 | `State` (read-only) | string |  | "stopped", "running" or "paused". |
 | `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
 | `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |

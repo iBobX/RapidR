@@ -115,6 +115,34 @@ and run and `button_grid` (it writes the student's code); reading and looking
 at the running program stay. **School Lock**'s "no AI apps" keeps the MCP
 server from starting at all (`ide/schoollock.inc`).
 
+**One rule for what the tools read** (SEC-23, SEC-40):
+`ai_tools::readable(folder, path)` — inside the project's folder as the disk
+has it (never above it, never absolute, never through a link out of it) and
+never hidden (a part of the path that starts with a dot). Every read goes
+through it, RAI's and AI apps' alike: `Project::text` (so `read_file`, the
+whole-project tools — `project_outline`, `check_code`, `layout_report`,
+`rapidr_list` / `rapidr_get`, `set_property` — and every proposal's base),
+`resolve` (every `path` argument, the changing tools' too), `list_files`, and
+`compare_versions` / `list_versions` for the file list, the editors' texts and
+every path a version holds (the others counted, never named). What the
+reading tools answer is key-redacted as `read_file`'s text is. AI apps add
+their own rule on top (`ai::outside_path_ok`: in a home folder or a disk's
+root, only the listed files).
+
+**A run an AI starts is sandboxed** (SEC-41): a run started while one of
+Studio's tools is answered (`run_program`, `debug`'s steps; `ToolsCalling`,
+`ide/tools.inc`) gets `RProgramSession.Sandboxed` → `RAPIDR_SANDBOX`: no DLL
+call, `SENDMESSAGE` / `POSTMESSAGE`, `SHELL` / `SHELLWAIT` / `RUN` (a run-time
+error that says so; `ENVIRON` can't take the variable away; what it starts
+inherits it), unless the user turned on Settings > AI's *Programs the AI runs
+may use DLLs and SHELL* (`AIRunFullPower`, asked first). The run's answer and
+`studio_status` say so, so a model doesn't loop. The user's own Run never is.
+
+**`set_property`'s value is one value** (SEC-42): no control character, and
+read by RapidR's lexer and parser as one assignment with the next line still
+its own (`ai_tools::one_value`) — no `:` and a second statement, no `_`
+continuation, no comment riding along.
+
 **The audit log** is one file both write (`policy::audit` for AI apps' calls;
 RAI's turn loop in `rapidr-ai` for RAI's): when, who, which tool, the
 project's file it touched — never a file's text, a picture, typed text or a

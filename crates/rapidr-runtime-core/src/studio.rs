@@ -30,7 +30,7 @@ impl Host for Desktop {
         rp_fire_event_args(name, event, args);
     }
 
-    fn launch(self, program: &str, args: &[String], theme: &str) -> Result<Box<dyn Transport>, String> {
+    fn launch(self, program: &str, args: &[String], theme: &str, sandboxed: bool) -> Result<Box<dyn Transport>, String> {
         if program.is_empty() {
             return Err("no program to run".into());
         }
@@ -63,6 +63,12 @@ impl Host for Desktop {
         // (Studio's "Preview in classic": the program's default look)
         if !theme.is_empty() {
             env.push(("RAPIDR_THEME".into(), Some(theme.to_string())));
+        }
+        // (a run RAI or an AI app started: sandboxed — no DLL call,
+        // SENDMESSAGE, SHELL or RUN, and what it starts in turn inherits it;
+        // the user's own Run as Studio itself was started — SEC-41)
+        if sandboxed {
+            env.push(("RAPIDR_SANDBOX".into(), Some("1".into())));
         }
         // (the front handed back to Studio when the program stops while the
         // user was using it: Studio's process)

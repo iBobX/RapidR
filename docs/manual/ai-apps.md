@@ -230,12 +230,19 @@ With this on, an AI app that has your token can, through Studio:
 
 - list and read the files in your open project (your code, forms and data
   files), and nothing outside the project or hidden in it (a file or folder
-  whose name starts with a dot);
+  whose name starts with a dot) — whichever tool reads: a file, the
+  outline, a check, the forms, a comparison of versions; a project file
+  that lists `../elsewhere`, or a folder that is a link out of the project,
+  doesn't change that;
 - get pictures of Studio's window and of your running program's windows,
   and a written list of what they show, as you see them;
 - look at and change forms and code, open other projects, and build, run and
   debug your program, as the permission menu allows — Studio asks you first
-  under **Ask before changes**;
+  under **Ask before changes**. A run an AI app starts is *sandboxed*: a DLL
+  call (`DECLARE … LIB`), `SENDMESSAGE` and `SHELL` / `RUN` stop the
+  program with an error that says so (the AI app is told why), unless you
+  turned on **Tools > Settings > AI > Programs the AI runs may use DLLs and
+  SHELL**; your own **Run** (F5) always has them;
 - look at, click and type in your running program, each only as the
   permission menu allows (the default asks you first): see
   [A program's eyes and hands](app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program);

@@ -117,6 +117,15 @@ refused("memcpy_to_pointer_stand_in", "DIM n AS LONG\nMEMCPY &HD1E00000, VARPTR(
 refused("dll_sandboxed", "DECLARE FUNCTION GetTickCount LIB \"kernel32\" () AS LONG\nt = GetTickCount", "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
 refused("own_dylib_sandboxed", `DECLARE FUNCTION cabs LIB "${process.platform === "darwin" ? "libSystem.B.dylib" : process.platform === "win32" ? "msvcrt" : "libc.so.6"}" ALIAS "abs" (BYVAL n AS LONG) AS LONG\nt = cabs(-1)`, "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
 refused("sendmessage_sandboxed", "SENDMESSAGE 0, 0, 0, 0", "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+// (SEC-41) …and starts no other program — SHELL, SHELLWAIT, RUN —, and
+// ENVIRON can't take the sandbox away first.
+const marker = join(dir, "sec41-shell-ran");
+const touch = process.platform === "win32" ? `type nul > ""${marker}""` : `touch '${marker}'`;
+refused("shell_sandboxed", `SHELL "${touch}"`, "'SHELL' starts another program, and this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+refused("shellwait_sandboxed", `r = SHELLWAIT("${touch}")`, "'SHELLWAIT' starts another program", { RAPIDR_SANDBOX: "1" });
+refused("run_sandboxed", `p = RUN("${touch}")`, "'RUN' starts another program", { RAPIDR_SANDBOX: "1" });
+refused("environ_keeps_the_sandbox", `ENVIRON "RAPIDR_SANDBOX="\nENVIRON "rapidr_sandbox=0"\nSHELL "${touch}"`, "this run is sandboxed", { RAPIDR_SANDBOX: "1" });
+check("a sandboxed run started no program", !existsSync(marker));
 // x86 machine code a program wrote, run through CallWindowProc (RapidQ's
 // way to run assembler): refused before Windows is called.
 if (process.platform === "win32") {

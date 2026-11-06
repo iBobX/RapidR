@@ -226,7 +226,7 @@ mod tests {
                 let a: Vec<String> = args.iter().map(Value::to_string_val).collect();
                 SEEN.with(|s| s.borrow_mut().push(format!("{name} {event} {}", a.join("|"))));
             }
-            fn launch(self, _p: &str, _a: &[String], _t: &str) -> Result<Box<dyn crate::Transport>, String> {
+            fn launch(self, _p: &str, _a: &[String], _t: &str, _s: bool) -> Result<Box<dyn crate::Transport>, String> {
                 Err("no".into())
             }
             fn list_files(self, _folder: &str) -> Vec<String> {

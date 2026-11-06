@@ -53,6 +53,11 @@ pub fn set(spec: &str) {
     if name.contains('\0') || text.contains('\0') {
         return;
     }
+    // (RAPIDR_SANDBOX is RapidR's own — what Studio sets for a run an AI
+    // started, SEC-41 —: a program never takes it away, in any case)
+    if name.trim().eq_ignore_ascii_case("RAPIDR_SANDBOX") {
+        return;
+    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         if text.is_empty() {
@@ -94,5 +99,17 @@ mod tests {
         set("RAPIDR_ENVIRON_TEST=");
         assert_eq!(get("RAPIDR_ENVIRON_TEST"), "");
         assert_eq!(get(""), "");
+    }
+
+    /// SEC-41: a sandboxed run can't take its sandbox away (or give itself
+    /// one): ENVIRON leaves RAPIDR_SANDBOX as RapidR set it, in any case.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn the_sandbox_stays() {
+        let before = std::env::var_os("RAPIDR_SANDBOX");
+        for spec in ["RAPIDR_SANDBOX=", "RAPIDR_SANDBOX=0", "rapidr_sandbox=", "RAPIDR_SANDBOX =1", "RAPIDR_SANDBOX 0"] {
+            set(spec);
+            assert_eq!(std::env::var_os("RAPIDR_SANDBOX"), before, "{spec}");
+        }
     }
 }

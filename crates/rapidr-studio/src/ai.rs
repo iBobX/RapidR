@@ -1582,10 +1582,9 @@ fn list_tree(root: &std::path::Path) -> Vec<String> {
 /// the project's own listed files — an AI app reads the project, nothing
 /// else of the user's.
 fn outside_path_ok(folder: &str, files: &[String], path: &str) -> Result<(), String> {
-    let rel = ai_tools::project_path(folder, path)?;
-    if rel.split('/').any(|part| part.starts_with('.')) {
-        return Err(format!("{path}: a hidden file or folder — AI apps can't read or change those"));
-    }
+    // (the tools' one rule — inside the folder for real, never hidden —
+    // then AI apps' own: the listed files only in a shallow folder)
+    let rel = ai_tools::readable(folder, path)?;
     let f = crate::slashes(folder.trim_end_matches(['/', '\\']));
     let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).map(|h| crate::slashes(h.trim_end_matches(['/', '\\']))).unwrap_or_default();
     let shallow = f.matches('/').count() <= 1 || f.ends_with(':') || (!home.is_empty() && f.eq_ignore_ascii_case(&home));

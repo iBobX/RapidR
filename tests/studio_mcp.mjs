@@ -31,12 +31,15 @@
 //   School Lock         AI apps locked by a teacher (ide/schoollock.inc): the
 //                       server refuses to start, the port never answers;
 //                       unlocked until Studio closes, it starts
+//   Sandbox             (SEC-41) a run an AI app starts is sandboxed — SHELL
+//                       refused, said with the run and in studio_status —;
+//                       with the user's "may use DLLs and SHELL", full power
 //
 // and a waiting change and Settings > AI Apps are captured; the
 // first-time question (turning the switch on) answered both ways; the
 // activity's Copy; capture refused while Settings shows the token.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe|raiauto|shared|raiversions|locked …]
+//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe|raiauto|shared|raiversions|locked|sandbox …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -808,6 +811,44 @@ if (want("raiversions")) {
   const end = await run.ended();
   check("raiversions: Studio ended, nothing left waiting", end.ok && end.lines["aitools.proposalcount"] === "0", JSON.stringify(end.lines));
   rmSync(dir, { recursive: true, force: true });
+}
+
+// ---- (SEC-41) A run an AI app starts is sandboxed: SHELL (and DLL calls, SENDMESSAGE,
+// RUN) refused with an error that says so, said with the run's answer and in
+// studio_status, so the model doesn't loop; full power only when the user allowed it in
+// Settings > AI ("Programs the AI runs may use DLLs and SHELL") -----------------------------
+if (want("sandbox")) {
+  for (const [part, port, full] of [["sandbox", BASE_PORT + 21, false], ["sandbox-full", BASE_PORT + 22, true]]) {
+    const marker = join(WORK, `${part}-shell-ran`);
+    const touch = process.platform === "win32" ? `type nul > ""${marker}""` : `touch '${marker}'`;
+    const main = `PRINT "before"\nSHELL "${touch}"\nPRINT "after"\n`;
+    const run = studio(part, [...(full ? ["ai:fullpower=1"] : []), "mcp:mode=all", `mcp:on=${port}`].join(","), until(END_WORDS), "mcpask.visible", {}, { main });
+    check(`${part}: Studio listens`, await listening(port));
+    const { tool } = client(port);
+    let r = await tool("studio_status");
+    check(`${part}: studio_status says what a run an AI starts may do`, full ? r.text.includes("Runs you start: full power") : r.text.includes("Runs you start: sandboxed (no DLL call, SENDMESSAGE, SHELL or RUN"), r.text);
+    r = await tool("run_program", { action: "start", wait: 20 });
+    console.log(`     run_program: ${r.text.replace(/\s+/g, " ").slice(0, 900)}`);
+    if (full) {
+      check("full power allowed: the run says so, SHELL ran", r.text.includes("This run has full power") && r.text.includes("after") && !r.text.includes("sandboxed (RAPIDR_SANDBOX)") && existsSync(marker), r.text);
+    } else {
+      check("an AI app's run: sandboxed, said first, and how to get further (F5, the setting)", r.text.startsWith("This run is sandboxed, because an AI started it") && r.text.includes("tell the user to run it themselves (F5)") && r.text.includes("Tools > Settings > AI"), r.text);
+      check("…SHELL stopped it with the error that says why; nothing started", r.text.includes("before") && r.text.includes("'SHELL' starts another program, and this run is sandboxed") && !/\nafter\b/.test(r.text) && !existsSync(marker), r.text);
+      // (the debugger's step starts a run too: sandboxed as well)
+      r = await tool("debug", { action: "step_into", wait: 10 });
+      r = await tool("debug", { action: "continue", wait: 10 });
+      check("…a run the debug tool started is sandboxed too", !existsSync(marker), r.text);
+    }
+    await tool("how_do_i", { task: "the end of this part" });
+    const end = await run.ended();
+    check(`${part}: Studio ended`, end.ok, end.out.slice(-800));
+  }
+  // (the user's own Run, F5, with AI apps on and full power off: never sandboxed)
+  const marker = join(WORK, "sandbox-user-shell-ran");
+  const touch = process.platform === "win32" ? `type nul > ""${marker}""` : `touch '${marker}'`;
+  const user = studio("sandbox-user", `mcp:mode=all,mcp:on=${BASE_PORT + 23},run.start`, "", "outputbox.text", { RAPIDR_CAPTURE_DELAY: "10" }, { main: `PRINT "before"\nSHELL "${touch}"\nPRINT "after"\n` });
+  const end = await user.ended(120000);
+  check("the user's own Run (F5): not sandboxed, SHELL ran", end.ok && existsSync(marker) && !end.out.includes("this run is sandboxed"), end.out.slice(-800));
 }
 
 // ---- School Lock (ide/schoollock.inc): AI apps locked by a teacher — the server never

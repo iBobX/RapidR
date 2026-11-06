@@ -127,6 +127,18 @@ Cancel stay at the bottom.
     I write in*, which keeps the language of your latest message (and the
     one before it, when a message is too short to tell). See *Your
     language*, under Asking.
+11. **Ask before the assistant creates or changes files**: see [Review
+    first](#review-first).
+12. **Programs the AI runs may use DLLs and SHELL** — off unless you turn it
+    on. Off, a program that RAI or an AI app runs is *sandboxed*: a DLL call
+    (`DECLARE … LIB`), `SENDMESSAGE` / `POSTMESSAGE` and `SHELL` /
+    `SHELLWAIT` / `RUN` stop it with a run-time error that says so, and the
+    AI is told why, so it doesn't try again. Files, the network and the
+    program's own windows work as usual. Your own **Run** (F5) always has
+    that power, whatever you choose here. Turning it on asks first: a
+    program the AI runs could then do anything you can on this computer.
+
+    ![The question before the programs the AI runs get full power: Allow Full Power, or Cancel (the default)](images/ai/settings-full-power.png)
 
 The assistant's pane and its toolbar button appear once it is on and has a
 provider, a key (when the provider needs one) and a model.
@@ -695,6 +707,16 @@ RapidR starts a new one with the next request.
   (or only answer, with *Only read the project*).
 - **Nothing runs by itself.** A program the assistant made runs only when
   you press Run.
+- **A run the AI starts is sandboxed** (*Work on its own*, or a run you
+  allowed on its card): no DLL calls, no `SENDMESSAGE`, no `SHELL` or `RUN`
+  — unless you turned on **Programs the AI runs may use DLLs and SHELL**.
+  Press **Run** yourself for a program that needs them.
+- **Only the project's own files.** The assistant reads the files in the
+  project's folder — never one outside it (a project file that lists
+  `../elsewhere`, a folder that is a link out of the project) and never a
+  hidden one (a name that starts with a dot: `.env`, `.git`), whichever of
+  its tools reads: a file, the outline, a check, the forms, a comparison of
+  versions.
 - **At most 25 tool uses** for one question; Stop works at any time.
 - **Keys** are never written into a project, a build, a log, the audit log
   or a screenshot of RapidR's. A key someone wrote into a file of the

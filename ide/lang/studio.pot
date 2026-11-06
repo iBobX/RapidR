@@ -5713,6 +5713,14 @@ msgid "On: a new program is shown to you first and created when you press Create
 msgstr ""
 
 #: ide/settings.inc
+msgid "Programs the AI runs may use &DLLs and SHELL"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer."
+msgstr ""
+
+#: ide/settings.inc
 msgid "The provider's links"
 msgstr ""
 
@@ -5906,6 +5914,34 @@ msgstr ""
 
 #: ide/settings.inc
 msgid "&Let RAI Work on Its Own"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Let the programs the AI runs use DLLs and SHELL?"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Your own Run (F5) has this power whatever you choose here."
+msgstr ""
+
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run may call DLLs and start other programs"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run stay sandboxed"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Allow Full Power"
 msgstr ""
 
 #: ide/shell.inc

@@ -26,6 +26,10 @@ rapidr-preprocessor.workspace = true
 # RAI's project_outline: the program's statements as parsed, and their spans
 rapidr-ast.workspace = true
 rapidr-diagnostics.workspace = true
+# (set_property: its value read as one value by RapidR's own lexer and
+# parser, SEC-42 — already in the tree through rapidr-langsvc)
+rapidr-lexer.workspace = true
+rapidr-parser.workspace = true
 # RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it
 rapidr-package.workspace = true
 # File > Import RapidQ Project or File: the engine of `rapidr import-rapidq`
@@ -71,8 +75,6 @@ tempfile = "3"
 # (tests: every component of the toolbox added to a form, and the program
 # written compiles to bytecode and to Rust)
 rapidr-icons.workspace = true
-rapidr-lexer.workspace = true
-rapidr-parser.workspace = true
 rapidr-bcgen.workspace = true
 # (examples/ai_eval.rs: the click tests' patterns)
 regex = "1.12"

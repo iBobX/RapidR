@@ -129,9 +129,12 @@ within 32 bits for exactly this: `GetDC`, `LoadCursorFromFile`,
   starts: wait inside one call that blocks (`Sleep`), not by calling the DLL
   in a loop.
 - `RAPIDR_SANDBOX` set (to anything but empty or 0): no library is loaded
-  and every DLL call is a run-time error — the gate a run RapidR starts on
-  someone else's behalf (an assistant's, an extension's) sets
-  (docs/security-audit.md SEC-19).
+  and every DLL call is a run-time error, and SHELL / SHELLWAIT / RUN start
+  no program — the gate a run RapidR starts on someone else's behalf sets:
+  RapidR Studio sets it for a run RAI or an AI app starts, unless the user
+  allowed full power for AI runs (docs/security-audit.md SEC-19,
+  docs/security/audit-2026-11-05-ai-mcp.md SEC-41). A program's `ENVIRON`
+  can't take it away; what the program starts inherits it.
 
 RapidQ's own Windows-message built-ins are those functions of user32's:
 `SENDMESSAGE hWnd, uMsg, wParam, lParam` is `SendMessageA`, `POSTMESSAGE`

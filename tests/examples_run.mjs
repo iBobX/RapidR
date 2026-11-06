@@ -383,6 +383,9 @@ export const cases = [
   // said in words (versions are kept in a project's own folder only),
   // elsewhere it saves, goes back and undoes; the local history either way)
   { file: "studio/versions.rr", runtimes: ["run"], expect: ["Local history of main.rr:"] },
+  // (SEC-41: run by the person — not sandboxed — it starts `echo`; an AI's
+  // run of it is tests/studio_mcp.mjs' sandbox part)
+  { file: "studio/ai_sandbox.rr", runtimes: ["run"], expect: ["This run has your own Run's power", "Hello from another program", "It ended with exit code 0"] },
   // (EXTERNAL-CHANGES: RProject's Watch / ExternalChanges(); the change
   // from outside is tests/studio_flows.mjs' ext-* walk)
   // (CRASH-REPORTS: RProject's CrashList and CrashFolder, read from a folder of

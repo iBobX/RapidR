@@ -480,7 +480,9 @@ pub fn list_versions(input: &Json, p: &Project) -> Outcome {
                     out.push(format!("{} — {} — {} — {}{mark}", r.short, ago(r.seconds), r.author, r.message));
                 }
             }
-            let changed = crate::repository::read::changed(p.folder).unwrap_or_default();
+            // (only the files the tools may read are named: never a hidden
+            // one — ai_tools::readable, SEC-40)
+            let changed: Vec<(char, String)> = crate::repository::read::changed(p.folder).unwrap_or_default().into_iter().filter(|(_, f)| crate::ai_tools::readable(p.folder, f).is_ok()).collect();
             if changed.is_empty() {
                 out.push("Nothing changed since the last version.".into());
             } else {
@@ -529,11 +531,20 @@ pub fn compare_versions(input: &Json, p: &Project) -> Outcome {
             Err(e) => return err(e, "compare_versions: not a project file".into(), path),
         },
     };
-    // (the files either side may have)
+    // (the files either side may have — from the file list, the editors
+    // and both versions' trees —, each through the one rule the tools read
+    // by: never outside the folder, through a link out of it or hidden —
+    // ai_tools::readable, SEC-40; the others are counted, never named)
     let mut paths: Vec<String> = Vec::new();
+    let mut skipped = 0usize;
     let mut add = |f: &str| {
-        if !f.is_empty() && !paths.iter().any(|x| x == f) {
-            paths.push(f.to_string());
+        if f.is_empty() {
+            return;
+        }
+        match crate::ai_tools::readable(p.folder, f) {
+            Ok(rel) if !paths.contains(&rel) => paths.push(rel),
+            Ok(_) => {}
+            Err(_) => skipped += 1,
         }
     };
     match &only {
@@ -583,14 +594,19 @@ pub fn compare_versions(input: &Json, p: &Project) -> Outcome {
         }
     }
     let side = if to.is_empty() { "now".to_string() } else { to.clone() };
+    let not_read = match skipped {
+        0 => String::new(),
+        1 => " (1 file isn't compared: it is hidden or outside the project, and the AI tools never read those)".to_string(),
+        n => format!(" ({n} files aren't compared: they are hidden or outside the project, and the AI tools never read those)"),
+    };
     if changed == 0 {
-        return ok(format!("No difference between {from} and {side}{}.", only.as_ref().map(|r| format!(" in {r}")).unwrap_or_default()), "Compared versions: no difference".into(), only.as_deref().unwrap_or(""));
+        return ok(format!("No difference between {from} and {side}{}.{not_read}", only.as_ref().map(|r| format!(" in {r}")).unwrap_or_default()), "Compared versions: no difference".into(), only.as_deref().unwrap_or(""));
     }
     if cut {
         out.push(format!("(… cut at {DIFF_LINES} lines: compare one file with path)"));
     }
     let short = |id: &str| id.chars().take(7).collect::<String>();
-    ok(format!("Changes from {} to {side} ({changed} files; - before, + after):\n{}", short(&from), out.join("\n")), format!("Compared {} with {side}", short(&from)), only.as_deref().unwrap_or(""))
+    ok(format!("Changes from {} to {side} ({changed} files; - before, + after){not_read}:\n{}", short(&from), out.join("\n")), format!("Compared {} with {side}", short(&from)), only.as_deref().unwrap_or(""))
 }
 
 #[cfg(test)]

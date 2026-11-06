@@ -116,6 +116,21 @@ pub fn sandboxed_error(name: &str) -> String {
     format!("'{name}' is a DLL function, and this run is sandboxed (RAPIDR_SANDBOX): it calls no DLL; run the program yourself to let it")
 }
 
+/// Whether this run is sandboxed (`RAPIDR_SANDBOX` set, to anything but
+/// empty or 0: what RapidR Studio sets for a run RAI or an AI app started,
+/// docs/security/audit-2026-11-05-ai-mcp.md SEC-41): no DLL is loaded or
+/// called, and SHELL / SHELLWAIT / RUN start no program. Never on the web,
+/// which has neither.
+pub fn sandboxed() -> bool {
+    std::env::var("RAPIDR_SANDBOX").is_ok_and(|v| !v.is_empty() && v != "0")
+}
+
+/// The error for SHELL / SHELLWAIT / RUN in a sandboxed run: no program
+/// is started.
+pub fn sandboxed_start_error(name: &str) -> String {
+    format!("'{name}' starts another program, and this run is sandboxed (RAPIDR_SANDBOX): it starts none; run the program yourself to let it")
+}
+
 /// A library of macOS's or Linux's own format, named as such (`LIB
 /// "libfoo.dylib"`, `"libm.so.6"`): RapidR's addition, loaded on those
 /// systems. Anything else a DECLARE names is a Windows DLL.

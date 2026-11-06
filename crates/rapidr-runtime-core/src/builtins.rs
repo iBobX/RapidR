@@ -389,7 +389,7 @@ pub fn rp_fileexists(path: &Value) -> Value {
 
 /// SHELL — execute a command asynchronously
 pub fn rp_shell(command: &Value) -> Value {
-    match shell_command(&command.to_string_val()).status() {
+    match shell_command("SHELL", &command.to_string_val()).status() {
         Ok(status) => v_int(status.code().unwrap_or(-1) as i64),
         Err(_) => v_int(-1),
     }
@@ -397,8 +397,13 @@ pub fn rp_shell(command: &Value) -> Value {
 
 /// The system's shell running `cmd` (`cmd /C` on Windows, `sh -c` elsewhere).
 /// (What the program's file streams still keep is written first: the
-/// program started may read those files.)
-fn shell_command(cmd: &str) -> std::process::Command {
+/// program started may read those files.) In a sandboxed run — one RAI or
+/// an AI app started in RapidR Studio, SEC-41 — `what` (SHELL, RUN …) is a
+/// run-time error instead, before anything is started.
+fn shell_command(what: &str, cmd: &str) -> std::process::Command {
+    if crate::value::dll::sandboxed() {
+        crate::value::runtime_error(&crate::value::dll::sandboxed_start_error(what));
+    }
     crate::value::objects::flush_streams();
     #[cfg(windows)]
     {
@@ -421,7 +426,7 @@ fn shell_command(cmd: &str) -> std::process::Command {
 /// RUN — starts a program without waiting for it; its process ID (0 when
 /// it couldn't start).
 pub fn rp_run(command: &Value) -> Value {
-    match shell_command(&command.to_string_val()).spawn() {
+    match shell_command("RUN", &command.to_string_val()).spawn() {
         Ok(child) => v_int(child.id() as i64),
         Err(_) => v_int(0),
     }
@@ -429,7 +434,7 @@ pub fn rp_run(command: &Value) -> Value {
 
 /// SHELLWAIT — execute a command and wait, return exit code
 pub fn rp_shellwait(command: &Value) -> Value {
-    match shell_command(&command.to_string_val()).status() {
+    match shell_command("SHELLWAIT", &command.to_string_val()).status() {
         Ok(status) => v_int(status.code().unwrap_or(-1) as i64),
         Err(_) => v_int(-1),
     }
