@@ -1,4 +1,4 @@
-' RapidR test helper for the Windows XP test VM (lane WINXP, 2026-11-05), version 3.
+' RapidR test helper for the Windows XP test VM (lane WINXP, 2026-11-05), version 4.
 '
 ' Double-click it once in the VM. It opens a small console window and asks
 ' the Mac (tools/winxp/xphost.py, on the host-only network only: the VM has
@@ -8,6 +8,9 @@
 ' so the programs it starts show their windows there.
 ' Close its window to stop it. It installs nothing and changes no setting.
 '
+' Version 4 (lane WINXP-RECHECK, 2026-11-06): "show" starts a program in the
+' front of the desktop, for a person watching the VM, and answers with the
+' process numbers it made (so the Mac stops exactly those, by number).
 ' Version 3: "keys" types into a window by its title, as a person would.
 ' Version 2: one job's failure never stops the helper (it is reported and the
 ' next job runs); a command has a time limit (default 600 s) and is stopped
@@ -21,7 +24,7 @@ Option Explicit
 
 Const HOST = "http://192.168.128.1:8097"
 Const WORK = "C:\xp"
-Const VERSION = 3
+Const VERSION = 4
 
 Dim sh, fso, q
 Set sh = CreateObject("WScript.Shell")
@@ -97,6 +100,8 @@ Sub RunJob(parts)
             Post id, "text", RunCommand(id, a, limit)
         Case "spawn"
             Post id, "text", Spawn(a)
+        Case "show"
+            Post id, "text", Show(a)
         Case "get"
             Post id, "text", GetFile(a, b)
         Case "put"
@@ -218,6 +223,35 @@ Function Spawn(line)
     Else
         Spawn = "#started"
     End If
+    Err.Clear
+    On Error GoTo 0
+End Function
+
+' A program started in the FRONT of the desktop (a normal, active window), for
+' a person watching: the processes it made, one per line ("pid<TAB>name<TAB>
+' command line"), so the Mac can stop exactly those, by number. The numbers
+' are the processes that were not there before it started (after 3 s).
+Function Show(line)
+    Dim w, p, before, s
+    On Error Resume Next
+    Set w = GetObject("winmgmts:\\.\root\cimv2")
+    before = ","
+    For Each p In w.ExecQuery("SELECT ProcessId FROM Win32_Process")
+        before = before & p.ProcessId & ","
+    Next
+    sh.CurrentDirectory = WORK
+    sh.Run line, 1, False
+    If Err.Number <> 0 Then
+        Show = "#error " & Err.Description
+        Err.Clear
+        Exit Function
+    End If
+    WScript.Sleep 3000
+    s = "#shown" & vbLf
+    For Each p In w.ExecQuery("SELECT ProcessId, Name, CommandLine FROM Win32_Process")
+        If InStr(before, "," & p.ProcessId & ",") = 0 Then s = s & p.ProcessId & vbTab & p.Name & vbTab & p.CommandLine & vbLf
+    Next
+    Show = s
     Err.Clear
     On Error GoTo 0
 End Function

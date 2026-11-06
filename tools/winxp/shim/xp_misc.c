@@ -563,7 +563,6 @@ int WINAPI xp_WSASendMsg(HANDLE s, void *msg, ULONG flags, ULONG *sent, void *ov
     }
 
 GUI_HR(xp_CreateDXGIFactory1, CreateDXGIFactory1, W_DXGI, (const void *iid, void **out), (iid, out))
-GUI_HR(xp_SHCreateItemFromParsingName, SHCreateItemFromParsingName, W_SHELL32, (const wchar16 *path, void *bc, const void *iid, void **out), (path, bc, iid, out))
 GUI_HR(xp_SHGetStockIconInfo, SHGetStockIconInfo, W_SHELL32, (int id, ULONG flags, void *info), (id, flags, info))
 GUI_HR(xp_DwmEnableBlurBehindWindow, DwmEnableBlurBehindWindow, W_DWMAPI, (HANDLE hwnd, const void *bb), (hwnd, bb))
 GUI_HR(xp_DwmSetWindowAttribute, DwmSetWindowAttribute, W_DWMAPI, (HANDLE hwnd, ULONG attr, const void *v, ULONG n), (hwnd, attr, v, n))
@@ -702,7 +701,6 @@ XP_ANSWER(xp_DeleteProcThreadAttributeList, DeleteProcThreadAttributeList, 4)
 XP_ANSWER(xp_WSAPoll, WSAPoll, 12)
 XP_ANSWER(xp_WSASendMsg, WSASendMsg, 24)
 XP_ANSWER(xp_CreateDXGIFactory1, CreateDXGIFactory1, 8)
-XP_ANSWER(xp_SHCreateItemFromParsingName, SHCreateItemFromParsingName, 16)
 XP_ANSWER(xp_SHGetStockIconInfo, SHGetStockIconInfo, 12)
 XP_ANSWER(xp_DwmEnableBlurBehindWindow, DwmEnableBlurBehindWindow, 8)
 XP_ANSWER(xp_DwmSetWindowAttribute, DwmSetWindowAttribute, 16)

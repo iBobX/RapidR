@@ -16,8 +16,9 @@ any other build.
 | `shim/xp_pipes.c` | `NtCreateNamedPipeFile` / `NtOpenFile`: the os error 123 fix (Studio's F5, Build, captured `SHELL`) |
 | `shim/xp_sync.c` | SRW locks, condition variables, `InitOnce`, FLS, `IsThreadAFiber` (real first, else emulated) |
 | `shim/xp_dwrite.c` | `DWriteCreateFactory`: real first, else an empty factory (no system fonts: RapidR's bundled fonts draw) |
+| `shim/xp_filedlg.c` | `CoCreateInstance` / `SHCreateItemFromParsingName`: Windows' own first; where Windows has no Vista Open / Save dialog (plain XP), one of ours over XP's `GetOpenFileNameW` / `GetSaveFileNameW` / `SHBrowseForFolderW` (Studio's and programs' file and folder dialogs) |
 | `shim/xp_misc.c` | file information, final path, string compare, locale, registry, time zone, `K32EnumProcessModules`, and the graphical functions a console program never calls |
-| `shim/tests/` | `test_sync`, `test_misc`, `test_dwrite` (+ their `build*.sh`): run on the Windows 7 VM against Windows' own functions and forced down the emulation (`ours`), and on Windows XP |
+| `shim/tests/` | `test_sync`, `test_misc`, `test_dwrite`, `test_filedlg` (+ their `build*.sh`): run on the Windows 7 VM against Windows' own functions and forced down the emulation (`ours`), and on Windows XP |
 | `probe/` | `pipeprobe` (std's child pipes vs ours), `xpshot` (a screenshot: XP has none), `xpclick` (a mouse click), `build.sh` |
 | `imports.sh`, `xp-missing.txt` | an executable's imports, and what plain XP SP3 lacks (Microsoft Learn's "minimum supported client") |
 | `vm.sh`, `xphost.py`, `helper/` | drive Robert's XP VM in UTM (below) |
@@ -42,9 +43,11 @@ from the Mac (no more hand restarts).
 
 ```
 tools/winxp/vm.sh host                     # start xphost.py (vm.sh stop-host stops it)
-tools/winxp/vm.sh status                   # when the helper last asked (and its version: v=3)
+tools/winxp/vm.sh status                   # when the helper last asked (and its version: v=4)
 tools/winxp/vm.sh exec 'ver'               # a command line, its output and "#exit N" (LIMIT=<s> stops it)
 tools/winxp/vm.sh spawn 'C:\x\prog.exe'    # a program in a window of its own, not waited for
+tools/winxp/vm.sh show 'C:\x\prog.exe'     # the same in the FRONT, for a person watching (v4): its process numbers
+tools/winxp/vm.sh shot here.png             # a picture of the XP desktop
 tools/winxp/vm.sh keys 'Title' '{F5}'      # keys typed into a window by its title (WshShell.SendKeys)
 tools/winxp/vm.sh push local 'C:\x.exe'    # a file in;  pull 'C:\x.bmp' local: a file out
 tools/winxp/vm.sh ps | kill <pid>          # processes; stop one by its number
