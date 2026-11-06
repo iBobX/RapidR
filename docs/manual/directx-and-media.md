@@ -130,7 +130,13 @@ Speaker.Start
 - **Everywhere.** The same on Windows, macOS and Linux, interpreted and
   native, and in the browser. The device converts your `SampleRate` to its
   own. Without a sound device (or in a program built without sound) the
-  stream plays silently, in time, and `Error` says why.
+  stream plays silently, in time, and `Error` says why: "No sound output is
+  available on this computer", or on Windows XP, whose sound system RapidR
+  can't use yet, "Sound output needs Windows Vista or newer for now". A
+  program is never stopped by its sound: `PLAYWAV`, `PLAYSOUND`, `BEEP`,
+  `SOUND`, RWave's Play and Record and RMIDI's built-in synthesizer are
+  silent in the same cases (a MIDI song still plays on Windows' own GS
+  Wavetable synthesizer, XP's too, and RMIDIPort works there).
 
 ### Emulators: sound from a level timeline
 

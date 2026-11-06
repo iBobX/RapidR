@@ -107,6 +107,8 @@ static IGNORE: OnceLock<fn(&(dyn std::any::Any + Send)) -> bool> = OnceLock::new
 
 thread_local! {
     static IN_HOOK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// How many [`quiet_panics`] calls this thread is inside.
+    static QUIET: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
 /// The app this process is.
@@ -132,6 +134,11 @@ pub fn install(app: App) {
     SYSTEM_TEXT.set(system());
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        // (a panic its caller catches and answers in its own words: no
+        // message, no report: see quiet_panics)
+        if QUIET.with(|q| q.get()) > 0 {
+            return;
+        }
         previous(info);
         on_panic(info);
     }));
@@ -152,6 +159,30 @@ pub fn installed() -> bool {
 /// What the host's own unwinding looks like (not a crash: never reported).
 pub fn set_ignore(f: fn(&(dyn std::any::Any + Send)) -> bool) {
     let _ = IGNORE.set(f);
+}
+
+/// Runs `f`; a panic inside it on this thread is neither printed nor
+/// reported. For a library call whose panic the caller **catches** and
+/// turns into its own error (`std::panic::catch_unwind` around `f`): the
+/// sound device's backend, which panics on a Windows without the class it
+/// asks for. Keep `f` small: a real crash in it would be silent too (the
+/// caller's catch is what tells the person).
+pub fn quiet_panics<R>(f: impl FnOnce() -> R) -> R {
+    struct Leave;
+    impl Drop for Leave {
+        fn drop(&mut self) {
+            QUIET.with(|q| q.set(q.get().saturating_sub(1)));
+        }
+    }
+    QUIET.with(|q| q.set(q.get() + 1));
+    let _leave = Leave;
+    f()
+}
+
+/// Whether this thread is inside [`quiet_panics`].
+#[cfg(test)]
+fn is_quiet() -> bool {
+    QUIET.with(|q| q.get()) > 0
 }
 
 /// The program this process runs (its path: the home folder as `~`).
@@ -453,6 +484,21 @@ mod tests {
     fn backtraces_start_at_the_code_and_keep_names() {
         let bt = "   0: std::backtrace_rs::backtrace::trace\n             at /rustc/x/library/std/src/backtrace.rs:1\n   1: rapidr_crash::on_panic\n   2: std::panicking::rust_panic_with_hook\n   3: rapidr_value::boom\n             at ./crates/rapidr-value/src/lib.rs:12:5\n   4: main\n";
         assert_eq!(backtrace_lines(bt), ["   3: rapidr_value::boom", "             at ./crates/rapidr-value/src/lib.rs:12:5", "   4: main"]);
+    }
+
+    #[test]
+    fn quiet_panics_nest_and_leave_even_after_a_caught_panic() {
+        assert!(!is_quiet());
+        let value = quiet_panics(|| {
+            assert!(is_quiet());
+            let caught = std::panic::catch_unwind(|| quiet_panics(|| -> u8 { panic!("caught by its caller") }));
+            assert!(caught.is_err());
+            // (the inner call left, the outer one is still inside)
+            assert!(is_quiet());
+            7
+        });
+        assert_eq!(value, 7);
+        assert!(!is_quiet());
     }
 
     #[test]

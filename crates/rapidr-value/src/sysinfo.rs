@@ -413,6 +413,11 @@ mod os {
         }
     }
 
+    /// Windows' major version (5 for XP, 6 for Vista to 8.1, 10 from 10 on).
+    pub fn windows_major() -> Option<u32> {
+        rtl_version().map(|(major, _, _)| major)
+    }
+
     /// Windows' own version numbers: (major, minor, build).
     fn rtl_version() -> Option<(u32, u32, u32)> {
         use windows_sys::Wdk::System::SystemServices::RtlGetVersion;
@@ -441,6 +446,20 @@ mod os {
     pub fn read(_f: &mut Facts, _battery: bool) {}
     pub fn disk(_path: &std::path::Path) -> Option<(u64, u64)> {
         None
+    }
+}
+
+/// Whether this is a Windows before Vista (Windows XP, 2000, Server 2003):
+/// the system has no WASAPI there, which the sound output asks for.
+/// `false` on every other system, and when Windows won't say its version.
+pub fn windows_before_vista() -> bool {
+    #[cfg(windows)]
+    {
+        os::windows_major().is_some_and(|major| major < 6)
+    }
+    #[cfg(not(windows))]
+    {
+        false
     }
 }
 

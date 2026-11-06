@@ -58,16 +58,12 @@ fn stop() {
 fn play(bytes: Vec<u8>, looped: bool, wait: bool) {
     use rodio::Source;
     stop();
-    let handle = OUTPUT.with(|o| {
-        let mut o = o.borrow_mut();
-        if o.is_none() {
-            *o = rodio::OutputStream::try_default().ok();
+    let handle = match output_handle() {
+        Ok(h) => h,
+        Err(why) => {
+            eprintln!("[rapidr] PLAYWAV: {why}");
+            return;
         }
-        o.as_ref().map(|(_, h)| h.clone())
-    });
-    let Some(handle) = handle else {
-        eprintln!("[rapidr] PLAYWAV: no sound device");
-        return;
     };
     let Ok(sink) = rodio::Sink::try_new(&handle) else { return };
     let decoded = match decode(bytes) {
@@ -187,6 +183,107 @@ fn play(_bytes: Vec<u8>, _looped: bool, _wait: bool) {
 // Frequency, looped or once, at Volume's gain. Under the GUI tests (and
 // without the audio feature) nothing plays.
 
+// ------------------------------------------ the sound output's backend --
+//
+// Every call into the sound backend (rodio's, over cpal) goes through
+// [`BACKEND`]: a program's sound never takes the program down. cpal 0.15's
+// Windows backend asks for the system's device enumerator with an `unwrap`,
+// and Windows before Vista has no such class: the call panics ("Class not
+// registered"). A panic there is caught on the spot, said in plain words
+// (the reason, below), and not asked for again; an error is an error.
+
+/// What a computer with no sound output says.
+#[cfg(feature = "audio")]
+pub(crate) const NO_OUTPUT: &str = "No sound output is available on this computer";
+/// What Windows before Vista says: its sound system has no such backend yet.
+#[cfg(feature = "audio")]
+pub(crate) const NEEDS_VISTA: &str = "Sound output needs Windows Vista or newer for now";
+
+/// One sound backend, its calls guarded.
+#[cfg(feature = "audio")]
+pub(crate) struct Backend {
+    /// A call into it panicked: it is not asked again.
+    broken: std::sync::atomic::AtomicBool,
+}
+
+#[cfg(feature = "audio")]
+static BACKEND: Backend = Backend::new();
+
+#[cfg(feature = "audio")]
+impl Backend {
+    pub(crate) const fn new() -> Backend {
+        Backend { broken: std::sync::atomic::AtomicBool::new(false) }
+    }
+
+    /// Runs `ask`, one call into the backend: its answer, or why there is
+    /// none, in plain words. A panic inside it (and only inside it) is
+    /// caught, neither printed nor reported as a crash, and remembered.
+    pub(crate) fn call<T>(&self, ask: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+        use std::sync::atomic::Ordering;
+        if self.broken.load(Ordering::Acquire) {
+            return Err(unavailable(None));
+        }
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| rapidr_crash::quiet_panics(ask))) {
+            Ok(Ok(answer)) => Ok(answer),
+            Ok(Err(why)) => Err(unavailable(Some(why))),
+            Err(_) => {
+                self.broken.store(true, Ordering::Release);
+                Err(unavailable(None))
+            }
+        }
+    }
+}
+
+/// Why there is no sound output: on Windows before Vista always the same
+/// (that is the cause there), else what the backend said, else the usual.
+#[cfg(feature = "audio")]
+fn unavailable(detail: Option<String>) -> String {
+    if rapidr_value::sysinfo::windows_before_vista() {
+        return NEEDS_VISTA.into();
+    }
+    detail.unwrap_or_else(|| NO_OUTPUT.into())
+}
+
+/// The backend the microphone asks (the same one as the sound output's:
+/// the system's device enumerator).
+#[cfg(feature = "audio")]
+pub(crate) fn microphone_backend() -> &'static Backend {
+    &BACKEND
+}
+
+/// A stream error of rodio's in plain words.
+#[cfg(feature = "audio")]
+fn stream_error_text(e: &rodio::StreamError) -> String {
+    match e {
+        rodio::StreamError::NoDevice => NO_OUTPUT.into(),
+        other => format!("The sound output can't be opened ({other})"),
+    }
+}
+
+/// The default sound output, opened: its stream (it plays while it is kept)
+/// and its handle; or why not. For BEEP, SOUND and PLAYSOUND, which keep
+/// their own for the length of a sound.
+#[cfg(feature = "audio")]
+pub(crate) fn open_output() -> Result<(rodio::OutputStream, rodio::OutputStreamHandle), String> {
+    BACKEND.call(|| rodio::OutputStream::try_default().map_err(|e| stream_error_text(&e)))
+}
+
+/// The thread's sound output, opened the first time and kept (opening it
+/// takes a moment); one that failed to open is tried again at the next call
+/// (a headset plugged in since), unless the backend itself is broken.
+#[cfg(feature = "audio")]
+fn output_handle() -> Result<rodio::OutputStreamHandle, String> {
+    OUTPUT.with(|o| {
+        let mut o = o.borrow_mut();
+        if let Some((_, handle)) = o.as_ref() {
+            return Ok(handle.clone());
+        }
+        let (stream, handle) = open_output()?;
+        *o = Some((stream, handle.clone()));
+        Ok(handle)
+    })
+}
+
 /// Whether a test runs the program: a GUI test (`RAPIDR_CAPTURE`,
 /// `RAPIDR_TEST_EVENTS`) or the conformance runner (`RAPIDR_TEST_SOUND`,
 /// set even empty) — no sound device then, nothing heard.
@@ -214,14 +311,7 @@ thread_local! {
 fn dx_play(p: &rapidr_value::objects::directx::SoundPlay) {
     use rodio::Source;
     dx_stop(&p.id);
-    let handle = OUTPUT.with(|o| {
-        let mut o = o.borrow_mut();
-        if o.is_none() {
-            *o = rodio::OutputStream::try_default().ok();
-        }
-        o.as_ref().map(|(_, h)| h.clone())
-    });
-    let Some(handle) = handle else { return };
+    let Ok(handle) = output_handle() else { return };
     let Ok(sink) = rodio::Sink::try_new(&handle) else { return };
     let buffer = rodio::buffer::SamplesBuffer::new(2, p.wav.rate, p.wav.stereo(p.pan));
     let from = std::time::Duration::from_secs_f64(p.from as f64 / f64::from(p.wav.rate.max(1)));
@@ -241,31 +331,18 @@ fn dx_play(p: &rapidr_value::objects::directx::SoundPlay) {
 #[cfg(feature = "audio")]
 pub(crate) fn play_source(id: &str, source: impl rodio::Source<Item = f32> + Send + 'static) -> bool {
     dx_stop(id);
-    let handle = OUTPUT.with(|o| {
-        let mut o = o.borrow_mut();
-        if o.is_none() {
-            *o = rodio::OutputStream::try_default().ok();
-        }
-        o.as_ref().map(|(_, h)| h.clone())
-    });
-    let Some(handle) = handle else { return false };
+    let Ok(handle) = output_handle() else { return false };
     let Ok(sink) = rodio::Sink::try_new(&handle) else { return false };
     sink.append(source);
     DX_SINKS.with(|s| s.borrow_mut().insert(id.to_string(), sink));
     true
 }
 
-/// Whether there is a sound device (opened now if it wasn't: RAudioOut
-/// asks before it hands its source over).
+/// Whether there is a sound device, and why not when there is none (opened
+/// now if it wasn't: RAudioOut asks before it hands its source over).
 #[cfg(feature = "audio")]
-pub(crate) fn has_output() -> bool {
-    OUTPUT.with(|o| {
-        let mut o = o.borrow_mut();
-        if o.is_none() {
-            *o = rodio::OutputStream::try_default().ok();
-        }
-        o.is_some()
-    })
+pub(crate) fn output_status() -> Result<(), String> {
+    output_handle().map(|_| ())
 }
 
 /// Stops what [`play_source`] plays as `id`.
@@ -339,6 +416,47 @@ mod tests {
         let samples: Vec<f32> = source.collect();
         assert_eq!(samples.len(), 4);
         assert!((samples[1] - 0.5).abs() < 0.001 && (samples[2] + 0.5).abs() < 0.001);
+    }
+
+    /// What cpal's Windows backend does where the system has no device
+    /// enumerator (Windows XP): `unwrap` on "Class not registered".
+    fn enumeration_fails() -> Result<u8, String> {
+        let enumeration: Result<u8, String> = Err("Class not registered".into());
+        Ok(enumeration.unwrap())
+    }
+
+    #[test]
+    fn a_panic_in_the_backend_is_an_error_not_a_crash() {
+        let backend = super::Backend::new();
+        let mut asked = 0;
+        let first = backend.call(|| {
+            asked += 1;
+            enumeration_fails()
+        });
+        let why = first.expect_err("the enumeration failed");
+        assert!(why == super::NO_OUTPUT || why == super::NEEDS_VISTA, "{why}");
+        // (said in plain words, and not asked again)
+        let second = backend.call(|| {
+            asked += 1;
+            Ok(1u8)
+        });
+        assert_eq!(second, Err(why));
+        assert_eq!(asked, 1);
+    }
+
+    #[test]
+    fn an_error_of_the_backend_is_told_and_asked_again() {
+        let backend = super::Backend::new();
+        let said = backend.call(|| -> Result<u8, String> { Err("no headset".into()) }).expect_err("an error");
+        // (what it said, except on a Windows that has no such backend)
+        assert!(said == "no headset" || said == super::NEEDS_VISTA, "{said}");
+        // (an error is no breakage: a headset plugged in since is found)
+        assert_eq!(backend.call(|| Ok(5u8)), Ok(5));
+    }
+
+    #[test]
+    fn rodio_with_no_device_says_no_sound_output() {
+        assert_eq!(super::stream_error_text(&rodio::StreamError::NoDevice), super::NO_OUTPUT);
     }
 
     #[test]

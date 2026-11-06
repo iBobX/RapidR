@@ -383,3 +383,63 @@ shared commits change, on every system: Studio's Build menu and Project Options 
 Windows 10; the font list only where a computer has no system fonts (byte-identical on macOS); a
 desktop program's `THIRD-PARTY-NOTICES.txt` gains the symbols subset's licence; every desktop binary
 grows by the subset's 9.7 KB.
+
+## 10. Sound on XP, 2026-11-06 (lane XP-SOUND)
+
+The XP VM got a sound card (an emulated Intel 82801AA AC'97, driver `ac97intc.sys` 5.1.2535.0, which
+XP's winmm calls "Intel(r) Integrated Audio": one wave-out and one wave-in device, one MIDI out,
+"Microsoft GS Wavetable SW Synth", no MIDI in) and a Core 2 Duo P9xxx (Penryn class) with 2 cores and
+1023 MB. `RSystemInfo` on that XP: OS "Windows", OSVersion "5.1 (2600)", CPU "Intel Core 2 Duo P9xxx
+(Penryn Class Core 2)", Cores 2, class "small". Pictures and logs:
+`/Volumes/RapidRBuild/lane-evidence/xp-sound/` (outside git).
+
+| What | On XP before the guard | Why |
+|---|---|---|
+| RMIDIPort (`midi_monitor.rr`: list, Test note, program change, notes), a console scale, drums | **Works**, and was heard | winmm's `midiOut`, through `midir` |
+| RMIDI (`midi.rr`, `midi_compose.rr`) | **Works**, was heard (it plays on the GS Wavetable synthesizer) | the same winmm output |
+| `RAudioOut` (`beeper.rr`, `tone_generator.rr`, `chiptune.rr`, `frame_audio.rr`) | **the program stopped** (exit 101, a crash report): "called `Result::unwrap()` on an `Err` value: HRESULT(0x80040154) Class not registered" | cpal 0.15's only Windows backend is WASAPI: it builds `IMMDeviceEnumerator` (mmdevapi, Windows Vista and newer) with an `unwrap` (`host/wasapi/device.rs:851`); XP has no such class |
+| `PLAYWAV`, RWave's Play and Record | the program stopped (the same panic, on the main thread) | the same enumerator |
+| `BEEP`, `SOUND`, `PLAYSOUND` | silent; a thread-panic crash report each, the program went on | the same, in their own thread |
+| 3 rounds of the speed programs on this CPU | see the speed table below | |
+
+The fix (shared, correct on every system; `crates/rapidr-runtime-core/src/sound.rs`): every call into
+the sound backend goes through one guarded place. A panic inside it is caught (`catch_unwind` around
+that call only), neither printed nor reported (`rapidr_crash::quiet_panics`), remembered (the backend
+is not asked again) and told in plain words: "No sound output is available on this computer", and on
+Windows before Vista "Sound output needs Windows Vista or newer for now". `RAudioOut.Error` says it
+and the stream plays silently, in time; `PLAYWAV` says it on its error line; the program carries on.
+Real sound on XP (winmm's wave output as an XP-flavour backend) is a later step.
+
+After the guard, on the same XP (the XP flavour built from this branch, header 5.1, 562 imports, 0 missing):
+
+| What | Result on XP |
+|---|---|
+| `RAudioOut` in a console program | creates and Starts (`Playing` 1), `Error` = "Sound output needs Windows Vista or newer for now: the stream plays silently (its timing goes on)", 3 s of writes in time (`Underruns` 0), exit 0, no crash report |
+| `beeper.rr`, `tone_generator.rr`, `chiptune.rr`, `frame_audio.rr` | open and run (before: exit 101 at once); `tone_generator.rr`'s oscilloscope draws and its line reads "... Sound output needs Windows Vista or newer for now: the stream plays silently" (it counts many gaps there: the emulated XP is slower than the 5 ms the example's feed asks for; a real wave output will need its own look) |
+| `PLAYWAV` | the program goes on; its error line says "[rapidr] PLAYWAV: Sound output needs Windows Vista or newer for now" |
+| `BEEP`, `SOUND`, `PLAYSOUND` | silent, no crash, no crash report |
+| `wave.rr` (RWave Chime, Record) | the window stays: "Chime: 1200 ms, 16-bit, 11025 Hz", Record runs to its end; no crash report |
+| macOS, the real sound card | `RAudioOut`, `BEEP`, `SOUND`, `PLAYWAV`, `PLAYSOUND` play as before (heard) |
+
+Tests: `sound::tests::a_panic_in_the_backend_is_an_error_not_a_crash` (the enumeration panics the way cpal's does:
+the answer is the plain reason and the backend is not asked again), `an_error_of_the_backend_is_told_and_asked_again`,
+`rodio_with_no_device_says_no_sound_output`, `rapidr-crash`'s `quiet_panics_nest_and_leave_even_after_a_caught_panic`;
+`tests/examples_run.mjs --runtimes run media/ recipes/frame_audio`: 17 of 17 on macOS; the web runtime and the
+build without the audio feature still compile.
+
+### Speed on this CPU (Core 2 Duo P9xxx, 2 cores; the XP-JIT lane's baseline)
+
+Three rounds, this XP build, the same programs as section 9 (loop10m whole run; the others print their
+own time). The Mac was busy with other lanes (load average about 38) while these ran: the spread is
+partly that.
+
+| Program | Round 1 / 2 / 3 | Section 9's CPU (one i386 vCPU) |
+|---|---|---|
+| `tools/bench/vm/loop10m.rr` (10 M additions) | 3.93 / 5.06 / 3.69 s | 3.60 / 3.51 / 3.65 s |
+| `tools/bench/vm/fcalls.rr` (2 M calls) | 3500 / 3687 / 3125 ms | 3250 / 2953 / 2937 ms |
+| `tools/bench/vm/dsp_voices.rr` (32 voices) | 6062 / 5859 / 4687 ms | 4937 / 4578 / 4531 ms |
+| `examples/basics/hot_cpu.rr` (1 M steps) | 9515 / 7406 / 8171 ms | 7000 / 6421 / 6531 ms |
+
+Every answer is the same as before; `RAPIDR_JIT=always --verbose` still says "JIT: not on this kind of
+computer; the interpreter runs everything".
+
