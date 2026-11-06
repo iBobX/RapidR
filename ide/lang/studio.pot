@@ -4665,10 +4665,6 @@ msgid "Main and pop-up menus"
 msgstr ""
 
 #: ide/panes.inc
-msgid "Right-click menus and row actions"
-msgstr ""
-
-#: ide/panes.inc
 msgid "Open, save, colour, font"
 msgstr ""
 
@@ -4706,6 +4702,10 @@ msgstr ""
 
 #: ide/panes.inc
 msgid "PRINT, FOR, SUB, FUNCTION"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Right-click menus and row actions"
 msgstr ""
 
 #: ide/panes.inc
