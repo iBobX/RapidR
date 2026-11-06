@@ -187,6 +187,12 @@ const SCENES = [
     ["font-dialog", "fontbutton.onclick,fontbutton.__wait_500", { RAPIDR_TEST_FONT_DIALOG: ";" }],
     ["message-box", "askbutton.onclick,askbutton.__wait_500", { RAPIDR_TEST_MESSAGE_DIALOG: "Cancel" }],
   ].map(([name, events, env]) => ({ name, program: DIALOGS, events, env: { RAPIDR_TEST_DIALOG_HOLD: "9000", ...env }, window: 2, delay: 3 })),
+  // (the right-click menus of Studio, CONTEXT-MENUS 2a: the Project tree's file, the designer's component, the code
+  // editor's under the caret (Shift+F10), a property's — the manual's own recipes, tools/manual/scenes/context-menus.mjs)
+  { name: "ctx-project-file", open: "tests/fixtures/studio_search/Counter.rrproj", do: "view.project,wait", delay: 6, env: { RAPIDR_TEST_EVENTS: "studio.__wait_3000,projecttree.__rightclick_110_102,projecttree.__wait_500" }, expect: ["Renomear", "Copiar caminho", "Perguntar à RAI sobre este arquivo..."] },
+  { name: "ctx-designer", open: HELLO, do: "wait", delay: 6, env: { RAPIDR_TEST_EVENTS: "studio.__wait_3000,designdoc(0).__rightclick_180_118,designdoc(0).__wait_500" }, expect: ["Editar manipulador de evento", "Perguntar à RAI sobre este componente...", "Centralizar no formulário"] },
+  { name: "ctx-code", open: "tests/fixtures/studio_search/Counter.rrproj", do: "wait", delay: 6, env: { RAPIDR_TEST_EVENTS: "studio.__wait_3000,codedoc(0).__mousedown_120_212,codedoc(0).__mouseup_120_212,codedoc(0).__key_121_256,codedoc(0).__wait_500" }, expect: ["Perguntar à RAI sobre este código..."] },
+  { name: "ctx-inspector", open: HELLO, do: "wait", delay: 6, env: { RAPIDR_TEST_EVENTS: "studio.__wait_3000,designdoc(0).__mousedown_180_118,designdoc(0).__mouseup_180_118,inspector.__wait_300,inspector.__rightclick_60_230,inspector.__wait_500" }, expect: ["Editar valor", "Copiar como código", "Perguntar à RAI sobre"] },
   // (every menu, by its Portuguese Alt letter, and the sub-menus)
   ...[["File", "File"], ["Edit", "Edit"], ["View", "View"], ["Project", "Project"], ["Run", "Run"], ["Debug", "Debug"], ["Format", "Format"], ["Tools", "Tools"], ["Window", "Window"], ["Help", "Help"]]
     .map(([n]) => ({ name: `menu-${n.toLowerCase()}`, open: HELLO, events: ALT({ File: "&File", Edit: "&Edit", View: "&View", Project: "&Project", Run: "&Run", Debug: "&Debug", Format: "F&ormat", Tools: "&Tools", Window: "&Window", Help: "&Help" }[n]), delay: 5 })),

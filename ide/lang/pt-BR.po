@@ -753,7 +753,7 @@ msgstr "Desfeito: os arquivos do assistente em {title} foram removidos; os arqui
 msgid "Copied the code."
 msgstr "Código copiado."
 
-#: ide/ai.inc
+#: ide/ai.inc ide/contextmenu.inc
 msgid "Copied the code"
 msgstr "Código copiado"
 
@@ -887,34 +887,6 @@ msgstr "Buscar nos chats"
 msgid "Their titles and what was said; Down goes to the list, Escape back to the chat"
 msgstr "Os títulos e o que foi dito; Baixo vai para a lista, Escape volta ao chat"
 
-#: ide/aichats.inc ide/panels.inc
-msgid "Open"
-msgstr "Abrir"
-
-#: ide/aichats.inc
-msgid "Open the chat"
-msgstr "Abrir o chat"
-
-#: ide/aichats.inc
-msgid "Rename"
-msgstr "Renomear"
-
-#: ide/aichats.inc
-msgid "Rename the chat"
-msgstr "Renomear o chat"
-
-#: ide/aichats.inc
-msgid "Delete"
-msgstr "Excluir"
-
-#: ide/aichats.inc
-msgid "Delete the chat"
-msgstr "Excluir o chat"
-
-#: ide/aichats.inc
-msgid "It is removed from this computer; Undo puts it back"
-msgstr "Ele é removido deste computador; Desfazer o traz de volta"
-
 #: ide/aichats.inc
 msgid "Chat deleted"
 msgstr "Chat excluído"
@@ -922,6 +894,10 @@ msgstr "Chat excluído"
 #: ide/aichats.inc
 msgid "Undo: put the chat back"
 msgstr "Desfazer: trazer o chat de volta"
+
+#: ide/aichats.inc
+msgid "Rename the chat"
+msgstr "Renomear o chat"
 
 #: ide/aichats.inc
 msgid "The chat's new name"
@@ -950,6 +926,10 @@ msgstr "Onde os chats ficam guardados"
 #: ide/aichats.inc
 msgid "This project's chats, the newest first"
 msgstr "Chats deste projeto, os mais novos primeiro"
+
+#: ide/aichats.inc
+msgid "&Start a Chat"
+msgstr "&Iniciar um chat"
 
 #: ide/aichats.inc
 msgid "New chat"
@@ -1005,6 +985,22 @@ msgstr "{item}: {q}{snippet}{q}"
 #: ide/aichats.inc
 msgid "{item} (open)"
 msgstr "{item} (aberto)"
+
+#: ide/aichats.inc
+msgid "Rename (F2)"
+msgstr "Renomear (F2)"
+
+#: ide/aichats.inc
+msgid "Delete (Del)"
+msgstr "Excluir (Del)"
+
+#: ide/aichats.inc
+msgid "More actions (Shift+F10)"
+msgstr "Mais ações (Shift+F10)"
+
+#: ide/aichats.inc
+msgid "No chats in this project yet."
+msgstr "Ainda não há chats neste projeto."
 
 #: ide/aichats.inc
 msgid "No chats kept for this project yet."
@@ -1958,7 +1954,7 @@ msgstr "A instalação do Rust falhou"
 msgid "✓ Built {file} — unzip on any web host"
 msgstr "✓ {file} compilado — descompacte em qualquer host web"
 
-#: ide/build.inc
+#: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
 msgstr "Mostrar em {manager}"
 
@@ -1982,7 +1978,7 @@ msgstr "A compilação falhou"
 msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
 msgstr "Nada foi compilado ainda: Executar > Compilar (Ctrl+Shift+B) gera o app."
 
-#: ide/build.inc ide/panels.inc
+#: ide/build.inc ide/contextmenu.inc ide/panels.inc
 msgid "Can't show it: {error}"
 msgstr "Não foi possível mostrar: {error}"
 
@@ -2130,23 +2126,23 @@ msgstr "&Desfazer"
 msgid "&Redo"
 msgstr "&Refazer"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Cu&t"
 msgstr "Recor&tar"
 
-#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc ide/search.inc
+#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc
 msgid "&Copy"
 msgstr "C&opiar"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "&Paste"
 msgstr "&Colar"
 
-#: ide/commands.inc
+#: ide/commands.inc ide/contextmenu.inc
 msgid "&Delete"
 msgstr "E&xcluir"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Select &All"
 msgstr "&Selecionar tudo"
 
@@ -2162,7 +2158,7 @@ msgstr "&Localizar..."
 msgid "R&eplace..."
 msgstr "S&ubstituir..."
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Find in F&iles..."
 msgstr "Localizar nos ar&quivos..."
 
@@ -2234,7 +2230,7 @@ msgstr "Completar &palavra"
 msgid "&Quick Fix..."
 msgstr "Corr&eção rápida..."
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Go to &Definition"
 msgstr "&Ir para a definição"
 
@@ -2250,7 +2246,7 @@ msgstr "&Navegar para trás"
 msgid "Navigate For&ward"
 msgstr "Nave&gar para a frente"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Re&name Symbol..."
 msgstr "Renomear sím&bolo..."
 
@@ -2391,12 +2387,12 @@ msgid "&Reset Layout"
 msgstr "Redefinir la&yout"
 
 #: ide/commands.inc
-msgid "Add &File..."
-msgstr "&Adicionar arquivo..."
+msgid "Add &Existing File..."
+msgstr "Adicionar arquivo &existente..."
 
 #: ide/commands.inc
 msgid "Add Fol&der..."
-msgstr "Adicionar &pasta..."
+msgstr "&Adicionar pasta..."
 
 #: ide/commands.inc
 msgid "Add F&orm"
@@ -2731,6 +2727,250 @@ msgstr "Saiba mais"
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
 msgstr "Abre a página do manual no seu navegador"
+
+#: ide/contextmenu.inc
+msgid "&Open"
+msgstr "&Abrir"
+
+#: ide/contextmenu.inc
+msgid "Re&name"
+msgstr "&Renomear"
+
+#: ide/contextmenu.inc
+msgid "Remove from Pro&ject"
+msgstr "Remover &do projeto"
+
+#: ide/contextmenu.inc
+msgid "Show in &Project"
+msgstr "&Mostrar no projeto"
+
+#: ide/contextmenu.inc
+msgid "Co&llapse All"
+msgstr "&Recolher tudo"
+
+#: ide/contextmenu.inc
+msgid "Copy &Path"
+msgstr "Copiar cami&nho"
+
+#: ide/contextmenu.inc
+msgid "Copy Relati&ve Path"
+msgstr "Copiar caminho re&lativo"
+
+#: ide/contextmenu.inc
+msgid "Reveal in File &Manager"
+msgstr "&Mostrar no gerenciador de arquivos"
+
+#: ide/contextmenu.inc
+msgid "Close &Others"
+msgstr "Fechar &outros"
+
+#: ide/contextmenu.inc
+msgid "Close to the &Right"
+msgstr "Fe&char à direita"
+
+#: ide/contextmenu.inc
+msgid "Close &Saved"
+msgstr "Fechar &salvos"
+
+#: ide/contextmenu.inc
+msgid "&Edit Event Handler"
+msgstr "&Editar manipulador de evento"
+
+#: ide/contextmenu.inc
+msgid "&Edit Value"
+msgstr "&Editar valor"
+
+#: ide/contextmenu.inc
+msgid "&Reset to Default"
+msgstr "&Redefinir para o padrão"
+
+#: ide/contextmenu.inc ide/debug.inc
+msgid "&Copy Value"
+msgstr "&Copiar valor"
+
+#: ide/contextmenu.inc
+msgid "Copy &Name"
+msgstr "Copiar &nome"
+
+#: ide/contextmenu.inc
+msgid "Copy as Co&de"
+msgstr "Copiar como có&digo"
+
+#: ide/contextmenu.inc
+msgid "&Go to Handler"
+msgstr "&Ir para o manipulador"
+
+#: ide/contextmenu.inc
+msgid "&Remove Handler"
+msgstr "&Remover manipulador"
+
+#: ide/contextmenu.inc
+msgid "&Help"
+msgstr "&Ajuda"
+
+#: ide/contextmenu.inc
+msgid "As&k RAI..."
+msgstr "Perguntar à &RAI..."
+
+#: ide/contextmenu.inc
+msgid "Set up RAI first: Tools > Set Up RAI"
+msgstr "Configure antes a RAI: Ferramentas > Configurar RAI"
+
+#: ide/contextmenu.inc
+msgid "Open &Code"
+msgstr "Abrir &código"
+
+#: ide/contextmenu.inc
+msgid "Show &History"
+msgstr "Mostrar &histórico"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This File..."
+msgstr "Perguntar à RAI sobre este arquivo..."
+
+#: ide/contextmenu.inc
+msgid "About {file}:"
+msgstr "Sobre {file}:"
+
+#: ide/contextmenu.inc ide/panels.inc
+msgid "The main file stays in the project"
+msgstr "O arquivo principal continua no projeto"
+
+#: ide/contextmenu.inc
+msgid "&Select in the Designer"
+msgstr "&Selecionar no designer"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Component..."
+msgstr "Perguntar à RAI sobre este componente..."
+
+#: ide/contextmenu.inc
+msgid "About {name}:"
+msgstr "Sobre {name}:"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Project..."
+msgstr "Perguntar à RAI sobre este projeto..."
+
+#: ide/contextmenu.inc
+msgid "About this project:"
+msgstr "Sobre este projeto:"
+
+#: ide/contextmenu.inc
+msgid "Actions for {what}"
+msgstr "Ações para {what}"
+
+#: ide/contextmenu.inc
+msgid "Not on a name"
+msgstr "Não está em um nome"
+
+#: ide/contextmenu.inc
+msgid "Nothing is selected"
+msgstr "Nada está selecionado"
+
+#: ide/contextmenu.inc
+msgid "&Versions"
+msgstr "&Versões"
+
+#: ide/contextmenu.inc
+msgid "About line {n} of {file}:"
+msgstr "Sobre a linha {n} de {file}:"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Code..."
+msgstr "Perguntar à RAI sobre este código..."
+
+#: ide/contextmenu.inc
+msgid "Actions for the code"
+msgstr "Ações para o código"
+
+#: ide/contextmenu.inc
+msgid "&Align"
+msgstr "&Alinhar"
+
+#: ide/contextmenu.inc
+msgid "Make Same Si&ze"
+msgstr "&Mesmo tamanho"
+
+#: ide/contextmenu.inc
+msgid "Space &Evenly"
+msgstr "&Espaçar igualmente"
+
+#: ide/contextmenu.inc
+msgid "Needs three or more"
+msgstr "Precisa de três ou mais"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About These Components..."
+msgstr "Perguntar à RAI sobre estes componentes..."
+
+#: ide/contextmenu.inc
+msgid "About the components {names}:"
+msgstr "Sobre os componentes {names}:"
+
+#: ide/contextmenu.inc
+msgid "Center in &Form"
+msgstr "Centralizar &no formulário"
+
+#: ide/contextmenu.inc
+msgid "&Zoom"
+msgstr "&Zoom"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Form..."
+msgstr "Perguntar à RAI sobre este formulário..."
+
+#: ide/contextmenu.inc
+msgid "About the form in {file}:"
+msgstr "Sobre o formulário em {file}:"
+
+#: ide/contextmenu.inc
+msgid "Actions for the form"
+msgstr "Ações para o formulário"
+
+#: ide/contextmenu.inc
+msgid "&Create Handler"
+msgstr "&Criar manipulador"
+
+#: ide/contextmenu.inc
+msgid "Already the default"
+msgstr "Já é o padrão"
+
+#: ide/contextmenu.inc
+msgid "&Help: {name}"
+msgstr "&Ajuda: {name}"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About {name}..."
+msgstr "Perguntar à RAI sobre {name}..."
+
+#: ide/contextmenu.inc
+msgid "About {name} of {target}:"
+msgstr "Sobre {name} de {target}:"
+
+#: ide/contextmenu.inc
+msgid "Actions for the chat"
+msgstr "Ações para o chat"
+
+#: ide/contextmenu.inc
+msgid "Copied the path"
+msgstr "Caminho copiado"
+
+#: ide/contextmenu.inc
+msgid "Copied the relative path"
+msgstr "Caminho relativo copiado"
+
+#: ide/contextmenu.inc ide/debug.inc
+msgid "Copied the value"
+msgstr "Valor copiado"
+
+#: ide/contextmenu.inc
+msgid "Copied the name"
+msgstr "Nome copiado"
+
+#: ide/contextmenu.inc
+msgid "The handler couldn't be removed"
+msgstr "Não foi possível remover o manipulador"
 
 #: ide/crash.inc
 msgid "&View Report"
@@ -3246,10 +3486,6 @@ msgid "{n} more"
 msgstr "mais {n}"
 
 #: ide/debug.inc
-msgid "Copied the value"
-msgstr "Valor copiado"
-
-#: ide/debug.inc
 msgid "Copied {expr}"
 msgstr "{expr} copiado"
 
@@ -3288,10 +3524,6 @@ msgstr "Esta linha não chama nenhuma SUB nem FUNCTION: passando por cima"
 #: ide/debug.inc
 msgid "Step into {name}"
 msgstr "Entrar em {name}"
-
-#: ide/debug.inc
-msgid "&Copy Value"
-msgstr "&Copiar valor"
 
 #: ide/debug.inc
 msgid "Copy &Expression"
@@ -4218,6 +4450,10 @@ msgid "Go to line {}"
 msgstr "Ir para a linha {}"
 
 #: ide/panels.inc
+msgid "Open"
+msgstr "Abrir"
+
+#: ide/panels.inc
 msgid "Component"
 msgstr "Componente"
 
@@ -4248,10 +4484,6 @@ msgstr "{file} já existe"
 #: ide/panels.inc
 msgid "{main} includes {file} now"
 msgstr "{main} agora inclui {file}"
-
-#: ide/panels.inc
-msgid "The main file stays in the project"
-msgstr "O arquivo principal continua no projeto"
 
 #: ide/panels.inc
 msgid "{file} taken out of the project (still on the disk)"
@@ -4505,6 +4737,10 @@ msgstr "O foco: OnEnter, OnExit"
 #: ide/panes.inc
 msgid "Main and pop-up menus"
 msgstr "Menus principal e de contexto"
+
+#: ide/panes.inc
+msgid "Right-click menus and row actions"
+msgstr "Menus de contexto e ações de linha"
 
 #: ide/panes.inc
 msgid "Open, save, colour, font"
@@ -5434,10 +5670,6 @@ msgstr "Digite o que procura e pressione Enter."
 #: ide/search.inc
 msgid "Search results"
 msgstr "Resultados da busca"
-
-#: ide/search.inc
-msgid "Find &References"
-msgstr "Localizar &referências"
 
 #: ide/search.inc
 msgid "Help"
