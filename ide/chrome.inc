@@ -327,6 +327,8 @@ END FUNCTION
 ' the fonts, for the tests that look at it.)
 DIM ZhProbeA AS RBitmap
 DIM ZhProbeB AS RBitmap
+' (the system the note names: RSystemInfo's OS — "Windows", "macOS", "Linux")
+DIM ZhSystem AS RSystemInfo
 
 FUNCTION ChineseFontMissing() AS INTEGER
   DIM x AS INTEGER, y AS INTEGER
@@ -358,7 +360,7 @@ SUB ChineseFontNote
     IF Proj.FileManager = "" THEN EXIT SUB
   END IF
   IF ChineseFontMissing() = 0 THEN EXIT SUB
-  SELECT CASE Application.OS
+  SELECT CASE ZhSystem.OS
     CASE "Linux"
       en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
       OutputLine en
