@@ -781,9 +781,13 @@ impl WebHost {
         }
         let _ = root.style().set_property("display", "none");
         doc.body()?.append_child(&root).ok()?;
+        // (an RFormEx's window can let the page through its background —
+        // TransparentClient, at any time: its canvases keep an alpha
+        // channel; every other window's are opaque, as always)
+        let see_through = rapidr_value::formex::is(id);
         let ctx_of = |c: &HtmlCanvasElement| -> Option<CanvasRenderingContext2d> {
             let opts = web_sys::ContextAttributes2d::new();
-            opts.set_alpha(false);
+            opts.set_alpha(see_through);
             c.get_context_with_context_options("2d", &opts).ok()??.dyn_into().ok()
         };
         let fctx = ctx_of(&frame)?;
