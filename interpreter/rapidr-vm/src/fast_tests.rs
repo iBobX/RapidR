@@ -433,6 +433,12 @@ fn the_for_test_and_step_are_their_expansions() {
                     }
                     asm.run()
                 };
+                // (a 64-bit counter's step past its type's end ends the loop
+                // instead of wrapping: not the expansion's — wide::for_step,
+                // docs/big-numbers-design.md; the conformance cases hold it)
+                if rapidr_value::wide::is_wide(var) && rapidr_value::wide::for_step(var, step).is_none() {
+                    continue;
+                }
                 assert_eq!(program(true), program(false), "FOR step of {var:?} by {step:?} (global {global})");
             }
         }

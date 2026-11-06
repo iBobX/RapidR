@@ -245,20 +245,19 @@ comparison!(le, le_other, |x: i64, y: i64| x <= y, |x: f64, y: f64| x.is_nan() |
 comparison!(gt, gt_other, |x: i64, y: i64| x > y, |x: f64, y: f64| !(x.is_nan() || y.is_nan()) && x > y, rp_gt);
 comparison!(ge, ge_other, |x: i64, y: i64| x >= y, |x: f64, y: f64| !(x.is_nan() || y.is_nan()) && x >= y, rp_ge);
 
-/// A FOR loop's step (`ForStep`): `var + step`, or `None` when a 64-bit
-/// counter would pass its type's limit — the loop ends there
-/// (`rapidr_value::wide::for_step`).
+/// Whether a FOR counter is one of RapidR's 64-bit kinds (its step then
+/// goes through [`for_next_wide`]).
 #[inline(always)]
-pub fn for_next(var: &Value, step: &Value) -> Option<Value> {
-    match (var, step) {
-        (Value::Int64(_) | Value::UInt64(_), _) => for_next_wide(var, step),
-        _ => Some(add(var, step)),
-    }
+pub fn wide(v: &Value) -> bool {
+    matches!(v, Value::Int64(_) | Value::UInt64(_))
 }
 
+/// A 64-bit FOR counter's step (`ForStep`): `var + step`, or `None` when
+/// it would pass its type's limit — the loop ends there
+/// (`rapidr_value::wide::for_step`).
 #[cold]
 #[inline(never)]
-fn for_next_wide(var: &Value, step: &Value) -> Option<Value> {
+pub fn for_next_wide(var: &Value, step: &Value) -> Option<Value> {
     rapidr_value::wide::for_step(var, step)
 }
 

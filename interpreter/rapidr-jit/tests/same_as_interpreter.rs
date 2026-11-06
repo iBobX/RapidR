@@ -86,6 +86,24 @@ fn a_loop_in_a_sub() {
     assert!(r.contains("1 routine(s)") && r.contains("ran 1"), "{r}");
 }
 
+/// RapidR's 64-bit kinds compiled (docs/big-numbers-design.md): the
+/// arithmetic wrapping at 64 bits, `\` and MOD exact, AND / XOR on all 64
+/// bits, exact comparisons (a UINT64 above 2^63, a negative INT64), FOR
+/// counters stopping at their type's end — the same answers compiled.
+#[test]
+fn sixty_four_bit_loops_compiled() {
+    let src = "DIM h AS UINT64 = &HCBF29CE484222325\nDIM s AS INT64\nDIM i AS INT64\nDIM u AS UINT64\nDIM n AS INTEGER\n\
+FOR i = 1 TO 20000\n  h = (h XOR i) * 1099511628211\n  s = s + i \\ 3 - (i AND 255) + h MOD 7\n  IF h > 9223372036854775808 THEN n = n + 1\n  IF s < -1 THEN n = n - 1\nNEXT i\n\
+PRINT HEX$(h); \" \"; s; \" \"; n\n\
+n = 0\nFOR u = 18446744073709551600 TO 18446744073709551615\n  n = n + 1\nNEXT u\nPRINT n; \" \"; u\n\
+n = 0\nFOR u = 20000 TO 0 STEP -1\n  n = n + 1\nNEXT u\nPRINT n; \" \"; u\n\
+n = 0\nFOR i = 9223372036854775000 TO 9223372036854775807\n  n = n + 1\nNEXT i\nPRINT n; \" \"; i\n\
+s = -9223372036854775807 - 1\nPRINT s \\ -1; \" \"; s MOD -1\n";
+    let r = same(src);
+    assert!(r.contains("loop(s)") && !r.trim_start().starts_with("0 loop(s)"), "the 64-bit loops compiled: {r}");
+    println!("{r}");
+}
+
 #[test]
 fn doubles_at_the_top() {
     same("DIM i AS INTEGER\nDIM x AS DOUBLE, y AS DOUBLE\nx = 0.0\ny = 1.0\nFOR i = 1 TO 5000\n  x = x * 0.999 + y\n  y = y + 0.000001\nNEXT\nPRINT INT(x)\nPRINT x\n");

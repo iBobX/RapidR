@@ -75,10 +75,20 @@ fn values() -> Vec<Value> {
         Value::Boolean(false),
         Value::Null,
         Value::String("abc".into()),
+        // (RapidR's 64-bit kinds, docs/big-numbers-design.md)
+        Value::Int64(0),
+        Value::Int64(-1),
+        Value::Int64(i64::MAX),
+        Value::Int64(i64::MIN),
+        Value::Int64((1 << 53) + 1),
+        Value::UInt64(0),
+        Value::UInt64(1),
+        Value::UInt64(u64::MAX),
+        Value::UInt64(1 << 63),
     ];
     if cfg!(debug_assertions) {
         // (the debug build's set: one of each kind of edge)
-        vec![Value::Integer(0), Value::Integer(-1), Value::Integer(i64::MIN), Value::Integer((1 << 53) + 1), Value::Double(-0.0), Value::Double(2.5), Value::Double(f64::NAN), Value::Double(1e300), Value::Boolean(true), Value::Null]
+        vec![Value::Integer(0), Value::Integer(-1), Value::Integer(i64::MIN), Value::Integer((1 << 53) + 1), Value::Double(-0.0), Value::Double(2.5), Value::Double(f64::NAN), Value::Double(1e300), Value::Boolean(true), Value::Null, Value::Int64(i64::MIN), Value::Int64(-1), Value::UInt64(u64::MAX), Value::UInt64(1 << 63)]
     } else {
         full
     }
@@ -90,6 +100,8 @@ fn konst(v: &Value) -> Const {
         Value::Double(f) => Const::Double(*f),
         Value::Boolean(b) => Const::Bool(*b),
         Value::String(s) => Const::Str(s.to_string()),
+        Value::Int64(n) => Const::Int64(*n),
+        Value::UInt64(n) => Const::UInt64(*n),
         _ => Const::Null,
     }
 }

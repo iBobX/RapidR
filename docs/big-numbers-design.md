@@ -148,10 +148,22 @@ value's type (a UINT64 stays one).
   that uses one, or a new builtin, says it needs 2.123.0
   (`Module::min_runtime`), so 2.122 names the version instead of failing.
   2.122.1's `__str64` & co. stay for its modules.
-- **JIT**: tier 1 compiles Integer and Double; code touching a 64-bit kind
-  stays in the interpreter (the guards leave compiled code on any other
-  kind), so the answers are exact with `RAPIDR_JIT=always` and `off`. A
-  JIT kind for INT64 / UINT64 is a measured follow-up.
+- **JIT**: two more kinds, `K::I64` and `K::U64`, both in an `i64`
+  register. Compiled: `+ - *` (wrapping), the exact comparisons (signed,
+  unsigned, or one of each: a negative signed side is the smaller), `\` and
+  MOD (signed; unsigned while no side is negative; the smallest INT64 `\`
+  -1 without a trap), AND / OR / XOR / NOT, the stores (`__to_int64` & co.
+  from a whole number; from a DOUBLE through the interpreter's own
+  conversion), constants, array elements, ABS, and a 64-bit FOR counter's
+  step with its end check (the counter as it was, the loop's exit taken).
+  Anything else — a 64-bit value against a DOUBLE, a negative side in an
+  unsigned `\` — leaves for the interpreter at that instruction. The
+  answers are the interpreter's with `RAPIDR_JIT=always` and `off`
+  (`tests/same_as_interpreter.rs`, `edge_values.rs` with the 64-bit edge
+  values, conformance's `vm-jit`). A hot INT64 / UINT64 loop (10 million
+  turns of a hash and a sum): 3172 ms on 2.123's development build (its
+  64-bit operators were host calls), 859 ms interpreted now, 30 ms
+  compiled.
 - **Native builds**: the same `Value` and the same functions; defaults,
   typed arrays' reads and the FOR step use the new kinds.
 - **Web**: the same VM and `rapidr-value` in wasm.

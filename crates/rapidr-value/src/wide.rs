@@ -391,19 +391,13 @@ fn int_vs_float(i: i128, f: f64) -> Ordering {
 /// looped for ever: `FOR u = 10 TO 0 STEP -1` on a UINT64).
 pub fn for_step(var: &Value, step: &Value) -> Option<Value> {
     let w = kind_of(var)?;
-    let s = match whole(step) {
-        Some(s) => s.exact(),
-        None => match step {
-            Value::Double(f) if f.is_finite() => f.trunc() as i128,
-            _ => 0,
-        },
-    };
-    let next = w.exact() + s;
-    let fits = match w {
-        W::I(_) => (i64::MIN as i128..=i64::MAX as i128).contains(&next),
-        W::U(_) => (0..=u64::MAX as i128).contains(&next),
-    };
-    fits.then(|| W::of_bits(next as u64, w.unsigned()))
+    // (a step that isn't a whole number: `var + step` as ever — a DOUBLE)
+    let Some(s) = whole(step) else { return Some(var + step) };
+    // (the sum's type is `+`'s: a UINT64 when either is one)
+    let unsigned = unsigned_of(w, s);
+    let next = w.exact() + s.exact();
+    let fits = if unsigned { (0..=u64::MAX as i128).contains(&next) } else { (i64::MIN as i128..=i64::MAX as i128).contains(&next) };
+    fits.then(|| W::of_bits(next as u64, unsigned))
 }
 
 // ---- Jango's bit functions (groups.io #38944; RapidR's) ----
