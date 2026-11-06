@@ -583,14 +583,18 @@ before → after:
 
 | | before | after |
 |---|---:|---:|
-| a call, no memory handed out | 2.2 µs | 2.2 µs |
-| a call with three blocks live (a MIDIHDR, a 1 KB string, 1,000 LONGs) | 8.8 µs | 8.9 µs |
-| the same, the header changed before each call | 8.7 µs | 9.0 µs |
+| a call, no memory handed out | 2.1 µs | 2.1 µs |
+| a call with three blocks live (a MIDIHDR, a 1 KB string, 1,000 LONGs) | 8.3 µs | 8.5 µs |
+| the same, the header changed before each call | 8.4 µs | 8.5 µs |
 | `catch_up` with those blocks, nothing changed (a handler's start, a wait) | — | 0.22 µs |
-| `SLEEP 0` with the 1 KB string variable mirrored (now a wait: the copy-back around it) | 0.09 µs | 2.0 µs |
+| `SLEEP 0` with the 1 KB string variable mirrored (now a wait: the copy-back around it) | 0.09 µs | 1.9 µs |
 
-DLL calls cost what they did (the encoding of the live blocks, as
-before; fewer bytes are written). `tools/bench/vm_bench --check` meets
+A DLL call costs what it did, give or take 0.2 µs with blocks live (the
+encoding of the live blocks, as before, now compared with the last
+sync's; fewer bytes are written), the median of six runs each.
+A program whose SUB hands its local TYPE to a DLL in a loop is much
+faster than before (the blocks reused: 100,000 calls in 1.3 s, 16 s
+before). `tools/bench/vm_bench --check` meets
 every budget, with the JIT too: a program without VARPTR or DLL calls has
 none of this, and a handler's copy-back at its start doesn't keep the JIT
 from compiling its loops.
