@@ -38,6 +38,10 @@ before Preview 6 (see its "Blocking?" note): the reliable impact is a crash on
 attacker-controlled input, and with probestack disabled the overflow is a
 stack-clash candidate (potential memory corruption, not just a fault).
 
+**Status (SEC-FIX-CORE, 2026-11-05):** SEC-50, SEC-51 and SEC-52 are all fixed
+in `a73dcfdb` — each finding's "Fixed in" line below says how;
+`docs/jit-design.md` §12.7 has the design and the numbers.
+
 ---
 
 ### SEC-50 — Medium — Compiled recursion overflows the native stack (no probe, no limit; the cap counts frames not bytes)
@@ -131,6 +135,26 @@ cheap to close. Treat as a hard blocker only if a follow-up shows the clash
 corrupts live memory; otherwise a high-priority fix. The interpreter is unaffected,
 so `RAPIDR_JIT=off` is a complete mitigation in the meantime.
 
+**Fixed in `a73dcfdb`** (SEC-FIX-CORE): recommendations 1 and 2 together, and 3
+in effect. Inline stack probes in every frame over 4 KB (`enable_probestack`,
+`probestack_strategy = inline`); before every compiled call one compare of the
+stack pointer with `Ctx::stack_limit` — the higher of the thread's real stack
+end (pthread on macOS / Linux, `VirtualQuery` on Windows) + a 256 KB margin +
+the largest compiled frame, and the entry's stack pointer − the smallest
+compiled frame × the frames the VM has room for — below which the interpreter
+makes the call (`Why::Depth`: the same answer, or its own "stack overflow"
+error at the same line). It replaces the 256-frame count (and the depth
+counter); a check in the prologue was not used because Cranelift's traps.
+Fib(32) 21.6 → 21.7 ms, loops unchanged. The PoC is now a regression test
+(`poc_deep_recursion.rs`: both of its cases end with the interpreter's
+answer, no signal), with `native_stack.rs` on the real main thread and a
+runaway case; `rapidr run` of the 6,000-local PoC on the 8 MiB main thread:
+SIGSEGV (exit 139) before, the interpreter's answer after. The JIT's tests,
+these included, pass on macOS, Linux ARM64 (8,180 KB main thread) and
+Windows 11 ARM64, whose main thread measured 1,014 KB free (the 1 MB
+default): a smaller stack only hands calls back sooner, so no thread of a
+known size is needed (`docs/jit-design.md` §12.7).
+
 ---
 
 ### SEC-51 — Low — `Op::Redim` allocates unbounded elements from a crafted immediate
@@ -172,6 +196,16 @@ outright). Consider the same sanity cap on `NewArray`'s computed extents before
 `BasicArray::new` (it already caps, so this is belt-and-braces) and on very large
 `n_locals`.
 
+**Fixed in `a73dcfdb`** (SEC-FIX-CORE): the verifier refuses a `Redim` whose
+count is below 0 or above `MAX_ARRAY_ELEMENTS` ("Redim makes N elements (from
+0 to 50000000)", the routine and byte named); the VM caps it too, with
+`NewArray`'s own "array too large (limit 50000000 elements)" error, and builds
+the comma string directly instead of `n` empty `String`s. Tests:
+`verify.rs` `a_redim_of_more_elements_than_an_array_may_have_is_damage`,
+`rapidr-vm` `a_crafted_redim_is_capped_as_an_array_is` (run unverified through
+`invoke_function` too). `NewArray`'s extents and `n_locals` stay as they are
+(already capped by `BasicArray::new` and the verifier's `MAX_LOCALS`).
+
 ---
 
 ### SEC-52 — Info — Cranelift's IR verifier is off in release builds
@@ -192,6 +226,13 @@ releases, or gating it behind an env/flag that CI and cautious users can turn on
 
 **Recommended fix.** Optional: enable the IR verifier in release too (measure the
 cost), or add a build/env switch. Not a vulnerability; a hardening note.
+
+**Fixed in `a73dcfdb`** (SEC-FIX-CORE): measured on vm_bench's programs
+(`RAPIDR_JIT=always`, compile time, fastest of 5) it adds **25 %** to compile
+time (15.4 → 19.3 ms in all) — not negligible — so it is on in debug builds,
+in `always` mode (conformance's `vm-jit` and the JIT's own tests, release
+builds included) and with `RAPIDR_JIT_VERIFY=1`, and off in `rapidr run`'s
+default. Test: `engine.rs` `the_code_generators_safety_settings`.
 
 ---
 

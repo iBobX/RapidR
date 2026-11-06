@@ -22,7 +22,7 @@ use rapidr_value::BasicArray;
 use crate::kinds::{bits_of, value_of, K};
 
 /// What compiled code is handed: the first three fields at the offsets
-/// `compile.rs` reads (`CTX_GLOBALS`, `CTX_INTERRUPT`, `CTX_DEPTH_LIMIT`);
+/// `compile.rs` reads (`CTX_GLOBALS`, `CTX_INTERRUPT`, `CTX_STACK_LIMIT`);
 /// the rest only the helpers touch.
 #[repr(C)]
 pub struct Ctx {
@@ -32,9 +32,16 @@ pub struct Ctx {
     /// The debugger's interrupt flag (a byte; `NOT_INTERRUPTED` outside
     /// debug mode).
     pub interrupt: *const u8,
-    /// Calls deeper than this from the entry form are left to the
-    /// interpreter (its stack overflow error; the machine stack's room).
-    pub depth_limit: i64,
+    /// The lowest stack pointer compiled code makes a call at (SEC-50):
+    /// below it the interpreter makes the call (its frames are on the
+    /// heap; its stack overflow error at `MAX_CALL_DEPTH`). The higher of
+    /// the thread's stack end + [`STACK_MARGIN`] + the largest frame
+    /// compiled for the module (the callee's whole frame fits above the
+    /// margin) and the entry's stack pointer − the smallest compiled frame
+    /// (at least [`MIN_FRAME`]) × the frames the VM has room for (each
+    /// compiled call takes at least that much: never more frames than
+    /// `MAX_CALL_DEPTH` allows).
+    pub stack_limit: u64,
     /// The exits taken, innermost frame first: record and values.
     pub exits: Vec<(u32, Vec<u64>)>,
     pub garrays: Vec<Option<Rc<RefCell<BasicArray>>>>,
@@ -45,7 +52,7 @@ pub struct Ctx {
 const _: () = {
     assert!(std::mem::offset_of!(Ctx, globals) == crate::compile::CTX_GLOBALS as usize);
     assert!(std::mem::offset_of!(Ctx, interrupt) == crate::compile::CTX_INTERRUPT as usize);
-    assert!(std::mem::offset_of!(Ctx, depth_limit) == crate::compile::CTX_DEPTH_LIMIT as usize);
+    assert!(std::mem::offset_of!(Ctx, stack_limit) == crate::compile::CTX_STACK_LIMIT as usize);
 };
 
 /// The interrupt byte outside debug mode: never raised.
@@ -55,6 +62,136 @@ pub static NOT_INTERRUPTED: u8 = 0;
 /// same layout as `bool`).
 pub fn interrupt_byte(flag: &std::sync::atomic::AtomicBool) -> *const u8 {
     flag.as_ptr() as *const u8
+}
+
+// ---------- the thread's machine stack (SEC-50, docs/jit-design.md §12.7) ----------
+
+/// Stack kept free below the lowest frame compiled code pushes: the helpers
+/// it calls run there (an exit's copy, an array's borrow, a maths builtin,
+/// a caught panic's hook), and the system's own reserve (Windows keeps the
+/// last pages of a stack, glibc may count its guard inside).
+pub const STACK_MARGIN: usize = 256 << 10;
+
+/// The least machine stack a compiled call takes: the return address and
+/// the frame pointer the callee saves (every compiled function sets up its
+/// frame: `preserve_frame_pointers`).
+pub const MIN_FRAME: usize = 16;
+
+/// The lowest address of this thread's stack (asked once per thread);
+/// `None` where it can't be known — then nothing compiled runs.
+pub fn stack_end() -> Option<usize> {
+    thread_local! {
+        static END: std::cell::Cell<Option<Option<usize>>> = const { std::cell::Cell::new(None) };
+    }
+    END.with(|c| {
+        if let Some(e) = c.get() {
+            return e;
+        }
+        let e = stack::end();
+        c.set(Some(e));
+        e
+    })
+}
+
+/// About the stack pointer here (a local's address, a little below the
+/// caller's frame).
+#[inline(never)]
+pub fn stack_here() -> usize {
+    let probe = 0u8;
+    std::hint::black_box(&probe) as *const u8 as usize
+}
+
+#[cfg(target_os = "macos")]
+mod stack {
+    pub fn end() -> Option<usize> {
+        // SAFETY: both ask about the calling thread (`pthread_self` is
+        // always valid for it) and only read its record; no memory of ours
+        // is written.
+        let (top, size) = unsafe {
+            let t = libc::pthread_self();
+            (libc::pthread_get_stackaddr_np(t) as usize, libc::pthread_get_stacksize_np(t))
+        };
+        top.checked_sub(size).filter(|&e| e > 0 && size > 0)
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod stack {
+    pub fn end() -> Option<usize> {
+        // SAFETY: `attr` is filled by `pthread_getattr_np` for the calling
+        // thread, read only by the attribute getters into our locals, and
+        // destroyed once — only when it was filled.
+        unsafe {
+            let mut attr: libc::pthread_attr_t = std::mem::zeroed();
+            if libc::pthread_getattr_np(libc::pthread_self(), &mut attr) != 0 {
+                return None;
+            }
+            let mut addr: *mut libc::c_void = std::ptr::null_mut();
+            let mut size: libc::size_t = 0;
+            let mut guard: libc::size_t = 0;
+            let ok = libc::pthread_attr_getstack(&attr, &mut addr, &mut size) == 0;
+            if libc::pthread_attr_getguardsize(&attr, &mut guard) != 0 {
+                guard = 0;
+            }
+            libc::pthread_attr_destroy(&mut attr);
+            if !ok || addr.is_null() || size == 0 {
+                return None;
+            }
+            // (glibc before 2.27 counts the guard inside the stack: kept
+            // out either way)
+            (addr as usize).checked_add(guard)
+        }
+    }
+}
+
+#[cfg(windows)]
+mod stack {
+    use std::ffi::c_void;
+
+    /// `MEMORY_BASIC_INFORMATION` (64-bit Windows: the JIT is built for
+    /// 64-bit only).
+    #[repr(C)]
+    struct MemoryBasicInformation {
+        base_address: *mut c_void,
+        allocation_base: *mut c_void,
+        allocation_protect: u32,
+        partition_id: u16,
+        region_size: usize,
+        state: u32,
+        protect: u32,
+        kind: u32,
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn VirtualQuery(address: *const c_void, buffer: *mut MemoryBasicInformation, length: usize) -> usize;
+    }
+
+    pub fn end() -> Option<usize> {
+        let probe = 0u8;
+        let at = std::hint::black_box(&probe) as *const u8 as *const c_void;
+        let mut info = std::mem::MaybeUninit::<MemoryBasicInformation>::zeroed();
+        // SAFETY: VirtualQuery writes at most `length` bytes — the
+        // struct's own size — into `info`, which has the documented
+        // layout; `at` is a local's address, on this thread's stack. (On
+        // every Windows the JIT runs on, Windows 7 included.)
+        let n = unsafe { VirtualQuery(at, info.as_mut_ptr(), std::mem::size_of::<MemoryBasicInformation>()) };
+        if n == 0 {
+            return None;
+        }
+        // SAFETY: zeroed, then filled by the call that succeeded.
+        let info = unsafe { info.assume_init() };
+        // (a stack is one reservation: its allocation base is its lowest
+        // address, whatever of it is committed yet)
+        Some(info.allocation_base as usize).filter(|&e| e > 0 && e < at as usize)
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
+mod stack {
+    pub fn end() -> Option<usize> {
+        None
+    }
 }
 
 /// Runs entry form `code` on `ctx` and `locals`.

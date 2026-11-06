@@ -232,6 +232,10 @@ interpreted".
   cheaper later.
 - **Untrusted programs**: compiled code is the program's own code made
   faster; it gets no capability the interpreter doesn't have.
+- **The machine stack** (added after the audit's SEC-50, §12.7): every
+  frame over 4 KB probed page by page, and a check by bytes before every
+  compiled call against the thread's real stack end — deeper, the
+  interpreter carries on; never a crash or a step over the guard.
 
 ## 8. Memory
 
@@ -386,9 +390,11 @@ case passes it (no false alarm).
   the first turn or call — the tests' way: every exit taken, often.
 - **Deopts**: a form whose values keep being of other kinds (more than 10
   times) is not used again.
-- **Depth**: compiled calls inside compiled calls stop at 256 (the
-  machine stack's room); deeper, the interpreter makes the call, and its
-  stack overflow error is the one it always gave.
+- **Depth**: compiled calls inside compiled calls go as deep as the
+  machine stack has room for — checked in bytes before every compiled call,
+  every frame probed (§12.7, SEC-50; a cap of 256 frames by count before) —
+  and never past the VM's own frame limit; deeper, the interpreter makes
+  the call, and its stack overflow error is the one it always gave.
 - Compiled on the VM's thread when a count runs out (0.1–2 ms a batch);
   per module and per process, nothing on disk; 16 MB of code at most.
 
@@ -511,3 +517,132 @@ a copy run interpreted, 32 voices, the share of a 10 ms block):
   docs/build-matrix.md ("part 3"). Wall times with / without on the quiet
   machine: `loop10m` 187-539 / 746-755 ms, `fcalls` 169-347 / 728-1523,
   `dsp_scalars` 211-228 / 627-681, `calls` 170-235 / 211-276.
+
+### 12.7 The machine stack and the code generator's checks (SEC-FIX-CORE, 2026-11-05)
+
+The core security audit (`docs/security/audit-2026-11-05-core.md`) found
+compiled recursion could run off the end of the thread's stack (SEC-50):
+the nesting cap (256) counted frames, not bytes, the code generator made no
+stack probes and had no stack limit, so 256 frames of a routine with
+thousands of live locals (each exit writes them all to a stack slot of its
+own) were megabytes — SIGBUS / SIGSEGV where the interpreter answers, and
+with no probes a frame larger than the guard could step over it (a stack
+clash). Fixed so:
+
+- **Stack probes in every frame** (`enable_probestack`,
+  `probestack_strategy = inline`, `probestack_size_log2 = 12`): a frame
+  larger than 4 KB touches each 4 KB page, top down, as it is made. No
+  frame steps over a guard page, and Windows — which commits a thread's
+  stack page by page and faults on a page touched out of turn — gets the
+  order it needs. Inline: the outline strategy calls a probe function the
+  JIT doesn't have (and isn't implemented on ARM64). Frames of 4 KB or less
+  (nearly all) get no probe at all.
+- **A check by bytes before every compiled call**, in place of the frame
+  count (`compile.rs` `call`): `stack pointer < Ctx::stack_limit` leaves
+  through the `Why::Depth` exit, so the interpreter makes the call (its
+  frames are on the heap), and the next hot call enters compiled code
+  again from the VM's own depth. Deep recursion goes on to the same answer;
+  a runaway one ends with the interpreter's "stack overflow" error at
+  `MAX_CALL_DEPTH`, the same text, the same line. `Engine::stack_limit`
+  sets the limit at each entry to the higher of two:
+  - the thread's stack end + `native::STACK_MARGIN` (256 KB: the helpers
+    compiled code calls run there, a caught panic's hook, the system's own
+    reserve) + the largest frame compiled for the module (the code
+    generator's frame layout: `frame_to_fp_offset` + the frame pointer and
+    the return address) — a call made above it always has room for the
+    callee's whole frame above the margin;
+  - the entry's stack pointer − the smallest compiled frame × the frames the
+    VM still has room for (`depth_room`, before `MAX_CALL_DEPTH`): each
+    compiled call takes at least its callee's frame, so compiled code never
+    makes more frames than the VM may have. That is what the old count did
+    (with a cap of 256 as a stand-in for the stack's room, which the first
+    bound now measures): **one compare does both**, and the depth counter
+    every callee was passed is gone.
+  **Why not Cranelift's own `stack_limit`**: its prologue check *traps* (a
+  signal), and a check after the prologue would come after the frame is
+  already pushed; before the call, the program leaves through the exits
+  that already exist and the interpreter carries on.
+- **Entering compiled code** (`Engine::enter`): when the stack pointer is
+  already below the first bound (a hot routine called deep inside nested
+  event handlers) the interpreter runs it — not counted as a deopt.
+- **The thread's stack end**, asked once per thread (`native::stack_end`):
+  macOS `pthread_get_stackaddr_np` − `pthread_get_stacksize_np`; Linux
+  `pthread_getattr_np` + `pthread_attr_getstack` (+ the guard size: older
+  glibc counts it inside); Windows `VirtualQuery` of a local — its
+  allocation base is the stack reservation's lowest address (Windows 7
+  on). Elsewhere it isn't known and nothing compiled runs. No new crate:
+  `libc` (already in the tree through `region`) on Linux too, Windows'
+  `VirtualQuery` declared by hand.
+- **The main thread, measured** (`rapidr run --verbose`, the free stack
+  where compiled code first ran): macOS 8,159 KB, Linux ARM64 (the Ubuntu
+  VM, `tools/release/linux/jit-check.sh`: every JIT test, the main-thread
+  cases included, and conformance both ways, 668 runs, pass) 8,180 KB;
+  Windows 11 ARM64 (the VM, `tools/release/windows-vm.sh jit`) **1,014 KB**
+  — the 1 MB default, as `rapidr.exe` asks for nothing more. There every
+  JIT test passes, the main-thread cases included (2,000 locals 600 deep and
+  6,000 locals 700 deep on that 1 MB thread: the interpreter's answers, no
+  crash); conformance both ways 656 of 660 at first, the four 30-second
+  timeouts of a VM another lane was loading too (one of them under the
+  interpreter alone), three passing when run again, the fourth
+  (`event_doevents_lets_events_in`, timer ticks) failing with and without
+  the JIT alike. The check uses the real bounds, so a small stack only
+  means compiled recursion hands back to the interpreter sooner — no
+  dedicated big-stack thread is needed for safety (a bigger one would only
+  let deep recursion of big frames stay compiled longer).
+- `rapidr run --verbose` says it: "machine stack N KB free, frames up to M
+  KB", and among the exits "K at the machine stack's room" (the first
+  bound stopped a call) or "at deep calls" (the VM's room for frames).
+
+**The cost**: per compiled call, a move from the stack pointer, a load,
+a compare and a branch — what the frame count's load, compare and branch
+were, less the counter's add and its argument; nothing in loops; a probe
+only in frames over 4 KB. A first version kept the count beside the new
+check (two compares and an OR per call) and cost Fib(32) 44 %; folded into
+one compare it costs nothing measurable. CPU ms, `rapidr run` (the JIT's
+default), the fastest of 11–15 runs, before / after, run alternately on a
+busy M4 Max:
+
+| Program | before | after |
+|---|--:|--:|
+| Fib(32), ~7 M compiled calls | 21.6 | 21.7 |
+| `calls` (Fib 27) | 7.0 | 7.1 |
+| `fcalls` (2 M calls) | 12.9 | 13.0 |
+| `loop10m` | 22.5 | 22.8 |
+| `loop10m_sub` | 17.9 | 18.3 |
+| `dsp_scalars` | 17.1 | 17.1 |
+| `dsp_voices` | 56.3 | 53.4 |
+| `arrays` | 26.5 | 25.7 |
+
+(The loops' compiled code is unchanged — they make no calls; their ±3 %
+is the machine's.) Deep recursion of big frames is now compiled as deep as
+the stack has room for, not 256 at a time.
+
+**SEC-52, the IR verifier**: the code generator's verifier checks every
+function the JIT builds (a malformed one is refused and stays
+interpreted). Its cost on vm_bench's programs (`RAPIDR_JIT=always`, the
+compile time `--verbose` reports, the fastest of 5): 15.4 ms of compiling
+in all without it, 19.3 ms with it — **+25 %** (+0.1 to +1.4 ms a
+program). Not negligible next to compile times of a millisecond or two,
+so: on in debug builds, in `always` mode (the tests' way: conformance's
+`vm-jit`, the JIT's own tests in `tools/regress.sh`), and with
+`RAPIDR_JIT_VERIFY=1`; off in `rapidr run`'s default.
+
+**SEC-51** is the VM's and the verifier's, not the JIT's: the legacy
+`Redim` opcode (crafted bytecode only) is refused by the verifier past
+`MAX_ARRAY_ELEMENTS` (or below 0) and capped by the VM with the array cap's
+own error (and without making `n` strings to join).
+
+**Tests**: `tests/poc_deep_recursion.rs` (the audit's PoC, now a
+regression test: 1,200 locals 900 deep on a 1 MiB thread; 6,000 locals 700
+deep on 8 MiB in optimised builds — the answer, never a signal, and the
+stack check did the stopping); `tests/native_stack.rs` (`harness = false`:
+on the process's real main thread, 2,000 locals 600 deep, 6,000 locals 700
+deep; a runaway recursion's error, the same as the interpreter's);
+`same_as_interpreter.rs` `deep_recursion_goes_on_in_the_interpreter_beyond_the_stacks_room`
+(60,000 deep, small frames); `engine.rs`
+`the_code_generators_safety_settings`; the verifier's and the VM's Redim
+tests. Each stack case runs in a child process, so a crash is reported,
+never the suite's. End to end, `rapidr run` on the main thread (macOS,
+8 MiB: 8,159 KB free there): the PoC with 6,000 locals 700 deep died
+with SIGSEGV before (exit 139) and prints 1184802448 after, as the
+interpreter does ("8 at the machine stack's room").

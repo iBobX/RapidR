@@ -132,11 +132,12 @@ fn an_index_out_of_range_in_a_hot_loop() {
 // ---- going back to the interpreter at each kind of place ----
 
 #[test]
-fn deep_recursion_goes_on_in_the_interpreter_beyond_the_nesting_limit() {
-    // (5,000 deep: compiled calls 256 at a time, the interpreter makes the
-    // next call each time — every frame put back on the way)
-    let r = same("FUNCTION Depth(n AS INTEGER) AS INTEGER\n  IF n = 0 THEN\n    Result = 0\n  ELSE\n    Result = Depth(n - 1) + 1\n  END IF\nEND FUNCTION\nPRINT Depth(5000)\n");
-    assert!(r.contains("deep calls"), "{r}");
+fn deep_recursion_goes_on_in_the_interpreter_beyond_the_stacks_room() {
+    // (60,000 deep: more compiled frames than a test thread's stack has
+    // room for — compiled calls as deep as it has, the interpreter makes
+    // the next call each time, every frame put back on the way; SEC-50)
+    let r = same("FUNCTION Depth(n AS INTEGER) AS INTEGER\n  IF n = 0 THEN\n    Result = 0\n  ELSE\n    Result = Depth(n - 1) + 1\n  END IF\nEND FUNCTION\nPRINT Depth(60000)\n");
+    assert!(r.contains("at the machine stack's room") || r.contains("deep calls"), "{r}");
 }
 
 #[test]

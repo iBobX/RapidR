@@ -128,6 +128,14 @@ pub fn function(m: &Module, index: u32) -> Result<(), VerifyError> {
         if !kind_ok {
             return Err(err(Some(ip), format!("{:?} converts to kind {}, which doesn't exist", insn.op, insn.operands.last().copied().unwrap_or(0))));
         }
+        // (the legacy Redim's element count — RapidR's compiler never makes
+        // the opcode —: one an array may have, SEC-51)
+        if insn.op == Op::Redim {
+            let n = insn.operands[1];
+            if n < 0 || n as u64 > rapidr_value::MAX_ARRAY_ELEMENTS as u64 {
+                return Err(err(Some(ip), format!("Redim makes {n} elements (from 0 to {})", rapidr_value::MAX_ARRAY_ELEMENTS)));
+            }
+        }
         ip = insn.next;
     }
     for (at, t) in targets {
@@ -265,6 +273,28 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    /// SEC-51: the legacy Redim's element count is one an array may have.
+    #[test]
+    fn a_redim_of_more_elements_than_an_array_may_have_is_damage() {
+        let redim = |n: i32| {
+            let mut m = sound();
+            let f = &mut m.functions[0];
+            let mut code = Vec::new();
+            op(&mut code, Op::Redim, &[1, 0]);
+            code.extend_from_slice(&n.to_le_bytes());
+            code.extend_from_slice(&f.code);
+            f.code = code;
+            module(&m)
+        };
+        assert_eq!(redim(0), Ok(()));
+        assert_eq!(redim(10), Ok(()));
+        assert_eq!(redim(rapidr_value::MAX_ARRAY_ELEMENTS as i32), Ok(()));
+        for n in [rapidr_value::MAX_ARRAY_ELEMENTS as i32 + 1, i32::MAX, -1, i32::MIN] {
+            let e = redim(n).expect_err("damaged").to_string();
+            assert!(e.contains(&format!("Redim makes {n} elements")) && e.contains("routine 0, at byte 0"), "{e}");
         }
     }
 

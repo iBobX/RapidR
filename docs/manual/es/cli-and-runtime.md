@@ -210,9 +210,18 @@ Filtered voice, loudest sample: 1.747212  (32 ms)
   para que sus programas se compilen; sin él se ejecutan interpretados, con
   los mismos resultados (`rapidr run --verbose` lo dice). Las apps de
   RapidR lo tienen.
+- **Recursión profunda**: las llamadas compiladas vigilan la pila de la
+  máquina. Una rutina que se llama a sí misma muy a fondo —o una con miles
+  de variables— sigue interpretada donde la pila se acaba, con la misma
+  respuesta; pasadas 100.000 llamadas anidadas termina con el propio error
+  "stack overflow" del intérprete, en la misma línea. Nunca un cierre
+  inesperado. (`rapidr run --verbose` dice cuánta pila había y cuántas
+  veces el código compilado devolvió llamadas al intérprete.)
 - `RAPIDR_JIT=off` ejecuta un programa solo con el intérprete (para
   comparar); `RAPIDR_JIT=always` compila de una vez todo lo que puede (las
-  pruebas de RapidR).
+  pruebas de RapidR) y revisa cada rutina compilada con el verificador del
+  propio generador de código (`RAPIDR_JIT_VERIFY=1` lo hace también en el
+  modo predeterminado).
 - **Un programa dañado** —un `.rrbc` cortado, editado a mano o hecho por
   algo que no es el compilador de RapidR— se rechaza antes de empezar:
   "this program is damaged and can't run: … Build it again from its
@@ -249,6 +258,7 @@ desde la que se ejecuta el comando. `rapidr setup --check` imprime cuál.
 | `RAPIDR_PRINT_TO=<file or folder>` | los documentos impresos van allí como PDF en lugar de a una impresora |
 | `RAPIDR_REGISTRY=<file>` | RRegistry guarda sus claves en este archivo en lugar de en el del sistema (el registro de Windows; un almacén por usuario en otros sistemas) |
 | `RAPIDR_JIT=off\|on\|always` | el JIT del Runtime: `off` solo el intérprete, `on` el código frecuente compilado (lo predeterminado), `always` todo lo que puede de una vez ([Código frecuente compilado](#código-frecuente-compilado-el-jit)) |
+| `RAPIDR_JIT_VERIFY=1` | el JIT revisa cada rutina que compila con el verificador del generador de código (compila un poco más lento; `always` lo hace siempre) |
 | `RAPIDR_SCHOOL_POLICY=<file>` | la política del bloqueo escolar se lee de este archivo cuando la computadora no tiene una (la de las pruebas): puede añadir un bloqueo, nunca quitar el de la computadora |
 | `RAPIDR_CONFIG_DIR=<folder>` | tu carpeta de RapidR (la lista de archivos de confianza) |
 | `RAPIDR_DOCUMENTS=<folder>` | la carpeta que se usa como tus Documentos: las copias de los ejemplos de RapidR Studio (`RapidR/Examples/`) y las compilaciones que no pueden ir junto a su programa (`RapidR/Builds/`) |

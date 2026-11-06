@@ -1885,10 +1885,15 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Redim => {
                     let s = read_u16(code, &mut ip)?;
                     let n = read_i32(code, &mut ip)?.max(0) as usize;
+                    // (SEC-51: the legacy opcode — RapidR's compiler never
+                    // makes it — capped as every array is, the same error)
+                    if n > rapidr_value::MAX_ARRAY_ELEMENTS {
+                        return Err(VmError::Runtime(format!("array too large (limit {} elements)", rapidr_value::MAX_ARRAY_ELEMENTS)));
+                    }
                     let frame = self.frames.last_mut().unwrap();
                     let slot = frame.locals.get_mut(s as usize).ok_or_else(|| VmError::BadLocalSlot(s))?;
-                    let parts: Vec<String> = (0..n).map(|_| String::new()).collect();
-                    *slot = v_str(&parts.join(","));
+                    // (n empty elements joined by commas: no n strings made)
+                    *slot = v_str(&",".repeat(n.saturating_sub(1)));
                 }
 
                 // ----- I/O -----
@@ -2825,6 +2830,38 @@ mod tests {
         let mut vm = Vm::new(&mut h);
         vm.run(&m).unwrap();
         assert_eq!(h.output, "hello\n");
+    }
+
+    /// SEC-51: the legacy Redim (crafted bytecode only: the compiler never
+    /// makes it) is refused by the verifier past the array cap and — run
+    /// unverified — capped by the VM with the cap's own error.
+    #[test]
+    fn a_crafted_redim_is_capped_as_an_array_is() {
+        let redim = |n: i32| {
+            let mut code = vec![Op::Redim as u8, 0, 0];
+            code.extend_from_slice(&n.to_le_bytes());
+            code.extend_from_slice(&[Op::LoadLocal as u8, 0, 0, Op::PrintLn as u8, Op::Halt as u8]);
+            let mut m = Module::new();
+            m.entry = m.add_function(Function { name: "__main".into(), n_locals: 1, code, ..Default::default() });
+            m
+        };
+        // (what it always made: n empty elements, comma-joined)
+        let mut h = StubHost::default();
+        Vm::new(&mut h).run(&redim(3)).unwrap();
+        assert_eq!(h.output, ",,\n");
+        let mut h = StubHost::default();
+        Vm::new(&mut h).run(&redim(0)).unwrap();
+        assert_eq!(h.output, "\n");
+        // (past the cap: the verifier refuses it before its first instruction)
+        let m = redim(i32::MAX);
+        let mut h = StubHost::default();
+        let e = Vm::new(&mut h).run(&m).unwrap_err().to_string();
+        assert!(e.contains("damaged") && e.contains("Redim makes 2147483647 elements"), "{e}");
+        // (`invoke_function` doesn't verify: the array cap's error, nothing allocated)
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        let e = vm.invoke_function(&m, 0, vec![]).unwrap_err().to_string();
+        assert!(e.contains(&format!("array too large (limit {} elements)", rapidr_value::MAX_ARRAY_ELEMENTS)), "{e}");
     }
 
     #[test]

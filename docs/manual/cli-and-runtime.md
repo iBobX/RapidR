@@ -194,8 +194,16 @@ Filtered voice, loudest sample: 1.747212  (32 ms)
   notarization) needs the `com.apple.security.cs.allow-jit` entitlement for
   its programs to be compiled; without it they run interpreted, with the
   same results (`rapidr run --verbose` says so). RapidR's own apps have it.
+- **Deep recursion**: compiled calls watch the machine stack. A routine
+  that calls itself very deep — or one with thousands of variables — goes
+  on interpreted where the stack runs short, with the same answer; past
+  100,000 nested calls it ends with the interpreter's own "stack overflow"
+  error, at the same line. Never a crash. (`rapidr run --verbose` says how
+  much stack there was and how often compiled code handed calls back.)
 - `RAPIDR_JIT=off` runs a program on the interpreter alone (to compare);
-  `RAPIDR_JIT=always` compiles everything it can at once (RapidR's tests).
+  `RAPIDR_JIT=always` compiles everything it can at once (RapidR's tests),
+  and checks each compiled routine with the code generator's own verifier
+  (`RAPIDR_JIT_VERIFY=1` does that in the default mode too).
 - **A damaged program** — a `.rrbc` cut short, edited by hand, or made by
   something other than RapidR's compiler — is refused before it starts:
   "this program is damaged and can't run: … Build it again from its
@@ -231,6 +239,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_PRINT_TO=<file or folder>` | printed documents go there as PDFs instead of to a printer |
 | `RAPIDR_REGISTRY=<file>` | RRegistry keeps its keys in this file instead of the system's (Windows' registry; a per-user store elsewhere) |
 | `RAPIDR_JIT=off\|on\|always` | the Runtime's JIT: `off` the interpreter alone, `on` hot code compiled (the default), `always` everything it can at once ([Hot code compiled](#hot-code-compiled-the-jit)) |
+| `RAPIDR_JIT_VERIFY=1` | the JIT checks every routine it compiles with the code generator's verifier (a little slower to compile; `always` does it anyway) |
 | `RAPIDR_SCHOOL_POLICY=<file>` | School Lock's policy read from this file when the computer has none (the tests'): it can add a lock, never take the computer's away |
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
 | `RAPIDR_DOCUMENTS=<folder>` | the folder used as your Documents: RapidR Studio's copies of the examples (`RapidR/Examples/`) and builds that can't go beside their program (`RapidR/Builds/`) |
