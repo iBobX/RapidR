@@ -845,16 +845,21 @@ impl RustCodegen {
             return;
         }
         names.sort_by(|a, b| a.0.cmp(&b.0));
-        self.line("thread_local! {");
-        for (name, kind) in names {
-            // (made once, never freed: a routine takes it as `&'static`)
-            self.line(&format!(
-                "    static {}: &'static TypedArray<{}> = Box::leak(Box::new(TypedArray::new()));",
-                global_static(&name),
-                kind.elem()
-            ));
+        // (in blocks of at most 64: one `thread_local!` expands its items
+        // recursively, and 128 or more of them reach rustc's macro recursion
+        // limit - a program with that many typed arrays didn't build)
+        for chunk in names.chunks(64) {
+            self.line("thread_local! {");
+            for (name, kind) in chunk {
+                // (made once, never freed: a routine takes it as `&'static`)
+                self.line(&format!(
+                    "    static {}: &'static TypedArray<{}> = Box::leak(Box::new(TypedArray::new()));",
+                    global_static(name),
+                    kind.elem()
+                ));
+            }
+            self.line("}");
         }
-        self.line("}");
     }
 
     /// At a routine's (or the main program's, `""`) start: the main
