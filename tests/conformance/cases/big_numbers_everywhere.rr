@@ -1,0 +1,119 @@
+' 64-bit numbers wherever a number goes (docs/big-numbers-audit.md): a
+' VARIANT, arrays, TYPE fields, parameters, a FUNCTION's result, CONST,
+' DATA / READ, literals, the builtins, SWAP, QUICKSORT, files, JSON and the
+' bit functions: every digit, the same on every runtime.
+TYPE TRec
+    id AS UINT64
+    n AS INT64
+    w AS UINT32
+END TYPE
+CONST TOP AS UINT64 = 18446744073709551615
+CONST BIG AS INT64 = &H7FFFFFFFFFFFFFFF
+
+FUNCTION Echo(x)
+    Echo = x
+END FUNCTION
+FUNCTION Twice(x AS INT64) AS INT64
+    Twice = x * 2
+END FUNCTION
+FUNCTION FromLiteral AS INT64
+    FromLiteral = 3000000000
+END FUNCTION
+SUB Show(label AS STRING, v)
+    PRINT label; ": "; v
+END SUB
+
+DIM u AS UINT64
+DIM i AS INT64
+DIM w AS UINT32
+DIM v AS VARIANT
+DIM s AS STRING
+
+' A VARIANT, a VARIANT array, an untyped parameter and result
+u = TOP
+v = u
+DIM va(2) AS VARIANT
+va(1) = u
+va(2) = BIG
+Show "VARIANT", v
+Show "VARIANT array", va(1)
+PRINT "untyped FUNCTION: "; Echo(u); " "; Echo(BIG); " "; Echo(-BIG - 1)
+PRINT "INT64 FUNCTION: "; Twice(4000000000); " "; FromLiteral; " "; FromLiteral * 3
+
+' TYPE fields, typed arrays
+DIM r AS TRec
+r.id = TOP - 1
+r.n = -9007199254740993
+r.w = -1
+PRINT "fields: "; r.id; " "; r.n; " "; r.w
+DIM ua(1 TO 2) AS UINT64
+ua(1) = TOP
+ua(2) = ua(1) \ 3
+PRINT "array: "; ua(1); " "; ua(2)
+
+' DATA / READ
+DATA 18446744073709551615, -9223372036854775808, 9007199254740993
+READ u, i, v
+PRINT "READ: "; u; " "; i; " "; v
+' (a literal beyond 32 bits, in a program with 64-bit types, is an INT64)
+v = 3000000000
+PRINT "literal: "; v; " "; 3000000000 \ 2; " "; -9223372036854775808; " "; &H123456789
+
+' Literals beside a 64-bit value are read as written
+i = 81985529216486895
+PRINT "literals: "; HEX$(i AND &HFFFFFFFF); " "; HEX$(i SHR 32); " "; (i AND &HFFFFFFFF) = &H89ABCDEF
+
+' Builtins
+u = TOP
+PRINT STR$(u); " "; HEX$(u); " "; HEX$(255, 4); " "; HEX$(u, 4); " "; BIN$(u SHR 60); " "; OCT$(u)
+i = -9223372036854775807
+PRINT ABS(i); " "; SGN(i); " "; INT(i); " "; FIX(u); " "; ROUND(i); " "; VARTYPE(i); " "; VARTYPE(u); " "; ISNUMERIC(u)
+PRINT IIF(u > BIG, "u > BIG", "no"); " "; u MOD 1000; " "; u \ 1000000000000; " "; (u AND 255) OR 256; " "; NOT 0 AND u
+i = 9007199254740993
+PRINT "against a DOUBLE: "; (i > 9007199254740992.0); " "; (i = 9007199254740992.0); " "; STR$(i / 2)
+s = "18446744073709551615"
+u = VAL(s)
+i = VAL("-9007199254740993")
+PRINT "VAL: "; u; " "; i
+
+' SWAP, INC, QUICKSORT
+DIM a AS UINT64
+DIM b AS UINT64
+a = TOP
+b = 1
+SWAP a, b
+INC b, -1
+PRINT "SWAP: "; a; " "; b
+DIM q(1 TO 3) AS UINT64
+q(1) = 9007199254740993
+q(2) = 9007199254740992
+q(3) = TOP
+QUICKSORT(q(1), q(3), ASCEND)
+PRINT "sorted: "; q(1); " "; q(2); " "; q(3)
+
+' Files: PRINT #, WRITE #, LINE INPUT #, INPUT #
+OPEN "big_numbers.txt" FOR OUTPUT AS #1
+PRINT #1, TOP
+WRITE #1, TOP, BIG
+CLOSE #1
+OPEN "big_numbers.txt" FOR INPUT AS #1
+LINE INPUT #1, s
+INPUT #1, u, i
+CLOSE #1
+KILL "big_numbers.txt"
+PRINT "file: "; s; " "; u; " "; i
+
+' JSON
+DIM j AS RJSON
+DIM qt AS STRING
+qt = CHR$(34)
+j.Parse("{" + qt + "id" + qt + ": 18446744073709551615, " + qt + "n" + qt + ": -9007199254740993, " + qt + "small" + qt + ": 7}")
+u = j.Get("id")
+PRINT "JSON: "; u; " "; j.Get("n"); " "; j.Get("small")
+j.Set("next", u - 1)
+PRINT j.Stringify
+
+' The bit functions (bit 0 the rightmost)
+w = &HF58ACBFB
+PRINT "bits: "; w; " "; HEX$(w); " "; HEX$(LOWORD(w)); " "; HEX$(HIWORD(w)); " "; LOBYTE(w); " "; HIBYTE(w)
+PRINT GETBITS(w, 28, 4); " "; HEX$(SETBITS(w, 0, 16, &H1234)); " "; GETBITS(TOP, 60, 4); " "; HEX$(SETBITS(a, 63, 1, 0))

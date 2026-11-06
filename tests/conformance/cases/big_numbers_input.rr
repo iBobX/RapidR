@@ -1,0 +1,18 @@
+' INPUT into INT64, UINT64 and UINT32 (the third of the five promised
+' 64-bit items, groups.io #38940): the number typed is read to its last
+' digit, never through a DOUBLE (exact only up to 9007199254740992).
+DIM u AS UINT64
+DIM i AS INT64
+DIM w AS UINT32
+DIM v AS VARIANT
+INPUT "a UINT64: ", u
+PRINT u
+INPUT "an INT64: ", i
+PRINT i
+INPUT "a UINT32: ", w
+PRINT w
+
+v = u
+PRINT "kept in a VARIANT: "; v; " and joined: " & v
+INPUT "one more past 2^53: ", i
+PRINT i; " "; i - 1; " "; i + 1
