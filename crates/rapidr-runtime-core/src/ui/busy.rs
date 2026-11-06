@@ -4,10 +4,11 @@
 //! 2026-11.md, "Studio: the edit pause"). A stretch is the time between two
 //! waits of the window loop that really waited (≥ 1 ms: a turn that found
 //! more to do at once goes on the same stretch); each one of 1 ms or more is
-//! written as `busy <events played> <start ms> <length ms>`, and at the end
-//! `thread-cpu <ms>`: the UI thread's own CPU time (a worker's isn't in it).
-//! The benchmark (`tools/bench/ui/studio_caret.py`) takes the stretches
-//! after its lead's events.
+//! written as `busy <events played> <start ms> <length ms> <thread CPU ms>`
+//! — the last the UI thread's own CPU time so far, at the stretch's end (a
+//! worker's isn't in it) —, and at the end `thread-cpu <ms>`. The benchmark
+//! (`tools/bench/ui/studio_caret.py`) takes the stretches after its lead's
+//! events, and the CPU between them in the same run.
 
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -56,7 +57,7 @@ pub fn wait_ended() {
         let len = from.duration_since(b.since);
         if len >= Duration::from_millis(1) {
             let played = rapidr_ui_app::script::events_played();
-            b.lines.push(format!("busy {played} {:.1} {:.3}", b.since.duration_since(b.origin).as_secs_f64() * 1000.0, len.as_secs_f64() * 1000.0));
+            b.lines.push(format!("busy {played} {:.1} {:.3} {:.3}", b.since.duration_since(b.origin).as_secs_f64() * 1000.0, len.as_secs_f64() * 1000.0, thread_cpu_ms()));
         }
         b.since = now;
     });

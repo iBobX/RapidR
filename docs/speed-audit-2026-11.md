@@ -1236,24 +1236,35 @@ lines; local copies, never in the repository); `windows.inc` itself; the
 
 | Scenario | longest, before | longest, after | the UI thread's CPU, before → after |
 |---|--:|--:|--:|
-| an edit round (a letter typed and taken back, a pause), 5,000 lines | 75–100 ms | **5.4–7.0 ms** | 40–52 → 9–35 ms a round |
-| a caret move, 5,000 lines | 15–107 ms | **4.6 ms** | |
-| typing 30 letters and spaces, 5,000 lines | 891 ms | **16.9 ms** | 74 → 2.1 ms a key |
-| an edit round, with RapidQ's big includes | 84–217 ms | **6.7 ms** | 76–78 ms → (below the noise of the two runs' difference) |
-| typing, with RapidQ's big includes | 7,081 ms | **13.2 ms** | 494 → 8.8 ms a key |
-| an edit round in `windows.inc` (17.8 k lines, 6,085 outline items) | 651–1,602 ms | **15.0 ms** | 345–2,234 → 46–56 ms a round |
-| typing in `windows.inc` | 2,654 ms | **14.1 ms** | 186 → 2.5 ms a key |
-| an edit round with 2,000 problems | 783–806 ms | **6.3 ms** | 806 → 20 ms a round |
-| opening `windows.inc` (Studio's start included; the whole process's CPU) | 3.6–4.5 s | **2.1–2.2 s** | |
-| opening the program with 2,000 problems (the same) | 4.2 s | **1.6 s** | |
+| an edit round (a letter typed and taken back, a pause), 5,000 lines | 53–100 ms | **5.4–7.0 ms** | 40–52 → 8–35 ms a round |
+| a caret move, 5,000 lines | 3.1–107 ms | **4.1–4.6 ms** | |
+| typing 30 letters and spaces, 5,000 lines | 755–891 ms | **16.1–17.7 ms** ¹ | 56–74 → 2.1–3.5 ms a key |
+| an edit round, with RapidQ's big includes | 84–1,075 ms | **6.4–18.4 ms** ² | 19–78 → 11–42 ms a round |
+| typing, with RapidQ's big includes | 3,786–7,081 ms | **13.2–13.9 ms** | 454–494 → 3.4–8.8 ms a key |
+| an edit round in `windows.inc` (17.8 k lines, 6,085 outline items) | 651–1,607 ms | **14.3–15.0 ms** | 345–2,234 → 6–56 ms a round |
+| typing in `windows.inc` | 1,711–2,654 ms | **14.1–14.6 ms** | 186–475 → 1.4–2.5 ms a key |
+| a caret move in `windows.inc` | 10.6 ms | **3.6 ms** | 5.8 → 0 ms a move |
+| an edit round with 2,000 problems | 783–1,411 ms | **5.1–6.3 ms** | 806–831 → under 20 ms a round |
+| opening the 5,000 lines (Studio's start included; the whole process's CPU) | 1.5–1.6 s | **1.1–1.4 s** | |
+| opening `windows.inc` (the same) | 3.5–4.5 s | **2.1–2.2 s** | |
+| opening the program with 2,000 problems (the same) | 4.1–4.2 s | **1.6–1.7 s** | |
 
-The "after" column is the lane's final build for the typing rows, the
-2,000 problems and `windows.inc`'s edit round, and the first working
-build (the analysis off the UI thread, before the fixes found while typing)
-for the other rows — the later fixes only take more away. The whole
-process's CPU (the worker included) per edit round fell too, in the
-5,000-line program 39–52 → 21–38 ms: one parse and one compile per version
-instead of two.
+The ranges are over the runs made during the lane; the last pair, the
+lane's final build (rebased on `development`) and the baseline run back to
+back at a load average of 13–21 (`tools/bench/ui/studio_caret.py`, one
+scenario after the other), is in each of them. The whole process's CPU
+(the worker included) per edit round fell too, in the 5,000-line program
+39–52 → 21–38 ms: one parse and one compile per version instead of two.
+
+¹ About 10 ms of it is the designer: the 5,000-line program has a form,
+and at a pause that changed the text Studio gives the designer the new
+text (`DesignRead`), whose `Document::set_text` preprocesses and parses
+the whole file again on the UI thread (sampled: `parse_source_for_tools`
+under `DesignSurface::open_source`). The edit round doesn't show it (the
+text is back to what the designer has). See Left.
+
+² 18.4 ms once, at the load of the final pair; run again, 6.4 ms (p99
+6.4 ms).
 
 The web Studio (headless Chromium, the page's main thread per animation
 frame, `tests/results/bench/web_edit_pause.mjs`, before and after built the
@@ -1306,10 +1317,13 @@ there, the UI never waiting for them.
   rapidr-ui-app, rapidr-lang and rapidr-editor (all passed but
   `school_lock::the_test_file_never_replaces_the_computers`, which fails the
   same way on the build before this lane); `rapidr lang export --all
-  --check`, the i18n checks (Studio 1650/1650), the words and RapidQ-mention
+  --check`, the i18n checks (Studio 1663/1663), the words and RapidQ-mention
   checks; the example run, and built natively and run (its outline and "No
-  errors." from OnAnalyzed); Studio's flows on the web page (the editor,
-  outline, problems, palette and include cases: 143 checks, all passed).
+  errors." from OnAnalyzed); Studio's flows on the desktop (the editor,
+  outline, problems, palette, include, designer and debugging cases: 130
+  passed, `debug-commands-stepping` failing the same way on the build
+  before this lane) and on the web page (the editor, outline, problems,
+  palette and include cases: 143 checks, all passed).
 - Studio's goldens: 79 of 81 identical. `designer-pins@2x` (light, dark,
   high contrast) differs in the Outline's icons only: the Outline now fills
   when the analysis is in, after Studio's window is shown, so its icons get
@@ -1328,7 +1342,13 @@ measures, besides the whole process's CPU, the UI thread's CPU and its
 longest stretch for a caret move, an edit round, and an edit round in the
 program of 1,000 `$DEFINE`s, held to `tools/bench/ui_budgets.json`
 (`caret_move_ui_busy`, `edit_round_ui_busy`, `edit_round_defines_ui_busy`:
-16 ms each). An analysis back on the UI thread misses them.
+16 ms each). An analysis back on the UI thread misses them. The UI
+thread's CPU is taken in the scenario's run itself (each busy stretch's
+line carries the thread's CPU so far): the table's CPU column is the
+difference of two runs, which is mostly how differently Studio's start
+went in them (it came out below zero more than once); taken in the run, an
+edit round costs the UI thread 12 ms, with the 1,000 `$DEFINE`s too,
+spread over stretches of at most 4–5 ms.
 
 ### Left
 
@@ -1342,6 +1362,14 @@ program of 1,000 `$DEFINE`s, held to `tools/bench/ui_budgets.json`
   text and parse needs the preprocessor and the parser to work a file at a
   time (an include's text depends on the `$DEFINE`s before it, and the
   parser reads one preprocessed text): a lane of its own.
+- **The designer's own parse at a pause**: in a file with a form, a pause
+  that changed the text has the designer read the file again on the UI
+  thread (its parse of the whole file, about 10 ms in 5,000 lines, more in
+  a bigger form file). The worker's parse of the same text could be handed
+  to it, but the designer's text must stay in step with the code editor's
+  for the patches it writes (a control dragged in a split view right after
+  typing), so taking its read off the pause needs that guarded first: a
+  lane of its own, with the designer's tests.
 - **The web's steps**: the longest is the parse and names of the program;
   the preprocessor, the parser and the names as steps of their own would
   shorten what a key can wait for in a big program on the web.
