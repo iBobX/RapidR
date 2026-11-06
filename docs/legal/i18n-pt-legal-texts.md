@@ -2,7 +2,7 @@
 
 Lane I18N-PT, Preview 6, 2026-11-06. Brazilian Portuguese (pt-BR) is a beta: an AI translation (Claude), not reviewed by a native speaker or a lawyer yet. Studio's Settings > Language marks it "beta".
 
-What this is: every text that `ide/lang/es.po` and `crates/rapidr-value/lang/es.po` mark `# legal` (consent, permissions, cost and privacy notes, keys, age limits, School Lock, AI apps), 109 in all, in English and in Brazilian Portuguese. They are translated by meaning, row by row, dropping nothing, as the glossary asks ([docs/i18n/pt-glossary.md](../i18n/pt-glossary.md), 1.11). In the `.po` files the same texts carry `# legal` above them (`grep -B1 "^# legal" ide/lang/pt-BR.po`).
+What this is: every text that `ide/lang/es.po` and `crates/rapidr-value/lang/es.po` mark `# legal` (consent, permissions, cost and privacy notes, keys, age limits, School Lock, AI apps), 120 in all, in English and in Brazilian Portuguese. They are translated by meaning, row by row, dropping nothing, as the glossary asks ([docs/i18n/pt-glossary.md](../i18n/pt-glossary.md), 1.11). In the `.po` files the same texts carry `# legal` above them (`grep -B1 "^# legal" ide/lang/pt-BR.po`).
 
 What to check, text by text:
 
@@ -23,7 +23,7 @@ What to check, text by text:
 
 ---
 
-## Studio (`ide/lang/pt-BR.po`): 92 texts
+## Studio (`ide/lang/pt-BR.po`): 98 texts
 
 **1.** `ide/ai.inc`
 
@@ -37,8 +37,8 @@ What to check, text by text:
 
 **3.** `ide/ai.inc`
 
-- EN: RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat.
-- PT-BR: A RAI quer clicar e digitar no seu programa em execução: escolha Permitir nesta execução, ou Não permitir, no chat dela.
+- EN: RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat.
+- PT-BR: A RAI pede para executar o seu programa ou usá-lo: escolha Permitir nesta execução, ou Não permitir, no chat dela.
 
 **4.** `ide/ai.inc`
 
@@ -207,7 +207,7 @@ What to check, text by text:
 - EN: A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it.
 - PT-BR: Uma conta do GitHub. Os termos do GitHub pedem que você tenha 13 anos ou mais; um estudante mais novo pode pedir a um docente ou a um responsável que relate.
 
-**37.** `ide/crash.inc, ide/mcp.inc`
+**37.** `ide/crash.inc, ide/mcp.inc, ide/settings.inc`
 
 - EN: Keep in mind
 - PT-BR: Lembre-se
@@ -272,7 +272,7 @@ What to check, text by text:
 - EN: A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust.
 - PT-BR: Um programa que eles executam pode fazer neste computador tudo o que você pode, e o que clicarem nele é de verdade. Escolha isto apenas enquanto você observa um app de IA em que confia.
 
-**50.** `ide/mcp.inc`
+**50.** `ide/mcp.inc, ide/settings.inc`
 
 - EN: You still see
 - PT-BR: O que você continua vendo
@@ -344,152 +344,182 @@ What to check, text by text:
 
 **64.** `ide/mcp.inc`
 
+- EN: RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program.
+- PT-BR: A RAI trabalha sozinha para você, mas, para a pergunta de um app de IA, ela propõe alterações para você revisar e pergunta antes de executar o seu programa.
+
+**65.** `ide/mcp.inc`
+
 - EN: Let AI apps use RapidR Studio?
 - PT-BR: Permitir que apps de IA usem o RapidR Studio?
 
-**65.** `ide/mcp.inc`
+**66.** `ide/mcp.inc`
 
 - EN: With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane.
 - PT-BR: Com isto ativado, um app de IA neste computador que tenha o seu token pode trabalhar com o seu projeto aberto por meio do Studio, e você vê tudo o que ele faz no painel Apps de IA.
 
-**66.** `ide/mcp.inc`
+**67.** `ide/mcp.inc`
 
 - EN: AI apps that have the token can connect to RapidR Studio
 - PT-BR: Os apps de IA que têm o token podem se conectar ao RapidR Studio
 
-**67.** `ide/mcp.inc`
+**68.** `ide/mcp.inc`
 
 - EN: The list of what AI apps did is removed from this computer ({location}).
 - PT-BR: A lista do que os apps de IA fizeram é removida deste computador ({location}).
 
-**68.** `ide/schoollock.inc`
+**69.** `ide/schoollock.inc`
 
 - EN: RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this.
 - PT-BR: A RAI continua ativada, mas só dá dicas. Ela nunca escreve a resposta no código do estudante. Desmarque IA no Studio para escolher isto.
 
-**69.** `ide/schoollock.inc`
+**70.** `ide/schoollock.inc`
 
 - EN: RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer.
 - PT-BR: A RAI continua no modo Tutor, e os apps de IA não podem se conectar ao RapidR Studio neste computador.
 
-**70.** `ide/schoollock.inc`
+**71.** `ide/schoollock.inc`
 
 - EN: RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files.
 - PT-BR: A RAI continua no modo Tutor no RapidR Studio neste computador: ela dá dicas um passo de cada vez e não altera os arquivos do estudante.
 
-**71.** `ide/schoollock.inc`
+**72.** `ide/schoollock.inc`
 
 - EN: Features of RapidR Studio are turned off for everyone who uses this account on this computer, until someone types the password. Everything else keeps working.
 - PT-BR: Recursos do RapidR Studio ficam desativados para todos que usam esta conta neste computador, até alguém digitar a senha. Todo o resto continua funcionando.
 
-**72.** `ide/schoollock.inc`
+**73.** `ide/schoollock.inc`
 
 - EN: RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do.
 - PT-BR: O RapidR guarda neste computador apenas uma forma embaralhada da senha, sem volta, nunca a senha em si. Quem a souber pode desbloquear até o Studio fechar, então não a compartilhe. Esqueceu? A página do manual para docentes explica o que fazer.
 
-**73.** `ide/settings.inc`
+**74.** `ide/settings.inc`
 
 - EN: Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run.
 - PT-BR: Desativado por padrão. Ativado, o Studio mostra o painel Assistente de IA (Exibir > Assistente de IA, Ctrl+I): pergunte sobre o seu projeto ou peça um novo programa. Nada é enviado até você pressionar Enviar ali. Um novo programa que ele cria abre no Studio na hora (Desfazer o desfaz); as alterações nos seus arquivos são mostradas para você revisar, e nada é executado até você pressionar Executar.
 
-**74.** `ide/settings.inc`
+**75.** `ide/settings.inc`
 
 - EN: Paste the key the provider gave you; it is kept in your system's keychain, never in a project
 - PT-BR: Cole a chave que o provedor deu a você; ela fica no chaveiro do seu sistema, nunca em um projeto
 
-**75.** `ide/settings.inc`
+**76.** `ide/settings.inc`
 
 - EN: Kept in this browser's storage for the page: anyone using this browser profile could read it
 - PT-BR: Guardada no armazenamento deste navegador para a página: qualquer pessoa que usar este perfil do navegador poderia lê-la
 
-**76.** `ide/settings.inc`
+**77.** `ide/settings.inc`
+
+- EN: Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer.
+- PT-BR: Desativado, a escolha mais segura: um programa que a RAI ou um app de IA executa não pode chamar DLLs, SENDMESSAGE nem SHELL e RUN; o seu próprio Executar (F5) sempre pode. Ativado: os programas que eles executam podem fazer neste computador tudo o que as suas próprias execuções podem.
+
+**78.** `ide/settings.inc`
 
 - EN: Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer.
 - PT-BR: Enviar compartilha a sua mensagem, o chat até agora, as instruções do RapidR e o que o assistente lê do projeto aberto — nada fora dele, nada antes de você pressionar Enviar. Um registro de cada solicitação e alteração fica neste computador.
 
-**77.** `ide/settings.inc`
+**79.** `ide/settings.inc`
 
 - EN: the macOS Keychain
 - PT-BR: o Acesso às Chaves do macOS
 
-**78.** `ide/settings.inc`
+**80.** `ide/settings.inc`
 
 - EN: Windows Credential Manager
 - PT-BR: o Gerenciador de Credenciais do Windows
 
-**79.** `ide/settings.inc`
+**81.** `ide/settings.inc`
 
 - EN: the Secret Service (GNOME Keyring or KWallet)
 - PT-BR: o Secret Service (GNOME Keyring ou KWallet)
 
-**80.** `ide/settings.inc`
+**82.** `ide/settings.inc`
 
 - EN: this browser tab, until it closes
 - PT-BR: esta aba do navegador, até ela fechar
 
-**81.** `ide/settings.inc`
+**83.** `ide/settings.inc`
 
 - EN: this browser, on this device
 - PT-BR: este navegador, neste dispositivo
 
-**82.** `ide/settings.inc`
+**84.** `ide/settings.inc`
 
 - EN: memory, until the program ends (this computer has no keychain RapidR can use)
 - PT-BR: memória, até o programa terminar (este computador não tem um chaveiro que o RapidR possa usar)
 
-**83.** `ide/settings.inc`
+**85.** `ide/settings.inc`
 
 - EN: memory, for this session only
 - PT-BR: memória, só nesta sessão
 
-**84.** `ide/settings.inc`
+**86.** `ide/settings.inc`
 
 - EN: this program's memory, until it ends
 - PT-BR: a memória deste programa, até ele terminar
 
-**85.** `ide/settings.inc`
+**87.** `ide/settings.inc`
 
 - EN: an environment variable
 - PT-BR: uma variável de ambiente
 
-**86.** `ide/settings.inc`
+**88.** `ide/settings.inc`
 
 - EN: A local server needs no key (one is kept if you give it: some servers ask for one).
 - PT-BR: Um servidor local não precisa de chave (uma é guardada se você informar: alguns servidores pedem uma).
 
-**87.** `ide/settings.inc`
+**89.** `ide/settings.inc`
 
 - EN: Your key {hint} is kept in {store}, never in a project.
 - PT-BR: Sua chave {hint} fica guardada em {store}, nunca em um projeto.
 
-**88.** `ide/settings.inc`
+**90.** `ide/settings.inc`
 
 - EN: Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.
 - PT-BR: Cole sua chave e pressione Salvar chave: ela fica guardada em {store} (ou neste dispositivo, se você marcar a caixa), nunca em um projeto.
 
-**89.** `ide/settings.inc`
+**91.** `ide/settings.inc`
 
 - EN: Paste your key and press Save Key: it is kept in {store}, never in a project.
 - PT-BR: Cole sua chave e pressione Salvar chave: ela fica guardada em {store}, nunca em um projeto.
 
-**90.** `ide/shell.inc`
+**92.** `ide/settings.inc`
+
+- EN: Let the programs the AI runs use DLLs and SHELL?
+- PT-BR: Permitir que os programas que a IA executa usem DLLs e SHELL?
+
+**93.** `ide/settings.inc`
+
+- EN: Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run.
+- PT-BR: Desativado, um programa que a RAI ou um app de IA executa fica em ambiente isolado (sandbox): uma chamada de DLL (DECLARE ... LIB), SENDMESSAGE e SHELL ou RUN o interrompem com um erro que diz isso. Ativado, os programas que eles executam têm o mesmo poder que o seu próprio Executar.
+
+**94.** `ide/settings.inc`
+
+- EN: Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch.
+- PT-BR: Um programa assim pode então iniciar qualquer outro programa e chamar as bibliotecas do sistema: pode fazer neste computador tudo o que você pode. Escolha isto apenas para um projeto em que você confia, enquanto observa.
+
+**95.** `ide/settings.inc`
+
+- EN: Your own Run (F5) has this power whatever you choose here.
+- PT-BR: O seu próprio Executar (F5) tem esse poder, seja qual for a sua escolha aqui.
+
+**96.** `ide/shell.inc`
 
 - EN: Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence.
 - PT-BR: Copyright (c) 2025-2026 Ruta Internet SRL. Licença MIT.
 
-**91.** `ide/versions.inc`
+**97.** `ide/versions.inc`
 
 - EN: This line looks like a key or a password. Versions are often shared, and a secret saved in one stays in the timeline: take it out first, or save anyway if it isn't a real one.
 - EN (plural): These {n} lines look like keys or passwords. Versions are often shared, and a secret saved in one stays in the timeline: take them out first, or save anyway if they aren't real ones.
 - PT-BR [0]: Esta linha parece uma chave ou uma senha. As versões costumam ser compartilhadas, e um segredo salvo em uma fica na linha do tempo: retire-o antes, ou salve mesmo assim se não for um segredo de verdade.
 - PT-BR [1]: Estas {n} linhas parecem chaves ou senhas. As versões costumam ser compartilhadas, e um segredo salvo em uma fica na linha do tempo: retire-os antes, ou salve mesmo assim se não forem segredos de verdade.
 
-**92.** `ide/versions.inc`
+**98.** `ide/versions.inc`
 
 - EN: Not saved: lines look like keys or passwords. The dialog lists them.
 - PT-BR: Não salvo: há linhas que parecem chaves ou senhas. A caixa de diálogo as lista.
 
-## RapidR's own text (`crates/rapidr-value/lang/pt-BR.po`): 17 texts
+## RapidR's own text (`crates/rapidr-value/lang/pt-BR.po`): 22 texts
 
 **1.** `crates/rapidr-ai/src/rai.rs`
 
@@ -558,20 +588,45 @@ What to check, text by text:
 
 **14.** `crates/rapidr-studio/src/ai.rs`
 
+- EN: RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data.
+- PT-BR: A RAI quer executar o seu programa e depois observá-lo, clicar e digitar nele. O programa pode fazer neste computador tudo o que você pode, e a RAI vê tudo o que ele mostra, inclusive dados privados.
+
+**15.** `crates/rapidr-studio/src/ai.rs`
+
+- EN: RAI wants to stop your running program.
+- PT-BR: A RAI quer parar o seu programa em execução.
+
+**16.** `crates/rapidr-studio/src/ai.rs`
+
 - EN: RAI wants to click and type in your running program. It sees whatever the program shows, including private data.
 - PT-BR: A RAI quer clicar e digitar no seu programa em execução. Ela vê tudo o que o programa mostra, inclusive dados privados.
 
-**15.** `crates/rapidr-studio/src/ai.rs`
+**17.** `crates/rapidr-studio/src/ai.rs`
+
+- EN: You allowed RAI to run and use your program for this run
+- PT-BR: Você permitiu que a RAI execute e use o seu programa nesta execução
+
+**18.** `crates/rapidr-studio/src/ai.rs`
 
 - EN: You allowed RAI to use your running program for this run
 - PT-BR: Você permitiu que a RAI use o seu programa em execução nesta execução
 
-**16.** `crates/rapidr-studio/src/ai.rs`
+**19.** `crates/rapidr-studio/src/ai.rs`
+
+- EN: You didn't allow RAI to run your program
+- PT-BR: Você não permitiu que a RAI execute o seu programa
+
+**20.** `crates/rapidr-studio/src/ai.rs`
+
+- EN: You didn't allow RAI to stop your program
+- PT-BR: Você não permitiu que a RAI pare o seu programa
+
+**21.** `crates/rapidr-studio/src/ai.rs`
 
 - EN: You didn't allow RAI to use your running program
 - PT-BR: Você não permitiu que a RAI use o seu programa em execução
 
-**17.** `crates/rapidr-studio/src/notes.rs`
+**22.** `crates/rapidr-studio/src/notes.rs`
 
 - EN: {name}: you didn't allow it
 - PT-BR: {name}: você não permitiu

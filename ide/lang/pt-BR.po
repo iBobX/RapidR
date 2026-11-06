@@ -544,10 +544,14 @@ msgstr "Desfeito: as últimas alterações do assistente foram revertidas em {n}
 msgid "Not edited: the chat is as it was."
 msgstr "Não editado: o chat continua como estava."
 
+#: ide/ai.inc
+msgid "some changes weren't applied"
+msgstr "algumas alterações não foram aplicadas"
+
 # legal
 #: ide/ai.inc
-msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
-msgstr "A RAI quer clicar e digitar no seu programa em execução: escolha Permitir nesta execução, ou Não permitir, no chat dela."
+msgid "RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat."
+msgstr "A RAI pede para executar o seu programa ou usá-lo: escolha Permitir nesta execução, ou Não permitir, no chat dela."
 
 #: ide/ai.inc
 msgid "Waiting for you — {status}"
@@ -2391,6 +2395,10 @@ msgid "Add &File..."
 msgstr "&Adicionar arquivo..."
 
 #: ide/commands.inc
+msgid "Add Fol&der..."
+msgstr "Adicionar &pasta..."
+
+#: ide/commands.inc
 msgid "Add F&orm"
 msgstr "Adicionar &formulário"
 
@@ -2848,7 +2856,7 @@ msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger s
 msgstr "Uma conta do GitHub. Os termos do GitHub pedem que você tenha 13 anos ou mais; um estudante mais novo pode pedir a um docente ou a um responsável que relate."
 
 # legal
-#: ide/crash.inc ide/mcp.inc
+#: ide/crash.inc ide/mcp.inc ide/settings.inc
 msgid "Keep in mind"
 msgstr "Lembre-se"
 
@@ -3821,7 +3829,7 @@ msgid "A program they run can do anything you can on this computer, and what the
 msgstr "Um programa que eles executam pode fazer neste computador tudo o que você pode, e o que clicarem nele é de verdade. Escolha isto apenas enquanto você observa um app de IA em que confia."
 
 # legal
-#: ide/mcp.inc
+#: ide/mcp.inc ide/settings.inc
 msgid "You still see"
 msgstr "O que você continua vendo"
 
@@ -3845,7 +3853,7 @@ msgstr "As ferramentas do próprio Studio nunca entregam suas chaves, nem arquiv
 msgid "AI apps change and run anything in this project without asking"
 msgstr "Apps de IA alteram e executam qualquer coisa neste projeto sem perguntar"
 
-#: ide/mcp.inc
+#: ide/mcp.inc ide/settings.inc
 msgid "The permission stays as it was"
 msgstr "A permissão continua como estava"
 
@@ -4100,29 +4108,22 @@ msgstr "{client} quer observar ou usar o seu programa em execução: {what}. Per
 msgid "{client} wants to ask RAI: {prompt}"
 msgstr "{client} quer perguntar à RAI: {prompt}"
 
+# legal
+#: ide/mcp.inc
+msgid "RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program."
+msgstr "A RAI trabalha sozinha para você, mas, para a pergunta de um app de IA, ela propõe alterações para você revisar e pergunta antes de executar o seu programa."
+
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
 msgstr "{question} (mais {n} esperando)"
 
 #: ide/mcp.inc
-msgid "Program status"
-msgstr "Status do programa"
+msgid "The program started and ended after {seconds} s (exit code {code}), with no output"
+msgstr "O programa iniciou e terminou após {seconds} s (código de saída {code}), sem saída"
 
 #: ide/mcp.inc
-msgid "Stopped the program"
-msgstr "Programa parado"
-
-#: ide/mcp.inc
-msgid "Running the program"
-msgstr "Executando o programa"
-
-#: ide/mcp.inc
-msgid "Debugger state"
-msgstr "Estado do depurador"
-
-#: ide/mcp.inc
-msgid "Debugger: {action}"
-msgstr "Depurador: {action}"
+msgid "The program started and ended after {seconds} s (exit code {code})"
+msgstr "O programa iniciou e terminou após {seconds} s (código de saída {code})"
 
 #: ide/mcp.inc
 msgid "A picture of Studio"
@@ -4630,6 +4631,14 @@ msgid "A three-voice square-wave music player"
 msgstr "Um player de música de onda quadrada com três vozes"
 
 #: ide/panes.inc
+msgid "Everything a MIDI device sends, in hex and in words"
+msgstr "Tudo o que um dispositivo MIDI envia, em hexadecimal e em palavras"
+
+#: ide/panes.inc
+msgid "SysEx with a synthesizer: ask who it is, send a message"
+msgstr "SysEx com um sintetizador: pergunte quem ele é, envie uma mensagem"
+
+#: ide/panes.inc
 msgid "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
 msgstr "Um registro para selecionar e copiar: Ctrl+C, Copiar linha, Copiar tudo"
 
@@ -4778,6 +4787,10 @@ msgstr "Não foi possível abrir {file}"
 #: ide/project.inc
 msgid "Can't open {file}: {error}"
 msgstr "Não foi possível abrir {file}: {error}"
+
+#: ide/project.inc
+msgid "Some of this project's settings name places outside its folder: Output says which"
+msgstr "Algumas configurações deste projeto apontam para lugares fora da pasta dele: a Saída diz quais"
 
 #: ide/project.inc
 msgid "The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties."
@@ -5794,6 +5807,15 @@ msgid "On: a new program is shown to you first and created when you press Create
 msgstr "Ativado: um novo programa é mostrado primeiro e criado quando você pressiona Criar. Desativado: um novo programa abre no Studio na hora, com Executar e Desfazer."
 
 #: ide/settings.inc
+msgid "Programs the AI runs may use &DLLs and SHELL"
+msgstr "Programas que a IA executa podem usar &DLLs e SHELL"
+
+# legal
+#: ide/settings.inc
+msgid "Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer."
+msgstr "Desativado, a escolha mais segura: um programa que a RAI ou um app de IA executa não pode chamar DLLs, SENDMESSAGE nem SHELL e RUN; o seu próprio Executar (F5) sempre pode. Ativado: os programas que eles executam podem fazer neste computador tudo o que as suas próprias execuções podem."
+
+#: ide/settings.inc
 msgid "The provider's links"
 msgstr "Os links do provedor"
 
@@ -5848,6 +5870,10 @@ msgstr "Ler o projeto e propor alterações que você revisa"
 #: ide/settings.inc
 msgid "Only read the project and answer"
 msgstr "Apenas ler o projeto e responder"
+
+#: ide/settings.inc
+msgid "Work on its own: change files, run and test (you can undo every step)"
+msgstr "Trabalhar sozinha: alterar arquivos, executar e testar (você pode desfazer cada passo)"
 
 #: ide/settings.inc
 msgid "Studio's language"
@@ -5975,6 +6001,66 @@ msgstr "{status} Escolha um na lista Modelo (os rápidos e baratos vêm primeiro
 msgid "{status} {model} is still chosen."
 msgstr "{status} {model} continua escolhido."
 
+#: ide/settings.inc
+msgid "Let RAI work on its own?"
+msgstr "Deixar a RAI trabalhar sozinha?"
+
+#: ide/settings.inc
+msgid "Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did."
+msgstr "Nada espera por você: a RAI altera os arquivos do projeto, executa o programa, o observa, clica e digita nele para testá-lo por conta própria, e depois relata o que fez."
+
+#: ide/settings.inc
+msgid "A program RAI runs can do anything you can on this computer, what it clicks in it is real (Send, Pay, Delete), it sees whatever the program shows, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of, with test data."
+msgstr "Um programa que a RAI executa pode fazer neste computador tudo o que você pode, o que ela clica nele é de verdade (Enviar, Pagar, Excluir), ela vê tudo o que o programa mostra, e as alterações dela são aplicadas sem a sua revisão. Pode custar dinheiro com um modelo pago. Escolha isto apenas enquanto você observa, em um projeto que tenha Versões, com dados de teste."
+
+#: ide/settings.inc
+msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run and RAI's answer."
+msgstr "Cada passo no chat da RAI; Desfazer e Versões revertem qualquer alteração; Parar encerra uma execução e a resposta da RAI."
+
+#: ide/settings.inc
+msgid "RAI never sees your keys, or files outside the project."
+msgstr "A RAI nunca vê as suas chaves, nem arquivos fora do projeto."
+
+#: ide/settings.inc
+msgid "RAI changes and runs the project without asking"
+msgstr "A RAI altera e executa o projeto sem perguntar"
+
+#: ide/settings.inc
+msgid "&Let RAI Work on Its Own"
+msgstr "&Deixar a RAI trabalhar sozinha"
+
+# legal
+#: ide/settings.inc
+msgid "Let the programs the AI runs use DLLs and SHELL?"
+msgstr "Permitir que os programas que a IA executa usem DLLs e SHELL?"
+
+# legal
+#: ide/settings.inc
+msgid "Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run."
+msgstr "Desativado, um programa que a RAI ou um app de IA executa fica em ambiente isolado (sandbox): uma chamada de DLL (DECLARE ... LIB), SENDMESSAGE e SHELL ou RUN o interrompem com um erro que diz isso. Ativado, os programas que eles executam têm o mesmo poder que o seu próprio Executar."
+
+# legal
+#: ide/settings.inc
+msgid "Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch."
+msgstr "Um programa assim pode então iniciar qualquer outro programa e chamar as bibliotecas do sistema: pode fazer neste computador tudo o que você pode. Escolha isto apenas para um projeto em que você confia, enquanto observa."
+
+# legal
+#: ide/settings.inc
+msgid "Your own Run (F5) has this power whatever you choose here."
+msgstr "O seu próprio Executar (F5) tem esse poder, seja qual for a sua escolha aqui."
+
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run may call DLLs and start other programs"
+msgstr "Os programas que a RAI e os apps de IA executam podem chamar DLLs e iniciar outros programas"
+
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run stay sandboxed"
+msgstr "Os programas que a RAI e os apps de IA executam continuam em ambiente isolado (sandbox)"
+
+#: ide/settings.inc
+msgid "&Allow Full Power"
+msgstr "&Permitir poder total"
+
 #: ide/shell.inc
 msgid "RapidR Studio (RapidR {version})"
 msgstr "RapidR Studio (RapidR {version})"
@@ -6001,6 +6087,48 @@ msgid "Add a File to the Project"
 msgstr "Adicionar um arquivo ao projeto"
 
 #: ide/shell.inc
+msgid "Nothing was added: adding makes this program a project, and its project file {file} is there already. Open that project (File > Open Project or File...), then add the files to it."
+msgstr "Nada foi adicionado: adicionar transforma este programa em um projeto, e o arquivo de projeto dele, {file}, já existe. Abra esse projeto (Arquivo > Abrir projeto ou arquivo...) e adicione os arquivos a ele."
+
+#: ide/shell.inc
+msgid "Nothing was added: {file} is there already"
+msgstr "Nada foi adicionado: {file} já existe"
+
+#: ide/shell.inc
+msgid "Add a Folder to the Project"
+msgstr "Adicionar uma pasta ao projeto"
+
+#: ide/shell.inc
+msgid "Added {n} files from {folder} to the project"
+msgstr "{n} arquivos de {folder} adicionados ao projeto"
+
+#: ide/shell.inc
+msgid "{n} were in the project already or couldn't be added"
+msgstr "{n} já estavam no projeto ou não puderam ser adicionados"
+
+#: ide/shell.inc
+msgid "{n} more file was left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgid_plural "{n} more files were left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgstr[0] "mais {n} arquivo ficou de fora: Adicionar pasta adiciona no máximo 500 de cada vez (adicione depois uma pasta dentro dela)"
+msgstr[1] "mais {n} arquivos ficaram de fora: Adicionar pasta adiciona no máximo 500 de cada vez (adicione depois uma pasta dentro dela)"
+
+#: ide/shell.inc
+msgid "{n} folder inside it wasn't looked in: too many at once (add it on its own)"
+msgid_plural "{n} folders inside it weren't looked in: too many at once (add them one by one)"
+msgstr[0] "{n} pasta dentro dela não foi examinada: pastas demais de uma vez (adicione-a sozinha)"
+msgstr[1] "{n} pastas dentro dela não foram examinadas: pastas demais de uma vez (adicione-as uma a uma)"
+
+#: ide/shell.inc
+msgid "{n} link was skipped: Add Folder doesn't follow links"
+msgid_plural "{n} links were skipped: Add Folder doesn't follow links"
+msgstr[0] "{n} link foi ignorado: Adicionar pasta não segue links"
+msgstr[1] "{n} links foram ignorados: Adicionar pasta não segue links"
+
+#: ide/shell.inc
+msgid "Not everything was added: the Output says what was left out"
+msgstr "Nem tudo foi adicionado: a Saída diz o que ficou de fora"
+
+#: ide/shell.inc
 msgid "No splitter to move"
 msgstr "Nenhum divisor para mover"
 
@@ -6011,6 +6139,22 @@ msgstr "({id}: ainda não existe)"
 #: ide/shell.inc
 msgid "RapidR Studio is ready."
 msgstr "O RapidR Studio está pronto."
+
+#: ide/tools.inc ide/versions.inc
+msgid "This project keeps versions now: {folder}"
+msgstr "Este projeto agora guarda versões: {folder}"
+
+#: ide/tools.inc
+msgid "RAI saved the version “{message}” ({id})"
+msgstr "A RAI salvou a versão “{message}” ({id})"
+
+#: ide/tools.inc
+msgid "An AI app saved the version “{message}” ({id})"
+msgstr "Um app de IA salvou a versão “{message}” ({id})"
+
+#: ide/tools.inc
+msgid "Went back to version {version}: a new version ({id}). Undo in Versions takes it back."
+msgstr "Voltou à versão {version}: uma nova versão ({id}). Desfazer em Versões reverte."
 
 #: ide/versions.inc
 msgid "&Start Keeping Versions of This Project"
@@ -6195,6 +6339,14 @@ msgstr[0] "há {n} dia"
 msgstr[1] "há {n} dias"
 
 #: ide/versions.inc
+msgid "Versions are off for this project: {why}"
+msgstr "As versões estão desativadas neste projeto: {why}"
+
+#: ide/versions.inc
+msgid "Versions are off for this project"
+msgstr "As versões estão desativadas neste projeto"
+
+#: ide/versions.inc
 msgid "AI checkpoint: {what}, {when}"
 msgstr "Checkpoint da IA: {what}, {when}"
 
@@ -6271,6 +6423,10 @@ msgstr "As versões precisam do RapidR Studio no seu computador: um navegador ai
 #: ide/versions.inc
 msgid "Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them."
 msgstr "O Studio ainda guarda uma cópia de cada arquivo toda vez que você o salva, neste navegador. O Histórico local mostra essas cópias."
+
+#: ide/versions.inc
+msgid "Studio still keeps a copy of each file every time you save it. Local History shows them."
+msgstr "O Studio ainda guarda uma cópia de cada arquivo toda vez que você o salva. O Histórico local mostra essas cópias."
 
 #: ide/versions.inc
 msgid "No versions yet"
@@ -6365,10 +6521,6 @@ msgstr "As versões não começaram: {why}"
 #: ide/versions.inc
 msgid "Versions didn't start"
 msgstr "As versões não começaram"
-
-#: ide/versions.inc
-msgid "This project keeps versions now: {folder}"
-msgstr "Este projeto agora guarda versões: {folder}"
 
 #: ide/versions.inc
 msgid "Versions started: save your first version"

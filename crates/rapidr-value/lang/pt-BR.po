@@ -1048,6 +1048,10 @@ msgid "the label"
 msgstr "o rótulo"
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI's change to {path} wasn't applied: {why}. It waits for your review."
+msgstr "A alteração da RAI em {path} não foi aplicada: {why}. Ela espera a sua revisão."
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} proposed before was set aside: {path} changed since."
 msgstr "A alteração em {path} proposta antes foi deixada de lado: {path} mudou depois."
 
@@ -1102,6 +1106,10 @@ msgstr "O assistente propôs alterações em {files} arquivos: revise-as."
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant proposed changes to {files} files that don't compile yet: review them, or ask it to fix the errors."
 msgstr "O assistente propôs alterações em {files} arquivos que ainda não compilam: revise-as, ou peça que ele corrija os erros."
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI applied its change to {path} (working on its own)."
+msgstr "A RAI aplicou a alteração dela em {path} (trabalhando sozinha)."
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "You applied the change to {path}."
@@ -1177,8 +1185,30 @@ msgstr "{n} erros corrigidos"
 
 # legal
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data."
+msgstr "A RAI quer executar o seu programa e depois observá-lo, clicar e digitar nele. O programa pode fazer neste computador tudo o que você pode, e a RAI vê tudo o que ele mostra, inclusive dados privados."
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to stop your running program."
+msgstr "A RAI quer parar o seu programa em execução."
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to bring your project back to an earlier version: your files become as they were then, saved as a new version. Nothing is lost, and Undo in Versions takes it back."
+msgstr "A RAI quer voltar o seu projeto a uma versão anterior: seus arquivos voltam a ser como eram, salvos como uma nova versão. Nada se perde, e Desfazer em Versões reverte."
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to start Versions in this project, so it can save versions of your work as it goes."
+msgstr "A RAI quer começar a guardar versões neste projeto, para poder salvar versões do seu trabalho enquanto avança."
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
 msgid "RAI wants to click and type in your running program. It sees whatever the program shows, including private data."
 msgstr "A RAI quer clicar e digitar no seu programa em execução. Ela vê tudo o que o programa mostra, inclusive dados privados."
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Allow"
+msgstr "Permitir"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Allow for this run"
@@ -1190,8 +1220,35 @@ msgstr "Não permitir"
 
 # legal
 #: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to run and use your program for this run"
+msgstr "Você permitiu que a RAI execute e use o seu programa nesta execução"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to bring the project back to an earlier version"
+msgstr "Você permitiu que a RAI volte o projeto a uma versão anterior"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to start Versions"
+msgstr "Você permitiu que a RAI comece a guardar versões"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
 msgid "You allowed RAI to use your running program for this run"
 msgstr "Você permitiu que a RAI use o seu programa em execução nesta execução"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to change the versions"
+msgstr "Você não permitiu que a RAI altere as versões"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to run your program"
+msgstr "Você não permitiu que a RAI execute o seu programa"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to stop your program"
+msgstr "Você não permitiu que a RAI pare o seu programa"
 
 # legal
 #: crates/rapidr-studio/src/ai.rs
@@ -1295,12 +1352,76 @@ msgid "Laying out the buttons"
 msgstr "Organizando os botões"
 
 #: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the open documents"
+msgstr "Listando os documentos abertos"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading the forms' layout"
+msgstr "Lendo o layout dos formulários"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Setting a property"
+msgstr "Definindo uma propriedade"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Setting a property of {name}"
+msgstr "Definindo uma propriedade de {name}"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Using the debugger"
+msgstr "Usando o depurador"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the versions"
+msgstr "Listando as versões"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Comparing versions"
+msgstr "Comparando versões"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Going back to a version"
+msgstr "Voltando a uma versão"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Starting Versions"
+msgstr "Iniciando as versões"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking up how to do it"
+msgstr "Procurando como fazer"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Noting what's missing"
+msgstr "Anotando o que está faltando"
+
+#: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading the running program's layout"
 msgstr "Lendo o layout do programa em execução"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Looking at the running program"
 msgstr "Olhando o programa em execução"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Saving a version"
+msgstr "Salvando uma versão"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Saving the version “{message}”"
+msgstr "Salvando a versão “{message}”"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Stopping your program"
+msgstr "Parando o seu programa"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking at your program's output"
+msgstr "Olhando a saída do seu programa"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Running your program"
+msgstr "Executando o seu programa"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Letting the running program work"
@@ -1864,6 +1985,26 @@ msgid "{path}: not a project or a source file"
 msgstr "{path}: não é um projeto nem um arquivo-fonte"
 
 #: crates/rapidr-studio/src/project.rs
+msgid "the main file ({value})"
+msgstr "o arquivo principal ({value})"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the app's icon ({value})"
+msgstr "o ícone do app ({value})"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "Build's output folder ({value})"
+msgstr "a pasta de saída da compilação ({value})"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "This project's settings name places outside its folder, so RapidR doesn't use them: {list}. A project from someone else could use them to read or write your other files. If you chose them yourself, set them again and save the project."
+msgstr "As configurações deste projeto apontam para lugares fora da pasta dele, então o RapidR não as usa: {list}. Um projeto de outra pessoa poderia usá-las para ler ou escrever nos seus outros arquivos. Se você mesmo as escolheu, defina-as de novo e salve o projeto."
+
+#: crates/rapidr-studio/src/project.rs
+msgid "The arguments Run gives the program name places outside the project's folder: {args}."
+msgstr "Os argumentos que Executar passa ao programa apontam para lugares fora da pasta do projeto: {args}."
+
+#: crates/rapidr-studio/src/project.rs
 msgid "no project is open"
 msgstr "nenhum projeto está aberto"
 
@@ -1962,6 +2103,22 @@ msgstr "Voltou a “{message}” ({id})"
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to {what}"
 msgstr "Voltou a {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there."
+msgstr "O histórico de versões deste projeto aponta para fora da pasta dele, então as Versões não o usarão: ele poderia ler ou alterar arquivos que não fazem parte do projeto. Se o projeto veio de outra pessoa, copie os arquivos dele, sem a pasta oculta .git, para uma nova pasta e comece a guardar versões lá."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer."
+msgstr "As versões daquela pasta compartilhada apontam para fora dela, então as Versões não a usarão: ela poderia ler ou alterar outros arquivos neste computador."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again."
+msgstr "O .gitignore do projeto é um link para outro arquivo, então as Versões não o escreverão. Substitua-o por um arquivo próprio e comece a guardar versões de novo."
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This version has a link, {file}, that points outside the project's folder ({target}), so Versions won't write it. Nothing was changed."
+msgstr "Esta versão tem um link, {file}, que aponta para fora da pasta do projeto ({target}), então as Versões não o escreverão. Nada foi alterado."
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project)."
@@ -3443,6 +3600,30 @@ msgstr "linha {n} removida"
 msgid "lines {from}–{to} removed"
 msgstr "linhas {from}–{to} removidas"
 
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "Continue"
+msgstr "Continuar"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "Not now"
+msgstr "Agora não"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "SysEx messages"
+msgstr "Mensagens SysEx"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "This program also wants to send and receive \"system exclusive\" (SysEx) messages. These can change settings stored inside a MIDI device and, on some devices, even replace its firmware. Allow it only for programs you trust."
+msgstr "Este programa também quer enviar e receber mensagens “system exclusive” (SysEx). Elas podem alterar configurações guardadas dentro de um dispositivo MIDI e, em alguns dispositivos, até substituir o firmware dele. Permita apenas para programas em que você confia."
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "MIDI devices"
+msgstr "Dispositivos MIDI"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "This program wants to use your MIDI devices (keyboards, controllers, synthesizers). Your browser will ask you to allow it. RapidR does not send the list of your devices anywhere."
+msgstr "Este programa quer usar os seus dispositivos MIDI (teclados, controladores, sintetizadores). O seu navegador vai pedir que você permita. O RapidR não envia a lista dos seus dispositivos a lugar nenhum."
+
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
 msgstr "Compilação"
@@ -3666,6 +3847,14 @@ msgstr "Clique ou clique duplo: um novo arquivo de janela principal MDI do progr
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Division by zero"
 msgstr "Divisão por zero"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{name}: bits {from} to {to} are outside the value's {width} bits"
+msgstr "{name}: os bits {from} a {to} estão fora dos {width} bits do valor"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
+msgstr "WriteInteger guarda 32 bits (um REG_DWORD): {n} não cabe — WriteString(name, STR$(n)) o guarda inteiro"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"
