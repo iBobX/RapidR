@@ -303,7 +303,12 @@ fn chain() -> Rc<Vec<Catalog>> {
 /// themselves (the toolbox's "Search components", a message box's "OK"),
 /// compiled in (`lang/<language>.po`; the template is `lang/runtime.pot`,
 /// `rapidr i18n runtime` writes it from every [`tr_ui`] in the sources).
-const RUNTIME_CATALOGS: &[(&str, &str)] = &[("es", include_str!("../lang/es.po"))];
+const RUNTIME_CATALOGS: &[(&str, &str)] = &[
+    ("es", include_str!("../lang/es.po")),
+    // (Preview 6, beta: an AI translation — lane I18N-PT / I18N-ZH)
+    ("pt-BR", include_str!("../lang/pt-BR.po")),
+    ("zh-Hans", include_str!("../lang/zh-Hans.po")),
+];
 
 thread_local! {
     static RUNTIME: RefCell<Vec<(String, Rc<Catalog>)>> = const { RefCell::new(Vec::new()) };
@@ -593,6 +598,25 @@ mod tests {
         assert_ne!(tr_ui("OK"), "OK");
         assert_eq!(tr_ui_fill("Remove {name} from the project?", &[("name", "a.rr")]).contains("a.rr"), true);
         assert_eq!(tr_ui("Nothing anyone wrote"), "Nothing anyone wrote");
+    }
+
+    /// Preview 6 (lane I18N-PT): a language's catalog file that is not listed
+    /// in RUNTIME_CATALOGS is never compiled in; the file names are the tags
+    /// the catalogs are asked for (`pt-BR.po`, `zh-Hans.po`).
+    #[test]
+    fn every_catalog_file_is_compiled_in() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("lang");
+        let mut files: Vec<String> = std::fs::read_dir(dir).unwrap().flatten().filter_map(|e| e.file_name().to_string_lossy().strip_suffix(".po").map(String::from)).filter(|t| t != "xx").collect();
+        files.sort();
+        let mut tags: Vec<String> = runtime_languages().iter().map(|s| s.to_string()).collect();
+        tags.sort();
+        assert_eq!(files, tags);
+        assert!(tags.iter().any(|t| t == "pt-BR") && tags.iter().any(|t| t == "zh-Hans"));
+        // (the system's pt, pt_BR, zh_CN … find them)
+        for (asked, found) in [("pt", "pt-BR"), ("pt_BR", "pt-BR"), ("pt-PT", "pt-BR"), ("zh_CN", "zh-Hans"), ("zh", "zh-Hans"), ("zh-Hans-CN", "zh-Hans")] {
+            assert!(fallback_chain(asked).iter().any(|t| t == found), "{asked}");
+            assert!(fallback_chain(asked).iter().any(|t| runtime_catalog_text(t).is_some()), "{asked}");
+        }
     }
 
     #[test]

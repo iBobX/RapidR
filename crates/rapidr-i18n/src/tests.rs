@@ -135,8 +135,37 @@ msgstr ""
         assert_eq!(fallback_chain("zh-Hans-CN"), ["zh-Hans-CN", "zh-Hans", "zh"]);
         assert_eq!(fallback_chain("zh_CN"), ["zh-CN", "zh-Hans", "zh"]);
         assert_eq!(fallback_chain("zh-TW"), ["zh-TW", "zh-Hant", "zh"]);
-        assert_eq!(fallback_chain("pt"), ["pt"]);
         assert!(fallback_chain("").is_empty());
+    }
+
+    /// Preview 6's two new languages (lane I18N-PT): RapidR's Portuguese is
+    /// Brazil's (`pt-BR.po`) and its Chinese is Simplified (`zh-Hans.po`),
+    /// whichever way the system names them.
+    #[test]
+    fn portuguese_is_brazil_s_and_chinese_is_simplified() {
+        // pt_BR, pt, pt-PT → pt-BR
+        assert_eq!(fallback_chain("pt_BR.UTF-8"), ["pt-BR", "pt"]);
+        assert_eq!(fallback_chain("pt"), ["pt", "pt-BR"]);
+        assert_eq!(fallback_chain("pt-PT"), ["pt-PT", "pt", "pt-BR"]);
+        // zh_CN, zh_Hans, zh-Hans-CN, zh → zh-Hans
+        assert_eq!(fallback_chain("zh_CN"), ["zh-CN", "zh-Hans", "zh"]);
+        assert_eq!(fallback_chain("zh_Hans"), ["zh-Hans", "zh"]);
+        assert_eq!(fallback_chain("zh-Hans-CN"), ["zh-Hans-CN", "zh-Hans", "zh"]);
+        assert_eq!(fallback_chain("zh"), ["zh", "zh-Hans"]);
+        // Traditional Chinese does not fall to Simplified
+        assert_eq!(fallback_chain("zh-Hant"), ["zh-Hant", "zh"]);
+        assert!(!fallback_chain("zh-HK").contains(&"zh-Hans".to_string()));
+        // each language's own name, in its own words
+        assert_eq!(tags::native_name("pt_BR"), "Português (Brasil)");
+        assert_eq!(tags::native_name("zh-Hans"), "中文（简体）");
+        // plural rules the catalogs' headers carry
+        assert_eq!(tags::plural_forms("es"), "nplurals=2; plural=(n != 1);");
+        assert_eq!(tags::plural_forms("pt-BR"), "nplurals=2; plural=(n > 1);");
+        assert_eq!(tags::plural_forms("zh-Hans"), "nplurals=1; plural=0;");
+        let pt = Plural::parse(tags::plural_forms("pt-BR")).unwrap();
+        assert_eq!((pt.index(0), pt.index(1), pt.index(2)), (0, 0, 1));
+        let zh = Plural::parse(tags::plural_forms("zh-Hans")).unwrap();
+        assert_eq!((zh.index(0), zh.index(1), zh.index(9)), (0, 0, 0));
     }
 
     #[test]

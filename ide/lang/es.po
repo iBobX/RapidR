@@ -5876,6 +5876,10 @@ msgid "System default"
 msgstr "Predeterminado del sistema"
 
 #: ide/settings.inc
+msgid "beta"
+msgstr "beta"
+
+#: ide/settings.inc
 msgid "Read the project, propose changes you review"
 msgstr "Leer el proyecto y proponer cambios que revisas"
 

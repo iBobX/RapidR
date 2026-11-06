@@ -99,3 +99,31 @@ fn translations_keep_their_markers_and_menus_their_keys() {
         }
     }
 }
+
+/// A language is whole or not there: Studio's, the runtime's and the
+/// compiler's catalogs name the same languages (Preview 6: es, pt-BR,
+/// zh-Hans), each tag as `normalize_tag` writes it, and the catalog's own
+/// header says the language it is and a plural rule that parses.
+#[test]
+fn every_language_has_its_three_catalogs() {
+    let tags = |dir: &str| -> Vec<String> {
+        let mut t: Vec<String> = fs::read_dir(root().join(dir)).unwrap().flatten().filter_map(|e| e.file_name().to_string_lossy().strip_suffix(".po").map(String::from)).filter(|t| t != "xx").collect();
+        t.sort();
+        t
+    };
+    let studio = tags("ide/lang");
+    assert!(studio.len() >= 3, "{studio:?}");
+    assert_eq!(studio, tags("crates/rapidr-value/lang"), "Studio's and the runtime's languages");
+    assert_eq!(studio, tags("crates/rapidr-diagnostics/lang"), "Studio's and the compiler's languages");
+    for dir in ["ide/lang", "crates/rapidr-value/lang", "crates/rapidr-diagnostics/lang"] {
+        for tag in &studio {
+            assert_eq!(&rapidr_i18n::normalize_tag(tag), tag, "{dir}/{tag}.po: the file name is the tag as RapidR writes it");
+            let messages = po::read_messages(&fs::read_to_string(root().join(dir).join(format!("{tag}.po"))).unwrap());
+            let head = messages.iter().find(|m| m.is_header()).unwrap_or_else(|| panic!("{dir}/{tag}.po has no header"));
+            assert_eq!(po::header_value(head, "language").as_deref(), Some(tag.as_str()), "{dir}/{tag}.po: Language");
+            let rule = po::header_value(head, "plural-forms").unwrap_or_else(|| panic!("{dir}/{tag}.po: no Plural-Forms"));
+            assert_eq!(rule.trim(), rapidr_i18n::tags::plural_forms(tag), "{dir}/{tag}.po: the language's plural rule");
+            assert!(po::Plural::parse(&rule).is_some(), "{dir}/{tag}.po: {rule}");
+        }
+    }
+}

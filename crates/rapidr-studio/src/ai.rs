@@ -579,10 +579,15 @@ fn same_text(a: &str, b: &str) -> bool {
 /// are added as a row. English has none: its words are the instructions'.
 /// The prompt stays English (it goes to the model); what it carries is the
 /// target words, `English=Spanish`, and how to address the person.
-const WORDS: &[(&str, &str)] = &[(
-    "Spanish",
-    "Studio is in Spanish. Say its words and RapidR's terms as Studio does, menu paths too (Herramientas > Configuración): build=compilar, app=aplicación, array=arreglo, event handler=controlador de eventos, add=añadir, library=biblioteca, form=formulario, component=componente, property=propiedad, event=evento, method=método, project=proyecto, Toolbox=Caja de herramientas, Properties=Propiedades, Outline=Estructura, Problems=Problemas, Output=Salida, Run=Ejecutar, Debug=Depurar, Settings=Configuración, file=archivo, folder=carpeta, mouse=mouse, click=clic, window=ventana, Watch=Observar, Call Stack=Pila de llamadas, Breakpoints=Puntos de interrupción. Speak to the person as tú, never vos, usted or vosotros. Code, names, keywords and file names stay English (RButton, Caption, PRINT, main.rr).",
-)];
+const WORDS: &[(&str, &str)] = &[
+    (
+        "Spanish",
+        "Studio is in Spanish. Say its words and RapidR's terms as Studio does, menu paths too (Herramientas > Configuración): build=compilar, app=aplicación, array=arreglo, event handler=controlador de eventos, add=añadir, library=biblioteca, form=formulario, component=componente, property=propiedad, event=evento, method=método, project=proyecto, Toolbox=Caja de herramientas, Properties=Propiedades, Outline=Estructura, Problems=Problemas, Output=Salida, Run=Ejecutar, Debug=Depurar, Settings=Configuración, file=archivo, folder=carpeta, mouse=mouse, click=clic, window=ventana, Watch=Observar, Call Stack=Pila de llamadas, Breakpoints=Puntos de interrupción. Speak to the person as tú, never vos, usted or vosotros. Code, names, keywords and file names stay English (RButton, Caption, PRINT, main.rr).",
+    ),
+    // Portuguese (pt-BR): its row, from docs/i18n/pt-glossary.md (lane I18N-PT)
+
+    // Chinese (zh-Hans): its row, from docs/i18n/zh-glossary.md (lane I18N-ZH)
+];
 
 /// Studio's words in `language` (its English name, "Spanish"), for the
 /// instructions: `None` when there are none (English).

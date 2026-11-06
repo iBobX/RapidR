@@ -39,7 +39,10 @@ pub fn normalize_tag(tag: &str) -> String {
 /// The catalogs a language looks in, most specific first: `es-AR` →
 /// `es-AR`, `es`; `zh-Hans-CN` → `zh-Hans-CN`, `zh-Hans`, `zh`. Chinese
 /// named by its region alone takes its script's file too (`zh-CN` →
-/// `zh-CN`, `zh-Hans`, `zh`; `zh-TW` → … `zh-Hant` …).
+/// `zh-CN`, `zh-Hans`, `zh`; `zh-TW` → … `zh-Hant` …). RapidR's
+/// Portuguese is Brazil's and its Chinese is Simplified, so a bare `pt`
+/// (or Portugal's `pt-PT`) ends in `pt-BR`, and a bare `zh` in `zh-Hans`
+/// (Traditional Chinese asks for `zh-Hant`: it does not fall to Simplified).
 pub fn fallback_chain(tag: &str) -> Vec<String> {
     let tag = normalize_tag(tag);
     let mut out = Vec::new();
@@ -59,7 +62,30 @@ pub fn fallback_chain(tag: &str) -> Vec<String> {
             out.insert(1, s.to_string());
         }
     }
+    // (the language's own catalog when it names none: Portuguese is
+    // Brazil's, Chinese is Simplified — never Traditional by default)
+    let has = |list: &[String], t: &str| list.iter().any(|o| o == t);
+    if has(&out, "pt") && !has(&out, "pt-BR") {
+        out.push("pt-BR".to_string());
+    }
+    if has(&out, "zh") && !has(&out, "zh-Hans") && !has(&out, "zh-Hant") {
+        out.push("zh-Hans".to_string());
+    }
     out
+}
+
+/// The `Plural-Forms` header of a language's catalog: how many forms its
+/// plurals have, and which one a count takes. Brazilian Portuguese and
+/// French count 0 and 1 as singular (`n > 1`); Chinese, Japanese, Korean
+/// and Vietnamese have one form; the rest follow English's (`n != 1`).
+pub fn plural_forms(tag: &str) -> &'static str {
+    let t = normalize_tag(tag);
+    let lang = t.split('-').next().unwrap_or("");
+    match (lang, t.as_str()) {
+        ("zh" | "ja" | "ko" | "vi" | "th" | "id", _) => "nplurals=1; plural=0;",
+        ("fr", _) | (_, "pt-BR") => "nplurals=2; plural=(n > 1);",
+        _ => "nplurals=2; plural=(n != 1);",
+    }
 }
 
 #[cfg(target_os = "macos")]

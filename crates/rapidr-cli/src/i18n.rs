@@ -165,7 +165,7 @@ fn update_cmd(args: &[String]) -> Result<ExitCode, String> {
         let path = Path::new(f);
         let tag = tag_of(path);
         let file = if path.exists() { po::read_messages(&read(path)?) } else { Vec::new() };
-        let (new, stats) = tools::update(&template, &file, &project, &tag, "nplurals=2; plural=(n != 1);");
+        let (new, stats) = tools::update(&template, &file, &project, &tag, rapidr_i18n::tags::plural_forms(&tag));
         write(path, &tools::write(&new))?;
         println!("{f}: {} kept, {} new{}", stats.kept, stats.added, if stats.dropped.is_empty() { String::new() } else { format!(", {} no longer used: {}", stats.dropped.len(), stats.dropped.join(" | ")) });
     }
@@ -300,8 +300,16 @@ fn compiler_cmd(args: &[String]) -> Result<ExitCode, String> {
     let check = args.iter().any(|a| a == "--check");
     let root = root()?;
     let template = compiler_template();
-    let ok = generated(&root.join("crates/rapidr-diagnostics/lang/compiler.pot"), &tools::write(&template), check)?;
-    println!("{} compiler messages", template.len() - 1);
+    let mut ok = generated(&root.join("crates/rapidr-diagnostics/lang/compiler.pot"), &tools::write(&template), check)?;
+    for tag in rapidr_diagnostics::messages::languages() {
+        let file = po::read_messages(rapidr_diagnostics::messages::catalog_text(tag).unwrap_or(""));
+        let c = tools::coverage(&template, &file);
+        println!("crates/rapidr-diagnostics/lang/{tag}.po: {} of {} texts ({:.1}%), {} to review, {} fuzzy", c.translated, c.total, c.percent(), c.review, c.fuzzy);
+        if report_problems(&format!("crates/rapidr-diagnostics/lang/{tag}.po"), tag, &file) > 0 {
+            ok = false;
+        }
+    }
+    println!("{} compiler messages{}", template.len() - 1, if ok { "" } else { " — out of date or translations to fix (above)" });
     Ok(if ok { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }
 

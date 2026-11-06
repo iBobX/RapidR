@@ -718,7 +718,7 @@ SUB SettingsFillLanguages
     t = FIELD$(all, CHR$(10), i)
     IF t <> "" AND t <> "en" AND SettingsLangCount < 32 AND (t <> "xx" OR LanguageChoice = "xx") THEN
       SettingsLangTag(SettingsLangCount) = t
-      LanguageBox.AddItems Application.LanguageName(t)
+      LanguageBox.AddItems Application.LanguageName(t) + LanguageBetaNote(t)
       SettingsLangCount = SettingsLangCount + 1
     END IF
   NEXT
@@ -728,6 +728,13 @@ SUB SettingsFillLanguages
   NEXT
   SettingsFilling = 0
 END SUB
+
+' (Preview 6: Brazilian Portuguese and Simplified Chinese are an AI's
+' translation, a beta — corrections from people who speak them are welcome:
+' the list says so after their names)
+FUNCTION LanguageBetaNote(Tag AS STRING) AS STRING
+  IF Tag = "pt-BR" OR Tag = "zh-Hans" THEN Result = "  -  " + TR$("beta") ELSE Result = ""
+END FUNCTION
 
 ' (General > Language, picked) Studio speaks it now; OK keeps it.
 SUB SettingsLanguagePicked
