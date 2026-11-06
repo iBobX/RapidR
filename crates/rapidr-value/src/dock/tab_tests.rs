@@ -1,5 +1,6 @@
 //! Document tabs keep their names (lane NOTIFY; docs/design-guidelines.md,
-//! "Tabs"): never narrower than 112 pixels, a long name cut in its middle,
+//! "Tabs"): never narrower than their least (eight characters of the name and
+//! its end, measured), a long name cut in its middle,
 //! a strip that scrolls with arrows, the shown tab always in view, a list
 //! of every open tab.
 
@@ -41,7 +42,7 @@ fn a_few_tabs_fit_with_their_names_and_the_list_button() {
 }
 
 #[test]
-fn seventeen_tabs_scroll_and_none_is_narrower_than_112() {
+fn seventeen_tabs_scroll_and_none_is_narrower_than_the_floor() {
     let mut m = many(17);
     let g = m.geometry().clone();
     let gr = &g.documents.as_ref().unwrap().groups[0];
@@ -115,4 +116,50 @@ fn a_long_name_is_cut_in_the_middle_and_keeps_its_extension() {
     let cut = crate::panels::notify::middle("form_invoices_and_orders_2026.rr", &f, 60);
     assert!(cut.contains('…') && cut.ends_with(".rr") && cut.starts_with("form"), "{cut}");
     assert_eq!(crate::panels::notify::middle("main.rr", &f, 200), "main.rr");
+}
+
+#[test]
+fn a_cut_name_keeps_eight_characters_the_end_of_its_name_and_a_folder_for_a_duplicate() {
+    use super::look::{min_tab_title, tab_title};
+    let font = Font::default();
+    let names = [
+        "main.rr \u{b7} Shop",
+        "main.rr \u{b7} tests",
+        "form_invoices_and_orders_2026.rr",
+        "customer_statements_report.rr",
+        "utils.inc",
+        "database.rr",
+        "invoice_totals.rr",
+        "stock_levels_by_warehouse.rr",
+        "window_layout_and_menus.rr",
+        "data_import_wizard.rr",
+        "notes.txt",
+    ];
+    let mut m = Manager::default();
+    m.resize((1280, 720), &font);
+    m.layout.mode = DocumentMode::Tabs;
+    m.add_pane("Explorer", "Explorer", "left", "explorer");
+    for (i, n) in names.iter().chain(names.iter()).enumerate() {
+        m.add_pane(&format!("Doc{i}"), n, "documents", "code");
+    }
+    m.layout.select("doc0");
+    m.touch();
+    let g = m.geometry().clone();
+    let gr = &g.documents.as_ref().unwrap().groups[0];
+    assert!(gr.arrows.is_some(), "the tabs don't all fit: they scroll");
+    for (t, title) in gr.tabs.iter().zip(names.iter().chain(names.iter())) {
+        let room = t.text.1 - t.text.0;
+        let shown = tab_title(title, &font, room);
+        assert!(!shown.contains("\u{2026}.") && !shown.contains("...."), "the ellipsis stands against a dot: {shown} ({title})");
+        if title.contains(" \u{b7} ") {
+            assert!(shown.contains(" \u{b7} "), "a duplicate's folder is kept: {shown} ({title}), room {room}");
+        } else if shown != *title {
+            let head = shown.split('\u{2026}').next().unwrap().chars().count();
+            assert!(head >= 8, "a cut name keeps eight characters: {shown} ({title}), room {room}");
+            assert!(shown.ends_with(&title[title.rfind('.').unwrap()..]), "its extension stays: {shown}");
+        }
+        // (the least text is what the tab's least width was measured for)
+        let least = min_tab_title(title);
+        assert!(shown.chars().count() >= least.chars().count().min(title.chars().count()), "{shown} shorter than {least}");
+    }
 }

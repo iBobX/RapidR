@@ -28,10 +28,13 @@ pub const SWITCH_H: i64 = 22;
 pub const SWITCH_SPLIT: i64 = 30;
 /// The least a tab shrinks to when a strip is full.
 pub const MIN_TAB: i64 = 64;
-/// The least a document's tab is: its icon, at least eight characters of its
-/// name and its close button. Narrower and a name would be gone, so the
-/// strip scrolls instead (docs/design-guidelines.md, "Tabs").
-pub const MIN_DOC_TAB: i64 = 112;
+/// The least a document's tab is, measured for each (`doc_group`): its icon,
+/// at least eight characters of its name (the whole name when it is shorter),
+/// "…", the end of its name with the extension, and its close button — at the
+/// font it is drawn in. Narrower and a name would be gone, so the strip
+/// scrolls instead (docs/design-guidelines.md, "Tabs"). This is only the
+/// floor of a tab with no name: the width of the one icon and its close button.
+pub const MIN_DOC_TAB: i64 = 64;
 /// A document strip's scroll arrows and its list of open tabs: 24 square
 /// (WCAG 2.5.8).
 pub const TAB_BTN: i64 = 24;
@@ -278,6 +281,12 @@ fn tab_width(title: &str, font: &Font, icon: bool, close: bool, pad: i64) -> i64
 /// trimmed to one width (a short name is never cut for a long one's sake),
 /// none under `floor`.
 pub fn squeeze(want: &[i64], room: i64, give: i64, floor: i64) -> Vec<i64> {
+    squeeze_with(want, room, give, &vec![floor; want.len()])
+}
+
+/// [`squeeze`] with a floor of its own for each tab (a tab that has less to
+/// show can go narrower).
+pub fn squeeze_with(want: &[i64], room: i64, give: i64, floors: &[i64]) -> Vec<i64> {
     let n = want.len() as i64;
     let total: i64 = want.iter().sum();
     if n == 0 || total <= room {
@@ -288,18 +297,19 @@ pub fn squeeze(want: &[i64], room: i64, give: i64, floor: i64) -> Vec<i64> {
     if total - take * n <= room {
         return w;
     }
-    let kept = |x: i64, cap: i64| x.min(cap).max(floor.min(x));
-    let (mut lo, mut hi) = (floor, w.iter().copied().max().unwrap_or(floor));
+    let floor_of = |i: usize| floors.get(i).copied().unwrap_or(0);
+    let kept = |i: usize, x: i64, cap: i64| x.min(cap).max(floor_of(i).min(x));
+    let (mut lo, mut hi) = (floors.iter().copied().min().unwrap_or(0), w.iter().copied().max().unwrap_or(0));
     while lo < hi {
         let mid = (lo + hi + 1) / 2;
-        if w.iter().map(|&x| kept(x, mid)).sum::<i64>() <= room {
+        if w.iter().enumerate().map(|(i, &x)| kept(i, x, mid)).sum::<i64>() <= room {
             lo = mid;
         } else {
             hi = mid - 1;
         }
     }
-    for x in &mut w {
-        *x = kept(*x, lo);
+    for (i, x) in w.iter_mut().enumerate() {
+        *x = kept(i, *x, lo);
     }
     w
 }
@@ -493,12 +503,18 @@ pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, t
     let n = docs.len() as i64;
     let room = (right - gx).max(0);
     let want: Vec<i64> = docs.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).clamp(MIN_DOC_TAB, 260)).collect();
+    // (each tab's least: its name cut to what the guide keeps, measured)
+    let floors: Vec<i64> = docs
+        .iter()
+        .zip(&want)
+        .map(|(p, w)| tab_width(&super::look::min_tab_title(&titles.title(p)), font, !titles.icon(p).is_empty(), true, 12).max(MIN_DOC_TAB).min(*w))
+        .collect();
     // (the list of open tabs at the right end, from two tabs: 24 square and
     // a gap; the arrows left of it once the tabs don't all fit)
     let list_room = if docs.len() >= 2 { TAB_BTN + 6 } else { 0 };
     // (too many to fit — each tab's pixel of gap counted: the padding goes
     // first, then the widest tabs are trimmed alike, none under MIN_DOC_TAB)
-    let layout_for = |vw: i64| squeeze(&want, vw - n, DOC_GIVE, MIN_DOC_TAB);
+    let layout_for = |vw: i64| squeeze_with(&want, vw - n, DOC_GIVE, &floors);
     let mut vw = room - list_room;
     let mut widths = layout_for(vw);
     let overflow = widths.iter().sum::<i64>() + n > vw;

@@ -1,4 +1,4 @@
-<!-- translated-from: notifications.md 2d3a7c50ea3955be -->
+<!-- translated-from: notifications.md 4adf3555f8cbb673 -->
 # Notificaciones: mensajes que aparecen y preguntas que esperan
 
 Un programa tiene tres maneras de decirle algo a quien lo usa, y cada una tiene su propio tamaño.
@@ -45,7 +45,7 @@ Cada uno está en el nivel que sus palabras necesitan, y ninguno se repite en ot
 
 ### Pestañas que conservan su nombre
 
-Cada documento abierto es una pestaña con su icono **y su nombre**: nunca más estrecha que 112 píxeles, un nombre largo cortado por el medio para que queden su comienzo y su extensión (*form….rr*), y dos archivos con el mismo nombre muestran sus carpetas (*main.rr · tests*). Cuando las pestañas no caben todas, la franja **se desplaza**: dos flechas en su extremo derecho (o la rueda del ratón, o un deslizamiento con dos dedos), con la pestaña mostrada siempre a la vista. El botón del final, **Pestañas abiertas**, lista todos los documentos abiertos en una tarjeta con búsqueda: escribe para filtrar, **Intro** muestra la pestaña, un punto marca un archivo con cambios sin guardar.
+Cada documento abierto es una pestaña con su icono **y su nombre**: un nombre largo cortado por el medio para que queden sus primeros ocho caracteres y su extensión (*form_inv…26.rr*), una pestaña nunca más estrecha que eso, y dos archivos con el mismo nombre muestran sus carpetas (*main.rr · tests*). Cuando las pestañas no caben todas, la franja **se desplaza**: dos flechas en su extremo derecho (o la rueda del ratón, o un deslizamiento con dos dedos), con la pestaña mostrada siempre a la vista. El botón del final, **Pestañas abiertas**, lista todos los documentos abiertos en una tarjeta con búsqueda: escribe para filtrar, **Intro** muestra la pestaña, un punto marca un archivo con cambios sin guardar.
 
 ![Diecisiete archivos abiertos: cada pestaña con su nombre, las flechas y el botón de la lista en el extremo derecho](../images/notifications/tabs.png)
 

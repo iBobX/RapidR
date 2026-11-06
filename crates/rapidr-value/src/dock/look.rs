@@ -253,26 +253,99 @@ fn fitted(s: &str, font: &Font, w: i64) -> String {
     String::new()
 }
 
-/// A document tab's name in `room` pixels: whole; else a long name cut in its
-/// middle, so its start and its extension stay (a name `main.rr · tests`, the
-/// folder a second file of that name adds, keeps `main.rr` whole and cuts the
-/// folder after it: the tooltip and a screen reader have all of it).
+/// The least of a name's start a document tab keeps when it is cut (the guide:
+/// eight characters), and how many of the end of its base name stay before the
+/// extension, so the "…" never stands against the extension's dot.
+pub const TAB_HEAD: usize = 8;
+const TAB_TAIL: usize = 2;
+/// The longest folder a tab shows whole at its least.
+const TAB_FOLDER: usize = 8;
+
+/// A name's base and its extension (".rr"; none when there is none).
+fn split_ext(s: &str) -> (&str, &str) {
+    match s.rfind('.') {
+        Some(i) if i > 0 && s.len() - i <= 6 && !s[i..].contains(' ') => (&s[..i], &s[i..]),
+        _ => (s, ""),
+    }
+}
+
+/// `name` cut to `head` characters of its start, "…", the end of its base
+/// name and its extension: `form_inv…26.rr`. Whole when cutting would not
+/// shorten it.
+fn cut_name(name: &str, head: usize) -> String {
+    let (base, ext) = split_ext(name);
+    let chars: Vec<char> = base.chars().collect();
+    if chars.len() <= head + TAB_TAIL {
+        return name.to_string();
+    }
+    let start: String = chars[..head].iter().collect();
+    let end: String = chars[chars.len() - TAB_TAIL..].iter().collect();
+    format!("{}\u{2026}{end}{ext}", start.trim_end())
+}
+
+/// A folder as short as a tab may show it at its least.
+fn short_folder(folder: &str) -> String {
+    let chars: Vec<char> = folder.chars().collect();
+    if chars.len() <= TAB_FOLDER {
+        return folder.to_string();
+    }
+    format!("{}\u{2026}", chars[..TAB_FOLDER - 1].iter().collect::<String>().trim_end())
+}
+
+/// The least text a document tab shows (its tab is never narrower than this
+/// takes, measured): the first eight characters of the name, "…", the end of
+/// its name with the extension; for a name with its folder (`main.rr · tests`)
+/// the folder as well, so two files of one name always read apart.
+pub fn min_tab_title(title: &str) -> String {
+    match title.split_once(" \u{b7} ") {
+        Some((name, folder)) => format!("{} \u{b7} {}", cut_name(name, TAB_HEAD), short_folder(folder)),
+        None => cut_name(title, TAB_HEAD),
+    }
+}
+
+/// A document tab's name in `room` pixels: whole; else the name cut in its
+/// middle — its start (eight characters at least, with the room the tab's
+/// least width gives), "…", the end of its name and its extension. A name
+/// with its folder (`main.rr · tests`) keeps the name and as much of the
+/// folder as fits; the tooltip and a screen reader have all of it.
 pub fn tab_title(title: &str, font: &Font, room: i64) -> String {
     use crate::objects::text::text_size;
-    if let Some((name, folder)) = title.split_once(" \u{b7} ") {
-        let sep = " \u{b7} ";
-        let used = text_size(name, font).0 + text_size(sep, font).0;
-        if used + text_size("\u{2026}", font).0 + 6 <= room {
-            let f = fitted(folder, font, room - used);
-            if f.len() > '\u{2026}'.len_utf8() {
-                return format!("{name}{sep}{f}");
+    let width = |s: &str| text_size(s, font).0;
+    if width(title) <= room {
+        return title.to_string();
+    }
+    let sep = " \u{b7} ";
+    if let Some((name, folder)) = title.split_once(sep) {
+        // (the name as long as it can be with the folder at its shortest; else
+        // the folder cut as far as it must)
+        for floor in [width(&short_folder(folder)), width("\u{2026}") + 6] {
+            for head in (1..=name.chars().count()).rev() {
+                let n = cut_name(name, head);
+                let used = width(&n) + width(sep);
+                if used + floor <= room {
+                    let f = fitted(folder, font, room - used);
+                    if f.chars().count() > 1 {
+                        return format!("{n}{sep}{f}");
+                    }
+                }
             }
         }
-        if text_size(name, font).0 <= room {
-            return name.to_string();
+        return cut_name_fitting(name, font, room);
+    }
+    cut_name_fitting(title, font, room)
+}
+
+/// `name` cut as little as `room` allows (down to one character of its start).
+fn cut_name_fitting(name: &str, font: &Font, room: i64) -> String {
+    use crate::objects::text::text_size;
+    let (base, _) = split_ext(name);
+    for head in (1..=base.chars().count()).rev() {
+        let n = cut_name(name, head);
+        if text_size(&n, font).0 <= room {
+            return n;
         }
     }
-    crate::panels::notify::middle(title, font, room)
+    crate::panels::notify::middle(name, font, room)
 }
 
 /// The chrome's font: the dock manager's.

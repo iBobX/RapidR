@@ -8480,7 +8480,7 @@ const CASES = [
   },
   // ---- NOTIFY: document tabs keep their names. Seventeen files open (two
   // of them named main.rr, one name long, three cut in the middle): every
-  // tab reads, none narrower than 112, the strip scrolls with arrows, the
+  // tab reads, none narrower than its least, the strip scrolls with arrows, the
   // shown tab is in view, the list of every open tab is one click away and
   // searchable; the two main.rr say their folders ----
   {

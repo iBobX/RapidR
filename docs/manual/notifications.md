@@ -44,7 +44,7 @@ Each one is at the level its words need, and none repeats itself in another plac
 
 ### Tabs that keep their names
 
-Every open document is a tab with its icon **and its name**: never narrower than 112 pixels, a long name cut in its middle so its start and its extension stay (*form….rr*), and two files with the same name show their folders (*main.rr · tests*). When the tabs don't all fit, the strip **scrolls**: two arrows at its right end (or the mouse wheel, or a two-finger swipe), the shown tab always in view. The button at the very end, **Open Tabs**, lists every open document in a searchable card: type to narrow it, **Enter** shows the tab, a dot marks a file with unsaved changes.
+Every open document is a tab with its icon **and its name**: a long name cut in its middle so its first eight characters and its extension stay (*form_inv…26.rr*), a tab never narrower than that takes, and two files with the same name show their folders (*main.rr · tests*). When the tabs don't all fit, the strip **scrolls**: two arrows at its right end (or the mouse wheel, or a two-finger swipe), the shown tab always in view. The button at the very end, **Open Tabs**, lists every open document in a searchable card: type to narrow it, **Enter** shows the tab, a dot marks a file with unsaved changes.
 
 ![Seventeen open files: every tab with its name, the arrows and the list button at the right end](images/notifications/tabs.png)
 
