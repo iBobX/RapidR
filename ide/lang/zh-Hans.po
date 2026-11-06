@@ -756,7 +756,7 @@ msgstr "已撤销：{title} 中助手写入的文件已删除；你添加的文�
 msgid "Copied the code."
 msgstr "已复制代码。"
 
-#: ide/ai.inc
+#: ide/ai.inc ide/contextmenu.inc
 msgid "Copied the code"
 msgstr "已复制代码"
 
@@ -875,7 +875,7 @@ msgstr "密钥（{hint}）保存在{store}中，名称为 {q}{name}{q}：代码�
 
 # legal
 #: ide/ai.inc
-msgid "A key ({hint}) is found in the {source}: the code never holds it."
+msgid "A key ({hint}) is found in {source}: the code never holds it."
 msgstr "在{source}中找到了一个密钥（{hint}）：代码里绝不会存放它。"
 
 #: ide/aichats.inc
@@ -890,34 +890,6 @@ msgstr "搜索对话"
 msgid "Their titles and what was said; Down goes to the list, Escape back to the chat"
 msgstr "搜索标题和对话内容；按向下键进入列表，按 Esc 返回对话"
 
-#: ide/aichats.inc ide/panels.inc
-msgid "Open"
-msgstr "打开"
-
-#: ide/aichats.inc
-msgid "Open the chat"
-msgstr "打开对话"
-
-#: ide/aichats.inc
-msgid "Rename"
-msgstr "重命名"
-
-#: ide/aichats.inc
-msgid "Rename the chat"
-msgstr "重命名对话"
-
-#: ide/aichats.inc
-msgid "Delete"
-msgstr "删除"
-
-#: ide/aichats.inc
-msgid "Delete the chat"
-msgstr "删除对话"
-
-#: ide/aichats.inc
-msgid "It is removed from this computer; Undo puts it back"
-msgstr "它会从这台电脑上移除；“撤销”可以恢复"
-
 #: ide/aichats.inc
 msgid "Chat deleted"
 msgstr "对话已删除"
@@ -925,6 +897,10 @@ msgstr "对话已删除"
 #: ide/aichats.inc
 msgid "Undo: put the chat back"
 msgstr "撤销：恢复这段对话"
+
+#: ide/aichats.inc
+msgid "Rename the chat"
+msgstr "重命名对话"
 
 #: ide/aichats.inc
 msgid "The chat's new name"
@@ -953,6 +929,10 @@ msgstr "对话的保存位置"
 #: ide/aichats.inc
 msgid "This project's chats, the newest first"
 msgstr "本项目的对话，最新的在前"
+
+#: ide/aichats.inc
+msgid "&Start a Chat"
+msgstr "开始对话(&S)"
 
 #: ide/aichats.inc
 msgid "New chat"
@@ -1008,6 +988,22 @@ msgstr "{item}：{q}{snippet}{q}"
 #: ide/aichats.inc
 msgid "{item} (open)"
 msgstr "{item}（已打开）"
+
+#: ide/aichats.inc
+msgid "Rename (F2)"
+msgstr "重命名 (F2)"
+
+#: ide/aichats.inc
+msgid "Delete (Del)"
+msgstr "删除 (Del)"
+
+#: ide/aichats.inc
+msgid "More actions (Shift+F10)"
+msgstr "更多操作 (Shift+F10)"
+
+#: ide/aichats.inc
+msgid "No chats in this project yet."
+msgstr "本项目里还没有对话。"
 
 #: ide/aichats.inc
 msgid "No chats kept for this project yet."
@@ -1972,7 +1968,7 @@ msgstr "安装 Rust 失败"
 msgid "✓ Built {file} — unzip on any web host"
 msgstr "✓ 已构建 {file}——可在任何 Web 主机上解压使用"
 
-#: ide/build.inc
+#: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
 msgstr "在 {manager} 中显示"
 
@@ -1996,7 +1992,7 @@ msgstr "构建失败"
 msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
 msgstr "还没有构建任何内容：使用 运行 > 构建 (Ctrl+Shift+B) 来生成应用。"
 
-#: ide/build.inc ide/panels.inc
+#: ide/build.inc ide/contextmenu.inc ide/panels.inc
 msgid "Can't show it: {error}"
 msgstr "无法显示：{error}"
 
@@ -2148,23 +2144,23 @@ msgstr "撤销(&U)"
 msgid "&Redo"
 msgstr "重做(&R)"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Cu&t"
 msgstr "剪切(&T)"
 
-#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc ide/search.inc
+#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc
 msgid "&Copy"
 msgstr "复制(&C)"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "&Paste"
 msgstr "粘贴(&P)"
 
-#: ide/commands.inc
+#: ide/commands.inc ide/contextmenu.inc
 msgid "&Delete"
 msgstr "删除(&D)"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Select &All"
 msgstr "全选(&A)"
 
@@ -2180,7 +2176,7 @@ msgstr "查找(&F)..."
 msgid "R&eplace..."
 msgstr "替换(&E)..."
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Find in F&iles..."
 msgstr "在文件中查找(&I)..."
 
@@ -2252,7 +2248,7 @@ msgstr "补全单词(&W)"
 msgid "&Quick Fix..."
 msgstr "快速修复(&Q)..."
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Go to &Definition"
 msgstr "转到定义(&D)"
 
@@ -2268,7 +2264,7 @@ msgstr "向后导航(&B)"
 msgid "Navigate For&ward"
 msgstr "向前导航(&W)"
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Re&name Symbol..."
 msgstr "重命名符号(&N)..."
 
@@ -2409,8 +2405,8 @@ msgid "&Reset Layout"
 msgstr "重置布局(&R)"
 
 #: ide/commands.inc
-msgid "Add &File..."
-msgstr "添加文件(&F)..."
+msgid "Add &Existing File..."
+msgstr "添加现有文件(&E)..."
 
 #: ide/commands.inc
 msgid "Add Fol&der..."
@@ -2749,6 +2745,250 @@ msgstr "了解更多"
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
 msgstr "在浏览器中打开手册中的相关页面"
+
+#: ide/contextmenu.inc
+msgid "&Open"
+msgstr "打开(&O)"
+
+#: ide/contextmenu.inc
+msgid "Re&name"
+msgstr "重命名(&N)"
+
+#: ide/contextmenu.inc
+msgid "Remove from Pro&ject"
+msgstr "从项目中移除(&J)"
+
+#: ide/contextmenu.inc
+msgid "Show in &Project"
+msgstr "在项目中显示(&P)"
+
+#: ide/contextmenu.inc
+msgid "Co&llapse All"
+msgstr "全部折叠(&L)"
+
+#: ide/contextmenu.inc
+msgid "Copy &Path"
+msgstr "复制路径(&P)"
+
+#: ide/contextmenu.inc
+msgid "Copy Relati&ve Path"
+msgstr "复制相对路径(&V)"
+
+#: ide/contextmenu.inc
+msgid "Reveal in File &Manager"
+msgstr "在文件管理器中显示(&M)"
+
+#: ide/contextmenu.inc
+msgid "Close &Others"
+msgstr "关闭其他文档(&O)"
+
+#: ide/contextmenu.inc
+msgid "Close to the &Right"
+msgstr "关闭右侧的文档(&R)"
+
+#: ide/contextmenu.inc
+msgid "Close &Saved"
+msgstr "关闭已保存的文档(&S)"
+
+#: ide/contextmenu.inc
+msgid "&Edit Event Handler"
+msgstr "编辑事件处理程序(&E)"
+
+#: ide/contextmenu.inc
+msgid "&Edit Value"
+msgstr "编辑值(&E)"
+
+#: ide/contextmenu.inc
+msgid "&Reset to Default"
+msgstr "重置为默认值(&R)"
+
+#: ide/contextmenu.inc ide/debug.inc
+msgid "&Copy Value"
+msgstr "复制值(&C)"
+
+#: ide/contextmenu.inc
+msgid "Copy &Name"
+msgstr "复制名称(&N)"
+
+#: ide/contextmenu.inc
+msgid "Copy as Co&de"
+msgstr "复制为代码(&D)"
+
+#: ide/contextmenu.inc
+msgid "&Go to Handler"
+msgstr "转到处理程序(&G)"
+
+#: ide/contextmenu.inc
+msgid "&Remove Handler"
+msgstr "移除处理程序(&R)"
+
+#: ide/contextmenu.inc
+msgid "&Help"
+msgstr "帮助(&H)"
+
+#: ide/contextmenu.inc
+msgid "As&k RAI..."
+msgstr "向 RAI 提问(&K)..."
+
+#: ide/contextmenu.inc
+msgid "Set up RAI first: Tools > Set Up RAI"
+msgstr "请先配置 RAI：工具 > 配置 RAI"
+
+#: ide/contextmenu.inc
+msgid "Open &Code"
+msgstr "打开代码(&C)"
+
+#: ide/contextmenu.inc
+msgid "Show &History"
+msgstr "显示历史记录(&H)"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This File..."
+msgstr "就此文件向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About {file}:"
+msgstr "关于 {file}："
+
+#: ide/contextmenu.inc ide/panels.inc
+msgid "The main file stays in the project"
+msgstr "主文件会保留在项目中"
+
+#: ide/contextmenu.inc
+msgid "&Select in the Designer"
+msgstr "在设计器中选择(&S)"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Component..."
+msgstr "就此组件向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About {name}:"
+msgstr "关于 {name}："
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Project..."
+msgstr "就本项目向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About this project:"
+msgstr "关于本项目："
+
+#: ide/contextmenu.inc
+msgid "Actions for {what}"
+msgstr "{what} 的操作"
+
+#: ide/contextmenu.inc
+msgid "Not on a name"
+msgstr "光标不在名称上"
+
+#: ide/contextmenu.inc
+msgid "Nothing is selected"
+msgstr "没有选中任何内容"
+
+#: ide/contextmenu.inc
+msgid "&Versions"
+msgstr "版本(&V)"
+
+#: ide/contextmenu.inc
+msgid "About line {n} of {file}:"
+msgstr "关于 {file} 的第 {n} 行："
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Code..."
+msgstr "就这段代码向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "Actions for the code"
+msgstr "代码的操作"
+
+#: ide/contextmenu.inc
+msgid "&Align"
+msgstr "对齐(&A)"
+
+#: ide/contextmenu.inc
+msgid "Make Same Si&ze"
+msgstr "设为相同大小(&Z)"
+
+#: ide/contextmenu.inc
+msgid "Space &Evenly"
+msgstr "等间距(&E)"
+
+#: ide/contextmenu.inc
+msgid "Needs three or more"
+msgstr "需要三个或更多组件"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About These Components..."
+msgstr "就这些组件向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About the components {names}:"
+msgstr "关于组件 {names}："
+
+#: ide/contextmenu.inc
+msgid "Center in &Form"
+msgstr "在窗体中居中(&F)"
+
+#: ide/contextmenu.inc
+msgid "&Zoom"
+msgstr "缩放(&Z)"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Form..."
+msgstr "就此窗体向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About the form in {file}:"
+msgstr "关于 {file} 中的窗体："
+
+#: ide/contextmenu.inc
+msgid "Actions for the form"
+msgstr "窗体的操作"
+
+#: ide/contextmenu.inc
+msgid "&Create Handler"
+msgstr "创建处理程序(&C)"
+
+#: ide/contextmenu.inc
+msgid "Already the default"
+msgstr "已经是默认值"
+
+#: ide/contextmenu.inc
+msgid "&Help: {name}"
+msgstr "帮助：{name}(&H)"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About {name}..."
+msgstr "就 {name} 向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About {name} of {target}:"
+msgstr "关于 {target} 的 {name}："
+
+#: ide/contextmenu.inc
+msgid "Actions for the chat"
+msgstr "对话的操作"
+
+#: ide/contextmenu.inc
+msgid "Copied the path"
+msgstr "已复制路径"
+
+#: ide/contextmenu.inc
+msgid "Copied the relative path"
+msgstr "已复制相对路径"
+
+#: ide/contextmenu.inc ide/debug.inc
+msgid "Copied the value"
+msgstr "已复制该值"
+
+#: ide/contextmenu.inc
+msgid "Copied the name"
+msgstr "已复制名称"
+
+#: ide/contextmenu.inc
+msgid "The handler couldn't be removed"
+msgstr "无法移除处理程序"
 
 #: ide/crash.inc
 msgid "&View Report"
@@ -3264,10 +3504,6 @@ msgid "{n} more"
 msgstr "还有 {n} 项"
 
 #: ide/debug.inc
-msgid "Copied the value"
-msgstr "已复制该值"
-
-#: ide/debug.inc
 msgid "Copied {expr}"
 msgstr "已复制 {expr}"
 
@@ -3306,10 +3542,6 @@ msgstr "这一行没有调用任何 SUB 或 FUNCTION：直接跳过它"
 #: ide/debug.inc
 msgid "Step into {name}"
 msgstr "进入 {name}"
-
-#: ide/debug.inc
-msgid "&Copy Value"
-msgstr "复制值(&C)"
 
 #: ide/debug.inc
 msgid "Copy &Expression"
@@ -4236,6 +4468,10 @@ msgid "Go to line {}"
 msgstr "转到第 {} 行"
 
 #: ide/panels.inc
+msgid "Open"
+msgstr "打开"
+
+#: ide/panels.inc
 msgid "Component"
 msgstr "组件"
 
@@ -4266,10 +4502,6 @@ msgstr "{file} 已存在"
 #: ide/panels.inc
 msgid "{main} includes {file} now"
 msgstr "{main} 现在包含了 {file}"
-
-#: ide/panels.inc
-msgid "The main file stays in the project"
-msgstr "主文件会保留在项目中"
 
 #: ide/panels.inc
 msgid "{file} taken out of the project (still on the disk)"
@@ -4523,6 +4755,10 @@ msgstr "焦点：OnEnter、OnExit"
 #: ide/panes.inc
 msgid "Main and pop-up menus"
 msgstr "主菜单和弹出菜单"
+
+#: ide/panes.inc
+msgid "Right-click menus and row actions"
+msgstr "右键菜单与行操作"
 
 #: ide/panes.inc
 msgid "Open, save, colour, font"
@@ -5453,10 +5689,6 @@ msgstr "输入要查找的内容，然后按 Enter。"
 #: ide/search.inc
 msgid "Search results"
 msgstr "搜索结果"
-
-#: ide/search.inc
-msgid "Find &References"
-msgstr "查找引用(&R)"
 
 #: ide/search.inc
 msgid "Help"

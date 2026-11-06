@@ -836,6 +836,7 @@ END FUNCTION
 ' each more a line's pitch)
 FUNCTION AITextHigh(Text AS STRING, W AS INTEGER, Size AS INTEGER) AS INTEGER
   DIM lines AS INTEGER, cur AS STRING, wd AS STRING, i AS INTEGER, n AS INTEGER, t AS STRING
+  DIM um AS STRING, u AS STRING, sep AS STRING, k AS INTEGER
   AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = Size
   t = LTRIM$(RTRIM$(Text))
   lines = 1
@@ -843,14 +844,20 @@ FUNCTION AITextHigh(Text AS STRING, W AS INTEGER, Size AS INTEGER) AS INTEGER
     n = TALLY(t, " ") + 1
     FOR i = 1 TO n
       wd = FIELD$(t, " ", i)
-      IF cur = "" THEN
-        cur = wd
-      ELSEIF AIMeterMeasure.TextWidth(cur + " " + wd) > W - 2 THEN
-        lines = lines + 1
-        cur = wd
-      ELSE
-        cur = cur + " " + wd
-      END IF
+      um = BreakUnits(wd)
+      sep = " "
+      FOR k = 1 TO TALLY(um, CHR$(1)) + 1
+        u = FIELD$(um, CHR$(1), k)
+        IF cur = "" THEN
+          cur = u
+        ELSEIF AIMeterMeasure.TextWidth(cur + sep + u) > W - 2 THEN
+          lines = lines + 1
+          cur = u
+        ELSE
+          cur = cur + sep + u
+        END IF
+        sep = ""
+      NEXT
     NEXT
   END IF
   ' (one line is 18 pixels, as it always was; each more adds a line's pitch)
@@ -3013,6 +3020,7 @@ END SUB
 ' font: a line each, more where one is longer than the width.
 FUNCTION AIStepsHigh(W AS INTEGER) AS INTEGER
   DIM lines AS INTEGER, i AS INTEGER, j AS INTEGER, n AS INTEGER, m AS INTEGER, cur AS STRING, wd AS STRING, t AS STRING, ln AS STRING
+  DIM um AS STRING, u AS STRING, sep AS STRING, k AS INTEGER
   AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = DimFont.Size
   t = AILiveSteps.Caption
   IF t = "" THEN
@@ -3026,14 +3034,20 @@ FUNCTION AIStepsHigh(W AS INTEGER) AS INTEGER
     m = TALLY(ln, " ") + 1
     FOR j = 1 TO m
       wd = FIELD$(ln, " ", j)
-      IF cur = "" THEN
-        cur = wd
-      ELSEIF AIMeterMeasure.TextWidth(cur + " " + wd) > W - 2 THEN
-        lines = lines + 1
-        cur = wd
-      ELSE
-        cur = cur + " " + wd
-      END IF
+      um = BreakUnits(wd)
+      sep = " "
+      FOR k = 1 TO TALLY(um, CHR$(1)) + 1
+        u = FIELD$(um, CHR$(1), k)
+        IF cur = "" THEN
+          cur = u
+        ELSEIF AIMeterMeasure.TextWidth(cur + sep + u) > W - 2 THEN
+          lines = lines + 1
+          cur = u
+        ELSE
+          cur = cur + sep + u
+        END IF
+        sep = ""
+      NEXT
     NEXT
   NEXT
   Result = lines * (AIMeterMeasure.TextHeight(" ") + 4)

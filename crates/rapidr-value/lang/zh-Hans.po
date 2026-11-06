@@ -286,6 +286,42 @@ msgstr "密钥没有保存：{error}。"
 msgid "The key is forgotten."
 msgstr "密钥已被清除。"
 
+#: crates/rapidr-ai/src/rai.rs
+msgid "the macOS Keychain"
+msgstr "macOS 钥匙串"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Windows Credential Manager"
+msgstr "Windows 凭据管理器"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "the Secret Service (GNOME Keyring or KWallet)"
+msgstr "Secret Service（GNOME Keyring 或 KWallet）"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser tab, until it closes"
+msgstr "此浏览器标签页（直到关闭）"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this browser, on this device"
+msgstr "此浏览器（在这台设备上）"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
+msgstr "内存（直到程序结束；这台电脑上没有 RapidR 可用的钥匙串）"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "memory, for this session only"
+msgstr "内存（仅限本次会话）"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "this program's memory, until it ends"
+msgstr "此程序的内存（直到它结束）"
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "an environment variable"
+msgstr "一个环境变量"
+
 #: crates/rapidr-ai/src/wire.rs
 msgid "({name} says: \"{said}\")"
 msgstr "（{name} 说：“{said}”）"

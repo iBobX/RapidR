@@ -1,8 +1,8 @@
 # Simplified Chinese: the texts that carry legal weight
 
-For the lead's lawyer check (lane I18N-ZH, 2026-11-06). Every text the catalogs mark `# legal` (consent, permission, privacy, cost, key, age, School Lock, crash-report and licence texts), with the English it translates. The Chinese is an AI translation, **beta**, made **by meaning, point by point, dropping nothing** (docs/i18n/zh-glossary.md, 2.5); a native reader has not checked it. Nothing here has been merged on a lawyer's say-so.
+For the lead's lawyer check (lane I18N-ZH, 2026-11-06). Every text the catalogs mark `# legal` (consent, permission, privacy, cost, key, age, School Lock, crash-report and licence texts), with the English it translates. The Chinese is an AI translation, **beta**, made **by meaning, point by point, dropping nothing** (docs/i18n/zh-glossary.md, 2.5); a native reader has not checked it. The lawyer reviewed the first 131 of them on 2026-11-06 (docs/legal/review-2026-11-06-zh.md: OK after changes) and the changes are applied here; the texts added since (the three new notes, the key note, and the two promises the review asked to mark) were written in the review's own words or in the same style. The numbers differ from the review's where texts were added.
 
-**131 texts**: 106 in Studio, 25 in RapidR's own text, 0 in the compiler's messages. Find them again with `grep -B1 "^# legal" <catalog>`.
+**136 texts**: 131 the lawyer reviewed (numbers 1 to 131, as in the review) and 5 added after it (A1 to A5, at the end): 106 in Studio, 25 in RapidR's own text, 0 in the compiler's messages. Find them again with `grep -B1 "^# legal" <catalog>`.
 
 ## Points to check
 
@@ -73,7 +73,7 @@ English:
 
 简体中文:
 
-> 密钥保存在 {store} 中，名称为 {q}{name}{q}：程序只引用这个名称，不含密钥本身。
+> 密钥保存在{store}中，名称为 {q}{name}{q}：程序里写的是这个名称，绝不会是密钥本身。
 
 ### 7. ide/ai.inc
 
@@ -83,13 +83,13 @@ English:
 
 简体中文:
 
-> 密钥（{hint}）保存在 {store} 中，名称为 {q}{name}{q}：代码只引用这个名称，不含密钥本身。输入另一个密钥可替换它。
+> 密钥（{hint}）保存在{store}中，名称为 {q}{name}{q}：代码里写的是这个名称，绝不会是密钥本身。输入另一个密钥可替换它。
 
 ### 8. ide/ai.inc
 
 English:
 
-> A key ({hint}) is found in the {source}: the code never holds it.
+> A key ({hint}) is found in {source}: the code never holds it.
 
 简体中文:
 
@@ -453,7 +453,7 @@ English:
 
 简体中文:
 
-> 不再等待你：AI 应用会自行更改文件、运行程序、查看并使用程序，以及向 RAI 提问——而程序可以做你在这台电脑上能做的任何事。所有操作仍会列出，“停止”可结束一切，Studio 自带的工具也绝不会交出密钥或项目之外的文件。
+> 任何操作都不会等你确认：AI 应用会自行更改文件、运行程序、查看并使用程序，以及向 RAI 提问——而程序可以做你在这台电脑上能做的任何事。所有操作仍会列出，“停止”可以结束它，Studio 自带的工具也绝不会交出密钥或项目之外的文件。
 
 ### 45. ide/mcp.inc
 
@@ -493,7 +493,7 @@ English:
 
 简体中文:
 
-> 不再等待你：AI 应用会自行更改文件、运行程序、查看程序、在程序中点击和输入，以及向 RAI 提问（这可能产生费用）。
+> 任何操作都不会等你确认：AI 应用会自行更改文件、运行程序、查看程序、在程序中点击和输入，以及向 RAI 提问（这可能产生费用）。
 
 ### 49. ide/mcp.inc
 
@@ -523,7 +523,7 @@ English:
 
 简体中文:
 
-> 它们所做的一切，都列在“AI 应用”面板中；“停止”可结束一切。
+> 它们所做的一切，都列在“AI 应用”面板中；“停止”可以结束它。
 
 ### 52. ide/mcp.inc ide/settings.inc
 
@@ -583,7 +583,7 @@ English:
 
 简体中文:
 
-> 它绝对看不到
+> 它绝不会看到
 
 ### 58. ide/mcp.inc
 
@@ -623,7 +623,7 @@ English:
 
 简体中文:
 
-> RapidR 不会把这些内容发送到任何地方，但 AI 应用可能会按其开发公司的条款，把它读取到的内容转交给该公司。程序可能显示私人数据（你的或他人的），而在其中点击就相当于以你的身份操作：真实的“发送”“支付”或“删除”按钮会真的执行，所以请使用测试数据。许多 AI 应用仅限成年人使用：如果你未满 18 岁，请在家长或老师的陪同下进行设置。只连接你信任的 AI 应用。
+> RapidR 不会把这些内容发送到任何地方，但 AI 应用可能会把它读取到的内容转交给开发它的公司，并受该公司条款约束。程序可能显示私人数据（你的或他人的），而在其中点击就相当于以你的身份操作：真实的“发送”“支付”或“删除”按钮会真的执行，所以请使用测试数据。许多 AI 应用仅限成年人使用：如果你未满 18 岁，请在家长或老师的陪同下进行设置。只连接你信任的 AI 应用。
 
 ### 62. ide/mcp.inc
 
@@ -633,7 +633,7 @@ English:
 
 简体中文:
 
-> 只分享你有权分享的内容：学校作业、雇主的代码或他人获得许可的代码，可能不属于你，不能随意分享。关闭此项或重置令牌，可断开所有 AI 应用。Studio 只在这台电脑上保存它们所做操作的列表；“清除活动记录”会删除它。
+> 只分享你有权分享的内容：学校作业、雇主的代码，或受他人许可证约束的代码，你不一定有权分享。关闭此项或重置令牌，可断开所有 AI 应用。Studio 只在这台电脑上保存它们所做操作的列表；“清除活动记录”会删除它。
 
 ### 63. ide/mcp.inc
 
@@ -643,7 +643,7 @@ English:
 
 简体中文:
 
-> {client} 想查看或使用你正在运行的程序：{what}。“允许一次”涵盖截图、点击和输入，直到本次运行结束。它可能看到程序显示的一切，包括私人数据。
+> {client} 想查看或使用你正在运行的程序：{what}。“允许一次”涵盖截图、点击和输入，直到本次运行结束。{client} 可能看到程序显示的一切，包括私人数据。
 
 ### 64. ide/mcp.inc
 
@@ -653,7 +653,7 @@ English:
 
 简体中文:
 
-> RAI 会自己为你工作，但对于 AI 应用提出的问题，它只会提出更改供你审阅，并且在运行你的程序之前先询问你。
+> RAI 会自己为你工作，但对于 AI 应用提出的问题，它会提出更改供你审阅，并且在运行你的程序之前先询问你。
 
 ### 65. ide/mcp.inc
 
@@ -743,7 +743,7 @@ English:
 
 简体中文:
 
-> RapidR 在这台电脑上只保存密码的单向加密形式，绝不保存密码本身。任何知道密码的人都可以解锁，直到 Studio 关闭，所以请保管好密码，不要告诉别人。忘记了？手册里面向老师的页面会告诉你怎么办。
+> RapidR 在这台电脑上只保存密码的一种无法还原的打乱形式（单向哈希），绝不保存密码本身。任何知道密码的人都可以解锁，直到 Studio 关闭，所以请保管好密码，不要告诉别人。忘记了？手册里面向老师的页面会告诉你怎么办。
 
 ### 74. ide/settings.inc
 
@@ -943,7 +943,7 @@ English:
 
 简体中文:
 
-> 不再等待你：RAI 会自行更改项目的文件、运行程序、查看程序、在其中点击和输入来测试它，然后报告它做了什么。
+> 任何操作都不会等你确认：RAI 会自行更改项目的文件、运行程序、查看程序、在其中点击和输入来测试它，然后报告它做了什么。
 
 ### 94. ide/settings.inc
 
@@ -973,7 +973,7 @@ English:
 
 简体中文:
 
-> RAI 绝对看不到你的密钥，也看不到项目之外的文件。
+> RAI 绝不会看到你的密钥，也不会看到项目之外的文件。
 
 ### 97. ide/settings.inc
 
@@ -1043,7 +1043,7 @@ English:
 
 简体中文:
 
-> RAI 和 AI 应用运行的程序保持沙盒隔离
+> RAI 和 AI 应用运行的程序保持在沙盒中
 
 ### 104. ide/shell.inc
 
@@ -1063,7 +1063,7 @@ English:
 
 简体中文:
 
-> 这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的机密内容会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。
+> 这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的密钥或密码会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。
 
 ### 106. ide/versions.inc
 
@@ -1135,7 +1135,7 @@ English:
 
 简体中文:
 
-> KeyOwner 是 RapidR Studio 自己专用的：程序的密钥永远只属于程序自己。
+> KeyOwner 是 RapidR Studio 自己专用的：程序的密钥始终是程序自己的。
 
 ### 113. crates/rapidr-ai/src/rai.rs
 
@@ -1330,3 +1330,57 @@ English:
 ## The compiler's messages (`crates/rapidr-diagnostics/lang/zh-Hans.po`)
 
 No text is marked `# legal` in this catalog.
+
+## Added after the review
+
+Written or marked `# legal` after the lawyer read the first 131 (they are in the catalogs in the places their texts belong; the numbers above stay the review's). Three are the new notes the review asked for ("Send only what you may share", "A provider may not offer its service", "Licences and notices are in English"), in the review's own Chinese; two are promises the review found unmarked ("never writes the answer", "nothing is sent to an AI"), faithful as they were.
+
+### A1. ide/aicoach.inc
+
+English:
+
+> RAI gives hints one step at a time and never writes the answer into your code
+
+简体中文:
+
+> RAI 一步一步地给出提示，绝不会把答案写进你的代码
+
+### A2. ide/aisetup.inc
+
+English:
+
+> Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send.
+
+简体中文:
+
+> 只发送你有权发送的内容：他人的个人信息、雇主的代码或学校作业，你不一定有权发送。
+
+### A3. ide/aisetup.inc
+
+English:
+
+> A provider may not offer its service where you live, and its servers may be in another country: check its terms.
+
+简体中文:
+
+> 服务商可能不在你所在的地区提供服务，其服务器也可能位于其他国家或地区：请查看其条款。
+
+### A4. ide/schoollock.inc
+
+English:
+
+> The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI
+
+简体中文:
+
+> “AI 助手”面板、配置 RAI，以及设置 > AI：不会向任何 AI 发送任何内容
+
+### A5. ide/shell.inc
+
+English:
+
+> Licences and notices are in English; the English text applies.
+
+简体中文:
+
+> 许可证和声明只提供英文，以英文文本为准。
