@@ -15,7 +15,12 @@ vm_bench style: measured with the `rapidr` given (./rapidr, or RAPIDR=…).
              $DEFINEs (CPU)
   caret      RapidR Studio (headless) with a generated 5,000-line program:
              a caret move's CPU, and an edit round's (a letter typed and
-             taken back, a pause, a move)
+             taken back, a pause, a move) — the whole process's (its
+             analysis worker too) and the UI thread's own; and the UI
+             thread's longest busy stretch in each (what a key pressed then
+             waits for: under a frame, the analysis being off the UI
+             thread — docs/speed-audit-2026-11.md, "Studio: the edit pause");
+             the same with the program of 1,000 $DEFINEs
 
 Times are the fastest of --runs runs. `--check` compares with the budgets in
 tools/bench/ui_budgets.json and exits 1 when one is missed (the `perf` stage
@@ -145,10 +150,19 @@ def main():
     if want("caret"):
         caret = os.path.join(UI, "studio_caret.py")
         env = dict(os.environ, RAPIDR=exe)
-        for kind, n, key in (("moves", 40, "caret_move"), ("edits", 4, "edit_round")):
+        plays = (("ui-bench-5000.rr", "moves", 40, "caret_move"), ("ui-bench-5000.rr", "edits", 4, "edit_round"), ("ui-bench-defines.rr", "edits", 3, "edit_round_defines"))
+        for src, kind, n, key in plays:
             def studio():
-                out = subprocess.run([sys.executable, caret, os.path.join(WORK, "ui-bench-5000.rr"), kind, str(n)], cwd=ROOT, env=env, capture_output=True, text=True, timeout=900).stdout
-                return {key: number(out, r"CPU (-?[\d.]+) ms\s*$")}
+                out = subprocess.run([sys.executable, caret, os.path.join(WORK, src), kind, str(n)], cwd=ROOT, env=env, capture_output=True, text=True, timeout=900).stdout
+                got = {
+                    key: number(out, r"each \w+: wall [\d.]+ ms, CPU (-?[\d.]+) ms"),
+                    f"{key}_ui_cpu": number(out, r"UI thread: CPU (-?[\d.]+) ms each"),
+                    f"{key}_ui_busy": number(out, r"UI busy p50 [\d.]+ ms, p99 [\d.]+ ms, max ([\d.]+) ms"),
+                }
+                if key == "edit_round_defines":
+                    # (its whole process: only the UI thread's are budgeted)
+                    del got[key]
+                return got
             # (Studio's runs are long: the fastest of two)
             results.update(best(min(runs, 2), studio))
 
@@ -173,7 +187,13 @@ def main():
         "canvas12_frame_window": "12 canvases: resize frame (window)",
         "check_defines": "check, 5,000 lines + 1,000 $DEFINEs",
         "caret_move": "Studio: a caret move (CPU)",
-        "edit_round": "Studio: an edit round (CPU)",
+        "caret_move_ui_cpu": "… the UI thread's CPU",
+        "caret_move_ui_busy": "… the UI thread's longest stretch",
+        "edit_round": "Studio: an edit round (CPU, its worker too)",
+        "edit_round_ui_cpu": "… the UI thread's CPU",
+        "edit_round_ui_busy": "… the UI thread's longest stretch",
+        "edit_round_defines_ui_cpu": "… 1,000 $DEFINEs: the UI thread's CPU",
+        "edit_round_defines_ui_busy": "… 1,000 $DEFINEs: its longest stretch",
     }
     missed = []
     for key, value in results.items():

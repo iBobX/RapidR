@@ -255,7 +255,10 @@ fn pump(timeout: Option<Duration>) {
         }
         // (the kernel's deadlines due: tick.rs)
         desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
+        // (RAPIDR_TEST_BUSY: the UI thread's busy stretches — busy.rs)
+        super::busy::wait_starts();
         host.pump(timeout, desk, &RtStore);
+        super::busy::wait_ended();
     });
 }
 
@@ -1407,6 +1410,7 @@ pub fn before_exit() {
     if started() {
         pump(Some(Duration::ZERO));
     }
+    super::busy::finish();
 }
 
 fn end(code: i32) -> ! {

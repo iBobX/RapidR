@@ -64,6 +64,13 @@ pub fn next_step() -> Option<Instant> {
     [next, keys].into_iter().flatten().min()
 }
 
+/// How many of the test's events have been played (0 with no test): what
+/// a benchmark's measures after its lead's events are told apart by
+/// (`RAPIDR_TEST_BUSY`, the desktop runtime's busy.rs).
+pub fn events_played() -> usize {
+    sc(|s| s.as_ref().map_or(0, |sc| sc.capture.events.len() - sc.events.len()))
+}
+
 /// SendKeys' next keystroke delivered (one per turn, each after the
 /// handlers the one before fired have run); whether there was one.
 fn send_key<R: Program + Windows>(rt: R) -> bool {

@@ -17,6 +17,8 @@ pub mod kernel_store;
 // (the eyes and hands: RapidR Studio's link to the program it runs, and
 // RWindowCapture / RAppHands — rapidr_ui_app::{eyes, hands, link})
 pub mod drive;
+// (RAPIDR_TEST_BUSY: the UI thread's busy stretches, for the editor benchmarks)
+mod busy;
 
 use crate::value::Value;
 
