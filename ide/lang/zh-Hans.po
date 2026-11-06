@@ -547,10 +547,14 @@ msgstr "已撤销：助手在 {n} 个文件中的上一次更改已被收回。"
 msgid "Not edited: the chat is as it was."
 msgstr "未编辑：对话保持原样。"
 
+#: ide/ai.inc
+msgid "some changes weren't applied"
+msgstr "部分更改没有应用"
+
 # legal
 #: ide/ai.inc
-msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
-msgstr "RAI 想在你正在运行的程序中点击和输入：请在它的对话中选择“本次运行允许”或“不允许”。"
+msgid "RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat."
+msgstr "RAI 请求运行你的程序或使用它：请在它的对话中选择“本次运行允许”或“不允许”。"
 
 #: ide/ai.inc
 msgid "Waiting for you — {status}"
@@ -2398,6 +2402,10 @@ msgid "Add &File..."
 msgstr "添加文件(&F)..."
 
 #: ide/commands.inc
+msgid "Add Fol&der..."
+msgstr "添加文件夹(&D)..."
+
+#: ide/commands.inc
 msgid "Add F&orm"
 msgstr "添加窗体(&O)"
 
@@ -2855,7 +2863,7 @@ msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger s
 msgstr "一个 GitHub 账号。GitHub 的条款要求年满 13 岁；更小的学生可以请老师或家长代为报告。"
 
 # legal
-#: ide/crash.inc ide/mcp.inc
+#: ide/crash.inc ide/mcp.inc ide/settings.inc
 msgid "Keep in mind"
 msgstr "请注意"
 
@@ -3828,7 +3836,7 @@ msgid "A program they run can do anything you can on this computer, and what the
 msgstr "它们运行的程序可以做你在这台电脑上能做的任何事，它们在程序中点击的内容也是真实有效的。只有在你亲自看着一个你信任的 AI 应用时，才选择这一项。"
 
 # legal
-#: ide/mcp.inc
+#: ide/mcp.inc ide/settings.inc
 msgid "You still see"
 msgstr "你仍然能看到"
 
@@ -3852,7 +3860,7 @@ msgstr "Studio 自带的工具绝不会交出你的密钥，或项目之外的�
 msgid "AI apps change and run anything in this project without asking"
 msgstr "AI 应用可不经询问就更改并运行本项目中的任何内容"
 
-#: ide/mcp.inc
+#: ide/mcp.inc ide/settings.inc
 msgid "The permission stays as it was"
 msgstr "权限保持原样"
 
@@ -4107,29 +4115,22 @@ msgstr "{client} 想查看或使用你正在运行的程序：{what}。“允许
 msgid "{client} wants to ask RAI: {prompt}"
 msgstr "{client} 想向 RAI 提问：{prompt}"
 
+# legal
+#: ide/mcp.inc
+msgid "RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program."
+msgstr "RAI 会自己为你工作，但对于 AI 应用提出的问题，它只会提出更改供你审阅，并且在运行你的程序之前先询问你。"
+
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
 msgstr "{question}（还有 {n} 项在等待）"
 
 #: ide/mcp.inc
-msgid "Program status"
-msgstr "程序状态"
+msgid "The program started and ended after {seconds} s (exit code {code}), with no output"
+msgstr "程序启动后 {seconds} 秒就结束了（退出代码 {code}），没有任何输出"
 
 #: ide/mcp.inc
-msgid "Stopped the program"
-msgstr "已停止程序"
-
-#: ide/mcp.inc
-msgid "Running the program"
-msgstr "正在运行程序"
-
-#: ide/mcp.inc
-msgid "Debugger state"
-msgstr "调试器状态"
-
-#: ide/mcp.inc
-msgid "Debugger: {action}"
-msgstr "调试器：{action}"
+msgid "The program started and ended after {seconds} s (exit code {code})"
+msgstr "程序启动后 {seconds} 秒就结束了（退出代码 {code}）"
 
 #: ide/mcp.inc
 msgid "A picture of Studio"
@@ -4637,6 +4638,14 @@ msgid "A three-voice square-wave music player"
 msgstr "三声部方波音乐播放器"
 
 #: ide/panes.inc
+msgid "Everything a MIDI device sends, in hex and in words"
+msgstr "MIDI 设备发送的一切，以十六进制和文字显示"
+
+#: ide/panes.inc
+msgid "SysEx with a synthesizer: ask who it is, send a message"
+msgstr "与合成器进行 SysEx 通信：询问它是什么设备，发送一条消息"
+
+#: ide/panes.inc
 msgid "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
 msgstr "可选择并复制的日志：Ctrl+C、复制行、全部复制"
 
@@ -4785,6 +4794,10 @@ msgstr "无法打开 {file}"
 #: ide/project.inc
 msgid "Can't open {file}: {error}"
 msgstr "无法打开 {file}：{error}"
+
+#: ide/project.inc
+msgid "Some of this project's settings name places outside its folder: Output says which"
+msgstr "此项目的某些设置指向它的文件夹之外的位置：“输出”会说明是哪些"
 
 #: ide/project.inc
 msgid "The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties."
@@ -5801,6 +5814,15 @@ msgid "On: a new program is shown to you first and created when you press Create
 msgstr "开启：新程序会先展示给你，在你点击“创建”后才会创建。关闭：新程序会立即在 Studio 中打开，并带有“运行”和“撤销”。"
 
 #: ide/settings.inc
+msgid "Programs the AI runs may use &DLLs and SHELL"
+msgstr "允许 AI 运行的程序使用 DLL 和 SHELL(&D)"
+
+# legal
+#: ide/settings.inc
+msgid "Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer."
+msgstr "关闭（更安全的选择）：RAI 或 AI 应用运行的程序不能调用 DLL、SENDMESSAGE，也不能使用 SHELL 和 RUN；你自己的“运行”(F5) 则始终可以。开启：它们运行的程序可以做你自己运行的程序在这台电脑上能做的任何事。"
+
+#: ide/settings.inc
 msgid "The provider's links"
 msgstr "服务商的链接"
 
@@ -5855,6 +5877,10 @@ msgstr "读取项目，提出更改供你审阅"
 #: ide/settings.inc
 msgid "Only read the project and answer"
 msgstr "只读取项目并回答"
+
+#: ide/settings.inc
+msgid "Work on its own: change files, run and test (you can undo every step)"
+msgstr "自行工作：更改文件、运行并测试（每一步都可以撤销）"
 
 #: ide/settings.inc
 msgid "Studio's language"
@@ -5982,6 +6008,74 @@ msgstr "{status} 请在“模型”列表中选择一个（速度快、费用低
 msgid "{status} {model} is still chosen."
 msgstr "{status} 仍然选择着 {model}。"
 
+# legal
+#: ide/settings.inc
+msgid "Let RAI work on its own?"
+msgstr "让 RAI 自行工作？"
+
+# legal
+#: ide/settings.inc
+msgid "Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did."
+msgstr "不再等待你：RAI 会自行更改项目的文件、运行程序、查看程序、在其中点击和输入来测试它，然后报告它做了什么。"
+
+# legal
+#: ide/settings.inc
+msgid "A program RAI runs can do anything you can on this computer, what it clicks in it is real (Send, Pay, Delete), it sees whatever the program shows, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of, with test data."
+msgstr "RAI 运行的程序可以做你在这台电脑上能做的任何事，它在程序中点击的内容也是真实有效的（发送、支付、删除），它能看到程序显示的一切，它所做的更改也不会经过你的审阅就直接应用。使用付费模型时还可能产生费用。只有在你亲自看着、项目已有版本记录、并且使用测试数据时，才选择这一项。"
+
+# legal
+#: ide/settings.inc
+msgid "Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run and RAI's answer."
+msgstr "每一步都显示在 RAI 的对话中；“撤销”和“版本”可以收回任何更改；“停止”可结束运行和 RAI 的回答。"
+
+# legal
+#: ide/settings.inc
+msgid "RAI never sees your keys, or files outside the project."
+msgstr "RAI 绝对看不到你的密钥，也看不到项目之外的文件。"
+
+# legal
+#: ide/settings.inc
+msgid "RAI changes and runs the project without asking"
+msgstr "RAI 可不经询问就更改并运行项目"
+
+#: ide/settings.inc
+msgid "&Let RAI Work on Its Own"
+msgstr "让 RAI 自行工作(&L)"
+
+# legal
+#: ide/settings.inc
+msgid "Let the programs the AI runs use DLLs and SHELL?"
+msgstr "允许 AI 运行的程序使用 DLL 和 SHELL？"
+
+# legal
+#: ide/settings.inc
+msgid "Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run."
+msgstr "关闭时，RAI 或 AI 应用运行的程序处于沙盒中：DLL 调用 (DECLARE ... LIB)、SENDMESSAGE，以及 SHELL 或 RUN 都会使它出错停止，并给出说明。开启时，它们运行的程序拥有与你自己的“运行”相同的权限。"
+
+# legal
+#: ide/settings.inc
+msgid "Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch."
+msgstr "这样的程序就可以启动任何其他程序、调用系统的库：它可以做你在这台电脑上能做的任何事。只有对你信任的项目、并且在你亲自看着的时候，才选择这一项。"
+
+# legal
+#: ide/settings.inc
+msgid "Your own Run (F5) has this power whatever you choose here."
+msgstr "无论你在这里怎么选择，你自己的“运行”(F5) 都拥有这种权限。"
+
+# legal
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run may call DLLs and start other programs"
+msgstr "RAI 和 AI 应用运行的程序可以调用 DLL 并启动其他程序"
+
+# legal
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run stay sandboxed"
+msgstr "RAI 和 AI 应用运行的程序保持沙盒隔离"
+
+#: ide/settings.inc
+msgid "&Allow Full Power"
+msgstr "允许完全权限(&A)"
+
 #: ide/shell.inc
 msgid "RapidR Studio (RapidR {version})"
 msgstr "RapidR Studio (RapidR {version})"
@@ -6008,6 +6102,48 @@ msgid "Add a File to the Project"
 msgstr "向项目添加文件"
 
 #: ide/shell.inc
+msgid "Nothing was added: adding makes this program a project, and its project file {file} is there already. Open that project (File > Open Project or File...), then add the files to it."
+msgstr "没有添加任何内容：添加会让这个程序成为一个项目，而它的项目文件 {file} 已经存在。请先打开那个项目（文件 > 打开项目或文件...），再向其中添加文件。"
+
+#: ide/shell.inc
+msgid "Nothing was added: {file} is there already"
+msgstr "没有添加任何内容：{file} 已存在"
+
+#: ide/shell.inc
+msgid "Add a Folder to the Project"
+msgstr "向项目添加文件夹"
+
+#: ide/shell.inc
+msgid "Added {n} files from {folder} to the project"
+msgstr "已把 {folder} 中的 {n} 个文件添加到项目"
+
+#: ide/shell.inc
+msgid "{n} were in the project already or couldn't be added"
+msgstr "有 {n} 个文件已在项目中，或无法添加"
+
+#: ide/shell.inc
+msgid "{n} more file was left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgid_plural "{n} more files were left out: Add Folder adds at most 500 at a time (add a folder inside it next)"
+msgstr[0] "还有 {n} 个文件没有添加：“添加文件夹”一次最多添加 500 个（接下来请添加其中的子文件夹）"
+msgstr[1] ""
+
+#: ide/shell.inc
+msgid "{n} folder inside it wasn't looked in: too many at once (add it on its own)"
+msgid_plural "{n} folders inside it weren't looked in: too many at once (add them one by one)"
+msgstr[0] "其中有 {n} 个文件夹没有查看：一次太多了（请逐个添加）"
+msgstr[1] ""
+
+#: ide/shell.inc
+msgid "{n} link was skipped: Add Folder doesn't follow links"
+msgid_plural "{n} links were skipped: Add Folder doesn't follow links"
+msgstr[0] "已跳过 {n} 个链接：“添加文件夹”不会跟随链接"
+msgstr[1] ""
+
+#: ide/shell.inc
+msgid "Not everything was added: the Output says what was left out"
+msgstr "没有全部添加：“输出”会说明哪些被遗漏了"
+
+#: ide/shell.inc
 msgid "No splitter to move"
 msgstr "没有可移动的分隔条"
 
@@ -6018,6 +6154,22 @@ msgstr "（{id}：尚不存在）"
 #: ide/shell.inc
 msgid "RapidR Studio is ready."
 msgstr "RapidR Studio 已就绪。"
+
+#: ide/tools.inc ide/versions.inc
+msgid "This project keeps versions now: {folder}"
+msgstr "此项目现在开始记录版本了：{folder}"
+
+#: ide/tools.inc
+msgid "RAI saved the version “{message}” ({id})"
+msgstr "RAI 保存了版本“{message}”({id})"
+
+#: ide/tools.inc
+msgid "An AI app saved the version “{message}” ({id})"
+msgstr "某个 AI 应用保存了版本“{message}”({id})"
+
+#: ide/tools.inc
+msgid "Went back to version {version}: a new version ({id}). Undo in Versions takes it back."
+msgstr "已回到版本 {version}：生成了一个新版本 ({id})。在“版本”中使用“撤销”可以收回。"
 
 #: ide/versions.inc
 msgid "&Start Keeping Versions of This Project"
@@ -6202,6 +6354,14 @@ msgstr[0] "{n} 天前"
 msgstr[1] ""
 
 #: ide/versions.inc
+msgid "Versions are off for this project: {why}"
+msgstr "此项目的版本功能已关闭：{why}"
+
+#: ide/versions.inc
+msgid "Versions are off for this project"
+msgstr "此项目的版本功能已关闭"
+
+#: ide/versions.inc
 msgid "AI checkpoint: {what}, {when}"
 msgstr "AI 检查点：{what}，{when}"
 
@@ -6278,6 +6438,10 @@ msgstr "版本功能需要你电脑上的 RapidR Studio：浏览器暂时还不�
 #: ide/versions.inc
 msgid "Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them."
 msgstr "Studio 仍会在每次保存时，在这个浏览器中保存每个文件的一份副本。“本地历史记录”会显示它们。"
+
+#: ide/versions.inc
+msgid "Studio still keeps a copy of each file every time you save it. Local History shows them."
+msgstr "每次保存文件时，Studio 仍会保留一份副本。“本地历史记录”会显示它们。"
 
 #: ide/versions.inc
 msgid "No versions yet"
@@ -6372,10 +6536,6 @@ msgstr "无法开始记录版本：{why}"
 #: ide/versions.inc
 msgid "Versions didn't start"
 msgstr "无法开始记录版本"
-
-#: ide/versions.inc
-msgid "This project keeps versions now: {folder}"
-msgstr "此项目现在开始记录版本了：{folder}"
 
 #: ide/versions.inc
 msgid "Versions started: save your first version"

@@ -1049,6 +1049,10 @@ msgid "the label"
 msgstr "标签"
 
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI's change to {path} wasn't applied: {why}. It waits for your review."
+msgstr "RAI 对 {path} 的更改没有应用：{why}。它仍在等你审阅。"
+
+#: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} proposed before was set aside: {path} changed since."
 msgstr "之前提议的对 {path} 的更改已被搁置：{path} 之后又有了更改。"
 
@@ -1103,6 +1107,10 @@ msgstr "助手提议了对 {files} 个文件的更改：请审阅。"
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant proposed changes to {files} files that don't compile yet: review them, or ask it to fix the errors."
 msgstr "助手提议了对 {files} 个文件的更改，但它们还不能编译：请审阅，或请助手修复错误。"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI applied its change to {path} (working on its own)."
+msgstr "RAI 已应用它对 {path} 的更改（自行工作）。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "You applied the change to {path}."
@@ -1178,8 +1186,31 @@ msgstr "已修复 {n} 个错误"
 
 # legal
 #: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data."
+msgstr "RAI 想运行你的程序，然后查看它、在其中点击和输入。这个程序可以做你在这台电脑上能做的任何事，RAI 也能看到它显示的一切，包括私人数据。"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to stop your running program."
+msgstr "RAI 想停止你正在运行的程序。"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to bring your project back to an earlier version: your files become as they were then, saved as a new version. Nothing is lost, and Undo in Versions takes it back."
+msgstr "RAI 想让你的项目回到较早的版本：你的文件会恢复成当时的样子，并保存为一个新版本。不会丢失任何内容，在“版本”中使用“撤销”可以收回。"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to start Versions in this project, so it can save versions of your work as it goes."
+msgstr "RAI 想在这个项目中开始记录版本，这样它就能在工作过程中保存你的工作版本。"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
 msgid "RAI wants to click and type in your running program. It sees whatever the program shows, including private data."
 msgstr "RAI 想在你正在运行的程序中点击和输入。它能看到程序显示的一切，包括私人数据。"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Allow"
+msgstr "允许"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Allow for this run"
@@ -1191,8 +1222,35 @@ msgstr "不允许"
 
 # legal
 #: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to run and use your program for this run"
+msgstr "你已允许 RAI 在本次运行中运行并使用你的程序"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to bring the project back to an earlier version"
+msgstr "你已允许 RAI 让项目回到较早的版本"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to start Versions"
+msgstr "你已允许 RAI 开始记录版本"
+
+# legal
+#: crates/rapidr-studio/src/ai.rs
 msgid "You allowed RAI to use your running program for this run"
 msgstr "你已允许 RAI 在本次运行中使用你正在运行的程序"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to change the versions"
+msgstr "你没有允许 RAI 更改版本"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to run your program"
+msgstr "你没有允许 RAI 运行你的程序"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to stop your program"
+msgstr "你没有允许 RAI 停止你的程序"
 
 # legal
 #: crates/rapidr-studio/src/ai.rs
@@ -1296,12 +1354,76 @@ msgid "Laying out the buttons"
 msgstr "正在排布按钮"
 
 #: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the open documents"
+msgstr "正在列出已打开的文档"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading the forms' layout"
+msgstr "正在读取窗体的布局"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Setting a property"
+msgstr "正在设置属性"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Setting a property of {name}"
+msgstr "正在设置 {name} 的属性"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Using the debugger"
+msgstr "正在使用调试器"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the versions"
+msgstr "正在列出版本"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Comparing versions"
+msgstr "正在比较版本"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Going back to a version"
+msgstr "正在回到某个版本"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Starting Versions"
+msgstr "正在开始记录版本"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking up how to do it"
+msgstr "正在查找做法"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Noting what's missing"
+msgstr "正在记下缺少的内容"
+
+#: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading the running program's layout"
 msgstr "正在读取运行中程序的布局"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Looking at the running program"
 msgstr "正在查看运行中的程序"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Saving a version"
+msgstr "正在保存版本"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Saving the version “{message}”"
+msgstr "正在保存版本“{message}”"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Stopping your program"
+msgstr "正在停止你的程序"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking at your program's output"
+msgstr "正在查看程序的输出"
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Running your program"
+msgstr "正在运行你的程序"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Letting the running program work"
@@ -1865,6 +1987,26 @@ msgid "{path}: not a project or a source file"
 msgstr "{path}：不是项目或源文件"
 
 #: crates/rapidr-studio/src/project.rs
+msgid "the main file ({value})"
+msgstr "主文件（{value}）"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the app's icon ({value})"
+msgstr "应用图标（{value}）"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "Build's output folder ({value})"
+msgstr "构建的输出文件夹（{value}）"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "This project's settings name places outside its folder, so RapidR doesn't use them: {list}. A project from someone else could use them to read or write your other files. If you chose them yourself, set them again and save the project."
+msgstr "此项目的某些设置指向它的文件夹之外的位置，所以 RapidR 不会使用它们：{list}。来自他人的项目可能借此读取或写入你的其他文件。如果是你自己选的，请重新设置它们并保存项目。"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "The arguments Run gives the program name places outside the project's folder: {args}."
+msgstr "“运行”传给程序的参数里有指向项目文件夹之外的位置：{args}。"
+
+#: crates/rapidr-studio/src/project.rs
 msgid "no project is open"
 msgstr "没有打开的项目"
 
@@ -1963,6 +2105,22 @@ msgstr "已回到“{message}”({id})"
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to {what}"
 msgstr "已回到 {what}"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This project's version history points outside its folder, so Versions won't use it: it could read or change files that aren't part of the project. If the project came from someone else, copy its files without the hidden .git folder into a new folder, then start versions there."
+msgstr "此项目的版本历史指向它的文件夹之外，所以“版本”不会使用它：它可能读取或更改不属于项目的文件。如果项目来自他人，请把它的文件（不含隐藏的 .git 文件夹）复制到一个新文件夹，再在那里开始记录版本。"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "That shared folder's versions point outside it, so Versions won't use it: it could read or change other files on this computer."
+msgstr "那个共享文件夹的版本指向它之外，所以“版本”不会使用它：它可能读取或更改这台电脑上的其他文件。"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "The project's .gitignore is a link to another file, so Versions won't write it. Replace it with a file of its own, then start versions again."
+msgstr "项目的 .gitignore 是指向另一个文件的链接，所以“版本”不会写入它。请把它换成一个独立的文件，然后重新开始记录版本。"
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This version has a link, {file}, that points outside the project's folder ({target}), so Versions won't write it. Nothing was changed."
+msgstr "这个版本中有一个链接 {file}，指向项目文件夹之外 ({target})，所以“版本”不会写入它。没有更改任何内容。"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project)."
@@ -3444,6 +3602,32 @@ msgstr "第 {n} 行已删除"
 msgid "lines {from}–{to} removed"
 msgstr "第 {from}–{to} 行已删除"
 
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "Continue"
+msgstr "继续"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "Not now"
+msgstr "以后再说"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "SysEx messages"
+msgstr "SysEx 消息"
+
+# legal
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "This program also wants to send and receive \"system exclusive\" (SysEx) messages. These can change settings stored inside a MIDI device and, on some devices, even replace its firmware. Allow it only for programs you trust."
+msgstr "这个程序还想发送和接收“系统专有” (SysEx) 消息。这些消息可以更改 MIDI 设备内部保存的设置，在某些设备上甚至可以替换它的固件。只对你信任的程序允许这样做。"
+
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "MIDI devices"
+msgstr "MIDI 设备"
+
+# legal
+#: crates/rapidr-value/src/objects/midiport.rs
+msgid "This program wants to use your MIDI devices (keyboards, controllers, synthesizers). Your browser will ask you to allow it. RapidR does not send the list of your devices anywhere."
+msgstr "这个程序想使用你的 MIDI 设备（键盘、控制器、合成器）。你的浏览器会请你确认是否允许。RapidR 不会把你的设备列表发送到任何地方。"
+
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
 msgstr "构建"
@@ -3667,6 +3851,14 @@ msgstr "点击或双击：程序的一个新 MDI 主窗口文件。"
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Division by zero"
 msgstr "除以零"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{name}: bits {from} to {to} are outside the value's {width} bits"
+msgstr "{name}：第 {from} 到 {to} 位超出了该值的 {width} 位范围"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
+msgstr "WriteInteger 只保留 32 位（REG_DWORD）：{n} 放不下——用 WriteString(name, STR$(n)) 可以完整保存"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"

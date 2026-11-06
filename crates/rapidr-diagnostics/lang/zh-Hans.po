@@ -95,6 +95,31 @@ msgctxt "RQ0017"
 msgid "Expected {expected}"
 msgstr "应为 {expected}"
 
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0018"
+msgid "Missing {closer} statement"
+msgstr "缺少 {closer} 语句"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0019"
+msgid "Missing END SUB or END FUNCTION"
+msgstr "缺少 END SUB 或 END FUNCTION"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0020"
+msgid "Missing END STRUCT before end of file."
+msgstr "文件结束之前缺少 END STRUCT。"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0021"
+msgid "{name} identifier already in use, try another name"
+msgstr "标识符 {name} 已被使用，请换一个名称"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0022"
+msgid "CONST variable {name} already defined"
+msgstr "CONST 变量 {name} 已经定义过了"
+
 msgctxt "RR0001"
 msgid "Syntax error in {word} statement (did you mean {fix}?)"
 msgstr "{word} 语句的语法错误（你是不是想写 {fix}？）"
@@ -231,6 +256,54 @@ msgctxt "RR0034"
 msgid "{name} is a {inc} constant — add $INCLUDE \"{inc}\""
 msgstr "{name} 是 {inc} 中的常量——请添加 $INCLUDE \"{inc}\""
 
+msgctxt "RR0035"
+msgid "{block} ({place}) has no {closer}: a bare END ({end}) ends the program; write {closer} there"
+msgstr "{block} ({place}) 没有 {closer}：单独的 END ({end}) 会结束程序；请在那里写 {closer}"
+
+msgctxt "RR0036"
+msgid "{block} ({place}) has no {closer} before {next} ({at}): write {closer} above it"
+msgstr "{block} ({place}) 在 {next} ({at}) 之前没有 {closer}：请在它上面写 {closer}"
+
+msgctxt "RR0037"
+msgid "{block} ({place}) has no {closer} in its file: a block ends in the file it starts in — write {closer} there"
+msgstr "{block} ({place}) 在它所在的文件中没有 {closer}：代码块必须在它开始的文件中结束——请在那里写 {closer}"
+
+msgctxt "RR0038"
+msgid "{block} ({place}) has no {closer}: write {closer} where it ends"
+msgstr "{block} ({place}) 没有 {closer}：请在它结束的地方写 {closer}"
+
+msgctxt "RR0039"
+msgid "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the variable {other}"
+msgstr "{name} 是内置项 {builtin} 的名称：程序无法区分它们，所以请把变量命名为 {other}"
+
+msgctxt "RR0040"
+msgid "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the component {other}"
+msgstr "{name} 是内置项 {builtin} 的名称：程序无法区分它们，所以请把组件命名为 {other}"
+
+msgctxt "RR0041"
+msgid "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the constant {other}"
+msgstr "{name} 是内置项 {builtin} 的名称：程序无法区分它们，所以请把常量命名为 {other}"
+
+msgctxt "RR0042"
+msgid "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the SUB {other}"
+msgstr "{name} 是内置项 {builtin} 的名称：程序无法区分它们，所以请把 SUB 命名为 {other}"
+
+msgctxt "RR0043"
+msgid "{name} is the name of the builtin {builtin}: the program can't tell them apart, so name the FUNCTION {other}"
+msgstr "{name} 是内置项 {builtin} 的名称：程序无法区分它们，所以请把 FUNCTION 命名为 {other}"
+
+msgctxt "RR0044"
+msgid "{file} mixes two encodings: byte {byte} on line {line} isn't UTF-8 (Windows-1252 reads it as {char}), so the whole file is read as Windows-1252 and its UTF-8 characters show wrong — retype that character and save the file as UTF-8"
+msgstr "{file} 混用了两种编码：第 {line} 行的字节 {byte} 不是 UTF-8（Windows-1252 把它读作 {char}），所以整个文件会按 Windows-1252 读取，其中的 UTF-8 字符会显示错误——请重新输入那个字符，并把文件保存为 UTF-8"
+
+msgctxt "RR0045"
+msgid "{file} isn't UTF-8: byte {byte} on line {line} is read as Windows-1252 ({char}) — save the file as UTF-8 (in a text editor: Save with Encoding, UTF-8)"
+msgstr "{file} 不是 UTF-8：第 {line} 行的字节 {byte} 被读作 Windows-1252 ({char})——请把文件保存为 UTF-8（在文本编辑器中：以编码方式保存，选择 UTF-8）"
+
+msgctxt "RR0046"
+msgid "it is declared in {place} already: a global name — a variable, CONST, SUB, FUNCTION or component, in any capitals — is the program's once; a SUB's own variables and parameters may reuse it"
+msgstr "它在 {place} 中已经声明过了：全局名称——变量、CONST、SUB、FUNCTION 或组件，不分大小写——在程序中只能有一个；SUB 自己的变量和参数可以重名"
+
 #. The word that labels a hint under a compiler message
 msgctxt "hint.label"
 msgid "hint"
@@ -315,6 +388,11 @@ msgstr "ELSE IF 会开始第二个 IF，它需要自己的 END IF：请写成 EL
 msgctxt "hint.missing-end-select"
 msgid "every SELECT CASE needs its END SELECT"
 msgstr "每个 SELECT CASE 都需要对应的 END SELECT"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.duplicate"
+msgid "a global name is declared once in a whole program: rename one of the two, or delete the second (when two $INCLUDEd files both declare it, $INCLUDE only one of them)"
+msgstr "全局名称在整个程序中只能声明一次：请重命名其中一个，或删除第二个（如果两个 $INCLUDE 的文件都声明了它，就只 $INCLUDE 其中一个）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.and-and"

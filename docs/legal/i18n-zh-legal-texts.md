@@ -2,7 +2,7 @@
 
 For the lead's lawyer check (lane I18N-ZH, 2026-11-06). Every text the catalogs mark `# legal` (consent, permission, privacy, cost, key, age, School Lock, crash-report and licence texts), with the English it translates. The Chinese is an AI translation, **beta**, made **by meaning, point by point, dropping nothing** (docs/i18n/zh-glossary.md, 2.5); a native reader has not checked it. Nothing here has been merged on a lawyer's say-so.
 
-**109 texts**: 92 in Studio, 17 in RapidR's own text, 0 in the compiler's messages. Find them again with `grep -B1 "^# legal" <catalog>`.
+**131 texts**: 106 in Studio, 25 in RapidR's own text, 0 in the compiler's messages. Find them again with `grep -B1 "^# legal" <catalog>`.
 
 ## Points to check
 
@@ -11,7 +11,7 @@ For the lead's lawyer check (lane I18N-ZH, 2026-11-06). Every text the catalogs 
 - **Where a key is kept** names the stores as their systems do: macOS 钥匙串, Windows 凭据管理器, Secret Service; "never in a project" is "绝不会放进项目里" every time.
 - **Permission words match everywhere**: Allow Once = 允许一次, Allow for This Session = 本次会话中允许, Deny / Don't allow = 不允许, Allow for this run = 本次运行允许, Allow everything = 全部允许.
 - **The About box's copyright line** keeps "Copyright (c)" and the company's name as written, with the licence's name in Chinese ("MIT 许可证"). The licences themselves and `LEGAL.md` are not translated: the English is the one that applies.
-- **Wording I am least sure of** is marked `review` in the catalog where it exists; none of the legal texts is marked, but the cost texts (305, 403-406 by their English) and the AI-apps permission texts are the longest and deserve the most careful read.
+- **Wording I am least sure of** is marked `#, review` in the catalog where it exists; none of the legal texts is marked, but the cloud services' cost and privacy texts (Anthropic, OpenAI, DeepSeek and the general one) and the AI apps' permission texts are the longest and deserve the most careful read.
 
 ## RapidR Studio (`ide/lang/zh-Hans.po`)
 
@@ -39,11 +39,11 @@ English:
 
 English:
 
-> RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat.
+> RAI asks to run your program or use it: Allow for this run, or Don't allow, in its chat.
 
 简体中文:
 
-> RAI 想在你正在运行的程序中点击和输入：请在它的对话中选择“本次运行允许”或“不允许”。
+> RAI 请求运行你的程序或使用它：请在它的对话中选择“本次运行允许”或“不允许”。
 
 ### 4. ide/ai.inc
 
@@ -375,7 +375,7 @@ English:
 
 > 一个 GitHub 账号。GitHub 的条款要求年满 13 岁；更小的学生可以请老师或家长代为报告。
 
-### 37. ide/crash.inc ide/mcp.inc
+### 37. ide/crash.inc ide/mcp.inc ide/settings.inc
 
 English:
 
@@ -505,7 +505,7 @@ English:
 
 > 它们运行的程序可以做你在这台电脑上能做的任何事，它们在程序中点击的内容也是真实有效的。只有在你亲自看着一个你信任的 AI 应用时，才选择这一项。
 
-### 50. ide/mcp.inc
+### 50. ide/mcp.inc ide/settings.inc
 
 English:
 
@@ -649,13 +649,23 @@ English:
 
 English:
 
+> RAI works on its own for you, but for an AI app's question it proposes changes for you to review and asks before it runs your program.
+
+简体中文:
+
+> RAI 会自己为你工作，但对于 AI 应用提出的问题，它只会提出更改供你审阅，并且在运行你的程序之前先询问你。
+
+### 65. ide/mcp.inc
+
+English:
+
 > Let AI apps use RapidR Studio?
 
 简体中文:
 
 > 允许 AI 应用使用 RapidR Studio？
 
-### 65. ide/mcp.inc
+### 66. ide/mcp.inc
 
 English:
 
@@ -665,7 +675,7 @@ English:
 
 > 开启后，这台电脑上拿到你的令牌的 AI 应用可以通过 Studio 操作你打开的项目，它所做的一切都会显示在“AI 应用”面板中。
 
-### 66. ide/mcp.inc
+### 67. ide/mcp.inc
 
 English:
 
@@ -675,7 +685,7 @@ English:
 
 > 拿到令牌的 AI 应用可以连接到 RapidR Studio
 
-### 67. ide/mcp.inc
+### 68. ide/mcp.inc
 
 English:
 
@@ -685,7 +695,7 @@ English:
 
 > AI 应用做过的事的列表将从这台电脑上删除（{location}）。
 
-### 68. ide/schoollock.inc
+### 69. ide/schoollock.inc
 
 English:
 
@@ -695,7 +705,7 @@ English:
 
 > RAI 保持开启，但只给出提示。它绝不会把答案写进学生的代码。取消勾选“Studio 中的 AI”即可选择此项。
 
-### 69. ide/schoollock.inc
+### 70. ide/schoollock.inc
 
 English:
 
@@ -705,7 +715,7 @@ English:
 
 > RAI 保持在辅导模式，这台电脑上的 AI 应用无法连接到 RapidR Studio。
 
-### 70. ide/schoollock.inc
+### 71. ide/schoollock.inc
 
 English:
 
@@ -715,7 +725,7 @@ English:
 
 > 在这台电脑上的 RapidR Studio 中，RAI 保持在辅导模式：它一步一步地给出提示，不会更改学生的文件。
 
-### 71. ide/schoollock.inc
+### 72. ide/schoollock.inc
 
 English:
 
@@ -725,7 +735,7 @@ English:
 
 > 在这台电脑上，使用此账户的所有人都无法使用 RapidR Studio 的某些功能，直到有人输入密码。其他一切照常运行。
 
-### 72. ide/schoollock.inc
+### 73. ide/schoollock.inc
 
 English:
 
@@ -735,7 +745,7 @@ English:
 
 > RapidR 在这台电脑上只保存密码的单向加密形式，绝不保存密码本身。任何知道密码的人都可以解锁，直到 Studio 关闭，所以请保管好密码，不要告诉别人。忘记了？手册里面向老师的页面会告诉你怎么办。
 
-### 73. ide/settings.inc
+### 74. ide/settings.inc
 
 English:
 
@@ -745,7 +755,7 @@ English:
 
 > 默认关闭。开启后，Studio 会显示“AI 助手”面板（视图 > AI 助手，Ctrl+I）：你可以询问关于项目的问题，或请它写一个新程序。在你点击那里的“发送”之前，不会发送任何内容。它制作的新程序会立即在 Studio 中打开（“撤销”可收回）；对你的文件的更改会先展示给你审阅，在你点击“运行”之前，不会运行任何内容。
 
-### 74. ide/settings.inc
+### 75. ide/settings.inc
 
 English:
 
@@ -755,7 +765,7 @@ English:
 
 > 粘贴服务商给你的密钥；它会保存在你系统的钥匙串中，绝不会放进项目里
 
-### 75. ide/settings.inc
+### 76. ide/settings.inc
 
 English:
 
@@ -765,7 +775,17 @@ English:
 
 > 保存在此浏览器为该页面提供的存储中：使用这个浏览器用户配置文件的任何人都能读取它
 
-### 76. ide/settings.inc
+### 77. ide/settings.inc
+
+English:
+
+> Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer.
+
+简体中文:
+
+> 关闭（更安全的选择）：RAI 或 AI 应用运行的程序不能调用 DLL、SENDMESSAGE，也不能使用 SHELL 和 RUN；你自己的“运行”(F5) 则始终可以。开启：它们运行的程序可以做你自己运行的程序在这台电脑上能做的任何事。
+
+### 78. ide/settings.inc
 
 English:
 
@@ -775,7 +795,7 @@ English:
 
 > “发送”会分享你的消息、到目前为止的对话、RapidR 的指令，以及助手读取的已打开项目的内容——不含项目之外的任何内容，在你点击“发送”之前也不会分享任何内容。每次请求和更改的日志都保存在这台电脑上。
 
-### 77. ide/settings.inc
+### 79. ide/settings.inc
 
 English:
 
@@ -785,7 +805,7 @@ English:
 
 > macOS 钥匙串
 
-### 78. ide/settings.inc
+### 80. ide/settings.inc
 
 English:
 
@@ -795,7 +815,7 @@ English:
 
 > Windows 凭据管理器
 
-### 79. ide/settings.inc
+### 81. ide/settings.inc
 
 English:
 
@@ -805,7 +825,7 @@ English:
 
 > Secret Service（GNOME Keyring 或 KWallet）
 
-### 80. ide/settings.inc
+### 82. ide/settings.inc
 
 English:
 
@@ -815,7 +835,7 @@ English:
 
 > 此浏览器标签页（直到关闭）
 
-### 81. ide/settings.inc
+### 83. ide/settings.inc
 
 English:
 
@@ -825,7 +845,7 @@ English:
 
 > 此浏览器（在这台设备上）
 
-### 82. ide/settings.inc
+### 84. ide/settings.inc
 
 English:
 
@@ -835,7 +855,7 @@ English:
 
 > 内存（直到程序结束；这台电脑上没有 RapidR 可用的钥匙串）
 
-### 83. ide/settings.inc
+### 85. ide/settings.inc
 
 English:
 
@@ -845,7 +865,7 @@ English:
 
 > 内存（仅限本次会话）
 
-### 84. ide/settings.inc
+### 86. ide/settings.inc
 
 English:
 
@@ -855,7 +875,7 @@ English:
 
 > 此程序的内存（直到程序结束）
 
-### 85. ide/settings.inc
+### 87. ide/settings.inc
 
 English:
 
@@ -865,7 +885,7 @@ English:
 
 > 一个环境变量
 
-### 86. ide/settings.inc
+### 88. ide/settings.inc
 
 English:
 
@@ -875,7 +895,7 @@ English:
 
 > 本地服务器不需要密钥（如果你提供了密钥，会保存下来：有些服务器会要求密钥）。
 
-### 87. ide/settings.inc
+### 89. ide/settings.inc
 
 English:
 
@@ -885,7 +905,7 @@ English:
 
 > 你的密钥 {hint} 保存在{store}中，绝不会放进项目里。
 
-### 88. ide/settings.inc
+### 90. ide/settings.inc
 
 English:
 
@@ -895,7 +915,7 @@ English:
 
 > 粘贴你的密钥并点击“保存密钥”：它会保存在{store}中（如果你勾选了该选项，则保存在这台设备上），绝不会放进项目里。
 
-### 89. ide/settings.inc
+### 91. ide/settings.inc
 
 English:
 
@@ -905,7 +925,127 @@ English:
 
 > 粘贴你的密钥并点击“保存密钥”：它会保存在{store}中，绝不会放进项目里。
 
-### 90. ide/shell.inc
+### 92. ide/settings.inc
+
+English:
+
+> Let RAI work on its own?
+
+简体中文:
+
+> 让 RAI 自行工作？
+
+### 93. ide/settings.inc
+
+English:
+
+> Nothing waits for you: RAI changes the project's files, runs the program, looks at it, clicks and types in it to test it on its own, then reports what it did.
+
+简体中文:
+
+> 不再等待你：RAI 会自行更改项目的文件、运行程序、查看程序、在其中点击和输入来测试它，然后报告它做了什么。
+
+### 94. ide/settings.inc
+
+English:
+
+> A program RAI runs can do anything you can on this computer, what it clicks in it is real (Send, Pay, Delete), it sees whatever the program shows, and its changes are applied without your review. It may cost money with a paid model. Choose this only while you watch, on a project you have Versions of, with test data.
+
+简体中文:
+
+> RAI 运行的程序可以做你在这台电脑上能做的任何事，它在程序中点击的内容也是真实有效的（发送、支付、删除），它能看到程序显示的一切，它所做的更改也不会经过你的审阅就直接应用。使用付费模型时还可能产生费用。只有在你亲自看着、项目已有版本记录、并且使用测试数据时，才选择这一项。
+
+### 95. ide/settings.inc
+
+English:
+
+> Every step in RAI's chat; Undo and Versions take any change back; Stop ends a run and RAI's answer.
+
+简体中文:
+
+> 每一步都显示在 RAI 的对话中；“撤销”和“版本”可以收回任何更改；“停止”可结束运行和 RAI 的回答。
+
+### 96. ide/settings.inc
+
+English:
+
+> RAI never sees your keys, or files outside the project.
+
+简体中文:
+
+> RAI 绝对看不到你的密钥，也看不到项目之外的文件。
+
+### 97. ide/settings.inc
+
+English:
+
+> RAI changes and runs the project without asking
+
+简体中文:
+
+> RAI 可不经询问就更改并运行项目
+
+### 98. ide/settings.inc
+
+English:
+
+> Let the programs the AI runs use DLLs and SHELL?
+
+简体中文:
+
+> 允许 AI 运行的程序使用 DLL 和 SHELL？
+
+### 99. ide/settings.inc
+
+English:
+
+> Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run.
+
+简体中文:
+
+> 关闭时，RAI 或 AI 应用运行的程序处于沙盒中：DLL 调用 (DECLARE ... LIB)、SENDMESSAGE，以及 SHELL 或 RUN 都会使它出错停止，并给出说明。开启时，它们运行的程序拥有与你自己的“运行”相同的权限。
+
+### 100. ide/settings.inc
+
+English:
+
+> Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch.
+
+简体中文:
+
+> 这样的程序就可以启动任何其他程序、调用系统的库：它可以做你在这台电脑上能做的任何事。只有对你信任的项目、并且在你亲自看着的时候，才选择这一项。
+
+### 101. ide/settings.inc
+
+English:
+
+> Your own Run (F5) has this power whatever you choose here.
+
+简体中文:
+
+> 无论你在这里怎么选择，你自己的“运行”(F5) 都拥有这种权限。
+
+### 102. ide/settings.inc
+
+English:
+
+> The programs RAI and AI apps run may call DLLs and start other programs
+
+简体中文:
+
+> RAI 和 AI 应用运行的程序可以调用 DLL 并启动其他程序
+
+### 103. ide/settings.inc
+
+English:
+
+> The programs RAI and AI apps run stay sandboxed
+
+简体中文:
+
+> RAI 和 AI 应用运行的程序保持沙盒隔离
+
+### 104. ide/shell.inc
 
 English:
 
@@ -915,7 +1055,7 @@ English:
 
 > Copyright (c) 2025-2026 Ruta Internet SRL。MIT 许可证。
 
-### 91. ide/versions.inc
+### 105. ide/versions.inc
 
 English:
 
@@ -925,7 +1065,7 @@ English:
 
 > 这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的机密内容会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。
 
-### 92. ide/versions.inc
+### 106. ide/versions.inc
 
 English:
 
@@ -937,7 +1077,7 @@ English:
 
 ## RapidR's own text, the runtime (`crates/rapidr-value/lang/zh-Hans.po`)
 
-### 93. crates/rapidr-ai/src/rai.rs
+### 107. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -947,7 +1087,7 @@ English:
 
 > 还没有 {provider} 的 API 密钥：请提供一个 (APIKey)，或指明它保存在哪里 (APIKeySource)。
 
-### 94. crates/rapidr-ai/src/rai.rs
+### 108. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -957,7 +1097,7 @@ English:
 
 > （其中 {n} 来自缓存）
 
-### 95. crates/rapidr-ai/src/rai.rs
+### 109. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -967,7 +1107,7 @@ English:
 
 > 已发送 {sent} 个 token
 
-### 96. crates/rapidr-ai/src/rai.rs
+### 110. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -977,7 +1117,7 @@ English:
 
 > 已接收 {n} 个
 
-### 97. crates/rapidr-ai/src/rai.rs
+### 111. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -987,7 +1127,7 @@ English:
 
 > 约 {cost} 美元
 
-### 98. crates/rapidr-ai/src/rai.rs
+### 112. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -997,7 +1137,7 @@ English:
 
 > KeyOwner 是 RapidR Studio 自己专用的：程序的密钥永远只属于程序自己。
 
-### 99. crates/rapidr-ai/src/rai.rs
+### 113. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -1007,7 +1147,7 @@ English:
 
 > APIKeySource 没有指定用来保存密钥的钥匙串条目 (keychain:NAME)。
 
-### 100. crates/rapidr-ai/src/rai.rs
+### 114. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -1017,7 +1157,7 @@ English:
 
 > 没有可保存的密钥：请先设置 APIKey。
 
-### 101. crates/rapidr-ai/src/rai.rs
+### 115. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -1027,7 +1167,7 @@ English:
 
 > 密钥保存在{place}中。
 
-### 102. crates/rapidr-ai/src/rai.rs
+### 116. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -1037,7 +1177,7 @@ English:
 
 > 密钥没有保存：{error}。
 
-### 103. crates/rapidr-ai/src/rai.rs
+### 117. crates/rapidr-ai/src/rai.rs
 
 English:
 
@@ -1047,7 +1187,7 @@ English:
 
 > 密钥已被清除。
 
-### 104. crates/rapidr-ai/src/wire.rs
+### 118. crates/rapidr-ai/src/wire.rs
 
 English:
 
@@ -1057,7 +1197,7 @@ English:
 
 > 你的 {name} 账户中，这个密钥已没有余额{quoted}。请在 {name} 的网站上充值；RapidR 无法替你充值。
 
-### 105. crates/rapidr-ai/src/wire.rs
+### 119. crates/rapidr-ai/src/wire.rs
 
 English:
 
@@ -1067,7 +1207,37 @@ English:
 
 > {name} 把请求转到了另一个地址 ({status})：RapidR 不会带着你的密钥跟过去。如果你信任该地址，请把基础 URL 设为它。
 
-### 106. crates/rapidr-studio/src/ai.rs
+### 120. crates/rapidr-studio/src/ai.rs
+
+English:
+
+> RAI wants to run your program, then look at it, click and type in it. The program can do anything you can on this computer, and RAI sees whatever it shows, including private data.
+
+简体中文:
+
+> RAI 想运行你的程序，然后查看它、在其中点击和输入。这个程序可以做你在这台电脑上能做的任何事，RAI 也能看到它显示的一切，包括私人数据。
+
+### 121. crates/rapidr-studio/src/ai.rs
+
+English:
+
+> RAI wants to bring your project back to an earlier version: your files become as they were then, saved as a new version. Nothing is lost, and Undo in Versions takes it back.
+
+简体中文:
+
+> RAI 想让你的项目回到较早的版本：你的文件会恢复成当时的样子，并保存为一个新版本。不会丢失任何内容，在“版本”中使用“撤销”可以收回。
+
+### 122. crates/rapidr-studio/src/ai.rs
+
+English:
+
+> RAI wants to start Versions in this project, so it can save versions of your work as it goes.
+
+简体中文:
+
+> RAI 想在这个项目中开始记录版本，这样它就能在工作过程中保存你的工作版本。
+
+### 123. crates/rapidr-studio/src/ai.rs
 
 English:
 
@@ -1077,7 +1247,37 @@ English:
 
 > RAI 想在你正在运行的程序中点击和输入。它能看到程序显示的一切，包括私人数据。
 
-### 107. crates/rapidr-studio/src/ai.rs
+### 124. crates/rapidr-studio/src/ai.rs
+
+English:
+
+> You allowed RAI to run and use your program for this run
+
+简体中文:
+
+> 你已允许 RAI 在本次运行中运行并使用你的程序
+
+### 125. crates/rapidr-studio/src/ai.rs
+
+English:
+
+> You allowed RAI to bring the project back to an earlier version
+
+简体中文:
+
+> 你已允许 RAI 让项目回到较早的版本
+
+### 126. crates/rapidr-studio/src/ai.rs
+
+English:
+
+> You allowed RAI to start Versions
+
+简体中文:
+
+> 你已允许 RAI 开始记录版本
+
+### 127. crates/rapidr-studio/src/ai.rs
 
 English:
 
@@ -1087,7 +1287,7 @@ English:
 
 > 你已允许 RAI 在本次运行中使用你正在运行的程序
 
-### 108. crates/rapidr-studio/src/ai.rs
+### 128. crates/rapidr-studio/src/ai.rs
 
 English:
 
@@ -1097,7 +1297,7 @@ English:
 
 > 你没有允许 RAI 使用你正在运行的程序
 
-### 109. crates/rapidr-studio/src/notes.rs
+### 129. crates/rapidr-studio/src/notes.rs
 
 English:
 
@@ -1106,6 +1306,26 @@ English:
 简体中文:
 
 > {name}：你没有允许
+
+### 130. crates/rapidr-value/src/objects/midiport.rs
+
+English:
+
+> This program also wants to send and receive "system exclusive" (SysEx) messages. These can change settings stored inside a MIDI device and, on some devices, even replace its firmware. Allow it only for programs you trust.
+
+简体中文:
+
+> 这个程序还想发送和接收“系统专有” (SysEx) 消息。这些消息可以更改 MIDI 设备内部保存的设置，在某些设备上甚至可以替换它的固件。只对你信任的程序允许这样做。
+
+### 131. crates/rapidr-value/src/objects/midiport.rs
+
+English:
+
+> This program wants to use your MIDI devices (keyboards, controllers, synthesizers). Your browser will ask you to allow it. RapidR does not send the list of your devices anywhere.
+
+简体中文:
+
+> 这个程序想使用你的 MIDI 设备（键盘、控制器、合成器）。你的浏览器会请你确认是否允许。RapidR 不会把你的设备列表发送到任何地方。
 
 ## The compiler's messages (`crates/rapidr-diagnostics/lang/zh-Hans.po`)
 
