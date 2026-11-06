@@ -1867,6 +1867,10 @@ msgid "The app's icon, made into every size each system shows."
 msgstr "O ícone do app, gerado em todos os tamanhos que cada sistema mostra."
 
 #: ide/build.inc
+msgid "32-bit Windows builds interpreted apps: Build makes one, and it runs the same program."
+msgstr "No Windows de 32 bits são compilados apps interpretados: Compilar faz um, e ele executa o mesmo programa."
+
+#: ide/build.inc
 msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
 msgstr "O Rust é gratuito: Compilar app nativo oferece instalá-lo. O interpretado não precisa dele."
 
@@ -1881,6 +1885,10 @@ msgstr "Deixado em {path}, ao lado do app, para ler."
 #: ide/build.inc
 msgid "Off: the Rust RapidR generates is deleted after the build."
 msgstr "Desligado: o Rust que o RapidR gera é excluído depois da compilação."
+
+#: ide/build.inc
+msgid "Compiled (not on 32-bit Windows)"
+msgstr "Compilado (não no Windows de 32 bits)"
 
 #: ide/build.inc
 msgid "Compiled (Rust not installed)"
@@ -2453,6 +2461,18 @@ msgid "&Build Web App (.zip)"
 msgstr "Compilar app &web (.zip)"
 
 #: ide/commands.inc
+msgid "&Build (Interpreted App)"
+msgstr "&Compilar (app interpretado)"
+
+#: ide/commands.inc
+msgid "Build &Web App"
+msgstr "Compilar &app web"
+
+#: ide/commands.inc
+msgid "Reveal the &App"
+msgstr "&Mostrar o app"
+
+#: ide/commands.inc
 msgid "&Build"
 msgstr "&Compilar"
 
@@ -2463,14 +2483,6 @@ msgstr "Compilar app &nativo"
 #: ide/commands.inc
 msgid "Build &Interpreted App"
 msgstr "Compilar app &interpretado"
-
-#: ide/commands.inc
-msgid "Build &Web App"
-msgstr "Compilar &app web"
-
-#: ide/commands.inc
-msgid "Reveal the &App"
-msgstr "&Mostrar o app"
 
 #: ide/commands.inc
 msgid "&Continue"

@@ -1871,6 +1871,10 @@ msgid "The app's icon, made into every size each system shows."
 msgstr "应用图标，会生成各系统所需的各种尺寸。"
 
 #: ide/build.inc
+msgid "32-bit Windows builds interpreted apps: Build makes one, and it runs the same program."
+msgstr "32 位 Windows 上构建的是解释执行应用：“构建”会生成一个，它运行的是同一个程序。"
+
+#: ide/build.inc
 msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
 msgstr "Rust 是免费的：“构建原生应用”会提示安装它。解释执行则不需要。"
 
@@ -1885,6 +1889,10 @@ msgstr "保留在 {path}（应用旁边），供你阅读。"
 #: ide/build.inc
 msgid "Off: the Rust RapidR generates is deleted after the build."
 msgstr "关闭：构建后会删除 RapidR 生成的 Rust 代码。"
+
+#: ide/build.inc
+msgid "Compiled (not on 32-bit Windows)"
+msgstr "编译（32 位 Windows 上不可用）"
 
 #: ide/build.inc
 msgid "Compiled (Rust not installed)"
@@ -2457,6 +2465,18 @@ msgid "&Build Web App (.zip)"
 msgstr "构建 Web 应用 (.zip)(&B)"
 
 #: ide/commands.inc
+msgid "&Build (Interpreted App)"
+msgstr "构建解释执行应用(&B)"
+
+#: ide/commands.inc
+msgid "Build &Web App"
+msgstr "构建 Web 应用(&W)"
+
+#: ide/commands.inc
+msgid "Reveal the &App"
+msgstr "显示应用所在位置(&A)"
+
+#: ide/commands.inc
 msgid "&Build"
 msgstr "构建(&B)"
 
@@ -2467,14 +2487,6 @@ msgstr "构建原生应用(&N)"
 #: ide/commands.inc
 msgid "Build &Interpreted App"
 msgstr "构建解释执行应用(&I)"
-
-#: ide/commands.inc
-msgid "Build &Web App"
-msgstr "构建 Web 应用(&W)"
-
-#: ide/commands.inc
-msgid "Reveal the &App"
-msgstr "显示应用所在位置(&A)"
 
 #: ide/commands.inc
 msgid "&Continue"

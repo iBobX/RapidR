@@ -115,6 +115,19 @@ pub fn start(name: &str, rapidr: PathBuf, args: &[String], cwd: &str) -> Result<
     Ok(())
 }
 
+/// Whether this Studio makes native apps at all: not on 32-bit Windows, where
+/// its one Build makes the interpreted app and never asks for Rust (Robert,
+/// 2026-11-04: a 32-bit Windows, XP or 7, has no Rust for a native build). The
+/// platform Studio runs on decides, not a setting.
+pub fn native_builds_here() -> bool {
+    native_builds_on(cfg!(windows), usize::BITS)
+}
+
+/// [`native_builds_here`] for a platform: Windows or not, and its pointer size.
+pub fn native_builds_on(windows: bool, pointer_bits: u32) -> bool {
+    !(windows && pointer_bits == 32)
+}
+
 /// Whether native builds can run: `rapidr setup --rust` says yes (exit code
 /// 0). RAPIDR_NO_RUST=1 in Studio's environment says no, to test the paths
 /// without Rust.

@@ -263,7 +263,9 @@ END FUNCTION
 ' that an interpreted build has none.
 SUB AppBuildChanged
   AppKeepRust.Enabled = (AppKind.ItemIndex = 0)
-  IF AppKind.ItemIndex = 0 AND AppRustOk = 0 THEN
+  IF AppKind.ItemIndex = 0 AND Proj.NativeBuilds = 0 THEN
+    AppKindNote.Caption = TR$("32-bit Windows builds interpreted apps: Build makes one, and it runs the same program.")
+  ELSEIF AppKind.ItemIndex = 0 AND AppRustOk = 0 THEN
     AppKindNote.Caption = TR$("Rust is free: Build Native App offers to install it. Interpreted needs none.")
   ELSE
     AppKindNote.Caption = TR$("A release build: optimized, what you ship. Run (F5) runs the program to debug it.")
@@ -288,7 +290,9 @@ SUB ShowAppSettings
   ' (without Rust the Compiled choice says so; it can still be chosen)
   AppKind.Clear
   AppRustOk = Proj.RustReady
-  IF AppRustOk THEN
+  IF Proj.NativeBuilds = 0 THEN
+    AppKind.AddItems TR$("Compiled (not on 32-bit Windows)"), TR$("Interpreted (no Rust needed)")
+  ELSEIF AppRustOk THEN
     AppKind.AddItems TR$("Compiled (native: needs Rust)"), TR$("Interpreted (no Rust needed)")
   ELSE
     AppKind.AddItems TR$("Compiled (Rust not installed)"), TR$("Interpreted (no Rust needed)")
@@ -377,11 +381,14 @@ END SUB
 ' Build Native App / Build Interpreted App: that one; Build Web App ("web"): a
 ' .zip for any web host (the desktop's rapidr build --web --interp, the web page's
 ' own zipper). A native build without
-' Rust asks first: build interpreted instead, install Rust, or cancel.
+' Rust asks first: build interpreted instead, install Rust, or cancel. On
+' 32-bit Windows (Proj.NativeBuilds = 0) every Build is the interpreted app,
+' with no question.
 SUB BuildProject(Kind AS STRING)
   DIM answer AS STRING
   IF ProjectOpen = 0 OR Proj.Building THEN EXIT SUB
   IF Kind = "" THEN Kind = Proj.BuildKind
+  IF Kind = "native" AND Proj.NativeBuilds = 0 THEN Kind = "interpreted"
   IF Kind = "native" AND Proj.RustReady = 0 THEN
     answer = AskRust
     IF answer = "interpreted" THEN
