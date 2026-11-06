@@ -33,6 +33,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **A program run in the browser gets only its folder's files** (SEC-37): an `$INCLUDE "..\x.inc"` still works on the desktop, as classic programs expect.
 
 ### Fixed
+- **RapidR Studio stopped answering for seconds on a big project** (its own hang reports, RAI at work: "Not Responding" in the Problems pane's fill and the commands' state): every problem was placed by counting the lines before it, the Problems list and the Coach read their rows from the start again for each one, the command palette matched its whole list again for every command's state and every Quick Open item, and RAI's applied changes analysed the program on the UI thread. With 2,000 problems a pause now costs the UI 6 ms instead of 0.8 s.
 - **A file could keep problems or colours made while its program was mid-change** (Robert saw platform.rr lose its colours after a burst of RAI's changes and Save All, until it was reopened): an editor was checked again only when its own text changed. Now every open file is checked again when another file of the program changes, a result is shown only for the text it was made from, and a check the service couldn't take at once is asked again, never dropped. Test: rapidr-ui-render `a_burst_of_applied_changes_never_leaves_an_editor_without_its_colours`.
 
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed

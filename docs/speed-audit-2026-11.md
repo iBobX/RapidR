@@ -1259,7 +1259,17 @@ TABLE
   same way on the build before this lane); `rapidr lang export --all
   --check`, the i18n checks (Studio 1650/1650), the words and RapidQ-mention
   checks; the example run, and built natively and run (its outline and "No
-  errors." from OnAnalyzed); GOLDENS.
+  errors." from OnAnalyzed); Studio's flows on the web page (the editor,
+  outline, problems, palette and include cases: 143 checks, all passed).
+- Studio's goldens: 79 of 81 identical. `designer-pins@2x` (light, dark,
+  high contrast) differs in the Outline's icons only: the Outline now fills
+  when the analysis is in, after Studio's window is shown, so its icons get
+  their 2 × drawing; the build before filled it twice before the window
+  was shown (traced: `Screen.Scale` 1 at both fills) and showed the 1 ×
+  drawing enlarged. The new images wait for a person's look
+  (`tools/visual/gallery.py studio approve designer-pins`); Studio also
+  draws the Outline's icons again when its window shows or changes screen
+  (`RefreshOutlineIcons`).
 
 ### The guard
 
