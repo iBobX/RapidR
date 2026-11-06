@@ -637,3 +637,22 @@ A test keeps the review's wording from coming back (`portuguese_keeps_the_legal_
 
 - EN: {name}: you didn't allow it
 - PT-BR: {name}: você não permitiu
+
+## Added after the review
+
+Written after the lawyer read the first 120: the three notes the Chinese review asked for (they are in English and every language now). Translated point by point and checked against the English, the reviewed Spanish and Chinese and this review's glossary (2026-11-06): "o que você pode compartilhar" and "podem não ser seus para enviar" as the reviewed S62; "do provedor" repeats the noun (glossary 1.9: "dele" could be read as the country's); "o texto em inglês é o que vale", not "prevalece" (there is no Portuguese licence for it to win over). A3 sits in the About text for a non-English UI and repeats glossary 1.11; it gets a Brazil (CDC) pass in the release's lawyer review.
+
+**A1.** `ide/aisetup.inc`
+
+- EN: Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send.
+- PT-BR: Envie apenas o que você pode compartilhar: dados pessoais de outras pessoas, o código de um empregador ou trabalhos escolares podem não ser seus para enviar.
+
+**A2.** `ide/aisetup.inc`
+
+- EN: A provider may not offer its service where you live, and its servers may be in another country: check its terms.
+- PT-BR: Um provedor pode não oferecer o serviço onde você mora, e os servidores dele podem estar em outro país: confira os termos do provedor.
+
+**A3.** `ide/shell.inc`
+
+- EN: Licences and notices are in English; the English text applies.
+- PT-BR: As licenças e os avisos estão em inglês; o texto em inglês é o que vale.

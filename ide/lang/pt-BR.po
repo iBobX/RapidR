@@ -1699,12 +1699,12 @@ msgstr "Você paga ao provedor pelo que usar. O que você envia — inclusive, e
 # legal
 #: ide/aisetup.inc
 msgid "Send only what you may share: other people's personal data, an employer's code or schoolwork may not be yours to send."
-msgstr "Envie só o que você pode compartilhar: dados pessoais de outras pessoas, o código de um empregador ou trabalhos escolares podem não ser seus para enviar."
+msgstr "Envie apenas o que você pode compartilhar: dados pessoais de outras pessoas, o código de um empregador ou trabalhos escolares podem não ser seus para enviar."
 
 # legal
 #: ide/aisetup.inc
 msgid "A provider may not offer its service where you live, and its servers may be in another country: check its terms."
-msgstr "Um provedor pode não oferecer o serviço onde você mora, e os servidores dele podem estar em outro país: confira os termos dele."
+msgstr "Um provedor pode não oferecer o serviço onde você mora, e os servidores dele podem estar em outro país: confira os termos do provedor."
 
 # legal
 #: ide/aisetup.inc
@@ -6323,7 +6323,7 @@ msgstr "Copyright (c) 2025-2026 Ruta Internet SRL. Licença MIT."
 # legal
 #: ide/shell.inc
 msgid "Licences and notices are in English; the English text applies."
-msgstr "Licenças e avisos estão em inglês; vale o texto em inglês."
+msgstr "As licenças e os avisos estão em inglês; o texto em inglês é o que vale."
 
 #: ide/shell.inc
 msgid "Save As"
