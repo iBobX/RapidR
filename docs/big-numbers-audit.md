@@ -33,7 +33,7 @@ The conformance cases run on the interpreter (`vm`, `vm-jit`), native
 (`codegen`) and the web (`tests/web_conformance.mjs`; the INPUT case on the
 web through **web input**).
 
-## 1. The five promised items (groups.io #38940)
+## 1. The five promised items
 
 | Item | Before | Now | Test |
 |---|---|---|---|
@@ -72,15 +72,15 @@ Unreleased says what was fixed.
 | QUICKSORT | compared numbers as DOUBLEs (2^53 and 2^53 + 1 equal) | exact for 64-bit values | everywhere (`sorted`) |
 | VARTYPE, ISNUMERIC | 2 (an Integer) | 20 (INT64, VT_I8) / 21 (UINT64, VT_UI8); numeric | everywhere |
 | UINT32 | "Unknown data type UINT32" | 0 … 4294967295, held as an INT64 value | input, everywhere, example |
-| DWORD (Jango's notes) | `w = 4119514107` → -2147483648, `&HF58ACBFB` → -175453189 | **unchanged: RC.EXE does exactly that** (probe 2026-11-05: -2147483648, -175453189; HEX$ of both F58ACBFB); UINT32 is the unsigned type | classic, ground truth |
-| `PRINT 1, 2` → `12` (Jango) | — | **unchanged: RC.EXE prints `12`** (PRINT's comma is its semicolon; docs/rapidq-ground-truth.md) | `print_separators` |
+| DWORD (a reported case) | `w = 4119514107` → -2147483648, `&HF58ACBFB` → -175453189 | **unchanged: RC.EXE does exactly that** (probe 2026-11-05: -2147483648, -175453189; HEX$ of both F58ACBFB); UINT32 is the unsigned type | classic, ground truth |
+| `PRINT 1, 2` → `12` | — | **unchanged: RC.EXE prints `12`** (PRINT's comma is its semicolon; docs/rapidq-ground-truth.md) | `print_separators` |
 
 ## 3. Builtins
 
 | Builtin | Before | Now | Test |
 |---|---|---|---|
 | STR$ | full where seen | full everywhere | everywhere |
-| HEX$ | 16 digits always for a 64-bit value | 8 digits, 16 when the number needs more (UINT32 4119514107 is F58ACBFB, as Jango expected); `HEX$(x, digits)` at least `digits`, never cut | everywhere, int64, registry example |
+| HEX$ | 16 digits always for a 64-bit value | 8 digits, 16 when the number needs more (UINT32 4119514107 is F58ACBFB); `HEX$(x, digits)` at least `digits`, never cut | everywhere, int64, registry example |
 | BIN$, OCT$ | 32 bits (OCT$ of a classic negative 64) | a 64-bit value's 64 bits; classic unchanged | everywhere |
 | VAL | a DOUBLE (an i64-sized whole number exact as an integer) | unchanged (RapidQ's); `u = VAL(s$)` into a 64-bit variable reads the text whole | everywhere (`VAL`) |
 | ABS, INT, FIX, ROUND, CEIL, FLOOR | DOUBLE / 32-bit | a 64-bit value is its own | everywhere |
@@ -88,7 +88,7 @@ Unreleased says what was fixed.
 | SGN | right | right | everywhere |
 | SQR, SIN, COS, TAN, ATN, LOG, EXP, `^`, `/` | DOUBLE | DOUBLE: their results are real numbers (explained, not a cut) | — |
 | SHL, SHR (functions) | 32-bit on a classic number | a 64-bit value on 64 bits | int64 |
-| LOWORD, HIWORD, LOBYTE, HIBYTE, GETBITS, SETBITS | — (Jango, #38944) | new; a range outside the value's bits is an error naming it | everywhere, example, unit `wide::bit_functions`, registry examples (`rapidr lang truth`) |
+| LOWORD, HIWORD, LOBYTE, HIBYTE, GETBITS, SETBITS | — | new; a range outside the value's bits is an error naming it | everywhere, example, unit `wide::bit_functions`, registry examples (`rapidr lang truth`) |
 | FORMAT$ `%e %g %m` of a 64-bit value | DOUBLE | DOUBLE (scientific and money forms are approximate by nature; `%d`, `%x`, `%f`, `%n` are exact) | — (explained) |
 | HEXTODEC | 0 for 9 to 16 digits | unchanged (classic; `u = "&H…"` isn't a number in RapidQ either) — open: a 64-bit HEXTODEC is a small follow-up | — |
 | FILELEN, LOF | a file past 2 GB showed -2147483648 | its size whole (an INT64 beyond 32 bits) | unit (`file_io`), manual |

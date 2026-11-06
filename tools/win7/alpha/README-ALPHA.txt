@@ -85,8 +85,8 @@ Known limits of this alpha
 
 How to tell us what happened
 ----------------------------
-Please write in the RapidQ group on groups.io (where you found this), or open
-an issue: https://github.com/iBobX/RapidR/issues/new/choose
+Please open an issue:
+https://github.com/iBobX/RapidR/issues/new/choose
 Tell us:
  - your Windows version and whether it is 32- or 64-bit;
  - the processor, the memory (RAM) and the graphics card, if you know them;
@@ -217,8 +217,8 @@ Límites conocidos de esta alfa
 
 Cómo contarnos lo que pasó
 --------------------------
-Escriba en el grupo de RapidQ en groups.io (donde encontró esto), o abra una
-incidencia: https://github.com/iBobX/RapidR/issues/new/choose
+Abra una incidencia:
+https://github.com/iBobX/RapidR/issues/new/choose
 Díganos:
  - su versión de Windows y si es de 32 o de 64 bits;
  - el procesador, la memoria (RAM) y la tarjeta gráfica, si los sabe;

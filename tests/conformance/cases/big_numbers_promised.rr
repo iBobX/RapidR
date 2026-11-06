@@ -1,4 +1,4 @@
-' The five things promised for 64-bit numbers (groups.io #38940, 2.123):
+' The five things promised for 64-bit numbers (2.123):
 ' a FOR loop's end test, SELECT CASE, INPUT, FORMAT$'s %d and %x, and a
 ' UINT64 above 2^63 joined to text with & and + — every digit exact on the
 ' interpreter (JIT on and off), native builds and the web. A DOUBLE can't

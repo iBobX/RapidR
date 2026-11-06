@@ -1491,7 +1491,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         "__arg_round" => return Some(Ok(numeric::arg_round(&arg(0)))),
         // INT64 / UINT64 shown and operated on in 64 bits (rapidr_ast::numeric).
         "__str64" | "__hex64" | "__idiv64" | "__mod64" | "__cmp64" | "__bits64" => return wide::call(key, args),
-        // (RapidR's) the bit functions (Jango, groups.io #38944; wide).
+        // (RapidR's) the bit functions (wide).
         "loword" | "hiword" | "lobyte" | "hibyte" => return Some(Ok(wide::word_or_byte(key, &arg(0)))),
         "getbits" => return Some(wide::getbits(&arg(0), &arg(1), &arg(2))),
         "setbits" => return Some(wide::setbits(&arg(0), &arg(1), &arg(2), &arg(3))),

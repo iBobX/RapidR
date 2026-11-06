@@ -1,5 +1,5 @@
 ' INPUT into INT64, UINT64 and UINT32 (the third of the five promised
-' 64-bit items, groups.io #38940): the number typed is read to its last
+' 64-bit items): the number typed is read to its last
 ' digit, never through a DOUBLE (exact only up to 9007199254740992).
 DIM u AS UINT64
 DIM i AS INT64

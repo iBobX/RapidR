@@ -1,11 +1,11 @@
 # RapidR on Windows XP (the map, the plan, the numbers)
 
-Lane WINXP, 2026-11-05. Background: memory `old-pcs-plan.md` (Evgeny's XP reports), the Windows 7
+Lane WINXP, 2026-11-05. Background: a reported XP failure (below), the Windows 7
 build in `tools/win7/` and `docs/old-pcs-spike.md`. **Windows XP is unofficial.** This is the honest
 feasibility study the brief asked for, plus what has been built and seen running so far.
 
-RapidR's mission reaches people on old PCs. Evgeny Volotsky runs RapidR Studio on Windows XP SP3 with
-One-Core-API; F5 fails there with "os error 123". Robert gave this lane a day to (A) fix F5 on
+RapidR's mission reaches people on old PCs. RapidR Studio runs on Windows XP SP3 with
+One-Core-API, but F5 fails there with "os error 123". Robert gave this lane a day to (A) fix F5 on
 XP + One-Core-API, and (B) find out, honestly, whether a RapidR console program can run on **plain**
 Windows XP SP3 with no One-Core-API, and if the cost is about a day, do it — console, then GUI, then
 Build (interpreted).
@@ -35,7 +35,7 @@ Two reasons, both at load time, before any code of ours runs:
 
 ## 2. Step A: the os error 123 on F5
 
-Evgeny's F5 on XP + One-Core-API: *"c:\R\rapidr.exe: The filename, directory name, or volume label
+The F5 failure reported on XP + One-Core-API: *"c:\R\rapidr.exe: The filename, directory name, or volume label
 syntax is incorrect. (os error 123)"*. The brief guessed a forward-slash or a `\\?\` verbatim path in
 Studio's spawn. It is **not** a path bug.
 
@@ -213,7 +213,7 @@ emulated i386 CPU, host-only network (no internet). Driven through the XP test h
     the DirectWrite stand-in it stopped with fontique's panic (`xp-form-1.png`);
   - **RapidR Studio** (`rapidr.exe ide <example>`, the Windows 7 alpha's Studio files): starts in under
     two minutes on the emulated CPU, the designer shows the form (`xp-studio-1.png`); **F5** runs the
-    program as Studio's child process — Evgeny's failing case — "Running hello_form.rr", the program's
+    program as Studio's child process — the reported failing case — "Running hello_form.rr", the program's
     window in front (`xp-studio-f5.png`); closing it: "[hello_form.rr ended, exit code 0]";
   - **Build** from Studio's toolbar → "Native builds need Rust" → *Build Interpreted Instead* →
     "Built interpreted program: C:\Documents and Settings\...\build\hello_form.exe (1554 bytes of

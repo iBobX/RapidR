@@ -400,7 +400,7 @@ pub fn for_step(var: &Value, step: &Value) -> Option<Value> {
     fits.then(|| W::of_bits(next as u64, unsigned))
 }
 
-// ---- Jango's bit functions (groups.io #38944; RapidR's) ----
+// ---- The bit functions (RapidR's) ----
 
 /// The width a value's bits are read in: 64 for a 64-bit kind, else 32.
 fn width_of(v: &Value) -> u32 {

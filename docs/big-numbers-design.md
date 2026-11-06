@@ -6,7 +6,7 @@ above 2^63 joined to text showed as negative, a 64-bit value put into a
 VARIANT, an array of VARIANTs, a component's property or a JSON document
 came back cut to 32 bits, and a FOR loop's end, SELECT CASE and INPUT went
 through a DOUBLE (exact only up to 2^53). This lane makes 64-bit numbers
-work **everywhere a number goes**, adds UINT32 and Jango's bit functions,
+work **everywhere a number goes**, adds UINT32 and the bit functions,
 and lays the plumbing INT128, UINT128 and BIGINT (part B) fit into.
 The surface-by-surface audit is [big-numbers-audit.md](big-numbers-audit.md).
 
@@ -116,14 +116,14 @@ is read exactly (the store of `VAL(x)` reads `x`'s text itself).
 
 ## 4. UINT32
 
-A 32-bit unsigned whole number, 0 to 4294967295 (Jango, groups.io #38944:
-DWORD is RapidQ's 32-bit *signed* type, and stays so). It is held as an
+A 32-bit unsigned whole number, 0 to 4294967295 (DWORD is the classic
+32-bit *signed* type, and stays so). It is held as an
 INT64 value: a store wraps to 32 bits unsigned (`u = -1` is 4294967295,
 `u = &HF58ACBFB` 4119514107), and an expression with it is worked out in
 64 bits, so `u * 2` doesn't overflow and PRINT shows every digit. Its
 literals are read unsigned (§3), so `IF u = &HF58ACBFB` is true.
 
-## 5. Jango's bit functions (RapidR's)
+## 5. The bit functions (RapidR's)
 
 Bit 0 is the rightmost. On a classic value they work on its 32 bits, on a
 64-bit one (INT64, UINT64, and a UINT32, whose value is an INT64) on its
