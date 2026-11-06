@@ -29,7 +29,7 @@ use super::{Command, DesignEvent, DesignSurface, Drag, Grip, NodeId};
 use crate::designer::model::Item;
 use crate::layout::MAIN_MENU_HEIGHT;
 use crate::objects::font::Font;
-use crate::objects::menu::{bar_item_width, panel_size, BORDER, GUTTER, ITEM_H, SEP_H};
+use crate::objects::menu::{bar_item_width, border, gutter, item_h, panel_size, SEP_H};
 use crate::objects::ops::{Op, Place, Rect};
 
 /// What the placeholders say.
@@ -151,7 +151,7 @@ impl DesignSurface {
             // (where it opens: under its bar item, or right of its row)
             let at = match panels.last() {
                 None => bar.iter().find(|s| s.slot == Slot::Item(open)).map(|s| (s.rect.0, 0)),
-                Some(p) => p.rows.iter().find(|r| r.slot == Slot::Item(open)).map(|r| (p.rect.0 + p.rect.2 - BORDER, r.rect.1 - BORDER)),
+                Some(p) => p.rows.iter().find(|r| r.slot == Slot::Item(open)).map(|r| (p.rect.0 + p.rect.2 - border(), r.rect.1 - border())),
             };
             let Some((px, py)) = at else { break };
             panels.push(self.panel(open, px, py, active, false));
@@ -161,7 +161,7 @@ impl DesignSurface {
             if let (Some(sel), Some(last)) = (self.designer.selection.primary(), panels.last()) {
                 let row = last.rows.iter().find(|r| r.slot == Slot::Item(sel) && !r.separator).map(|r| r.rect);
                 if let Some((_, ry, _, _)) = row.filter(|_| self.items_of(sel).is_empty() && !self.menu_open.contains(&sel)) {
-                    panels.push(self.panel(sel, last.rect.0 + last.rect.2 - BORDER, ry - BORDER, true, true));
+                    panels.push(self.panel(sel, last.rect.0 + last.rect.2 - border(), ry - border(), true, true));
                 }
             }
         }
@@ -181,12 +181,13 @@ impl DesignSurface {
         }
         let sizes: Vec<(&str, &str, bool)> = rows.iter().map(|r| (r.0.as_str(), r.1.as_str(), r.2)).collect();
         let (w, h) = panel_size(&sizes);
-        let mut ry = y + BORDER;
+        let (b, ih) = (border(), item_h());
+        let mut ry = y + b;
         let rows = rows
             .into_iter()
             .map(|(_, _, sep, slot)| {
-                let rh = if sep { SEP_H } else { ITEM_H };
-                let r = SlotRect { slot, rect: (x + BORDER, ry, w - 2 * BORDER, rh), separator: sep };
+                let rh = if sep { SEP_H } else { ih };
+                let r = SlotRect { slot, rect: (x + b, ry, w - 2 * b, rh), separator: sep };
                 ry += rh;
                 r
             })
@@ -204,7 +205,7 @@ impl DesignSurface {
         let v = self.menu_view()?;
         for p in v.panels.iter().rev() {
             if inside(p.rect, x, y) {
-                return Some(p.rows.iter().find(|r| inside(r.rect, x, y)).map_or(Hit::Panel, |r| Hit::Slot(r.slot, x < r.rect.0 + GUTTER)));
+                return Some(p.rows.iter().find(|r| inside(r.rect, x, y)).map_or(Hit::Panel, |r| Hit::Slot(r.slot, x < r.rect.0 + gutter())));
             }
         }
         if let Some(s) = v.bar.iter().find(|s| inside(s.rect, x, y)) {

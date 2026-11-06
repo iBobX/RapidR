@@ -13,6 +13,7 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 
 use rapidr_value::objects::menu::{self, Kind};
+use rapidr_value::v_int;
 
 use crate::windows::invalidate;
 use crate::{forms, Program, Windows};
@@ -75,9 +76,37 @@ pub fn popup_at<R: Program + Windows>(rt: R, name: &str, control: &str, x: i64, 
     rt.open_popup(&form, &name, ox + x, oy + y, true);
 }
 
+/// (CONTEXT-MENUS) RapidR's OnContextMenu(X, Y, Key) of `comp` (the
+/// kernel's [`rapidr_ui_kernel::KernelEvent::ContextMenu`]): the program's
+/// handler when it bound one; else, for the keyboard, a screen reader or
+/// a More button (`key` ≠ 0), its PopupMenu at (x, y) — the mouse's opened
+/// on the press already ([`auto_popup`], RapidQ's way).
+pub fn context_menu<R: Program + Windows>(rt: R, comp: &str, x: i64, y: i64, key: i64) {
+    if rt.has_handler(comp, "oncontextmenu") {
+        rt.fire_args(comp, "oncontextmenu", &[v_int(x), v_int(y), v_int(key)]);
+        return;
+    }
+    // (a classic program — .bas, .rqw — keeps RapidQ's PopupMenu: the right
+    // click's alone; RapidR's programs get the keyboard's too)
+    if key == 0 || !rapidr_value::rapidr_program() {
+        return;
+    }
+    let menu_name = rt.get(comp, "popupmenu").to_string_val().to_lowercase();
+    if menu_name.is_empty() || !menu::with(&menu_name, |n| n.kind == Kind::Popup).unwrap_or(false) {
+        return;
+    }
+    let Some((form, (ox, oy))) = rt.place_of(comp) else { return };
+    rt.fire(&menu_name, "onpopup");
+    rt.open_popup(&form, &menu_name, ox + x, oy + y, false);
+}
+
 /// A right press on `comp` at (x, y) in it: the pop-up menu its PopupMenu
-/// names, when that menu's AutoPopup is on — instead of OnMouseDown.
+/// names, when that menu's AutoPopup is on — instead of OnMouseDown
+/// (not when the program handles its OnContextMenu: that decides).
 pub fn auto_popup<R: Program + Windows>(rt: R, comp: &str, x: i64, y: i64) -> bool {
+    if rt.has_handler(comp, "oncontextmenu") {
+        return false;
+    }
     let menu_name = rt.get(comp, "popupmenu").to_string_val().to_lowercase();
     if menu_name.is_empty() || !menu::with(&menu_name, |n| n.kind == Kind::Popup && n.auto_popup).unwrap_or(false) {
         return false;

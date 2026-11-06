@@ -415,6 +415,20 @@ completa que se desplaza así, con el `OnChange` de un `RListBox` al lado:
 
 ![La lista dibujada después de dos muescas de la rueda (empieza en 3. Earth), y Mars elegido en la lista de al lado](../images/components/wheel-list.png)
 
+## Menús del clic derecho: OnContextMenu
+
+Todo componente que puede tomar el teclado tiene `OnContextMenu (X, Y, Key)`
+(de RapidR): un clic derecho, Mayús+F10 o la tecla de menú, o el «mostrar
+menú» de un lector de pantalla pidió su menú —`X`, `Y` dónde va, `Key` cómo
+(`0` el mouse, `1` el teclado, `3` un lector de pantalla, `4` el botón Más
+de una fila)—. Una lista dice qué elemento en `ContextIndex`; `RowActions`
+pone botones pequeños con icono en las filas de una lista (`OnRowAction`);
+`RMenuItem.Default` dibuja un elemento en negrita; `RPopupMenu.SystemMenu = 0`
+hace que RapidR dibuje el menú en todos los sistemas. Un componente con un
+`PopupMenu` y sin `OnContextMenu` lo abre como siempre, y en un programa de
+RapidR (`.rr`) también desde el teclado. Todo, con los propios menús de RapidR Studio: [Menús del
+clic derecho](right-click-menus.md).
+
 ## RUpDown: flechas que cambian un número
 
 Un componente `RUpDown` son dos botones de flecha pequeños que cambian `Position`

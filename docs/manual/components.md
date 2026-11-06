@@ -395,6 +395,19 @@ scrolled this way, with an `RListBox`'s `OnChange` beside it:
 
 ![The painted list after two notches of the wheel (it starts at 3. Earth), and Mars picked in the list beside it](images/components/wheel-list.png)
 
+## Right-click menus: OnContextMenu
+
+Every component that can take the keyboard has `OnContextMenu (X, Y, Key)`
+(RapidR's): a right click, Shift+F10 or the Menu key, or a screen reader's
+"show menu" asked for its menu — `X`, `Y` where it goes, `Key` how (`0` the
+mouse, `1` the keyboard, `3` a screen reader, `4` a row's More button). A
+list box says which item in `ContextIndex`; `RowActions` puts small icon
+buttons on a list's rows (`OnRowAction`); `RMenuItem.Default` draws an item
+bold; `RPopupMenu.SystemMenu = 0` has RapidR draw the menu on every system.
+A component with a `PopupMenu` and no `OnContextMenu` opens it as it always
+did, and in a RapidR program (`.rr`) from the keyboard too. All of it, with RapidR Studio's own
+menus: [Right-click menus](right-click-menus.md).
+
 ## RUpDown: arrows that step a number
 
 An `RUpDown` is two small arrow buttons that step `Position` between `Min` and

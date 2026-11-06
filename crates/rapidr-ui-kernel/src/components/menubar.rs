@@ -35,7 +35,7 @@ use crate::tree::FormUi;
 
 /// A menu's metrics: the shared model's (the form designer's menu editor
 /// measures menus with the same numbers).
-pub use rapidr_value::objects::menu::{BORDER, GUTTER, ITEM_H, SEP_H};
+pub use rapidr_value::objects::menu::{border, gutter, item_h, BORDER, GUTTER, ITEM_H, SEP_H};
 use rapidr_value::objects::menu::RIGHT;
 
 /// An open menu: the items under `parent` (a menu or an item) in a panel.
@@ -77,6 +77,9 @@ pub struct MenuUi {
     /// (the input lane's) Alt went down and nothing else since: its release
     /// selects the bar.
     pub alt_alone: bool,
+    /// (CONTEXT-MENUS) The keyboard (or a screen reader) asked for a
+    /// context menu: the pop-up that opens next has its first item chosen.
+    pub key_popup: bool,
 }
 
 /// One item as a panel shows it.
@@ -93,6 +96,8 @@ pub struct ItemView {
     pub keys: String,
     /// Its Hint (a screen reader reads it as the item's description).
     pub hint: String,
+    /// (RapidR's Default) Drawn bold: the default action.
+    pub default: bool,
 }
 
 /// The visible items under `parent`, as drawn.
@@ -118,6 +123,7 @@ pub fn items(parent: &str) -> Vec<ItemView> {
                         menu::parse_shortcut(&n.shortcut).map(|s| s.text()).unwrap_or_else(|| shown.to_string())
                     },
                     hint: n.hint.clone(),
+                    default: n.default,
                 }
             })
         })
@@ -131,17 +137,18 @@ pub fn menu_font() -> Font {
 
 /// A panel's size for its items.
 pub fn panel_size(items: &[ItemView]) -> (i64, i64) {
-    let rows: Vec<(&str, &str, bool)> = items.iter().map(|i| (i.caption.as_str(), i.keys.as_str(), i.separator)).collect();
-    menu::panel_size(&rows)
+    let rows: Vec<(&str, &str, bool, bool)> = items.iter().map(|i| (i.caption.as_str(), i.keys.as_str(), i.separator, i.default)).collect();
+    menu::panel_size_with(&rows)
 }
 
 /// Each item's row in a panel at (0, 0): its top and height.
 pub fn rows(items: &[ItemView]) -> Vec<(i64, i64)> {
-    let mut y = BORDER;
+    let mut y = border();
+    let ih = item_h();
     items
         .iter()
         .map(|i| {
-            let h = if i.separator { SEP_H } else { ITEM_H };
+            let h = if i.separator { SEP_H } else { ih };
             let r = (y, h);
             y += h;
             r
@@ -157,7 +164,10 @@ fn inside((x, y, w, h): Rect, px: f64, py: f64) -> bool {
 pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<usize>) {
     let (x0, y0, w, h) = rect;
     let font = menu_font();
+    let mut bold = font.clone();
+    bold.styles |= 1;
     let t = p.theme();
+    let (bd, gt) = (border(), gutter());
     p.at((x0, y0), |p| {
         if t.fluent() {
             p.elevate((0, 0, w, h), t.panel_radius(), 10.0);
@@ -167,24 +177,24 @@ pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<
             // (EDGE_RAISED: COLOR_3DLIGHT and white, dark grey and grey)
             p.raised_edge((0, 0, w, h));
         }
-        let keys_right = w - BORDER - RIGHT;
+        let keys_right = w - bd - RIGHT;
         for (k, ((y, rh), item)) in rows(items).into_iter().zip(items).enumerate() {
             if item.separator {
                 let ly = y + rh / 2 - 1;
                 if t.fluent() {
-                    p.fill((BORDER + 1, ly + 1, w - 2 * BORDER - 2, 1), t.border);
+                    p.fill((bd + 1, ly + 1, w - 2 * bd - 2, 1), t.border);
                 } else {
-                    p.fill((BORDER + 1, ly, w - 2 * BORDER - 2, 1), t.shadow);
-                    p.fill((BORDER + 1, ly + 1, w - 2 * BORDER - 2, 1), t.light);
+                    p.fill((bd + 1, ly, w - 2 * bd - 2, 1), t.shadow);
+                    p.fill((bd + 1, ly + 1, w - 2 * bd - 2, 1), t.light);
                 }
                 continue;
             }
             let lit = hot == Some(k);
             if lit {
                 if t.fluent() {
-                    p.round((BORDER + 1, y + 1, w - 2 * BORDER - 2, rh - 2), (t.radius - 1.0).max(2.0), Some(t.menu_highlight), None, 1.0);
+                    p.round((bd + 1, y + 1, w - 2 * bd - 2, rh - 2), (t.radius - 1.0).max(2.0), Some(t.menu_highlight), None, 1.0);
                 } else {
-                    p.fill((BORDER, y, w - 2 * BORDER, rh), t.menu_highlight);
+                    p.fill((bd, y, w - 2 * bd, rh), t.menu_highlight);
                 }
             }
             let color = match (item.enabled, lit) {
@@ -197,29 +207,32 @@ pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<
             let emboss = [(1, t.light), (0, t.gray_text)];
             let draws: &[(i64, u32)] = if !item.enabled && !lit && !t.fluent() { &emboss } else { &[(0, color)] };
             for &(d, c) in draws {
-                let text_x = BORDER + GUTTER + d;
+                let text_x = bd + gt + d;
                 if item.checked {
-                    let (gx, gy) = (BORDER + d, y + d);
+                    let (gx, gy) = (bd + d, y + d);
                     if t.fluent() {
-                        let (mx, my) = ((gx + GUTTER / 2) as f64, (gy + rh / 2) as f64);
+                        let (mx, my) = ((gx + gt / 2) as f64, (gy + rh / 2) as f64);
                         if item.radio {
                             p.round(((mx - 3.0) as i64, (my - 3.0) as i64, 6, 6), 3.0, Some(c), None, 1.0);
                         } else {
                             p.check_glyph(mx - 6.5, my - 6.5, 13.0, c);
                         }
                     } else if item.radio {
-                        p.shape(disc((gx + GUTTER / 2) as f64 - 0.5, (gy + rh / 2) as f64 - 0.5, 2.5, 0.0, 360.0, c));
+                        p.shape(disc((gx + gt / 2) as f64 - 0.5, (gy + rh / 2) as f64 - 0.5, 2.5, 0.0, 360.0, c));
                     } else {
-                        check_mark(p, gx + (GUTTER - 7) / 2, gy + (rh - 7) / 2, c);
+                        check_mark(p, gx + (gt - 7) / 2, gy + (rh - 7) / 2, c);
                     }
                 }
-                caption(p, (text_x, y + d, keys_right - text_x, rh), &item.caption, &font, c, Place::Left);
+                caption(p, (text_x, y + d, keys_right - text_x, rh), &item.caption, if item.default { &bold } else { &font }, c, Place::Left);
                 if !item.keys.is_empty() {
                     let kw = text_size(&item.keys, &font).0;
-                    p.text((keys_right - kw + d, y + d, kw, rh), &item.keys, &font, c, Place::Left);
+                    // (RapidR's looks: the keys quieter than the words —
+                    // secondary text, still AA —; the classic look as Windows)
+                    let kc = if t.fluent() && item.enabled && !lit { t.secondary_text() } else { c };
+                    p.text((keys_right - kw + d, y + d, kw, rh), &item.keys, &font, kc, Place::Left);
                 }
                 if item.submenu {
-                    let (ax, ay) = ((w - BORDER - 10 + d) as f64, (y + d + rh / 2) as f64);
+                    let (ax, ay) = ((w - bd - 10 + d) as f64, (y + d + rh / 2) as f64);
                     if t.fluent() {
                         p.chevron(ax + 2.0, ay, 8.0, false, c);
                     } else {
@@ -393,8 +406,8 @@ impl FormUi {
             return;
         }
         let (x, y, w, _) = panel.rect;
-        let top = y + rows(&list)[k].0 - BORDER;
-        if let Some(mut sub) = self.place_panel(&item.id, x + w - BORDER, top, Some(x + BORDER)) {
+        let top = y + rows(&list)[k].0 - border();
+        if let Some(mut sub) = self.place_panel(&item.id, x + w - border(), top, Some(x + border())) {
             if hot_first {
                 sub.hot = first_item(&items(&item.id));
             }
@@ -773,7 +786,7 @@ impl FormUi {
                 n.states.checked = Some(item.checked);
             }
             n.states.focused = last && panel.hot == Some(k);
-            n.bounds = (panel.rect.0 + BORDER, panel.rect.1 + top, panel.rect.2 - 2 * BORDER, h);
+            n.bounds = (panel.rect.0 + border(), panel.rect.1 + top, panel.rect.2 - 2 * border(), h);
             n.actions = vec![Action::Click, Action::Focus];
             if item.submenu {
                 let open = self.menus.panels.get(pi + 1).is_some_and(|s| s.parent == item.id);
@@ -894,7 +907,7 @@ impl FormUi {
 }
 
 /// The first item that isn't a separator.
-fn first_item(list: &[ItemView]) -> Option<usize> {
+pub(crate) fn first_item(list: &[ItemView]) -> Option<usize> {
     list.iter().position(|i| !i.separator)
 }
 
@@ -1116,7 +1129,7 @@ mod tests {
         assert!(exit.states.disabled && !new.states.disabled);
         assert_eq!(new.shortcut, None);
         let (_, _, w, h) = new.bounds;
-        assert!(w > 20 && h == super::ITEM_H, "{:?}", new.bounds);
+        assert!(w > 20 && h == super::item_h(), "{:?}", new.bounds);
         // The focus is on New alone: not the form, not File.
         assert_eq!(focused(&tree), vec!["menuitem New".to_string()]);
         // The keys walk it: Down is Beginner, Down Expert, Down Exit (disabled, still chosen), Down wraps to New.

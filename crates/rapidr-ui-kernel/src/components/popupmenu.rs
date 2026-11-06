@@ -27,7 +27,11 @@ impl FormUi {
             2 => x - w / 2,
             _ => x,
         };
-        let Some(panel) = self.place_panel(&menu_id.to_lowercase(), x, y, None) else { return false };
+        let Some(mut panel) = self.place_panel(&menu_id.to_lowercase(), x, y, None) else { return false };
+        // (CONTEXT-MENUS: asked for by the keyboard, its first item chosen)
+        if self.menus.key_popup {
+            panel.hot = super::menubar::first_item(&list);
+        }
         self.menus.panels.push(panel);
         self.menus.popup = Some(menu_id.to_lowercase());
         self.menus.swallow_up = false;

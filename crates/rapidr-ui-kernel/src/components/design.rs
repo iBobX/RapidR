@@ -979,6 +979,27 @@ impl ComponentKind for Design {
             with_design_mut(cx.id, |d| d.mouse_hover(x, y, m.mods.alt));
             return out;
         }
+        // (CONTEXT-MENUS: a right press on a component outside the
+        // selection selects it alone — its menu acts on it —; on one of the
+        // selected, the selection stays; on the form's open part, the form)
+        if m.kind == MouseKind::Down && m.button == Button::Right {
+            let e = with_design_mut(cx.id, |d| {
+                if d.component_at(x, y).is_some_and(|i| d.selected().contains(&i)) {
+                    return None;
+                }
+                let e = d.mouse_down_keys(x, y, false, false, false);
+                d.mouse_up();
+                e
+            })
+            .flatten();
+            if let Some(e) = e {
+                let notify = [e.clone()];
+                rapidr_value::objects::design::notify(cx.id, &notify);
+                heard(cx, e);
+            }
+            drain(cx);
+            return out;
+        }
         if m.button != Button::Left {
             return out;
         }

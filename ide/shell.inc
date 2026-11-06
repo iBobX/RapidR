@@ -210,6 +210,8 @@ SUB RunCommand(Id AS STRING)
   IF OutputCommand(Id) THEN EXIT SUB
   ' (Edit > Copy in the AI Apps pane's activity: mcp.inc)
   IF McpPaneCommand(Id) THEN EXIT SUB
+  ' (the right-click menus' own commands: contextmenu.inc)
+  IF ContextCommand(Id) THEN EXIT SUB
   ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
   IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)
@@ -558,6 +560,7 @@ SUB StartStudio
   SetUpAI
   SetUpDocuments
   SetUpSearch
+  SetUpContextMenus
   SetUpVersions
   SetUpExternal
   SetUpMcp

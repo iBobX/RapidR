@@ -108,6 +108,9 @@ thread_local! {
     /// (a new edit, a test's text) and the selection then, in characters.
     static SHOWN: RefCell<HashMap<String, Shown>> = RefCell::new(HashMap::new());
     static REVISION: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// (CONTEXT-MENUS) A list box's row under the mouse, and the row
+    /// action under it (`RowActions`).
+    static ROW_HOT: RefCell<HashMap<String, (usize, Option<usize>)>> = RefCell::new(HashMap::new());
 }
 
 /// An in-place editor's text revision and the selection (start, length)
@@ -707,6 +710,60 @@ pub fn view_size(l: &ItemList, w: i64, h: i64) -> (i64, i64) {
 
 pub struct ListBox;
 
+// ------------------------------------------------- row actions --
+// (CONTEXT-MENUS: RapidR's RowActions — docs/context-menus-design.md §3)
+
+/// A row action's square, its icon and the gap between two.
+const ACTION_SIZE: i64 = 24;
+const ACTION_ICON: i64 = 16;
+const ACTION_GAP: i64 = 4;
+const ACTION_EDGE: i64 = 8;
+
+/// The list's row actions: (name, tip) — `rename:Rename (F2)`.
+pub fn row_actions(id: &str) -> Vec<(String, String)> {
+    with_list(id, |l| {
+        l.row_actions
+            .iter()
+            .map(|a| match a.split_once(':') {
+                Some((n, t)) => (n.trim().to_ascii_lowercase(), t.trim().to_string()),
+                None => (a.trim().to_ascii_lowercase(), a.trim().to_string()),
+            })
+            .collect()
+    })
+    .unwrap_or_default()
+}
+
+/// The row action squares of a row `(x, y, w, h)` (inner coordinates),
+/// left to right.
+fn action_rects((x, y, w, h): Rect, n: usize) -> Vec<Rect> {
+    let side = ACTION_SIZE.min(h).max(0);
+    let n = n as i64;
+    let first = x + w - ACTION_EDGE - n * side - (n - 1).max(0) * ACTION_GAP;
+    (0..n).map(|k| (first + k * (side + ACTION_GAP), y + (h - side) / 2, side, side)).collect()
+}
+
+/// The rows whose actions show: the one under the mouse, and the focused
+/// list's current one.
+fn action_rows(id: &str, focused: bool, current: i64) -> (Option<usize>, Option<usize>) {
+    let hot = ROW_HOT.with(|h| h.borrow().get(&id.to_lowercase()).map(|&(r, _)| r));
+    let cur = (focused && current >= 0).then_some(current as usize);
+    (hot, cur)
+}
+
+/// The action (row, index) at (x, y) of the component.
+fn action_at(id: &str, x: f64, y: f64, w: i64, h: i64) -> Option<(usize, usize)> {
+    let n = with_list(id, |l| l.row_actions.len()).unwrap_or(0);
+    if n == 0 {
+        return None;
+    }
+    let row = item_at(id, x, y, w, h)?;
+    let (rx, ry, rw, rh) = item_rect(id, row, w, h)?;
+    let (_, bar, _) = vscroll_state(id);
+    let rw = rw - if bar { 16 } else { 0 };
+    let (px, py) = (x.floor() as i64, y.floor() as i64);
+    action_rects((rx, ry, rw, rh), n).iter().position(|&(ax, ay, aw, ah)| px >= ax && px < ax + aw && py >= ay && py < ay + ah).map(|k| (row, k))
+}
+
 /// The item at (x, y) of the component (`None`: none there).
 fn item_at(id: &str, x: f64, y: f64, w: i64, h: i64) -> Option<usize> {
     let (pos, _, _) = vscroll_state(id);
@@ -759,6 +816,24 @@ pub fn item_rect(id: &str, i: usize, w: i64, h: i64) -> Option<Rect> {
 }
 
 impl ListBox {
+    /// (CONTEXT-MENUS) Row `row`'s action `k` used: OnRowAction(Index,
+    /// Action) — "more" is the row's OnContextMenu instead (Key 4, at the
+    /// button's bottom right).
+    fn row_action(cx: &mut Cx, row: usize, k: usize, w: i64, h: i64) {
+        let Some((name, _)) = row_actions(cx.id).into_iter().nth(k) else { return };
+        with_list_mut(cx.id, |l| l.context_index = Some(row));
+        if name == "more" {
+            let n = with_list(cx.id, |l| l.row_actions.len()).unwrap_or(1);
+            let (_, bar, _) = vscroll_state(cx.id);
+            let Some((rx, ry, rw, rh)) = item_rect(cx.id, row, w, h) else { return };
+            let rw = rw - if bar { 16 } else { 0 };
+            let Some(&(bx, by, bw, bh)) = action_rects((rx, ry, rw, rh), n).get(k) else { return };
+            cx.events.push(KernelEvent::ContextMenu { id: cx.id.to_string(), x: bx + bw, y: by + bh, key: 4 });
+            return;
+        }
+        cx.events.push(KernelEvent::Fire { id: cx.id.to_string(), event: "onrowaction".into(), args: vec![Value::Integer(row as i64), rapidr_value::v_str(&name)] });
+    }
+
     /// The user picked item `i` (with Shift / Ctrl): selected as a click
     /// does, OnClick (a double click's second press: OnDblClick, Windows'
     /// LBN_DBLCLK). The selection moved (another item, or MultiSelect's
@@ -874,7 +949,40 @@ impl ComponentKind for ListBox {
                     let color = if selected { selected_row(p, (0, top, cw, rh), cx.state.focused) } else { text_color };
                     let text = l.items[i].replace(['\n', '\r', '\t'], " ");
                     let x = text_indent(p);
-                    p.text((x, top, cw - x, rh), &text, &font, color, Place::Left);
+                    // (CONTEXT-MENUS: the row actions on the hovered row and
+                    // the focused list's current one; the text stops before them)
+                    let acts = if l.row_actions.is_empty() || !cx.state.enabled { 0 } else { l.row_actions.len() };
+                    let (hot, cur) = action_rows(cx.id, cx.state.focused, l.item_index);
+                    let shows = acts > 0 && (hot == Some(i) || cur == Some(i));
+                    let text_w = if shows { cw - x - ACTION_EDGE - acts as i64 * (ACTION_SIZE + ACTION_GAP) } else { cw - x };
+                    if shows {
+                        // (the words stop before the actions: cut, never under them)
+                        p.clipped((0, top, (x + text_w).max(0), rh), |p| p.text((x, top, text_w.max(0), rh), &text, &font, color, Place::Left));
+                    } else {
+                        p.text((x, top, text_w.max(0), rh), &text, &font, color, Place::Left);
+                    }
+                    if shows {
+                        let names = row_actions(cx.id);
+                        let lit = ROW_HOT.with(|h| h.borrow().get(&cx.id.to_lowercase()).copied()).filter(|&(r, _)| r == i).and_then(|(_, a)| a);
+                        let t = p.theme();
+                        let ink = if selected { color } else { t.secondary_text() };
+                        for (k, r) in action_rects((0, top, cw, rh), acts).into_iter().enumerate() {
+                            if lit == Some(k) {
+                                let fill = if selected { rapidr_value::theme::mix(t.highlight, t.highlight_text, 200) } else { t.hot };
+                                if t.fluent() {
+                                    p.round(r, (t.radius - 1.0).max(2.0), Some(fill), None, 1.0);
+                                } else {
+                                    p.fill(r, fill);
+                                }
+                            }
+                            let name = names.get(k).map_or("", |n| n.0.as_str());
+                            let icon = (r.0 + (r.2 - ACTION_ICON) / 2, r.1 + (r.3 - ACTION_ICON) / 2, ACTION_ICON, ACTION_ICON);
+                            let c = if lit == Some(k) && !selected { t.text } else { ink };
+                            if !p.icon(&format!("actions/{name}"), icon, Some(c), false) {
+                                p.icon(name, icon, Some(c), false);
+                            }
+                        }
+                    }
                     if cx.state.focused && l.item_index == i as i64 {
                         item_focus(p, (0, top, cw, rh), l.multi_select && !selected);
                     }
@@ -905,12 +1013,59 @@ impl ComponentKind for ListBox {
         if bar_mouse(cx, &inner, w - 4, h - 4) {
             return MouseOut::default();
         }
+        // (CONTEXT-MENUS: the row and the row action under the mouse)
+        if matches!(m.kind, MouseKind::Move | MouseKind::Leave) {
+            let at = if m.kind == MouseKind::Move && m.inside { item_at(cx.id, m.x, m.y, w, h).map(|r| (r, action_at(cx.id, m.x, m.y, w, h).map(|a| a.1))) } else { None };
+            ROW_HOT.with(|hot| {
+                let mut hot = hot.borrow_mut();
+                match at {
+                    Some(v) => {
+                        hot.insert(cx.id.to_lowercase(), v);
+                    }
+                    None => {
+                        hot.remove(&cx.id.to_lowercase());
+                    }
+                }
+            });
+            return MouseOut::default();
+        }
+        if m.kind == MouseKind::Down && m.button == rapidr_value::input::Button::Right {
+            // (CONTEXT-MENUS: a right press marks ContextIndex — it doesn't
+            // select, as RapidQ's list box doesn't)
+            let at = item_at(cx.id, m.x, m.y, w, h);
+            with_list_mut(cx.id, |l| l.context_index = at);
+            return MouseOut { press: false, focus: Some(false) };
+        }
         if m.kind == MouseKind::Down {
+            // (a row action: its OnRowAction — "more", the row's menu)
+            if let Some((row, k)) = action_at(cx.id, m.x, m.y, w, h) {
+                Self::row_action(cx, row, k, w, h);
+                return MouseOut::default();
+            }
             if let Some(i) = item_at(cx.id, m.x, m.y, w, h) {
                 Self::pick(cx, i, m.mods.shift, m.mods.ctrl || m.mods.command, m.double());
             }
         }
         MouseOut::default()
+    }
+
+    /// (CONTEXT-MENUS) The keyboard's menu: under the current item (it is
+    /// ContextIndex then).
+    fn context_point(&self, cx: &mut Cx) -> Option<(i64, i64)> {
+        let (w, h) = (cx.width(), cx.height());
+        let cur = with_list(cx.id, |l| l.item_index).unwrap_or(-1);
+        let i = usize::try_from(cur).ok()?;
+        with_list_mut(cx.id, |l| l.context_index = Some(i));
+        let (x, y, _, rh) = item_rect(cx.id, i, w, h)?;
+        let (ax, ay, _, _) = cx.rect;
+        Some((ax + x + 6, ay + (y + rh).clamp(0, h)))
+    }
+
+    /// (CONTEXT-MENUS) A row action's tip, under the mouse.
+    fn tip_at(&self, store: &dyn crate::store::Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let (w, h) = (crate::store::int(store, id, "width", 0), crate::store::int(store, id, "height", 0));
+        let (_, k) = action_at(id, x, y, w, h)?;
+        row_actions(id).get(k).map(|a| a.1.clone())
     }
 
     fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
@@ -926,6 +1081,15 @@ impl ComponentKind for ListBox {
         }) else {
             return false;
         };
+        // (CONTEXT-MENUS: F2 and Del are the current row's "rename" and
+        // "delete" actions, when the list has them)
+        if matches!(k.vk, 113 | 46) && !k.mods.shift && !k.mods.ctrl && current >= 0 {
+            let want = if k.vk == 113 { "rename" } else { "delete" };
+            if let Some(a) = row_actions(cx.id).iter().position(|a| a.0 == want) {
+                Self::row_action(cx, current as usize, a, w, h);
+                return true;
+            }
+        }
         let page = if multi { per } else { ((h - 4) / rh.max(1)).max(1) };
         let next = match k.vk {
             40 => current + 1,
@@ -952,9 +1116,15 @@ impl ComponentKind for ListBox {
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         let mut n = super::shared_describe(cx, "RLISTBOX");
         let (w, h) = (cx.width(), cx.height());
+        // (CONTEXT-MENUS: a row with actions says them, with their keys —
+        // the tips the program gave: "Rename (F2), Delete (Del), …")
+        let acts: Vec<String> = row_actions(cx.id).into_iter().map(|a| a.1).collect();
         for (i, o) in n.children.iter_mut().enumerate() {
             if let Some((x, y, iw, ih)) = item_rect(cx.id, i, w, h) {
                 o.bounds = (cx.rect.0 + x, cx.rect.1 + y, iw, ih);
+            }
+            if !acts.is_empty() {
+                o.description = acts.join(", ");
             }
         }
         n
@@ -999,7 +1169,7 @@ mod tests {
     //! input in, events and display lists out.
 
     use rapidr_value::input::Button;
-    use rapidr_value::objects::{with_list, with_tree};
+    use rapidr_value::objects::{with_list, with_list_mut, with_tree};
     use rapidr_value::{v_int, v_str};
 
     use super::ListAction;
@@ -1048,6 +1218,71 @@ mod tests {
         // (the selected row white on blue)
         let list = f.paint(&s, &mut ts, 1.0);
         assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: Op::Fill { color: crate::paint::HIGHLIGHT, .. }, .. })));
+    }
+
+    #[test]
+    fn a_right_click_asks_for_the_context_menu_without_selecting() {
+        // (CONTEXT-MENUS: RapidQ's list box doesn't select on a right click;
+        // ContextIndex says which item the menu is for)
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("cl", "RLISTBOX", Some("f")).set("cl", "left", v_int(10)).set("cl", "top", v_int(10)).set("cl", "width", v_int(120)).set("cl", "height", v_int(90));
+            s.call("cl", "additems", &[v_str("a"), v_str("b"), v_str("c")]);
+        });
+        with_list_mut("cl", |l| l.item_index = 0);
+        let y = 12.0 + 16.0 + 4.0;
+        f.mouse_down(&s, &mut ts, 30.0, y, Button::Right, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 30.0, y, Button::Right, Mods::NONE);
+        let ev = f.take_events();
+        assert!(ev.contains(&KernelEvent::ContextMenu { id: "cl".into(), x: 20, y: (y - 10.0) as i64, key: 0 }), "{ev:?}");
+        assert_eq!(with_list("cl", |l| (l.item_index, l.context_index)), Some((0, Some(1))));
+        // (Shift+F10 on the focused list: under its current item, the
+        // keyboard's; the pop-up that opens next has its first item chosen)
+        let shift = Mods { shift: true, ..Mods::NONE };
+        f.key_down(&s, &mut ts, 121, "", shift, &mut crate::MemClipboard::default());
+        let ev = f.take_events();
+        let asked = ev.iter().find_map(|e| if let KernelEvent::ContextMenu { id, x, y, key } = e { Some((id.clone(), *x, *y, *key)) } else { None });
+        let rh = with_list("cl", |l| l.row_height()).unwrap();
+        assert_eq!(asked, Some(("cl".into(), 8, 2 + rh, 1)), "{ev:?}");
+        assert!(f.menus.key_popup);
+        assert_eq!(with_list("cl", |l| l.context_index), Some(Some(0)));
+    }
+
+    #[test]
+    fn row_actions_answer_their_keys_and_icons() {
+        // (CONTEXT-MENUS: RowActions — F2 and Del are rename and delete on
+        // the current row; a list without them keeps its keys as they were)
+        rapidr_value::theme::set(&rapidr_value::theme::RAPIDR);
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("ra", "RLISTBOX", Some("f")).set("ra", "left", v_int(0)).set("ra", "top", v_int(0)).set("ra", "width", v_int(200)).set("ra", "height", v_int(120));
+            s.call("ra", "additems", &[v_str("one"), v_str("two")]);
+        });
+        let mut clip = crate::MemClipboard::default();
+        with_list_mut("ra", |l| l.item_index = 1);
+        f.key_down(&s, &mut ts, 46, "", Mods::NONE, &mut clip);
+        assert!(!f.take_events().iter().any(|e| matches!(e, KernelEvent::Fire { .. })));
+        with_list_mut("ra", |l| {
+            l.set("rowactions", &v_str("rename:Rename (F2),delete:Delete (Del),more:More"));
+        });
+        f.key_down(&s, &mut ts, 46, "", Mods::NONE, &mut clip);
+        let ev = f.take_events();
+        assert!(ev.contains(&KernelEvent::Fire { id: "ra".into(), event: "onrowaction".into(), args: vec![v_int(1), v_str("delete")] }), "{ev:?}");
+        f.key_down(&s, &mut ts, 113, "", Mods::NONE, &mut clip);
+        assert!(f.take_events().contains(&KernelEvent::Fire { id: "ra".into(), event: "onrowaction".into(), args: vec![v_int(1), v_str("rename")] }));
+        // (the row under the mouse shows them, and More — the last — asks
+        // for the row's menu at its bottom right)
+        let rh = with_list("ra", |l| l.row_height()).unwrap();
+        let row = (2 + rh / 2) as f64;
+        f.mouse_move(&s, &mut ts, 50.0, row, Mods::NONE);
+        drop(f.paint(&s, &mut ts, 1.0));
+        // (the squares are as tall as the row, 24 at most)
+        let more_x = (2 + 196 - 8 - rh.min(24) / 2) as f64;
+        f.mouse_down(&s, &mut ts, more_x, row, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, more_x, row, Button::Left, Mods::NONE);
+        let ev = f.take_events();
+        assert!(ev.iter().any(|e| matches!(e, KernelEvent::ContextMenu { id, key: 4, .. } if id == "ra")), "{ev:?}");
+        assert_eq!(with_list("ra", |l| (l.item_index, l.context_index)), Some((1, Some(0))));
+        assert_eq!(super::row_actions("ra")[2], ("more".to_string(), "More".to_string()));
     }
 
     #[test]

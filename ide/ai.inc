@@ -294,9 +294,11 @@ DIM AIChatsPanel AS RPanel
 DIM AIChatsHead AS RPanel
 DIM AIChatSearch AS REdit
 DIM AIChatsFoot AS RPanel
-DIM AIChatsOpenBtn AS RButton
-DIM AIChatsRenameBtn AS RButton
-DIM AIChatsDeleteBtn AS RButton
+' (CONTEXT-MENUS: an empty list's one line and its one button)
+DIM AIChatsEmpty AS RLabel
+DIM AIChatsStartBtn AS RButton
+' (the list's selection moved by the keys: no chat opens for it)
+DIM AIChatKeyed AS INTEGER
 DIM AIChatSearchLabel AS RLabel
 DIM AIChatList AS RListBox
 DIM AIChatsNote AS RLabel

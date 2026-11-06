@@ -5386,7 +5386,8 @@ const CASES = [
     copy: true,
     webFiles: ["examples/gui/hello_form.rr"],
     do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
-    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", CLICK("aichatsopenbtn", 20, 12), idle(4)].join(","),
+    // (CONTEXT-MENUS: a click on a chat opens it — no Open button)
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", idle(4)].join(","),
     delay: 5,
     themes: LOOKS,
     capture: true,
@@ -5430,7 +5431,8 @@ const CASES = [
     copy: true,
     webFiles: ["examples/gui/hello_form.rr"],
     do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
-    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", CLICK("aichatsdeletebtn", 20, 12), idle(4)].join(","),
+    // (CONTEXT-MENUS: Down to the older chat — the keys don't open it —, Del)
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(4)].join(","),
     delay: 5,
     dump: {
       "aichatlist.itemcount": /^1$/,
@@ -5446,7 +5448,7 @@ const CASES = [
     copy: true,
     webFiles: ["examples/gui/hello_form.rr"],
     do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
-    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", CLICK("aichatsdeletebtn", 20, 12), idle(2), CLICK("aichatundobtn", 20, 12), idle(4)].join(","),
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(2), CLICK("aichatundobtn", 20, 12), idle(4)].join(","),
     delay: 5,
     dump: {
       "aichatlist.itemcount": /^2$/,
@@ -5462,7 +5464,8 @@ const CASES = [
     copy: true,
     webFiles: ["examples/gui/hello_form.rr"],
     do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=check the code,ai:wait,wait,ai.assistant`,
-    events: [CLICK("aichatsbtn", 20, 12), typeInto("aichatsearch", "rename"), idle(2), CLICK("aichatsrenamebtn", 20, 12), "airenameedit.__key_65_16", typeInto("airenameedit", "Greetings"), "airenameedit.__key_13", idle(4)].join(","),
+    // (CONTEXT-MENUS: F2 on the chat found — the row's Rename)
+    events: [CLICK("aichatsbtn", 20, 12), typeInto("aichatsearch", "rename"), idle(2), "aichatlist.__key_113", "airenameedit.__key_65_16", typeInto("airenameedit", "Greetings"), "airenameedit.__key_13", idle(4)].join(","),
     delay: 5,
     dump: {
       "aichatlist.itemcount": /^1$/,
@@ -7398,6 +7401,222 @@ const CASES = [
       "verwhatbtn.width": /^40$/,
       "verundobtn.accessiblename": /^Undo$/,
       "verundonote.caption": /^Undo: Saved the version/,
+    },
+  },
+  // ---- CONTEXT-MENUS (docs/context-menus-design.md): right-click menus,
+  // by the mouse and by the keyboard, drawn by RapidR (SystemMenu off) ----
+  {
+    // a file in the Project tree right-clicked: selected first, Open bold
+    // (Enter), the keys shown, Remove from Project last — greyed for the
+    // main file, its hint says why; RAI greyed until it is set up
+    name: "ctx-project-file",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "view.project,wait",
+    events: "studio.__wait_3000,projecttree.__rightclick_110_102,projecttree.__wait_500",
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "projecttree.selected": /^main\.rr$/,
+      "projecttree.selectedkind": /^file$/,
+      "ctxmenu.systemmenu": /^0$/,
+      "ctxmenu.accessiblename": /^Actions for main\.rr$/,
+      "ctxitem(0).caption": /^&Open\tEnter$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(5).caption": /^Re&name\tF2$/,
+      "ctxitem(8).caption": /^Reveal in Finder$|^Reveal in File Explorer$|^Reveal in Files$/,
+      "ctxitem(12).caption": /^Remove from Pro&ject\tDel$/,
+      "ctxitem(12).enabled": /^0$/,
+      "ctxitem(12).hint": /^The main file stays in the project$/,
+    },
+    // (the web: no file manager to reveal in — the items after it move up)
+    webDump: {
+      "projecttree.selected": /^main\.rr$/,
+      "projecttree.selectedkind": /^file$/,
+      "ctxmenu.systemmenu": /^0$/,
+      "ctxitem(0).caption": /^&Open\tEnter$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(5).caption": /^Re&name\tF2$/,
+      "ctxitem(11).caption": /^Remove from Pro&ject\tDel$/,
+      "ctxitem(11).enabled": /^0$/,
+    },
+  },
+  {
+    // the keyboard: the tree's row (Down twice from main.rr), Shift+F10 —
+    // the menu under the row, its first item chosen —, Down to Copy Path,
+    // Enter: the file's path on the clipboard, said in the status bar
+    name: "ctx-project-keyboard",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "view.project,wait",
+    events: "studio.__wait_3000,projecttree.__mousedown_110_102,projecttree.__mouseup_110_102,projecttree.__key_40,projecttree.__key_121_256,projecttree.__key_40,projecttree.__key_40,projecttree.__key_40,projecttree.__key_40,projecttree.__key_13,projecttree.__wait_500",
+    delay: 6,
+    dump: {
+      "projecttree.selected": /^globals\.rr$/,
+      "clipboard.text": /studio_search\/globals\.rr$/,
+      "status.panel(0).caption": /^Copied the path$/,
+    },
+  },
+  {
+    // a document's tab right-clicked: the Close family first; Close Others
+    // (Down, Down, Enter) leaves only that document
+    name: "ctx-tab-close-others",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    do: "open:globals.rr,wait",
+    events: "studio.__wait_3000,dock__docs.__rightclick_60_14,dock__docs.__wait_300,dock__docs.__key_40,dock__docs.__key_40,dock__docs.__key_13,dock__docs.__wait_500",
+    delay: 6,
+    dump: {
+      "dock.contextdocument": /^codedoc\(0\)$/,
+      "ctxitem(0).caption": /^&Close Document\tCtrl\+W$/,
+      "dock.documentcount": /^1$/,
+    },
+  },
+  {
+    // the tab's menu open, light and dark: what it shows
+    name: "ctx-tab-menu",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    do: "open:globals.rr,wait",
+    events: "studio.__wait_3000,dock__docs.__rightclick_60_14,dock__docs.__wait_500",
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    dump: {
+      "ctxitem(1).caption": /^Close &Others$/,
+      "ctxitem(1).enabled": /^1$/,
+      "ctxitem(2).caption": /^Close to the &Right$/,
+    },
+  },
+  {
+    // the code editor from the keyboard (the caret on "Counter", Shift+F10):
+    // the language's group first, Cut and Copy greyed with nothing selected
+    name: "ctx-code-keyboard",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,codedoc(0).__mousedown_120_212,codedoc(0).__mouseup_120_212,codedoc(0).__key_121_256,codedoc(0).__wait_500",
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    dump: {
+      "ctxmenu.accessiblename": /^Actions for the code$/,
+      "ctxitem(0).caption": /^Go to &Definition\tF12$/,
+      "ctxitem(0).enabled": /^1$/,
+      "ctxitem(5).caption": /^Cu&t\tCtrl\+X$/,
+      "ctxitem(5).enabled": /^0$/,
+      "ctxitem(5).hint": /^Nothing is selected$/,
+    },
+  },
+  {
+    // a component right-clicked in the designer: selected alone first; its
+    // event handler bold, Delete last
+    name: "ctx-designer-component",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "wait",
+    events: "studio.__wait_3000,designdoc(0).__rightclick_180_118,designdoc(0).__wait_500",
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "designdoc(0).selcount": /^1$/,
+      "inspector.target": /^GreetButton$/,
+      "ctxitem(0).caption": /^&Edit Event Handler$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(17).caption": /^&Delete\tDel$/,
+    },
+  },
+  {
+    // everything selected (Ctrl+A), one of them right-clicked: the
+    // selection stays; what only a group can do comes first (submenus)
+    name: "ctx-designer-multi",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,designdoc(0).__mousedown_180_118,designdoc(0).__mouseup_180_118,designdoc(0).__key_65_16,designdoc(0).__rightclick_180_118,designdoc(0).__wait_500",
+    delay: 6,
+    capture: true,
+    dump: {
+      "designdoc(0).selcount": /^[2-9]$/,
+      "ctxitem(0).caption": /^&Align$/,
+      "ctxitem(1).caption": /^Make Same Si&ze$/,
+      "ctxsub(0).caption": /^Align &Lefts$/,
+    },
+  },
+  {
+    // a property right-clicked: Edit Value bold; Copy as Code (Down five
+    // times, Enter) copies the line that sets it
+    name: "ctx-inspector-copy-code",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "wait",
+    events: "studio.__wait_3000,designdoc(0).__mousedown_180_118,designdoc(0).__mouseup_180_118,inspector.__wait_300,inspector.__rightclick_60_230,inspector.__key_40,inspector.__key_40,inspector.__key_40,inspector.__key_40,inspector.__key_40,inspector.__key_13,inspector.__wait_500",
+    delay: 6,
+    dump: {
+      "inspector.selected": /^Caption$/,
+      "clipboard.text": /^GreetButton\.Caption = "&Greet"$/,
+    },
+  },
+  {
+    // the inspector's menu open, three looks
+    name: "ctx-inspector-menu",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,designdoc(0).__mousedown_180_118,designdoc(0).__mouseup_180_118,inspector.__wait_300,inspector.__rightclick_60_230,inspector.__wait_500",
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "ctxitem(0).caption": /^&Edit Value\tEnter$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(1).caption": /^&Reset to Default\tDel$/,
+    },
+  },
+  {
+    // RAI's chats: the row under the mouse shows Rename, Delete and More;
+    // the Open / Rename / Delete buttons are gone
+    name: "ctx-chats-row-actions",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(2), "aichatlist.__mousemove_100_42", idle(2)].join(","),
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aichatlist.rowactions": /^rename:Rename \(F2\),delete:Delete \(Del\),more:More actions \(Shift\+F10\)$/,
+      "aichatlist.itemcount": /^2$/,
+      "aichatsfoot.height": /^52$/,
+    },
+  },
+  {
+    // ... a chat right-clicked: its menu — Open bold, Rename, Delete last
+    name: "ctx-chats-menu",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(2), "aichatlist.__rightclick_100_42", idle(2)].join(","),
+    delay: 5,
+    capture: true,
+    dump: {
+      "aichatlist.contextindex": /^1$/,
+      "aichatlist.itemindex": /^1$/,
+      "ctxitem(0).caption": /^&Open\tEnter$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(4).caption": /^&Delete\tDel$/,
     },
   },
   {

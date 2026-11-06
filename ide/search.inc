@@ -80,21 +80,6 @@ DIM NavFromCol AS INTEGER
 ' just after — the editor answers between the program's turns)
 DIM NavAskedAt AS DOUBLE
 
-' The code editors' context menu: the language's places first, then the
-' clipboard
-DIM CodeMenu AS RPopupMenu
-DIM CodeMenuDef AS RMenuItem
-DIM CodeMenuRefs AS RMenuItem
-DIM CodeMenuRename AS RMenuItem
-DIM CodeMenuSep1 AS RMenuItem
-DIM CodeMenuCut AS RMenuItem
-DIM CodeMenuCopy AS RMenuItem
-DIM CodeMenuPaste AS RMenuItem
-DIM CodeMenuSep2 AS RMenuItem
-DIM CodeMenuSelAll AS RMenuItem
-DIM CodeMenuFind AS RMenuItem
-' (each item's command, by its Tag)
-DIM CodeMenuCmd(10) AS STRING
 ' (Find References' places, as the editor gave them)
 DIM RefFile(400) AS STRING
 DIM RefLine(400) AS INTEGER
@@ -137,8 +122,6 @@ DECLARE SUB HelpShowManual(Page AS STRING)
 DECLARE SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
 DECLARE SUB HelpFocusSearch
 DECLARE FUNCTION HelpFile AS STRING
-DECLARE SUB CodeMenuPicked(Sender AS RMenuItem)
-DECLARE SUB CodeMenuOpening
 DECLARE SUB NavPush(f AS STRING, L AS INTEGER, C AS INTEGER)
 DECLARE SUB NavPushHere
 DECLARE FUNCTION SearchLine(Path AS STRING, L AS INTEGER) AS STRING
@@ -187,44 +170,6 @@ SUB SetUpSearch
   SearchTree.OnKeyDown = SearchTreeKey
   SearchShows = "find"
 
-  ' (the code editors' context menu: OpenDocument gives it to each)
-  CodeMenuDef.Caption = TR$("Go to &Definition"): CodeMenuDef.ShortCut = "F12"
-  CodeMenuRefs.Caption = TR$("Find &References"): CodeMenuRefs.ShortCut = "Shift+F12"
-  CodeMenuRename.Caption = TR$("Re&name Symbol..."): CodeMenuRename.ShortCut = "F2"
-  CodeMenuSep1.Caption = "-"
-  CodeMenuCut.Caption = TR$("Cu&t"): CodeMenuCut.ShortCut = "Ctrl+X"
-  CodeMenuCopy.Caption = TR$("&Copy"): CodeMenuCopy.ShortCut = "Ctrl+C"
-  CodeMenuPaste.Caption = TR$("&Paste"): CodeMenuPaste.ShortCut = "Ctrl+V"
-  CodeMenuSep2.Caption = "-"
-  CodeMenuSelAll.Caption = TR$("Select &All"): CodeMenuSelAll.ShortCut = "Ctrl+A"
-  CodeMenuFind.Caption = TR$("Find in F&iles..."): CodeMenuFind.ShortCut = "Ctrl+Shift+F"
-  CodeMenuCmd(1) = "edit.goToDefinition": CodeMenuDef.Tag = 1
-  CodeMenuCmd(2) = "edit.findReferences": CodeMenuRefs.Tag = 2
-  CodeMenuCmd(3) = "edit.rename": CodeMenuRename.Tag = 3
-  CodeMenuCmd(4) = "edit.cut": CodeMenuCut.Tag = 4
-  CodeMenuCmd(5) = "edit.copy": CodeMenuCopy.Tag = 5
-  CodeMenuCmd(6) = "edit.paste": CodeMenuPaste.Tag = 6
-  CodeMenuCmd(7) = "edit.selectAll": CodeMenuSelAll.Tag = 7
-  CodeMenuCmd(8) = "edit.findInFiles": CodeMenuFind.Tag = 8
-  CodeMenuDef.OnClick = CodeMenuPicked
-  CodeMenuRefs.OnClick = CodeMenuPicked
-  CodeMenuRename.OnClick = CodeMenuPicked
-  CodeMenuCut.OnClick = CodeMenuPicked
-  CodeMenuCopy.OnClick = CodeMenuPicked
-  CodeMenuPaste.OnClick = CodeMenuPicked
-  CodeMenuSelAll.OnClick = CodeMenuPicked
-  CodeMenuFind.OnClick = CodeMenuPicked
-  CodeMenu.AddItems CodeMenuDef
-  CodeMenu.AddItems CodeMenuRefs
-  CodeMenu.AddItems CodeMenuRename
-  CodeMenu.AddItems CodeMenuSep1
-  CodeMenu.AddItems CodeMenuCut
-  CodeMenu.AddItems CodeMenuCopy
-  CodeMenu.AddItems CodeMenuPaste
-  CodeMenu.AddItems CodeMenuSep2
-  CodeMenu.AddItems CodeMenuSelAll
-  CodeMenu.AddItems CodeMenuFind
-  CodeMenu.OnPopup = CodeMenuOpening
 
   HelpPane.Parent = Studio
   HelpPane.BevelOuter = 0
@@ -917,23 +862,10 @@ END SUB
 ' ---- the code editors' context menu ---------------------------------------------------
 
 ' (what can be done now: the clipboard's items as the selection allows)
-SUB CodeMenuOpening
-  DIM d AS INTEGER
-  d = ActiveCode
-  IF d < 0 THEN EXIT SUB
-  CodeMenuCut.Enabled = Flag(CodeDoc(d).SelLength > 0 AND CodeDoc(d).ReadOnly = 0)
-  CodeMenuCopy.Enabled = Flag(CodeDoc(d).SelLength > 0)
-  CodeMenuPaste.Enabled = Flag(CodeDoc(d).ReadOnly = 0)
-  CodeMenuRename.Enabled = Flag(CodeDoc(d).ReadOnly = 0)
-END SUB
-
-' (document d's code editor gets it: OpenDocument)
+' (document d's code editor gets its right-click menu: OpenDocument —
+' contextmenu.inc's CodeContext, by the mouse, Shift+F10 or the Menu key)
 SUB CodeMenuFor(d AS INTEGER)
-  CodeDoc(d).PopupMenu = CodeMenu
-END SUB
-
-SUB CodeMenuPicked(Sender AS RMenuItem)
-  IF Sender.Tag >= 1 AND Sender.Tag <= 8 THEN RunCommand CodeMenuCmd(Sender.Tag)
+  CodeDoc(d).OnContextMenu = CodeContext
 END SUB
 
 ' ---- Help (F1) ----------------------------------------------------------------------

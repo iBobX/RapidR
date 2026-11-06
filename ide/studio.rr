@@ -83,6 +83,7 @@ $INCLUDE "external.inc"
 $INCLUDE "workspace.inc"
 $INCLUDE "markdown.inc"
 $INCLUDE "demo.inc"
+$INCLUDE "contextmenu.inc"
 $INCLUDE "shell.inc"
 
 StartStudio

@@ -63,6 +63,7 @@ fn action(a: Action) -> Option<AAction> {
         Action::Expand => AAction::Expand,
         Action::Collapse => AAction::Collapse,
         Action::ScrollIntoView => AAction::ScrollIntoView,
+        Action::ShowContextMenu => AAction::ShowContextMenu,
     })
 }
 
@@ -309,6 +310,7 @@ pub fn request(req: &ActionRequest) -> Option<(u64, Action, Option<AccessValue>)
         (AAction::Expand, _) => (target, Action::Expand, None),
         (AAction::Collapse, _) => (target, Action::Collapse, None),
         (AAction::ScrollIntoView, _) => (target, Action::ScrollIntoView, None),
+        (AAction::ShowContextMenu, _) => (target, Action::ShowContextMenu, None),
         (AAction::SetValue, Some(ActionData::NumericValue(v))) => (target, Action::SetValue, Some(AccessValue::Number(*v))),
         (AAction::SetValue | AAction::ReplaceSelectedText, Some(ActionData::Value(s))) => (target, Action::SetValue, Some(AccessValue::Text(s.to_string()))),
         _ => return None,

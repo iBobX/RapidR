@@ -440,6 +440,13 @@ pub trait ComponentKind: Sync {
         None
     }
 
+    /// (CONTEXT-MENUS) Where a menu the keyboard opens goes (logical,
+    /// absolute): under the focused row, tab or selection — `None`: the
+    /// caret's ([`ComponentKind::ime_area`]) or near the top left corner.
+    fn context_point(&self, _cx: &mut Cx) -> Option<(i64, i64)> {
+        None
+    }
+
     /// Takes text from input methods while it has the focus (the host
     /// allows IME only then).
     fn wants_ime(&self, _store: &dyn Store, _id: &str) -> bool {

@@ -668,6 +668,15 @@ impl ComponentKind for DockDocs {
                     mm.ui.hover = None;
                 }
             }),
+            // (CONTEXT-MENUS: a right press on a tab names its document —
+            // the dock's ContextDocument — for its menu; elsewhere, none)
+            MouseKind::Down if m.button == Button::Right => {
+                let doc = match hit {
+                    Some(DocHit::Tab(g, i) | DocHit::Close(g, i)) => Some(d.groups[g].tabs[i].pane.clone()),
+                    _ => None,
+                };
+                manager::with_mut(&dock, |mm| mm.ui.context_document = doc);
+            }
             MouseKind::Down if m.button == Button::Left => match hit {
                 Some(DocHit::Tab(g, i)) => {
                     let pane = d.groups[g].tabs[i].pane.clone();

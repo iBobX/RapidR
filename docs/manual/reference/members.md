@@ -121,6 +121,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 | `OnLoad` | Fires when the content has loaded: the web view's page, a file read in the browser. |
 | `OnDropFiles(Files AS STRING)` | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rformmdi"></a>
 ## RFormMDI
@@ -242,6 +243,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
 | `OnExit` | Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rtabcontrol"></a>
 ## RTabControl
@@ -314,6 +316,7 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rtoolbar"></a>
 ## RToolBar
@@ -369,6 +372,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 |---|---|
 | `OnClick` | A button or the strip was clicked (after OnButtonClick): ClickedButton says which button. |
 | `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rstatusbar"></a>
 ## RStatusBar
@@ -421,6 +425,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 |---|---|
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rsplitter"></a>
 ## RSplitter
@@ -459,6 +464,7 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | Event | |
 |---|---|
 | `OnMoved` | Fires when the user finishes dragging the splitter. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rscrollbox"></a>
 ## RScrollBox
@@ -521,6 +527,7 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rgroupbox"></a>
 ## RGroupBox
@@ -571,6 +578,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rbevel"></a>
 ## RBevel
@@ -623,6 +631,7 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rglassframe"></a>
 ## RGlassFrame
@@ -666,6 +675,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `ContextDocument` (read-only) | string |  | The document whose tab the last right click was on (its name), for the dock manager's OnContextMenu; "" when it was on the tab strip's empty part. |
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `DocumentMode` | string | `"mdi"` | How documents show: "mdi" (windows in the documents area, the default) or "tabs". |
 | `ActiveDocument` | string |  | The active document's name; setting it activates that document. |
@@ -732,6 +742,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `OnDocumentClose(Name AS STRING, BYREF Cancel AS INTEGER)` | A document is about to close; set Cancel to keep it open. |
 | `OnLayoutChange` | The layout changed (the user or the program moved, docked, floated or hid a pane). |
 | `OnDocumentView(Name AS STRING, View AS STRING)` | Tabbed documents: a document now shows another view (its caption, or "Split" for side by side). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rbutton"></a>
 ## RButton
@@ -800,6 +811,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="redit"></a>
 ## REdit
@@ -878,6 +890,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rcheckbox"></a>
 ## RCheckBox
@@ -929,6 +942,7 @@ A box with a caption that the user ticks on or off (Checked).
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rradiobutton"></a>
 ## RRadioButton
@@ -979,6 +993,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rcombobox"></a>
 ## RComboBox
@@ -1073,6 +1088,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rrichedit"></a>
 ## RRichEdit
@@ -1166,6 +1182,7 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rmemo"></a>
 ## RMemo
@@ -1231,6 +1248,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rscrollbar"></a>
 ## RScrollBar
@@ -1284,6 +1302,7 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `OnScroll(ScrollCode AS BYTE, ScrollPos AS LONG)` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rupdown"></a>
 ## RUpDown
@@ -1414,6 +1433,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rcodeeditor"></a>
 ## RCodeEditor
@@ -1615,6 +1635,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `OnFileEdits(File AS STRING, Json AS STRING)` | A rename's edits to another file (ApplyEdits' JSON with "start" / "end" byte offsets). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rdiffview"></a>
 ## RDiffView
@@ -1680,6 +1701,7 @@ Two texts compared, the way a code review shows them: line by line, side by side
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rcoolbtn"></a>
 ## RCoolBtn
@@ -1737,6 +1759,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `OnMouseDown` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rovalbtn"></a>
 ## ROvalBtn
@@ -1800,6 +1823,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `OnMouseMove` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rlabel"></a>
 ## RLabel
@@ -1868,6 +1892,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
 | `OnExit` | Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rimage"></a>
 ## RImage
@@ -1953,6 +1978,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | RapidR's: the mouse wheel turned over it, or over a component in it that doesn't scroll with the wheel itself: the first one up from under the mouse whose OnMouseWheel is bound hears it. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in its own pixels; Shift as OnMouseMove's. A list, a memo, a grid, a scroll bar, and a scroll box's or form's own scroll bars under the mouse take the wheel themselves. Use it to scroll a list you paint yourself. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rcanvas"></a>
 ## RCanvas
@@ -2041,6 +2067,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rheader"></a>
 ## RHeader
@@ -2128,6 +2155,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `OnSectionClick(Index AS INTEGER)` | Fires when the user clicks header section Index. |
 | `OnSectionResize(Index AS INTEGER)` | Fires after the user resized header section Index. |
 | `OnSectionTrack(Index AS INTEGER, Width AS INTEGER, State AS INTEGER)` | Fires while the user drags a header section's border (Index: the section, Width: its new width, State: begin, move or end of the drag). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rprogress"></a>
 ## RProgress
@@ -2158,6 +2186,10 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 | `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+
+| Event | |
+|---|---|
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rprogressbar"></a>
 ## RProgressBar
@@ -2201,6 +2233,10 @@ The gauge: shows progress from Min to Max at Position as a bar, a pie, a needle 
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+
+| Event | |
+|---|---|
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rdesignsurface"></a>
 ## RDesignSurface
@@ -2306,6 +2342,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `OnChange` | The designed form changed (after its OnSourceEdit events). |
 | `OnSourceStep(Continues AS INTEGER)` | A change's OnSourceEdit events follow: one step of the file's undo history, or — Continues True — part of the step before (a caption typed right after adding the component). A code editor that keeps the history groups them so. |
 | `OnUndo(Redo AS INTEGER)` | With SharedUndo, Undo (Redo False) or Redo (True) was asked on the designer: undo it in the editor that keeps the file's history, then set Source again. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rdigdisplay"></a>
 ## RDigDisplay
@@ -2366,6 +2403,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rlistbox"></a>
 ## RListBox
@@ -2390,6 +2428,8 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `ItemCount` (read-only) | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 | `ItemHeight` | int |  | Each item's height, in pixels. |
 | `ItemIndex` | int |  | The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item. |
+| `ContextIndex` | int |  | The item the last context menu is for: the one right-clicked (a right click doesn't select it), the selected one for Shift+F10 or the Menu key, or the row whose More button was clicked; -1 for none. Read it in OnContextMenu; set ItemIndex = ContextIndex there to select it as well. |
+| `RowActions` | string | `""` | Small icon buttons on the row under the mouse and on the row with the keyboard: up to three, comma-separated, each an icon name from RapidR's icons (rename, delete, copy, more…) with its tip after a colon: "rename:Rename (F2),delete:Delete (Del),more:More actions (Shift+F10)". OnRowAction hears them; rename is also F2 and delete Del on the selected row; more opens the row's OnContextMenu (Key 4). Every action should also be in the list's menu. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `MultiSelect` | bool | False | Lets the user select more than one item or file. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
@@ -2467,9 +2507,11 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnChange` | The person moved the selection to another item: a click on another item, the arrow keys, Page Up / Down, Home or End; before that click's OnClick. A click on the item already selected fires OnClick only; the program's own ItemIndex = n fires nothing. |
+| `OnRowAction(Index AS INTEGER, Action AS STRING)` | One of RowActions was used on item Index: its icon clicked, or F2 (rename) or Del (delete) on the selected row. Action is the action's name, as RowActions names it ("rename", "delete"). |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows. |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | A mouse button let go over the list (X, Y in the list): after OnClick, the item under the mouse picked — a click the program tells from the keyboard's picks. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rfilelistbox"></a>
 ## RFileListBox
@@ -2541,6 +2583,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rdirtree"></a>
 ## RDirTree
@@ -2598,6 +2641,7 @@ A tree of drives and folders for picking a folder (Directory).
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rstringgrid"></a>
 ## RStringGrid
@@ -2729,6 +2773,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rtreeview"></a>
 ## RTreeView
@@ -2857,6 +2902,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rlistview"></a>
 ## RListView
@@ -2945,6 +2991,7 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rmainmenu"></a>
 ## RMainMenu
@@ -2986,6 +3033,7 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `Default` | bool | False | Draws the item's words bold: the default action of what the menu is for (what a double click or Enter does there). One per menu. |
 
 | Method | |
 |---|---|
@@ -3013,6 +3061,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `WindowHandle` | int |  | The window that gets the popup menu's messages. |
 | `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `SystemMenu` | bool | True | True (the default): on macOS and Windows the system shows the menu, as its other menus. False: RapidR draws it on every system, in the program's look (RapidR's light, dark, high contrast), so it shows in screenshots and recordings and RapidR's AI tools can see and pick its items. RapidR Studio's menus are drawn this way. |
 
 | Method | |
 |---|---|
@@ -4426,6 +4475,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rdximagelist"></a>
 ## RDXImageList
@@ -5017,6 +5067,7 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rplot"></a>
 ## RPlot
@@ -5089,6 +5140,10 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Xscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 | `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 
+| Event | |
+|---|---|
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
+
 <a id="rwebview"></a>
 ## RWebView
 
@@ -5127,6 +5182,7 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnLoad` | Fires when the content has loaded: the web view's page, a file read in the browser. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rdom"></a>
 ## RDOM
@@ -5183,6 +5239,7 @@ An HTML element of the program's own: its HTML, CSS classes, style and attribute
 | `OnFocus` | Fires when the element gets the keyboard focus (the browser's focus). |
 | `OnBlur` | Fires when the element loses the keyboard focus (the browser's blur). |
 | `OnScroll` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rjavascript"></a>
 ## RJavaScript
@@ -5259,6 +5316,7 @@ An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.
 | `OnPause` | Fires when the audio or video pauses. |
 | `OnEnded` | Fires when the audio or video reaches its end. |
 | `OnTimeUpdate` | Fires as the audio or video's CurrentTime advances while it plays. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rwebvideo"></a>
 ## RWebVideo
@@ -5310,6 +5368,7 @@ An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. W
 | `OnEnded` | Fires when the audio or video reaches its end. |
 | `OnTimeUpdate` | Fires as the audio or video's CurrentTime advances while it plays. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rwebnotification"></a>
 ## RWebNotification
@@ -5434,6 +5493,7 @@ An object inspector: the properties of a component (or of every component a desi
 | `OnSelect(Prop AS STRING)` | The selected row changed. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rtoolbox"></a>
 ## RToolbox
@@ -5484,6 +5544,7 @@ The palette of components a form designer places, under RapidR's names (RButton)
 | `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rprojecttree"></a>
 ## RProjectTree
@@ -5553,6 +5614,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `OnNewFile(Path AS STRING, Kind AS STRING)` | NewFile added a file and the user named it. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="routputconsole"></a>
 ## ROutputConsole
@@ -5616,6 +5678,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `OnPageChange(Page AS STRING)` | The user showed another page. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rcommandpalette"></a>
 ## RCommandPalette
@@ -5660,6 +5723,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `OnCancel` | The user closed the palette without picking (Escape). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rmarkdownview"></a>
 ## RMarkdownView
@@ -5712,6 +5776,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `OnCodeClick(Word AS STRING, OfType AS STRING)` | The user clicked a word of code (CodeLanguage is set, the language service knows the word): the word as written ("PRINT", "AddItems") and, for a member after a dot, the component type it belongs to ("RListBox"; "" for any other word). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rai"></a>
 ## RAI

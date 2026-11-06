@@ -743,7 +743,7 @@ msgstr ""
 msgid "Copied the code."
 msgstr ""
 
-#: ide/ai.inc
+#: ide/ai.inc ide/contextmenu.inc
 msgid "Copied the code"
 msgstr ""
 
@@ -873,40 +873,16 @@ msgstr ""
 msgid "Their titles and what was said; Down goes to the list, Escape back to the chat"
 msgstr ""
 
-#: ide/aichats.inc ide/panels.inc
-msgid "Open"
-msgstr ""
-
-#: ide/aichats.inc
-msgid "Open the chat"
-msgstr ""
-
-#: ide/aichats.inc
-msgid "Rename"
-msgstr ""
-
-#: ide/aichats.inc
-msgid "Rename the chat"
-msgstr ""
-
-#: ide/aichats.inc
-msgid "Delete"
-msgstr ""
-
-#: ide/aichats.inc
-msgid "Delete the chat"
-msgstr ""
-
-#: ide/aichats.inc
-msgid "It is removed from this computer; Undo puts it back"
-msgstr ""
-
 #: ide/aichats.inc
 msgid "Chat deleted"
 msgstr ""
 
 #: ide/aichats.inc
 msgid "Undo: put the chat back"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Rename the chat"
 msgstr ""
 
 #: ide/aichats.inc
@@ -935,6 +911,10 @@ msgstr ""
 
 #: ide/aichats.inc
 msgid "This project's chats, the newest first"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "&Start a Chat"
 msgstr ""
 
 #: ide/aichats.inc
@@ -989,6 +969,22 @@ msgstr ""
 
 #: ide/aichats.inc
 msgid "{item} (open)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Rename (F2)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Delete (Del)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "More actions (Shift+F10)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "No chats in this project yet."
 msgstr ""
 
 #: ide/aichats.inc
@@ -1923,7 +1919,7 @@ msgstr ""
 msgid "✓ Built {file} — unzip on any web host"
 msgstr ""
 
-#: ide/build.inc
+#: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
 msgstr ""
 
@@ -1947,7 +1943,7 @@ msgstr ""
 msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
 msgstr ""
 
-#: ide/build.inc ide/panels.inc
+#: ide/build.inc ide/contextmenu.inc ide/panels.inc
 msgid "Can't show it: {error}"
 msgstr ""
 
@@ -2095,23 +2091,23 @@ msgstr ""
 msgid "&Redo"
 msgstr ""
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Cu&t"
 msgstr ""
 
-#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc ide/search.inc
+#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc
 msgid "&Copy"
 msgstr ""
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "&Paste"
 msgstr ""
 
-#: ide/commands.inc
+#: ide/commands.inc ide/contextmenu.inc
 msgid "&Delete"
 msgstr ""
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Select &All"
 msgstr ""
 
@@ -2127,7 +2123,7 @@ msgstr ""
 msgid "R&eplace..."
 msgstr ""
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Find in F&iles..."
 msgstr ""
 
@@ -2199,7 +2195,7 @@ msgstr ""
 msgid "&Quick Fix..."
 msgstr ""
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Go to &Definition"
 msgstr ""
 
@@ -2215,7 +2211,7 @@ msgstr ""
 msgid "Navigate For&ward"
 msgstr ""
 
-#: ide/commands.inc ide/search.inc
+#: ide/commands.inc
 msgid "Re&name Symbol..."
 msgstr ""
 
@@ -2356,7 +2352,7 @@ msgid "&Reset Layout"
 msgstr ""
 
 #: ide/commands.inc
-msgid "Add &File..."
+msgid "Add &Existing File..."
 msgstr ""
 
 #: ide/commands.inc
@@ -2695,6 +2691,250 @@ msgstr ""
 
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Open"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Re&name"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Remove from Pro&ject"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Show in &Project"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Co&llapse All"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copy &Path"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copy Relati&ve Path"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Reveal in File &Manager"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Close &Others"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Close to the &Right"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Close &Saved"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Edit Event Handler"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Edit Value"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Reset to Default"
+msgstr ""
+
+#: ide/contextmenu.inc ide/debug.inc
+msgid "&Copy Value"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copy &Name"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copy as Co&de"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Go to Handler"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Remove Handler"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Help"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "As&k RAI..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Set up RAI first: Tools > Set Up RAI"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Open &Code"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Show &History"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This File..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About {file}:"
+msgstr ""
+
+#: ide/contextmenu.inc ide/panels.inc
+msgid "The main file stays in the project"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Select in the Designer"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Component..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About {name}:"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Project..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About this project:"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Actions for {what}"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Not on a name"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Nothing is selected"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Versions"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About line {n} of {file}:"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Code..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Actions for the code"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Align"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Make Same Si&ze"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Space &Evenly"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Needs three or more"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About These Components..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About the components {names}:"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Center in &Form"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Zoom"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Form..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About the form in {file}:"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Actions for the form"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Create Handler"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Already the default"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "&Help: {name}"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About {name}..."
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "About {name} of {target}:"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Actions for the chat"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copied the path"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copied the relative path"
+msgstr ""
+
+#: ide/contextmenu.inc ide/debug.inc
+msgid "Copied the value"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "Copied the name"
+msgstr ""
+
+#: ide/contextmenu.inc
+msgid "The handler couldn't be removed"
 msgstr ""
 
 #: ide/crash.inc
@@ -3202,10 +3442,6 @@ msgid "{n} more"
 msgstr ""
 
 #: ide/debug.inc
-msgid "Copied the value"
-msgstr ""
-
-#: ide/debug.inc
 msgid "Copied {expr}"
 msgstr ""
 
@@ -3243,10 +3479,6 @@ msgstr ""
 
 #: ide/debug.inc
 msgid "Step into {name}"
-msgstr ""
-
-#: ide/debug.inc
-msgid "&Copy Value"
 msgstr ""
 
 #: ide/debug.inc
@@ -4144,6 +4376,10 @@ msgid "Go to line {}"
 msgstr ""
 
 #: ide/panels.inc
+msgid "Open"
+msgstr ""
+
+#: ide/panels.inc
 msgid "Component"
 msgstr ""
 
@@ -4173,10 +4409,6 @@ msgstr ""
 
 #: ide/panels.inc
 msgid "{main} includes {file} now"
-msgstr ""
-
-#: ide/panels.inc
-msgid "The main file stays in the project"
 msgstr ""
 
 #: ide/panels.inc
@@ -4430,6 +4662,10 @@ msgstr ""
 
 #: ide/panes.inc
 msgid "Main and pop-up menus"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Right-click menus and row actions"
 msgstr ""
 
 #: ide/panes.inc
@@ -5354,10 +5590,6 @@ msgstr ""
 
 #: ide/search.inc
 msgid "Search results"
-msgstr ""
-
-#: ide/search.inc
-msgid "Find &References"
 msgstr ""
 
 #: ide/search.inc

@@ -26,6 +26,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | Chapter | What's in it |
 |---|---|
 | [The code editor](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes, the keyboard shortcuts |
+| [Right-click menus](right-click-menus.md) | Right-click (or Shift+F10, the Menu key, a screen reader) on files, tabs, code, components, properties, chats: what each menu has, in the same order everywhere; small row buttons in the Assistant's chats; `OnContextMenu`, `RowActions` and `ContextIndex` for your own programs |
 | [Projects](studio-projects.md) | The Project pane: forms come from your code (several in one file), File > Open Recent, reopening the last project, the PATH your programs get (macOS, Linux) |
 | [Studio in your language](studio-languages.md) | Tools > Settings > General > Language (System default, English, Español), switched at once; the compiler's messages and Help in your language; `RAPIDR_LANG`, `rapidr check`; helping translate RapidR (`rapidr i18n`), the pseudo-language |
 | [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |

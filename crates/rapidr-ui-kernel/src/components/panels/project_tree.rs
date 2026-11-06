@@ -518,6 +518,16 @@ impl ComponentKind for ProjectTree {
                     Self::press_row(cx, &rows, i, (x, y), m.double());
                 }
             }
+            MouseKind::Down if m.button == Button::Right => {
+                // (CONTEXT-MENUS: a right press selects the row under it —
+                // its menu acts on it; the empty part keeps the selection)
+                if list::editing(cx.id).is_some() && !Self::finish_edit(cx, true) {
+                    Self::finish_edit(cx, false);
+                }
+                if let Some(i) = row_at(cx, &g, rows.len(), y) {
+                    Self::select(cx, &rows[i].key);
+                }
+            }
             MouseKind::Down => {}
             MouseKind::Move if m.captured => {
                 let Some(d) = with(cx.id, |md| md.drag.clone()).flatten() else { return MouseOut::default() };
@@ -718,6 +728,20 @@ impl ComponentKind for ProjectTree {
 
     fn wants_ime(&self, _store: &dyn Store, id: &str) -> bool {
         list::editing(id).is_some()
+    }
+
+    /// (CONTEXT-MENUS) The menu from the keyboard: under the selected
+    /// row's name.
+    fn context_point(&self, cx: &mut Cx) -> Option<(i64, i64)> {
+        let l = look(rapidr_value::theme::current());
+        let g = geo(cx, &l, false);
+        let rows = rows_now(cx);
+        let selected = with(cx.id, |m| m.selected.clone())?;
+        let i = rows.iter().position(|r| r.key == selected)?;
+        let (rx, ry, _, rh) = row_rect(cx, &g, i);
+        let (_, _, text) = row_x(&g, rows[i].level);
+        let (ax, ay, _, _) = cx.rect;
+        Some((ax + text.max(rx), ay + ry + rh))
     }
 
     fn context_menu(&self, cx: &mut Cx) -> Option<crate::components::edit::MenuState> {

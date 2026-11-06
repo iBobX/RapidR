@@ -138,6 +138,8 @@ pub enum Action {
     Expand,
     Collapse,
     ScrollIntoView,
+    /// Shows the node's context menu (a screen reader's "show menu").
+    ShowContextMenu,
 }
 
 impl Action {
@@ -151,6 +153,7 @@ impl Action {
             Action::Expand => "expand",
             Action::Collapse => "collapse",
             Action::ScrollIntoView => "scrollIntoView",
+            Action::ShowContextMenu => "showContextMenu",
         }
     }
 }

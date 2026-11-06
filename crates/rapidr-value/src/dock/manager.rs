@@ -202,6 +202,9 @@ pub struct Ui {
     pub doc_split: Option<DocSplitDrag>,
     /// A splitter given the keyboard.
     pub split_key: Option<SplitKey>,
+    /// (CONTEXT-MENUS) The document whose tab was right-clicked last
+    /// (`ContextDocument`).
+    pub context_document: Option<String>,
 }
 
 /// An event for the program (OnPaneChange (Name), OnDocumentActivate

@@ -161,7 +161,8 @@ fn the_context_menu_cuts_copies_pastes_and_undoes() {
     f.edit_commands(&s, &mut ts, &mut clip);
     assert_eq!(f.popup_open(), Some(crate::components::edit::EDIT_MENU));
     let events = f.take_events();
-    assert!(events.iter().all(|e| matches!(e, KernelEvent::Mouse { .. })), "{events:?}");
+    // (the program may answer it: OnContextMenu — CONTEXT-MENUS)
+    assert!(events.iter().all(|e| matches!(e, KernelEvent::Mouse { .. } | KernelEvent::ContextMenu { key: 0, .. })), "{events:?}");
     // Cut: the third row (Undo, a separator, Cut …)
     let panel = f.menus.panels[0].rect;
     let row = |k: usize| {

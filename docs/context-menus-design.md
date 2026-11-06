@@ -1,6 +1,6 @@
 # Context menus and row actions: design
 
-Status: **Phase 1, for Robert's approval.** No product code has been changed yet.
+Status: **approved by Robert on 2026-11-06 (D1–D8 as proposed); Phase 2a built** (section 9); 2b next.
 Mockups (light and dark): [design/context-menus/](../design/context-menus/), drawn in
 Pen (the source, `design/context-menus/context-menus.pen`, joins them once it is
 saved from the Pen app).
@@ -387,3 +387,34 @@ mockups are stand-ins for Studio's file icons.
   and classic; calm destructive items; no icon clutter in menus.
 - **Legal:** no new dependency; RapidR's own icons and words; no other product
   named; AI items never send anything by themselves.
+
+## 9. Phase 2a: what is built, what waits
+
+Built (2026-11-06): the component side of section 5 — `OnContextMenu (X, Y,
+Key)` on every component that can take the keyboard (the mouse, Shift+F10,
+the Menu key, a screen reader's show-menu action, a row's More button),
+`RListBox.ContextIndex`, `RowActions` / `OnRowAction`, `RMenuItem.Default`,
+`RPopupMenu.SystemMenu`, `RDockManager.ContextDocument`, a `PopupMenu`
+opening from the keyboard in RapidR programs (classic ones keep the right
+click alone until RC.EXE is checked); the menus' 24-pixel rows in RapidR's looks (D1),
+the keys in the secondary colour, a keyboard-opened menu's first item
+chosen. In Studio (`ide/contextmenu.inc`, one pop-up filled from the command
+table): the Project tree (file, folder, group, project, a form's component),
+the document tabs, the code editor, the designer (one component, several,
+the form), Properties and Events, the Assistant's chats with their row
+actions. Manual page [right-click-menus.md](manual/right-click-menus.md) (EN +
+ES), example `examples/gui/context_menus.rr`, Studio flows `ctx-*`.
+
+Waiting (2b or later, as section 4 lists them):
+
+- **Delete File...** (to the Trash): RapidR has no "move to the Trash" yet;
+  it needs one per system (and a lawyer check if a crate does it).
+- **Compare With ▸** in the Project tree; **the problem's own group** in the
+  code editor (its fix inline, Explain This Problem) — Quick Fix... (Ctrl+.)
+  is there; **Help: RButton** in the designer's menu.
+- The chats' **Today / Yesterday / Earlier** groups, **rename in place** (the
+  rename strip stays), **Copy as Markdown**, **Move to This Project**.
+- A greyed item's reason as a **tooltip** (screen readers read it already);
+  **a long press** on touch screens.
+- Sections 4.6–4.12 (Toolbox, Problems, Output, debug panes, Help, status
+  bar, panes, Welcome): Phase 2b.

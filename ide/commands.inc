@@ -203,7 +203,7 @@ SUB DefineCommands
   AddCmd "view.layout", "&Reset Layout", "View", "", "", "", ""
 
   ' ---- Project ----
-  AddCmd "project.addFile", "Add &File...", "Project", "", "", "project", "file.new"
+  AddCmd "project.addFile", "Add &Existing File...", "Project", "", "", "project", "file.new"
   AddCmd "project.addFolder", "Add Fol&der...", "Project", "", "", "project", "file.open"
   AddCmd "project.addForm", "Add F&orm", "Project", "", "", "addform", "RFORM"
   AddCmd "project.addModule", "Add &Module", "Project", "", "", "project", "files/rr"
@@ -318,6 +318,8 @@ SUB DefineCommands
   AddCmd "help.examples", "&Examples", "Help", "", "", "", "RFORM"
   AddSep "Help"
   AddCmd "help.about", "&About RapidR Studio", "Help", "", "", "", "-"
+  ' (the right-click menus' own: contextmenu.inc)
+  DefineContextCommands
 END SUB
 
 ' ---- menus ---------------------------------------------------------------------

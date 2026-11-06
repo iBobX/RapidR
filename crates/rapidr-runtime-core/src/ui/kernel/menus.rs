@@ -38,7 +38,10 @@ pub(super) fn open_at(form: &str, name: &str, x: i64, y: i64, program: bool) {
     // right-click opens it: the system's menu is a loop of its own that
     // they could neither see nor click, and the program would wait in it;
     // the kernel's shows in their screenshots and takes app_click's menu)
-    let native = with_kern(|k| k.host.native_menus() && !k.desk.ignore_user).unwrap_or(false) && !rapidr_ui_app::hands::busy();
+    // (CONTEXT-MENUS: a pop-up whose SystemMenu is off — RapidR Studio's
+    // — is RapidR's own on every system: the look's, seen by AI tools)
+    let system = rapidr_value::objects::menu::with(name, |n| n.system_menu).unwrap_or(true);
+    let native = system && with_kern(|k| k.host.native_menus() && !k.desk.ignore_user).unwrap_or(false) && !rapidr_ui_app::hands::busy();
     // (the interpreter's Popup is a wait it serves itself, between
     // instructions: then the menu's tracking ticks can run its handlers)
     if native && program && waits::cooperative() {

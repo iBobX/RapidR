@@ -94,6 +94,11 @@ impl FormUi {
         if self.can_focus(store, i) && !n.actions.contains(&Action::Focus) {
             n.actions.push(Action::Focus);
         }
+        // (CONTEXT-MENUS: whatever takes the keyboard can show its menu —
+        // VoiceOver's VO+Shift+M, as Shift+F10 does)
+        if self.can_focus(store, i) && !n.actions.contains(&Action::ShowContextMenu) {
+            n.actions.push(Action::ShowContextMenu);
+        }
         apply_name_rule(&mut n, &|p| store.get(&id, p), || {
             let l = self.label_for(i)?;
             Some((node_id(&self.nodes[l].id), store::string(store, &self.nodes[l].id, "caption")))
@@ -151,6 +156,15 @@ impl FormUi {
             return false;
         }
         self.dirty = true;
+        // (CONTEXT-MENUS: a screen reader's "show menu": the focus there,
+        // then its OnContextMenu at its focused item)
+        if action == Action::ShowContextMenu {
+            if self.can_focus(store, i) && self.focus != Some(i) {
+                self.set_focus(Some(i));
+            }
+            self.context_request(store, ts, Some(i), 3);
+            return true;
+        }
         if action == Action::Focus && part.is_none() {
             if self.can_focus(store, i) {
                 self.set_focus(Some(i));

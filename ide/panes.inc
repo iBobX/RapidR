@@ -185,6 +185,7 @@ SUB FillExamples
   AddExample "ai/rai_models.rr", "Ask an AI: models, an answer"
   AddExample "rapidq/notepad.bas", "A program in the classic style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
+  AddExample "gui/context_menus.rr", "Right-click menus and row actions"
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
   AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"

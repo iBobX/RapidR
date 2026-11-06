@@ -327,6 +327,12 @@ DECLARE SUB NavCaretMoved(L AS INTEGER, C AS INTEGER)
 DECLARE SUB NavigateTo(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
 DECLARE SUB ShowReferences(Json AS STRING, Name AS STRING)
 DECLARE SUB CodeMenuFor(d AS INTEGER)
+' (contextmenu.inc: the right-click menus)
+DECLARE SUB DefineContextCommands
+DECLARE SUB SetUpContextMenus
+DECLARE FUNCTION ContextCommand(Id AS STRING) AS INTEGER
+DECLARE SUB CodeContext(X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RCodeEditor)
+DECLARE SUB DesignContext(X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RDesignSurface)
 DECLARE SUB ShowWelcome
 ' (markdown.inc)
 DECLARE FUNCTION IsMarkdownFile(Path AS STRING) AS INTEGER

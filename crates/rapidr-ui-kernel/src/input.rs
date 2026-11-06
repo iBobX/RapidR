@@ -130,6 +130,15 @@ pub enum KernelEvent {
     /// …), OnEnter / OnExit (focus.rs), a button's OnStartDrag /
     /// OnEndDrag (drag.rs).
     Fire { id: String, event: String, args: Vec<rapidr_value::Value> },
+    /// (CONTEXT-MENUS) RapidR's OnContextMenu(X, Y, Key) of `id` (a
+    /// component, or the form: its client area): a right click let go on
+    /// it (`key` 0), Shift+F10 or the Menu key while it has the keyboard
+    /// (1; (x, y) under its focused item, where the menu goes), a screen
+    /// reader's "show menu" (3), a row's More button (4: (x, y) the
+    /// button's bottom right). The runtime fires the event when the
+    /// program bound it, else opens the component's PopupMenu there (the
+    /// mouse's opened on the press already, as RapidQ's).
+    ContextMenu { id: String, x: i64, y: i64, key: i64 },
     /// The application's hint is now this (hint.rs): the long part of the
     /// Hint of the component under the mouse (its parent's when it has
     /// none; "" over none) — the form OnHint was bound on last hears it
@@ -175,6 +184,49 @@ impl FormUi {
         self.events.push(KernelEvent::Mouse { id, kind, button, x, y, shift: mods.shift_state() });
     }
 
+    /// (CONTEXT-MENUS) Where a menu opened from the keyboard (or a screen
+    /// reader) goes in node `i`, in the window's inside: the component's
+    /// own answer (its focused row, tab, selection), else its caret's (an
+    /// edit's), else a little inside its top left corner.
+    pub fn context_point(&mut self, store: &dyn Store, ts: &mut TextSystem, i: usize) -> (i64, i64) {
+        let (ax, ay, aw, ah) = self.nodes[i].abs;
+        let own = self.with_cx(store, ts, i, |k, cx| k.context_point(cx)).flatten();
+        let caret = || self.with_cx(store, ts, i, |k, cx| k.ime_area(cx)).flatten().map(|(x, y, _, h)| (x, y + h));
+        match own.or_else(caret) {
+            Some((x, y)) => (x.clamp(ax, ax + aw.max(1) - 1), y.clamp(ay, ay + ah.max(1))),
+            None => (ax + 8.min(aw / 2), ay + 8.min(ah / 2)),
+        }
+    }
+
+    /// (CONTEXT-MENUS) Node `i`'s OnContextMenu asked for by the keyboard
+    /// (`key` 1) or a screen reader (3): at its [`FormUi::context_point`];
+    /// no node, the form's.
+    pub fn context_request(&mut self, store: &dyn Store, ts: &mut TextSystem, i: Option<usize>, key: i64) {
+        let (id, x, y) = match i {
+            Some(i) => {
+                let (x, y) = self.context_point(store, ts, i);
+                let o = self.context_owner(store, i);
+                (self.nodes[o].id.clone(), x - self.nodes[o].abs.0, y - self.nodes[o].abs.1)
+            }
+            None => (self.form.clone(), 8, 8),
+        };
+        self.dirty = true;
+        self.menus.key_popup = key == 1 || key == 3;
+        self.events.push(KernelEvent::ContextMenu { id, x, y, key });
+    }
+
+    /// (CONTEXT-MENUS) The component whose OnContextMenu node `i`'s right
+    /// click is: a dock manager's own parts (its documents' tab strips,
+    /// its pane groups) speak for the dock manager; anything else for
+    /// itself.
+    pub(crate) fn context_owner(&self, store: &dyn Store, i: usize) -> usize {
+        let dock = crate::store::string(store, &self.nodes[i].id, "__dock");
+        if dock.is_empty() {
+            return i;
+        }
+        self.index_of(&dock).unwrap_or(i)
+    }
+
     /// A component the mouse can reach (shown, enabled: a disabled
     /// control gets no mouse, as on Windows).
     fn live(&self, i: Option<usize>) -> bool {
@@ -185,6 +237,7 @@ impl FormUi {
     pub fn mouse_down(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
         self.mouse_at = (x, y);
+        self.menus.key_popup = false;
         // (a press takes the tooltip away: tooltip.rs)
         self.tip_hide();
         // (an open menu, the in-window menu bar: components/menubar.rs)
@@ -241,9 +294,13 @@ impl FormUi {
                     let entered: Vec<KernelEvent> = self.events.drain(before..).collect();
                     self.events.splice(mark..mark, entered);
                 }
-            } else if button == Button::Right && matches!(self.nodes[i].type_name.as_str(), "RCODEEDITOR" | "ROUTPUTCONSOLE") {
+            } else if button == Button::Right && matches!(self.nodes[i].type_name.as_str(), "RCODEEDITOR" | "ROUTPUTCONSOLE" | "RPROJECTTREE" | "RPROPERTYINSPECTOR" | "RLISTBOX" | "RDOCKDOCS" | "RDESIGNSURFACE") {
                 // (a code editor's right press: the caret where it is, for
-                // the context menu — components/codeeditor/input.rs)
+                // the context menu — components/codeeditor/input.rs; a
+                // project tree's, an inspector's, a designer's: the row or
+                // component under it selected first, a list box's its
+                // ContextIndex, a dock's tab its ContextDocument —
+                // CONTEXT-MENUS)
                 self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true, clicks });
             }
         } else if button == Button::Left && clicks >= 2 && clicks.is_multiple_of(2) {
@@ -413,6 +470,15 @@ impl FormUi {
             self.pressed = None;
         }
         self.mouse_event(target, Mouse::Up, button, x, y, mods);
+        // (CONTEXT-MENUS: a right click let go where it was pressed: its
+        // OnContextMenu — the form's on its open area)
+        if button == Button::Right && (hit == target || target.is_none()) {
+            let (id, ox, oy) = match target.map(|i| self.context_owner(store, i)) {
+                Some(i) => (self.nodes[i].id.clone(), self.nodes[i].abs.0, self.nodes[i].abs.1),
+                None => (self.form.clone(), 0, self.menu_offset),
+            };
+            self.events.push(KernelEvent::ContextMenu { id, x: (x - ox as f64).floor() as i64, y: (y - oy as f64).floor() as i64, key: 0 });
+        }
         // (a right click let go on an edit: its context menu, unless the
         // program gave it a PopupMenu — components/edit.rs)
         if let (Some(i), Button::Right) = (target, button) {
@@ -526,6 +592,11 @@ impl FormUi {
         self.dirty = true;
         self.reset_caret();
         self.tip_hide();
+        // (CONTEXT-MENUS: a pop-up from now on is the keyboard's only when
+        // this key asks for one — context_request)
+        if !self.menu_open() {
+            self.menus.key_popup = false;
+        }
         // (Escape ends a drag: drag.rs)
         if vk == 27 && self.drag_escape() {
             return;
@@ -580,6 +651,11 @@ impl FormUi {
             handled = self.mnemonic(store, ts, letter) || self.menu_mnemonic(store, letter);
         } else if let Some(f) = self.focus {
             handled = self.with_cx(store, ts, f, |k, cx| k.key(cx, &KeyIn { vk, text, mods }, clip)).unwrap_or(false);
+        }
+        // (CONTEXT-MENUS: the Menu key or Shift+F10 — the focused
+        // component's OnContextMenu, under its focused item)
+        if vk == 93 || (vk == 121 && mods.shift && !mods.ctrl && !mods.alt) {
+            self.context_request(store, ts, self.focus, 1);
         }
         // (COPY-ANYWHERE: Ctrl+C — ⌘C, Ctrl+Insert — on a message box the
         // kernel draws copies it, as Windows' do: dialogs.rs)
