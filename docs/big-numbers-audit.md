@@ -103,9 +103,10 @@ Unreleased says what was fixed.
 | Streams: `Write v` / `Read v` of a 64-bit variable | 4 bytes (cut) | 8 bytes. A UINT32 variable's value is an INT64, so it takes 8 too — `WriteNum(u, Num_UINT32)` writes 4 (explained) | unit |
 | SIZEOF, VARPTR, MEMCPY, a TYPE passed to a DLL | an INT64 field encoded as a LONG (4 bytes: cut) | 8 bytes (UINT32 4), read back as the type | unit (memory), everywhere |
 | PEEK / POKE | bytes | bytes (unchanged) | — |
+| GET / PUT records, MKI$ / CVI-style | — | not in RapidQ (KEYWORD.LST, RC.EXE) nor RapidR: a program's binary numbers go through streams (the rows above) | — |
 | DLL call: an INT64 / UINT64 result | a classic number (PRINT -2147483648 past 32 bits) | the 64-bit value (x64, ARM64: the register; x86: EDX:EAX) | Windows VM (§6) |
 | DLL call: an INT64 by value on 32-bit Windows | **4 bytes pushed**: the stack the DLL reads was wrong | 8 bytes, low word first | Windows 7 build (§6) |
-| DLL call: UINT32 parameters and results | not a type | a number (4 bytes), the result unsigned | — |
+| DLL call: UINT32 parameters and results | not a type | a number (4 bytes), the result unsigned | unit (dll) |
 
 ## 5. Data, components, tools
 
@@ -121,7 +122,7 @@ Unreleased says what was fixed.
 | Component properties | a 64-bit value stored as given; read back the same | the same, and shown in full (`Caption = u`) | — |
 | Event arguments | made by the runtimes, 32-bit sizes | unchanged | — |
 | The designer / inspector | an int property typed past 32 bits became a classic number | a 64-bit value kept; text past 32 bits an INT64 | unit (inspector `normalize`) |
-| QREGISTRY ReadInteger / WriteInteger | REG_DWORD, 32 bits (RapidQ's) | unchanged; a 64-bit value is written with WriteString(STR$(n)) | — (explained) |
+| QREGISTRY ReadInteger / WriteInteger | REG_DWORD, 32 bits (RapidQ's); a 64-bit value was cut silently | REG_DWORD as before (a UINT32 its 32 bits); a 64-bit value beyond them stops the program: "WriteInteger keeps 32 bits (a REG_DWORD): … WriteString(name, STR$(n)) keeps it whole" (Spanish too) | probe run 2026-11-05 (the message, the value refused); WriteString / ReadString keep every digit |
 
 ## 6. Runtimes, the debugger, AI
 
