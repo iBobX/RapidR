@@ -25,7 +25,11 @@ param(
     # only the corpus (the build, the tests and the programs skipped: a build there already)
     [switch]$CorpusOnly,
     # RapidQ's folder (its examples and includes: only read)
-    [string]$RapidQ = "\\Mac\Home\Downloads\Rapidq"
+    [string]$RapidQ = "\\Mac\Home\Downloads\Rapidq",
+    # the corpus: only the programs whose path has this text, each run this many times with
+    # each build (an outcome that differs once: chance, or the change?)
+    [string]$Filter = "",
+    [int]$Rounds = 1
 )
 $ErrorActionPreference = "Continue"
 $ProgressPreference = "SilentlyContinue"
@@ -38,7 +42,7 @@ New-Item -ItemType Directory -Force $src, "$W\prints", "$W\config", $out | Out-N
 # (copied in one read first: tar reading the share block by block can crawl)
 Copy-Item -Force "$Prep\src.tar" "$W\src.tar"
 & tar.exe -m -xf "$W\src.tar" -C $src 2>&1 | Select-Object -First 5 | ForEach-Object { "tar: $_" } | Write-Host
-# (a file the antivirus won't let be written — smoke-win7-real.ps1, 2026-11-06 — isn't one
+# (a file the antivirus will not let be written, smoke-win7-real.ps1 on 2026-11-06, is not one
 # this check needs: tar goes on past it; only sources without the workspace stop here)
 if (-not (Test-Path "$src\Cargo.toml") -or -not (Test-Path "$src\crates\rapidr-value\src\memory.rs")) { Write-Host "extracting the sources failed"; exit 1 }
 if (-not (Test-Path "$W\target") -and (Test-Path "$env:USERPROFILE\rapidr-jit\host\target")) {
@@ -141,13 +145,17 @@ if ($Corpus -or $CorpusOnly) {
         # (names of their own: dll_breadth.py ends a program that hangs by its image name)
         Copy-Item -Force "$src\rapidr.exe" "$W\rapidr-dllmem-new.exe"
         if (Test-Path "$W\rapidr-old.exe") { Copy-Item -Force "$W\rapidr-old.exe" "$W\rapidr-dllmem-old.exe" }
-        foreach ($which in @("new", "old")) {
-            if (-not (Test-Path "$W\rapidr-dllmem-$which.exe")) { continue }
-            cmd /c "rmdir /s /q `"$W\breadth-$which`" 2>nul" | Out-Null
-            & $py tools\dll_breadth.py --rapidr "$W\rapidr-dllmem-$which.exe" --corpus "$RapidQ\examples" --include "$RapidQ\include" --list "$Prep\corpus-list.txt" --out "$W\breadth-$which" *> "$W\breadth-$which.txt"
-            Write-Host "   $which`: $((Get-Content "$W\breadth-$which\results.jsonl" -ErrorAction SilentlyContinue | Measure-Object).Count) programs"
+        $only = if ($Filter) { @("--filter", $Filter) } else { @() }
+        foreach ($round in 1..$Rounds) {
+            if ($Rounds -gt 1) { Write-Host "-- round $round" }
+            foreach ($which in @("new", "old")) {
+                if (-not (Test-Path "$W\rapidr-dllmem-$which.exe")) { continue }
+                cmd /c "rmdir /s /q `"$W\breadth-$which`" 2>nul" | Out-Null
+                & $py tools\dll_breadth.py --rapidr "$W\rapidr-dllmem-$which.exe" --corpus "$RapidQ\examples" --include "$RapidQ\include" --list "$Prep\corpus-list.txt" --out "$W\breadth-$which" @only *> "$W\breadth-$which.txt"
+                Write-Host "   $which`: $((Get-Content "$W\breadth-$which\results.jsonl" -ErrorAction SilentlyContinue | Measure-Object).Count) programs"
+            }
+            & $py tools\dll_breadth_compare.py "$W\breadth-old\results.jsonl" "$W\breadth-new\results.jsonl" 2>&1 | Write-Host
         }
-        & $py tools\dll_breadth_compare.py "$W\breadth-old\results.jsonl" "$W\breadth-new\results.jsonl" 2>&1 | Write-Host
         Copy-Item -Force "$W\breadth-new\results.jsonl" "$out\dllmem-breadth-new.jsonl" -ErrorAction SilentlyContinue
         Copy-Item -Force "$W\breadth-old\results.jsonl" "$out\dllmem-breadth-old.jsonl" -ErrorAction SilentlyContinue
     }
