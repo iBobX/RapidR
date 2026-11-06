@@ -2582,6 +2582,47 @@ mod tests {
         assert!(run("project_outline", &json!({}), &none, &mut Vec::new(), true).content.starts_with("No project is open"));
     }
 
+    /// An included file's top-level code (a CREATE block naming constants and
+    /// handlers that other included files declare) is checked as the program
+    /// reads it, in the context of the main file — not alone, where every
+    /// shared name is "never declared": a two-line edit of the windows' file
+    /// compiles, and a mistake in it is still said. (What made it alone: the
+    /// windows' file names `main.rr` in a comment, so the check of `main.rr`
+    /// tried it as that program, and kept it as its own analysis.)
+    #[test]
+    fn an_included_files_top_level_code_is_checked_in_its_programs_context() {
+        let files: Vec<String> = ["main.rr", "globals.rr", "ui.rr", "views.rr"].iter().map(|s| s.to_string()).collect();
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "$THEME rapidr\n$APPTYPE GUI\n$INCLUDE \"globals.rr\"\n$INCLUDE \"ui.rr\"\n$INCLUDE \"views.rr\"\nForm.ShowModal\n".to_string());
+        buffers.insert("globals.rr".to_string(), "CONST APPNAME = \"Demo\"\nDIM siteName AS STRING\nDECLARE SUB SitesLayout\nDECLARE SUB SitesPaint\nDECLARE SUB RescanClick (Sender AS RButton)\n".to_string());
+        buffers.insert(
+            "ui.rr".to_string(),
+            "' ui.rr - the windows; the program starts in main.rr\nCREATE Form AS RForm\n    Caption = APPNAME\n    OnResize = SitesLayout\n    CREATE Pane AS RPanel\n        OnClick = SitesPaint\n    END CREATE\n    CREATE Rescan AS RButton\n        OnClick = RescanClick\n    END CREATE\nEND CREATE\n".to_string(),
+        );
+        buffers.insert("views.rr".to_string(), "SUB SitesLayout\n    siteName = APPNAME\nEND SUB\nSUB SitesPaint\n    siteName = \"\"\nEND SUB\nSUB RescanClick (Sender AS RButton)\n    siteName = \"x\"\nEND SUB\n".to_string());
+        let p = project(&files, &buffers);
+        // (the whole program compiles)
+        let whole = run("check_code", &json!({"path": "main.rr"}), &p, &mut Vec::new(), true);
+        assert!(whole.content.contains("No problems"), "{}", whole.content);
+        // (a change of the windows' file: its names are the program's)
+        let mut props = Vec::new();
+        let edit = run("propose_edit", &json!({"path": "ui.rr", "summary": "A title", "edits": [{"old_text": "Caption = APPNAME", "new_text": "Caption = APPNAME + \" Manager\""}]}), &p, &mut props, true);
+        assert!(!edit.is_error && edit.content.contains("It compiles"), "{}", edit.content);
+        assert!(!edit.content.contains("never given a value") && !edit.content.contains("error "), "{}", edit.content);
+        assert_eq!(props.len(), 1);
+        // (the same through write_file: the whole file)
+        let mut props = Vec::new();
+        let whole = run("write_file", &json!({"path": "ui.rr", "summary": "A title", "text": "' ui.rr - the windows; the program starts in main.rr\nCREATE Form AS RForm\n    Caption = APPNAME + \"!\"\n    OnResize = SitesLayout\n    CREATE Pane AS RPanel\n        OnClick = SitesPaint\n    END CREATE\n    CREATE Rescan AS RButton\n        OnClick = RescanClick\n    END CREATE\nEND CREATE\n"}), &p, &mut props, true);
+        assert!(!whole.is_error && whole.content.contains("It compiles") && !whole.content.contains("error "), "{}", whole.content);
+        // (check_code on the file itself says the same as on the main file)
+        let alone = run("check_code", &json!({"path": "ui.rr"}), &p, &mut Vec::new(), true);
+        assert!(!alone.content.contains("never given a value") && !alone.content.contains("error "), "{}", alone.content);
+        // (what no file of the program declares is still said)
+        let mut props = Vec::new();
+        let missing = run("propose_edit", &json!({"path": "ui.rr", "summary": "A name", "edits": [{"old_text": "Caption = APPNAME", "new_text": "Caption = NoSuchName"}]}), &p, &mut props, true);
+        assert!(missing.content.contains("NoSuchName") && missing.content.contains("error "), "{}", missing.content);
+    }
+
     #[test]
     fn the_manual_is_searched() {
         let empty = HashMap::new();

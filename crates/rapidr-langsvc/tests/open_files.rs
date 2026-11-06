@@ -109,3 +109,32 @@ fn an_included_form_is_analysed_in_its_program() {
     assert!(a.completions(&form2, at).items.iter().any(|i| i.label.eq_ignore_ascii_case("Caption")), "Form1's members in Form2.rr");
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// A form file whose comment names the main file ("the program starts in
+/// main.rr"): the check of main.rr tried the form as main.rr's program
+/// (its text names it), found it didn't include main.rr, and kept the form
+/// as its own program — the next question about the form was answered from
+/// that, and every name the other files declare was "never declared".
+#[test]
+fn a_file_tried_as_a_program_is_not_kept_as_its_own() {
+    let dir = scratch("tried");
+    let main = dir.join("main.rr");
+    let globals = dir.join("globals.rr");
+    let ui = dir.join("ui.rr");
+    let main_text = "$INCLUDE \"globals.rr\"\n$INCLUDE \"ui.rr\"\nForm.ShowModal\n";
+    let globals_text = "CONST APPNAME = \"Demo\"\nDECLARE SUB Layout\nSUB Layout\nEND SUB\n";
+    let ui_text = "' ui.rr - the windows; the program starts in main.rr\nCREATE Form AS RForm\n    Caption = APPNAME\n    OnResize = Layout\nEND CREATE\n";
+    for (f, t) in [(&main, main_text), (&globals, globals_text), (&ui, ui_text)] {
+        fs::write(f, t).unwrap();
+    }
+    let mut a = Analysis::new(Options::default());
+    for (f, t) in [(&main, main_text), (&globals, globals_text), (&ui, ui_text)] {
+        a.update(f.clone(), t);
+    }
+    // (main.rr first: the form is tried as its program, and isn't)
+    assert!(a.diagnostics(&main).is_empty(), "{:?}", a.diagnostics(&main));
+    let root = a.snapshot(&ui).expect("the form's analysis").parsed.root.clone();
+    assert_eq!(root, main, "the form is analysed as part of main.rr's program, not alone");
+    assert!(a.diagnostics(&ui).is_empty(), "{:?}", a.diagnostics(&ui));
+    let _ = fs::remove_dir_all(&dir);
+}
