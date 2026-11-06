@@ -59,6 +59,8 @@ properties = [
 ]
 methods = [
   { name = "AddItems", params = "Items ...", value = true },
+  { name = "Heading", params = "Index AS INTEGER, [On AS INTEGER]", returns = "INTEGER", origin = "rapidr", doc = "Item Index as a heading row: `Heading i, 1` makes it a group's title (\"Today\", \"Earlier\") drawn bold in the quieter text colour; a click doesn't select it, the arrow keys, Home and End pass over it, it has no row actions, and a screen reader hears it as a heading. `Heading(i)` reads it (1 or 0). It goes with its item when items are added, deleted or sorted." },
+  { name = "EditItem", params = "Index AS INTEGER, [Text AS STRING]", origin = "rapidr", doc = "Opens item Index's editor in place, over its text, holding Text (the item's own text when left out): rename in the list itself. Enter keeps what was typed (OnEdited, then the item gets it), Esc leaves the item as it was, a click elsewhere keeps it." },
   { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", doc = "Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color", fill = "color" } },
   { name = "Clear", value = true },
   { name = "CopyRect", params = "D, Image, S" },
@@ -96,6 +98,7 @@ events = [
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnChange", origin = "rapidr", doc = "The person moved the selection to another item: a click on another item, the arrow keys, Page Up / Down, Home or End; before that click's OnClick. A click on the item already selected fires OnClick only; the program's own ItemIndex = n fires nothing." },
+  { name = "OnEdited", params = "Index AS INTEGER, BYREF S AS STRING", origin = "rapidr", doc = "Item Index's editor (EditItem) was closed keeping S, what was typed: change S to change what the item gets (set it back to the item's own text to refuse). As RTreeView's OnEdited." },
   { name = "OnRowAction", params = "Index AS INTEGER, Action AS STRING", origin = "rapidr", doc = "One of RowActions was used on item Index: its icon clicked, or F2 (rename) or Del (delete) on the selected row. Action is the action's name, as RowActions names it (\"rename\", \"delete\")." },
   { name = "OnExit", origin = "rapidr" },
   { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER", origin = "rapidr", doc = "A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows." },
@@ -354,6 +357,7 @@ default_event = "OnClick"
 sets = ["layout", "a11y"]
 doc = "A tree of nodes the user expands, collapses and selects, with a picture per node and in-place editing."
 properties = [
+  { name = "ContextIndex", type = "int", design = false, origin = "rapidr", range = "-1..", doc = "The node the last context menu is for: the one right-clicked (a right click doesn't select it), the selected one for Shift+F10 or the Menu key; -1 for none. Read it in OnContextMenu; set ItemIndex = ContextIndex there to select it as well." },
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"], default = "bsSingle" },
   { name = "Color", type = "color" },

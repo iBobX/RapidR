@@ -133,6 +133,8 @@ DIM VerUndoWanted AS INTEGER
 ' (VerDiffVersion's files), "changes" (since the last version) or
 ' "history" (VerDiffFile's copies) — and its rows)
 DIM VerDiffMode AS STRING
+' (Compare With > Another File...: the other file, on the left)
+DIM VerDiffOther AS STRING
 DIM VerDiffVersion AS STRING
 DIM VerDiffFile AS STRING
 DIM VerDiffRow(VERMAX) AS STRING
@@ -1955,6 +1957,22 @@ SUB VerShowDiff(Mode AS STRING)
       END IF
     NEXT
     IF n = 0 THEN VerDiffSub.Caption = TR$("No copies yet: Studio keeps one each time you save this file.")
+  ELSEIF Mode = "last" OR Mode = "other" THEN
+    ' (CONTEXT-MENUS 2b: the Project tree's Compare With — the file as the
+    ' last version kept it, or another file, beside it as it is now)
+    title = TR$("Compare: {file}", "file", FileTitle(VerDiffFile))
+    IF Mode = "last" THEN
+      VerDiffHead.Caption = TR$("{file}: the last version and now", "file", FileTitle(VerDiffFile))
+      VerDiffSub.Caption = TR$("Left: as the last version kept it. Right: as it is now.")
+    ELSE
+      VerDiffHead.Caption = TR$("{file} and {other}", "file", FileTitle(VerDiffFile), "other", FileTitle(VerDiffOther))
+      VerDiffSub.Caption = TR$("Left: {other}. Right: {file}.", "other", VerDiffOther, "file", FileTitle(VerDiffFile))
+    END IF
+    VerDiffList.AccessibleName = TR$("Files")
+    VerDiffAct.Visible = 0
+    VerDiffRow(0) = VerDiffFile
+    VerDiffList.AddItems FileTitle(VerDiffFile)
+    VerDiffRowCount = 1
   ELSEIF Mode = "disk" THEN
     ' (a file changed outside Studio while it had unsaved changes here: the
     ' disk's version beside the editor's — external.inc; VerDiffFile set)
@@ -2038,6 +2056,29 @@ SUB VerDiffPicked
     d = DocOf(p)
     IF d >= 0 THEN VerDiff.RightText = CodeDoc(d).Text
     ' (the first difference in view)
+    IF VerDiff.HunkCount > 0 THEN VerDiff.CurrentHunk = 0
+    EXIT SUB
+  END IF
+  IF VerDiffMode = "last" OR VerDiffMode = "other" THEN
+    p = VerDiffFile
+    VerDiff.Kind = "text"
+    VerDiff.Language = VerDiffLanguage(p)
+    IF VerDiffMode = "last" THEN
+      IF Repo.Folder = "" THEN Repo.Folder = Proj.Folder
+      VerDiff.LeftText = Repo.FileAt(p, "HEAD")
+    ELSEIF FILEEXISTS(VerDiffOther) THEN
+      VerDiff.LeftText = Proj.FileText(VerDiffOther)
+    ELSE
+      VerDiff.LeftText = ""
+    END IF
+    d = DocOf(p)
+    IF d >= 0 THEN
+      VerDiff.RightText = CodeDoc(d).Text
+    ELSEIF FILEEXISTS(p) THEN
+      VerDiff.RightText = Proj.FileText(p)
+    ELSE
+      VerDiff.RightText = ""
+    END IF
     IF VerDiff.HunkCount > 0 THEN VerDiff.CurrentHunk = 0
     EXIT SUB
   END IF

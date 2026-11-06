@@ -45,6 +45,7 @@ pub fn dispatch<P: Program>(p: P, id: &str, action: ListAction) {
         ListAction::TreeToggle(i, open) => tree_user_toggle(p, id, i, open),
         ListAction::TreeEdit(i) => tree_begin_edit(p, id, i),
         ListAction::TreeEdited(i, text) => tree_end_edit(p, id, i, text),
+        ListAction::ListEdited(i, text) => list_end_edit(p, id, i, text),
         ListAction::GridSelect(c, r, extend) => {
             grid_user_select(p, id, c, r, extend);
         }
@@ -139,6 +140,26 @@ fn tree_end_edit<P: Program>(p: P, name: &str, i: usize, text: String) {
         Box::new(move |a| {
             let text = a[1].to_string_val();
             rapidr_value::objects::with_tree(&tree, |m| m.set_text(i, text));
+            invalidate();
+        }),
+    );
+}
+
+/// (CONTEXT-MENUS) A list box's item edited in place (EditItem) and kept:
+/// OnEdited (Index, S) — S may be changed —, then the item gets S.
+fn list_end_edit<P: Program>(p: P, name: &str, i: usize, text: String) {
+    let list = name.to_string();
+    p.fire_then(
+        name,
+        "onedited",
+        &[v_int(i as i64), v_str(&text)],
+        Box::new(move |a| {
+            let text = a[1].to_string_val();
+            rapidr_value::objects::with_list_mut(&list, |m| {
+                if let Some(s) = m.items.get_mut(i) {
+                    *s = text;
+                }
+            });
             invalidate();
         }),
     );

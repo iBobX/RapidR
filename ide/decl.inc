@@ -35,7 +35,7 @@ TYPE StudioCommand
   Tool AS INTEGER
 END TYPE
 
-CONST MAXCMDS = 260
+CONST MAXCMDS = 360
 CONST MAXMENUS = 300
 CONST MAXDOCS = 32
 
@@ -414,6 +414,8 @@ DECLARE SUB RestoreSession(Path AS STRING)
 ' (S1, S2: project.inc, documents.inc, panes.inc)
 DECLARE SUB ProjectFollowsCode
 DECLARE SUB OpenRecent(k AS INTEGER)
+' (a recent project's right-click menu: contextmenu.inc)
+DECLARE SUB RecentContext(X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RLabel)
 DECLARE SUB ClearRecent
 DECLARE SUB ForgetRecent(Path AS STRING)
 DECLARE FUNCTION ReopenCandidate AS STRING

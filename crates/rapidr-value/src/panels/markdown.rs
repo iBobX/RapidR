@@ -577,11 +577,14 @@ pub struct Markdown {
     /// The tooltip the last word of code under the mouse gave ("" none): what
     /// a test reads (`__tip`) to see the hover.
     pub last_tip: String,
+    /// (CONTEXT-MENUS, RapidR's) `ContextCode`: the code block the last right
+    /// click was on, its text whole ("" none: not on a code block).
+    pub context_code: String,
 }
 
 impl Default for Markdown {
     fn default() -> Self {
-        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false, link_focus: None, reveal_link: false, code_language: String::new(), last_body_h: 0, last_tip: String::new() }
+        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false, link_focus: None, reveal_link: false, code_language: String::new(), last_body_h: 0, last_tip: String::new(), context_code: String::new() }
     }
 }
 
@@ -824,7 +827,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     // (another property — a font, a size — never opens the model: the kernel
     // reads those while it may have the model open, and on the web the read
     // comes here; see console::rt_get)
-    const OWN: [&str; 11] = ["text", "filename", "openlinks", "emptytext", "followend", "codelanguage", "__tip", "plaintext", "seltext", "linkcount", "headings"];
+    const OWN: [&str; 12] = ["text", "filename", "openlinks", "emptytext", "followend", "codelanguage", "__tip", "plaintext", "seltext", "linkcount", "headings", "contextcode"];
     if !OWN.contains(&prop) {
         return None;
     }
@@ -839,6 +842,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "__tip" => Value::String(m.last_tip.clone().into()),
             "plaintext" => Value::String(m.doc().plain_text().into()),
             "seltext" => Value::String(m.selected_text().into()),
+            "contextcode" => Value::String(m.context_code.clone().into()),
             "linkcount" => Value::Integer(m.doc().links.len() as i64),
             "headings" => Value::String(m.doc().headings().iter().map(|(l, t, a, n)| format!("{l}\t{t}\t{a}\t{}\n", n + 1)).collect()),
             _ => return None,

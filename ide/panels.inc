@@ -1009,38 +1009,14 @@ END SUB
 ' (View > Wrap Long Output Lines, and the pane's own right-click menu; kept in
 ' the settings: OutputNoWrap is 1 once it was turned off)
 
-DIM OutputMenu AS RPopupMenu
-DIM OutputMenuCopy AS RMenuItem
-DIM OutputMenuCopyLine AS RMenuItem
-DIM OutputMenuCopyAll AS RMenuItem
-DIM OutputMenuSelAll AS RMenuItem
-DIM OutputMenuSep AS RMenuItem
-DIM OutputMenuWrap AS RMenuItem
-DIM OutputMenuClear AS RMenuItem
+' (its right-click menu: contextmenu.inc's OutputContext)
 ' (the Output pane has the keyboard: Edit > Copy and Select All are its)
 DIM OutputFocused AS INTEGER
 
 SUB ToggleOutputWrap
   OutputNoWrap = Flag(OutputNoWrap = 0)
   OutputBox.WordWrap = Flag(OutputNoWrap = 0)
-  OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
   CheckCmd "view.outputWrap", Flag(OutputNoWrap = 0)
-END SUB
-
-' (the right-click menu as it opens: Copy for a selection, Copy Line for the
-' line right-clicked, the Problems page's own Copy All)
-SUB OutputMenuOpening
-  DIM probs AS INTEGER, has AS INTEGER
-  probs = Flag(OutputBox.Page = "problems")
-  has = Flag(OutputBox.LineCount > 0)
-  OutputMenuCopy.Enabled = Flag(OutputBox.HasSelection)
-  OutputMenuCopyLine.Visible = Flag(probs = 0)
-  OutputMenuCopyLine.Enabled = Flag(OutputBox.ClickedLine >= 0)
-  IF probs THEN OutputMenuCopyAll.Caption = TR$("Copy &All Problems") ELSE OutputMenuCopyAll.Caption = TR$("Copy &All")
-  OutputMenuCopyAll.Enabled = has
-  OutputMenuSelAll.Enabled = has
-  OutputMenuClear.Enabled = has
-  OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
 END SUB
 
 SUB ClearOutputPage
@@ -1117,29 +1093,6 @@ SUB SetUpPanels
   Inspector.EmptyText = TR$("Select a component on a form to see its properties.")
   OutputBox.EmptyText = TR$("Press F5 to run the program; its output shows here.")
   OutputBox.WordWrap = Flag(OutputNoWrap = 0)
-  OutputMenuCopy.Caption = TR$("&Copy"): OutputMenuCopy.ShortCut = "Ctrl+C"
-  OutputMenuCopy.OnClick = OutputCopy
-  OutputMenuCopyLine.Caption = TR$("Copy &Line")
-  OutputMenuCopyLine.OnClick = OutputCopyLine
-  OutputMenuCopyAll.Caption = TR$("Copy &All")
-  OutputMenuCopyAll.OnClick = OutputCopyAll
-  OutputMenuSelAll.Caption = TR$("&Select All"): OutputMenuSelAll.ShortCut = "Ctrl+A"
-  OutputMenuSelAll.OnClick = OutputSelectAll
-  OutputMenuSep.Caption = "-"
-  OutputMenuWrap.Caption = TR$("&Wrap Long Lines")
-  OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
-  OutputMenuWrap.OnClick = ToggleOutputWrap
-  OutputMenuClear.Caption = TR$("Cl&ear")
-  OutputMenuClear.OnClick = ClearOutputPage
-  OutputMenu.AddItems OutputMenuCopy
-  OutputMenu.AddItems OutputMenuCopyLine
-  OutputMenu.AddItems OutputMenuCopyAll
-  OutputMenu.AddItems OutputMenuSelAll
-  OutputMenu.AddItems OutputMenuSep
-  OutputMenu.AddItems OutputMenuWrap
-  OutputMenu.AddItems OutputMenuClear
-  OutputMenu.OnPopup = OutputMenuOpening
-  OutputBox.PopupMenu = OutputMenu
   OutputBox.OnEnter = OutputEntered
   OutputBox.OnExit = OutputLeft
   Toolbox.Hint = TR$("Double-click or press Enter to add a component to the form; drag it to place it.")

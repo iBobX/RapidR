@@ -6,6 +6,8 @@ use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
 pub mod lprint;
+// MOVETOTRASH: the system's Trash, per system (trash.rs)
+pub mod trash;
 pub mod basic_string;
 pub use basic_string::BasicString;
 pub mod strings;

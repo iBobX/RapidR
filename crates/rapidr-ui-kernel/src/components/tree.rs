@@ -586,6 +586,20 @@ impl ComponentKind for Tree {
         if m.kind == MouseKind::Down {
             cancel_edit_soon(cx);
         }
+        if m.kind == MouseKind::Down && m.button == rapidr_value::input::Button::Right {
+            // (CONTEXT-MENUS: a right press marks ContextIndex — the node
+            // under it; it doesn't select, as Windows' tree view doesn't)
+            if editing(cx.id).is_some() {
+                Self::finish_edit(cx, true);
+            }
+            let (x, y) = (m.x.floor() as i64 - 2, m.y.floor() as i64 - 2);
+            let at = match with_tree(cx.id, |t| t.hit(x, y, t.row_height())).flatten() {
+                Some(Hit::Row(n)) | Some(Hit::Button(n)) => Some(n),
+                _ => None,
+            };
+            rapidr_value::objects::with_tree(cx.id, |t| t.context_index = at);
+            return MouseOut { press: false, focus: Some(false) };
+        }
         if bar_mouse(cx, &inner, w - 4, h - 4) {
             Self::follow_bar(cx);
             return MouseOut::default();
@@ -790,6 +804,16 @@ impl ComponentKind for Tree {
 
     fn context_menu(&self, cx: &mut Cx) -> Option<super::edit::MenuState> {
         editor_menu(cx, Self::edit_rect(cx)?)
+    }
+
+    /// (CONTEXT-MENUS) The keyboard's menu: under the selected node's text
+    /// (it is ContextIndex then).
+    fn context_point(&self, cx: &mut Cx) -> Option<(i64, i64)> {
+        let n = usize::try_from(with_tree(cx.id, |t| t.item_index).unwrap_or(-1)).ok()?;
+        rapidr_value::objects::with_tree(cx.id, |t| t.context_index = Some(n));
+        let (row, (_, y, _, rh)) = Self::row_rect(cx, n)?;
+        let (ax, ay, _, _) = cx.rect;
+        Some((ax + text_left(cx, &row), ay + (y + rh).clamp(0, cx.height())))
     }
 
     /// `__node_i` (a click on node i's text), `__toggle_i` (on its

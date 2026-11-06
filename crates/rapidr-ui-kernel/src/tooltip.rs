@@ -106,6 +106,32 @@ impl FormUi {
         }
     }
 
+    /// (CONTEXT-MENUS) A menu's greyed item chosen (under the mouse or by
+    /// the arrow keys): its Hint — why it can't be used now — in a tip
+    /// beside the menu at the item's row (right of the panel, else left
+    /// of it), after HintPause; `None`: no such item, any tip goes.
+    pub(crate) fn tip_for_menu(&mut self, item: Option<(String, (i64, i64, i64, i64))>) {
+        let Some((text, (px, iy, pw, _))) = item.filter(|(t, _)| !t.is_empty()) else {
+            if self.tip.node.is_none() && !self.tip.text.is_empty() {
+                self.tip_hide();
+            }
+            return;
+        };
+        if self.tip.node.is_none() && self.tip.text == text {
+            return;
+        }
+        let t = rapidr_value::theme::current();
+        let font = rapidr_value::ide_theme::chrome_font(&t);
+        let (tw, _) = text_size(&text, &font);
+        let w = tw + 2 * if t.fluent() { 8 } else { 4 };
+        let cw = self.client.0;
+        let x = if px + pw + 4 + w <= cw { px + pw + 4 } else { (px - 4 - w).max(0) };
+        let was_shown = self.tip.shown;
+        self.tip_hide();
+        let wait = millis(if was_shown { "hintshortpause" } else { "hintpause" });
+        self.tip = TipUi { node: None, text, at: (x, iy), strip: None, due: Some(now() + wait), until: None, shown: false };
+    }
+
     /// Any tooltip goes (a press, a key, the mouse gone).
     pub fn tip_hide(&mut self) {
         if self.tip.shown {

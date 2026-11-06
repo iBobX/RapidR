@@ -558,6 +558,24 @@ impl ComponentKind for Toolbox {
                     send(cx, User::Redraw);
                 }
             }
+            MouseKind::Down if m.button == Button::Right => {
+                // (CONTEXT-MENUS: the row under it chosen — a component
+                // selected, a group only marked — for its menu; the
+                // ContextKind it is)
+                let Some(i) = row_at(&id, &g, &rows, x, y) else {
+                    model_mut(&id, |mm| mm.context = None);
+                    return MouseOut { press: false, focus: Some(false) };
+                };
+                let key = rows[i].key.clone();
+                if key.is_item() {
+                    go_to(cx, key.clone());
+                } else {
+                    model_mut(&id, |mm| mm.cursor = Some(key.clone()));
+                    send(cx, User::Redraw);
+                }
+                model_mut(&id, |mm| mm.context = Some(key));
+                return MouseOut { press: false, focus: Some(false) };
+            }
             MouseKind::Down if m.button == Button::Left => {
                 model_mut(&id, |mm| mm.typed.clear());
                 if inside(g.strip, x, y) {
@@ -665,6 +683,23 @@ impl ComponentKind for Toolbox {
     fn context_menu(&self, cx: &mut Cx) -> Option<crate::components::edit::MenuState> {
         let g = geo(cx.width(), cx.height(), &look(rapidr_value::theme::current()));
         list::editor_menu(cx, editor_box(text_area(g.sbox)))
+    }
+
+    /// (CONTEXT-MENUS) The keyboard's menu: under the row the keys are on
+    /// (a component or a group: its ContextKind).
+    fn context_point(&self, cx: &mut Cx) -> Option<(i64, i64)> {
+        if searching(cx.id) {
+            return None;
+        }
+        let g = geo(cx.width(), cx.height(), &look(rapidr_value::theme::current()));
+        let (rows, cursor, selected, _) = Self::state(cx.id);
+        let key = cursor.or(selected)?;
+        let i = rows.iter().position(|r| r.key == key)?;
+        model_mut(cx.id, |mm| mm.context = Some(key));
+        let (pos, _, _) = scroll(cx.id, g.list, rows.len());
+        let (ax, ay, _, _) = cx.rect;
+        let y = g.list.1 + (i as i64 + 1) * ROW - pos;
+        Some((ax + g.list.0 + 24, ay + y.clamp(g.list.1, g.list.1 + g.list.3)))
     }
 
     fn describe(&self, cx: &mut Cx) -> AccessNode {

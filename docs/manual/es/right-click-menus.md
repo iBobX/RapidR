@@ -3,7 +3,10 @@
 Haz clic derecho en casi cualquier cosa de RapidR Studio y aparece un menú
 corto con lo que puedes hacer con ella ahí: un archivo en el árbol del
 proyecto, la pestaña de un documento, el código, un componente de un
-formulario, una fila de Propiedades o de Eventos, un chat del asistente. El
+formulario, una fila de Propiedades o de Eventos, un chat del asistente,
+un problema, una línea de la salida, un valor al depurar, una página de la
+Ayuda, la barra de estado, la pestaña de un panel, un proyecto reciente, un
+componente del cuadro de herramientas. El
 teclado abre los mismos menús, y también un lector de pantalla. Tus propios
 programas tienen lo mismo con un evento, `OnContextMenu`, y las listas
 pueden mostrar pequeñas acciones con icono en sus filas con `RowActions`.
@@ -31,9 +34,10 @@ Todos los menús siguen las mismas reglas, así que siempre sabes dónde mirar:
   la alineación del diseñador), Preguntar a RAI y **al final, lo que hace
   perder algo** (Quitar del proyecto, Eliminar).
 - **En gris, no escondido**: un elemento que no se puede usar ahora sale en
-  gris y su descripción dice por qué («No hay nada seleccionado», «El
-  archivo principal se queda en el proyecto»), así los elementos nunca
-  cambian de lugar.
+  gris y dice por qué («No hay nada seleccionado», «El archivo principal se
+  queda en el proyecto») en una pequeña ayuda junto al menú cuando te
+  detienes en él o llegas con las flechas (un lector de pantalla la lee como
+  su descripción), así los elementos nunca cambian de lugar.
 - **Preguntar a RAI nunca envía nada por sí solo**: abre el asistente con el
   archivo, el código o el problema citado en el cuadro de la pregunta; tú
   agregas tu pregunta y pulsas Enviar. Con el Bloqueo escolar apagando la
@@ -41,7 +45,7 @@ Todos los menús siguen las mismas reglas, así que siempre sabes dónde mirar:
 
 ## Los menús de RapidR Studio
 
-![Un archivo con clic derecho en el árbol del proyecto: Abrir en negrita, las teclas a la vista, Quitar del proyecto al final](../images/context-menus/studio-project-file.png)
+![Un archivo con clic derecho en el árbol del proyecto: Abrir en negrita, las teclas a la vista, Comparar con, y Quitar del proyecto y Eliminar archivo... al final](../images/context-menus/studio-project-file.png)
 
 | Clic derecho en | Obtienes |
 |---|---|
@@ -55,7 +59,42 @@ Todos los menús siguen las mismas reglas, así que siempre sabes dónde mirar:
 | **El formulario** mismo | Pegar, Seleccionar todo · Editor de menús, Orden de tabulación · Zoom ▸ · Código (F7), Propiedades · Preguntar a RAI sobre este formulario... |
 | **Una propiedad** | **Editar el valor** (Intro), Restablecer el valor predeterminado (Supr) · Copiar el valor, Copiar el nombre, Copiar como código (`GreetButton.Caption = "Greet"`) · Ayuda: Caption (F1) · Preguntar a RAI sobre Caption... |
 | **Un evento** | **Ir al manejador** (o Crear el manejador), Quitar el manejador (Supr: el SUB se queda en el código) · Copiar el nombre, Copiar como código · Ayuda (F1) · Preguntar a RAI |
-| **Un chat** del asistente | **Abrir** (Intro) · Renombrar (F2) · Eliminar (Supr) |
+| **Un chat** del asistente | **Abrir** (Intro) · Renombrar (F2), Copiar como Markdown · Eliminar (Supr) |
+| **Un problema** (la página Problemas de Salida) | **Ir al problema** (Intro), Corrección rápida... (Ctrl+.), Explicar este problema · Copiar, Copiar todos los problemas · Preguntar a RAI sobre este problema... |
+| **Una línea de la salida** (Salida, Compilación) | **Ir a main.rr, línea 12** (una línea que nombra un lugar) · Copiar, Copiar línea, Copiar todo, Seleccionar todo · Ajustar líneas largas ✓ · Borrar |
+| **Inmediato** | Copiar, Pegar, Seleccionar todo · Borrar |
+| **Un valor** en Variables u Observar (en pausa) | Establecer valor... (F2) · Copiar valor, Copiar expresión, Ver texto... · Añadir a Observar (Variables) o Quitar de Observar (Observar, Supr) |
+| **Una llamada** de la Pila de llamadas | **Ir a esta llamada** (Intro) · Copiar, Copiar todo |
+| **Un punto de interrupción** | **Ir al punto de interrupción** (Intro), Editar condición... (Mayús+F9), Desactivar (o Activar) el punto de interrupción (Espacio) · Copiar, Copiar todo · Quitar el punto de interrupción (Supr), Eliminar todos los puntos de interrupción (Ctrl+Mayús+F9) |
+| **Una página de la Ayuda** | Atrás, Adelante · Copiar, Seleccionar todo · Abrir en el navegador (una página del manual) · Preguntar a RAI sobre esta página... |
+| **Un ejemplo de código** de la Ayuda | **Probarlo** (una copia del ejemplo se abre en Studio: F5 lo ejecuta), Copiar el código, Insertar en el cursor · Preguntar a RAI sobre este ejemplo... |
+| **La barra de estado** | el mensaje: Copiar el mensaje · el proyecto: Mostrar en Finder, Opciones del proyecto... · Versiones · Lín, Col: Ir a la línea... (Ctrl+G) · las apps de IA: Actividad de aplicaciones de IA, Configuración de aplicaciones de IA... · la etiqueta del Bloqueo escolar: Bloqueo escolar... |
+| **La pestaña** o el título de un panel | Cerrar el panel · Flotar (Acoplar, si flota) · Restablecer disposición |
+| **Un proyecto reciente** en la página de bienvenida | **Abrir** · Copiar ruta, Mostrar en Finder · Quitar de recientes |
+| **Un componente** del cuadro de herramientas | **Agregar al formulario** (Intro) · Ayuda: RButton (F1), Abrir un ejemplo · Preguntar a RAI cómo usar RButton... — un grupo: Contraer todo, Expandir todo |
+
+El archivo del árbol del proyecto tiene además **Comparar con ▸**: la
+versión del disco (un archivo abierto con cambios), la última versión (un
+proyecto con versiones) u otro archivo que elijas, uno al lado del otro; y,
+al final, **Eliminar archivo...**, que pregunta antes y mueve el archivo a
+la papelera del sistema (la Papelera de reciclaje en Windows), de donde
+puedes recuperarlo —nunca el archivo principal, nunca un archivo fuera de la
+carpeta del proyecto, no en el navegador—. **Quitar del proyecto** deja el
+archivo en el disco. El componente de un formulario en el árbol y uno en el
+diseñador tienen **Ayuda: RButton** (F1).
+
+**Sobre un problema en el código**, el menú empieza con el grupo propio del
+problema: su corrección misma cuando el servicio de lenguaje tiene una, en
+negrita («Change to Caption» para un `Captoin` mal escrito), luego
+Corrección rápida... (Ctrl+.) y **Explicar este problema** (una página de la
+Ayuda con el problema, dónde está y la ayuda del nombre sobre el que está);
+Preguntar a RAI sobre este problema... lo cita.
+
+![Un problema con clic derecho en la página Problemas de Salida: Ir al problema en negrita](../images/context-menus/studio-problems.png)
+
+![Un miembro mal escrito con clic derecho: su corrección primero, en negrita](../images/context-menus/studio-code-fix.png)
+
+![El menú del panel Observar desde el teclado (Mayús+F10) en pausa, con el aspecto oscuro](../images/context-menus/studio-watch-keyboard-dark.png)
 
 Los nombres exactos de los elementos son los de los menús de Studio en tu
 idioma.
@@ -73,11 +112,14 @@ y las apps de IA pueden ver y elegir sus elementos como tú.
 ### Los chats del asistente
 
 Haz clic en un chat para abrirlo (las flechas solo se mueven por la lista;
-Intro abre). La fila bajo el mouse, y la fila seleccionada, muestran tres
-botones pequeños: **Renombrar** (F2), **Eliminar** (Supr) y **Más** (el
-menú de la fila, también Mayús+F10). Eliminar actúa enseguida y ofrece
-**Deshacer** junto a la lista, por eso no pregunta antes. Sin chats todavía,
-la lista muestra **Empezar un chat**.
+Intro abre). Los chats se agrupan bajo **Hoy**, **Ayer** y **Antes**. La
+fila bajo el mouse, y la fila seleccionada, muestran tres botones pequeños:
+**Renombrar** (F2: el título se edita en la fila misma, Intro lo conserva,
+Esc lo deja), **Eliminar** (Supr) y **Más** (el menú de la fila, también
+Mayús+F10, con **Copiar como Markdown**: las preguntas y respuestas del chat
+en el portapapeles). Eliminar actúa enseguida y ofrece **Deshacer** junto a
+la lista, por eso no pregunta antes. Sin chats todavía, la lista muestra
+**Empezar un chat**.
 
 ## En tus propios programas
 
@@ -121,9 +163,20 @@ Notes.OnContextMenu = NotesMenu
   conserva solo el clic derecho. Asigna `OnContextMenu` y decide tu manejador.
 - **`RMenuItem.Default`** dibuja un elemento en negrita; **`RPopupMenu.SystemMenu = 0`**
   hace que RapidR dibuje el menú en todos los sistemas (por defecto macOS y
-  Windows muestran el suyo).
+  Windows muestran el suyo); **`RPopupMenu.AccessibleName`** es cómo lo llama
+  un lector de pantalla mientras está abierto («Acciones para orders.rr»).
 - Un administrador de paneles dice en qué pestaña de documento fue el clic
-  derecho en **`ContextDocument`**.
+  derecho en **`ContextDocument`**, y en qué pestaña o título de panel en
+  **`ContextPane`** (**`DockBack Name`** acopla un panel flotante donde
+  estaba).
+- Un árbol dice en qué nodo en **`ContextIndex`** (un clic derecho tampoco
+  lo selecciona); un cuadro de herramientas si fue un componente o un grupo
+  en **`ContextKind`**; una consola de salida el lugar que nombra una línea
+  con **`PlaceFile(Index)`** y **`PlaceLine(Index)`** (con `ClickedLine`); una
+  vista Markdown el bloque de código en **`ContextCode`**; un editor de
+  código el problema en un lugar con **`ProblemAt(Line, Column)`**, las
+  palabras de su primera corrección con **`FixAt`**, y la aplica con
+  **`ApplyFixAt`**.
 
 ![El ejemplo: una nota con clic derecho](../images/context-menus/notes-menu.png)
 
@@ -147,6 +200,37 @@ así el teclado y las pantallas táctiles también las tienen—. **F2** es
 menú de la lista.
 
 ![La fila bajo el mouse con sus botones Renombrar, Eliminar y Más](../images/context-menus/notes-row-actions.png)
+
+### Filas de encabezado y renombrar en la fila
+
+```basic
+Notes.AddItems "Hoy", "Comprar leche", "Antes", "Leer el capítulo 3"
+Notes.Heading 0, 1                 ' el título de un grupo: en negrita, más suave, nunca seleccionado
+Notes.Heading 2, 1
+Notes.OnEdited = NoteRenamed
+
+SUB NotesAction (Index AS INTEGER, Action AS STRING, Sender AS RListBox)
+  IF Action = "rename" THEN Sender.EditItem Index      ' el editor sobre la fila
+END SUB
+
+SUB NoteRenamed (Index AS INTEGER, S AS STRING)
+  ' S es lo que se escribió (Intro); cámbialo, o el elemento lo recibe tal cual
+END SUB
+```
+
+**`Heading(i)`** convierte un elemento en fila de encabezado: un clic no lo
+elige, las flechas, Inicio y Fin lo saltan, no tiene acciones de fila y un
+lector de pantalla oye un encabezado. **`EditItem i`** abre un editor sobre
+el texto del elemento (como en RTreeView): Intro lo conserva
+(**`OnEdited`**), Esc lo deja.
+
+### Mover un archivo a la papelera
+
+**`MOVETOTRASH(Path$)`** mueve un archivo o una carpeta a la papelera del
+sistema (la Papelera de reciclaje en Windows) y da True; desde allí la
+persona aún puede recuperarlo, a diferencia de `KILL`. El Eliminar
+archivo... de Studio lo usa ([el lenguaje](language.md#a-la-papelera-movetotrash),
+[trash.rr](../../../examples/basics/trash.rr)).
 
 El ejemplo completo es [context_menus.rr](../../../examples/gui/context_menus.rr):
 `rapidr run examples/gui/context_menus.rr`.

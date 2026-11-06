@@ -373,6 +373,7 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         "messagedlg" => rp_messagedlg(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null), &args.get(4).cloned().unwrap_or_else(v_null)),
         "direxists" => rp_direxists(&a0),
         "fileexists" => rp_fileexists(&a0),
+        "movetotrash" => rp_movetotrash(&a0),
         "resource" => rp_resource(&a0),
         "resourcecount" => rp_resourcecount(),
         "playwav" => { rp_playwav(&a0, &a1); v_null() }

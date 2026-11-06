@@ -98,6 +98,10 @@ export const cases = [
     expect: ["not two", "two  (i = 2)", "Several lines: every PRINT ends its line"] },
   { file: "basics/input.rr", runtimes: ["run", "interp", "native"], input: "Ada\n80\n\n4\n",
     expect: ["Hello, Ada.", "Total with a 15% tip: 92.00", "Each of 4 pays: 23.00"] },
+  // (MOVETOTRASH: into the run's own Trash folder — RAPIDR_TEST_TRASH, test
+  // mode only —, never the person's)
+  { file: "basics/trash.rr", runtimes: ["run", "interp", "native"], env: { RAPIDR_TEST_TRASH: join(WORK, "trash") },
+    expect: ["trash-me.txt written: 30 bytes", "Moved to the Trash: trash-me.txt", "Still here: no", "no-such-file.txt: not moved, it isn't there"] },
   { file: "basics/files.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["shopping.txt has", "1. bread", "4. coffee", "First line again: bread", "Removed: yes"] },
   { file: "basics/unicode.rr", runtimes: ["run", "interp", "native", "web"],

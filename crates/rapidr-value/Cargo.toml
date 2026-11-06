@@ -57,8 +57,9 @@ rapidr-archive = { workspace = true, optional = true }
 [target.'cfg(windows)'.dependencies]
 windows-registry = "0.6.1"
 # Real pages at a block's address around a DLL call (memory.rs): Microsoft's
-# windows-sys (MIT OR Apache-2.0), already in the tree through winit.
-windows-sys = { version = "0.52", features = ["Win32_System_Memory", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_SystemInformation", "Win32_System_Power", "Win32_Storage_FileSystem"] }
+# windows-sys (MIT OR Apache-2.0), already in the tree through winit; its
+# Win32_UI_Shell for MOVETOTRASH's Recycle Bin (trash.rs).
+windows-sys = { version = "0.52", features = ["Win32_System_Memory", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_SystemInformation", "Win32_System_Power", "Win32_Storage_FileSystem", "Win32_UI_Shell"] }
 
 # RSystemInfo on macOS and Linux (sysinfo.rs): sysctl, the Mach host's
 # memory statistics, statvfs — libc (MIT OR Apache-2.0), already in the tree.

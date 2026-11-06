@@ -1,6 +1,6 @@
 # Context menus and row actions: design
 
-Status: **approved by Robert on 2026-11-06 (D1–D8 as proposed); Phase 2a built** (section 9); 2b next.
+Status: **approved by Robert on 2026-11-06 (D1–D8 as proposed); Phases 2a and 2b built** (sections 9 and 10).
 Mockups (light and dark): [design/context-menus/](../design/context-menus/), drawn in
 Pen (the source, `design/context-menus/context-menus.pen`, joins them once it is
 saved from the Pen app).
@@ -405,16 +405,57 @@ the form), Properties and Events, the Assistant's chats with their row
 actions. Manual page [right-click-menus.md](manual/right-click-menus.md) (EN +
 ES), example `examples/gui/context_menus.rr`, Studio flows `ctx-*`.
 
-Waiting (2b or later, as section 4 lists them):
+## 10. Phase 2b: what is built, what still waits
 
-- **Delete File...** (to the Trash): RapidR has no "move to the Trash" yet;
-  it needs one per system (and a lawyer check if a crate does it).
-- **Compare With ▸** in the Project tree; **the problem's own group** in the
-  code editor (its fix inline, Explain This Problem) — Quick Fix... (Ctrl+.)
-  is there; **Help: RButton** in the designer's menu.
-- The chats' **Today / Yesterday / Earlier** groups, **rename in place** (the
-  rename strip stays), **Copy as Markdown**, **Move to This Project**.
-- A greyed item's reason as a **tooltip** (screen readers read it already);
-  **a long press** on touch screens.
-- Sections 4.6–4.12 (Toolbox, Problems, Output, debug panes, Help, status
-  bar, panes, Welcome): Phase 2b.
+Built (2026-11-06), on 2a's builder (one pop-up, every item a command of
+`ide/commands.inc`):
+
+- **Sections 4.6–4.10 and 4.12**: the Toolbox (a component — selected first
+  — and a group), the Problems page, the Output and Build pages (the place a
+  line names first), Immediate, Variables, Watch, Call Stack, Breakpoints,
+  Help (a page and a code example; Back and Forward are new: Help keeps the
+  pages shown), the status bar (its message, the project, Ln Col, AI apps,
+  School Lock's chip), a pane's tab or title, a recent project on the
+  Welcome page. The old per-pane menus (Output's, Variables', Watch's, Call
+  Stack's, Breakpoints') are gone; the existing flows moved to the one menu.
+- **Section 9's deferred items:** Compare With ▸ (the disk's version for an
+  open file, the last version with versions, another file — Versions'
+  compare pane); Delete File... (asked first with the design guide's small
+  question, `MOVETOTRASH`, never the main file nor a file outside the
+  project's folder, hidden in the browser); the problem's own group in the
+  code editor (the language service's first fix inline and bold, Quick
+  Fix..., Explain This Problem: a Help page of the problem); Help: RButton
+  in the designer and the Toolbox; the chats grouped Today / Yesterday /
+  Earlier (`RListBox.Heading`), renamed in place (`RListBox.EditItem`; the
+  rename strip is gone) and Copy as Markdown; a greyed item's reason as a
+  tooltip beside the menu, the chosen greyed item framed rather than filled
+  so its words stay readable (the kernel's menus: `menubar.rs`,
+  `tooltip.rs`); a pop-up menu named for screen readers
+  (`RPopupMenu.AccessibleName`: "Actions for orders.rr").
+- **Components:** `RTreeView.ContextIndex`, `RListBox.Heading` /
+  `EditItem` / `OnEdited`, `RToolbox.ContextKind`, `RDockManager.ContextPane`
+  / `DockBack`, `ROutputConsole.PlaceFile` / `PlaceLine`,
+  `RMarkdownView.ContextCode`, `RCodeEditor.ProblemAt` / `FixAt` /
+  `ApplyFixAt`, the builtin `MOVETOTRASH` (macOS' Foundation through the
+  Objective-C runtime, Windows' shell with FOF_ALLOWUNDO, the
+  freedesktop.org Trash written in RapidR; no new crate; a run-time error in
+  the browser).
+
+Still waiting, and why:
+
+- **A long press on touch screens:** the hosts don't hand the kernel touch
+  input as such — the web host turns a touch into mouse presses without
+  saying it was a touch, and the desktop host takes no touch events — so a
+  long press can't be told from a held click yet. It needs the hosts' touch
+  first.
+- **The status bar and a pane's tab from the keyboard:** neither takes the
+  keyboard, so their menus open by the mouse (and a screen reader reaches
+  the same commands in the main menus and the Command Palette).
+- **Move to This Project** (a chat without a project): waits for the chats
+  following the project (the RAI chat lane).
+- **4.11, RAI's answers** (Copy as Text / as Markdown / with Formatting,
+  Quote in a New Question, Retry, Edit Question...): the RAI chat redesign's.
+- **Classic programs' PopupMenu from the keyboard** stays the right click
+  alone until RC.EXE is checked (a question for the lead).
+- Some letters of 2a's own menus are shared in a menu (the code editor's
+  &Copy and Toggle &Comment): a small follow-up.

@@ -605,6 +605,16 @@ impl Console {
         self.screen(p).and_then(|s| s.line(i)).map(links::of_line).unwrap_or_default()
     }
 
+    /// (CONTEXT-MENUS) The place line `i` (from 0) of the shown page names
+    /// — its first `file:line` link, or the problem's on the Problems page
+    /// (a file's heading: line 0) — as a click on it opens it.
+    pub fn place_of(&self, i: usize) -> Option<(String, i64)> {
+        if self.page == Page::Problems {
+            return self.problems.get(i).map(|p| (p.file.clone(), if p.heading { 0 } else { p.line }));
+        }
+        self.links_of(self.page, i).into_iter().next().map(|k| (k.file, k.line))
+    }
+
     /// The link at absolute line `line`, character `at` of the shown page.
     pub fn link_at(&self, line: u64, at: usize) -> Option<(links::Link, Match)> {
         let i = line.checked_sub(self.first(self.page))? as usize;
@@ -727,6 +737,10 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             Value::Null
         }
         "line" => Value::String(with(name, |c| c.line_text(c.page, usize::try_from(n(0)).unwrap_or(usize::MAX))).flatten().unwrap_or_default().into()),
+        // (CONTEXT-MENUS: the place line Index of the shown page names, as a
+        // click opens it — its file ("" none) and its line number)
+        "placefile" => Value::String(with(name, |c| c.place_of(usize::try_from(n(0)).unwrap_or(usize::MAX))).flatten().map(|p| p.0).unwrap_or_default().into()),
+        "placeline" => Value::Integer(with(name, |c| c.place_of(usize::try_from(n(0)).unwrap_or(usize::MAX))).flatten().map_or(0, |p| p.1)),
         "find" => Value::Integer(with_mut(name, |c| c.find(&s(0))) as i64),
         "findnext" => Value::Integer(with_mut(name, |c| c.find_next(false)).map_or(-1, |l| l as i64)),
         // (RapidR's: the selection and the clipboard — what the user's

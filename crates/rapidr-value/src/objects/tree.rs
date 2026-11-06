@@ -161,6 +161,11 @@ pub struct TreeView {
     /// the next paint scrolls its row into view, as Windows' TreeView
     /// does — unless TopIndex is set after it.
     pub reveal: bool,
+    /// (CONTEXT-MENUS, RapidR's) `ContextIndex`: the node under the last
+    /// right click (or the selected one, for the keyboard's menu); `None`
+    /// none. A right click doesn't select (as Windows' tree view): the
+    /// program does it in OnContextMenu when it wants to.
+    pub context_index: Option<usize>,
 }
 
 impl Default for TreeView {
@@ -181,6 +186,7 @@ impl Default for TreeView {
             version: 0,
             pending_edit: None,
             reveal: false,
+            context_index: None,
         }
     }
 }
@@ -423,6 +429,7 @@ impl TreeView {
             "sorttype" => v_int(self.sort_type),
             // RapidR's older name: the selected node's text.
             "selecteditem" => v_str(usize::try_from(self.item_index).ok().and_then(|i| self.nodes.get(i)).map_or("", |n| &n.text)),
+            "contextindex" => v_int(self.context_index.filter(|&i| i < self.nodes.len()).map_or(-1, |i| i as i64)),
             _ => return None,
         })
     }
@@ -449,6 +456,10 @@ impl TreeView {
                 if self.sort_type != 0 {
                     self.sort();
                 }
+            }
+            "contextindex" => {
+                self.context_index = usize::try_from(val.to_i64()).ok();
+                return true;
             }
             _ => return false,
         }

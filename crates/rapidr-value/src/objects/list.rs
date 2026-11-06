@@ -145,6 +145,13 @@ pub struct ItemList {
     /// A right click doesn't select (as RapidQ's list box): the program
     /// does it in OnContextMenu when it wants to.
     pub context_index: Option<usize>,
+    /// (CONTEXT-MENUS, RapidR's) `Heading(i)`: one flag per item — a heading
+    /// row (a group's title: "Today"), drawn quieter, never selected by a
+    /// click or the keys, a heading for screen readers.
+    pub headings: Vec<bool>,
+    /// (RapidR's) `EditItem i, Text`: the program asked for item i's
+    /// in-place editor, with this text (the UI kernel opens it).
+    pub pending_edit: Option<(usize, String)>,
 }
 
 /// Drawing on a QLISTBOX that isn't owner-drawn. RapidQ draws on the
@@ -556,6 +563,11 @@ impl ItemList {
         b
     }
 
+    /// Item `i` is a heading row (`Heading(i)`).
+    pub fn is_heading(&self, i: usize) -> bool {
+        self.headings.get(i).copied().unwrap_or(false)
+    }
+
     pub fn is_selected(&self, i: usize) -> bool {
         if self.multi_select {
             self.selected.get(i).copied().unwrap_or(false)
@@ -650,6 +662,9 @@ impl ItemList {
         let at = at.min(self.items.len());
         self.items.insert(at, s);
         self.selected.insert(at, false);
+        if self.headings.len() >= at {
+            self.headings.insert(at, false);
+        }
         if self.item_index >= at as i64 {
             self.item_index += 1;
         }
@@ -661,6 +676,9 @@ impl ItemList {
         }
         self.items.remove(at);
         self.selected.remove(at);
+        if at < self.headings.len() {
+            self.headings.remove(at);
+        }
         match self.item_index.cmp(&(at as i64)) {
             std::cmp::Ordering::Equal => self.item_index = -1,
             std::cmp::Ordering::Greater => self.item_index -= 1,
@@ -671,6 +689,7 @@ impl ItemList {
     pub fn clear(&mut self) {
         self.items.clear();
         self.selected.clear();
+        self.headings.clear();
         self.item_index = -1;
         self.top_index = 0;
         self.scroll_to = None;
@@ -683,9 +702,12 @@ impl ItemList {
 
     fn sort(&mut self) {
         let current = usize::try_from(self.item_index).ok().and_then(|i| self.items.get(i).cloned());
-        let mut paired: Vec<(String, bool)> = self.items.drain(..).zip(self.selected.drain(..)).collect();
+        self.headings.resize(self.items.len(), false);
+        let mut paired: Vec<(String, (bool, bool))> = self.items.drain(..).zip(self.selected.drain(..).zip(self.headings.drain(..))).collect();
         paired.sort_by_key(|(s, _)| s.to_lowercase());
-        (self.items, self.selected) = paired.into_iter().unzip();
+        let flags: Vec<(bool, bool)>;
+        (self.items, flags) = paired.into_iter().unzip();
+        (self.selected, self.headings) = flags.into_iter().unzip();
         self.item_index = current.and_then(|c| self.items.iter().position(|s| *s == c)).map_or(-1, |i| i as i64);
     }
 
@@ -880,6 +902,25 @@ impl ItemList {
                 }
             }
             "sort" => self.sort(),
+            // (CONTEXT-MENUS, RapidR's) Heading(i) [= on]: item i is a heading
+            // row; EditItem i [, Text]: its editor in place
+            "heading" if !self.combo && !self.plain => {
+                let Some(i) = index(args.first()).filter(|&i| i < self.items.len()) else {
+                    return Some(if args.len() >= 2 { Value::Null } else { v_int(0) });
+                };
+                if args.len() >= 2 {
+                    self.headings.resize(self.items.len(), false);
+                    self.headings[i] = args[1].to_bool();
+                } else {
+                    return Some(flag(self.is_heading(i)));
+                }
+            }
+            "edititem" if !self.combo && !self.plain => {
+                if let Some(i) = index(args.first()).filter(|&i| i < self.items.len()) {
+                    let t = if args.len() >= 2 { text(1) } else { self.items[i].clone() };
+                    self.pending_edit = Some((i, t));
+                }
+            }
             // QSTRINGLIST Parse(Source$, Delim$): the list becomes Source$'s
             // pieces; how many there are.
             "parse" => {
@@ -905,6 +946,8 @@ impl ItemList {
                 if let (Some(i), Some(j)) = (index(args.first()).filter(|&i| i < self.items.len()), index(args.get(1)).filter(|&j| j < self.items.len())) {
                     self.items.swap(i, j);
                     self.selected.swap(i, j);
+                    self.headings.resize(self.items.len(), false);
+                    self.headings.swap(i, j);
                 }
             }
             // RapidR: Find(s) — the index of the first item equal to s, or -1.

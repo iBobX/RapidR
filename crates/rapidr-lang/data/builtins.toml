@@ -807,6 +807,18 @@ origin = "rapidr"
 doc = "Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access under a file number (see `FREEFILE`)."
 
 [[builtin]]
+name = "MOVETOTRASH"
+syntax = "MOVETOTRASH(Path$)"
+arg_kinds = { Path = "file:any" }
+params = "Path AS STRING"
+returns = "INTEGER"
+group = "Files and folders"
+origin = "rapidr"
+effects = ["file-write"]
+doc = "Moves a file or a folder to the system's Trash (the Recycle Bin on Windows), where the person can still put it back: True (-1) when it was moved, 0 when not (it doesn't exist, its disk has no Trash, no permission). Unlike `KILL`, nothing is lost for good. The browser has no Trash: there it stops the program with a run-time error that says so."
+example = "IF MOVETOTRASH(\"old-notes.txt\") THEN PRINT \"In the Trash\" ELSE PRINT \"Not moved\""
+
+[[builtin]]
 name = "OUT"
 syntax = "OUT(Address, bytevalue)"
 group = "System"

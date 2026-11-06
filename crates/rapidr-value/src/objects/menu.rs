@@ -45,6 +45,9 @@ pub struct MenuNode {
     /// (macOS, Windows: true, as RapidQ's); false, RapidR's own drawing
     /// everywhere.
     pub system_menu: bool,
+    /// (CONTEXT-MENUS, RapidR's) A pop-up menu's AccessibleName: what a
+    /// screen reader calls it while it is open ("Actions for orders.rr").
+    pub accessible_name: String,
     pub parent: Option<String>,
     pub children: Vec<String>,
 }
@@ -65,6 +68,7 @@ impl MenuNode {
             alignment: 0,
             default: false,
             system_menu: true,
+            accessible_name: String::new(),
             parent: None,
             children: Vec::new(),
         }
@@ -193,6 +197,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
             "alignment" => v_int(n.alignment),
             "default" => flag(n.default),
             "systemmenu" => flag(n.system_menu),
+            "accessiblename" if n.kind == Kind::Popup => v_str(&n.accessible_name),
             "menuindex" => {
                 let p = n.parent.as_ref()?;
                 v_int(m.get(p).and_then(|pn| pn.children.iter().position(|c| *c == key(id))).map_or(-1, |i| i as i64))
@@ -238,6 +243,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<()> {
             "alignment" => n.alignment = val.to_i64(),
             "default" => n.default = on,
             "systemmenu" => n.system_menu = on,
+            "accessiblename" if n.kind == Kind::Popup => n.accessible_name = val.to_string_val(),
             _ => return None,
         }
         let exclusive = matches!(prop, "checked" | "radioitem") && n.radio && n.checked;

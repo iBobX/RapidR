@@ -294,7 +294,7 @@ impl FormUi {
                     let entered: Vec<KernelEvent> = self.events.drain(before..).collect();
                     self.events.splice(mark..mark, entered);
                 }
-            } else if button == Button::Right && matches!(self.nodes[i].type_name.as_str(), "RCODEEDITOR" | "ROUTPUTCONSOLE" | "RPROJECTTREE" | "RPROPERTYINSPECTOR" | "RLISTBOX" | "RDOCKDOCS" | "RDESIGNSURFACE") {
+            } else if button == Button::Right && matches!(self.nodes[i].type_name.as_str(), "RCODEEDITOR" | "ROUTPUTCONSOLE" | "RPROJECTTREE" | "RPROPERTYINSPECTOR" | "RLISTBOX" | "RDOCKDOCS" | "RDESIGNSURFACE" | "RTREEVIEW" | "RTOOLBOX" | "RDOCKGROUP" | "RMARKDOWNVIEW") {
                 // (a code editor's right press: the caret where it is, for
                 // the context menu — components/codeeditor/input.rs; a
                 // project tree's, an inspector's, a designer's: the row or

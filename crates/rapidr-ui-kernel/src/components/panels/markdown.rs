@@ -842,6 +842,16 @@ impl ComponentKind for MarkdownView {
         let Some(laid) = cx.ui.markdown.as_ref() else { return MouseOut::default() };
         let (x, y) = (inner.x, inner.y.clamp(0.0, (bh - 1).max(0) as f64) + pos as f64);
         match m.kind {
+            // (CONTEXT-MENUS: a right press says which code block it was on
+            // — ContextCode — for its menu; the selection stays)
+            MouseKind::Down if m.button == rapidr_value::input::Button::Right => {
+                let code = laid.hit(x, y, scale).and_then(|((para, _), _)| match laid.doc.paras.get(para).map(|p| (&p.kind, &p.text)) {
+                    Some((model::Kind::Code(_), text)) => Some(text.clone()),
+                    _ => None,
+                });
+                model::with_mut(cx.id, |md| md.context_code = code.unwrap_or_default());
+                return MouseOut { press: false, focus: Some(false) };
+            }
             MouseKind::Down if m.button == rapidr_value::input::Button::Left => {
                 let link = laid.link_at(x, y, scale);
                 PRESSED.with(|p| p.borrow_mut().insert(cx.id.to_string(), link));
@@ -1274,6 +1284,31 @@ mod tests {
         assert!(plain.iter().all(|r| r.1 == text), "{plain:?}");
         assert_eq!(super::code_language("sqlite"), Some("sql-sqlite"));
         assert_eq!(super::code_language("rr"), Some("rapidr-basic"));
+    }
+
+    /// (CONTEXT-MENUS 2b) A right press on a code block names it —
+    /// ContextCode, its text whole —; on a paragraph, none; the selection
+    /// stays.
+    #[test]
+    fn a_right_press_names_the_code_block() {
+        let mut s = MemStore::new();
+        s.add("mform", "RFORM", None);
+        s.add("md9", "RMARKDOWNVIEW", Some("mform")).set("md9", "width", v_int(500)).set("md9", "height", v_int(300));
+        model::remove("md9");
+        model::with_mut("md9", |m| m.set_text("Try this:\n\n```basic\nPRINT 1\nPRINT 2\n```\n\nThe end."));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "mform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let code = spot(&f, "md9", 1);
+        let (x, y) = (code.x + 10.0, code.y + code.h / 2.0);
+        f.mouse_down(&s, &mut ts, x, y, Button::Right, Mods::NONE);
+        f.mouse_up(&s, &mut ts, x, y, Button::Right, Mods::NONE);
+        assert_eq!(model::with("md9", |m| m.context_code.clone()).as_deref(), Some("PRINT 1\nPRINT 2"));
+        let text = spot(&f, "md9", 0);
+        f.mouse_down(&s, &mut ts, text.x + 4.0, text.y + text.h / 2.0, Button::Right, Mods::NONE);
+        f.mouse_up(&s, &mut ts, text.x + 4.0, text.y + text.h / 2.0, Button::Right, Mods::NONE);
+        assert_eq!(model::with("md9", |m| m.context_code.clone()).as_deref(), Some(""));
+        model::remove("md9");
     }
 
     #[test]

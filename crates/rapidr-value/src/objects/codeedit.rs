@@ -1873,6 +1873,24 @@ impl CodeEditor {
                 });
             }
             "applyedits" => return Some(flag(self.apply_edits_json(&arg(0)))),
+            // (CONTEXT-MENUS, RapidR's: the problem at a place, the language
+            // service's first fix for it, that fix applied as one undo step)
+            "problemat" => {
+                let at = self.at_line_col(num(0, 1), num(1, 1));
+                return Some(v_str(&self.problem_at(at).map(|d| d.message.clone()).unwrap_or_default()));
+            }
+            "fixat" => {
+                let at = self.at_line_col(num(0, 1), num(1, 1));
+                return Some(v_str(&self.fixes_at(at).into_iter().next().map(|f| f.title).unwrap_or_default()));
+            }
+            "applyfixat" => {
+                let at = self.at_line_col(num(0, 1), num(1, 1));
+                let Some(fix) = self.fixes_at(at).into_iter().next() else { return Some(flag(false)) };
+                let len = self.doc.len_bytes();
+                let mut changes: Vec<Change> = fix.edits.into_iter().filter(|e| e.start <= e.end && e.end <= len).map(|e| Change::new(e.start..e.end, e.text)).collect();
+                changes.sort_by_key(|c| c.range.start);
+                return Some(flag(!changes.is_empty() && self.program_edit(|d| d.apply_edits(changes, 0).is_ok())));
+            }
             // (RapidR Studio's designer: one change's OnSourceEdit patches,
             // one undo step; Continues: part of the step before)
             "applypatches" => {
@@ -2124,6 +2142,31 @@ impl CodeEditor {
     /// ApplyEdits(Json): `[{"line", "column", "endLine", "endColumn",
     /// "text"}]` (or `start` / `end` character offsets), one undo step;
     /// refused whole (False) when two overlap.
+    /// (CONTEXT-MENUS) The problem at byte `at` (its squiggle's span, the
+    /// end included): an error before a warning before the rest.
+    pub fn problem_at(&self, at: usize) -> Option<&Diagnostic> {
+        self.diagnostics.iter().filter(|d| d.start <= at && at <= d.end.max(d.start + 1)).min_by_key(|d| d.severity as u8)
+    }
+
+    /// (CONTEXT-MENUS) The language service's fixes for the problem at byte
+    /// `at` (else on its line), the preferred first; none when the editor
+    /// has no file name or no service answers for its language.
+    pub fn fixes_at(&self, at: usize) -> Vec<rapidr_editor::service::CodeAction> {
+        if self.file_name.is_empty() || !self.opts.language_service || !rapidr_editor::service::available(&self.doc.language().id) {
+            return Vec::new();
+        }
+        let (file, text) = (self.file_name.clone(), self.doc.text());
+        let buf = self.doc.buffer();
+        let line = buf.line_of(at.min(self.doc.len_bytes()));
+        let (ls, le) = (buf.line_start(line), buf.line_end(line));
+        rapidr_editor::service::with(|s| {
+            s.update(&file, &text);
+            let here = s.code_actions(&file, at, at);
+            if here.is_empty() { s.code_actions(&file, ls, le) } else { here }
+        })
+        .unwrap_or_default()
+    }
+
     pub fn apply_edits_json(&mut self, json: &str) -> bool {
         let Ok(serde_json::Value::Array(a)) = serde_json::from_str::<serde_json::Value>(json) else { return false };
         let mut changes = Vec::new();

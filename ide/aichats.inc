@@ -24,9 +24,9 @@ DECLARE SUB AIChatsStartClick
 DECLARE SUB AIChatsUndoClick
 DECLARE SUB AIChatsSearchChanged
 DECLARE SUB AIChatsSearchKey(Key AS INTEGER, Shift AS INTEGER)
-DECLARE SUB AIRenameOkClick
-DECLARE SUB AIRenameCancelClick
-DECLARE SUB AIRenameKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB AIChatEdited(Index AS INTEGER, S AS STRING)
+DECLARE FUNCTION AIRenameChatTo(Id AS STRING, Title AS STRING) AS INTEGER
+DECLARE SUB AIChatsCopyMarkdown
 DECLARE SUB AIFillChats
 DECLARE SUB AIOpenChat(Id AS STRING, Title AS STRING)
 DECLARE FUNCTION AIChatPicked AS STRING
@@ -75,24 +75,6 @@ SUB SetUpAIChats
   AIChatUndoBtn.Caption = TR$("Undo")
   AIChatUndoBtn.AccessibleName = TR$("Undo: put the chat back")
   AIChatUndoBtn.OnClick = AIChatsUndoClick
-  AIRenameBar.Parent = AIChatsPanel
-  AIRenameBar.Align = 2
-  AIRenameBar.Height = 40
-  AIRenameBar.BevelOuter = 0
-  AIRenameBar.Visible = 0
-  AIRenameBar.AccessibleName = TR$("Rename the chat")
-  AIRenameEdit.Parent = AIRenameBar
-  AIRenameEdit.AccessibleName = TR$("The chat's new name")
-  AIRenameEdit.AccessibleDescription = TR$("Enter keeps it, Escape leaves the name as it was")
-  AIRenameEdit.OnKeyDown = AIRenameKey
-  AIRenameOk.Parent = AIRenameBar
-  AIRenameOk.Caption = TR$("Save")
-  AIRenameOk.AccessibleName = TR$("Save the new name")
-  AIRenameOk.OnClick = AIRenameOkClick
-  AIRenameCancel.Parent = AIRenameBar
-  AIRenameCancel.Caption = TR$("Cancel")
-  AIRenameCancel.AccessibleName = TR$("Keep the name as it was")
-  AIRenameCancel.OnClick = AIRenameCancelClick
   ' (where they are kept, said under the list: personal data, plainly)
   AIChatsNote.Parent = AIChatsFoot
   AIChatsNote.AutoSize = 0: AIChatsNote.WordWrap = 1
@@ -106,6 +88,8 @@ SUB SetUpAIChats
   AIChatList.OnClick = AIChatListClick
   AIChatList.OnKeyDown = AIChatListKey
   AIChatList.OnRowAction = AIChatRowAction
+  ' (Rename: the title edited in the row itself; Enter keeps, Esc leaves it)
+  AIChatList.OnEdited = AIChatEdited
   AIChatsEmpty.Parent = AIChatsPanel
   AIChatsEmpty.AutoSize = 0: AIChatsEmpty.WordWrap = 1
   AIChatsEmpty.Alignment = 2
@@ -136,9 +120,6 @@ SUB LayOutAIChats
   AIChatsStartBtn.Left = (w - bw) \ 2: AIChatsStartBtn.Top = 112
   AIChatUndoBtn.Left = w - 6 - 72: AIChatUndoBtn.Top = (36 - bh) \ 2: AIChatUndoBtn.Width = 72: AIChatUndoBtn.Height = bh
   AIChatUndoText.Left = 8: AIChatUndoText.Top = 9: AIChatUndoText.Width = w - 16 - 76: AIChatUndoText.Height = 18
-  AIRenameCancel.Left = w - 6 - 70: AIRenameCancel.Top = (40 - bh) \ 2: AIRenameCancel.Width = 70: AIRenameCancel.Height = bh
-  AIRenameOk.Left = w - 6 - 70 - 4 - 64: AIRenameOk.Top = (40 - bh) \ 2: AIRenameOk.Width = 64: AIRenameOk.Height = bh
-  AIRenameEdit.Left = 6: AIRenameEdit.Top = 8: AIRenameEdit.Width = w - 6 - 70 - 4 - 64 - 4 - 6
 END SUB
 
 SUB AIChatsFonts
@@ -152,9 +133,6 @@ SUB AIChatsFonts
   AIChatUndoText.Font = UIFont
   AIChatUndoText.Font.Color = TC("page.text")
   AIChatUndoBtn.Font = UIFont
-  AIRenameEdit.Font = UIFont
-  AIRenameOk.Font = UIFont
-  AIRenameCancel.Font = UIFont
   AIChatsNote.Font = DimFont
   AIChatsNote.Font.Color = TC("page.dim")
 END SUB
@@ -330,8 +308,41 @@ SUB AIShowChats(Show AS INTEGER)
 END SUB
 
 ' (the list, as the search box says: the newest first, this chat marked)
+' (CONTEXT-MENUS 2b) A day's number from a date's "YYYY-MM-DD" (days
+' from 1970-01-01: Howard Hinnant's days-from-civil)
+FUNCTION AIDayNumber(Y AS INTEGER, M AS INTEGER, D AS INTEGER) AS LONG
+  DIM yy AS LONG, era AS LONG, yoe AS LONG, doy AS LONG, doe AS LONG, mp AS LONG
+  yy = Y
+  IF M <= 2 THEN yy = yy - 1
+  IF yy >= 0 THEN era = yy \ 400 ELSE era = (yy - 399) \ 400
+  yoe = yy - era * 400
+  IF M > 2 THEN mp = M - 3 ELSE mp = M + 9
+  doy = (153 * mp + 2) \ 5 + D - 1
+  doe = yoe * 365 + yoe \ 4 - yoe \ 100 + doy
+  Result = era * 146097 + doe - 719468
+END FUNCTION
+
+' (how many days ago a chat was last changed, on this computer's calendar:
+' its time is UTC — ISO 8601 —, the local day is DATE$'s; the offset is
+' the local clock's against Repo.Now's)
+FUNCTION AIDaysAgo(When AS STRING) AS INTEGER
+  DIM today AS LONG, secs AS DOUBLE, local AS DOUBLE, offs AS DOUBLE, t AS DOUBLE, dl AS STRING
+  IF LEN(When) < 19 THEN
+    Result = 99
+    EXIT FUNCTION
+  END IF
+  dl = DATE$
+  today = AIDayNumber(VAL(MID$(dl, 7, 4)), VAL(LEFT$(dl, 2)), VAL(MID$(dl, 4, 2)))
+  local = today * 86400# + TIMER
+  offs = local - Repo.Now
+  ' (to the quarter hour: the two clocks are read a moment apart)
+  offs = INT(offs / 900 + 0.5) * 900
+  t = AIDayNumber(VAL(LEFT$(When, 4)), VAL(MID$(When, 6, 2)), VAL(MID$(When, 9, 2))) * 86400# + VAL(MID$(When, 12, 2)) * 3600 + VAL(MID$(When, 15, 2)) * 60 + VAL(MID$(When, 18, 2)) + offs
+  Result = today - INT(t / 86400)
+END FUNCTION
+
 SUB AIFillChats
-  DIM list AS STRING, i AS INTEGER, line AS STRING, item AS STRING, q AS INTEGER, dt AS STRING, at AS INTEGER
+  DIM list AS STRING, i AS INTEGER, line AS STRING, item AS STRING, q AS INTEGER, dt AS STRING, at AS INTEGER, grp AS INTEGER, was AS INTEGER, head AS STRING, n AS INTEGER
   IF AIChatProject = CHR$(1) THEN EXIT SUB
   IF LTRIM$(AIChatSearch.Text) = "" THEN
     list = AITools.ChatList(AIChatProject)
@@ -342,10 +353,29 @@ SUB AIFillChats
   AIChatIds = ""
   AIChatTitles = ""
   at = -1
+  was = -1
   IF list <> "" THEN
     FOR i = 1 TO TALLY(list, CHR$(10)) + 1
       line = FIELD$(list, CHR$(10), i)
       IF line <> "" THEN
+        ' (a heading row before each day's group: Today, Yesterday,
+        ' Earlier — not chosen by a click or the keys)
+        grp = AIDaysAgo(FIELD$(line, CHR$(9), 3))
+        IF grp > 2 THEN grp = 2
+        IF grp < 0 THEN grp = 0
+        IF grp <> was THEN
+          SELECT CASE grp
+            CASE 0: head = TR$("Today")
+            CASE 1: head = TR$("Yesterday")
+            CASE ELSE: head = TR$("Earlier")
+          END SELECT
+          AIChatList.AddItems head
+          AIChatList.Heading AIChatList.ItemCount - 1, 1
+          AIChatIds = AIChatIds + CHR$(10)
+          AIChatTitles = AIChatTitles + CHR$(10)
+          was = grp
+        END IF
+        n = n + 1
         q = VAL(FIELD$(line, CHR$(9), 4))
         dt = MID$(FIELD$(line, CHR$(9), 3), 1, 10)
         item = FIELD$(line, CHR$(9), 2)
@@ -362,7 +392,8 @@ SUB AIFillChats
     NEXT
   END IF
   IF AIChatList.ItemCount > 0 THEN
-    IF at >= 0 THEN AIChatList.ItemIndex = at ELSE AIChatList.ItemIndex = 0
+    ' (the first row is a heading: the first chat under it)
+    IF at >= 0 THEN AIChatList.ItemIndex = at ELSE AIChatList.ItemIndex = 1
   END IF
   ' (the rows' actions, in Studio's language — rename is F2, delete Del)
   AIChatList.RowActions = "rename:" + TR$("Rename (F2)") + ",delete:" + TR$("Delete (Del)") + ",more:" + TR$("More actions (Shift+F10)")
@@ -378,7 +409,7 @@ SUB AIFillChats
       AIChatList.AccessibleDescription = TR$("No chat has {q}{text}{q}.", "q", CHR$(34), "text", AIChatSearch.Text)
     END IF
   ELSE
-    AIChatList.AccessibleDescription = TRN$("{n} chat", "{n} chats", AIChatList.ItemCount)
+    AIChatList.AccessibleDescription = TRN$("{n} chat", "{n} chats", n)
   END IF
 END SUB
 
@@ -456,45 +487,66 @@ SUB AIChatsOpenClick
   AIShowChats 0
 END SUB
 
+' (CONTEXT-MENUS 2b) Rename: the chat's title edited in its row (Enter
+' keeps it, Esc leaves it as it was)
 SUB AIChatsRenameClick
-  IF AIChatPicked = "" THEN EXIT SUB
-  AIRenameEdit.Text = FIELD$(AIChatTitles, CHR$(10), AIChatList.ItemIndex + 1)
-  AIChatUndoBar.Visible = 0
-  AIRenameBar.Visible = 1
-  AIRenameEdit.SetFocus
-END SUB
-
-SUB AIRenameKey(Key AS INTEGER, Shift AS INTEGER)
-  IF Key = 13 THEN
-    Key = 0
-    AIRenameOkClick
-  ELSEIF Key = 27 THEN
-    Key = 0
-    AIRenameCancelClick
-  END IF
-END SUB
-
-SUB AIRenameOkClick
-  DIM id AS STRING, t AS STRING
+  DIM id AS STRING
   id = AIChatPicked
-  t = LTRIM$(RTRIM$(AIRenameEdit.Text))
-  IF id = "" OR t = "" THEN
-    AIRenameCancelClick
+  IF id = "" THEN EXIT SUB
+  AIRenaming = id
+  AIChatUndoBar.Visible = 0
+  AIChatList.SetFocus
+  AIChatList.EditItem AIChatList.ItemIndex, FIELD$(AIChatTitles, CHR$(10), AIChatList.ItemIndex + 1)
+END SUB
+
+' (the title kept: renamed, the list made again; S, what the row shows
+' now, is the row made for it)
+SUB AIChatEdited(Index AS INTEGER, S AS STRING)
+  DIM id AS STRING
+  id = AIRenaming
+  AIRenaming = ""
+  IF id = "" THEN id = FIELD$(AIChatIds, CHR$(10), Index + 1)
+  IF AIRenameChatTo(id, S) = 0 THEN
+    S = AIChatList.Item(Index)
     EXIT SUB
   END IF
-  IF AITools.RenameChat(AIChatProject, id, t) THEN
-    IF id = AIChatId THEN
+  AIFillChats
+  AISelectChat id
+  S = AIChatList.Item(Index)
+END SUB
+
+' (chat Id given a new title; 1 when it was renamed)
+FUNCTION AIRenameChatTo(Id AS STRING, Title AS STRING) AS INTEGER
+  DIM t AS STRING
+  t = LTRIM$(RTRIM$(Title))
+  IF Id = "" OR t = "" THEN EXIT FUNCTION
+  IF AITools.RenameChat(AIChatProject, Id, t) THEN
+    IF Id = AIChatId THEN
       AIChatName = t
       AIShowChatTitle
     END IF
     AIStatus.SimpleText = TR$("Renamed: {q}{title}{q}.", "q", CHR$(34), "title", t)
+    Result = 1
   ELSE
     AIStatus.SimpleText = TR$("That chat couldn't be renamed.")
   END IF
-  AIRenameBar.Visible = 0
-  AIFillChats
-  AISelectChat id
-  AIChatList.SetFocus
+END FUNCTION
+
+' Copy as Markdown: the chat — its title, its questions and answers — on
+' the clipboard, as Markdown.
+SUB AIChatsCopyMarkdown
+  DIM id AS STRING, t AS STRING
+  id = AIChatPicked
+  IF id = "" THEN EXIT SUB
+  IF id = AIChatId THEN AISaveChat
+  t = AITools.ChatMarkdown(AIChatProject, id, FIELD$(AIChatTitles, CHR$(10), AIChatList.ItemIndex + 1), TR$("You"), "RAI")
+  IF t = "" THEN
+    AIStatus.SimpleText = TR$("That chat couldn't be read.")
+    EXIT SUB
+  END IF
+  Clipboard.Text = t
+  AIStatus.SimpleText = TR$("Copied the chat as Markdown.")
+  SetState RunState, TR$("Copied the chat as Markdown")
 END SUB
 
 ' (chat Id chosen in the list, when it shows it)
@@ -503,11 +555,6 @@ SUB AISelectChat(Id AS STRING)
   FOR i = 1 TO TALLY(AIChatIds, CHR$(10))
     IF FIELD$(AIChatIds, CHR$(10), i) = Id THEN AIChatList.ItemIndex = i - 1
   NEXT
-END SUB
-
-SUB AIRenameCancelClick
-  AIRenameBar.Visible = 0
-  AIChatList.SetFocus
 END SUB
 
 ' Delete: the chat removed from this computer at once; Undo (beside the
@@ -534,7 +581,6 @@ SUB AIChatsDeleteClick
     AIChat.Text = AI.Transcript
     AIShowChatTitle
   END IF
-  AIRenameBar.Visible = 0
   AIChatUndoText.Caption = TR$("Deleted {q}{title}{q}.", "q", CHR$(34), "title", title)
   AIChatUndoBar.Visible = 1
   AIStatus.SimpleText = TR$("Deleted {q}{title}{q}. Undo puts it back.", "q", CHR$(34), "title", title)
@@ -664,7 +710,23 @@ END SUB
 ' (tests and the manual's scenes: ai:chats, ai:chatopen=N, ai:chatrename=N|name,
 ' ai:chatdelete=N, ai:chatundo, ai:chatsearch=text, ai:edit=N|text,
 ' ai:retry, ai:thought=N; True when Verb was one)
+' (the list's row of the Nth chat, from 1: its headings passed over)
+FUNCTION AIChatRow(N AS INTEGER) AS INTEGER
+  DIM i AS INTEGER, k AS INTEGER
+  Result = -1
+  FOR i = 1 TO TALLY(AIChatIds, CHR$(10))
+    IF FIELD$(AIChatIds, CHR$(10), i) <> "" THEN
+      k = k + 1
+      IF k = N THEN
+        Result = i - 1
+        EXIT FUNCTION
+      END IF
+    END IF
+  NEXT
+END FUNCTION
+
 FUNCTION AIChatStep(Verb AS STRING, Arg AS STRING) AS INTEGER
+  DIM id AS STRING
   Result = 1
   SELECT CASE Verb
     CASE "chats": AIShowChats 1
@@ -675,17 +737,20 @@ FUNCTION AIChatStep(Verb AS STRING, Arg AS STRING) AS INTEGER
       AIFillChats
     CASE "chatopen"
       AIShowChats 1
-      AIChatList.ItemIndex = VAL(Arg) - 1
+      AIChatList.ItemIndex = AIChatRow(VAL(Arg))
       AIChatsOpenClick
     CASE "chatrename"
+      ' (chatrename:N|name — the Nth chat, its headings not counted)
       AIShowChats 1
-      AIChatList.ItemIndex = VAL(FIELD$(Arg, "|", 1)) - 1
-      AIChatsRenameClick
-      AIRenameEdit.Text = FIELD$(Arg, "|", 2)
-      AIRenameOkClick
+      AIChatList.ItemIndex = AIChatRow(VAL(FIELD$(Arg, "|", 1)))
+      id = AIChatPicked
+      IF AIRenameChatTo(id, FIELD$(Arg, "|", 2)) THEN
+        AIFillChats
+        AISelectChat id
+      END IF
     CASE "chatdelete"
       AIShowChats 1
-      AIChatList.ItemIndex = VAL(Arg) - 1
+      AIChatList.ItemIndex = AIChatRow(VAL(Arg))
       AIChatsDeleteClick
     CASE "chatundo": AIChatsUndoClick
     CASE "edit"

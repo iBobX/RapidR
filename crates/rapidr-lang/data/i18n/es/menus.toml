@@ -51,3 +51,4 @@
 "RPOPUPMENU.WINDOWHANDLE" = "La ventana que recibe los mensajes del menú contextual."
 "RMENUITEM.DEFAULT" = "Muestra las palabras del elemento en negrita: la acción predeterminada de aquello para lo que es el menú (lo que hace allí un doble clic o Intro). Uno por menú."
 "RPOPUPMENU.SYSTEMMENU" = "True (lo predeterminado): en macOS y Windows el menú lo muestra el sistema, como sus otros menús. False: RapidR lo dibuja en todos los sistemas, con el aspecto del programa (claro, oscuro, alto contraste de RapidR), así que aparece en capturas y grabaciones y las herramientas de IA de RapidR pueden ver y elegir sus elementos. Los menús de RapidR Studio se dibujan así."
+"RPOPUPMENU.ACCESSIBLENAME" = "Cómo llama un lector de pantalla al menú mientras está abierto: di para qué es, \"Acciones para orders.rr\". Sin él, \"Menú\"."

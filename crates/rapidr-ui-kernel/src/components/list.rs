@@ -62,6 +62,9 @@ pub enum ListAction {
     /// A tree's node's edit ended with Enter: OnEdited (Index, S), the node
     /// gets S.
     TreeEdited(usize, String),
+    /// (CONTEXT-MENUS) A list box's item's edit (EditItem) ended with Enter:
+    /// OnEdited (Index, S), the item gets S.
+    ListEdited(usize, String),
     /// A grid's cell picked (`extend`: the range grows to it):
     /// OnSelectCell (Col, Row, CanSelect) may put it back.
     GridSelect(i64, i64, bool),
@@ -321,6 +324,7 @@ pub(crate) fn focus_left(id: &str, type_name: &str, events: &mut Vec<KernelEvent
     let id = id.to_lowercase();
     match type_name {
         "RTREEVIEW" => events.push(KernelEvent::List(id, ListAction::TreeEdited(ed.target.0, ed.text))),
+        "RLISTBOX" => events.push(KernelEvent::List(id, ListAction::ListEdited(ed.target.0, ed.text))),
         "RSTRINGGRID" => events.push(KernelEvent::List(id, ListAction::GridStore(ed.text))),
         "RLISTVIEW" => events.extend(super::listview::edited(&id, ed)),
         // (I1 / L-PANELS: a panel's search box or value editor)
@@ -752,6 +756,9 @@ fn action_rows(id: &str, focused: bool, current: i64) -> (Option<usize>, Option<
 
 /// The action (row, index) at (x, y) of the component.
 fn action_at(id: &str, x: f64, y: f64, w: i64, h: i64) -> Option<(usize, usize)> {
+    if item_at(id, x, y, w, h).is_some_and(|i| with_list(id, |l| l.is_heading(i)).unwrap_or(false)) {
+        return None;
+    }
     let n = with_list(id, |l| l.row_actions.len()).unwrap_or(0);
     if n == 0 {
         return None;
@@ -816,6 +823,52 @@ pub fn item_rect(id: &str, i: usize, w: i64, h: i64) -> Option<Rect> {
 }
 
 impl ListBox {
+    /// (CONTEXT-MENUS) EditItem asked for: the editor opens on its item.
+    fn open_asked(cx: &mut Cx) {
+        if let Some((i, text)) = with_list_mut(cx.id, |l| l.pending_edit.take()).flatten() {
+            begin_edit(cx.id, InPlace { target: (i, 0), text, rect: None });
+        }
+    }
+
+    /// The editor's box: over its item's text.
+    fn edit_rect(cx: &Cx) -> Option<Rect> {
+        let ed = editing(cx.id)?;
+        let (w, h) = (cx.width(), cx.height());
+        let (_, y, iw, rh) = item_rect(cx.id, ed.target.0, w, h)?;
+        let (_, bar, _) = vscroll_state(cx.id);
+        let cw = iw.min(w - 4 - if bar { rapidr_value::scrollbars::BAR } else { 0 });
+        Some((4, y, (cw - 4).max(40), rh))
+    }
+
+    /// An edit going on ends: kept (OnEdited) or dropped.
+    fn finish_edit(cx: &mut Cx, keep: bool) {
+        if let Some(ed) = end_edit(cx.id) {
+            cx.ui.edit = None;
+            if keep {
+                act(cx, ListAction::ListEdited(ed.target.0, ed.text));
+            }
+        }
+    }
+
+    /// The next item from `from` a step `dir` (+1 / -1) at a time that
+    /// isn't a heading — else the nearest the other way; `from` itself when
+    /// every item is one.
+    fn not_heading(id: &str, from: i64, dir: i64, count: i64) -> i64 {
+        let heading = |i: i64| with_list(id, |l| l.is_heading(i as usize)).unwrap_or(false);
+        let mut i = from.clamp(0, (count - 1).max(0));
+        while (0..count).contains(&i) && heading(i) {
+            i += dir;
+        }
+        if (0..count).contains(&i) {
+            return i;
+        }
+        let mut j = from.clamp(0, (count - 1).max(0));
+        while (0..count).contains(&j) && heading(j) {
+            j -= dir;
+        }
+        if (0..count).contains(&j) { j } else { from }
+    }
+
     /// (CONTEXT-MENUS) Row `row`'s action `k` used: OnRowAction(Index,
     /// Action) — "more" is the row's OnContextMenu instead (Key 4, at the
     /// button's bottom right).
@@ -945,10 +998,19 @@ impl ComponentKind for ListBox {
                     if top >= ih {
                         break;
                     }
-                    let selected = l.is_selected(i);
-                    let color = if selected { selected_row(p, (0, top, cw, rh), cx.state.focused) } else { text_color };
                     let text = l.items[i].replace(['\n', '\r', '\t'], " ");
                     let x = text_indent(p);
+                    // (CONTEXT-MENUS: a heading row — a group's title — in
+                    // the quieter colour, bold, never selected)
+                    if l.is_heading(i) {
+                        let mut bold = font.clone();
+                        bold.styles |= 1;
+                        let dim = if cx.state.enabled { p.theme().secondary_text() } else { text_color };
+                        p.text((x, top, (cw - x).max(0), rh), &text, &bold, dim, Place::Left);
+                        continue;
+                    }
+                    let selected = l.is_selected(i);
+                    let color = if selected { selected_row(p, (0, top, cw, rh), cx.state.focused) } else { text_color };
                     // (CONTEXT-MENUS: the row actions on the hovered row and
                     // the focused list's current one; the text stops before them)
                     let acts = if l.row_actions.is_empty() || !cx.state.enabled { 0 } else { l.row_actions.len() };
@@ -996,6 +1058,11 @@ impl ComponentKind for ListBox {
             });
             p.ops(bar);
         });
+        // (CONTEXT-MENUS: an item's editor, EditItem's, over its text)
+        Self::open_asked(cx);
+        if let Some(r) = Self::edit_rect(cx) {
+            p.clipped((2, 2, w - 4, h - 4), |p| paint_editor(cx, p, (r.0, r.1, r.2, r.3)));
+        }
     }
 
     fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
@@ -1012,6 +1079,16 @@ impl ComponentKind for ListBox {
         let inner = MouseIn { x: m.x - 2.0, y: m.y - 2.0, ..*m };
         if bar_mouse(cx, &inner, w - 4, h - 4) {
             return MouseOut::default();
+        }
+        // (CONTEXT-MENUS: an item's editor takes the mouse over it; a press
+        // elsewhere ends it, keeping the text, as Windows' editors)
+        if let Some(r) = Self::edit_rect(cx) {
+            if editor_mouse(cx, m, r) {
+                return MouseOut::default();
+            }
+            if m.kind == MouseKind::Down {
+                Self::finish_edit(cx, true);
+            }
         }
         // (CONTEXT-MENUS: the row and the row action under the mouse)
         if matches!(m.kind, MouseKind::Move | MouseKind::Leave) {
@@ -1032,7 +1109,7 @@ impl ComponentKind for ListBox {
         if m.kind == MouseKind::Down && m.button == rapidr_value::input::Button::Right {
             // (CONTEXT-MENUS: a right press marks ContextIndex — it doesn't
             // select, as RapidQ's list box doesn't)
-            let at = item_at(cx.id, m.x, m.y, w, h);
+            let at = item_at(cx.id, m.x, m.y, w, h).filter(|&i| !with_list(cx.id, |l| l.is_heading(i)).unwrap_or(false));
             with_list_mut(cx.id, |l| l.context_index = at);
             return MouseOut { press: false, focus: Some(false) };
         }
@@ -1042,7 +1119,7 @@ impl ComponentKind for ListBox {
                 Self::row_action(cx, row, k, w, h);
                 return MouseOut::default();
             }
-            if let Some(i) = item_at(cx.id, m.x, m.y, w, h) {
+            if let Some(i) = item_at(cx.id, m.x, m.y, w, h).filter(|&i| !with_list(cx.id, |l| l.is_heading(i)).unwrap_or(false)) {
                 Self::pick(cx, i, m.mods.shift, m.mods.ctrl || m.mods.command, m.double());
             }
         }
@@ -1068,7 +1145,18 @@ impl ComponentKind for ListBox {
         row_actions(id).get(k).map(|a| a.1.clone())
     }
 
-    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
+    fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        // (CONTEXT-MENUS: while an item is edited, the keys are its editor's)
+        Self::open_asked(cx);
+        if editing(cx.id).is_some() {
+            let r = Self::edit_rect(cx).unwrap_or((4, 2, cx.width() - 8, 20));
+            if let Some(end) = edit_key(cx, k, clip, r) {
+                if let Some(keep) = end {
+                    Self::finish_edit(cx, keep);
+                }
+                return true;
+            }
+        }
         if k.mods.alt || k.mods.command {
             return false;
         }
@@ -1103,6 +1191,9 @@ impl ComponentKind for ListBox {
             _ => return false,
         };
         let next = next.clamp(0, (count - 1).max(0));
+        // (CONTEXT-MENUS: a heading row is passed over, the way the key went)
+        let dir = if matches!(k.vk, 38 | 37 | 33 | 35) { -1 } else { 1 };
+        let next = if count > 0 { Self::not_heading(cx.id, next, if k.vk == 35 { -1 } else if k.vk == 36 { 1 } else { dir }, count) } else { next };
         if count > 0 && next != current {
             Self::pick(cx, next as usize, k.mods.shift, false, false);
             if let Some((_, y, _, rh)) = item_rect(cx.id, next as usize, w, h) {
@@ -1123,11 +1214,36 @@ impl ComponentKind for ListBox {
             if let Some((x, y, iw, ih)) = item_rect(cx.id, i, w, h) {
                 o.bounds = (cx.rect.0 + x, cx.rect.1 + y, iw, ih);
             }
+            // (CONTEXT-MENUS: a heading row is a heading, nothing to pick)
+            if with_list(cx.id, |l| l.is_heading(i)).unwrap_or(false) {
+                o.role = rapidr_value::objects::a11y::Role::Heading;
+                o.actions.clear();
+                o.states.selected = None;
+                continue;
+            }
             if !acts.is_empty() {
                 o.description = acts.join(", ");
             }
         }
         n
+    }
+
+    // (CONTEXT-MENUS: EditItem's editor — input methods, its own menu)
+    fn ime(&self, cx: &mut Cx, ime: &super::Ime) -> bool {
+        Self::open_asked(cx);
+        Self::edit_rect(cx).is_some_and(|r| editor_ime(cx, ime, r))
+    }
+
+    fn ime_area(&self, cx: &mut Cx) -> Option<Rect> {
+        editor_ime_area(cx, Self::edit_rect(cx)?)
+    }
+
+    fn wants_ime(&self, _store: &dyn crate::store::Store, id: &str) -> bool {
+        editing(id).is_some()
+    }
+
+    fn context_menu(&self, cx: &mut Cx) -> Option<super::edit::MenuState> {
+        editor_menu(cx, Self::edit_rect(cx)?)
     }
 
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {
@@ -1246,6 +1362,101 @@ mod tests {
         assert_eq!(asked, Some(("cl".into(), 8, 2 + rh, 1)), "{ev:?}");
         assert!(f.menus.key_popup);
         assert_eq!(with_list("cl", |l| l.context_index), Some(Some(0)));
+    }
+
+    /// (CONTEXT-MENUS 2b) A tree's right click marks ContextIndex without
+    /// selecting (Windows' tree view doesn't); Shift+F10 puts the menu under
+    /// the selected node, which is ContextIndex then.
+    #[test]
+    fn a_trees_right_click_marks_context_index() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let (s, mut f, mut ts) = tree_form();
+        with_tree("tv", |t| t.select(0));
+        let rh = with_tree("tv", |t| t.row_height()).unwrap();
+        let y = 2.0 + rh as f64 * 1.5;
+        f.mouse_down(&s, &mut ts, 30.0, y, Button::Right, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 30.0, y, Button::Right, Mods::NONE);
+        let ev = f.take_events();
+        assert!(ev.iter().any(|e| matches!(e, KernelEvent::ContextMenu { id, key: 0, .. } if id == "tv")), "{ev:?}");
+        assert_eq!(with_tree("tv", |t| (t.item_index, t.context_index)), Some((0, Some(1))));
+        let shift = Mods { shift: true, ..Mods::NONE };
+        f.key_down(&s, &mut ts, 121, "", shift, &mut crate::MemClipboard::default());
+        let ev = f.take_events();
+        let asked = ev.iter().find_map(|e| if let KernelEvent::ContextMenu { id, y, key, .. } = e { Some((id.clone(), *y, *key)) } else { None });
+        assert_eq!(asked, Some(("tv".into(), 2 + rh, 1)), "{ev:?}");
+        assert_eq!(with_tree("tv", |t| t.context_index), Some(Some(0)));
+    }
+
+    /// (CONTEXT-MENUS 2b) Heading rows: a click doesn't pick one, the keys
+    /// pass over them, a screen reader hears a heading.
+    #[test]
+    fn heading_rows_are_passed_over() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("hl", "RLISTBOX", Some("f")).set("hl", "left", v_int(10)).set("hl", "top", v_int(10)).set("hl", "width", v_int(140)).set("hl", "height", v_int(120));
+            s.call("hl", "additems", &[v_str("Today"), v_str("a"), v_str("Earlier"), v_str("b")]);
+            s.call("hl", "heading", &[v_int(0), v_int(1)]);
+            s.call("hl", "heading", &[v_int(2), v_int(1)]);
+        });
+        let rh = with_list("hl", |l| l.row_height()).unwrap() as f64;
+        // (a click on the heading: nothing picked)
+        click(&mut f, &s, &mut ts, 30.0, 12.0 + rh / 2.0);
+        assert_eq!(with_list("hl", |l| l.item_index), Some(-1));
+        // (a click on "a", then Down: "b", the heading passed over; Up: "a";
+        // Home: "a", not the heading)
+        click(&mut f, &s, &mut ts, 30.0, 12.0 + rh * 1.5);
+        assert_eq!(with_list("hl", |l| l.item_index), Some(1));
+        let mut clip = crate::MemClipboard::default();
+        f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut clip);
+        assert_eq!(with_list("hl", |l| l.item_index), Some(3));
+        f.key_down(&s, &mut ts, 38, "", Mods::NONE, &mut clip);
+        assert_eq!(with_list("hl", |l| l.item_index), Some(1));
+        f.key_down(&s, &mut ts, 36, "", Mods::NONE, &mut clip);
+        assert_eq!(with_list("hl", |l| l.item_index), Some(1));
+        // (it goes with its item: one added before it moves it down)
+        with_list_mut("hl", |l| {
+            l.call("insertitem", &[v_int(0), v_str("x")]);
+        });
+        assert_eq!(with_list("hl", |l| (l.is_heading(0), l.is_heading(1), l.is_heading(3))), Some((false, true, true)));
+        let tree = f.access_tree(&s, &mut ts);
+        let mut roles = Vec::new();
+        fn walk(n: &rapidr_value::objects::a11y::AccessNode, out: &mut Vec<rapidr_value::objects::a11y::Role>) {
+            out.push(n.role);
+            for c in &n.children {
+                walk(c, out);
+            }
+        }
+        walk(&tree, &mut roles);
+        assert!(roles.contains(&rapidr_value::objects::a11y::Role::Heading), "{roles:?}");
+    }
+
+    /// (CONTEXT-MENUS 2b) EditItem: the item's editor in place; Enter keeps
+    /// the text (ListEdited, OnEdited), Esc leaves it.
+    #[test]
+    fn a_list_items_editor_in_place() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("el", "RLISTBOX", Some("f")).set("el", "left", v_int(10)).set("el", "top", v_int(10)).set("el", "width", v_int(140)).set("el", "height", v_int(90));
+            s.call("el", "additems", &[v_str("one"), v_str("two")]);
+        });
+        f.focus_id(&s, "el");
+        with_list_mut("el", |l| {
+            l.call("edititem", &[v_int(1)]);
+        });
+        let mut clip = crate::MemClipboard::default();
+        // (the editor opens on the next input, the text all selected: typed over)
+        type_text(&mut f, &s, &mut ts, "Zwei", &mut clip);
+        f.take_events();
+        key(&mut f, &s, &mut ts, 13, Mods::NONE, &mut clip);
+        assert_eq!(lists(f.take_events()), vec![KernelEvent::List("el".into(), ListAction::ListEdited(1, "Zwei".into()))]);
+        assert!(super::editing("el").is_none());
+        with_list_mut("el", |l| {
+            l.call("edititem", &[v_int(0), v_str("uno")]);
+        });
+        type_text(&mut f, &s, &mut ts, "x", &mut clip);
+        key(&mut f, &s, &mut ts, 27, Mods::NONE, &mut clip);
+        assert!(lists(f.take_events()).is_empty());
+        assert!(super::editing("el").is_none());
     }
 
     #[test]
