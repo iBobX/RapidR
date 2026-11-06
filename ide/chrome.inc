@@ -316,12 +316,15 @@ END FUNCTION
 
 ' ---- Chinese on a computer with no font for it ---------------------------------
 ' RapidR draws Chinese with the computer's own fonts and bundles none (their
-' licences allow it on the web only: docs/legal/i18n-zh-font.md). A Linux
-' with no CJK font shows empty boxes: Studio says so, in the language and in
-' English, and names the free package to install. It installs nothing. The
-' test: the canvas draws a character no font has as a "?", so a Chinese
-' character drawn the very same as "?" has no font. (RAPIDR_TEST_NO_CJK: the
-' note, whatever the fonts, for the tests that look at it.)
+' licences allow it on the web only: docs/legal/i18n-zh-font.md). A computer
+' with no Chinese font shows empty boxes: Studio says so, in the language and
+' in English, and says how to add the system's own Chinese support (a Linux:
+' the free package; Windows XP: its East Asian files, from the Windows CD;
+' newer Windows: the Chinese language, whose fonts come with it). It installs
+' nothing and names no other source of fonts. The test, on any desktop: the
+' canvas draws a character no font has as a "?", so a Chinese character drawn
+' the very same as "?" has no font. (RAPIDR_TEST_NO_CJK: the note, whatever
+' the fonts, for the tests that look at it.)
 DIM ZhProbeA AS RBitmap
 DIM ZhProbeB AS RBitmap
 
@@ -346,18 +349,29 @@ FUNCTION ChineseFontMissing() AS INTEGER
   Result = 1
 END FUNCTION
 
-' (Studio's Output, once at the start: only a Linux desktop Studio in Chinese
-' whose fonts have none for it — the web has its own font)
+' (Studio's Output, once at the start: only a desktop Studio in Chinese whose
+' fonts have none for it — the web has its own font)
 SUB ChineseFontNote
   DIM en AS STRING
   IF LEFT$(Application.Language, 2) <> "zh" THEN EXIT SUB
   IF ENVIRON$("RAPIDR_TEST_NO_CJK") = "" THEN
-    IF Proj.FileManager = "" OR Application.OS <> "Linux" THEN EXIT SUB
+    IF Proj.FileManager = "" THEN EXIT SUB
   END IF
   IF ChineseFontMissing() = 0 THEN EXIT SUB
-  en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
-  OutputLine en
-  OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again.")
+  SELECT CASE Application.OS
+    CASE "Linux"
+      en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
+      OutputLine en
+      OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again.")
+    CASE "Windows"
+      en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+      OutputLine en
+      OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again.")
+    CASE ELSE
+      en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."
+      OutputLine en
+      OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again.")
+  END SELECT
 END SUB
 
 ' ---- line breaks in Chinese, Japanese and Korean -------------------------------

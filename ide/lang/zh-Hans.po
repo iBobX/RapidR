@@ -2020,6 +2020,14 @@ msgstr "行 {line}，列 {col}"
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
 msgstr "这台电脑上找不到可以显示中文的字体，所以中文会显示为空白方框。请安装免费的软件包 fonts-noto-cjk（例如：sudo apt install fonts-noto-cjk），然后重新启动 Studio。"
 
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+msgstr "这台电脑上找不到可以显示中文的字体，所以中文会显示为空白方框。在 Windows XP 上：控制面板 > 区域和语言选项 > 语言 > 安装东亚语言文件（需要 Windows 安装光盘）。在较新的 Windows 上：设置 > 时间和语言 > 语言 > 添加“中文(简体)”，字体会随之安装。然后重新启动 Studio。"
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."
+msgstr "这台电脑上找不到可以显示中文的字体，所以中文会显示为空白方框。请在系统的语言设置中添加“中文(简体)”，然后重新启动 Studio。"
+
 #: ide/commands.inc
 msgid "&New Project..."
 msgstr "新建项目(&N)..."

@@ -2016,6 +2016,14 @@ msgstr "Lin {line}, Col {col}"
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
 msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. Instale o pacote gratuito fonts-noto-cjk (por exemplo: sudo apt install fonts-noto-cjk) e abra o Studio de novo."
 
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. No Windows XP: Painel de controle > Opções regionais e de idioma > Idiomas > Instalar arquivos para idiomas do Leste Asiático (precisa do CD do Windows). Em um Windows mais novo: Configurações > Hora e idioma > Idioma > adicionar Chinês (simplificado); as fontes vêm junto. Depois abra o Studio de novo."
+
+#: ide/chrome.inc
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."
+msgstr "Nenhuma fonte para chinês foi encontrada neste computador, por isso o texto em chinês aparece como caixas vazias. Adicione Chinês (simplificado) nas configurações de idioma do sistema e abra o Studio de novo."
+
 #: ide/commands.inc
 msgid "&New Project..."
 msgstr "&Novo projeto..."
