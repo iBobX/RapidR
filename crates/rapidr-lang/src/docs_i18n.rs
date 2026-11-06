@@ -42,12 +42,20 @@ fn chain(tag: &str) -> Vec<String> {
 /// when it is.
 pub fn translated_doc(key: &str, tag: &str) -> Option<&'static str> {
     let key = key.to_ascii_uppercase();
+    // (a member a component has from the one it extends — RFORMEX.CAPTION —
+    // is that one's: RFORM.CAPTION, unless it has a translation of its own)
+    let base = key.split_once('.').and_then(|(c, m)| {
+        let ext = crate::COMPONENTS.iter().find(|x| x.name == c)?.extends?;
+        Some(format!("{ext}.{m}"))
+    });
     for lang in chain(tag) {
         if lang.eq_ignore_ascii_case("en") {
             return None;
         }
-        if let Some(&(_, _, t))= crate::DOC_TRANSLATIONS.iter().find(|(l, k, _)| l.eq_ignore_ascii_case(&lang) && *k == key) {
-            return Some(t);
+        for k in std::iter::once(&key).chain(base.as_ref()) {
+            if let Some(&(_, _, t)) = crate::DOC_TRANSLATIONS.iter().find(|(l, kk, _)| l.eq_ignore_ascii_case(&lang) && *kk == k.as_str()) {
+                return Some(t);
+            }
         }
     }
     None
@@ -72,13 +80,17 @@ pub fn doc_keys() -> Vec<(String, &'static str)> {
         if !c.doc.is_empty() {
             out.push((name.clone(), c.doc));
         }
-        for p in c.properties.iter().filter(|p| !p.doc.is_empty()) {
+        // (a member it has from the component it extends, with that one's
+        // doc, is translated there: `translated_doc` finds it)
+        let base = c.extends.and_then(crate::component);
+        let inherited = |member: &str, doc: &str| base.is_some_and(|b| b.member_doc(member) == Some(doc));
+        for p in c.properties.iter().filter(|p| !p.doc.is_empty() && !inherited(p.name, p.doc)) {
             out.push((format!("{name}.{}", p.name.to_ascii_uppercase()), p.doc));
         }
-        for m in c.methods.iter().filter(|m| !m.doc.is_empty()) {
+        for m in c.methods.iter().filter(|m| !m.doc.is_empty() && !inherited(m.name, m.doc)) {
             out.push((format!("{name}.{}", m.name.to_ascii_uppercase()), m.doc));
         }
-        for e in c.events.iter().filter(|e| !e.doc.is_empty()) {
+        for e in c.events.iter().filter(|e| !e.doc.is_empty() && !inherited(e.name, e.doc)) {
             out.push((format!("{name}.{}", e.name.to_ascii_uppercase()), e.doc));
         }
     }

@@ -124,6 +124,35 @@ does something defined instead, and says so:
   IF FontDlg.Execute THEN FontDlg.SetFont(Label1.Font)
   ```
 
+### QFormEx
+
+A common include, `Rapidq2.inc`, defines a form `QFormEx` that gets its
+extra features (dropped files, a tray icon, transparency, the window's
+messages) by writing machine code into memory and making it the window's
+procedure. RapidR never runs code a program writes into memory, so it
+replaces that form with its own [RFormEx](forms-ex.md), natively and on
+every system: the program runs unchanged, and everything else in the
+include stays as it is.
+
+- RapidR recognises the include's `TYPE QFormEx EXTENDS QFORM` by its public
+  members, whatever the file is called. A `QFormEx` with other members (an
+  older or newer include, or your own class of that name) isn't guessed at:
+  the compiler stops at that `TYPE` and says which members differ — rename
+  your class (`MyFormEx`), or leave the `TYPE` out to use RapidR's.
+- A form written `QFormEx` keeps the include's behaviour where it differs
+  from `RFormEx`: an empty `DragZone` (as it starts) takes no file — set a
+  zone; `Transparent` reads 0 until set, and the window stays as it is until
+  then; `OnMouseWheel` gets 1 or -1 each time, the mouse's place on the
+  screen and Windows' key flags (4 Shift, 8 Ctrl); on Windows `OnMinimise`
+  comes just before the window minimises (elsewhere the system tells RapidR
+  once it happened). `InheritOnShow` and `InheritOnClose` are accepted and
+  do nothing: RapidR does that work itself.
+- `OnMessage` hears what the include's did: every message but the ones that
+  are the form's own events (see [the window's messages](forms-ex.md#the-windows-messages-onmessage)).
+- Off Windows, `Rapidq2.inc` itself calls Windows (`GetVersion`, when it is
+  loaded), so a program that includes it stops there on macOS, Linux and the
+  web, as any program that calls Windows does.
+
 ## Extensions
 
 Everything here is RapidR's own: only RapidR builds a program that uses it.

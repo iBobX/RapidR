@@ -175,6 +175,52 @@ events = [
 ]
 
 [[component]]
+name = "RFORMEX"
+display = "FormEx"
+rapidq = "QFORMEX"
+from = "RAPIDQ2.INC"
+extends = "RFORM"
+visual = true
+container = true
+size = [320, 240]
+default_event = "OnShow"
+doc = "A form with more: files dropped onto it one by one (OnDrag), its own icon in the system tray (AddTrayIcon, OnTrayClick, an animation from TrayICO), the whole window see-through (Transparent) or only its background (TransparentClient), always on top (FormStyle = fsStayOnTop), and told when it is minimised (OnMinimise), gets or loses the focus (OnGetFocus, OnLostFocus), and, on Windows, the window's messages (OnMessage). Everything an RForm has, it has too. Written QFormEx (the name a RapidQ include gave it), it behaves exactly as that include's form: an empty DragZone takes no drop, OnMouseWheel gets the screen position and Windows' key flags, OnMinimise comes just before the window minimises, and Transparent reads 0 until the program sets it."
+example = "CREATE Main AS RFormEx\n    Caption = \"Drop files here\"\n    DragEnable = True\n    OnDrag = FileDropped\nEND CREATE\n\nSUB FileDropped(File AS STRING)\n    Main.Caption = File\nEND SUB\n\nMain.ShowModal"
+properties = [
+  { name = "DragEnable", type = "bool", default = false, category = "Behavior", doc = "True: files dragged from the computer (Finder, File Explorer, a file manager) can be dropped on the form, and OnDrag hears each one. False: the form doesn't take them (OnDropFiles, every form's, still does when it is bound)." },
+  { name = "DragZone", type = "component", kinds = ["QRECT"], design = false, doc = "Where on the form a drop counts: `DragZone.Left`, `.Top`, `.Right`, `.Bottom`, in the form's client pixels (Right and Bottom outside the zone). Empty (Right not past Left or Bottom not past Top, as it starts): the whole form; written QFormEx, an empty zone takes no drop at all, as the include's form did." },
+  { name = "DropPoint", type = "any", access = "read", design = false, doc = "Where the last file was dropped: `DropPoint.X`, `DropPoint.Y`, in the form's client pixels. Set before OnDrag." },
+  { name = "FormStyle", type = "enum", values = ["fsNormal", "fsStayOnTop"], default = "fsNormal", category = "Window", doc = "fsStayOnTop keeps the window above other programs' windows (on Wayland the compositor decides; in a browser it stays above the page's other windows); fsNormal makes it an ordinary window again. An RForm's FormStyle does nothing, as RapidQ's QFORM." },
+  { name = "TrayICO", type = "component", kinds = ["QIMAGELIST"], access = "read", design = false, doc = "The tray icon's pictures, an RImageList of the form's own: `Main.TrayICO.AddICOFile \"app.ico\"` (AddBMPFile, AddICOHandle, AddSVGFile too). With none, the tray shows the form's icon, else the application's, else RapidR's." },
+  { name = "TrayIconHint", type = "string", category = "Behavior", doc = "The tray icon's tooltip; the application's title until set. Changing it while the icon shows changes the tooltip at once." },
+  { name = "TrayIconIndex", type = "int", default = 0, range = "0..", category = "Appearance", doc = "Which of TrayICO's pictures the tray shows, from 1 (0, as it starts, is the first too). A number past the last is ignored. Setting it while the icon shows changes the picture at once." },
+  { name = "TrayIconUpdate", type = "int", default = 2000, range = "0..", unit = "ms", category = "Appearance", doc = "With two pictures or more in TrayICO, they take turns in the tray at this pace (an animation), from when the form shows; 0 stops it." },
+  { name = "TrayIconShown", type = "bool", access = "read", design = false, origin = "rapidr", doc = "True while the form's icon is in the system tray (after AddTrayIcon, until DelTrayIcon or the form closes)." },
+  { name = "Transparent", type = "int", default = 255, range = "0..255", category = "Appearance", doc = "How opaque the whole window is — frame, title bar, controls and all: 255 opaque, 127 half see-through, 0 invisible (it still takes the mouse). Values outside 0 to 255 are ignored. Written QFormEx it reads 0 until the program sets it, and the window stays as it is until then. Windows, macOS and Linux X11 (with a compositor) and the web; not on Wayland." },
+  { name = "TransparentClient", type = "bool", default = false, category = "Appearance", doc = "True turns the form's background colour (its Color) into a hole: the desktop shows through and clicks there go to whatever is behind. The controls stay, except their parts in exactly that colour. Windows, macOS, Linux X11 and the web; not on Wayland." },
+]
+methods = [
+  { name = "AddTrayIcon", effects = ["ui"], doc = "Puts the form's icon in the system tray — the notification area on Windows, the menu bar on macOS, the panel on Linux, a strip in the page on the web — with TrayICO's picture (TrayIconIndex) and the TrayIconHint tooltip. OnTrayClick and OnTrayDblClick hear it. Calling it again while it shows does nothing." },
+  { name = "DelTrayIcon", effects = ["ui"], doc = "Takes the form's icon out of the system tray. Closing the form for good and the program ending take it away too." },
+  { name = "ModifyTrayIcon", effects = ["ui"], doc = "Shows the tray icon again with the current picture and tooltip (setting TrayIconHint or TrayIconIndex does it already)." },
+  { name = "SetTrayIconIndex", params = "Index AS INTEGER", effects = ["ui"], doc = "Shows TrayICO's picture number `Index` (from 1) in the tray: the same as setting TrayIconIndex." },
+  { name = "RemoveTaskBar", effects = ["ui"], doc = "Takes the window's button off the Windows taskbar (a program that lives in the tray). Elsewhere it does nothing: macOS shows the application in the Dock, not its windows." },
+  { name = "InheritOnShow", effects = ["none"], doc = "Accepted and does nothing: the work the include's own OnShow did (hooking the window, starting the tray animation) is RFormEx's own. A program that set OnShow calls it, as it did there." },
+  { name = "InheritOnClose", effects = ["none"], doc = "Accepted and does nothing: what the include's own OnClose did (taking the tray icon away) RFormEx does itself when the form closes." },
+]
+events = [
+  { name = "OnDrag", params = "File AS STRING", doc = "A file was dropped on the form (with DragEnable = True, inside DragZone): once for each file of the drop, in the order the system gave them, with its whole path; DropPoint says where. In a browser the file is read into the program's own files and `File` is its name." },
+  { name = "OnTrayClick", doc = "The right mouse button was released on the form's tray icon (on macOS also a Control-click): the place to show a pop-up menu." },
+  { name = "OnTrayDblClick", doc = "The form's tray icon was double-clicked with the left button: the place to show the form again." },
+  { name = "OnTrayMouseUp", params = "Button AS INTEGER", origin = "rapidr", doc = "A mouse button was released on the form's tray icon: Button is mbLeft (0), mbRight (1) or mbMiddle (2). For a program that wants the left click too." },
+  { name = "OnMinimise", doc = "The person minimised the window (its button, the system menu, the taskbar or the Dock), not when the program set WindowState itself: a program that lives in the tray hides the form here. It comes once the window is minimised; written QFormEx, just before it minimises (on Windows; elsewhere the system tells RapidR once it happened)." },
+  { name = "OnGetFocus", doc = "The window became the active one (clicked, switched to with Alt+Tab or Command+Tab, or the program's SetFocus)." },
+  { name = "OnLostFocus", doc = "The window stopped being the active one: another window, of this program or another, took the keyboard." },
+  { name = "OnMouseWheel", params = "Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER", doc = "The mouse wheel turned over the form, or over a component on it that doesn't scroll with the wheel itself. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in the form's pixels; Shift as OnMouseMove's. Written QFormEx (the include's), Delta is 1 or -1 each time, X and Y are the mouse on the screen and Shift is Windows' key flags (4 Shift, 8 Ctrl)." },
+  { name = "OnMessage", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", doc = "The window's messages (Hwnd, Msg, wParam, lParam; the handler's result is ignored). On Windows: every message Windows sends or posts to the form's window — a MIDI input's MM_MIM_DATA opened with CALLBACK_WINDOW, WM_USER + n a program posts, WM_SIZE, the mouse and keys … — except the ones that are RFormEx's own events: WM_DROPFILES, WM_ACTIVATE, WM_KILLFOCUS, WM_SYSCOMMAND, WM_MOUSEWHEEL and the tray icon's (&H590). On macOS, Linux and the web there are no Windows messages: it hears exactly the program's own tray icons' (RNotifyIconData and Shell_NotifyIcon), WM_SIZE (&H5: wParam 0 restored, 1 minimised, 2 maximised; lParam the client width + height * 65536) and WM_MOVE (&H3: lParam the client area's left + top * 65536 on the screen). WndProc, every form's, hears every message." },
+]
+
+[[component]]
 name = "RPANEL"
 display = "Panel"
 rapidq = "QPANEL"

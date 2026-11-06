@@ -221,6 +221,14 @@ pub enum Handler {
 pub fn bound(name: &str, event: &str) {
     if event.eq_ignore_ascii_case("onwndproc") {
         crate::window_messages::listen(name);
+    } else if event.eq_ignore_ascii_case("onmessage") && crate::formex::is(name) {
+        // (an RFormEx's OnMessage: its window's messages too — crate::formex)
+        crate::window_messages::listen(name);
+    } else if event.eq_ignore_ascii_case("onminimise") && crate::formex::is_classic(name) {
+        // (a classic RFormEx's OnMinimise comes before the window minimises:
+        // on Windows its window's SC_MINIMIZE waits for it)
+        crate::formex::hold_minimise(name);
+        crate::window_messages::listen(name);
     } else if event.eq_ignore_ascii_case("onstartdrag") {
         crate::drag::set_source(name);
     } else if event.eq_ignore_ascii_case("onhint") {

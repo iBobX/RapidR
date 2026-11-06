@@ -1,0 +1,272 @@
+//! An RFormEx's window look on the desktop (`rapidr_value::formex`,
+//! `WindowSpec::alpha` …; docs/rformex-design.md §5):
+//!
+//! - **On top** (fsStayOnTop): winit's always-on-top level (Windows,
+//!   macOS, X11; on Wayland the compositor decides).
+//! - **No taskbar button** (RemoveTaskBar): Windows only.
+//! - **Opacity** (Transparent): a layered window's alpha on Windows,
+//!   NSWindow's alphaValue on macOS, `_NET_WM_WINDOW_OPACITY` on X11 (a
+//!   compositor shows it); not on Wayland.
+//! - **The background a hole** (TransparentClient): the form's colour as a
+//!   layered window's colour key on Windows; on macOS and X11 the window's
+//!   outline made of the frame's pixels that aren't that colour (the
+//!   window draws on the CPU then: its pixels are read — [`mask`]); not on
+//!   Wayland.
+//!
+//! What a system can't do is said once on stderr, as ShapeForm's outline.
+
+use rapidr_ui_app::desktop::WindowSpec;
+use winit::window::{Window, WindowLevel};
+
+/// The colour form `form`'s background is drawn in (0xRRGGBB): its Color,
+/// else the theme's face — the colour TransparentClient makes a hole.
+pub fn key_of(store: &dyn rapidr_ui_kernel::Store, form: &str) -> u32 {
+    rapidr_ui_kernel::paint::color_of(store, form).unwrap_or_else(|| rapidr_value::theme::current().face)
+}
+
+/// Whether the window must draw on the CPU for its look: a colour key
+/// reads (macOS, X11) or is matched against (Windows' layered window,
+/// which a GPU swap chain doesn't take) the frame's pixels.
+pub fn needs_cpu(spec: &WindowSpec) -> bool {
+    spec.color_key
+}
+
+/// The window's look applied: on top, taskbar, opacity and (Windows) the
+/// colour key `key` (0xRRGGBB, the colour the form's background is drawn
+/// in). macOS' and X11's colour key is the outline [`mask`] makes.
+pub fn apply(window: &Window, spec: &WindowSpec, key: u32) {
+    window.set_window_level(if spec.on_top { WindowLevel::AlwaysOnTop } else { WindowLevel::Normal });
+    #[cfg(target_os = "windows")]
+    {
+        use winit::platform::windows::WindowExtWindows;
+        window.set_skip_taskbar(spec.skip_taskbar);
+        win32::layered(window, spec.alpha, spec.color_key.then_some(key));
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = key;
+        if !opacity(window, spec.alpha) && spec.alpha.is_some() {
+            once("Transparent: this window system can't make a window see-through (Wayland): it stays opaque");
+        }
+    }
+}
+
+fn once(message: &str) {
+    thread_local! {
+        static SAID: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+    SAID.with(|s| {
+        let mut s = s.borrow_mut();
+        if !s.iter().any(|m| m == message) {
+            eprintln!("[rapidr] {message}");
+            s.push(message.to_string());
+        }
+    });
+}
+
+/// The colour key on a system that can't cut a window (Wayland): said once.
+pub fn no_mask() {
+    once("TransparentClient: this window system can't cut holes in a window (Wayland): it keeps its background");
+}
+
+/// (macOS, X11) Whole-window opacity; whether the system could.
+#[cfg(not(target_os = "windows"))]
+fn opacity(window: &Window, alpha: Option<u8>) -> bool {
+    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let Ok(handle) = window.window_handle() else { return false };
+    let a = f64::from(alpha.unwrap_or(255)) / 255.0;
+    match handle.as_raw() {
+        #[cfg(target_os = "macos")]
+        RawWindowHandle::AppKit(h) => {
+            use objc2::msg_send;
+            use objc2::runtime::AnyObject;
+            let view = h.ns_view.as_ptr().cast::<AnyObject>();
+            // SAFETY: the live window's view, on the main thread (the
+            // host's pump).
+            unsafe {
+                let w: *mut AnyObject = msg_send![view, window];
+                if !w.is_null() {
+                    let _: () = msg_send![w, setAlphaValue: a];
+                }
+            }
+            true
+        }
+        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
+        RawWindowHandle::Xlib(h) => {
+            use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
+            let display = window.display_handle().ok().and_then(|d| match d.as_raw() {
+                RawDisplayHandle::Xlib(x) => x.display,
+                _ => None,
+            });
+            match display {
+                Some(d) => x11::opacity(d.as_ptr(), h.window, alpha),
+                None => false,
+            }
+        }
+        _ => {
+            let _ = a;
+            false
+        }
+    }
+}
+
+/// Rectangles (x, y, width, height) in a window's inside, logical pixels.
+pub type Outline = Vec<(i64, i64, i64, i64)>;
+
+/// The outline of the frame's pixels that aren't `key` (0xRRGGBB): rows of
+/// runs merged into rectangles, in the window's inside (logical pixels:
+/// device pixels / `scale`, edges rounded outwards). `rgba` is the frame
+/// (`width` × `height` device pixels, 4 bytes each).
+pub fn mask(rgba: &[u8], width: usize, height: usize, key: u32, scale: f64) -> Outline {
+    let (kr, kg, kb) = ((key >> 16) as u8, (key >> 8) as u8, key as u8);
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    // (per logical row: the runs of logical columns that show)
+    let rows = ((height as f64) / s).ceil() as usize;
+    let mut out: Vec<(i64, i64, i64, i64)> = Vec::new();
+    let mut open: Vec<(i64, i64, i64)> = Vec::new(); // (x0, x1, top): rectangles still growing
+    let mut prev: Vec<(i64, i64)> = Vec::new();
+    for ly in 0..=rows {
+        let mut runs: Vec<(i64, i64)> = Vec::new();
+        if ly < rows {
+            let (dy0, dy1) = (((ly as f64) * s).floor() as usize, ((((ly + 1) as f64) * s).ceil() as usize).min(height));
+            let mut keep = vec![false; width];
+            for dy in dy0..dy1 {
+                let row = &rgba[dy * width * 4..(dy + 1) * width * 4];
+                for (x, p) in row.as_chunks::<4>().0.iter().enumerate() {
+                    if !(p[0] == kr && p[1] == kg && p[2] == kb) {
+                        keep[x] = true;
+                    }
+                }
+            }
+            let mut start = None;
+            for (x, &k) in keep.iter().enumerate() {
+                match (k, start) {
+                    (true, None) => start = Some(x),
+                    (false, Some(x0)) => {
+                        runs.push(((x0 as f64 / s).floor() as i64, (x as f64 / s).ceil() as i64));
+                        start = None;
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(x0) = start {
+                runs.push(((x0 as f64 / s).floor() as i64, (width as f64 / s).ceil() as i64));
+            }
+            // (neighbouring runs that touch once rounded: one)
+            runs.dedup_by(|b, a| {
+                if b.0 <= a.1 {
+                    a.1 = a.1.max(b.1);
+                    true
+                } else {
+                    false
+                }
+            });
+        }
+        if runs != prev {
+            for (x0, x1, top) in open.drain(..) {
+                out.push((x0, top, x1 - x0, ly as i64 - top));
+            }
+            open = runs.iter().map(|&(a, b)| (a, b, ly as i64)).collect();
+            prev = runs;
+        }
+    }
+    out
+}
+
+#[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
+mod x11 {
+    use x11_dl::xlib::{Display, Xlib, PropModeReplace, XA_CARDINAL};
+
+    /// `_NET_WM_WINDOW_OPACITY` set (or taken away for an opaque window).
+    pub fn opacity(display: *mut std::ffi::c_void, window: std::ffi::c_ulong, alpha: Option<u8>) -> bool {
+        let Ok(xlib) = Xlib::open() else { return false };
+        let display = display.cast::<Display>();
+        // SAFETY: the live window's display and window (winit's Xlib
+        // connection); the property's data lives through the call.
+        unsafe {
+            let name = c"_NET_WM_WINDOW_OPACITY";
+            let atom = (xlib.XInternAtom)(display, name.as_ptr(), 0);
+            match alpha {
+                Some(a) if a < 255 => {
+                    let value: std::ffi::c_ulong = (u64::from(a) * 0xFFFF_FFFF / 255) as std::ffi::c_ulong;
+                    (xlib.XChangeProperty)(display, window, atom, XA_CARDINAL, 32, PropModeReplace, std::ptr::addr_of!(value).cast(), 1);
+                }
+                _ => {
+                    (xlib.XDeleteProperty)(display, window, atom);
+                }
+            }
+            (xlib.XFlush)(display);
+        }
+        true
+    }
+}
+
+#[cfg(target_os = "windows")]
+mod win32 {
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongW, SetLayeredWindowAttributes, SetWindowLongW, GWL_EXSTYLE, LWA_ALPHA, LWA_COLORKEY, WS_EX_LAYERED};
+    use winit::window::Window;
+
+    fn hwnd_of(window: &Window) -> Option<HWND> {
+        use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        match window.window_handle().ok()?.as_raw() {
+            RawWindowHandle::Win32(w) => Some(w.hwnd.get() as HWND),
+            _ => None,
+        }
+    }
+
+    /// The window layered with `alpha` and the colour key `key` (0xRRGGBB),
+    /// or not layered when it has neither.
+    pub fn layered(window: &Window, alpha: Option<u8>, key: Option<u32>) {
+        let Some(hwnd) = hwnd_of(window) else { return };
+        // SAFETY: the live window, ours; the style change and the layered
+        // attributes take plain values.
+        unsafe {
+            let style = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+            if alpha.is_none() && key.is_none() {
+                if style & WS_EX_LAYERED != 0 {
+                    SetWindowLongW(hwnd, GWL_EXSTYLE, (style & !WS_EX_LAYERED) as i32);
+                }
+                return;
+            }
+            SetWindowLongW(hwnd, GWL_EXSTYLE, (style | WS_EX_LAYERED) as i32);
+            let mut flags = 0;
+            if alpha.is_some() {
+                flags |= LWA_ALPHA;
+            }
+            // (COLORREF is 0x00BBGGRR)
+            let colorref = key.map_or(0, |k| ((k & 0xFF) << 16) | (k & 0xFF00) | ((k >> 16) & 0xFF));
+            if key.is_some() {
+                flags |= LWA_COLORKEY;
+            }
+            SetLayeredWindowAttributes(hwnd, colorref, alpha.unwrap_or(255), flags);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mask;
+
+    fn frame(w: usize, h: usize, key: [u8; 3], solid: &[(usize, usize)]) -> Vec<u8> {
+        let mut v = Vec::with_capacity(w * h * 4);
+        for y in 0..h {
+            for x in 0..w {
+                let c = if solid.contains(&(x, y)) { [10, 20, 30] } else { key };
+                v.extend_from_slice(&[c[0], c[1], c[2], 255]);
+            }
+        }
+        v
+    }
+
+    #[test]
+    fn the_key_colour_is_a_hole() {
+        // (a 2 × 2 block at (1, 1) on a key-coloured 4 × 4 frame)
+        let f = frame(4, 4, [0xE5, 0xFD, 0xFF], &[(1, 1), (2, 1), (1, 2), (2, 2)]);
+        assert_eq!(mask(&f, 4, 4, 0xE5FDFF, 1.0), vec![(1, 1, 2, 2)]);
+        // (at 2x: the same block in logical pixels, a 2 × 2 frame)
+        assert_eq!(mask(&f, 4, 4, 0xE5FDFF, 2.0), vec![(0, 0, 2, 2)]);
+        // (all key: nothing shows)
+        assert!(mask(&frame(3, 3, [1, 2, 3], &[]), 3, 3, 0x010203, 1.0).is_empty());
+    }
+}

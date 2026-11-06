@@ -93,6 +93,13 @@ mod win {
                 }
             });
         }
+        // (a form written QFormEx hears OnMinimise before its window
+        // minimises: the system's minimise is held here, and the runtime
+        // minimises the window once the handler ran — rapidr_value::formex)
+        let held = rapidr_value::handles::name_of(hwnd as i64).is_some_and(|f| rapidr_value::formex::holds_message(&f, i64::from(msg), wparam as i64));
+        if held {
+            return 0;
+        }
         DefSubclassProc(hwnd, msg, wparam, lparam)
     }
 

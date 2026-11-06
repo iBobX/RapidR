@@ -181,6 +181,148 @@ An MDI parent window: a form whose child windows open, tile, cascade and minimiz
 | `OnChildActive(handleChild AS LONG, index AS LONG, titleChild AS STRING)` | Fires when an MDI child window becomes the active one (handleChild: its handle, index: its number, titleChild: its caption). |
 | `OnChildResize(handleChild AS LONG, index AS LONG, titleChild AS STRING)` | Fires when an MDI child window is resized, maximized or restored (handleChild: its handle, index: its number, titleChild: its caption). |
 
+<a id="rformex"></a>
+## RFormEx
+
+A form with more: files dropped onto it one by one (OnDrag), its own icon in the system tray (AddTrayIcon, OnTrayClick, an animation from TrayICO), the whole window see-through (Transparent) or only its background (TransparentClient), always on top (FormStyle = fsStayOnTop), and told when it is minimised (OnMinimise), gets or loses the focus (OnGetFocus, OnLostFocus), and, on Windows, the window's messages (OnMessage). Everything an RForm has, it has too. Written QFormEx (the name a RapidQ include gave it), it behaves exactly as that include's form: an empty DragZone takes no drop, OnMouseWheel gets the screen position and Windows' key flags, OnMinimise comes just before the window minimises, and Transparent reads 0 until the program sets it.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `DragEnable` | bool | False | True: files dragged from the computer (Finder, File Explorer, a file manager) can be dropped on the form, and OnDrag hears each one. False: the form doesn't take them (OnDropFiles, every form's, still does when it is bound). |
+| `DragZone` | component |  | Where on the form a drop counts: `DragZone.Left`, `.Top`, `.Right`, `.Bottom`, in the form's client pixels (Right and Bottom outside the zone). Empty (Right not past Left or Bottom not past Top, as it starts): the whole form; written QFormEx, an empty zone takes no drop at all, as the include's form did. |
+| `DropPoint` (read-only) | any |  | Where the last file was dropped: `DropPoint.X`, `DropPoint.Y`, in the form's client pixels. Set before OnDrag. |
+| `FormStyle` | enum | `fsNormal` | fsStayOnTop keeps the window above other programs' windows (on Wayland the compositor decides; in a browser it stays above the page's other windows); fsNormal makes it an ordinary window again. An RForm's FormStyle does nothing, as RapidQ's QFORM. |
+| `TrayICO` (read-only) | component |  | The tray icon's pictures, an RImageList of the form's own: `Main.TrayICO.AddICOFile "app.ico"` (AddBMPFile, AddICOHandle, AddSVGFile too). With none, the tray shows the form's icon, else the application's, else RapidR's. |
+| `TrayIconHint` | string |  | The tray icon's tooltip; the application's title until set. Changing it while the icon shows changes the tooltip at once. |
+| `TrayIconIndex` | int | 0 | Which of TrayICO's pictures the tray shows, from 1 (0, as it starts, is the first too). A number past the last is ignored. Setting it while the icon shows changes the picture at once. |
+| `TrayIconUpdate` | int | 2000 | With two pictures or more in TrayICO, they take turns in the tray at this pace (an animation), from when the form shows; 0 stops it. |
+| `TrayIconShown` (read-only) | bool |  | True while the form's icon is in the system tray (after AddTrayIcon, until DelTrayIcon or the form closes). |
+| `Transparent` | int | 255 | How opaque the whole window is — frame, title bar, controls and all: 255 opaque, 127 half see-through, 0 invisible (it still takes the mouse). Values outside 0 to 255 are ignored. Written QFormEx it reads 0 until the program sets it, and the window stays as it is until then. Windows, macOS and Linux X11 (with a compositor) and the web; not on Wayland. |
+| `TransparentClient` | bool | False | True turns the form's background colour (its Color) into a hole: the desktop shows through and clicks there go to whatever is behind. The controls stay, except their parts in exactly that colour. Windows, macOS, Linux X11 and the web; not on Wayland. |
+| `AutoScroll` | bool | True | Shows scroll bars by itself when the controls inside reach past the visible area. |
+| `BorderStyle` | enum | `bsSizeable` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
+| `Caption` | string | `""` | The text shown on the control, or a window's or dialog's title; an `&` before a letter underlines it as the keyboard shortcut. |
+| `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
+| `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
+| `Color` | color | -2147483633 | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
+| `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
+| `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
+| `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `IcoHandle` (write-only) | resource |  | Sets the icon from a resource handle (`$RESOURCE`); write-only. |
+| `Icon` (write-only) | picture |  | The icon (an .ICO file name) of the window, the application or the image. |
+| `KeyPreview` | bool | False | Gives the form the key events before the control that has the focus. |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `ModalResult` (write-only) | enum |  | What `ShowModal` returns (`mrOk` …): setting it on a form closes the form; a button sets it on its form when clicked. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
+| `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Visible` | bool | False | Whether the control or form is shown. |
+| `Width` | int | 320 | The width, in pixels; on `Screen`, the screen's. |
+| `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
+| `AutoSize` | int |  | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
+| `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
+| `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `HelpFile` | string |  | The help file the program opens for F1. |
+| `Modified` | bool | False | True while what the window shows has changes not saved: macOS draws a dot in its close button, and in a browser leaving the page (closing the tab, reloading) asks first, with the browser's own question. Set it when a document changes, False again once it is saved. |
+| `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
+| `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
+| `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
+| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (it is fsNormal only). |
+| `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
+| `TileMode` | int | 0 | How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+
+| Method | |
+|---|---|
+| `AddTrayIcon` | Puts the form's icon in the system tray — the notification area on Windows, the menu bar on macOS, the panel on Linux, a strip in the page on the web — with TrayICO's picture (TrayIconIndex) and the TrayIconHint tooltip. OnTrayClick and OnTrayDblClick hear it. Calling it again while it shows does nothing. |
+| `DelTrayIcon` | Takes the form's icon out of the system tray. Closing the form for good and the program ending take it away too. |
+| `ModifyTrayIcon` | Shows the tray icon again with the current picture and tooltip (setting TrayIconHint or TrayIconIndex does it already). |
+| `SetTrayIconIndex(Index AS INTEGER)` | Shows TrayICO's picture number `Index` (from 1) in the tray: the same as setting TrayIconIndex. |
+| `RemoveTaskBar` | Takes the window's button off the Windows taskbar (a program that lives in the tray). Elsewhere it does nothing: macOS shows the application in the Dock, not its windows. |
+| `InheritOnShow` | Accepted and does nothing: the work the include's own OnShow did (hooking the window, starting the tray animation) is RFormEx's own. A program that set OnShow calls it, as it did there. |
+| `InheritOnClose` | Accepted and does nothing: what the include's own OnClose did (taking the tray icon away) RFormEx does itself when the form closes. |
+| `AddBorderIcons(Items, …)` | Adds the given border icons (system menu, minimize, maximize, help) to the form's title bar. |
+| `Center` | Moves the form to the middle of the screen. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`), outlined in color `c` and filled with color `fill`. |
+| `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
+| `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
+| `DelBorderIcons(Items, …)` | Removes the given border icons from the form's title bar. |
+| `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
+| `HideTitleBar` | Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height). ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
+| `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
+| `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Repaint` | Redraws the component. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` | Gives the form the outline of a bitmap's pixels that aren't TransparentColor (a BMP file, or a $RESOURCE): the bitmap's pixel (x, y) is the window's (x, y) from its top left corner, frame included; what's outside — and outside the bitmap — is cut away, and the mouse reaches what's behind there. Width, Height and BorderStyle don't change; the outline stays when the form is resized. (Wayland gives no program a way to cut its window: it keeps its rectangle there.) |
+| `Show` | Shows the component or form; a data-science object prints its contents. |
+| `ShowModal AS VARIANT` | Shows the form and waits until it closes; returns its modal result. |
+| `ShowTitleBar` | Puts back the title bar HideTitleBar took away: the form gets taller by it, its client area the same. |
+| `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
+| `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
+| `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
+| `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
+| `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SaveImage(FileName AS STRING) AS INTEGER` *(desktop)* | Saves what the form shows now — its controls as drawn, at the screen's scale — as a picture: a PNG file (a BMP when the name ends in .bmp). True when it was saved; False when the form isn't shown or the file can't be written. Only the program's own windows: never the screen or another program's. Desktop only for now. |
+| `Hide` | Makes the component or form invisible; it stays loaded. |
+| `SetFocus` | Gives the component the keyboard focus. |
+| `Update` | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
+| `Rect` | Draws the outline of a rectangle. Same as `Rectangle`. |
+| `SetPixel` | Sets one pixel to a color. Same as `Pset`. |
+| `FillCircle` | Draws a filled circle of radius `r` around (`cx`, `cy`), in the brush color or the color given. |
+| `Ellipse` | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
+| `Cls` | Clears the drawing area to its background color. |
+| `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
+| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Cascade` | Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Next` | Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Previous` | Activates an RFormMDI's previous child window (ActivePreviousChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Tile` | Tiles an RFormMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+
+| Event | |
+|---|---|
+| `OnDrag(File AS STRING)` | A file was dropped on the form (with DragEnable = True, inside DragZone): once for each file of the drop, in the order the system gave them, with its whole path; DropPoint says where. In a browser the file is read into the program's own files and `File` is its name. |
+| `OnTrayClick` | The right mouse button was released on the form's tray icon (on macOS also a Control-click): the place to show a pop-up menu. |
+| `OnTrayDblClick` | The form's tray icon was double-clicked with the left button: the place to show the form again. |
+| `OnTrayMouseUp(Button AS INTEGER)` | A mouse button was released on the form's tray icon: Button is mbLeft (0), mbRight (1) or mbMiddle (2). For a program that wants the left click too. |
+| `OnMinimise` | The person minimised the window (its button, the system menu, the taskbar or the Dock), not when the program set WindowState itself: a program that lives in the tray hides the form here. It comes once the window is minimised; written QFormEx, just before it minimises (on Windows; elsewhere the system tells RapidR once it happened). |
+| `OnGetFocus` | The window became the active one (clicked, switched to with Alt+Tab or Command+Tab, or the program's SetFocus). |
+| `OnLostFocus` | The window stopped being the active one: another window, of this program or another, took the keyboard. |
+| `OnMouseWheel(Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | The mouse wheel turned over the form, or over a component on it that doesn't scroll with the wheel itself. Delta is whole notches, 1 a notch away from you (up), -1 toward you (down); X, Y are the mouse in the form's pixels; Shift as OnMouseMove's. Written QFormEx (the include's), Delta is 1 or -1 each time, X and Y are the mouse on the screen and Shift is Windows' key flags (4 Shift, 8 Ctrl). |
+| `OnMessage(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | The window's messages (Hwnd, Msg, wParam, lParam; the handler's result is ignored). On Windows: every message Windows sends or posts to the form's window — a MIDI input's MM_MIM_DATA opened with CALLBACK_WINDOW, WM_USER + n a program posts, WM_SIZE, the mouse and keys … — except the ones that are RFormEx's own events: WM_DROPFILES, WM_ACTIVATE, WM_KILLFOCUS, WM_SYSCOMMAND, WM_MOUSEWHEEL and the tray icon's (&H590). On macOS, Linux and the web there are no Windows messages: it hears exactly the program's own tray icons' (RNotifyIconData and Shell_NotifyIcon), WM_SIZE (&H5: wParam 0 restored, 1 minimised, 2 maximised; lParam the client width + height * 65536) and WM_MOVE (&H3: lParam the client area's left + top * 65536 on the screen). WndProc, every form's, hears every message. |
+| `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnClose(BYREF Action AS INTEGER)` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
+| `OnHint(Hint AS STRING)` | The program's hint changed: the mouse came onto a component whose hint isn't the last one — Hint is the part after `\|` of its Hint (all of it without one), else its parent's, up to the form's; "" over none or outside the windows. It fires whatever ShowHint says, the tooltip shows as usual. One handler hears the hints of every form: the one bound last. |
+| `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
+| `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
+| `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
+| `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
+| `OnShow` | Fires when the form is shown, by Show, ShowModal or `Visible = True`. |
+| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), so a program hears its icon's clicks. |
+| `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
+| `OnLoad` | Fires when the content has loaded: the web view's page, a file read in the browser. |
+| `OnDropFiles(Files AS STRING)` | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
+
 <a id="rpanel"></a>
 ## RPanel
 

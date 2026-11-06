@@ -1,0 +1,34 @@
+' RFormEx's members as a program reads and sets them (rapidr_value::formex),
+' written RapidR's way (RFormEx) and the classic way (QFormEx: Rapidq2.inc's
+' form, without its include here): what they read before they're set,
+' Transparent's range, FormStyle, the drop zone, the tray icon shown and
+' taken away, TrayIconIndex past TrayICO's last ignored, TrayICO's Count.
+DIM A AS RFormEx
+DIM B AS QFormEx
+
+PRINT "A "; A.Transparent; ","; A.TrayIconUpdate; ","; A.TrayIconShown; ","; A.FormStyle; ","; A.DragEnable; ","; A.TransparentClient; ","; A.TrayIconIndex
+PRINT "B "; B.Transparent; ","; B.TrayIconUpdate; ","; B.TrayIconShown
+A.Transparent = 100
+A.Transparent = -1
+A.Transparent = 256
+PRINT "alpha "; A.Transparent
+B.Transparent = 200
+PRINT "classic alpha "; B.Transparent
+A.FormStyle = fsStayOnTop
+PRINT "style "; A.FormStyle
+A.DragZone.Left = 10: A.DragZone.Top = 20: A.DragZone.Right = 110: A.DragZone.Bottom = 70
+PRINT "zone "; A.DragZone.Left; ","; A.DragZone.Top; ","; A.DragZone.Right; ","; A.DragZone.Bottom
+PRINT "drop "; A.DropPoint.X; ","; A.DropPoint.Y
+A.TrayIconHint = "Tip"
+PRINT "hint "; A.TrayIconHint
+A.AddTrayIcon
+PRINT "shown "; A.TrayIconShown
+A.TrayIconIndex = 3
+PRINT "index "; A.TrayIconIndex; ","; A.TrayICO.Count
+A.DelTrayIcon
+PRINT "shown "; A.TrayIconShown
+A.TrayIconUpdate = 500
+PRINT "update "; A.TrayIconUpdate
+A.InheritOnShow
+B.InheritOnClose
+PRINT "done"

@@ -32,6 +32,8 @@ pub mod tray;
 // (a form's WndProc on Windows: its window's real messages)
 pub mod window_messages;
 pub mod mdi;
+// (RFormEx: a form with more — Rapidq2.inc's QFormEx, natively)
+pub mod formex;
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels as public components)
 pub mod panels;

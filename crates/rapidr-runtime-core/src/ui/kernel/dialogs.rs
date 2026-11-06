@@ -47,6 +47,7 @@ pub(super) fn open_window(id: &str, title: &str, (w, h): (i64, i64)) {
         frame: Frame { resizable: false, close: true, minimize: false, maximize: false },
         state: 0,
         modified: false,
+        ..WindowSpec::default()
     };
     with_kern(|k| {
         k.desk.ensure_form(&RtStore, id, false, spec);

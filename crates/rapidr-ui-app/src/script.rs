@@ -133,6 +133,15 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::Close => forms::close(rt, &e.comp),
         // (RapidR's OnDropFiles: RAPIDR_TEST_DROP's files on the form)
         Action::Drop => forms::files_dropped(rt, &rt.form_of(&comp).unwrap_or(comp), &testhooks::drop_files()),
+        // (RFormEx: a drop at a point, the window's activation, the person's
+        // minimise — what the hosts report)
+        Action::DropAt(x, y) => {
+            let form = rt.form_of(&comp).unwrap_or(comp);
+            rapidr_value::formex::note_drop_at(&form, (x, y));
+            forms::files_dropped(rt, &form, &testhooks::drop_files());
+        }
+        Action::Activate(active) => crate::formex::activated(rt, &rt.form_of(&comp).unwrap_or(comp), active),
+        Action::UserMinimise => crate::formex::user_minimised(rt, &rt.form_of(&comp).unwrap_or(comp)),
         Action::Ignored => {}
         // (timers during native menu tracking: the next pump held, as a menu
         // the user keeps open would hold it; the next event ms later: `step`)

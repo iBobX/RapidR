@@ -154,7 +154,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RJSON" => &[JSON],
         "RSTRINGLIST" => &[STRING_LIST],
         "RCANVAS" => &[DRAWING, CANVAS],
-        "RFORM" | "RBITMAP" | "RIMAGE" => &[DRAWING],
+        "RFORM" | "RFORMEX" | "RBITMAP" | "RIMAGE" => &[DRAWING],
         "RTREEVIEW" => &[TREE],
         "RFORMMDI" => &[MDI, DRAWING],
         "RNUM" | "RDATAFRAME" | "RPLOT" => &[DATA_SCIENCE],

@@ -13,7 +13,13 @@ use crate::Program;
 pub fn deliver(rt: impl Program, key: (i64, i64), mouse: &[i64]) {
     for [hwnd, msg, wparam, lparam] in tray::clicked(key, mouse) {
         let Some(form) = rapidr_value::handles::name_of(hwnd) else { continue };
+        // (an RFormEx's own icon: OnTrayClick, OnTrayDblClick, OnTrayMouseUp)
+        if crate::formex::tray_message(rt, &form, msg, lparam) {
+            continue;
+        }
         rt.fire_args(&form, "onwndproc", &[v_int(hwnd), v_int(msg), v_int(wparam), v_int(lparam)]);
+        // (an RFormEx's OnMessage hears the program's own icons too)
+        crate::formex::message(rt, &form, [hwnd, msg, wparam, lparam]);
     }
 }
 

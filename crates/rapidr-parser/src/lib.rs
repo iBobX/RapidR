@@ -2538,6 +2538,12 @@ impl<'a> Parser<'a> {
         let mut methods = Vec::new();
         let mut constructor = Vec::new();
         let mut events = Vec::new();
+        // (the members declared under PRIVATE: / PROTECTED:, and each
+        // custom event field's template: a TYPE's public shape —
+        // rapidr_ast::formex)
+        let mut private = Vec::new();
+        let mut event_templates = Vec::new();
+        let mut in_private = false;
         self.dot_scope += 1;
         self.type_scope += 1;
 
@@ -2561,6 +2567,7 @@ impl<'a> Parser<'a> {
             }
             // PRIVATE: / PUBLIC: / PROTECTED: sections (access isn't enforced)
             if self.peek_identifier_eq("PRIVATE") || self.peek_identifier_eq("PUBLIC") || self.peek_identifier_eq("PROTECTED") {
+                in_private = !self.peek_identifier_eq("PUBLIC");
                 self.advance();
                 self.match_kind(TokenType::Colon);
                 continue;
@@ -2628,12 +2635,18 @@ impl<'a> Parser<'a> {
             // Methods
             if self.peek_kind() == Some(TokenType::Sub) {
                 if let Some(s) = self.parse_sub() {
+                    if in_private {
+                        private.push(s.name.to_ascii_lowercase());
+                    }
                     methods.push(Statement::Subroutine(s));
                     continue;
                 }
             }
             if self.peek_kind() == Some(TokenType::Function) {
                 if let Some(f) = self.parse_function() {
+                    if in_private {
+                        private.push(f.name.to_ascii_lowercase());
+                    }
                     methods.push(Statement::Function(f));
                     continue;
                 }
@@ -2670,6 +2683,9 @@ impl<'a> Parser<'a> {
                     self.advance();
                 } else {
                     self.error_at(prop_start, format!("PROPERTY SET {setter_name} is missing END PROPERTY"));
+                }
+                if in_private {
+                    private.push(setter_name.to_ascii_lowercase());
                 }
                 methods.push(Statement::Subroutine(SubroutineStatement {
                     span: self.span_from(prop_start),
@@ -2743,10 +2759,18 @@ impl<'a> Parser<'a> {
                 let mut ftype = ftype + &self.template_args();
                 // `OnReady AS EVENT(Template)`: a custom event (holds a SUB).
                 if ftype.eq_ignore_ascii_case("EVENT") && self.match_kind(TokenType::LParen) {
+                    let mut template = String::new();
                     while !self.at_eol() && !self.match_kind(TokenType::RParen) {
+                        if template.is_empty() {
+                            template = self.tokens[self.pos].lexeme.clone();
+                        }
                         self.pos += 1;
                     }
+                    event_templates.push((fname.to_ascii_lowercase(), template));
                     ftype = "EVENT".to_string();
+                }
+                if in_private {
+                    private.push(fname.to_ascii_lowercase());
                 }
                 // `Name AS STRING * 20`: a fixed-length string (a STRING cut to 20).
                 let mut fixed_len = None;
@@ -2825,6 +2849,8 @@ impl<'a> Parser<'a> {
             constructor,
             events,
             template_params,
+            private,
+            event_templates,
         })
     }
 

@@ -225,6 +225,10 @@ export const cases = [
     expect: ["status.caption=South: 577 thousand in 4060 orders; best month December", "bestvalue.caption=December (66)"] },
   { file: "gui/tray.rr", runtimes: ["run", "interp", "native", "web"], events: "hidebtn.onclick,form.__tray_513,form.__tray_514", dump: "info.caption,form.__shown",
     expect: ["info.caption=Back from the tray (1)", "form.__shown=1"] },
+  // RFormEx: two files dropped in the box (a drop outside it ignored), to
+  // the tray and back with a double click on its icon
+  { file: "gui/form_ex.rr", runtimes: ["run", "interp", "native", "web"], drop: "a.txt;b.txt", events: "main.__drop_60_40,main.__drop_60_200,traybtn.onclick,main.__tray_515", dump: "files.itemcount,status.caption,main.__shown,main.trayiconshown",
+    expect: ["files.itemcount=2", "status.caption=Back from the tray.", "main.__shown=1", "main.trayiconshown=0"] },
   // translations/ (TR$ / TRN$ with lang/*.po beside it — `includes`: the
   // folder copied whole; on the web its lang/ files are the page's): it
   // starts in the language given, the list switches it, OnLanguageChange

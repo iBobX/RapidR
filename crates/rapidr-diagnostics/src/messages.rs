@@ -134,6 +134,8 @@ pub const MESSAGES: &[Message] = &[
     // (what follows RC.EXE's words for a global named twice: rapidr_ast's
     // global_name_clashes)
     m("RR0046", "it is declared in {place} already: a global name — a variable, CONST, SUB, FUNCTION or component, in any capitals — is the program's once; a SUB's own variables and parameters may reuse it"),
+    // (a TYPE QFormEx that isn't Rapidq2.inc's: rapidr_ast::formex)
+    m("RR0047", "TYPE {name} isn't the QFormEx RapidR knows (Rapidq2.inc's): it differs in {members}. RapidR has its own QFormEx (RFormEx: the same members, without changing the window's code in memory), so it doesn't compile this TYPE: leave the TYPE (or its $INCLUDE) out to use RapidR's, or give your class another name (MyFormEx) to keep it"),
 ];
 
 /// The message with ID `id`.

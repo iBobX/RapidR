@@ -45,6 +45,10 @@ pub enum WindowOp {
     /// `Form.Modified` (RapidR's): the window has changes not saved —
     /// macOS' close button shows its dot; a page asks before it's left.
     Modified(String, bool),
+    /// (RFormEx: rapidr_value::formex) The window's look — (its opacity,
+    /// `None` opaque as every window; its background a hole; on top; no
+    /// taskbar button) — as `crate::formex::look` works it out.
+    Look(String, (Option<u8>, bool, bool, bool)),
 }
 
 /// A window's picture (RGBA, straight): a form's IcoHandle / Icon, else

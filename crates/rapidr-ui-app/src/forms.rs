@@ -477,7 +477,11 @@ pub fn close<P: Program>(p: P, name: &str) {
         Box::new(move |a| match CloseAction::of(&a[0]) {
             CloseAction::Stay => {}
             CloseAction::Minimize => push_op(WindowOp::Minimize(name.clone())),
-            CloseAction::Close => hide_window(&name),
+            CloseAction::Close => {
+                // (an RFormEx's tray icon goes with it)
+                crate::formex::remove_tray(p, &name);
+                hide_window(&name)
+            }
         }),
     );
 }
@@ -710,17 +714,24 @@ pub fn form_resized<P: Program>(p: P, form: &str, w: i64, h: i64) {
     // (OnResize: apply_geometry's)
     apply_geometry(p, form);
     p.fire(form, "onpaint");
+    // (an RFormEx's OnMessage off Windows: WM_SIZE)
+    crate::formex::resized(p, form);
 }
 
 /// The user (or the system) moved a form's window: its Left / Top follow,
 /// quietly.
 pub fn form_moved<P: Program>(p: P, form: &str, x: i64, y: i64) {
+    let moved = p.get(form, "left").to_i64() != x || p.get(form, "top").to_i64() != y;
     applying(|| {
         p.quietly(&mut || {
             p.set(form, "left", v_int(x));
             p.set(form, "top", v_int(y));
         })
     });
+    // (an RFormEx's OnMessage off Windows: WM_MOVE)
+    if moved {
+        crate::formex::moved(p, form);
+    }
 }
 
 /// (RapidR's) Files dropped on a form's window: its OnDropFiles(Files), the
@@ -729,6 +740,8 @@ pub fn files_dropped<P: Program>(p: P, form: &str, files: &[String]) {
     let files: Vec<&str> = files.iter().map(|f| f.trim_end_matches(['\r', '\n'])).filter(|f| !f.is_empty()).collect();
     if !files.is_empty() {
         p.fire_args(&lower(form), "ondropfiles", &[Value::String(files.join("\n").into())]);
+        // (an RFormEx's OnDrag: each file, where the host said it landed)
+        crate::formex::dropped(p, &lower(form), &files, rapidr_value::formex::drop_at(form));
     }
 }
 

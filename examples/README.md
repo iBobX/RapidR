@@ -80,6 +80,7 @@ claims, headless).
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [value_tree.rr](gui/value_tree.rr) | A tree that shows values as RapidR Studio's debugger does (`SetItemValue`, `Item(i).Changed`): each with its kind's icon, numbers, text and True/False in their colours, a colour as a swatch and its name, an array with its count, a changed value marked ([the manual](../docs/manual/debugging.md#how-values-look)) | run · interp · native · web | `rapidr run gui/value_tree.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
+| [form_ex.rr](gui/form_ex.rr) | `RFormEx`, a form with more: files dropped on a box (`OnDrag`, `DragZone`, `DropPoint`), to the tray and back (`AddTrayIcon`, `OnTrayDblClick`, `OnMinimise`), see-through (`Transparent`), a hole for the desktop (`TransparentClient`), on top (`fsStayOnTop`), `OnGetFocus` / `OnLostFocus` ([the manual](../docs/manual/forms-ex.md)) | run · interp · native · web | `rapidr run gui/form_ex.rr` |
 
 ### translations/ — one program in every language
 

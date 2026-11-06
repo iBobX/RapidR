@@ -258,6 +258,10 @@ impl Program for Web {
         is_dx.then(|| std::time::Duration::from_millis(crate::directx_web::timer_interval(&name, rp_comp_get(&name, "interval").to_i64()).max(1) as u64))
     }
     fn timer_firing(self, id: &str) -> bool {
+        // (an RFormEx's tray animation: its next picture, no OnTimer)
+        if rapidr_ui_app::formex::tray_tick(self, id) {
+            return false;
+        }
         crate::directx_web::timer_fired(&id.to_uppercase())
     }
 }
@@ -273,8 +277,12 @@ fn ensure() {
     crate::globals_web::start_theme();
     host::install(&STORE, Rc::new(turn));
     host::set_overlay_types(crate::overlay_web::TYPES);
-    // (RapidR's OnDropFiles: a form with the handler takes dropped files)
-    host::on_drop_files(Rc::new(|form: &str| crate::object_web::rp_has_handler(form, "ondropfiles")));
+    // (RapidR's OnDropFiles: a form with the handler takes dropped files;
+    // so does an RFormEx with DragEnable and OnDrag — rapidr_ui_app::formex)
+    host::on_drop_files(Rc::new(|form: &str| {
+        crate::object_web::rp_has_handler(form, "ondropfiles")
+            || (rapidr_value::formex::is(form) && crate::object_web::rp_comp_get(form, "dragenable").to_bool() && crate::object_web::rp_has_handler(form, "ondrag"))
+    }));
     crate::fonts_web::install();
     let capture = testhooks::Capture::from_env();
     UNDER_TEST.with(|t| t.set(capture.is_some()));
@@ -732,6 +740,7 @@ impl Windows for Web {
             frame: rapidr_ui_app::desktop::Frame { resizable: false, close: true, minimize: false, maximize: false },
             state: 0,
             modified: false,
+            ..WindowSpec::default()
         };
         host::with(|hst, store| {
             hst.desk.ensure_form(store, id, false, spec);

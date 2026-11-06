@@ -13,6 +13,7 @@ pub mod type_values;
 pub mod library;
 pub mod method_equals;
 pub mod tray_calls;
+pub mod formex;
 pub mod end_codes;
 pub mod builtin_constants;
 pub mod event_params;
@@ -363,6 +364,13 @@ pub struct TypeStatement {
     /// A template's parameters (`TYPE NewClass<DataType, Size>`; see
     /// [`templates`]); empty for an ordinary TYPE.
     pub template_params: Vec<String>,
+    /// The members (fields, methods, PROPERTY SETs) declared under
+    /// `PRIVATE:` or `PROTECTED:`, lower case: not its public shape
+    /// ([`formex`]). Access isn't enforced.
+    pub private: Vec<String>,
+    /// Each custom event field's template, `OnDrag AS EVENT(OnDrag_T)`:
+    /// (the field, lower case; the template's name as written).
+    pub event_templates: Vec<(String, String)>,
 }
 
 /// An EVENT block inside TYPE … EXTENDS: the handler for one event of every
@@ -851,6 +859,8 @@ pub fn dotted_fields(program: &Program) -> Program {
                 constructor: Vec::new(),
                 events: Vec::new(),
                 template_params: Vec::new(),
+                private: Vec::new(),
+                event_templates: Vec::new(),
             };
             // (its own dotted fields nest further)
             let nested = split(&nested, out);
@@ -2326,6 +2336,8 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
         &mut |_| {},
     );
     out.extend(unknown_type_checks(program, &outside_types));
+    // (a TYPE QFormEx that isn't Rapidq2.inc's: crate::formex)
+    out.extend(formex::check(program));
     out.extend(fixed_member_checks(program, &outside_types, &component_types));
     out.extend(registry_member_checks(program, &outside_types, &component_types));
     let mut global_dims = HashMap::new();
@@ -3137,6 +3149,11 @@ pub fn is_include_library_component(name: &str) -> bool {
 /// itself (`own_types`, upper case).
 pub fn component_type_reference(name: &str, own_types: &[String]) -> String {
     let upper = name.to_ascii_uppercase();
+    // (QFormEx stays as written: the form behaves as Rapidq2.inc's then —
+    // `formex::lower` makes it RFORMEX and says so to the runtimes)
+    if upper == formex::QFORMEX {
+        return upper;
+    }
     match INCLUDE_LIBRARY_COMPONENTS.iter().find(|(q, _)| *q == upper) {
         Some(_) if own_types.contains(&upper) => name.to_string(),
         Some((_, r)) => (*r).to_string(),

@@ -56,7 +56,10 @@ fn event<R: Program + Windows>(rt: R, ev: KernelEvent) {
         // handler the program bound)
         KernelEvent::Wheel { chain, delta, shift } => {
             if let Some((name, x, y)) = chain.iter().find(|(name, _, _)| rt.has_handler(name, "onmousewheel")) {
-                rt.fire_args(name, "onmousewheel", &[v_int(delta), v_int(*x), v_int(*y), v_int(shift)]);
+                // (a form written QFormEx hears it as Rapidq2.inc's did:
+                // crate::formex::wheel_args)
+                let args = crate::formex::wheel_args(rt, name, delta, (*x, *y), shift);
+                rt.fire_args(name, "onmousewheel", &args.map(v_int));
             }
         }
         KernelEvent::Close(f) => forms::close(rt, &f),

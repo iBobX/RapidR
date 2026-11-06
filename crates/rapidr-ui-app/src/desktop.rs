@@ -85,6 +85,9 @@ pub enum HostCmd {
     Fullscreen(String),
     /// [`WindowSpec::modified`] again (Form.Modified).
     Modified(String),
+    /// (RFormEx) [`WindowSpec::alpha`], `color_key`, `on_top` and
+    /// `skip_taskbar` again: the window's look as the system shows it.
+    Look(String),
 }
 
 pub use crate::windows::Icon;
@@ -131,6 +134,17 @@ pub struct WindowSpec {
     /// Form.Modified: changes not saved (macOS' close button shows its
     /// dot; the web asks before the page is left).
     pub modified: bool,
+    /// (RFormEx, rapidr_value::formex) How opaque the whole window is
+    /// (Transparent: 0 … 255); `None`: as every window (opaque, nothing
+    /// asked of the system).
+    pub alpha: Option<u8>,
+    /// (RFormEx's TransparentClient) The form's background colour is a
+    /// hole in the window (the colour the kernel paints it).
+    pub color_key: bool,
+    /// (RFormEx's fsStayOnTop) Above other programs' windows.
+    pub on_top: bool,
+    /// (RFormEx's RemoveTaskBar) No taskbar button (Windows).
+    pub skip_taskbar: bool,
 }
 
 pub struct Form {
@@ -440,9 +454,28 @@ impl Desktop {
         let key = id.to_lowercase();
         let Some(f) = self.forms.get_mut(&key) else { return };
         if f.state != state {
+            // (the system's own doing — the person's —, not the program's
+            // WindowState: what it asked is the spec's state)
+            let users = f.spec.state != state;
             f.state = state;
             f.spec.state = state;
-            self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::Set { id: key, prop: "windowstate".into(), value: state }));
+            self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::Set { id: key.clone(), prop: "windowstate".into(), value: state }));
+            // (an RFormEx's OnMinimise, once the window is minimised — a
+            // classic one's on Windows came before: crate::formex)
+            let held = cfg!(target_os = "windows") && rapidr_value::formex::holds_minimise(&key);
+            if users && state == rapidr_value::window_state::WS_MINIMIZED && rapidr_value::formex::is(&key) && !held {
+                self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::Fire { id: key, event: "onminimise".into(), args: Vec::new() }));
+            }
+        }
+    }
+
+    /// (RFormEx) Form `id`'s window became the active one (`true`) or
+    /// stopped being it: OnGetFocus / OnLostFocus, once each change.
+    pub fn focused(&mut self, id: &str, active: bool) {
+        let key = id.to_lowercase();
+        if self.forms.contains_key(&key) && rapidr_value::formex::is(&key) && rapidr_value::formex::set_active(&key, active) {
+            let event = if active { "ongetfocus" } else { "onlostfocus" };
+            self.events.push(HostEvent::Kernel(key.clone(), KernelEvent::Fire { id: key, event: event.into(), args: Vec::new() }));
         }
     }
 
@@ -539,6 +572,19 @@ impl Desktop {
             }
             // (the DirectX lane's)
             WindowOp::Fullscreen(f) => self.cmds.push(HostCmd::Fullscreen(f)),
+            // (RFormEx: rapidr_value::formex)
+            WindowOp::Look(f, look) => {
+                if let Some(w) = self.form(&f) {
+                    let (alpha, color_key, on_top, skip_taskbar) = look;
+                    if (w.spec.alpha, w.spec.color_key, w.spec.on_top, w.spec.skip_taskbar) != (alpha, color_key, on_top, skip_taskbar) {
+                        w.spec.alpha = alpha;
+                        w.spec.color_key = color_key;
+                        w.spec.on_top = on_top;
+                        w.spec.skip_taskbar = skip_taskbar;
+                        self.cmds.push(HostCmd::Look(f));
+                    }
+                }
+            }
             // (L-PANELS: SetFocus)
             WindowOp::Focus(f, comp) => {
                 if let Some(w) = self.forms.get_mut(&f) {
@@ -637,7 +683,14 @@ pub fn window_spec<P: Program>(p: P, name: &str) -> WindowSpec {
         // (the WindowState lane's)
         state: rapidr_value::window_state::of(p.get(name, "windowstate").to_i64()),
         modified: p.get(name, "modified").to_bool(),
+        ..look_spec(crate::formex::look(p, name))
     }
+}
+
+/// A spec carrying only an RFormEx's look (alpha, colour key, on top, no
+/// taskbar button).
+fn look_spec((alpha, color_key, on_top, skip_taskbar): (Option<u8>, bool, bool, bool)) -> WindowSpec {
+    WindowSpec { alpha, color_key, on_top, skip_taskbar, ..WindowSpec::default() }
 }
 
 /// The form a component is on, and where it is in that window's inside

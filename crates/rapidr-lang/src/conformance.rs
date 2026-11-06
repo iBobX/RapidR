@@ -148,7 +148,7 @@ pub fn program(c: &Component, target: Target, gaps: &Gaps) -> Option<Program> {
     let written = c.written_name();
     if global.is_some() {
         // (there already)
-    } else if c.name == "RFORM" || c.name == "RFORMMDI" {
+    } else if matches!(c.name, "RFORM" | "RFORMMDI" | "RFORMEX") {
         let _ = writeln!(src, "CREATE {obj} AS {written}\nEND CREATE");
     } else if c.visual {
         let _ = writeln!(src, "CREATE {p}_f AS QFORM\n  CREATE {obj} AS {written}\n  END CREATE\nEND CREATE");

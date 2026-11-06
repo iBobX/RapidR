@@ -23,7 +23,9 @@
 //!   built-in), `aliases`, `kind` (`component` — the compilers create it;
 //!   `library` — a BASIC library RapidR supplies; `planned` — RapidQ has
 //!   it, RapidR not yet), `visual`, `container`, `size`, `default_event`,
-//!   `only` (`desktop` / `web`), `sets` (members from sets.toml), `doc`, and
+//!   `only` (`desktop` / `web`), `sets` (members from sets.toml), `extends`
+//!   (another component whose members — its own and its sets' — this one has
+//!   too, unless it has one of that name itself: RFORMEX extends RFORM), `doc`, and
 //!   its `properties`, `methods` and `events`, one inline table each:
 //!   - property: `name`, `type` (int, float, string, bool, color, enum, set,
 //!     font, component, picture, resource, item, any), `values` (an enum's or
@@ -323,6 +325,9 @@ pub struct Component {
     pub where_note: Option<&'static str>,
     /// A global object that is an instance of a component (Printer).
     pub instance_of: Option<&'static str>,
+    /// The component whose members it has too (`extends = "RFORM"`: an
+    /// RFormEx is an RForm with more); its own members come first.
+    pub extends: Option<&'static str>,
     pub doc: &'static str,
     /// A few lines of RapidR that use it (a CREATE block, its default event
     /// wired): for people and AI alike.
@@ -616,6 +621,11 @@ impl Component {
     /// Whether `name` is any of its members.
     pub fn has_member(&self, name: &str) -> bool {
         self.property(name).is_some() || self.method(name).is_some() || self.event(name).is_some()
+    }
+
+    /// The doc of its member `name` (a property, else a method, else an event).
+    pub fn member_doc(&self, name: &str) -> Option<&'static str> {
+        self.property(name).map(|p| p.doc).or_else(|| self.method(name).map(|m| m.doc)).or_else(|| self.event(name).map(|e| e.doc))
     }
 
     /// How RapidR writes it: its R name in mixed case (`RButton`,
