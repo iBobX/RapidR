@@ -20,6 +20,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Why RapidR](why-rapidr.md) | What RapidR does best, with only measured numbers (their conditions and the scripts that made them), and what it doesn't claim |
 | [Showcase](showcase.md) | Bigger programs written from an idea alone, each with a picture and its best lines explained: fireworks, a MIDI visualizer that reads the song file itself, and more |
 | [Getting started](getting-started.md) | Which download to take (the SDK or the Runtime), installing on Windows, macOS and Linux, your first console and GUI programs, running (`rapidr run`), compiling (`build-bc`), building executables (`build`) and the web |
+| [Older Windows (7, 8, XP)](old-windows.md) | What runs on 32-bit Windows 7, 8 and plain Windows XP (the XP download is unofficial): Studio, F5, Build (Interpreted App), XP's own Open and Save dialogs, languages and the Chinese-font note; what doesn't yet (native builds, the JIT, a screen reader and AI providers on XP) |
 
 ## RapidR Studio
 

@@ -152,6 +152,9 @@ Order, as the brief sets it, and where each stage got to (all on plain XP SP3, n
 3. **Build (interpreted): done.** From Studio and from `rapidr build --interp`; the built program
    (the runner stub with the bytecode) runs on XP on its own.
 
+(2026-11-06: the file dialogs, the check mark, Ctrl shortcuts and Build on 32-bit Windows below are
+fixed now, and folder listings, which failed too: [§9](#9-preview-6-re-check-2026-11-06).)
+
 Known limits on plain XP, each a "not available", not a crash: no DirectWrite system fonts (a symbol
 the bundled fonts lack shows as an empty box: the check mark in Studio's "Built ..." line —
 **needs a symbol fallback font among RapidR's bundled fonts**, a font-stack task, not this lane's);
@@ -267,3 +270,98 @@ RapidR's own, written from Microsoft Learn's public documentation of each functi
 import naming (`tools/winxp/clean-room.md`). No new crate, no toolchain fork (rust9x was considered and
 rejected: a lawyer check, it lags Rust versions, and it is MSVC-only). So there is nothing new to
 license. One-Core-API stays the user's own install; RapidR never ships or copies it.
+
+## 9. Preview 6 re-check, 2026-11-06
+
+Lane WINXP-RECHECK, on development `dad9346f` (RFormEx, context menus 2b, zh-Hans, pt-BR, JIT-GAPS,
+RMIDIPort and async DLL memory merged). The same plain Windows XP SP3 VM (one emulated i386 CPU in UTM
+on an Apple M4 Max, host-only network, no One-Core-API). Everything was run **in the front of the XP
+desktop** for Robert to watch (helper v4's `vm.sh show`, each program closed by its own process
+number), with a picture of each step. The pictures and logs are in
+`/Volumes/RapidRBuild/lane-evidence/winxp-recheck/` (outside git).
+
+### What was found and fixed
+
+Four gaps on plain XP were closed in the XP flavour only (`tools/winxp/`, compiled into nothing else),
+and three in shared code with the lead's go (each its own commit, correct on every system):
+
+| Gap on plain XP | Cause (measured on XP) | Fix | Where |
+|---|---|---|---|
+| File > Open / Save As, a program's ROpenDialog / RSaveDialog and folder pickers answered "cancelled" | rfd asks COM for Vista's `CLSID_FileOpenDialog` / `CLSID_FileSaveDialog`; XP has no such class | an Open / Save / folder dialog of ours with the same COM interface, over XP's `GetOpenFileNameW` / `GetSaveFileNameW` / `SHBrowseForFolderW`; Windows' own first, always | XP flavour: `shim/xp_filedlg.c` |
+| No folder could be listed (`std::fs::read_dir`): Studio's language list had only English | `FindFirstFileExW` with `FindExInfoBasic` (Windows 7) answers **error 87** on XP | the same call at the standard level after that refusal | XP flavour: `shim/xp_misc.c` |
+| Ctrl shortcuts did nothing (Ctrl+S, Ctrl+O, Ctrl+Shift+B; a program's Ctrl+A); typed text, F keys and Alt+F4 worked | winit builds its keyboard-layout table with `MapVirtualKeyExW` kind 4 (Vista), which answers **0** for every key on XP | where kind 4 answers 0: kind 0's scan code, with 0xE0 for the extended keys | XP flavour: `shim/xp_misc.c` |
+| ✓ ✗ ⚠ ✋ drew as empty boxes (Studio's "✓ Built ..." line, RAI's steps) | no DirectWrite on XP, so no system fonts; RapidR's own faces have no such symbols | **RapidR Symbols Subset** (58 symbols cut from the repository's Noto Sans Symbols 2, OFL): the last family **only** where the computer has no system fonts at all | shared (lead's option A): `rapidr_ui_kernel::text::symbols_last_resort` |
+| Studio in Chinese: boxes everywhere and no word about it | plain XP has no Chinese font (East Asian support not installed); the note was Linux-only, and read `Application.OS`, which is not a member (always "") | the note on any desktop with no Chinese font, the system's own way to add one (Windows XP: Regional and Language Options > Install files for East Asian languages, from the Windows CD; newer Windows: add Chinese (Simplified)); the system from `RSystemInfo.OS` | shared: `ide/chrome.inc` |
+| Build asked "Native builds need Rust" | Robert's decision of 2026-11-04 had not landed | on 32-bit Windows one **Build (Interpreted App)**, no question (`Proj.NativeBuilds`); 64-bit systems unchanged (unit test) | shared: `rapidr-studio`, `ide/build.inc`, `ide/commands.inc` |
+| `RSystemInfo.OSVersion` said "10 (2600)" on XP, "10 (7601)" on 7 | the version came from the registry's build number alone | `RtlGetVersion`: "5.1 (2600)" on XP, "6.1 (7601)" on 7, 10 and 11 as before; checked on XP, Windows 7 and Windows 11 | shared: `rapidr-value/src/sysinfo.rs` |
+
+### The nine items (and the tenth)
+
+| # | Item | Result on plain XP | Pictures and logs |
+|---|---|---|---|
+| 1 | Import tables of `rapidr.exe` and both runner stubs | **0 functions plain XP lacks** (565 / 557 / 557 imports, 19 DLLs). New since the first XP build: `shell32!SHFileOperationW` (MOVETOTRASH), `user32!SetLayeredWindowAttributes` (RFormEx), `winmm!midiIn*` (8, RMIDIPort), `ntdll!RtlGetVersion` (OSVersion): all on XP. `CoCreateInstance` left the import table (the dialog stand-in answers it). Two run-time refusals the import table cannot show were found and fixed (`FindFirstFileExW`, `MapVirtualKeyExW`; `xp-missing.txt` lists them) | `tools/winxp/imports.sh` |
+| 2 | Languages | **Works.** English, Español (switched live from Settings), Português (Brasil) with its accents, 中文: boxes (no Chinese font on this XP) and Studio's note in English and Chinese saying what to install from the Windows CD. Settings lists all five once folders can be listed | `xp-studio-en-2`, `xp-studio-es`, `xp-studio-pt-BR`, `xp-studio-pt-BR-languages`, `xp-studio-zh-2` (before the fixes: `xp-studio-settings-language`, `xp-studio-zh`) |
+| 3 | RMIDIPort (`examples/media/midi_monitor.rr`) | **Works, refused in plain words where it must.** winmm lists no MIDI device in this VM (it has no sound card): both lists empty, "No input open; no output open"; Send with no output: "No MIDI output is open: call OpenOutput first"; no crash. Scripted devices (`RAPIDR_TEST_MIDIPORT`) not used: a release build's test hooks need the test-mode token, which stays off the VM | `xp-midi-monitor-1`, `-outputs`, `-send` |
+| 4 | Async DLL memory | **Works.** `dll_byref_assigned_windows.bas` (GetComputerNameA, BYREF): "r =1 / gives1", RC.EXE's answer; `examples/windows/wndproc_postmessage.rr` (a WndProc callback): "Posted 2, arrived 2" | `xp-dll-getcomputername.txt`, `xp-dll-wndproc-2` |
+| 5 | RFormEx (`examples/gui/form_ex.rr`) | **Works.** On top, the hole (the desktop shows through), see-through (layered window) and the tray icon all work on XP | `xp-form-ex-1`, `-2` (hole), `-3` (see-through), `-tray` |
+| 6 | Right-click menus | **Works.** Studio's Project tree, code editor and tabs by right click; Shift+F10 and the Menu key (after the keyboard fix); `examples/gui/context_menus.rr` by right click and Menu key | `xp-studio-rclick-project`, `-code`, `-tab`, `xp-studio-shift-f10`, `xp-studio-menu-key-2`, `xp-context-menus-rclick`, `-menukey` |
+| 7 | The JIT and the speed baseline | **Refused in plain words, interprets.** `RAPIDR_JIT=on` / `always`: same answers, exit 0; with `--verbose`: "JIT: not on this kind of computer; the interpreter runs everything" (no JIT for 32-bit x86: the XP-JIT lane). Speed below | `xp-speed-baseline.txt`, `xp-speed-rounds-2-3.txt` |
+| 8 | Studio: F5, Build, the built program, Help, Settings | **Works.** F5 runs `hello_form.rr` ("Hello, XP! (1)", Alt+F4 closes it, "[ended, exit code 0]"); Run > **Build (Interpreted App)** builds with no Rust question, "✓ Built hello_form.exe (interpreted) in 4 s" with its check mark; the built `hello_form.exe` runs on its own ("Hello, WINXP! (1)", Ctrl+A first); F1 opens Help; File > Open shows XP's own dialog and opens the file; Settings opens | `xp-studio-runmenu`, `xp-studio-build`, `xp-studio-f5`, `-f5-greet`, `-f5-closed`, `xp-built-exe-greet`, `xp-studio-help`, `xp-studio-filemenu`, `xp-studio-open-dialog`, `xp-studio-opened-file`, `xp-studio-settings-2` |
+| 9 | Big numbers, UINT32, `HEX$(x, digits)`, LOWORD ... (console) | **Works**, the same output as macOS, Windows 7 and Windows 11 | `xpnums-xp.txt` (`-macos`, `-win7`, `-win11`) |
+| 10a | File dialogs | **Fixed** (XP flavour, above). `test_filedlg.exe`: 12 of 12 on XP (open, cancel, save, two files, a folder, another COM class still Windows' own); in Studio: File > Open | `xp-filedlg-test-2`, `xp-studio-open-dialog` |
+| 10b | The check mark | **Fixed** (shared, above). The same program on XP before / after; on macOS before and after byte-identical | `xp-symbols-before`, `xp-symbols-after`, `mac-symbols-before`, `mac-symbols-after` |
+| 10c | Build on 32-bit Windows | **Fixed** (shared, above) | `xp-studio-runmenu`, `xp-studio-build` |
+| 10d | Ctrl / Alt shortcuts | **Fixed** (XP flavour, above): the keys sent as a keyboard sends them (`probe/xpkeys.exe`: virtual key and scan code) reach Studio: Ctrl+Shift+B builds | `xp-studio-ctrl-shift-b` (before), `xp-studio-keys-ctrl-shift-b` (after) |
+
+### Speed on XP (the XP-JIT lane's baseline)
+
+Emulated, not real hardware: one i386 CPU emulated by UTM (QEMU TCG) on an Apple M4 Max; the same VM,
+the same programs, three rounds each, the first XP build (`2.122.1`, `edcd52d9`) against this one.
+`loop10m` is the whole run (start to end, as `%TIME%` sees it); the others print their own time.
+
+| Program | First XP build (rounds 1 / 2 / 3) | This build | |
+|---|---|---|---|
+| `tools/bench/vm/loop10m.rr` (10 M additions, whole run) | 3.70 / 3.51 / 3.33 s | 3.60 / 3.51 / 3.65 s | the same |
+| `tools/bench/vm/fcalls.rr` (2 M calls) | 2890 / 2875 / 2875 ms | 3250 / 2953 / 2937 ms | about 2 % slower after the first round |
+| `tools/bench/vm/dsp_voices.rr` (the synth: 32 voices) | 5187 / 4562 / 4562 ms | 4937 / 4578 / 4531 ms | the same |
+| `examples/basics/hot_cpu.rr` (an 8-bit CPU, 1 M steps) | 12703 / 12546 / 12750 ms | 7000 / 6421 / 6531 ms | **1.9x faster** (the interpreter's work since) |
+
+Every answer is the same in every run. The JIT is not built for 32-bit x86 (Cranelift has no x86-32
+back end): `RAPIDR_JIT=on` or `always` interprets, and `--verbose` says so.
+
+### Not checked, and why
+
+- **Chinese with a Chinese font on XP**: plain XP has none and nothing is installed in the VM (East
+  Asian support needs the Windows CD). XP's DirectWrite stand-in exposes no system fonts at all, so
+  even an XP with SimSun installed draws boxes: making the XP flavour list XP's own fonts is a next step
+  (the note then stops showing there by itself).
+- **A real MIDI device** (none in the VM) and **scripted MIDI devices** (test-mode token not taken
+  into the VM).
+- **Files dropped** on RFormEx's DragZone (no drag source driven on XP).
+- **Studio's Save As dialog** by hand (the dialog code path is the Open one, checked by `test_filedlg`
+  Save cases; Studio's own Save As not clicked).
+- **Screen reader** (XP has no UI Automation; MSAA would be needed) and **AI providers** (XP speaks only
+  TLS 1.0 without SNI): report-only, below.
+
+### Report-only: what each would take
+
+- **A screen reader on XP**: AccessKit speaks UI Automation, which XP does not have. XP's screen readers
+  read MSAA (`IAccessible` through `WM_GETOBJECT`): an MSAA bridge over the kernel's accessibility tree
+  (name, role, state, value, children, focus and the events `NotifyWinEvent` sends) in the XP flavour
+  or in the kernel. A few days, tested with a screen reader that still runs on XP.
+- **AI providers on XP**: XP's Schannel speaks TLS 1.0 without SNI; every provider requires TLS 1.2
+  and SNI. RapidR would need its own TLS for XP (`rustls` with a crypto provider that builds for i686
+  and runs on XP), a lawyer check, and certificate roots of its own (XP's are out of date). A local
+  model over `http://127.0.0.1` needs none of that, and works today wherever such a server runs.
+
+### The isolation, again
+
+The XP flavour's commits change only `tools/winxp/` (and this document, the manual). See §7's method:
+the Windows 7 programs built with the XP files present and with them set aside, at the same commit
+(the commit is pinned with `RAPIDR_COMMIT`: `crates/rapidr-crash/build.rs` writes it into every
+program), give the same bytes; the macOS, Linux and web builds do not read `tools/winxp/` at all. The
+shared commits change, on every system: Studio's Build menu and Project Options on 32-bit Windows only
+(64-bit unchanged); the Chinese-font note's condition and texts; `RSystemInfo.OSVersion` before
+Windows 10; the font list only where a computer has no system fonts (byte-identical on macOS); a
+desktop program's `THIRD-PARTY-NOTICES.txt` gains the symbols subset's licence; every desktop binary
+grows by the subset's 9.7 KB.
