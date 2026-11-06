@@ -37,6 +37,8 @@
 //                      Studio runs: tests/app_eyes.mjs' rai mode), then say it
 //   "click 8 in the program"  app_click on "8" (refused by the user in
 //                      tests/app_eyes.mjs' rai mode), then say what it was told
+//   "double it with the menu"  app_click's menu "CalcMenu > Double" (the
+//                      pop-up menu's item by name: tests/app_eyes.mjs' rai mode)
 //   "greet ada in my running program"  app_layout, app_type "Ada" beside the
 //                      label "Your name", app_click on "Greet" (examples/gui/
 //                      hello_form.rr: the manual's picture of RAI asking first)
@@ -519,6 +521,10 @@ function script(first, results, system, messages = []) {
     if (step === 0) return { tools: [{ name: "app_layout", input: {} }] };
     if (step === 1) return { tools: [{ name: "app_click", input: { caption: "7" } }] };
     return { text: `The program: ${results[1].content}` };
+  }
+  if (q.startsWith("double it with the menu")) {
+    if (step === 0) return { tools: [{ name: "app_click", input: { menu: "CalcMenu > Double" } }] };
+    return { text: `The program: ${results[0].content}` };
   }
   if (q.startsWith("check")) {
     if (step === 0) return { tools: [{ name: "check_code", input: {} }] };

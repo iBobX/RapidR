@@ -102,6 +102,30 @@ fn shown_menus<P: Program>(p: P) -> BTreeSet<String> {
     out
 }
 
+/// The menus a person can use now: the main and pop-up menus of the forms
+/// shown, then every other pop-up menu (one the program DIMmed and shows
+/// from its own handler) — RapidR Studio's AI tools pick their items by
+/// name: `hands`' `Act::Menu`.
+pub fn shown_roots<P: Program>(p: P) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for form in forms::built_forms() {
+        if !forms::form_shown(&form) {
+            continue;
+        }
+        for (id, _) in p.children(&form) {
+            if matches!(menu::kind(&id), Some(Kind::Main | Kind::Popup)) && !out.contains(&id.to_lowercase()) {
+                out.push(id.to_lowercase());
+            }
+        }
+    }
+    for popup in menu::popups() {
+        if !out.contains(&popup) {
+            out.push(popup);
+        }
+    }
+    out
+}
+
 /// A menu's items as the dump spells them: a submenu by its
 /// path ("&File", "&File/&Sub"), an item by its menu's path and "/" its
 /// caption ("&File/&New", a pop-up's "/One"); `*` checked, `!` disabled.

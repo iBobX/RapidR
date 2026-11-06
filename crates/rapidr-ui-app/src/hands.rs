@@ -113,6 +113,12 @@ pub enum Act {
     /// The program runs on its own for `ms` milliseconds (its timers, its
     /// work); `idle`: until nothing of it is left to run, at most `ms`.
     Wait { ms: u64, idle: bool },
+    /// A menu item picked by what a person reads — "File > Open", or its
+    /// name; any menu the program shows, a pop-up menu's too
+    /// (`rapidr_value::objects::menu::find_item`) — as the person's pick:
+    /// a pop-up's OnPopup first, then the item's OnClick. The menu isn't
+    /// opened: no system menu holds the program, and nothing waits.
+    Menu { path: String },
 }
 
 impl Act {
@@ -127,6 +133,7 @@ impl Act {
             Act::Drag { .. } => "drag",
             Act::Scroll { .. } => "scroll",
             Act::Wait { .. } => "wait",
+            Act::Menu { .. } => "pick a menu item",
         }
     }
 }
@@ -166,6 +173,11 @@ enum Step {
     Pause(u64),
     /// Until the program has nothing left to run, at most this long.
     Idle(u64),
+    /// Component `id`'s `event` fired (a pop-up menu's OnPopup).
+    Fire { form: String, id: String, event: String },
+    /// Menu item `item` picked (`said`: how it is named), as the person's
+    /// pick from its menu — any open menu closed first.
+    Pick { form: String, item: String, said: String },
 }
 
 struct Running {
@@ -181,6 +193,9 @@ struct Running {
     quiet: u8,
     /// Its last step's handlers are being given a turn to run.
     settling: u8,
+    /// Why it couldn't go on (a menu item disabled by its pop-up's
+    /// OnPopup): said at its end, as a failure.
+    failed: Option<String>,
 }
 
 /// A glide: from, to, when it started, how long (ms).
@@ -590,7 +605,7 @@ fn ease(k: f64) -> f64 {
 }
 
 /// The steps of a job whose target was found; the sentence at its end.
-fn plan(desk: &mut Desktop, store: &dyn Store, act: &Act, from: Option<(String, (f64, f64))>, speed: f64, show: bool) -> Result<(Vec<Step>, String), String> {
+fn plan(desk: &mut Desktop, store: &dyn Store, act: &Act, from: Option<(String, (f64, f64))>, speed: f64, show: bool, menus: &[String]) -> Result<(Vec<Step>, String), String> {
     let glide = |f: &Found| {
         let start = from.as_ref().filter(|(form, _)| *form == f.form).map_or(f.at, |(_, at)| *at);
         Step::Glide { form: f.form.clone(), to: f.at, ms: glide_ms(start, f.at, speed, show) }
@@ -709,6 +724,27 @@ fn plan(desk: &mut Desktop, store: &dyn Store, act: &Act, from: Option<(String, 
             let f = find(desk, store, target)?;
             check(desk, &f)?;
             (vec![glide(&f), Step::Move { form: f.form.clone(), at: f.at }, Step::Wheel { form: f.form.clone(), at: f.at, d: (*dx, *dy) }], format!("Turned the wheel {} over {}.", if *dy < 0.0 { format!("{} notches up", -dy) } else { format!("{dy} notches down") }, f.what))
+        }
+        Act::Menu { path } => {
+            let found = rapidr_value::objects::menu::find_item(menus, path)?;
+            // (its menu's window — a pop-up's form, a main menu's —, else
+            // the front one that takes input; one under a modal window
+            // can't be used, as the person's couldn't)
+            let parent = store.get(&found.root, "parent").to_string_val().to_lowercase();
+            let form = if desk.forms.get(&parent).is_some_and(|w| w.shown) { parent } else { input_windows(desk).into_iter().next().ok_or("The program shows no window that takes input now.")? };
+            if let Some(why) = blocked(desk, &form) {
+                return Err(why);
+            }
+            let mut s = Vec::new();
+            // (a pop-up menu not open yet: its OnPopup first, as when the
+            // person opens it; one open now — the AI's right-click opened
+            // it — had its OnPopup then)
+            let open_now = desk.forms.values().any(|w| w.ui.popup_open() == Some(found.root.as_str()));
+            if rapidr_value::objects::menu::kind(&found.root) == Some(rapidr_value::objects::menu::Kind::Popup) && !open_now {
+                s.push(Step::Fire { form: form.clone(), id: found.root.clone(), event: "onpopup".into() });
+            }
+            s.push(Step::Pick { form: form.clone(), item: found.id.clone(), said: found.said.clone() });
+            (s, format!("Picked {} from the menu.", found.said))
         }
         Act::Wait { ms, idle } => {
             let ms = (*ms).min(60_000);
@@ -849,6 +885,17 @@ fn play(desk: &mut Desktop, store: &dyn Store, h: &mut Hands, step: &Step, now: 
             }
             desk.mouse_wheel(store, form, *at, *d, Mods::NONE, Source::Script);
         }
+        Step::Fire { form, id, event } => {
+            desk.events.push(crate::desktop::HostEvent::Kernel(form.clone(), rapidr_ui_kernel::KernelEvent::Fire { id: id.clone(), event: event.clone(), args: Vec::new() }));
+        }
+        Step::Pick { form, item, .. } => {
+            // (a menu the program has open — a pop-up the kernel draws —
+            // closes, as a pick from it would close it)
+            if let Some(f) = desk.form(form) {
+                f.ui.close_menus();
+            }
+            desk.events.push(crate::desktop::HostEvent::Kernel(form.clone(), rapidr_ui_kernel::KernelEvent::MenuPick(item.clone())));
+        }
         Step::Pause(_) | Step::Idle(_) => {}
     }
     true
@@ -870,13 +917,14 @@ pub fn step<R: Program + Windows>(rt: R) {
         let (speed, show, from) = hands(|h| (h.speed, h.show, (!h.cursor.form.is_empty() && h.cursor.shown).then(|| (h.cursor.form.clone(), h.cursor.at))));
         let mut planned: Option<Result<(Vec<Step>, String), String>> = None;
         let mut windows = Vec::new();
+        let menus = if matches!(act, Act::Menu { .. }) { crate::menus::shown_roots(rt) } else { Vec::new() };
         let ok = rt.with_desk(&mut |desk, store| {
             windows = desk.stacking();
-            planned = Some(plan(desk, store, &act, from.clone(), speed, show));
+            planned = Some(plan(desk, store, &act, from.clone(), speed, show, &menus));
         });
         let planned = if ok { planned.unwrap_or_else(|| Err("The program's windows aren't ready yet: try again in a moment.".into())) } else { Err("The program's windows aren't ready yet (it shows none, or it is busy): try again in a moment.".into()) };
         hands(|h| match planned {
-            Ok((steps, said)) => h.running = Some(Running { owner, steps: steps.into(), next: now, said, windows, until: None, quiet: 0, settling: 0 }),
+            Ok((steps, said)) => h.running = Some(Running { owner, steps: steps.into(), next: now, said, windows, until: None, quiet: 0, settling: 0, failed: None }),
             Err(text) => h.done.push(Done { owner, ok: false, text }),
         });
     }
@@ -917,6 +965,19 @@ pub fn step<R: Program + Windows>(rt: R) {
             }
             _ => {}
         }
+        // (a menu item its pop-up's OnPopup disabled or hid meanwhile: not
+        // picked, said so)
+        if let Step::Pick { item, said, .. } = &step {
+            if !rapidr_value::objects::menu::with(item, |n| n.enabled && n.visible).unwrap_or(false) {
+                hands(|h| {
+                    if let Some(r) = h.running.as_mut() {
+                        r.steps.clear();
+                        r.failed = Some(format!("{said} was disabled (or hidden) once its menu was about to open: nothing picked. Do what enables it first."));
+                    }
+                });
+                break;
+            }
+        }
         let mut alive = true;
         rt.with_desk(&mut |desk, store| {
             hands(|h| alive = play(desk, store, h, &step, now));
@@ -935,7 +996,7 @@ pub fn step<R: Program + Windows>(rt: R) {
                 _ => 0,
             }
         });
-        if matches!(step, Step::Move { .. } | Step::Press { .. } | Step::Release { .. } | Step::Key { .. } | Step::Commit { .. } | Step::Wheel { .. } | Step::Focus { .. }) {
+        if matches!(step, Step::Move { .. } | Step::Press { .. } | Step::Release { .. } | Step::Key { .. } | Step::Commit { .. } | Step::Wheel { .. } | Step::Focus { .. } | Step::Fire { .. } | Step::Pick { .. }) {
             fired = true;
             // (the program hears it now: its handlers run — at once in a
             // native build, queued for the interpreter's VM after this turn)
@@ -995,7 +1056,10 @@ pub fn step<R: Program + Windows>(rt: R) {
             });
             hands(|h| {
                 h.cursor.used = Some(now);
-                h.done.push(Done { owner: r.owner, ok: true, text: said });
+                match r.failed {
+                    Some(why) => h.done.push(Done { owner: r.owner, ok: false, text: why }),
+                    None => h.done.push(Done { owner: r.owner, ok: true, text: said }),
+                }
             });
         }
     }

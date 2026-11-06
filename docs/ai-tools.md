@@ -77,7 +77,7 @@ tool now has one name, one description and one behaviour.
 | `report_gap` | help | change (note) | core | — | — | both | new: one short line in the project's `RAPIDR-ISSUES.md`, nothing else written |
 | `app_layout` | app | read (drive) | program | yes | yes | both | dialog parts listed by their short names (b0) |
 | `app_screenshot` | app | read (drive) | program | — | yes | both | the picture **and** what it shows in words (RAI's models read the words) |
-| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | app | run (drive) | program | yes | yes (capitalised arguments) | both | one request builder; a message box's button by its short name (b0) or caption |
+| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | app | run (drive) | program | yes | yes (capitalised arguments) | both | one request builder; a message box's button by its short name (b0) or caption; `app_click`'s `menu` picks a menu item by its captions or name (any menu, a pop-up's too, never opened: rapidr_value::objects::menu::find_item) |
 | `app_wait` | app | read | program | yes | yes | both | — |
 | `capture` | studio | read | Studio | — | yes | AI apps | a picture of Studio: RAI's models read text (studio_status, layout_report say it in words) |
 | `ask_rai`, `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | studio | rai / read | Studio | — | yes | AI apps | RAI is the one asked: it doesn't ask or read itself |

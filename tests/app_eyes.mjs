@@ -13,7 +13,10 @@
 //                     the pointer gliding); what isn't there said with what
 //                     is; another window can't be asked for; paused in the
 //                     debugger a picture still, a click refused with where;
-//                     going on, input again; app_wait
+//                     going on, input again; the pop-up menu's item picked
+//                     by name (app_click's menu: its OnPopup and OnClick, a
+//                     disabled one refused, one not there said with what
+//                     is); app_wait
 //   Ask before changes  looking at the program asks like using it: the first
 //                     look of a run asks (Allow Once), then pictures, clicks
 //                     and typing aren't asked until the run ends; a new run
@@ -38,7 +41,9 @@
 //                     asked to click 7, it asks again, is allowed for this
 //                     run, reads the layout and clicks with the same eyes
 //                     and hands, its turn waiting for the program's answer;
-//                     its audit: what ran, no digest of what it typed
+//                     it picks the pop-up menu's Double by name (the same
+//                     app_click menu as an AI app's); its audit: what ran,
+//                     no digest of what it typed
 //
 // In the four AI-app modes a canary: CANARY-TYPED-7f3a typed into the name
 // box, a click on a caption that isn't there (CANARY-NOCAPTION: the answer
@@ -338,6 +343,36 @@ if (want("all")) {
   r = await tool("debug", { Action: "continue", Wait: 1 });
   r = await tool("app_click", { Caption: "C" });
   check("going on: app_click works again", !r.error && r.text.startsWith('Clicked bclear (RButton "C")'), r.text);
+  // (a pop-up menu's item picked by name — RUNTIME-BUGS: the system's own
+  // pop-up menu was a loop the tools could neither see nor click, and the
+  // program waited in it — its OnPopup, then its OnClick; the menu not opened)
+  r = await tool("app_layout");
+  check("app_layout lists the pop-up menu's items (a disabled one marked)", r.text.includes("Pop-up menu calcmenu: Double, Locked (disabled) (app_click's menu picks one)"), r.text);
+  r = await tool("app_click", { Caption: "9" });
+  r = await tool("app_click", { Menu: "Double" });
+  check("app_click menu: Double picked", !r.error && r.text.startsWith("Picked Double from the menu."), r.text);
+  r = await tool("app_click", { Menu: "CalcMenu > Double" });
+  check("app_click menu by the pop-up's name and the item's caption", !r.error && r.text.startsWith("Picked Double from the menu."), r.text);
+  r = await tool("app_layout", { Window: "form1" });
+  check("9 doubled twice: 36 on the display", r.text.includes('display (RLabel) "36"'), r.text);
+  r = await tool("read_output");
+  check("the program heard OnPopup, then OnClick", /menu popped[\s\S]*doubled 18[\s\S]*menu popped[\s\S]*doubled 36/.test(r.text), r.text.slice(-400));
+  r = await tool("app_click", { Menu: "Locked" });
+  check("app_click menu: a disabled item refused, said why", r.error && r.text.includes("Locked is disabled (Enabled = False) now"), r.text);
+  r = await tool("app_click", { Menu: "Print" });
+  check("app_click menu: an item that isn't there, the menus there are", r.error && r.text.includes('No menu item "Print". The menus: pop-up menu calcmenu: Double, Locked.'), r.text);
+  // (the AI's right-click opens the pop-up menu RapidR draws: the layout
+  // says it is open, a picture shows it, the pick closes it)
+  r = await tool("app_click", { Name: "Display", Button: "right" });
+  check("a right-click on the display", !r.error && r.text.startsWith("Right-clicked display"), r.text);
+  r = await tool("app_layout");
+  check("app_layout: the pop-up menu is open now", r.text.includes("Pop-up menu calcmenu is open now"), r.text);
+  r = await tool("app_screenshot", { Window: "form1", Scale: "1x", Frame: false });
+  save(png(r), "app-eyes-popup-open.png");
+  r = await tool("app_click", { Menu: "Double" });
+  r = await tool("app_layout");
+  check("picked from the open pop-up menu: it closed, 36 doubled to 72", !r.text.includes("is open now") && r.text.includes('display (RLabel) "72"'), r.text);
+  r = await tool("app_click", { Caption: "C" });
   r = await tool("app_wait", { Ms: 200 });
   check("app_wait", !r.error && r.text.includes("Waited 200 ms"), r.text);
   await canaryCalls("all", tool, true);
@@ -550,6 +585,12 @@ if (want("rai")) {
   check("RAI's steps name what it did", r.text.includes("Reading the running program's layout") || r.text.includes("Clicking"), r.text);
   r = await tool("app_layout");
   check("the program shows 7", r.text.includes('display (RLabel) "7"'), r.text);
+  // (the same menu pick as an AI app's: RAI's app_click with menu — the
+  // pop-up menu's item by name, its OnPopup and OnClick; allowed for this run)
+  r = await tool("ask_rai", { Prompt: "double it with the menu" });
+  check("RAI picked Double from the pop-up menu by name (the same tool, the same answer)", !r.error && r.text.includes("The program: Picked Double from the menu."), r.text);
+  r = await tool("app_layout");
+  check("the program shows 14", r.text.includes('display (RLabel) "14"'), r.text);
   r = await tool("get_rai_transcript", { Chars: 30000 });
   check("RAI's chat shows each answer to its card", r.text.includes("You didn't allow RAI to use your running program") && r.text.includes("You allowed RAI to use your running program for this run"), r.text.slice(-1500));
   r = await tool("how_do_i", { task: "the end of this part" });

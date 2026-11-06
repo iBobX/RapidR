@@ -152,7 +152,7 @@ assistant, uses (only the last group is AI apps' alone):
 | `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused). Not while the code has errors: the AI app is told the first ones, and that Problems must be 0 | run |
 | `debug` | Breakpoints, continue, step over / into / out, pause, the call stack and the variables | run |
 | `app_layout`, `app_screenshot` | The running program's windows and controls in words (and what looks wrong), a picture of its windows with the same in words beside it | run (looking at or using the running program) |
-| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks, types, presses keys, drags and scrolls in the running program, with a pointer you see; a message box's buttons by their caption or short name (b0) | run (looking at or using the running program) |
+| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks, types, presses keys, drags and scrolls in the running program, with a pointer you see; a message box's buttons by their caption or short name (b0); a menu item by what it says (`menu`: `File > Open`, any menu, a pop-up menu's too) | run (looking at or using the running program) |
 | `app_wait` | Lets the running program work on its own a moment, or until it is idle | look |
 | `open_project` | Opens a project or a program (AI apps only) | change |
 | `capture` | A picture (PNG) of Studio's window as you see it — Studio's own window only, and never while a dialog is open (Settings and Set Up RAI can show your token or a key): the AI app is told to ask again later (AI apps only) | look |
