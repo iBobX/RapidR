@@ -679,7 +679,7 @@ doc = "A 64-bit unsigned whole number, from 0 to 18446744073709551615. It works 
 [[type]]
 name = "UINT32"
 origin = "rapidr"
-doc = "A 32-bit unsigned whole number, from 0 to 4294967295 (DWORD is RapidQ's 32-bit signed type). A store keeps the low 32 bits (`-1` is 4294967295, `&HF58ACBFB` 4119514107); its value is worked out in 64 bits, so `u * 2` doesn't overflow, and PRINT shows every digit. HEX$ shows 8 digits. A DOUBLE stored into it that is negative or too big gives 0."
+doc = "A 32-bit unsigned whole number, from 0 to 4294967295 (DWORD is the 32-bit signed type). A store keeps the low 32 bits (`-1` is 4294967295, `&HF58ACBFB` 4119514107); its value is worked out in 64 bits, so `u * 2` doesn't overflow, and PRINT shows every digit. HEX$ shows 8 digits. A DOUBLE stored into it that is negative or too big gives 0."
 
 [[type]]
 name = "CURRENCY"

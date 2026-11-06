@@ -4,7 +4,7 @@
 [docs]
 "ADDRESS FAMILIES" = "Familias de direcciones para el Family de un socket (AF_INET para IPv4 y otras)."
 "ALIGNMENT IN THE PARENT" = "El Align de un control: dónde se acopla en su contenedor (arriba, abajo, izquierda, derecha, toda el área de cliente) cuando este cambia de tamaño."
-"64-BIT NUMBER TYPES" = "Los tipos de RapidR para ReadNum y WriteNum de un flujo, junto a los Num_ de RapidQ: un INT64 o un UINT64 en 8 bytes, un UINT32 en 4, en orden little-endian, sin perder ningún bit. Vienen incorporados solo en un programa de RapidR (`.rr`), como los nombres propios de RapidR."
+"64-BIT NUMBER TYPES" = "Los tipos de RapidR para ReadNum y WriteNum de un flujo, junto a Num_LONG y los demás: un INT64 o un UINT64 en 8 bytes, un UINT32 en 4, en orden little-endian, sin perder ningún bit. Vienen incorporados solo en un programa de RapidR (`.rr`), como los nombres propios de RapidR."
 "ANCHORS" = "Los indicadores Anchors de RapidR, combinados: los lados de su contenedor a los que un control mantiene su distancia cuando el contenedor cambia de tamaño."
 "BAUD RATES" = "Velocidades del puerto serial para el BaudRate de un RComPort."
 "BEVEL PANELS" = "Los estilos de borde de un panel: ninguno o simple."

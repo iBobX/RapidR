@@ -17,7 +17,7 @@ page in one program (`rapidr run bits_and_64bit.rr`).
 | `INT64` | -9223372036854775808 … 9223372036854775807 | |
 | `UINT64` | 0 … 18446744073709551615 | read unsigned everywhere |
 | `UINT32` | 0 … 4294967295 | a store keeps the low 32 bits; worked out in 64 bits |
-| `DWORD` | -2147483648 … 2147483647 | 32-bit *signed* (as RapidQ has it) |
+| `DWORD` | -2147483648 … 2147483647 | 32-bit *signed* (the classic type) |
 
 ```basic
 DIM size AS INT64 = 5 * 3221225472        ' five 3 GB files
@@ -78,7 +78,7 @@ beyond 32 bits is an `INT64` (above 9223372036854775807 a `UINT64`):
 `PRINT 3000000000` shows 3000000000. Beside a 64-bit or `UINT32` value an
 `&H` literal is read as written, up to 16 digits: `i AND &HFFFFFFFF` keeps
 the low 32 bits, and `IF flags = &HF58ACBFB` is true for a `UINT32`. A
-program without these types reads numbers as RapidQ does (`PRINT
+program without these types keeps the classic 32-bit reading (`PRINT
 3000000000` shows -2147483648, `&HFFFFFFFF` is -1).
 
 ## The bit functions
@@ -115,17 +115,18 @@ one that doesn't fit, naming the type's range.
 
 ## What stays as it was
 
-- `INTEGER`, `LONG` and `DWORD` are 32-bit signed, as in RapidQ: storing
-  4119514107 into a `DWORD` gives -2147483648, as RapidQ's own compiler
-  does. Use `UINT32` for 0 … 4294967295.
+- `INTEGER`, `LONG` and `DWORD` are 32-bit signed, as classic programs
+  expect: storing 4119514107 into a `DWORD` gives -2147483648. Use `UINT32`
+  for 0 … 4294967295.
 - `CINT`, `CLNG`, `ROUND` of a `DOUBLE`, `CEIL`, `FLOOR` give 32-bit
   numbers (of a 64-bit value: the value itself). `SIN`, `SQR`, `LOG` and
   the other maths functions work in `DOUBLE`, as their results are.
 - A `DOUBLE` stored into an `INT64` is truncated toward zero; out of range
   it gives -9223372036854775808 (a `UINT64`: 0). `ABS(-9223372036854775808)`
-  is that number again, as `ABS` of RapidQ's smallest `LONG` is.
+  is that number again, as `ABS` of the smallest `LONG` stored back in a
+  `LONG` is.
 - `PRINT 1, 2` prints `12`: the comma in `PRINT` doesn't make columns,
-  as in RapidQ.
+  as in classic programs.
 
 ## On every runtime
 

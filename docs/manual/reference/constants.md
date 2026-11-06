@@ -576,7 +576,7 @@ What changed in an item, the `Change` an RListView's OnChange hears: its caption
 
 ## 64-bit number types
 
-RapidR's types for a stream's ReadNum and WriteNum beside RapidQ's Num_ ones: an INT64 or UINT64 in 8 bytes, a UINT32 in 4, little-endian, every bit kept. Built into a RapidR program (`.rr`) only, as RapidR's own names. (`RapidR`)
+RapidR's types for a stream's ReadNum and WriteNum beside Num_LONG and the others: an INT64 or UINT64 in 8 bytes, a UINT32 in 4, little-endian, every bit kept. Built into a RapidR program (`.rr`) only, as RapidR's own names. (`RapidR`)
 
 `Num_INT64` = 9, `Num_UINT64` = 10, `Num_UINT32` = 11
 

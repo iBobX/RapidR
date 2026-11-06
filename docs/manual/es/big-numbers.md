@@ -18,7 +18,7 @@ página en un solo programa (`rapidr run bits_and_64bit.rr`).
 | `INT64` | -9223372036854775808 … 9223372036854775807 | |
 | `UINT64` | 0 … 18446744073709551615 | se lee sin signo en todas partes |
 | `UINT32` | 0 … 4294967295 | al guardarlo se conservan los 32 bits bajos; se calcula con 64 bits |
-| `DWORD` | -2147483648 … 2147483647 | 32 bits *con signo* (como lo tiene RapidQ) |
+| `DWORD` | -2147483648 … 2147483647 | 32 bits *con signo* (el tipo clásico) |
 
 ```basic
 DIM size AS INT64 = 5 * 3221225472        ' cinco archivos de 3 GB
@@ -85,9 +85,9 @@ más de 32 bits es un `INT64` (por encima de 9223372036854775807, un
 `UINT64`): `PRINT 3000000000` muestra 3000000000. Junto a un valor de 64
 bits o `UINT32`, un literal `&H` se lee tal como está escrito, hasta 16
 cifras: `i AND &HFFFFFFFF` conserva los 32 bits bajos, e `IF flags =
-&HF58ACBFB` es verdadero para un `UINT32`. Un programa sin estos tipos lee
-los números como RapidQ (`PRINT 3000000000` muestra -2147483648,
-`&HFFFFFFFF` es -1).
+&HF58ACBFB` es verdadero para un `UINT32`. Un programa sin estos tipos
+conserva la lectura clásica de 32 bits (`PRINT 3000000000` muestra
+-2147483648, `&HFFFFFFFF` es -1).
 
 ## Las funciones de bits
 
@@ -126,17 +126,18 @@ del tipo.
 
 ## Lo que sigue como era
 
-- `INTEGER`, `LONG` y `DWORD` son de 32 bits con signo, como en RapidQ:
-  guardar 4119514107 en un `DWORD` da -2147483648, igual que el propio
-  compilador de RapidQ. Usa `UINT32` para 0 … 4294967295.
+- `INTEGER`, `LONG` y `DWORD` son de 32 bits con signo, como lo esperan los
+  programas clásicos: guardar 4119514107 en un `DWORD` da -2147483648. Usa
+  `UINT32` para 0 … 4294967295.
 - `CINT`, `CLNG`, `ROUND` de un `DOUBLE`, `CEIL` y `FLOOR` dan números de 32
   bits (de un valor de 64 bits: el valor mismo). `SIN`, `SQR`, `LOG` y las
   demás funciones matemáticas trabajan con `DOUBLE`, como sus resultados.
 - Un `DOUBLE` que se guarda en un `INT64` se trunca hacia cero; fuera del
   rango da -9223372036854775808 (un `UINT64`: 0). `ABS(-9223372036854775808)`
-  vuelve a ser ese número, como `ABS` del `LONG` más pequeño de RapidQ.
+  vuelve a ser ese número, como `ABS` del `LONG` más pequeño guardado de
+  vuelta en un `LONG`.
 - `PRINT 1, 2` imprime `12`: la coma de `PRINT` no forma columnas, como en
-  RapidQ.
+  los programas clásicos.
 
 ## En todos los entornos
 
