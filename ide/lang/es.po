@@ -44,7 +44,7 @@ msgstr "A&plicar"
 msgid "Apply the accepted changes"
 msgstr "Aplicar los cambios aceptados"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/contextmenu.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -903,30 +903,6 @@ msgid "Undo: put the chat back"
 msgstr "Deshacer: devolver el chat"
 
 #: ide/aichats.inc
-msgid "Rename the chat"
-msgstr "Renombrar el chat"
-
-#: ide/aichats.inc
-msgid "The chat's new name"
-msgstr "El nombre nuevo del chat"
-
-#: ide/aichats.inc
-msgid "Enter keeps it, Escape leaves the name as it was"
-msgstr "Enter lo conserva, Escape deja el nombre como estaba"
-
-#: ide/aichats.inc
-msgid "Save"
-msgstr "Guardar"
-
-#: ide/aichats.inc
-msgid "Save the new name"
-msgstr "Guardar el nombre nuevo"
-
-#: ide/aichats.inc
-msgid "Keep the name as it was"
-msgstr "Conservar el nombre como estaba"
-
-#: ide/aichats.inc
 msgid "Where chats are kept"
 msgstr "Dónde se guardan los chats"
 
@@ -979,6 +955,18 @@ msgstr "Atrás"
 #: ide/aichats.inc
 msgid "Back to the chat"
 msgstr "Volver al chat"
+
+#: ide/aichats.inc
+msgid "Today"
+msgstr "Hoy"
+
+#: ide/aichats.inc
+msgid "Yesterday"
+msgstr "Ayer"
+
+#: ide/aichats.inc
+msgid "Earlier"
+msgstr "Antes"
 
 #: ide/aichats.inc
 msgid "{title} — {n} question, {date}"
@@ -1035,6 +1023,22 @@ msgstr "Se renombró: {q}{title}{q}."
 #: ide/aichats.inc
 msgid "That chat couldn't be renamed."
 msgstr "No se pudo renombrar ese chat."
+
+#: ide/aichats.inc
+msgid "You"
+msgstr "Tú"
+
+#: ide/aichats.inc
+msgid "That chat couldn't be read."
+msgstr "No se pudo leer ese chat."
+
+#: ide/aichats.inc
+msgid "Copied the chat as Markdown."
+msgstr "Se copió el chat como Markdown."
+
+#: ide/aichats.inc
+msgid "Copied the chat as Markdown"
+msgstr "Se copió el chat como Markdown"
 
 #: ide/aichats.inc
 msgid "That chat couldn't be deleted."
@@ -1924,7 +1928,7 @@ msgstr "El ícono de la aplicación"
 msgid "Icons and pictures"
 msgstr "Íconos e imágenes"
 
-#: ide/build.inc ide/crash.inc ide/project.inc ide/shell.inc
+#: ide/build.inc ide/contextmenu.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
 msgstr "Todos los archivos"
 
@@ -2174,7 +2178,7 @@ msgstr "Re&hacer"
 msgid "Cu&t"
 msgstr "C&ortar"
 
-#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc
+#: ide/commands.inc ide/debug.inc ide/mcp.inc
 msgid "&Copy"
 msgstr "&Copiar"
 
@@ -2553,7 +2557,7 @@ msgstr "&Editar punto de interrupción..."
 msgid "&Delete All Breakpoints"
 msgstr "Eli&minar todos los puntos de interrupción"
 
-#: ide/commands.inc ide/debug.inc
+#: ide/commands.inc
 msgid "Add &Watch"
 msgstr "Añadir a &Observar"
 
@@ -2835,7 +2839,7 @@ msgstr "&Editar el valor"
 msgid "&Reset to Default"
 msgstr "&Restablecer el valor predeterminado"
 
-#: ide/contextmenu.inc ide/debug.inc
+#: ide/contextmenu.inc
 msgid "&Copy Value"
 msgstr "&Copiar valor"
 
@@ -2864,12 +2868,160 @@ msgid "As&k RAI..."
 msgstr "Pre&guntar a RAI..."
 
 #: ide/contextmenu.inc
+msgid "Copy as &Markdown"
+msgstr "Copiar como &Markdown"
+
+#: ide/contextmenu.inc
+msgid "Compare with the &Last Version"
+msgstr "Comparar con la ú&ltima versión"
+
+#: ide/contextmenu.inc
+msgid "Compare with &Another File..."
+msgstr "Comparar con &otro archivo..."
+
+#: ide/contextmenu.inc
+msgid "&Delete File..."
+msgstr "E&liminar archivo..."
+
+#: ide/contextmenu.inc
+msgid "Apply the &Fix"
+msgstr "Aplicar la &corrección"
+
+#: ide/contextmenu.inc
+msgid "E&xplain This Problem"
+msgstr "E&xplicar este problema"
+
+#: ide/contextmenu.inc
+msgid "&Go to Problem"
+msgstr "&Ir al problema"
+
+#: ide/contextmenu.inc
+msgid "&Go to the Place"
+msgstr "&Ir al lugar"
+
+#: ide/contextmenu.inc
+msgid "Copy &Line"
+msgstr "Copiar &línea"
+
+#: ide/contextmenu.inc ide/mcp.inc
+msgid "Copy &All"
+msgstr "Copiar &todo"
+
+#: ide/contextmenu.inc
+msgid "Cl&ear"
+msgstr "&Borrar"
+
+#: ide/contextmenu.inc
+msgid "&Set Value..."
+msgstr "&Establecer valor..."
+
+#: ide/contextmenu.inc
+msgid "Copy &Expression"
+msgstr "Copiar e&xpresión"
+
+#: ide/contextmenu.inc
+msgid "&View Text..."
+msgstr "&Ver texto..."
+
+#: ide/contextmenu.inc
+msgid "&Remove Watch"
+msgstr "&Quitar de Observar"
+
+#: ide/contextmenu.inc
+msgid "&Go to This Call"
+msgstr "&Ir a esta llamada"
+
+#: ide/contextmenu.inc
+msgid "&Go to Breakpoint"
+msgstr "&Ir al punto de interrupción"
+
+#: ide/contextmenu.inc
+msgid "Edit Co&ndition..."
+msgstr "Editar co&ndición..."
+
+#: ide/contextmenu.inc
+msgid "Disa&ble Breakpoint"
+msgstr "&Desactivar el punto de interrupción"
+
+#: ide/contextmenu.inc
+msgid "&Remove Breakpoint"
+msgstr "&Quitar el punto de interrupción"
+
+#: ide/contextmenu.inc
+msgid "&Help on This Component"
+msgstr "A&yuda sobre este componente"
+
+#: ide/contextmenu.inc
+msgid "Open an &Example"
+msgstr "Abrir un &ejemplo"
+
+#: ide/contextmenu.inc
+msgid "Open in the Bro&wser"
+msgstr "Abrir en el &navegador"
+
+#: ide/contextmenu.inc
+msgid "&Try It"
+msgstr "&Probarlo"
+
+#: ide/contextmenu.inc
+msgid "Copy &Code"
+msgstr "Copiar el &código"
+
+#: ide/contextmenu.inc
+msgid "&Insert at the Cursor"
+msgstr "&Insertar en el cursor"
+
+#: ide/contextmenu.inc
+msgid "&Copy Message"
+msgstr "&Copiar el mensaje"
+
+#: ide/contextmenu.inc
+msgid "&Close Pane"
+msgstr "&Cerrar el panel"
+
+#: ide/contextmenu.inc
+msgid "&Float"
+msgstr "&Flotar"
+
+#: ide/contextmenu.inc
+msgid "&Remove from Recent"
+msgstr "&Quitar de recientes"
+
+#: ide/contextmenu.inc
+msgid "&Add to the Form"
+msgstr "&Agregar al formulario"
+
+#: ide/contextmenu.inc
+msgid "&Expand All"
+msgstr "&Expandir todo"
+
+#: ide/contextmenu.inc
 msgid "Set up RAI first: Tools > Set Up RAI"
 msgstr "Primero configura RAI: Herramientas > Configurar RAI"
 
 #: ide/contextmenu.inc
 msgid "Open &Code"
 msgstr "Abrir el &código"
+
+#: ide/contextmenu.inc
+msgid "Compare &With"
+msgstr "Com&parar con"
+
+#: ide/contextmenu.inc
+msgid "the &Disk's Version"
+msgstr "la versión del &disco"
+
+#: ide/contextmenu.inc
+msgid "Open it first: the disk's version is compared with yours"
+msgstr "Ábrelo primero: se compara la versión del disco con la tuya"
+
+#: ide/contextmenu.inc
+msgid "the &Last Version"
+msgstr "la ú&ltima versión"
+
+#: ide/contextmenu.inc
+msgid "&Another File..."
+msgstr "&Otro archivo..."
 
 #: ide/contextmenu.inc
 msgid "Show &History"
@@ -2928,6 +3080,14 @@ msgid "About line {n} of {file}:"
 msgstr "Sobre la línea {n} de {file}:"
 
 #: ide/contextmenu.inc
+msgid "Ask RAI About This Problem..."
+msgstr "Preguntar a RAI sobre este problema..."
+
+#: ide/contextmenu.inc
+msgid "About this problem on line {n} of {file}:"
+msgstr "Sobre este problema en la línea {n} de {file}:"
+
+#: ide/contextmenu.inc
 msgid "Ask RAI About This Code..."
 msgstr "Preguntar a RAI sobre este código..."
 
@@ -2964,6 +3124,10 @@ msgid "Center in &Form"
 msgstr "Centrar en el &formulario"
 
 #: ide/contextmenu.inc
+msgid "&Help: {name}"
+msgstr "A&yuda: {name}"
+
+#: ide/contextmenu.inc
 msgid "&Zoom"
 msgstr "&Zoom"
 
@@ -2988,10 +3152,6 @@ msgid "Already the default"
 msgstr "Ya es el valor predeterminado"
 
 #: ide/contextmenu.inc
-msgid "&Help: {name}"
-msgstr "A&yuda: {name}"
-
-#: ide/contextmenu.inc
 msgid "Ask RAI About {name}..."
 msgstr "Preguntar a RAI sobre {name}..."
 
@@ -3002,6 +3162,230 @@ msgstr "Sobre {name} de {target}:"
 #: ide/contextmenu.inc
 msgid "Actions for the chat"
 msgstr "Acciones para el chat"
+
+#: ide/contextmenu.inc
+msgid "Not on a problem"
+msgstr "No está sobre un problema"
+
+#: ide/contextmenu.inc
+msgid "Copy &All Problems"
+msgstr "Copiar &todos los problemas"
+
+#: ide/contextmenu.inc
+msgid "No problems"
+msgstr "No hay problemas"
+
+#: ide/contextmenu.inc
+msgid "About this problem:"
+msgstr "Sobre este problema:"
+
+#: ide/contextmenu.inc
+msgid "Actions for the problem"
+msgstr "Acciones para el problema"
+
+#: ide/contextmenu.inc
+msgid "&Go to {file}, Line {n}"
+msgstr "&Ir a {file}, línea {n}"
+
+#: ide/contextmenu.inc
+msgid "Not on a line"
+msgstr "No está sobre una línea"
+
+#: ide/contextmenu.inc
+msgid "Nothing to copy"
+msgstr "No hay nada que copiar"
+
+#: ide/contextmenu.inc
+msgid "&Select All"
+msgstr "&Seleccionar todo"
+
+#: ide/contextmenu.inc
+msgid "&Wrap Long Lines"
+msgstr "&Ajustar líneas largas"
+
+#: ide/contextmenu.inc
+msgid "Nothing to clear"
+msgstr "No hay nada que borrar"
+
+#: ide/contextmenu.inc
+msgid "Actions for the output"
+msgstr "Acciones para la salida"
+
+#: ide/contextmenu.inc
+msgid "Actions for Immediate"
+msgstr "Acciones para Inmediato"
+
+#: ide/contextmenu.inc
+msgid "The program isn't paused"
+msgstr "El programa no está en pausa"
+
+#: ide/contextmenu.inc
+msgid "Not a value"
+msgstr "No es un valor"
+
+#: ide/contextmenu.inc
+msgid "Only a watch itself can be removed"
+msgstr "Solo se puede quitar una expresión observada, no una de sus partes"
+
+#: ide/contextmenu.inc
+msgid "Actions for the call"
+msgstr "Acciones para la llamada"
+
+#: ide/contextmenu.inc
+msgid "Not on a breakpoint"
+msgstr "No está sobre un punto de interrupción"
+
+#: ide/contextmenu.inc
+msgid "&Enable Breakpoint"
+msgstr "&Activar el punto de interrupción"
+
+#: ide/contextmenu.inc
+msgid "No breakpoints"
+msgstr "No hay puntos de interrupción"
+
+#: ide/contextmenu.inc
+msgid "Actions for the breakpoint"
+msgstr "Acciones para el punto de interrupción"
+
+#: ide/contextmenu.inc
+msgid "Open a code file first"
+msgstr "Primero abre un archivo de código"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Example..."
+msgstr "Preguntar a RAI sobre este ejemplo..."
+
+#: ide/contextmenu.inc
+msgid "Actions for the example"
+msgstr "Acciones para el ejemplo"
+
+#: ide/contextmenu.inc
+msgid "&Back"
+msgstr "&Atrás"
+
+#: ide/contextmenu.inc
+msgid "No page before this one"
+msgstr "No hay una página anterior"
+
+#: ide/contextmenu.inc
+msgid "&Forward"
+msgstr "Ade&lante"
+
+#: ide/contextmenu.inc
+msgid "No page after this one"
+msgstr "No hay una página siguiente"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Page..."
+msgstr "Preguntar a RAI sobre esta página..."
+
+#: ide/contextmenu.inc
+msgid "About the Help page {q}{title}{q}:"
+msgstr "Sobre la página de la Ayuda {q}{title}{q}:"
+
+#: ide/contextmenu.inc
+msgid "Actions for the Help page"
+msgstr "Acciones para la página de la Ayuda"
+
+#: ide/contextmenu.inc ide/search.inc
+msgid "Help"
+msgstr "Ayuda"
+
+#: ide/contextmenu.inc
+msgid "No message"
+msgstr "No hay mensaje"
+
+#: ide/contextmenu.inc
+msgid "Actions for the status bar"
+msgstr "Acciones para la barra de estado"
+
+#: ide/contextmenu.inc
+msgid "Actions for School Lock"
+msgstr "Acciones para el Bloqueo escolar"
+
+#: ide/contextmenu.inc
+msgid "&Dock"
+msgstr "&Acoplar"
+
+#: ide/contextmenu.inc
+msgid "Actions for the pane"
+msgstr "Acciones para el panel"
+
+#: ide/contextmenu.inc
+msgid "It isn't there any more"
+msgstr "Ya no está ahí"
+
+#: ide/contextmenu.inc
+msgid "Actions for the Toolbox"
+msgstr "Acciones para el Cuadro de herramientas"
+
+#: ide/contextmenu.inc
+msgid "Open a form first"
+msgstr "Primero abre un formulario"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI How to Use {name}..."
+msgstr "Preguntar a RAI cómo usar {name}..."
+
+#: ide/contextmenu.inc
+msgid "How do I use {name}?"
+msgstr "¿Cómo uso {name}?"
+
+#: ide/contextmenu.inc
+msgid "Line {n} of {file}"
+msgstr "Línea {n} de {file}"
+
+#: ide/contextmenu.inc
+msgid "No problem here"
+msgstr "Aquí no hay ningún problema"
+
+#: ide/contextmenu.inc
+msgid "This problem"
+msgstr "Este problema"
+
+#: ide/contextmenu.inc
+msgid "Help: this problem"
+msgstr "Ayuda: este problema"
+
+#: ide/contextmenu.inc
+msgid "Move {file} to the Trash?"
+msgstr "¿Mover {file} a la papelera?"
+
+#: ide/contextmenu.inc
+msgid "It is taken out of the project too. You can put it back from the Trash."
+msgstr "También se quita del proyecto. Puedes recuperarlo desde la papelera."
+
+#: ide/contextmenu.inc
+msgid "&Move to Trash"
+msgstr "&Mover a la papelera"
+
+#: ide/contextmenu.inc
+msgid "{file} couldn't be moved to the Trash"
+msgstr "No se pudo mover {file} a la papelera"
+
+#: ide/contextmenu.inc
+msgid "{file} couldn't be moved to the Trash ({path}): it may be open in another program, or its disk has no Trash."
+msgstr "No se pudo mover {file} a la papelera ({path}): puede que esté abierto en otro programa o que su disco no tenga papelera."
+
+#: ide/contextmenu.inc
+msgid "{file} moved to the Trash"
+msgstr "{file} se movió a la papelera"
+
+#: ide/contextmenu.inc
+msgid "Try It"
+msgstr "Probar"
+
+#: ide/contextmenu.inc
+msgid "Can't write {path}"
+msgstr "No se puede escribir {path}"
+
+#: ide/contextmenu.inc
+msgid "{file} is yours to change: F5 runs it"
+msgstr "{file} es tuyo para cambiarlo: F5 lo ejecuta"
+
+#: ide/contextmenu.inc
+msgid "Compare With"
+msgstr "Comparar con"
 
 #: ide/contextmenu.inc
 msgid "Copied the path"
@@ -3022,6 +3406,28 @@ msgstr "Se copió el nombre"
 #: ide/contextmenu.inc
 msgid "The handler couldn't be removed"
 msgstr "No se pudo quitar el manejador"
+
+#: ide/contextmenu.inc ide/panels.inc
+msgid "Copied {n} character"
+msgid_plural "Copied {n} characters"
+msgstr[0] "Se copió {n} carácter"
+msgstr[1] "Se copiaron {n} caracteres"
+
+#: ide/contextmenu.inc
+msgid "No fix here"
+msgstr "Aquí no hay ninguna corrección"
+
+#: ide/contextmenu.inc ide/panels.inc ide/shell.inc
+msgid "Example"
+msgstr "Ejemplo"
+
+#: ide/contextmenu.inc
+msgid "Copied the message"
+msgstr "Se copió el mensaje"
+
+#: ide/contextmenu.inc
+msgid "{file} taken off Recent"
+msgstr "{file} se quitó de recientes"
 
 # Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
 #: ide/crash.inc
@@ -3580,18 +3986,6 @@ msgid "Step into {name}"
 msgstr "Entrar en {name}"
 
 #: ide/debug.inc
-msgid "Copy &Expression"
-msgstr "Copiar &expresión"
-
-#: ide/debug.inc
-msgid "&View Text..."
-msgstr "&Ver texto..."
-
-#: ide/debug.inc
-msgid "&Set Value..."
-msgstr "&Establecer valor..."
-
-#: ide/debug.inc
 msgid "Copied the call"
 msgstr "Se copió la llamada"
 
@@ -3610,10 +4004,6 @@ msgid "Copied {n} breakpoint"
 msgid_plural "Copied {n} breakpoints"
 msgstr[0] "Se copió {n} punto de interrupción"
 msgstr[1] "Se copiaron {n} puntos de interrupción"
-
-#: ide/debug.inc ide/mcp.inc ide/panels.inc
-msgid "Copy &All"
-msgstr "Copiar &todo"
 
 #: ide/debug.inc
 msgid "Run-time errors end the program"
@@ -4502,10 +4892,6 @@ msgstr "Quita la lista de lo que hicieron las aplicaciones de IA"
 msgid "C&lear"
 msgstr "&Borrar"
 
-#: ide/panels.inc ide/shell.inc
-msgid "Example"
-msgstr "Ejemplo"
-
 #: ide/panels.inc
 msgid "Go to line {}"
 msgstr "Ir a la línea {}"
@@ -4662,10 +5048,6 @@ msgid "Theme: {file} says $THEME {look}"
 msgstr "Tema: {file} dice $THEME {look}"
 
 #: ide/panels.inc
-msgid "Copy &All Problems"
-msgstr "Copiar &todos los problemas"
-
-#: ide/panels.inc
 msgid "Copied {n} problem"
 msgid_plural "Copied {n} problems"
 msgstr[0] "Se copió {n} problema"
@@ -4676,12 +5058,6 @@ msgid "Copied {n} line"
 msgid_plural "Copied {n} lines"
 msgstr[0] "Se copió {n} línea"
 msgstr[1] "Se copiaron {n} líneas"
-
-#: ide/panels.inc
-msgid "Copied {n} character"
-msgid_plural "Copied {n} characters"
-msgstr[0] "Se copió {n} carácter"
-msgstr[1] "Se copiaron {n} caracteres"
 
 #: ide/panels.inc
 msgid "Nothing selected to copy"
@@ -4698,22 +5074,6 @@ msgstr "Selecciona un componente para ver sus propiedades."
 #: ide/panels.inc
 msgid "Press F5 to run the program; its output shows here."
 msgstr "Presiona F5 para ejecutar el programa; su salida aparece aquí."
-
-#: ide/panels.inc
-msgid "Copy &Line"
-msgstr "Copiar &línea"
-
-#: ide/panels.inc
-msgid "&Select All"
-msgstr "&Seleccionar todo"
-
-#: ide/panels.inc
-msgid "&Wrap Long Lines"
-msgstr "&Ajustar líneas largas"
-
-#: ide/panels.inc
-msgid "Cl&ear"
-msgstr "&Borrar"
 
 #: ide/panels.inc
 msgid "Double-click or press Enter to add a component to the form; drag it to place it."
@@ -4800,10 +5160,6 @@ msgid "Main and pop-up menus"
 msgstr "Menú principal y menús emergentes"
 
 #: ide/panes.inc
-msgid "Right-click menus and row actions"
-msgstr "Menús del clic derecho y acciones de fila"
-
-#: ide/panes.inc
 msgid "Open, save, colour, font"
 msgstr "Abrir, guardar, color, fuente"
 
@@ -4846,6 +5202,10 @@ msgid "PRINT, FOR, SUB, FUNCTION"
 msgstr "PRINT, FOR, SUB, FUNCTION"
 
 #: ide/panes.inc
+msgid "Right-click menus and row actions"
+msgstr "Menús del clic derecho y acciones de fila"
+
+#: ide/panes.inc
 msgid "The code shows its own values: colours, pictures, fonts"
 msgstr "El código muestra sus propios valores: colores, imágenes, fuentes"
 
@@ -4856,6 +5216,10 @@ msgstr "Un error en un controlador: el programa sigue y lo dice"
 #: ide/panes.inc
 msgid "What this computer has: memory, processor, disk"
 msgstr "Lo que tiene esta computadora: memoria, procesador, disco"
+
+#: ide/panes.inc
+msgid "A file to the Trash, where it can be put back"
+msgstr "Un archivo a la papelera, de donde se puede recuperar"
 
 #: ide/panes.inc
 msgid "Click the sky: rockets and thousands of sparks"
@@ -5740,10 +6104,6 @@ msgstr "Escribe lo que buscas y presiona Enter."
 #: ide/search.inc
 msgid "Search results"
 msgstr "Resultados de la búsqueda"
-
-#: ide/search.inc
-msgid "Help"
-msgstr "Ayuda"
 
 #: ide/search.inc
 msgid "Search the help"
@@ -7006,6 +7366,22 @@ msgstr "Aún no hay copias: Studio guarda una cada vez que guardas este archivo.
 #: ide/versions.inc
 msgid "Compare: {file}"
 msgstr "Comparar: {file}"
+
+#: ide/versions.inc
+msgid "{file}: the last version and now"
+msgstr "{file}: la última versión y ahora"
+
+#: ide/versions.inc
+msgid "Left: as the last version kept it. Right: as it is now."
+msgstr "Izquierda: como lo guardó la última versión. Derecha: como está ahora."
+
+#: ide/versions.inc
+msgid "{file} and {other}"
+msgstr "{file} y {other}"
+
+#: ide/versions.inc
+msgid "Left: {other}. Right: {file}."
+msgstr "Izquierda: {other}. Derecha: {file}."
 
 #: ide/versions.inc
 msgid "{file}: the disk's version and yours"

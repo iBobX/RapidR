@@ -5234,7 +5234,8 @@ const CASES = [
     events: [CLICK("aichatsbtn", 20, 12), idle(4)].join(","),
     delay: 5,
     dump: {
-      "aichatlist.itemcount": /^2$/,
+      "aichatlist.itemcount": /^3$/,
+      "aichatlist.text": /^Hoy\r?\n/,
       "aichatsbtn.caption": /^Atrás$/,
     },
   },
@@ -5387,7 +5388,7 @@ const CASES = [
     webFiles: ["examples/gui/hello_form.rr"],
     do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
     // (CONTEXT-MENUS: a click on a chat opens it — no Open button)
-    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", idle(4)].join(","),
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_2", idle(4)].join(","),
     delay: 5,
     themes: LOOKS,
     capture: true,
@@ -5414,9 +5415,9 @@ const CASES = [
     capture: true,
     contrast: true,
     dump: {
-      "aichatlist.itemcount": /^2$/,
-      // (the list's items, a line each)
-      "aichatlist.text": /^hello two — 1 question, \d{4}-\d\d-\d\d \(open\)\r?\nhello one — 1 question, \d{4}-\d\d-\d\d\s*$/,
+      "aichatlist.itemcount": /^3$/,
+      // (the list's items, a line each: today's under their heading)
+      "aichatlist.text": /^Today\r?\nhello two — 1 question, \d{4}-\d\d-\d\d \(open\)\r?\nhello one — 1 question, \d{4}-\d\d-\d\d\s*$/,
       "aichatsnote.caption": /^Kept on this computer, in Studio's own folder — never in the project\. Delete removes a chat for good\.$/,
       "aichatsnote.hint": /chats$|^this browser's storage for the page$/,
       "aibottom.__shown": /^0$/,
@@ -5435,7 +5436,7 @@ const CASES = [
     events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(4)].join(","),
     delay: 5,
     dump: {
-      "aichatlist.itemcount": /^1$/,
+      "aichatlist.itemcount": /^2$/,
       "aichatundobar.__shown": /^1$/,
       "aichatundotext.caption": /^Deleted "hello one"\.$/,
       "aistatus.simpletext": /^Deleted "hello one"\. Undo puts it back\.$/,
@@ -5451,7 +5452,7 @@ const CASES = [
     events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(2), CLICK("aichatundobtn", 20, 12), idle(4)].join(","),
     delay: 5,
     dump: {
-      "aichatlist.itemcount": /^2$/,
+      "aichatlist.itemcount": /^3$/,
       "aichatundobar.__shown": /^0$/,
       "aistatus.simpletext": /^Put back: "hello one"\.$/,
     },
@@ -5464,12 +5465,13 @@ const CASES = [
     copy: true,
     webFiles: ["examples/gui/hello_form.rr"],
     do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=check the code,ai:wait,wait,ai.assistant`,
-    // (CONTEXT-MENUS: F2 on the chat found — the row's Rename)
-    events: [CLICK("aichatsbtn", 20, 12), typeInto("aichatsearch", "rename"), idle(2), "aichatlist.__key_113", "airenameedit.__key_65_16", typeInto("airenameedit", "Greetings"), "airenameedit.__key_13", idle(4)].join(","),
+    // (CONTEXT-MENUS: F2 on the chat found — the row's Rename: its title
+    // edited in the row itself, all selected, typed over, Enter)
+    events: [CLICK("aichatsbtn", 20, 12), typeInto("aichatsearch", "rename"), idle(2), "aichatlist.__key_113", idle(1), typeInto("aichatlist", "Greetings"), "aichatlist.__key_13", idle(4)].join(","),
     delay: 5,
     dump: {
-      "aichatlist.itemcount": /^1$/,
-      "aichatlist.text": /^Greetings — 1 question, .*: "Hello from the mock assistant! Ask me to \*\*rename\*\*/,
+      "aichatlist.itemcount": /^2$/,
+      "aichatlist.text": /^Today\r?\nGreetings — 1 question, .*: "Hello from the mock assistant! Ask me to \*\*rename\*\*/,
       "aistatus.simpletext": /^Renamed: "Greetings"\.$/,
     },
   },
@@ -5505,7 +5507,7 @@ const CASES = [
     delay: 5,
     dump: {
       "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nsay hello please\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello, friend, nice meeting you\.(?![\s\S]*hello two)/,
-      "aichatlist.itemcount": /^2$/,
+      "aichatlist.itemcount": /^3$/,
       "aichatlist.text": /hello one \(before the edit\) — 2 questions, /,
       "outputbox.text": /AI: the chat before the edit is kept as "hello one \(before the edit\)" \(Chats\)\./,
       "aieditbar.__shown": /^0$/,
@@ -5521,7 +5523,7 @@ const CASES = [
     delay: 6,
     dump: {
       "ai.questioncount": /^1$/,
-      "aichatlist.itemcount": /^2$/,
+      "aichatlist.itemcount": /^3$/,
       "aichatlist.text": /hello one \(before Retry\) — 1 question, /,
       "outputbox.text": /AI: the answer before Retry is kept in "hello one \(before Retry\)" \(Chats\)\./,
     },
@@ -6916,10 +6918,11 @@ const CASES = [
     dump: {
       "outputbox.clickedline": /^2$/,
       "outputbox.seltext": /^line of$/,
-      "outputmenucopy.enabled": /^1$/, "outputmenucopy.caption": /^&Copy$/,
-      "outputmenucopyline.enabled": /^1$/, "outputmenucopyline.visible": /^(1|-1)$/, "outputmenucopyline.caption": /^Copy &Line$/,
-      "outputmenucopyall.caption": /^Copy &All$/, "outputmenuselall.caption": /^&Select All$/,
-      "outputmenuwrap.checked": /^(1|-1)$/, "outputmenuclear.caption": /^Cl&ear$/,
+      "ctxmenu.accessiblename": /^Actions for the output$/,
+      "ctxitem(0).enabled": /^1$/, "ctxitem(0).caption": /^&Copy\tCtrl\+C$/,
+      "ctxitem(1).enabled": /^1$/, "ctxitem(1).caption": /^Copy &Line$/,
+      "ctxitem(2).caption": /^Copy &All$/, "ctxitem(3).caption": /^&Select All\tCtrl\+A$/,
+      "ctxitem(5).caption": /^&Wrap Long Lines$/, "ctxitem(5).checked": /^(1|-1)$/, "ctxitem(7).caption": /^Cl&ear$/,
     },
   },
   {
@@ -6944,7 +6947,7 @@ const CASES = [
     do: "run.start,wait,wait,wait",
     events: [COPY_WAIT, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
     delay: 7,
-    dump: { "outputbox.hasselection": /^0$/, "outputmenucopy.enabled": /^0$/, "clipboard.text": /^third line$/, "status.panel(0).caption": /^Copied 10 characters$/ },
+    dump: { "outputbox.hasselection": /^0$/, "ctxitem(0).enabled": /^0$/, "ctxitem(0).hint": /^Nothing is selected$/, "clipboard.text": /^third line$/, "status.panel(0).caption": /^Copied 10 characters$/ },
   },
   {
     // Copy All: the whole page, its last line Studio's own
@@ -6984,9 +6987,9 @@ const CASES = [
     dump: {
       "outputbox.page": /^problems$/,
       "clipboard.text": /^problems\.rr:8:1: error: Unknown SUB or FUNCTION 'Missing'[^\n]*\nproblems\.rr:9:1: error: Unknown SUB or FUNCTION 'Other'[^\n]*$/,
-      "outputmenucopy.enabled": /^1$/, "outputmenucopyline.visible": /^0$/, "outputmenucopyall.caption": /^Copy &All Problems$/,
+      "ctxitem(0).caption": /^&Go to Problem\tEnter$/, "ctxitem(4).enabled": /^1$/, "ctxitem(5).caption": /^Copy &All Problems$/,
     },
-    webDump: { "outputbox.page": /^problems$/, "outputbox.seltext": /^problems\.rr:8:1: error: [^\n]*\nproblems\.rr:9:1: error: [^\n]*$/, "outputmenucopyall.caption": /^Copy &All Problems$/ },
+    webDump: { "outputbox.page": /^problems$/, "outputbox.seltext": /^problems\.rr:8:1: error: [^\n]*\nproblems\.rr:9:1: error: [^\n]*$/, "ctxitem(5).caption": /^Copy &All Problems$/ },
   },
   // (VERSIONS-G3) Versions in Studio, walked as a person would (docs/
   // versions-plan.md; the acceptance in the lane's brief): a copy of a small
@@ -7427,9 +7430,9 @@ const CASES = [
       "ctxitem(0).default": /^1$/,
       "ctxitem(5).caption": /^Re&name\tF2$/,
       "ctxitem(8).caption": /^Reveal in Finder$|^Reveal in File Explorer$|^Reveal in Files$/,
-      "ctxitem(12).caption": /^Remove from Pro&ject\tDel$/,
-      "ctxitem(12).enabled": /^0$/,
-      "ctxitem(12).hint": /^The main file stays in the project$/,
+      "ctxitem(14).caption": /^Remove from Pro&ject\tDel$/,
+      "ctxitem(14).enabled": /^0$/,
+      "ctxitem(14).hint": /^The main file stays in the project$/,
     },
     // (the web: no file manager to reveal in — the items after it move up)
     webDump: {
@@ -7439,8 +7442,8 @@ const CASES = [
       "ctxitem(0).caption": /^&Open\tEnter$/,
       "ctxitem(0).default": /^1$/,
       "ctxitem(5).caption": /^Re&name\tF2$/,
-      "ctxitem(11).caption": /^Remove from Pro&ject\tDel$/,
-      "ctxitem(11).enabled": /^0$/,
+      "ctxitem(13).caption": /^Remove from Pro&ject\tDel$/,
+      "ctxitem(13).enabled": /^0$/,
     },
   },
   {
@@ -7530,7 +7533,7 @@ const CASES = [
       "inspector.target": /^GreetButton$/,
       "ctxitem(0).caption": /^&Edit Event Handler$/,
       "ctxitem(0).default": /^1$/,
-      "ctxitem(17).caption": /^&Delete\tDel$/,
+      "ctxitem(18).caption": /^&Delete\tDel$/,
     },
   },
   {
@@ -7597,7 +7600,7 @@ const CASES = [
     contrast: true,
     dump: {
       "aichatlist.rowactions": /^rename:Rename \(F2\),delete:Delete \(Del\),more:More actions \(Shift\+F10\)$/,
-      "aichatlist.itemcount": /^2$/,
+      "aichatlist.itemcount": /^3$/,
       "aichatsfoot.height": /^52$/,
     },
   },
@@ -7616,9 +7619,357 @@ const CASES = [
       "aichatlist.itemindex": /^1$/,
       "ctxitem(0).caption": /^&Open\tEnter$/,
       "ctxitem(0).default": /^1$/,
-      "ctxitem(4).caption": /^&Delete\tDel$/,
+      "ctxitem(3).caption": /^Copy as &Markdown$/,
+      "ctxitem(5).caption": /^&Delete\tDel$/,
     },
   },
+  // ---- CONTEXT-MENUS 2b: the rest of section 4 (Problems, Output,
+  // Immediate, the debug panes, Help, the status bar, the panes, the
+  // Welcome page, the Toolbox) and section 9's deferred items ----
+  {
+    // a problem right-clicked: its own group first — Go to Problem bold
+    // (Enter), Quick Fix..., Explain This Problem — three looks
+    name: "ctx-problems-menu",
+    open: "tests/fixtures/studio_copy/problems.rr",
+    webFiles: ["tests/fixtures/studio_copy/problems.rr"],
+    do: "wait,run.start,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_300_60", "outputbox.__wait_400"].join(","),
+    delay: 8,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "ctxmenu.accessiblename": /^Actions for the problem$/,
+      "ctxitem(0).caption": /^&Go to Problem\tEnter$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(1).caption": /^&Quick Fix\.\.\.\tCtrl\+\.$/,
+      "ctxitem(2).caption": /^E&xplain This Problem$/,
+      "ctxitem(5).caption": /^Copy &All Problems$/,
+    },
+  },
+  {
+    // ... Explain This Problem (Down three times, Enter): the problem's own
+    // Help page, the caret on its line
+    name: "ctx-problems-explain",
+    open: "tests/fixtures/studio_copy/problems.rr",
+    desktopOnly: true,
+    do: "wait,run.start,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_300_60", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_800"].join(","),
+    delay: 8,
+    dump: {
+      "helppage.plaintext": /^This problem\n[\s\S]*Unknown SUB or FUNCTION 'Missing'/,
+      "codedoc(0).caretline": /^8$/,
+    },
+  },
+  {
+    // a line of output naming a place: "Go to goto.rr, Line 6" first, bold;
+    // picked (Down, Enter): the caret there
+    name: "ctx-output-goto",
+    open: "tests/fixtures/studio_ctx/goto.rr",
+    webFiles: ["tests/fixtures/studio_ctx/goto.rr"],
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_100_40", "outputbox.__wait_300", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_600"].join(","),
+    delay: 7,
+    dump: {
+      "outputbox.clickedline": /^0$/,
+      "codedoc(0).caretline": /^6$/,
+    },
+    webDump: { "outputbox.clickedline": /^0$/ },
+  },
+  {
+    // Immediate: Copy, Paste, Select All | Clear
+    name: "ctx-immediate",
+    open: "tests/fixtures/studio_copy/three.rr",
+    desktopOnly: true,
+    do: "view.immediate,wait",
+    events: "studio.__wait_3000,immediatebox.__rightclick_60_30,immediatebox.__wait_400",
+    delay: 6,
+    dump: {
+      "ctxmenu.accessiblename": /^Actions for Immediate$/,
+      "ctxitem(0).caption": /^&Copy\tCtrl\+C$/,
+      "ctxitem(1).caption": /^&Paste\tCtrl\+V$/,
+      "ctxitem(4).caption": /^Cl&ear$/,
+    },
+  },
+  {
+    // Variables while paused: the value right-clicked selected first; Set
+    // Value | Copy Value, Copy Expression, View Text | Add Watch — three looks
+    name: "ctx-vars-menu",
+    open: "examples/debugging/shop.rr",
+    desktopOnly: true,
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables",
+    events: "studio.__wait_7000,varstree.__rightclick_80_30,varstree.__wait_500",
+    delay: 10,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "varstree.contextindex": /^1$/,
+      "varstree.itemindex": /^1$/,
+      "ctxitem(0).caption": /^&Set Value\.\.\.\tF2$/,
+      "ctxitem(2).caption": /^&Copy Value\tCtrl\+C$/,
+      "ctxitem(6).caption": /^Add &Watch$/,
+    },
+  },
+  {
+    // Watch from the keyboard (Shift+F10: under the row, its first item
+    // chosen); Up to Remove Watch, Enter: the watch gone
+    name: "ctx-watch-keyboard-remove",
+    open: "examples/debugging/shop.rr",
+    desktopOnly: true,
+    do: "line:76,debug.toggleBreakpoint,watch:count,run.start,wait,wait,wait,view.watch,watchpick:W1",
+    events: "studio.__wait_7000,watchtree.__key_121_256,watchtree.__wait_300,watchtree.__key_38,watchtree.__key_13,watchtree.__wait_600",
+    delay: 10,
+    dump: {
+      "watchtree.itemcount": /^0$/,
+    },
+  },
+  {
+    // Call Stack: Go to This Call bold | Copy, Copy All
+    name: "ctx-stack-menu",
+    open: "examples/debugging/shop.rr",
+    desktopOnly: true,
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.callStack",
+    events: "studio.__wait_7000,stacktree.__rightclick_80_12,stacktree.__wait_500",
+    delay: 10,
+    dump: {
+      "stacktree.contextindex": /^0$/,
+      "ctxitem(0).caption": /^&Go to This Call\tEnter$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(3).caption": /^Copy &All$/,
+    },
+  },
+  {
+    // Breakpoints: Go to, Edit Condition, Disable | Copy, Copy All | Remove,
+    // Delete All; Disable picked (Down three times, Enter): off
+    name: "ctx-breakpoints-disable",
+    open: "examples/debugging/shop.rr",
+    desktopOnly: true,
+    do: "line:76,debug.toggleBreakpoint,view.breakpoints,wait",
+    events: "studio.__wait_4000,bptree.__rightclick_80_12,bptree.__wait_300,bptree.__key_40,bptree.__key_40,bptree.__key_40,bptree.__key_13,bptree.__wait_500",
+    delay: 7,
+    dump: {
+      "ctxitem(2).caption": /^Disa&ble Breakpoint\tSpace$/,
+      "ctxitem(8).caption": /^&Delete All Breakpoints\tCtrl\+Shift\+F9$/,
+      "bptree.text": /\(off\)/,
+    },
+  },
+  {
+    // Help: Back (a page shown before), picked: RButton's page again
+    name: "ctx-help-back",
+    open: "tests/fixtures/studio_copy/three.rr",
+    desktopOnly: true,
+    do: "wait,help:RButton,help:PRINT",
+    events: "studio.__wait_3000,helppage.__rightclick_200_14,helppage.__wait_300,helppage.__key_40,helppage.__key_13,helppage.__wait_500",
+    delay: 6,
+    dump: {
+      "ctxmenu.accessiblename": /^Actions for the Help page$/,
+      "ctxitem(0).enabled": /^1$/,
+      "helppage.plaintext": /^RButton\n/,
+    },
+  },
+  {
+    // a Help page's code example right-clicked: Try It bold, Copy Code,
+    // Insert at the Cursor — light and dark
+    name: "ctx-help-code",
+    open: "tests/fixtures/studio_copy/three.rr",
+    desktopOnly: true,
+    do: "wait,help:RButton",
+    events: "studio.__wait_3000,helppage.__rightclick_60_140,helppage.__wait_500",
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: {
+      "helppage.contextcode": /CREATE Button1 AS RButton/,
+      "ctxitem(0).caption": /^&Try It$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(1).caption": /^Copy &Code$/,
+    },
+  },
+  {
+    // the status bar: Ln, Col's menu (Go to Line...); the project's
+    name: "ctx-status-bar",
+    open: "tests/fixtures/studio_copy/three.rr",
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,status.__rightclick_900_8,status.__wait_400",
+    delay: 6,
+    dump: {
+      "ctxmenu.accessiblename": /^Actions for the status bar$/,
+      "ctxitem(0).caption": /^&Go to Line\.\.\.\tCtrl\+G$/,
+    },
+  },
+  {
+    // a pane's tab: Close Pane | Float | Reset Layout; Close Pane picked
+    name: "ctx-pane-close",
+    open: "tests/fixtures/studio_copy/three.rr",
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,dock.__rightclick_40_10,dock.__wait_300,dock.__key_40,dock.__key_13,dock.__wait_500",
+    delay: 6,
+    dump: {
+      "dock.contextpane": /^projecttree$/,
+      "ctxitem(2).caption": /^&Float$/,
+      "ctxitem(4).caption": /^&Reset Layout$/,
+      "projecttree.__shown": /^0$/,
+    },
+  },
+  {
+    // a recent project on the Welcome page: Open bold | Copy Path, Reveal |
+    // Remove from Recent; Remove picked (Up, Enter): gone from the page
+    name: "ctx-recent-remove",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait",
+    delay: 3,
+    restart: { noOpen: true, events: "studio.__wait_2500,recentlink(0).__rightclick_20_8,recentlink(0).__wait_300,recentlink(0).__key_38,recentlink(0).__key_13,recentlink(0).__wait_500", delay: 5 },
+    dump: {
+      "ctxitem(0).caption": /^&Open\tEnter$/,
+      "ctxitem(5).caption": /^&Remove from Recent$/,
+      "recentlink(0).visible": /^0$/,
+    },
+  },
+  {
+    // the Toolbox: a component right-clicked is selected; Add to the Form
+    // bold — picked (Down, Enter): one more on the form — three looks
+    name: "ctx-toolbox-add",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,toolbox.__rightclick_80_92,toolbox.__wait_300,toolbox.__key_40,toolbox.__key_13,toolbox.__wait_600",
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "toolbox.contextkind": /^item$/,
+      "toolbox.selected": /^RButton$/,
+      "ctxitem(2).caption": /^&Help: RButton\tF1$/,
+      "inspector.targettype": /^RButton$/,
+    },
+  },
+  {
+    // the Project tree: Compare With ▸ (the Disk's Version, Another File...;
+    // the Last Version only with versions); Delete File... last, greyed for
+    // the main file
+    name: "ctx-project-compare",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    do: "view.project,wait",
+    events: "studio.__wait_3000,projecttree.__rightclick_110_102,projecttree.__wait_500",
+    delay: 6,
+    dump: {
+      "ctxitem(10).caption": /^Compare &With$/,
+      "ctxsub(0).caption": /^the &Disk's Version$/,
+      "ctxsub(1).caption": /^&Another File\.\.\.$/,
+      "ctxitem(15).caption": /^&Delete File\.\.\.$/,
+      "ctxitem(15).enabled": /^0$/,
+      "ctxitem(15).hint": /^The main file stays in the project$/,
+    },
+  },
+  {
+    // Delete File... on another file (Up: the last item, Enter): asked first
+    // (Cancel the default), Move to Trash: in the Trash (a test's own folder,
+    // RAPIDR_TEST_TRASH) and out of the project
+    name: "ctx-project-delete-file",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_TRASH: join(tmpdir(), "rapidr-flow-trash") },
+    do: "view.project,wait",
+    events: `studio.__wait_3000,projecttree.__rightclick_110_124,projecttree.__wait_300,projecttree.__key_38,projecttree.__key_13,consentdialog.__wait_800,${CLICK("consentyes", 40, 14)},projecttree.__wait_1000`,
+    delay: 8,
+    dump: {
+      "status.panel(0).caption": /^globals\.rr moved to the Trash$/,
+    },
+  },
+  {
+    // the code on a problem with a fix: the fix itself first, bold
+    // ("Change to Caption"), Quick Fix..., Explain This Problem — light and
+    // dark; picked (Down, Enter): the code fixed
+    name: "ctx-code-fix",
+    open: "tests/fixtures/studio_ctx/fix.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "view.code,wait",
+    events: "studio.__wait_4500,codedoc(0).__rightclick_120_130,codedoc(0).__wait_600",
+    delay: 8,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    dump: {
+      "ctxitem(0).caption": /^Change to Caption$/,
+      "ctxitem(0).default": /^1$/,
+      "ctxitem(1).caption": /^&Quick Fix\.\.\.\tCtrl\+\.$/,
+      "ctxitem(2).caption": /^E&xplain This Problem$/,
+    },
+  },
+  {
+    name: "ctx-code-fix-apply",
+    open: "tests/fixtures/studio_ctx/fix.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "view.code,wait",
+    events: "studio.__wait_4500,codedoc(0).__rightclick_120_130,codedoc(0).__wait_400,codedoc(0).__key_40,codedoc(0).__key_13,codedoc(0).__wait_800",
+    delay: 8,
+    dump: { "codedoc(0).text": /\nForm\.Caption = "Hello"\n/ },
+  },
+  {
+    // the designer: Help: RButton (F1) on a component
+    name: "ctx-designer-help",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "wait",
+    events: "studio.__wait_3000,designdoc(0).__rightclick_180_118,designdoc(0).__wait_500",
+    delay: 6,
+    dump: { "ctxitem(14).caption": /^&Help: RButton\tF1$/ },
+  },
+  {
+    // RAI's chats: grouped (Today), Copy as Markdown (the menu's fourth
+    // item): the chat's questions and answers on the clipboard
+    name: "ctx-chats-copy-markdown",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(2), "aichatlist.__rightclick_100_42", idle(1), "aichatlist.__key_40", "aichatlist.__key_40", "aichatlist.__key_40", "aichatlist.__key_13", idle(2)].join(","),
+    delay: 5,
+    dump: {
+      "aichatlist.text": /^Today\r?\n/,
+      "clipboard.text": /^# hello two\n\n\*\*You\*\*\n\nhello two\n/,
+    },
+  },
+  {
+    // ... Rename in the row itself (the row's Rename icon: F2), typed, Enter
+    name: "ctx-chats-rename-in-place",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(2), "aichatlist.__key_113", idle(1), typeInto("aichatlist", "Shop"), idle(1)].join(","),
+    delay: 5,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: { "aichatlist.itemcount": /^3$/ },
+  },
+  {
+    // a greyed item rested on: why it can't be used, in a tip beside the
+    // menu ("Nothing is selected") — three looks
+    name: "ctx-greyed-tooltip",
+    open: "tests/fixtures/studio_copy/three.rr",
+    desktopOnly: true,
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_100_80", "outputbox.__wait_300", "studio.__mousemove_400_590", "outputbox.__wait_1500"].join(","),
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "ctxitem(0).enabled": /^0$/, "ctxitem(0).hint": /^Nothing is selected$/ },
+  },
+
   {
     name: "versions-footer-names",
     ...V_OPEN,

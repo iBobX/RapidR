@@ -1,0 +1,6 @@
+' (CONTEXT-MENUS 2b) A line of output that names a place: its right-click
+' menu goes there first (tests/studio_flows.mjs ctx-output-goto)
+$APPTYPE CONSOLE
+PRINT "The answer is at goto.rr:6"
+PRINT "nothing here"
+PRINT "the answer"

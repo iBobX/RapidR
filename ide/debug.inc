@@ -125,11 +125,7 @@ DIM TargetId(MAXTARGETS) AS INTEGER
 DIM TargetCount AS INTEGER
 ' (a scripted flow's pick: into:<name>)
 DIM TargetWanted AS STRING
-' (the Variables and Watch panes' right-click menus)
-DIM VarsMenu AS RPopupMenu
-DIM WatchMenu AS RPopupMenu
-DIM VarsMenuItem(4) AS RMenuItem
-DIM WatchMenuItem(4) AS RMenuItem
+' (the Variables and Watch panes' right-click menus: contextmenu.inc's)
 
 ' ---- the text viewer: a string's whole text -------------------------------------------
 CREATE TextViewer AS RForm
@@ -2740,10 +2736,9 @@ SUB TargetPicked(Sender AS RMenuItem)
   Session.StepInTarget TargetId(Sender.Tag)
 END SUB
 
-' ---- the Variables and Watch panes' right-click menus -------------------------------------------
-' Copy Value (Ctrl+C: the value whole), Copy Expression, Add Watch, View
-' Text (a string's whole text); a menu each (VarsMenu, WatchMenu), their
-' items' Tag the action and the pane (10 + the action: Watch's).
+' ---- the Variables and Watch panes' values -----------------------------------------------------
+' (their right-click menus — Set Value, Copy Value, Copy Expression, View
+' Text, Add / Remove Watch — are contextmenu.inc's ValuesContext)
 
 ' (the picked item's expression and shown value: tree w — 0 Variables, 1 Watch)
 FUNCTION PickedExpr(w AS INTEGER) AS STRING
@@ -2763,63 +2758,9 @@ FUNCTION PickedShown(w AS INTEGER) AS STRING
   IF INSTR(t, " = ") > 0 THEN Result = MID$(t, INSTR(t, " = ") + 3) ELSE Result = t
 END FUNCTION
 
-SUB ValueMenuOpening(w AS INTEGER)
-  DIM e AS STRING, k AS INTEGER, paused AS INTEGER
-  e = PickedExpr(w)
-  paused = Flag(RunState = "paused")
-  FOR k = 0 TO 4
-    IF w = 0 THEN
-      VarsMenuItem(k).Enabled = Flag(paused <> 0 AND (k = 0 OR e <> ""))
-    ELSE
-      WatchMenuItem(k).Enabled = Flag(paused <> 0 AND (k = 0 OR e <> ""))
-    END IF
-  NEXT
-END SUB
-
-SUB VarsMenuOpening
-  ValueMenuOpening 0
-END SUB
-
-SUB WatchMenuOpening
-  ValueMenuOpening 1
-END SUB
-
-SUB ValueMenuPicked(Sender AS RMenuItem)
-  DIM w AS INTEGER, a AS INTEGER
-  w = Sender.Tag \ 10
-  a = Sender.Tag MOD 10
-  SELECT CASE a
-    CASE 0: ValueAction "copy", PickedExpr(w), PickedShown(w)
-    CASE 1: ValueAction "copyexpr", PickedExpr(w), PickedShown(w)
-    CASE 2: ValueAction "watch", PickedExpr(w), PickedShown(w)
-    CASE 3: ValueAction "view", PickedExpr(w), PickedShown(w)
-    CASE 4
-      IF w = 0 THEN BeginSetValue 0, VarsTree.ItemIndex ELSE BeginSetValue 1, WatchTree.ItemIndex
-  END SELECT
-END SUB
-
-' (the menus made: four items each)
+' (the menus a value's edits use)
 SUB SetUpValueMenus
-  DIM k AS INTEGER, captions(4) AS STRING
-  captions(0) = TR$("&Copy Value") + CHR$(9) + "Ctrl+C"
-  captions(1) = TR$("Copy &Expression")
-  captions(2) = TR$("Add &Watch")
-  captions(3) = TR$("&View Text...")
-  captions(4) = TR$("&Set Value...") + CHR$(9) + "F2"
-  FOR k = 0 TO 4
-    VarsMenuItem(k).Caption = captions(k)
-    VarsMenuItem(k).Tag = k
-    VarsMenuItem(k).OnClick = ValueMenuPicked
-    VarsMenu.AddItems VarsMenuItem(k)
-    WatchMenuItem(k).Caption = captions(k)
-    WatchMenuItem(k).Tag = 10 + k
-    WatchMenuItem(k).OnClick = ValueMenuPicked
-    WatchMenu.AddItems WatchMenuItem(k)
-  NEXT
-  VarsMenu.OnPopup = VarsMenuOpening
-  WatchMenu.OnPopup = WatchMenuOpening
-  VarsTree.PopupMenu = VarsMenu
-  WatchTree.PopupMenu = WatchMenu
+  DIM k AS INTEGER
   ' (a property's constants to pick from: Set Value's menu, items made
   ' visible as needed)
   FOR k = 0 TO MAXCHOICES - 1
@@ -2878,11 +2819,8 @@ SUB WatchCopy
   ValueAction "copy", PickedExpr(1), PickedShown(1)
 END SUB
 
-' ---- Call Stack and Breakpoints: Copy, Copy All (COPY-ANYWHERE) ----------------------
-DIM StackMenu AS RPopupMenu
-DIM StackMenuItem(1) AS RMenuItem
-DIM BpMenu AS RPopupMenu
-DIM BpMenuItem(1) AS RMenuItem
+' ---- Call Stack and Breakpoints: Copy, Copy All (COPY-ANYWHERE; their
+' right-click menus are contextmenu.inc's) -------------------------------------------------
 
 ' (Ctrl+C — ⌘C — in Call Stack, the tree's OnCopy, and its menu's Copy:
 ' the selected call as shown, "Main   main.rr:12")
@@ -2927,42 +2865,6 @@ SUB ListCopyAll(Which AS INTEGER)
   ELSE
     SetState RunState, TRN$("Copied {n} breakpoint", "Copied {n} breakpoints", n)
   END IF
-END SUB
-
-SUB ListMenusOpening
-  StackMenuItem(0).Enabled = Flag(StackTree.ItemIndex >= 0)
-  StackMenuItem(1).Enabled = Flag(StackTree.ItemCount > 0)
-  BpMenuItem(0).Enabled = Flag(BpTree.ItemIndex >= 0 AND BpCount > 0)
-  BpMenuItem(1).Enabled = Flag(BpCount > 0)
-END SUB
-
-SUB ListMenuPicked(Sender AS RMenuItem)
-  SELECT CASE Sender.Tag
-    CASE 0: StackCopy
-    CASE 1: ListCopyAll 0
-    CASE 10: BpCopy
-    CASE 11: ListCopyAll 1
-  END SELECT
-END SUB
-
-SUB SetUpListMenus
-  DIM k AS INTEGER
-  FOR k = 0 TO 1
-    StackMenuItem(k).Caption = IIF(k = 0, TR$("&Copy"), TR$("Copy &All"))
-    StackMenuItem(k).Tag = k
-    StackMenuItem(k).OnClick = ListMenuPicked
-    StackMenu.AddItems StackMenuItem(k)
-    BpMenuItem(k).Caption = IIF(k = 0, TR$("&Copy"), TR$("Copy &All"))
-    BpMenuItem(k).Tag = 10 + k
-    BpMenuItem(k).OnClick = ListMenuPicked
-    BpMenu.AddItems BpMenuItem(k)
-  NEXT
-  StackMenuItem(0).ShortCut = "Ctrl+C"
-  BpMenuItem(0).ShortCut = "Ctrl+C"
-  StackMenu.OnPopup = ListMenusOpening
-  BpMenu.OnPopup = ListMenusOpening
-  StackTree.PopupMenu = StackMenu
-  BpTree.PopupMenu = BpMenu
 END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
@@ -3395,7 +3297,6 @@ SUB SetUpDebug
   ' Call Stack and Breakpoints)
   StackTree.OnCopy = StackCopy
   BpTree.OnCopy = BpCopy
-  SetUpListMenus
 
   ' (the debugging layout's group beside Output — Variables, Watch, Call
   ' Stack, Breakpoints —; Breakpoints is a tab beside Output while editing:

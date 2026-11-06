@@ -3,7 +3,9 @@
 Right-click almost anything in RapidR Studio and you get a short menu of
 what you can do with it there: a file in the Project tree, a document's
 tab, the code, a component on a form, a row of Properties or Events, a
-chat in the Assistant. The keyboard opens the same menus, and so does a
+chat in the Assistant, a problem, a line of output, a value while
+debugging, a Help page, the status bar, a pane's tab, a recent project, a
+component of the Toolbox. The keyboard opens the same menus, and so does a
 screen reader. Your own programs get the same thing with one event,
 `OnContextMenu`, and lists can show small icon actions on their rows with
 `RowActions`.
@@ -30,8 +32,10 @@ Every menu follows the same rules, so you always know where to look:
   versions, the designer's alignment), Ask RAI, and **last, what loses
   something** (Remove from Project, Delete).
 - **Greyed, not hidden**: an item that can't be used right now is greyed,
-  and its description says why ("Nothing is selected", "The main file
-  stays in the project"), so the items never jump around.
+  and says why ("Nothing is selected", "The main file stays in the
+  project") in a small tip beside the menu when you rest on it or reach it
+  with the arrow keys (a screen reader reads it as the item's
+  description), so the items never jump around.
 - **Ask RAI never sends anything by itself**: it opens the Assistant with
   the file, the code or the problem quoted in the question box; you add
   your question and press Send. With School Lock keeping AI off, the item
@@ -39,7 +43,7 @@ Every menu follows the same rules, so you always know where to look:
 
 ## The menus in RapidR Studio
 
-![A file right-clicked in the Project tree: Open in bold, the keys shown, Remove from Project last](images/context-menus/studio-project-file.png)
+![A file right-clicked in the Project tree: Open in bold, the keys shown, Compare With, Remove from Project and Delete File... last](images/context-menus/studio-project-file.png)
 
 | Right-click | You get |
 |---|---|
@@ -53,7 +57,40 @@ Every menu follows the same rules, so you always know where to look:
 | **The form** itself | Paste, Select All · Menu Editor, Tab Order · Zoom ▸ · Code (F7), Properties · Ask RAI About This Form... |
 | **A property** | **Edit Value** (Enter), Reset to Default (Del) · Copy Value, Copy Name, Copy as Code (`GreetButton.Caption = "Greet"`) · Help: Caption (F1) · Ask RAI About Caption... |
 | **An event** | **Go to Handler** (or Create Handler), Remove Handler (Del: the SUB stays in the code) · Copy Name, Copy as Code · Help (F1) · Ask RAI |
-| **A chat** in the Assistant | **Open** (Enter) · Rename (F2) · Delete (Del) |
+| **A chat** in the Assistant | **Open** (Enter) · Rename (F2), Copy as Markdown · Delete (Del) |
+| **A problem** (Output's Problems page) | **Go to Problem** (Enter), Quick Fix... (Ctrl+.), Explain This Problem · Copy, Copy All Problems · Ask RAI About This Problem... |
+| **A line of output** (Output, Build) | **Go to main.rr, Line 12** (a line that names a place) · Copy, Copy Line, Copy All, Select All · Wrap Long Lines ✓ · Clear |
+| **Immediate** | Copy, Paste, Select All · Clear |
+| **A value** in Variables or Watch (while paused) | Set Value... (F2) · Copy Value, Copy Expression, View Text... · Add Watch (Variables) or Remove Watch (Watch, Del) |
+| **A call** in Call Stack | **Go to This Call** (Enter) · Copy, Copy All |
+| **A breakpoint** | **Go to Breakpoint** (Enter), Edit Condition... (Shift+F9), Disable (or Enable) Breakpoint (Space) · Copy, Copy All · Remove Breakpoint (Del), Delete All Breakpoints (Ctrl+Shift+F9) |
+| **A Help page** | Back, Forward · Copy, Select All · Open in the Browser (a page of the manual) · Ask RAI About This Page... |
+| **A code example** in Help | **Try It** (a copy of the example opens in Studio: F5 runs it), Copy Code, Insert at the Cursor · Ask RAI About This Example... |
+| **The status bar** | the message: Copy Message · the project: Reveal in Finder, Project Options... · Versions · Ln, Col: Go to Line... (Ctrl+G) · AI apps: AI Apps Activity, AI Apps Settings... · School Lock's chip: School Lock... |
+| **A pane's tab** or title | Close Pane · Float (Dock, when it floats) · Reset Layout |
+| **A recent project** on the Welcome page | **Open** · Copy Path, Reveal in Finder · Remove from Recent |
+| **A component** of the Toolbox | **Add to the Form** (Enter) · Help: RButton (F1), Open an Example · Ask RAI How to Use RButton... — a group: Collapse All, Expand All |
+
+The Project tree's file also has **Compare With ▸**: the disk's version
+(an open file with changes), the last version (a project with versions)
+or another file you pick, side by side; and, last, **Delete File...**, which
+asks first and moves the file to the system's Trash (the Recycle Bin on
+Windows), where you can put it back — never the main file, never a file
+outside the project's folder, not in the browser. **Remove from Project**
+keeps the file on the disk. A form's component in the tree and one in the
+designer have **Help: RButton** (F1).
+
+**On a problem in the code**, the menu starts with the problem's own group:
+its fix itself when the language service has one, in bold ("Change to
+Caption" for a misspelt `Captoin`), then Quick Fix... (Ctrl+.) and
+**Explain This Problem** (a Help page with the problem, where it is and the
+help of the name it is on); Ask RAI About This Problem... quotes it.
+
+![A problem right-clicked in Output's Problems page: Go to Problem in bold](images/context-menus/studio-problems.png)
+
+![A misspelt member right-clicked: its fix first, in bold](images/context-menus/studio-code-fix.png)
+
+![The Watch pane's menu from the keyboard (Shift+F10) while paused, in the dark look](images/context-menus/studio-watch-keyboard-dark.png)
 
 ![A component right-clicked in the designer: it is selected first; its event handler in bold, Delete last](images/context-menus/studio-designer.png)
 
@@ -68,11 +105,14 @@ apps can see and pick their items as you do.
 ### The Assistant's chats
 
 Click a chat to open it (the arrow keys only move through the list; Enter
-opens). The row under the mouse, and the selected row, show three small
-buttons: **Rename** (F2), **Delete** (Del) and **More** (the row's menu,
-also Shift+F10). Delete takes effect at once and offers **Undo** beside
-the list, so it doesn't ask first. With no chats yet, the list shows
-**Start a Chat**.
+opens). The chats are grouped under **Today**, **Yesterday** and
+**Earlier**. The row under the mouse, and the selected row, show three
+small buttons: **Rename** (F2: the title is edited in the row itself,
+Enter keeps it, Esc leaves it), **Delete** (Del) and **More** (the row's
+menu, also Shift+F10, with **Copy as Markdown**: the chat's questions and
+answers on the clipboard). Delete takes effect at once and offers **Undo**
+beside the list, so it doesn't ask first. With no chats yet, the list
+shows **Start a Chat**.
 
 ## In your own programs
 
@@ -116,9 +156,18 @@ Notes.OnContextMenu = NotesMenu
   right click alone. Bind `OnContextMenu` and your handler decides instead.
 - **`RMenuItem.Default`** draws an item in bold; **`RPopupMenu.SystemMenu = 0`**
   has RapidR draw the menu on every system (by default macOS and Windows
-  show their own).
+  show their own); **`RPopupMenu.AccessibleName`** is what a screen reader
+  calls it while it is open ("Actions for orders.rr").
 - A dock manager says which document's tab was right-clicked in
-  **`ContextDocument`**.
+  **`ContextDocument`**, and which pane's tab or title in **`ContextPane`**
+  (**`DockBack Name`** docks a floating pane back where it was).
+- A tree view says which node in **`ContextIndex`** (a right click doesn't
+  select it either); a toolbox whether it was a component or a group in
+  **`ContextKind`**; an output console the place a line names with
+  **`PlaceFile(Index)`** and **`PlaceLine(Index)`** (with `ClickedLine`); a
+  Markdown view the code block in **`ContextCode`**; a code editor the
+  problem at a place with **`ProblemAt(Line, Column)`**, its first fix's
+  words with **`FixAt`** and applies it with **`ApplyFixAt`**.
 
 ![The example: a note right-clicked](images/context-menus/notes-menu.png)
 
@@ -141,6 +190,36 @@ keyboard and touch screens have them too. **F2** is `rename` and **Del**
 (`Key` 4). Put every row action in the list's menu as well.
 
 ![The row under the mouse with its Rename, Delete and More buttons](images/context-menus/notes-row-actions.png)
+
+### Heading rows and renaming in the row
+
+```basic
+Notes.AddItems "Today", "Buy milk", "Earlier", "Read chapter 3"
+Notes.Heading 0, 1                 ' a group's title: bold, quieter, never selected
+Notes.Heading 2, 1
+Notes.OnEdited = NoteRenamed
+
+SUB NotesAction (Index AS INTEGER, Action AS STRING, Sender AS RListBox)
+  IF Action = "rename" THEN Sender.EditItem Index      ' the editor over the row
+END SUB
+
+SUB NoteRenamed (Index AS INTEGER, S AS STRING)
+  ' S is what was typed (Enter); change it, or the item gets it as it is
+END SUB
+```
+
+**`Heading(i)`** makes an item a heading row: a click doesn't pick it, the
+arrow keys, Home and End pass over it, it has no row actions and a screen
+reader hears a heading. **`EditItem i`** opens an editor over the item's
+text (RTreeView's way): Enter keeps it (**`OnEdited`**), Esc leaves it.
+
+### Moving a file to the Trash
+
+**`MOVETOTRASH(Path$)`** moves a file or a folder to the system's Trash
+(the Recycle Bin on Windows) and gives True, where the person can still put
+it back — unlike `KILL`. Studio's Delete File... uses it
+([the language](language.md#to-the-trash-movetotrash),
+[trash.rr](../../examples/basics/trash.rr)).
 
 The whole example is [context_menus.rr](../../examples/gui/context_menus.rr):
 `rapidr run examples/gui/context_menus.rr`.

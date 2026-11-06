@@ -102,6 +102,17 @@ DIM HelpKind AS STRING
 DIM HelpDeclFile AS STRING
 DIM HelpDeclLine AS INTEGER
 DIM HelpDeclCol AS INTEGER
+' (CONTEXT-MENUS 2b) Back and Forward: the pages shown before ("word|type",
+' "manual:page"; "" the start page), the page shown now, the manual's page
+' shown (Open in the Browser)
+CONST HELPHISTMAX = 30
+DIM HelpHist(HELPHISTMAX) AS STRING
+DIM HelpHistCount AS INTEGER
+DIM HelpFwd(HELPHISTMAX) AS STRING
+DIM HelpFwdCount AS INTEGER
+DIM HelpNow AS STRING
+DIM HelpGoing AS INTEGER
+DIM HelpManualPage AS STRING
 
 DECLARE SUB SearchKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB SearchTreeKey(Key AS INTEGER, Shift AS INTEGER)
@@ -127,6 +138,9 @@ DECLARE SUB NavPushHere
 DECLARE FUNCTION SearchLine(Path AS STRING, L AS INTEGER) AS STRING
 DECLARE FUNCTION WordChar(c AS STRING) AS INTEGER
 DECLARE SUB ShowHelpFor(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
+DECLARE SUB HelpRemember(Ref AS STRING)
+DECLARE SUB HelpGoBack
+DECLARE SUB HelpGoForward
 
 HelpTimer.OnTimer = HelpTyped
 
@@ -951,6 +965,8 @@ SUB HelpShowManual(Page AS STRING)
   DIM t AS STRING
   t = Lang.ManualPage(Page)
   IF t = "" THEN EXIT SUB
+  HelpRemember "manual:" + Page
+  HelpManualPage = Page
   Dock.ShowPane("helppane")
   HelpKind = "manual"
   HelpPage.Text = t
@@ -964,6 +980,8 @@ SUB ShowHelp(Word AS STRING, OfType AS STRING)
 END SUB
 
 SUB ShowHelpFor(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
+  HelpRemember TRIM$(Word) + "|" + OfType
+  HelpManualPage = ""
   Dock.ShowPane("helppane")
   HelpTimer.Enabled = 0
   HelpSuggest.Visible = 0
@@ -976,6 +994,63 @@ SUB ShowHelpFor(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, 
   ELSE
     Application.Announce TR$("Help: {word}", "word", HelpBoxSet)
   END IF
+END SUB
+
+' (a page about to be shown: the one shown now kept for Back, Forward's
+' forgotten — not while Back or Forward shows one)
+SUB HelpRemember(Ref AS STRING)
+  DIM k AS INTEGER
+  ' (the start page: "")
+  IF Ref = "|" THEN Ref = ""
+  IF HelpGoing OR Ref = HelpNow THEN EXIT SUB
+  IF HelpHistCount >= HELPHISTMAX THEN
+    FOR k = 0 TO HELPHISTMAX - 2
+      HelpHist(k) = HelpHist(k + 1)
+    NEXT
+    HelpHistCount = HELPHISTMAX - 1
+  END IF
+  HelpHist(HelpHistCount) = HelpNow
+  HelpHistCount = HelpHistCount + 1
+  HelpFwdCount = 0
+  HelpNow = Ref
+END SUB
+
+' (a page of the history shown again)
+SUB HelpShowRef(Ref AS STRING)
+  HelpGoing = 1
+  IF LEFT$(Ref, 7) = "manual:" THEN
+    HelpShowManual MID$(Ref, 8)
+  ELSE
+    ShowHelp FIELD$(Ref, "|", 1), FIELD$(Ref, "|", 2)
+  END IF
+  HelpGoing = 0
+  HelpNow = Ref
+END SUB
+
+' Back (Alt+Left in Help): the page before.
+SUB HelpGoBack
+  DIM r AS STRING
+  IF HelpHistCount = 0 THEN EXIT SUB
+  IF HelpFwdCount < HELPHISTMAX THEN
+    HelpFwd(HelpFwdCount) = HelpNow
+    HelpFwdCount = HelpFwdCount + 1
+  END IF
+  HelpHistCount = HelpHistCount - 1
+  r = HelpHist(HelpHistCount)
+  HelpShowRef r
+END SUB
+
+' Forward (Alt+Right in Help): the page Back left.
+SUB HelpGoForward
+  DIM r AS STRING
+  IF HelpFwdCount = 0 THEN EXIT SUB
+  IF HelpHistCount < HELPHISTMAX THEN
+    HelpHist(HelpHistCount) = HelpNow
+    HelpHistCount = HelpHistCount + 1
+  END IF
+  HelpFwdCount = HelpFwdCount - 1
+  r = HelpFwd(HelpFwdCount)
+  HelpShowRef r
 END SUB
 
 ' The search box changed: the page follows the typing a moment after the

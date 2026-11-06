@@ -1,0 +1,8 @@
+' (CONTEXT-MENUS 2b) A misspelt member: its fix is the first item of the
+' code's right-click menu (tests/studio_flows.mjs ctx-code-fix)
+$THEME rapidr
+CREATE Form AS RForm
+  Caption = "Fix me"
+END CREATE
+Form.Captoin = "Hello"
+Form.ShowModal

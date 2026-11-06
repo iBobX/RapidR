@@ -302,10 +302,8 @@ DIM AIChatKeyed AS INTEGER
 DIM AIChatSearchLabel AS RLabel
 DIM AIChatList AS RListBox
 DIM AIChatsNote AS RLabel
-DIM AIRenameBar AS RPanel
-DIM AIRenameEdit AS REdit
-DIM AIRenameOk AS RButton
-DIM AIRenameCancel AS RButton
+' (a chat renamed in the list itself — EditItem: its id)
+DIM AIRenaming AS STRING
 DIM AIChatUndoBar AS RPanel
 DIM AIChatUndoText AS RLabel
 DIM AIChatUndoBtn AS RButton
