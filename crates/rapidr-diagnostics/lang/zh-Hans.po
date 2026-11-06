@@ -304,6 +304,10 @@ msgctxt "RR0046"
 msgid "it is declared in {place} already: a global name — a variable, CONST, SUB, FUNCTION or component, in any capitals — is the program's once; a SUB's own variables and parameters may reuse it"
 msgstr "它在 {place} 中已经声明过了：全局名称——变量、CONST、SUB、FUNCTION 或组件，不分大小写——在程序中只能有一个；SUB 自己的变量和参数可以重名"
 
+msgctxt "RR0047"
+msgid "TYPE {name} isn't the QFormEx RapidR knows (Rapidq2.inc's): it differs in {members}. RapidR has its own QFormEx (RFormEx: the same members, without changing the window's code in memory), so it doesn't compile this TYPE: leave the TYPE (or its $INCLUDE) out to use RapidR's, or give your class another name (MyFormEx) to keep it"
+msgstr "TYPE {name} 不是 RapidR 认识的 QFormEx（Rapidq2.inc 中的那个）：它在 {members} 上不同。RapidR 有自己的 QFormEx（RFormEx：成员相同，而且不修改内存中窗口的代码），所以不编译这个 TYPE：去掉这个 TYPE（或它的 $INCLUDE）即可使用 RapidR 的版本，或者给你的类换个名字（MyFormEx）以保留它"
+
 #. The word that labels a hint under a compiler message
 msgctxt "hint.label"
 msgid "hint"
