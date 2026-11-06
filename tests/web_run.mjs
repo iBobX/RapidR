@@ -109,6 +109,9 @@ class Runner {
     const result = await this.page.evaluate(({ source, assets, args, name, files, env }) => {
       window.__rapidr_assets = assets;
       window.RAPIDR_ARGS = args;
+      // (RMIDIPort: the tests' scripted devices only — none unless the
+      // program's ENVIRON plugs some in —, never the browser's prompt)
+      if (window.RAPIDR_TEST_MIDIPORT === undefined) window.RAPIDR_TEST_MIDIPORT = "";
       let bc;
       try {
         bc = files ? window.rr.compile_files(name, files, assets) : window.rr.compile(source, name, assets);

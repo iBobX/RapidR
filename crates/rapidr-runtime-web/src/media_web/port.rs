@@ -80,13 +80,17 @@ pub fn install() {
     }
     midiport::set_clock(now_ms);
     midiport::set_waker(wake);
+    // (the tests' page sets the variable, even empty: then only scripted
+    // devices, and a program's own ENVIRON can plug some in — never the
+    // browser's prompt in a test)
+    let page = page_var("RAPIDR_TEST_MIDIPORT");
     let script = rapidr_value::environ::get("RAPIDR_TEST_MIDIPORT");
-    match page_var("RAPIDR_TEST_MIDIPORT").or((!script.is_empty()).then_some(script)) {
-        Some(s) => {
-            TESTING.with(|t| t.set(true));
-            midiport::set_system(Rc::new(TestMidi::parse(&s)));
-        }
-        None => midiport::set_system(Rc::new(WebMidi)),
+    if page.is_some() || !script.is_empty() {
+        let s = page.filter(|p| !p.is_empty()).unwrap_or(script);
+        TESTING.with(|t| t.set(true));
+        midiport::set_system(Rc::new(TestMidi::parse(&s)));
+    } else {
+        midiport::set_system(Rc::new(WebMidi));
     }
     wake();
 }
