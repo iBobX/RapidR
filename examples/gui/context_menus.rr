@@ -1,0 +1,147 @@
+' context_menus.rr: right-click menus that open by the mouse, by the
+' keyboard (Shift+F10 or the Menu key) and by a screen reader, and small
+' icon actions on a list's rows.
+'
+'   rapidr run context_menus.rr
+'
+' Right-click a note (or select one and press Shift+F10): its menu, with
+' Open in bold (what a double click does), the keys shown, Delete last.
+' Hover a row, or move to it with the arrow keys: Rename, Delete and More
+' show on it. F2 and Del do the same on the selected row; More opens the
+' row's menu. OnContextMenu says where the menu goes (X, Y) and how it was
+' asked for (Key: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 the
+' row's More button); ContextIndex says which row it is for.
+'
+' SystemMenu = False: RapidR draws the menu itself on every system, in
+' the program's look, so it shows in screenshots and AI tools can see it.
+
+$THEME rapidr
+
+DECLARE SUB NotesMenu (X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RListBox)
+DECLARE SUB NotesAction (Index AS INTEGER, Action AS STRING, Sender AS RListBox)
+DECLARE SUB OpenPicked
+DECLARE SUB RenamePicked
+DECLARE SUB CopyPicked
+DECLARE SUB DeletePicked
+DECLARE SUB OpenNote (Index AS INTEGER)
+DECLARE SUB DeleteNote (Index AS INTEGER)
+DECLARE SUB NameKey (Key AS INTEGER, Shift AS INTEGER)
+
+CREATE NoteMenu AS RPopupMenu
+  SystemMenu = 0
+  CREATE OpenItem AS RMenuItem
+    Caption = "&Open" + CHR$(9) + "Enter"
+    Default = 1
+    OnClick = OpenPicked
+  END CREATE
+  CREATE Sep1 AS RMenuItem
+    Caption = "-"
+  END CREATE
+  CREATE RenameItem AS RMenuItem
+    Caption = "&Rename" + CHR$(9) + "F2"
+    OnClick = RenamePicked
+  END CREATE
+  CREATE CopyItem AS RMenuItem
+    Caption = "&Copy Text" + CHR$(9) + "Ctrl+C"
+    OnClick = CopyPicked
+  END CREATE
+  CREATE Sep2 AS RMenuItem
+    Caption = "-"
+  END CREATE
+  CREATE DeleteItem AS RMenuItem
+    Caption = "&Delete" + CHR$(9) + "Del"
+    OnClick = DeletePicked
+  END CREATE
+END CREATE
+
+CREATE Form AS RForm
+  Caption = "Notes"
+  Width = 380: Height = 300
+  Center
+  CREATE Notes AS RListBox
+    Left = 12: Top = 12: Width = 340: Height = 196
+    ItemHeight = 26
+    AccessibleName = "Notes"
+    AccessibleDescription = "Right-click a note, or press Shift+F10, for its menu"
+    RowActions = "rename:Rename (F2),delete:Delete (Del),more:More actions (Shift+F10)"
+    OnContextMenu = NotesMenu
+    OnRowAction = NotesAction
+  END CREATE
+  CREATE Said AS RLabel
+    Left = 12: Top = 220: Width = 340: Height = 40
+    AutoSize = 0: WordWrap = 1
+    Caption = "Right-click a note, or hover it."
+  END CREATE
+  CREATE NameEdit AS REdit
+    Left = 12: Top = 220: Width = 340
+    Visible = 0
+    AccessibleName = "The note's new name"
+    AccessibleDescription = "Enter keeps it, Escape leaves it as it was"
+    OnKeyDown = NameKey
+  END CREATE
+END CREATE
+
+Notes.AddItems "Buy milk", "Call Ada about the shop", "Water the plants", "Read chapter 3"
+Notes.ItemIndex = 0
+
+' The menu, at (X, Y) of the list: for the row the person meant.
+SUB NotesMenu (X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RListBox)
+  IF Sender.ContextIndex < 0 THEN EXIT SUB
+  ' (a right click doesn't select: the menu's row is selected here)
+  Sender.ItemIndex = Sender.ContextIndex
+  ' (a row's More button: the menu right-aligned under it)
+  IF Key = 4 THEN NoteMenu.Alignment = 1 ELSE NoteMenu.Alignment = 0
+  NoteMenu.PopupAt Sender, X, Y
+END SUB
+
+SUB NotesAction (Index AS INTEGER, Action AS STRING, Sender AS RListBox)
+  Sender.ItemIndex = Index
+  IF Action = "rename" THEN RenamePicked
+  IF Action = "delete" THEN DeleteNote Index
+END SUB
+
+SUB OpenNote (Index AS INTEGER)
+  IF Index < 0 THEN EXIT SUB
+  Said.Caption = "Opened: " + Notes.Item(Index)
+END SUB
+
+SUB DeleteNote (Index AS INTEGER)
+  IF Index < 0 THEN EXIT SUB
+  Said.Caption = "Deleted: " + Notes.Item(Index)
+  Notes.DelItems Index
+END SUB
+
+SUB OpenPicked
+  OpenNote Notes.ItemIndex
+END SUB
+
+' (Rename: the name in a field under the list; Enter keeps, Esc drops)
+SUB RenamePicked
+  IF Notes.ItemIndex < 0 THEN EXIT SUB
+  Said.Visible = 0
+  NameEdit.Text = Notes.Item(Notes.ItemIndex)
+  NameEdit.Visible = 1
+  NameEdit.SetFocus
+  NameEdit.SelectAll
+END SUB
+
+SUB NameKey (Key AS INTEGER, Shift AS INTEGER)
+  IF Key = 13 AND NameEdit.Text <> "" THEN Notes.Item(Notes.ItemIndex) = NameEdit.Text
+  IF Key = 13 OR Key = 27 THEN
+    NameEdit.Visible = 0
+    Said.Visible = 1
+    Notes.SetFocus
+  END IF
+END SUB
+
+SUB CopyPicked
+  IF Notes.ItemIndex < 0 THEN EXIT SUB
+  Clipboard.Text = Notes.Item(Notes.ItemIndex)
+  Said.Caption = "Copied: " + Notes.Item(Notes.ItemIndex)
+END SUB
+
+SUB DeletePicked
+  DeleteNote Notes.ItemIndex
+END SUB
+
+Form.ShowModal

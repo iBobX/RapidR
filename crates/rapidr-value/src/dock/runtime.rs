@@ -365,6 +365,9 @@ pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
             "documentmode" => Value::String(m.layout.mode.name().into()),
             "activedocument" => Value::String(m.active_document().map(|d| m.pane(&d).map_or(d.clone(), |i| i.given.clone())).unwrap_or_default().into()),
             "activepane" => Value::String(m.active_pane.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default().into()),
+            // (CONTEXT-MENUS: the document whose tab the last right click
+            // was on; "" none — the strip's empty part, a pane)
+            "contextdocument" => Value::String(m.ui.context_document.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default().into()),
             "panecount" => Value::Integer(m.panes.len() as i64),
             "documentcount" => Value::Integer(m.layout.documents.len() as i64),
             "documentgroupcount" => Value::Integer(if m.layout.documents.is_empty() { 0 } else { m.layout.group_count() as i64 }),

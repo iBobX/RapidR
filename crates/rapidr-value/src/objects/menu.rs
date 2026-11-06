@@ -9,6 +9,9 @@
 //! its radio siblings, as RapidQ's group 0), Enabled, Visible, ShortCut
 //! ("Ctrl+N", "F2", "Shift+Del", …), Hint, Tag, Command (a number of its
 //! own), MenuIndex (its place; setting it moves the item) and Count.
+//! RapidR adds an item's Default (drawn bold: what a double click on the
+//! thing the menu is for does) and a pop-up's SystemMenu (False: RapidR
+//! draws it on every system, so it follows the look and AI tools see it).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -35,6 +38,13 @@ pub struct MenuNode {
     pub command: i64,
     pub auto_popup: bool,
     pub alignment: i64,
+    /// (RapidR's) An item drawn bold: the default action of the menu's
+    /// target (what its double click or Enter does).
+    pub default: bool,
+    /// (RapidR's) A pop-up menu shown by the system where it has one
+    /// (macOS, Windows: true, as RapidQ's); false, RapidR's own drawing
+    /// everywhere.
+    pub system_menu: bool,
     pub parent: Option<String>,
     pub children: Vec<String>,
 }
@@ -53,6 +63,8 @@ impl MenuNode {
             command,
             auto_popup: true,
             alignment: 0,
+            default: false,
+            system_menu: true,
             parent: None,
             children: Vec::new(),
         }
@@ -179,6 +191,8 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
             "count" | "itemcount" => v_int(n.children.len() as i64),
             "autopopup" => flag(n.auto_popup),
             "alignment" => v_int(n.alignment),
+            "default" => flag(n.default),
+            "systemmenu" => flag(n.system_menu),
             "menuindex" => {
                 let p = n.parent.as_ref()?;
                 v_int(m.get(p).and_then(|pn| pn.children.iter().position(|c| *c == key(id))).map_or(-1, |i| i as i64))
@@ -222,6 +236,8 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<()> {
             "hint" => n.hint = val.to_string_val(),
             "autopopup" => n.auto_popup = on,
             "alignment" => n.alignment = val.to_i64(),
+            "default" => n.default = on,
+            "systemmenu" => n.system_menu = on,
             _ => return None,
         }
         let exclusive = matches!(prop, "checked" | "radioitem") && n.radio && n.checked;
@@ -496,13 +512,14 @@ pub fn parse_shortcut(text: &str) -> Option<Shortcut> {
 // (the kernel's menu bar and panels, and the form designer's menu editor,
 // measure them alike: one set of numbers)
 
-/// A menu item's row in a panel.
+/// A menu item's row in a panel (the classic look's; [`item_h`] for the
+/// look in use).
 pub const ITEM_H: i64 = 20;
 /// A separator's row.
 pub const SEP_H: i64 = 9;
-/// A panel's frame (a raised edge and a pixel of face).
+/// A panel's frame (a raised edge and a pixel of face; [`border`]).
 pub const BORDER: i64 = 3;
-/// Where the check mark goes, left of the captions.
+/// Where the check mark goes, left of the captions ([`gutter`]).
 pub const GUTTER: i64 = 17;
 /// Right of the captions and ShortCuts (the submenu arrow's place).
 pub const RIGHT: i64 = 17;
@@ -510,6 +527,24 @@ pub const RIGHT: i64 = 17;
 pub const KEYS_GAP: i64 = 20;
 /// Left and right of a bar item's caption (classic; RapidR's looks add 3).
 pub const BAR_PAD: i64 = 7;
+
+/// A menu item's row in the look in use: RapidQ's 20 pixels in the classic
+/// look, 24 in RapidR's (a 24-pixel target, docs/context-menus-design.md
+/// D1). Menus float over the form: nothing of its layout moves.
+pub fn item_h() -> i64 {
+    if crate::theme::current().fluent() { 24 } else { ITEM_H }
+}
+
+/// A panel's padding in the look in use (RapidR's: 4 inside the rounded
+/// frame).
+pub fn border() -> i64 {
+    if crate::theme::current().fluent() { 4 } else { BORDER }
+}
+
+/// The check marks' column in the look in use.
+pub fn gutter() -> i64 {
+    if crate::theme::current().fluent() { 24 } else { GUTTER }
+}
 
 /// Menus' font (the system's menu font: RapidQ's menus have no Font) —
 /// Windows' in the classic look, RapidR's chrome font in its own.
@@ -523,15 +558,26 @@ pub fn bar_item_width(caption: &str) -> i64 {
     super::text::text_size(&super::a11y::mnemonic(caption).0, &menu_font()).0 + 2 * pad
 }
 
-/// A panel's size for its rows: (caption, ShortCut text, separator).
+/// A panel's size for its rows: (caption, ShortCut text, separator), in
+/// the look in use (a default item's bold caption measured bold:
+/// [`panel_size_with`]).
 pub fn panel_size(rows: &[(&str, &str, bool)]) -> (i64, i64) {
+    let rows: Vec<(&str, &str, bool, bool)> = rows.iter().map(|r| (r.0, r.1, r.2, false)).collect();
+    panel_size_with(&rows)
+}
+
+/// [`panel_size`] with each row's Default (bold) too.
+pub fn panel_size_with(rows: &[(&str, &str, bool, bool)]) -> (i64, i64) {
     let font = menu_font();
-    let width = |s: &str| super::text::text_size(&super::a11y::mnemonic(s).0, &font).0;
-    let captions = rows.iter().filter(|r| !r.2).map(|r| width(r.0)).max().unwrap_or(0);
+    let mut bold = font.clone();
+    bold.styles |= 1;
+    let width = |s: &str, b: bool| super::text::text_size(&super::a11y::mnemonic(s).0, if b { &bold } else { &font }).0;
+    let captions = rows.iter().filter(|r| !r.2).map(|r| width(r.0, r.3)).max().unwrap_or(0);
     let keys = rows.iter().filter(|r| !r.1.is_empty()).map(|r| super::text::text_size(r.1, &font).0).max();
-    let w = BORDER * 2 + GUTTER + captions + keys.map_or(0, |k| KEYS_GAP + k) + RIGHT;
-    let h = BORDER * 2 + rows.iter().map(|r| if r.2 { SEP_H } else { ITEM_H }).sum::<i64>();
-    (w.max(80), h.max(BORDER * 2 + 4))
+    let (b, g) = (border(), gutter());
+    let w = b * 2 + g + captions + keys.map_or(0, |k| KEYS_GAP + k) + RIGHT;
+    let h = b * 2 + rows.iter().map(|r| if r.2 { SEP_H } else { item_h() }).sum::<i64>();
+    (w.max(80), h.max(b * 2 + 4))
 }
 
 /// Every pop-up menu there is (lower case, sorted).

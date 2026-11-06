@@ -26,6 +26,7 @@ saber en qué destaca RapidR? [Por qué RapidR](why-rapidr.md).
 
 | Capítulo | Qué contiene |
 |---|---|
+| [Menús del clic derecho](right-click-menus.md) | Clic derecho (o Mayús+F10, la tecla de menú, un lector de pantalla) en archivos, pestañas, código, componentes, propiedades, chats: qué tiene cada menú, en el mismo orden en todas partes; los botones pequeños en las filas de los chats del asistente; `OnContextMenu`, `RowActions` y `ContextIndex` para tus propios programas |
 | [El editor de código](studio-editor.md) | Autocompletado, Ctrl+Space, información de parámetros, información flotante, F12 Ir a la definición, problemas y correcciones rápidas, los atajos de teclado |
 | [Proyectos](studio-projects.md) | El panel Proyecto: los formularios salen de tu código (varios en un archivo), Archivo > Abrir reciente, volver a abrir el último proyecto, el PATH que reciben tus programas (macOS, Linux) |
 | [Studio en tu idioma](studio-languages.md) | Herramientas > Configuración > General > Idioma (Predeterminado del sistema, English, Español), que cambia al instante; los mensajes del compilador y la Ayuda en tu idioma; `RAPIDR_LANG`, `rapidr check`; cómo ayudar a traducir RapidR (`rapidr i18n`), el seudoidioma |

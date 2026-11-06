@@ -968,6 +968,15 @@ impl ComponentKind for Inspector {
         Cursor::Default
     }
 
+    /// (CONTEXT-MENUS) The keyboard's menu: under the selected row's name.
+    fn context_point(&self, cx: &mut Cx) -> Option<(i64, i64)> {
+        let v = view(cx, classic());
+        let i = v.selected()?;
+        let (rx, ry, _, rh) = v.row_rect(i);
+        let (ax, ay, _, _) = cx.rect;
+        Some((ax + rx + 12, ay + ry + rh))
+    }
+
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let (x, y) = (m.x.floor() as i64, m.y.floor() as i64);
         let v = view(cx, classic());
@@ -984,6 +993,15 @@ impl ComponentKind for Inspector {
             }
         }
         match m.kind {
+            // (CONTEXT-MENUS: a right press selects the row under it — its
+            // menu acts on it)
+            MouseKind::Down if m.button == rapidr_value::input::Button::Right => {
+                if let Some(key) = v.row_at(x, y).and_then(|(i, _)| v.rows.get(i)).map(|r| r.key.clone()) {
+                    finish(cx, true);
+                    select(cx, &key);
+                }
+                MouseOut::default()
+            }
             MouseKind::Down => Self::press(cx, m, x, y),
             MouseKind::Move => {
                 if let Some((from, width)) = v.m.ui.drag {

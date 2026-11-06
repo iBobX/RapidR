@@ -372,6 +372,15 @@ if (want("all")) {
   r = await tool("app_click", { Menu: "Double" });
   r = await tool("app_layout");
   check("picked from the open pop-up menu: it closed, 36 doubled to 72", !r.text.includes("is open now") && r.text.includes('display (RLabel) "72"'), r.text);
+  // (CONTEXT-MENUS: a right-click on Hello runs its OnContextMenu, which
+  // opens the menu with PopupAt — drawn by RapidR, seen and picked the same)
+  r = await tool("app_click", { Name: "BHello", Button: "right" });
+  check("a right-click on Hello", !r.error && r.text.startsWith("Right-clicked bhello"), r.text);
+  r = await tool("app_layout");
+  check("OnContextMenu's PopupAt: the pop-up menu is open now", r.text.includes("Pop-up menu calcmenu is open now"), r.text);
+  r = await tool("app_click", { Menu: "Double" });
+  r = await tool("read_output");
+  check("the program heard OnContextMenu (Key 0, the mouse), then the item's OnClick", /context menu 0[\s\S]*doubled 144/.test(r.text), r.text.slice(-300));
   r = await tool("app_click", { Caption: "C" });
   r = await tool("app_wait", { Ms: 200 });
   check("app_wait", !r.error && r.text.includes("Waited 200 ms"), r.text);

@@ -367,16 +367,20 @@ conserva el que dejas.
 chats del proyecto en el lugar del chat, el más nuevo primero, el que está abierto
 marcado *(abierto)*:
 
-![Chats: los chats de este proyecto, el más nuevo primero; Abrir, Renombrar, Eliminar, Atrás; dónde se guardan](../images/ai/chats.png)
+![Chats: los chats de este proyecto, el más nuevo primero; Renombrar, Eliminar y Más en una fila; Atrás; dónde se guardan](../images/ai/chats.png)
 
 - **Buscar** (el cuadro de arriba) encuentra un chat por su título o por cualquier cosa
   que se dijo en él; la línea que la tiene se muestra junto al título.
-- **Abrir** (o un doble clic) muestra ese chat; el que dejas se conserva.
-- **Renombrar** le da a un chat tu propio nombre (Enter lo conserva, Escape no); hasta
-  que lo haces, un chat se llama como su primera pregunta.
-- **Eliminar** quita un chat de tu computadora de inmediato; **Deshacer**, junto a la
-  lista, lo devuelve.
-- **Atrás** (o Escape en el cuadro de búsqueda) vuelve al chat.
+- **Un clic** en un chat lo abre (las flechas solo se mueven por la lista; Enter
+  abre); el que dejas se conserva.
+- La fila bajo el mouse, y la fila seleccionada, muestran tres botones pequeños
+  (también en el [menú del clic derecho](right-click-menus.md) de la fila):
+  **Renombrar** (F2) le da a un chat tu propio nombre (Enter lo conserva, Escape
+  no) —hasta que lo haces, un chat se llama como su primera pregunta—;
+  **Eliminar** (Supr) lo quita de tu computadora de inmediato, y **Deshacer**,
+  junto a la lista, lo devuelve; **Más** abre el menú de la fila.
+- **Atrás** (o Escape) vuelve al chat. Sin chats todavía, la lista muestra
+  **Empezar un chat**.
 
 <!-- legal -->
 **Dónde se guardan.** En tu computadora, en la carpeta propia de Studio, nunca en la

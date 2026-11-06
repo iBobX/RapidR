@@ -49,3 +49,5 @@
 "RPOPUPMENU.POPUPAT" = "Muestra el menú en (X, Y) dentro de Control (cualquier componente de un formulario), con su esquina superior izquierda como origen, esté donde esté Control en su ventana (acoplado, en un panel): un menú bajo el elemento de una lista o junto a un botón, donde Popup toma las coordenadas de la pantalla. Como con Popup, primero se produce OnPopup y el elemento elegido produce su OnClick."
 "RPOPUPMENU.TAG" = "Un número para uso propio del programa; RapidR nunca lo lee."
 "RPOPUPMENU.WINDOWHANDLE" = "La ventana que recibe los mensajes del menú contextual."
+"RMENUITEM.DEFAULT" = "Muestra las palabras del elemento en negrita: la acción predeterminada de aquello para lo que es el menú (lo que hace allí un doble clic o Intro). Uno por menú."
+"RPOPUPMENU.SYSTEMMENU" = "True (lo predeterminado): en macOS y Windows el menú lo muestra el sistema, como sus otros menús. False: RapidR lo dibuja en todos los sistemas, con el aspecto del programa (claro, oscuro, alto contraste de RapidR), así que aparece en capturas y grabaciones y las herramientas de IA de RapidR pueden ver y elegir sus elementos. Los menús de RapidR Studio se dibujan así."

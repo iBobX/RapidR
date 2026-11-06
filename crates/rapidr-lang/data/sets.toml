@@ -23,4 +23,8 @@ properties = [
   { name = "AccessibleHidden", type = "bool", default = false, category = "Accessibility", doc = "True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read." },
 ]
 methods = []
-events = []
+# (CONTEXT-MENUS: every control that can take the keyboard opens its menu
+# by the mouse, the keyboard and a screen reader alike)
+events = [
+  { name = "OnContextMenu", params = "X AS INTEGER, Y AS INTEGER, Key AS INTEGER", origin = "rapidr", doc = "RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's \"show menu\", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too." },
+]

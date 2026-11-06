@@ -11,6 +11,7 @@ DECLARE SUB Clear
 DECLARE SUB Greet
 DECLARE SUB MenuPopped
 DECLARE SUB Doubled
+DECLARE SUB HelloContext(X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RButton)
 DIM Total AS DOUBLE
 
 CREATE Form1 AS RForm
@@ -86,6 +87,13 @@ END CREATE
 
 ' (a right-click on the display opens the pop-up menu)
 Display.PopupMenu = CalcMenu
+' (CONTEXT-MENUS: Hello's OnContextMenu opens the same menu, where it was asked)
+BHello.OnContextMenu = HelloContext
+
+SUB HelloContext(X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RButton)
+    PRINT "context menu "; Key
+    CalcMenu.PopupAt Sender, X, Y
+END SUB
 
 SUB MenuPopped
     PRINT "menu popped"

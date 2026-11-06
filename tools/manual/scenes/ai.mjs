@@ -198,12 +198,13 @@ export const scenes = [
     env: { ...ENV, RAPIDR_TEST_EVENTS: ["aisucloudradio.__mousedown_8_12", "aisucloudradio.__mouseup_8_12", idle(2), "aisunextbtn.__mousedown_30_14", "aisunextbtn.__mouseup_30_14", idle(2), "aisuprovbox.__item_0", idle(2), typeInto("aisukeyedit", "example-key-not-real-0000"), "aisutestbtn.__mousedown_30_14", "aisutestbtn.__mouseup_30_14", "aisucloud.__until_busy_0", idle(6)].join(",") },
   },
   {
-    // (R1) Chats: the project's chats, the newest first, where they are kept
+    // (R1) Chats: the project's chats, the newest first, where they are kept; a row's actions
     name: "chats",
     open: "examples/gui/hello_form.rr",
     do: `${READY},ai:ask=Add a Clear button to the form,ai:wait,ai:new,ai:ask=Make the window larger,ai:wait,ai:new,ai:ask=describe the form,ai:wait,wait,ai:chats`,
     delay: 8,
-    env: ENV,
+    // (CONTEXT-MENUS: the second row under the mouse shows Rename, Delete and More)
+    env: { ...ENV, RAPIDR_TEST_EVENTS: "aichatlist.__mousemove_120_42" },
     crop: [640, 30, 640, 720],
   },
   {

@@ -385,6 +385,7 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).SharedUndo = 1
   DesignDoc(d).OnChange = DesignChanged
   DesignDoc(d).OnDblClick = DesignDblClick
+  DesignDoc(d).OnContextMenu = DesignContext
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
   DesignDoc(d).Theme = DesignTheme

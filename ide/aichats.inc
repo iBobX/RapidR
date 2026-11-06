@@ -17,6 +17,10 @@ DECLARE SUB AIChatsBack
 DECLARE SUB AIChatsOpenClick
 DECLARE SUB AIChatsRenameClick
 DECLARE SUB AIChatsDeleteClick
+DECLARE SUB AIChatListClick
+DECLARE SUB AIChatListKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB AIChatRowAction(Index AS INTEGER, Action AS STRING, Sender AS RListBox)
+DECLARE SUB AIChatsStartClick
 DECLARE SUB AIChatsUndoClick
 DECLARE SUB AIChatsSearchChanged
 DECLARE SUB AIChatsSearchKey(Key AS INTEGER, Shift AS INTEGER)
@@ -51,25 +55,14 @@ SUB SetUpAIChats
   AIChatSearch.Hint = TR$("Search chats")
   AIChatSearch.OnChange = AIChatsSearchChanged
   AIChatSearch.OnKeyDown = AIChatsSearchKey
-  ' (Open, Rename, Delete at the bottom — Back is the Chats button's, at the
-  ' top —; Undo after a delete; the new name while renaming)
+  ' (where chats are kept, at the bottom — Back is the Chats button's, at
+  ' the top —; Undo after a delete; the new name while renaming. Open,
+  ' Rename and Delete are on the rows themselves and in their right-click
+  ' menu: docs/context-menus-design.md §3)
   AIChatsFoot.Parent = AIChatsPanel
   AIChatsFoot.Align = 2
-  AIChatsFoot.Height = 96
+  AIChatsFoot.Height = 52
   AIChatsFoot.BevelOuter = 0
-  AIChatsOpenBtn.Parent = AIChatsFoot
-  AIChatsOpenBtn.Caption = TR$("Open")
-  AIChatsOpenBtn.AccessibleName = TR$("Open the chat")
-  AIChatsOpenBtn.OnClick = AIChatsOpenClick
-  AIChatsRenameBtn.Parent = AIChatsFoot
-  AIChatsRenameBtn.Caption = TR$("Rename")
-  AIChatsRenameBtn.AccessibleName = TR$("Rename the chat")
-  AIChatsRenameBtn.OnClick = AIChatsRenameClick
-  AIChatsDeleteBtn.Parent = AIChatsFoot
-  AIChatsDeleteBtn.Caption = TR$("Delete")
-  AIChatsDeleteBtn.AccessibleName = TR$("Delete the chat")
-  AIChatsDeleteBtn.AccessibleDescription = TR$("It is removed from this computer; Undo puts it back")
-  AIChatsDeleteBtn.OnClick = AIChatsDeleteClick
   AIChatUndoBar.Parent = AIChatsPanel
   AIChatUndoBar.Align = 2
   AIChatUndoBar.Height = 36
@@ -107,7 +100,21 @@ SUB SetUpAIChats
   AIChatList.Parent = AIChatsPanel
   AIChatList.Align = 5
   AIChatList.AccessibleName = TR$("This project's chats, the newest first")
-  AIChatList.OnDblClick = AIChatsOpenClick
+  ' (a click opens a chat; the arrows only move; Enter opens. Rename,
+  ' Delete and More on the row under the mouse and the selected one, F2
+  ' and Del too; its menu by right click, Shift+F10 or More)
+  AIChatList.OnClick = AIChatListClick
+  AIChatList.OnKeyDown = AIChatListKey
+  AIChatList.OnRowAction = AIChatRowAction
+  AIChatsEmpty.Parent = AIChatsPanel
+  AIChatsEmpty.AutoSize = 0: AIChatsEmpty.WordWrap = 1
+  AIChatsEmpty.Alignment = 2
+  AIChatsEmpty.Visible = 0
+  AIChatsStartBtn.Parent = AIChatsPanel
+  AIChatsStartBtn.Caption = TR$("&Start a Chat")
+  AIChatsStartBtn.Primary = 1
+  AIChatsStartBtn.Visible = 0
+  AIChatsStartBtn.OnClick = AIChatsStartClick
   AIShowChatTitle
 END SUB
 
@@ -118,13 +125,15 @@ SUB LayOutAIChats
   IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
   AIChatSearchLabel.Left = 8: AIChatSearchLabel.Top = 11: AIChatSearchLabel.Width = 56: AIChatSearchLabel.Height = 18
   AIChatSearch.Left = 66: AIChatSearch.Top = 6: AIChatSearch.Width = w - 72
-  ' (three buttons across the bottom)
-  bw = (w - 12 - 2 * 4) \ 3
   AIChatsNote.Left = 8: AIChatsNote.Top = 6: AIChatsNote.Width = w - 16: AIChatsNote.Height = 40
-  AIChatsOpenBtn.Left = 6: AIChatsOpenBtn.Top = 54: AIChatsOpenBtn.Width = bw: AIChatsOpenBtn.Height = bh
-  AIChatsRenameBtn.Left = 6 + (bw + 4): AIChatsRenameBtn.Top = 54: AIChatsRenameBtn.Width = bw: AIChatsRenameBtn.Height = bh
-  AIChatsDeleteBtn.Left = 6 + 2 * (bw + 4): AIChatsDeleteBtn.Top = 54: AIChatsDeleteBtn.Width = bw: AIChatsDeleteBtn.Height = bh
-  IF ThemeName = "classic" THEN AIChatList.ItemHeight = 16 ELSE AIChatList.ItemHeight = 26
+  ' (rows tall enough for the row actions' 24-pixel squares)
+  IF ThemeName = "classic" THEN AIChatList.ItemHeight = 24 ELSE AIChatList.ItemHeight = 28
+  ' (no chats yet: a line and the one big button, in the list's place)
+  AIChatsEmpty.Left = 16: AIChatsEmpty.Top = 64: AIChatsEmpty.Width = w - 32: AIChatsEmpty.Height = 40
+  bw = AIChatsStartBtn.Width
+  IF bw < 120 THEN bw = 120
+  AIChatsStartBtn.Width = bw: AIChatsStartBtn.Height = UiButtonH
+  AIChatsStartBtn.Left = (w - bw) \ 2: AIChatsStartBtn.Top = 112
   AIChatUndoBtn.Left = w - 6 - 72: AIChatUndoBtn.Top = (36 - bh) \ 2: AIChatUndoBtn.Width = 72: AIChatUndoBtn.Height = bh
   AIChatUndoText.Left = 8: AIChatUndoText.Top = 9: AIChatUndoText.Width = w - 16 - 76: AIChatUndoText.Height = 18
   AIRenameCancel.Left = w - 6 - 70: AIRenameCancel.Top = (40 - bh) \ 2: AIRenameCancel.Width = 70: AIRenameCancel.Height = bh
@@ -137,9 +146,9 @@ SUB AIChatsFonts
   AIChatSearchLabel.Font = UIFont
   AIChatSearchLabel.Font.Color = TC("page.text")
   AIChatList.Font = UIFont
-  AIChatsOpenBtn.Font = UIFont
-  AIChatsRenameBtn.Font = UIFont
-  AIChatsDeleteBtn.Font = UIFont
+  AIChatsEmpty.Font = UIFont
+  AIChatsEmpty.Font.Color = TC("page.dim")
+  AIChatsStartBtn.Font = UIFont
   AIChatUndoText.Font = UIFont
   AIChatUndoText.Font.Color = TC("page.text")
   AIChatUndoBtn.Font = UIFont
@@ -355,9 +364,13 @@ SUB AIFillChats
   IF AIChatList.ItemCount > 0 THEN
     IF at >= 0 THEN AIChatList.ItemIndex = at ELSE AIChatList.ItemIndex = 0
   END IF
-  AIChatsOpenBtn.Enabled = Flag(AIChatList.ItemCount > 0)
-  AIChatsRenameBtn.Enabled = Flag(AIChatList.ItemCount > 0)
-  AIChatsDeleteBtn.Enabled = Flag(AIChatList.ItemCount > 0)
+  ' (the rows' actions, in Studio's language — rename is F2, delete Del)
+  AIChatList.RowActions = "rename:" + TR$("Rename (F2)") + ",delete:" + TR$("Delete (Del)") + ",more:" + TR$("More actions (Shift+F10)")
+  ' (no chats yet: the one big button left; a search finding nothing says so in the list)
+  AIChatsEmpty.Visible = Flag(AIChatList.ItemCount = 0 AND LTRIM$(AIChatSearch.Text) = "")
+  AIChatsStartBtn.Visible = AIChatsEmpty.Visible
+  AIChatList.Visible = Flag(AIChatsEmpty.Visible = 0)
+  AIChatsEmpty.Caption = TR$("No chats in this project yet.")
   IF AIChatList.ItemCount = 0 THEN
     IF LTRIM$(AIChatSearch.Text) = "" THEN
       AIChatList.AccessibleDescription = TR$("No chats kept for this project yet.")
@@ -392,6 +405,41 @@ SUB AIChatsSearchKey(Key AS INTEGER, Shift AS INTEGER)
     Key = 0
     AIShowChats 0
   END IF
+END SUB
+
+' (CONTEXT-MENUS) A click opens the chat clicked; the arrows only move.
+SUB AIChatListClick
+  IF AIChatKeyed THEN
+    AIChatKeyed = 0
+    EXIT SUB
+  END IF
+  AIChatsOpenClick
+END SUB
+
+SUB AIChatListKey(Key AS INTEGER, Shift AS INTEGER)
+  SELECT CASE Key
+    CASE 33, 34, 35, 36, 38, 40: AIChatKeyed = 1
+    CASE 13
+      Key = 0
+      AIChatsOpenClick
+    CASE 27
+      Key = 0
+      AIShowChats 0
+  END SELECT
+END SUB
+
+' (a row's Rename or Delete — its icon, F2, Del)
+SUB AIChatRowAction(Index AS INTEGER, Action AS STRING, Sender AS RListBox)
+  AIChatKeyed = 0
+  Sender.ItemIndex = Index
+  IF Action = "rename" THEN AIChatsRenameClick
+  IF Action = "delete" THEN AIChatsDeleteClick
+END SUB
+
+' (no chats yet: Start a Chat — the chat box, empty, ready to type)
+SUB AIChatsStartClick
+  AIShowChats 0
+  AIInput.SetFocus
 END SUB
 
 SUB AIChatsOpenClick

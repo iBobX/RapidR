@@ -351,16 +351,20 @@ another and keeps the one you leave.
 project's chats in the chat's place, the newest first, the one open marked
 *(open)*:
 
-![Chats: this project's chats, the newest first; Open, Rename, Delete, Back; where they are kept](images/ai/chats.png)
+![Chats: this project's chats, the newest first; Rename, Delete and More on a row; Back; where they are kept](images/ai/chats.png)
 
 - **Search** (the box on top) finds a chat by its title or by anything said
   in it; the line that has it is shown beside the title.
-- **Open** (or a double-click) shows that chat; the one you leave is kept.
-- **Rename** gives a chat your own name (Enter keeps it, Escape doesn't);
-  until you do, a chat is named after its first question.
-- **Delete** removes a chat from your computer at once; **Undo**, beside the
-  list, puts it back.
-- **Back** (or Escape in the search box) returns to the chat.
+- **A click** on a chat opens it (the arrow keys only move through the list;
+  Enter opens); the one you leave is kept.
+- The row under the mouse, and the selected row, show three small buttons
+  (also in the row's [right-click menu](right-click-menus.md)):
+  **Rename** (F2) gives a chat your own name (Enter keeps it, Escape
+  doesn't) — until you do, a chat is named after its first question;
+  **Delete** (Del) removes it from your computer at once, and **Undo**,
+  beside the list, puts it back; **More** opens the row's menu.
+- **Back** (or Escape) returns to the chat. With no chats yet, the list shows
+  **Start a Chat**.
 
 **Where they are kept.** On your computer, in Studio's own folder — never in
 the project's folder, so a chat is never shared, committed or shipped with

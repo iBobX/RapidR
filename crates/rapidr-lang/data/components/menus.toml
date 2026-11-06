@@ -43,6 +43,7 @@ properties = [
   { name = "Tag", type = "int" },
   { name = "Visible", type = "bool", default = true },
   { name = "ItemCount", type = "int", design = false, origin = "rapidr" },
+  { name = "Default", type = "bool", default = false, origin = "rapidr", doc = "Draws the item's words bold: the default action of what the menu is for (what a double click or Enter does there). One per menu." },
 ]
 methods = [
   { name = "AddItems", params = "Items ...", value = true },
@@ -70,6 +71,7 @@ properties = [
   { name = "Tag", type = "int" },
   { name = "WindowHandle", type = "int" },
   { name = "ItemCount", type = "int", design = false, origin = "rapidr" },
+  { name = "SystemMenu", type = "bool", default = true, origin = "rapidr", category = "Appearance", doc = "True (the default): on macOS and Windows the system shows the menu, as its other menus. False: RapidR draws it on every system, in the program's look (RapidR's light, dark, high contrast), so it shows in screenshots and recordings and RapidR's AI tools can see and pick its items. RapidR Studio's menus are drawn this way." },
 ]
 methods = [
   { name = "AddItems", params = "Items ...", value = true },

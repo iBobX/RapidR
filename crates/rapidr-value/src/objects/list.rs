@@ -133,6 +133,18 @@ pub struct ItemList {
     measures_pending: usize,
     /// Drawing on a list box that isn't owner-drawn ([`ListCanvas`]).
     pub canvas: ListCanvas,
+    /// (CONTEXT-MENUS, RapidR's) `RowActions`: the small icon buttons on
+    /// the row under the mouse and the row with the keyboard, at most
+    /// three, each `name` or `name:its tip` — a name from RapidR's icon set
+    /// (`rename`, `delete`, `more`…) — comma-separated; OnRowAction(Index,
+    /// Action) hears them. "rename" is also F2, "delete" Del, and "more"
+    /// opens the row's OnContextMenu (Key 4), as Shift+F10 does.
+    pub row_actions: Vec<String>,
+    /// (CONTEXT-MENUS, RapidR's) `ContextIndex`: the item under the last
+    /// right click (or the focused one, for the keyboard's menu); -1 none.
+    /// A right click doesn't select (as RapidQ's list box): the program
+    /// does it in OnContextMenu when it wants to.
+    pub context_index: Option<usize>,
 }
 
 /// Drawing on a QLISTBOX that isn't owner-drawn. RapidQ draws on the
@@ -719,6 +731,8 @@ impl ItemList {
             "text" if self.combo => v_str(&self.text),
             "text" => v_str(&self.to_text()),
             "items" => v_str(&self.items.join("\n")),
+            "rowactions" if !self.combo && !self.plain => v_str(&self.row_actions.join(",")),
+            "contextindex" if !self.combo && !self.plain => v_int(self.context_index.filter(|&i| i < self.items.len()).map_or(-1, |i| i as i64)),
             _ => return None,
         })
     }
@@ -770,6 +784,10 @@ impl ItemList {
                 self.item_index = self.items.iter().position(|s| *s == self.text).map_or(-1, |i| i as i64);
             }
             "text" | "items" => self.load_text(&val.to_string_val()),
+            "rowactions" if !self.combo && !self.plain => {
+                self.row_actions = val.to_string_val().split(',').map(|a| a.trim().to_string()).filter(|a| !a.is_empty()).take(3).collect();
+            }
+            "contextindex" if !self.combo && !self.plain => self.context_index = usize::try_from(val.to_i64()).ok(),
             _ => return false,
         }
         true
