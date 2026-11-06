@@ -8,6 +8,10 @@
 #   tools/winxp/vm.sh host                      start xphost.py in the background (its PID in $SHARE/host.pid)
 #   tools/winxp/vm.sh status                    when the helper last asked for work
 #   tools/winxp/vm.sh exec  'dir C:\'           a command line in the VM (cmd.exe), its output and "#exit N"
+#                                               (LIMIT=<s>: stopped after that long, "#exit timeout")
+#   tools/winxp/vm.sh spawn 'C:\x\prog.exe'     a program with its own window, not waited for
+#   tools/winxp/vm.sh update                    the VM's helper replaced by helper/START-HERE.vbs (helper v2+)
+#   tools/winxp/vm.sh keys 'Title' '{F5}'       keys typed into the window with that title (helper v3+)
 #   tools/winxp/vm.sh push  local 'C:\x\y.exe'  a file to the VM
 #   tools/winxp/vm.sh pull  'C:\x\y.png' local  a file from the VM
 #   tools/winxp/vm.sh ps | kill <pid>           the VM's processes; stop one by its number
@@ -54,7 +58,17 @@ case "${1:-}" in
         [ -f "$SHARE/host.pid" ] && kill "$(cat "$SHARE/host.pid")" 2>/dev/null; rm -f "$SHARE/host.pid"; echo stopped ;;
     status) cat "$SHARE/last-seen.txt" 2>/dev/null || echo "the helper has not asked yet"; date '+now %Y-%m-%d %H:%M:%S' ;;
     exec)
-        shift; id="$(job exec "$*")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
+        # (LIMIT: the helper stops the command after that many seconds; vm.sh waits a little longer)
+        shift; L="${LIMIT:-$CAP}"; [ "$CAP" -lt $((L + 15)) ] && CAP=$((L + 15))
+        id="$(job exec "$*" "$L")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
+    spawn)
+        shift; id="$(job spawn "$*")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
+    keys)
+        id="$(job keys "$2" "$3")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
+    update)
+        name="helper-$(date +%s).vbs"
+        sed 's/$/\r/' "$ROOT/tools/winxp/helper/START-HERE.vbs" > "$SHARE/files/$name"
+        id="$(job update "$name")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
     push)
         name="push-$(date +%s)-$RANDOM-$(basename "$2")"
         cp "$2" "$SHARE/files/$name"
@@ -66,5 +80,5 @@ case "${1:-}" in
     ps) id="$(job ps)"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt" ;;
     kill) id="$(job kill "$2")"; wait_for "$id"; tr -d '\r' < "$SHARE/results/$id.txt"; echo ;;
     quit) id="$(job quit)"; wait_for "$id" || true ;;
-    *) sed -n '2,17p' "$0" >&2; exit 2 ;;
+    *) sed -n '2,22p' "$0" >&2; exit 2 ;;
 esac

@@ -24,9 +24,19 @@ All of `tools/winxp/shim/` and `tools/winxp/probe/`, by this lane's agent, in C:
 - `xp_misc.c` — the rest (file information, final path, string compare, locale, registry, time zone,
   `K32EnumProcessModules`, and the graphical functions a console program never calls): real first,
   else emulated the documented way or answered "not available".
+- `xp_dwrite.c` — `DWriteCreateFactory`: Windows' own first, else an empty DirectWrite factory (two
+  static COM objects: the factory and a font collection with no families). The method order and the
+  interface IDs are those the `windows` crate declares (windows-0.62.2, MIT/Apache-2.0, the crate
+  fontique itself uses), the methods' meaning from Microsoft Learn's IDWriteFactory and
+  IDWriteFontCollection pages. No DirectWrite implementation of anyone else was read.
 - `xp-link.sh` — the XP flavour's linker driver (puts the stand-in objects first in the link).
-- `probe/pipeprobe.c`, `probe/xpshot.c`, `shim/tests/test_sync.c`, `shim/tests/test_misc.c` — the
-  checks run on the Windows 7 VM and (pending) on Windows XP.
+- `zip.sh` — the XP test zip (the Windows 7 zip with the plain-XP programs).
+- `helper/START-HERE.vbs`, `helper/unzip.js`, `xphost.py`, `vm.sh` — the XP VM's test helper (VBScript /
+  JScript of Windows XP's own Script Host, from Microsoft's documentation of WshShell, FileSystemObject,
+  MSXML2.ServerXMLHTTP, ADODB.Stream, Shell.Application and WMI's Win32_Process).
+- `probe/pipeprobe.c`, `probe/xpshot.c`, `probe/xpclick.c`, `shim/tests/test_sync.c`,
+  `shim/tests/test_misc.c`, `shim/tests/test_dwrite.c` — the checks run on the Windows 7 VM and on
+  Windows XP; `tools/release/winxp-vm.sh` — the build matrix's XP row.
 
 ## Sources consulted
 

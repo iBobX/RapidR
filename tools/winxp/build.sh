@@ -10,7 +10,7 @@
 #     are linked again (`cargo rustc ... -- -C link-arg=...`), with tools/winxp/shim's object and,
 #     with XP_HEADER=5.1, the PE header's subsystem / OS version 5.1;
 #   - those links write the Windows 7 programs' paths (target/i686-win7-windows-gnu/release); this
-#     script copies its results to target/winxp/i686 and then links the Windows 7 programs again as
+#     script copies its results to target/winxp-<header> and then links the Windows 7 programs again as
 #     tools/win7/build.sh and runners.sh make them, so the Windows 7 files are what they were
 #     (WINXP_KEEP_WIN7=0 skips that).
 #
@@ -25,7 +25,7 @@ LLVM_MINGW="${LLVM_MINGW:-/Volumes/RapidRBuild/tools/llvm-mingw-msvcrt}"
 TD="${CARGO_TARGET_DIR:-$ROOT/target}"
 export CARGO_TARGET_DIR="$TD"
 REL="$TD/i686-win7-windows-gnu/release"
-OUT="$TD/winxp/i686"
+OUT="$TD/winxp-${XP_HEADER:-6.0}"   # (one folder per header: winxp-6.0, winxp-5.1)
 OBJDIR="$TD/winxp-shims"
 mkdir -p "$OUT" "$OBJDIR"
 CC="$LLVM_MINGW/bin/i686-w64-mingw32-clang"
@@ -45,7 +45,15 @@ done
 # first, the stand-in's definitions win and those functions never enter the import table.
 LINKER="$HERE/xp-link.sh"
 export XP_REAL_CC="$CC"
-LINK=(-C "linker=$LINKER")
+# Cargo relinks a program only when its rustc arguments (or inputs it knows of) change; it keeps one
+# linked artifact per set of arguments. The stand-in objects reach the link through XP_SHIM_OBJS, which
+# cargo does not see: with the same arguments it would hand back the previous XP link, made with the
+# previous stand-ins (it did, 2026-11-05: the old DirectWrite answer survived a rebuild). So the
+# arguments name a library folder after the stand-ins' (and the wrapper's) hash: a folder with nothing
+# in it, which changes nothing in the program, but any change of a stand-in makes cargo link again.
+STAMP="$(cat "${OBJS[@]}" "$LINKER" "$ROOT/tools/win7/shim/win7_stand_ins.c" | shasum -a 256 | cut -c1-16)"
+mkdir -p "$OBJDIR/stamp-$STAMP"
+LINK=(-C "linker=$LINKER" -C "link-arg=-L$OBJDIR/stamp-$STAMP")
 case "${XP_HEADER:-6.0}" in
     6.0) ;;
     5.1) LINK+=(-C link-arg=-Wl,--major-subsystem-version,5 -C link-arg=-Wl,--minor-subsystem-version,1

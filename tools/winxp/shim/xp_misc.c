@@ -30,7 +30,7 @@
  *      RapidR never sets: answered so an accidental use fails cleanly), WSASendMsg.
  *
  *  (c) graphical, never reached by a console program (RapidR Studio and GUI programs, after console
- *      works): the UI Automation entries, DirectWrite, DXGI, DWM, touch, display config, DPI,
+ *      works): the UI Automation entries, DXGI, DWM, touch, display config, DPI,
  *      the window-subclass trio, the shell item/stock-icon calls, the PROPVARIANT/VARIANT conversions,
  *      NCryptFreeObject. Each first looks for the real one (XP + One-Core-API has many), and otherwise
  *      answers "not available" (E_NOTIMPL / FALSE / a null handle). On plain XP a GUI program stops
@@ -170,37 +170,57 @@ BOOL WINAPI xp_SetFileInformationByHandle(HANDLE h, int cls, void *in, ULONG siz
     return 1;
 }
 
-/* GetFinalPathNameByHandleW: the file's path without the \\?\ (std strips it anyway). The name comes
- * from NtQueryInformationFile(FileNameInformation) (no drive); the drive is the one whose volume serial
- * matches the handle's. Only VOLUME_NAME_DOS (flags 0) is emulated; other flags answer not supported. */
+/* GetFinalPathNameByHandleW: the file's path as "C:\dir\file" (without the \\?\ the real function puts
+ * in front: std and RapidR strip it anyway, and some of XP's own calls refuse it). The name comes from
+ * NtQueryInformationFile(FileNameInformation), which has no drive; the drive is the one whose volume
+ * serial number matches the file's (GetFileInformationByHandle's dwVolumeSerialNumber, which XP has).
+ * Flags: VOLUME_NAME_DOS (0) and FILE_NAME_OPENED (8, the same here), VOLUME_NAME_NONE (4: no drive);
+ * VOLUME_NAME_GUID / VOLUME_NAME_NT answer "not supported". */
 ULONG WINAPI xp_GetFinalPathNameByHandleW(HANDLE h, wchar16 *out, ULONG count, ULONG flags) {
     void *real = FORCED_REAL(void *, W_KERNEL32, "GetFinalPathNameByHandleW");
     unsigned char buf[616]; /* ULONG FileNameLength; WCHAR FileName[] */
     unsigned long name_len, chars, i, total;
     wchar16 drive = 0;
     NTSTATUS s;
-    typedef BOOL(WINAPI *GetVolInfoByHandleFn)(HANDLE, wchar16 *, ULONG, ULONG *, ULONG *, ULONG *, wchar16 *, ULONG);
+    typedef BOOL(WINAPI *FileInfoFn)(HANDLE, void *);
     typedef BOOL(WINAPI *GetVolInfoFn)(const wchar16 *, wchar16 *, ULONG, ULONG *, ULONG *, ULONG *, wchar16 *, ULONG);
-    GetVolInfoByHandleFn by_handle;
+    typedef ULONG(WINAPI *DrivesFn)(void);
+    typedef unsigned(WINAPI *ErrModeFn)(unsigned);
+    FileInfoFn file_info;
     GetVolInfoFn by_root;
-    ULONG serial = 0, d;
+    DrivesFn drives;
+    ErrModeFn err_mode;
+    ULONG serial = 0, d, have;
     if (real) return ((ULONG(WINAPI *)(HANDLE, wchar16 *, ULONG, ULONG))real)(h, out, count, flags);
-    if (flags & ~0UL & 0xF) { /* any VOLUME_NAME_* other than DOS, or FILE_NAME_OPENED */
-        if (flags != 0) { SetLastError(ERROR_NOT_SUPPORTED); return 0; }
+    if ((flags & 0x7) != 0 && (flags & 0x7) != 4) { /* VOLUME_NAME_GUID (1) or VOLUME_NAME_NT (2) */
+        SetLastError(ERROR_NOT_SUPPORTED);
+        return 0;
     }
     s = query_info(h, buf, sizeof buf, FileNameInformation);
     if (s < 0) { SetLastError(dos_err(s)); return 0; }
     name_len = *(unsigned long *)buf; /* bytes */
     chars = name_len / 2;
-    /* the drive by matching volume serial */
-    by_handle = REAL(GetVolInfoByHandleFn, W_KERNEL32, "GetVolumeInformationByHandleW");
-    if (by_handle) by_handle(h, 0, 0, &serial, 0, 0, 0, 0);
+    /* the drive: the one whose volume serial number is the file's (BY_HANDLE_FILE_INFORMATION:
+     * dwVolumeSerialNumber at byte 28), among the drives that exist, with XP's "No disk" box off while
+     * looking (SEM_FAILCRITICALERRORS) */
+    file_info = REAL(FileInfoFn, W_KERNEL32, "GetFileInformationByHandle");
     by_root = REAL(GetVolInfoFn, W_KERNEL32, "GetVolumeInformationW");
-    if (serial && by_root) {
-        for (d = 'A'; d <= 'Z'; d++) {
-            wchar16 root[4]; ULONG sn = 0;
-            root[0] = (wchar16)d; root[1] = ':'; root[2] = '\\'; root[3] = 0;
-            if (by_root(root, 0, 0, &sn, 0, 0, 0, 0) && sn == serial) { drive = (wchar16)d; break; }
+    drives = REAL(DrivesFn, W_KERNEL32, "GetLogicalDrives");
+    err_mode = REAL(ErrModeFn, W_KERNEL32, "SetErrorMode");
+    if (!(flags & 4) && file_info && by_root && drives) {
+        unsigned char info[52];
+        if (file_info(h, info)) serial = *(ULONG *)(info + 28);
+        have = drives();
+        if (serial) {
+            unsigned old = err_mode ? err_mode(1 /* SEM_FAILCRITICALERRORS */) : 0;
+            for (d = 0; d < 26 && !drive; d++) {
+                wchar16 root[4];
+                ULONG sn = 0;
+                if (!(have & (1UL << d))) continue;
+                root[0] = (wchar16)('A' + d); root[1] = ':'; root[2] = '\\'; root[3] = 0;
+                if (by_root(root, 0, 0, &sn, 0, 0, 0, 0) && sn == serial) drive = root[0];
+            }
+            if (err_mode) err_mode(old);
         }
     }
     total = (drive ? 2 : 0) + chars;
@@ -534,7 +554,7 @@ int WINAPI xp_WSASendMsg(HANDLE s, void *msg, ULONG flags, ULONG *sent, void *ov
     return -1;
 }
 
-/* graphical: the real one if present (XP + One-Core-API), else "not available" */
+/* graphical: the real one if present (XP + One-Core-API), else "not available" (DirectWrite: xp_dwrite.c) */
 #define GUI_HR(ours, name, dll, args_decl, args_call)                                                   \
     HRESULT WINAPI ours args_decl {                                                                      \
         void *real = REAL(void *, dll, #name);                                                           \
@@ -542,7 +562,6 @@ int WINAPI xp_WSASendMsg(HANDLE s, void *msg, ULONG flags, ULONG *sent, void *ov
         return E_NOTIMPL;                                                                                \
     }
 
-GUI_HR(xp_DWriteCreateFactory, DWriteCreateFactory, W_DWRITE, (int type, const void *iid, void **out), (type, iid, out))
 GUI_HR(xp_CreateDXGIFactory1, CreateDXGIFactory1, W_DXGI, (const void *iid, void **out), (iid, out))
 GUI_HR(xp_SHCreateItemFromParsingName, SHCreateItemFromParsingName, W_SHELL32, (const wchar16 *path, void *bc, const void *iid, void **out), (path, bc, iid, out))
 GUI_HR(xp_SHGetStockIconInfo, SHGetStockIconInfo, W_SHELL32, (int id, ULONG flags, void *info), (id, flags, info))
@@ -682,7 +701,6 @@ XP_ANSWER(xp_UpdateProcThreadAttribute, UpdateProcThreadAttribute, 28)
 XP_ANSWER(xp_DeleteProcThreadAttributeList, DeleteProcThreadAttributeList, 4)
 XP_ANSWER(xp_WSAPoll, WSAPoll, 12)
 XP_ANSWER(xp_WSASendMsg, WSASendMsg, 24)
-XP_ANSWER(xp_DWriteCreateFactory, DWriteCreateFactory, 12)
 XP_ANSWER(xp_CreateDXGIFactory1, CreateDXGIFactory1, 8)
 XP_ANSWER(xp_SHCreateItemFromParsingName, SHCreateItemFromParsingName, 16)
 XP_ANSWER(xp_SHGetStockIconInfo, SHGetStockIconInfo, 12)

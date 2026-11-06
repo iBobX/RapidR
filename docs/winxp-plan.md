@@ -107,7 +107,11 @@ Only where Windows does not have it does the stand-in take over:
   symlinks), `ReOpenFile`, the ProcThreadAttributeList trio (`std` uses them only for a caller's raw
   attributes, which RapidR never sets), `WSAPoll`/`WSASendMsg`. `SetThreadStackGuarantee` answers TRUE
   (reserving extra stack is not essential; `std` only debug-asserts it).
-- **Graphical, answered "not available" on plain XP** (`xp_misc.c`): UI Automation, DirectWrite, DXGI,
+- **An empty DirectWrite** (`xp_dwrite.c`): Windows' own `DWriteCreateFactory` first; on plain XP a
+  static factory whose system font collection has no families (every other method answers
+  E_NOTIMPL, each popping its own stdcall arguments). `fontique` then finds no system fonts instead of
+  panicking, and RapidR draws with its bundled fonts.
+- **Graphical, answered "not available" on plain XP** (`xp_misc.c`): UI Automation, DXGI,
   DWM, touch, display config, DPI, window subclassing, the shell item/stock-icon calls, the
   PROPVARIANT/VARIANT conversions, `NCryptFreeObject`. A console program never calls these; a GUI
   program on plain XP stops with a clear failure instead of the loader refusing the whole `.exe`. On XP
@@ -116,6 +120,18 @@ Only where Windows does not have it does the stand-in take over:
 XP-only code paths are compiled only into the XP flavour; nothing here weakens security or correctness
 on any other Windows version.
 
+### A trap in the build, and its fix
+
+Cargo keeps one linked artifact per set of rustc arguments and relinks only when the arguments (or
+inputs it tracks) change. The stand-in objects reach the link through the linker driver's
+environment (`XP_SHIM_OBJS`), which cargo does not see: a rebuild after changing only a stand-in, with
+the same arguments, handed back the previous link (seen 2026-11-05: the old DirectWrite answer
+survived a rebuild, and `llvm-objdump` showed the old function in the new `.exe`). `build.sh` now
+names an extra (empty) library folder after a hash of the stand-ins, the linker driver and the Windows
+7 stand-in source, so any change makes cargo link again; the folder changes nothing in the program.
+The same mechanism is why the Windows 7 programs come back byte-identical: their own artifact is kept
+apart and handed back unchanged.
+
 ## 5. The go/no-go and the numbers
 
 **GO for "console program runs on plain XP"** (the brief's threshold: about a day). The map is
@@ -123,20 +139,33 @@ bounded (85 functions, all understood), the mechanism is the proven Windows 7 on
 emulations pass a stress test against Windows' own semantics. No third-party code, no crate, no
 toolchain fork (so no lawyer item): the stand-ins are RapidR's own, clean-room from Microsoft Learn.
 
-Order, as the brief sets it:
+Order, as the brief sets it, and where each stage got to (all on plain XP SP3, no One-Core-API, [§6](#6-what-has-been-seen-running)):
 
-1. **Console** (built; VM pending): `rapidr.exe` loads on plain XP (header 5.1, zero XP-missing
-   imports — [§7](#7-what-this-lane-cannot-affect-the-isolation-evidence)); a console program prints.
-2. **GUI** (next, 1–2 days): the forms draw with the CPU renderer. Known limits on plain XP, each an
-   honest "not available", not a crash: no DirectWrite (RapidR's bundled Liberation fonts draw
-   instead; `fontique`'s system-font path must not panic — a stand-in DirectWrite factory is needed),
-   no Vista file dialogs (`rfd`: Open/Save fail), no UI Automation (no screen reader), CPU drawing
-   only, and an SSE2 CPU is required (Pentium 4 / Athlon 64 or newer, as the Rust target is built).
-3. **Build (interpreted)**: the runner stubs carry the same stand-ins, so a built program loads and
-   runs on plain XP.
+1. **Console: done.** `rapidr.exe` loads (header 5.1, zero XP-missing imports —
+   [§7](#7-what-this-lane-cannot-affect-the-isolation-evidence)); `rapidr version` and a console
+   program run.
+2. **GUI: done.** A form opens and its events work. It needed one more stand-in: `fontique` unwraps
+   DirectWrite's answer, so plain XP (no `dwrite.dll`) panicked; `xp_dwrite.c` hands it an *empty*
+   DirectWrite factory (no system fonts), and RapidR draws with its bundled Liberation fonts.
+   **RapidR Studio: done** — it starts, shows the designer, F5 runs the program (the os error 123
+   case), and its Build button builds.
+3. **Build (interpreted): done.** From Studio and from `rapidr build --interp`; the built program
+   (the runner stub with the bytecode) runs on XP on its own.
 
-Not blocking, but true on plain XP: TLS 1.0 and no SNI (AI providers and most downloads will not
-connect), so the network features are off there.
+Known limits on plain XP, each a "not available", not a crash: no DirectWrite system fonts (a symbol
+the bundled fonts lack shows as an empty box: the check mark in Studio's "Built ..." line —
+**needs a symbol fallback font among RapidR's bundled fonts**, a font-stack task, not this lane's);
+no Vista file dialogs (`rfd`: Studio's File > Open / Save As dialogs answer nothing on plain XP —
+opening by command line, the Project pane and Build work; an XP-only dialog stand-in over
+`GetOpenFileNameW` is possible later); no UI Automation (no screen reader); CPU drawing only; an SSE2
+CPU is required (Pentium 4 / Athlon 64 or newer, as the Rust target is built); TLS 1.0 and no SNI (AI
+providers and most downloads will not connect). Studio shortcuts with Ctrl/Alt typed by
+`WshShell.SendKeys` did not reach Studio in the VM (F5 and plain keys did; the toolbar's Build button
+and dialogs worked by mouse) — to look at with a real keyboard on XP.
+
+**Not this lane's:** on 32-bit Windows, Studio's Build still asks "Native builds need Rust" (with
+*Build Interpreted Instead*); Robert's decision of 2026-11-04 (a single "Build" that makes the
+interpreted app there) belongs to the **everybody-builds** lane.
 
 ## 6. What has been seen running
 
@@ -163,9 +192,40 @@ where the real functions also exist.
   path); `GetUserDefaultLocaleName` ("en-US"); a registry round-trip through the transacted create, a
   value set and read, and `RegDeleteTreeW`. **All pass, Windows' own and emulation, the same results.**
 
-Plain Windows XP itself: pending Robert's XP VM. The two small test programs
-(`pipeprobe.exe`, `xpshot.exe`) and the two shim tests are PE subsystem 5.1 and import only XP-era
-functions, ready to run there.
+### On plain Windows XP (Robert's UTM VM, 2026-11-05/06)
+
+"Microsoft Windows XP [Version 5.1.2600]", Service Pack 3 (registry `CSDVersion`), no One-Core-API, one
+emulated i386 CPU, host-only network (no internet). Driven through the XP test helper
+(`tools/winxp/vm.sh`); the pictures are taken in the VM by `xpshot.exe` and pulled back.
+
+- **`pipeprobe.exe`**: `std`'s own call, `NtCreateNamedPipeFile` with an empty name, answers
+  **`0xC0000033` (STATUS_OBJECT_NAME_INVALID)** — the os error 123, measured on XP itself; the
+  `xp_pipes.c` way makes the pipe and a real child's output comes back through it.
+- **`test_sync.exe`** (here the emulation is the only implementation): all 14 pass, including 8 s of
+  timed waits racing wakes (12.0 M waits, 50.0 M wakes) on XP's single CPU.
+- **`test_misc.exe`**, **`test_dwrite.exe`**: all pass (no `dwrite.dll` on this XP: the empty factory
+  answers; the final path has its drive letter).
+- **RapidR itself** (the plain-XP flavour, header 5.1):
+  - console: `rapidr.exe version` → `RapidR 2.122.1`; `rapidr.exe run hello.rr` → its output, exit 0
+    (capture `xp-console.png`);
+  - a form: `hello_form.rr` opens ("Hello, RapidR", XP's own title bar, RapidR's widgets), and Enter
+    on its default button answers "Hello, World! (1)" (`xp-form-3.png`, `xp-form-greet.png`). Before
+    the DirectWrite stand-in it stopped with fontique's panic (`xp-form-1.png`);
+  - **RapidR Studio** (`rapidr.exe ide <example>`, the Windows 7 alpha's Studio files): starts in under
+    two minutes on the emulated CPU, the designer shows the form (`xp-studio-1.png`); **F5** runs the
+    program as Studio's child process — Evgeny's failing case — "Running hello_form.rr", the program's
+    window in front (`xp-studio-f5.png`); closing it: "[hello_form.rr ended, exit code 0]";
+  - **Build** from Studio's toolbar → "Native builds need Rust" → *Build Interpreted Instead* →
+    "Built interpreted program: C:\Documents and Settings\...\build\hello_form.exe (1554 bytes of
+    bytecode) ... Build succeeded!" (`xp-studio-build-2.png`, `xp-studio-build-3.png`);
+  - **the built `hello_form.exe`**, started on its own: its window, a name typed in, Greet →
+    "Hello, Windows XP! (1)" (`xp-built-exe.png`, `xp-built-exe-greet.png`).
+
+  The captures are in `/Volumes/RapidRBuild/wt-winxp/captures/` (outside git: pictures of the VM).
+
+The build matrix's **`winxp-real`** row ([docs/build-matrix.md](build-matrix.md)) repeats the console,
+form, Build (interpreted), built-program and Studio checks on the XP test zip
+(`tools/winxp/zip.sh`) through the helper, so the release gate covers XP from now on.
 
 ## 7. What this lane cannot affect (the isolation evidence)
 
@@ -177,6 +237,9 @@ builds the Windows 7 `rapidr.exe` before and after and the hashes match:
 baseline Windows 7 rapidr.exe            bbb752c4af6fa923e2edc529d1fb191ac61af436cf198881325c980fd07d5153
 after the XP 5.1 build (and restore)     bbb752c4af6fa923e2edc529d1fb191ac61af436cf198881325c980fd07d5153   (identical)
 after the XP 6.0 build (and restore)     bbb752c4af6fa923e2edc529d1fb191ac61af436cf198881325c980fd07d5153   (identical)
+
+after the rebase on development (67289cdb, whose crates changed: a new baseline)
+Windows 7 rapidr.exe, after each of the six later XP builds   134b5d3423d86bb4c712982d5556c30509d958e33273bf33e7dabba84a6c842b   (the same every time)
 ```
 
 The XP flavour's own `rapidr.exe` differs, as intended (it carries the XP object). Its import table,
