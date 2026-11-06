@@ -334,6 +334,40 @@ pub(crate) fn chars_to(s: &str, b: usize) -> usize {
 mod cjk_tests {
     use super::*;
 
+    /// A Chinese UI names the system's own Simplified Chinese fonts before the
+    /// generic family (fontconfig's list for it has the Japanese Noto CJK
+    /// first; an English Windows' choice for Han is a Japanese font with
+    /// boxes for many Simplified characters); other languages, and
+    /// Traditional Chinese, leave the choice to the system.
+    #[test]
+    fn a_chinese_ui_names_the_systems_chinese_fonts_first() {
+        let names = || -> Vec<String> {
+            for p in styles(&Font::default(), 0) {
+                if let StyleProperty::FontFamily(FontFamily::List(list)) = p {
+                    return list.iter().map(|n| format!("{n:?}")).collect();
+                }
+            }
+            Vec::new()
+        };
+        let has_chinese = |list: &[String]| list.iter().any(|n| chinese_families().iter().any(|c| n.contains(c)));
+        rapidr_value::i18n::set_language("en");
+        assert!(!has_chinese(&names()));
+        rapidr_value::i18n::set_language("zh-Hans");
+        let zh = names();
+        let first = zh.iter().position(|n| chinese_families().iter().any(|c| n.contains(c)));
+        let generic = zh.iter().position(|n| n.contains("Generic"));
+        assert!(first.is_some() && first < generic, "{zh:?}");
+        for tag in ["zh", "zh-CN", "zh-SG"] {
+            rapidr_value::i18n::set_language(tag);
+            assert!(has_chinese(&names()), "{tag}");
+        }
+        for tag in ["zh-Hant", "zh-TW", "ja", "es"] {
+            rapidr_value::i18n::set_language(tag);
+            assert!(!has_chinese(&names()), "{tag}");
+        }
+        rapidr_value::i18n::set_language("");
+    }
+
     /// (POLISH-2) A Chinese caption is measured (`text_size`: tab widths,
     /// AutoSize, every component sized to its text) as wide as it's drawn —
     /// by the system's CJK font, at 1× and 2× — within a pixel; it was half

@@ -47,6 +47,9 @@ ide/project.inc :: RapidQ programs
 ide/lang/studio.pot :: RapidQ programs
 ide/lang/es.po :: de RapidQ
 ide/lang/es.po :: RapidQ programs
+ide/lang/zh-Hans.po :: 导入 RapidQ
+ide/lang/zh-Hans.po :: RapidQ 程序
+ide/lang/zh-Hans.po :: RapidQ programs
 # Studio's own component for the importer (Studio.ImportRapidQ's description).
 crates/rapidr-lang/data/components/studio.toml :: Imports a RapidQ program
 crates/rapidr-lang/data/i18n/es/studio.toml :: Importa un programa RapidQ
