@@ -225,7 +225,7 @@ fn a_message_never_spells_a_secret_out_or_hides_its_end() {
     crate::secrets::note("sk-notify-test-0123456789");
     let mut m = Notify::default();
     let (id, _) = m.say("The call with sk-notify-test-0123456789 failed", Kind::Error, Vec::new(), None, "", "10:42");
-    let said = m.toast_mut(id).unwrap().text.clone();
+    let said = m.toasts.iter().find(|t| t.id == id).unwrap().text.clone();
     assert!(!said.contains("sk-notify-test"), "{said}");
     assert!(said.contains(crate::secrets::MASK), "{said}");
     assert!(!m.history[0].text.contains("sk-notify-test"));
