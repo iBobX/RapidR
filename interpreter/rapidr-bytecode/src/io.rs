@@ -338,6 +338,24 @@ fn read_function(r: &mut Reader) -> Result<Function, Error> {
 
 #[cfg(test)]
 mod tests {
+    /// A module with a 64-bit constant, a UINT32 conversion or one of
+    /// 2.123's builtins needs 2.123 (docs/big-numbers-design.md); the
+    /// constants go there and back.
+    #[test]
+    fn sixty_four_bit_modules_name_their_runtime() {
+        use crate::{Const, Module, MIN_RUNTIME, WIDE_SINCE};
+        let mut m = Module::new();
+        assert_eq!(m.min_runtime(), MIN_RUNTIME);
+        m.add_const(Const::UInt64(u64::MAX));
+        m.add_const(Const::Int64(i64::MIN));
+        assert_eq!(m.min_runtime(), WIDE_SINCE);
+        let back = Module::from_bytes(&m.to_bytes()).unwrap();
+        assert_eq!(back.consts, m.consts);
+        let mut b = Module::new();
+        b.add_string("getbits");
+        assert_eq!(b.min_runtime(), WIDE_SINCE);
+    }
+
     #[test]
     fn corrupt_counts_are_rejected_not_allocated() {
         // A header, then a const count of four billion.

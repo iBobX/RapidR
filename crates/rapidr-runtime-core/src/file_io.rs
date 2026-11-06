@@ -212,6 +212,20 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
 
+    /// A file past 2 GB (sparse: nothing written): FILELEN its size whole,
+    /// an INT64 (it showed -2147483648, docs/big-numbers-audit.md).
+    #[test]
+    fn filelen_past_two_gigabytes() {
+        let tmp = std::env::temp_dir().join(format!("rapidr_filelen_big_{}.bin", std::process::id()));
+        let f = File::create(&tmp).unwrap();
+        f.set_len(3 * 1024 * 1024 * 1024 + 5).unwrap();
+        drop(f);
+        let n = rp_filelen(&Value::String(tmp.to_string_lossy().into_owned().into()));
+        let _ = std::fs::remove_file(&tmp);
+        assert_eq!(n, Value::Int64(3 * 1024 * 1024 * 1024 + 5));
+        assert_eq!(crate::value::format::print_text(&n), "3221225477");
+    }
+
     #[test]
     fn test_freefile() {
         let n = rp_freefile();

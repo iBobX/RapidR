@@ -1320,6 +1320,19 @@ impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Set Value on an INT64 / UINT64 (docs/big-numbers-audit.md): the
+    /// number typed, exactly; one that doesn't fit refused with the range.
+    #[test]
+    fn set_value_of_a_sixty_four_bit_variable() {
+        let u = Value::UInt64(0);
+        assert_eq!(fit_value(&u, Value::String("18446744073709551615".into()), "u", "18446744073709551615"), Ok(Value::UInt64(u64::MAX)));
+        assert!(fit_value(&u, Value::String("-1".into()), "u", "-1").unwrap_err().contains("UINT64"));
+        assert!(fit_value(&u, Value::String("2.5".into()), "u", "2.5").is_err());
+        let i = Value::Int64(0);
+        assert_eq!(fit_value(&i, Value::String("-9007199254740993".into()), "i", "-9007199254740993"), Ok(Value::Int64(-9007199254740993)));
+        assert!(fit_value(&i, Value::String("9223372036854775808".into()), "i", "9223372036854775808").is_err());
+    }
     use crate::protocol::SourceBreakpoint;
     use rapidr_vm::StubHost;
     use std::cell::RefCell;

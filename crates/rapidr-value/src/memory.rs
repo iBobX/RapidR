@@ -1066,6 +1066,27 @@ pub fn rp_port_io(name: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// INT64 / UINT64 fields take their 8 bytes, a UINT32 its 4, and read
+    /// back as their type (2.122.1 encoded a 64-bit field as a LONG).
+    #[test]
+    fn sixty_four_bit_fields_take_eight_bytes() {
+        register_layout("TBIG64", "a:BYTE,n:INT64,u:UINT64,w:UINT32");
+        assert_eq!(size_of_type("TBIG64"), Some(1 + 8 + 8 + 4));
+        assert_eq!(size_of_type("INT64"), Some(8));
+        assert_eq!(size_of_type("UINT32"), Some(4));
+        let mut b = Vec::new();
+        encode(&Value::UInt64(u64::MAX - 1), &Kind::UInt64, &mut b);
+        encode(&Value::Int64(-2), &Kind::Int64, &mut b);
+        encode(&Value::Int64(4119514107), &Kind::UInt32, &mut b);
+        assert_eq!(b.len(), 20);
+        let (u, n) = decode(&b, &Kind::UInt64, &Value::Null);
+        assert_eq!((u, n), (Value::UInt64(u64::MAX - 1), 8));
+        assert_eq!(decode(&b[8..], &Kind::Int64, &Value::Null).0, Value::Int64(-2));
+        assert_eq!(decode(&b[16..], &Kind::UInt32, &Value::Null).0, Value::Int64(4119514107));
+        // (a VARIANT holding one: its 8 bytes)
+        assert_eq!(size_of(&Value::UInt64(1), &Kind::Variant), 8);
+    }
     use crate::{rp_new_array, v_dbl, v_int, v_str};
 
     fn udt() -> Value {

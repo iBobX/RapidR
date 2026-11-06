@@ -34,6 +34,9 @@ pub fn localize(en: &str) -> String {
         };
     }
     tr_note!("Division by zero");
+    // (RapidR's 64-bit numbers, docs/big-numbers-design.md)
+    tr_note!("{name}: bits {from} to {to} are outside the value's {width} bits");
+    tr_note!("WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole");
     tr_note!("Subscript out of range: index {i} is outside {lo} TO {hi}");
     tr_note!("Out of DATA: READ found no more DATA items");
     tr_note!("indexing a value that is not an array");

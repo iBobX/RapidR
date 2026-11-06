@@ -354,7 +354,10 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
         (Raw::Text(t), _) => v_str(&t),
         (Raw::Int(_), "") => v_null(),
         (Raw::Int(_), "STRING") => v_str(""),
-        (Raw::Int(n), "INT64" | "UINT64") => v_int(n),
+        // (RapidR's 64-bit kinds: the whole register, EDX:EAX on x86)
+        (Raw::Int(n), "INT64") => Value::Int64(n),
+        (Raw::Int(n), "UINT64") => Value::UInt64(n as u64),
+        (Raw::Int(n), "UINT32") => Value::Int64(n as u32 as i64),
         (Raw::Int(n), "BYTE") => v_int((n & 0xFF) as i64),
         (Raw::Int(n), "WORD") => v_int((n & 0xFFFF) as i64),
         (Raw::Int(n), "SHORT") => v_int(n as i16 as i64),
@@ -691,7 +694,8 @@ macro_rules! long_mixed {
 }
 
 /// 32-bit Windows (x86): every argument goes on the stack at its own size,
-/// LONGs and pointers 4 bytes, a SINGLE 4, a DOUBLE 8 (low half first), and
+/// LONGs and pointers 4 bytes, a SINGLE 4, a DOUBLE, INT64 or UINT64 8 (low
+/// half first), and
 /// the function (stdcall, as Windows' own are) removes them. The 64-bit
 /// tables above pass 8 bytes for each, which a 32-bit function reads wrong
 /// and removes by the wrong amount. So the call is made with the arguments
@@ -704,6 +708,11 @@ fn x86_words(slots: &[Slot], params: &[dll::Param]) -> Result<Vec<u32>, String> 
     let mut w = Vec::with_capacity(slots.len() * 2);
     for (slot, p) in slots.iter().zip(params) {
         match *slot {
+            // (an INT64 / UINT64 by value: its 8 bytes, low word first)
+            Slot::Int(n) if p.is_wide_value() => {
+                w.push(n as u32);
+                w.push((n as u64 >> 32) as u32);
+            }
             Slot::Int(n) => w.push(n as u32),
             // (a SINGLE's 32 bits are the low half of its slot, see `call`)
             Slot::Float(f) if p.type_name == "SINGLE" => w.push(f.to_bits() as u32),

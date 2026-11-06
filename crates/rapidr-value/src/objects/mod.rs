@@ -1586,6 +1586,19 @@ pub fn rect_of(v: &Value, props: PropReader) -> (i64, i64, i64, i64) {
 pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option<Result<Value, String>> {
     ensure_printer(id);
     let method = method.to_lowercase();
+    // (QREGISTRY's WriteInteger keeps a REG_DWORD's 32 bits, as RapidQ's
+    // does: a 64-bit value beyond them is refused, never cut —
+    // docs/big-numbers-audit.md)
+    if method == "writeinteger" && with(id, |o| matches!(o, Object::Registry(_))).unwrap_or(false) {
+        if let Some(v @ (Value::Int64(_) | Value::UInt64(_))) = args.get(1) {
+            let n = crate::wide::kind_of(v).map_or(0, |w| w.exact());
+            if !(i32::MIN as i128..=u32::MAX as i128).contains(&n) {
+                return Some(Err(crate::exception(&format!(
+                    "WriteInteger keeps 32 bits (a REG_DWORD): {n} doesn't fit — WriteString(name, STR$(n)) keeps it whole"
+                ))));
+            }
+        }
+    }
     // (linked data: an RCSV's, an RDataSource's — datascience::link)
     if let Some(r) = crate::datascience::link::call(id, &method, args) {
         return Some(r);

@@ -526,3 +526,15 @@ impl FontPart {
         }
     }
 }
+
+#[cfg(test)]
+mod big_number_tests {
+    use super::*;
+
+    #[test]
+    fn a_sixty_four_bit_int_is_kept() {
+        assert_eq!(normalize(&Kind::Int, &Value::UInt64(u64::MAX)), Some(Value::UInt64(u64::MAX)));
+        assert_eq!(normalize(&Kind::Int, &Value::String("9007199254740993".into())), Some(Value::Int64(9007199254740993)));
+        assert!(matches!(normalize(&Kind::Int, &Value::String("42".into())), Some(Value::Integer(42))));
+    }
+}

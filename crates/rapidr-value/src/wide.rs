@@ -434,11 +434,7 @@ fn range(v: &Value, start: &Value, count: &Value, name: &str) -> Result<(u32, u3
     let width = width_of(v);
     let (s, c) = (start.to_i64(), count.to_i64());
     if s < 0 || c < 0 || s + c > width as i64 {
-        return Err(format!(
-            "{name}: bits {s} to {} are outside the value's {width} bits (start 0 to {}, start + count up to {width})",
-            s + c - 1,
-            width - 1
-        ));
+        return Err(format!("{name}: bits {s} to {} are outside the value's {width} bits", s + c - 1));
     }
     Ok((s as u32, c as u32))
 }

@@ -474,6 +474,23 @@ pub(super) fn read_number(b: &[u8], kind: i64) -> Value {
 mod tests {
     use super::*;
 
+    /// Num_INT64 / Num_UINT64 / Num_UINT32 and a 64-bit variable's Write /
+    /// Read: every bit, never through a DOUBLE.
+    #[test]
+    fn sixty_four_bit_numbers() {
+        let mut m = MemStream::default();
+        call(&mut m, "writenum", &[Value::UInt64(u64::MAX), v_int(NUM_UINT64)]);
+        call(&mut m, "writenum", &[Value::Int64(-9007199254740993), v_int(NUM_INT64)]);
+        call(&mut m, "writenum", &[Value::Int64(4119514107), v_int(NUM_UINT32)]);
+        call(&mut m, "write", &[Value::Int64(9007199254740993)]);
+        assert_eq!(m.data.len(), 8 + 8 + 4 + 8);
+        call(&mut m, "seek", &[v_int(0)]);
+        assert_eq!(call(&mut m, "readnum", &[v_int(NUM_UINT64)]), Value::UInt64(u64::MAX));
+        assert_eq!(call(&mut m, "readnum", &[v_int(NUM_INT64)]), Value::Int64(-9007199254740993));
+        assert_eq!(call(&mut m, "readnum", &[v_int(NUM_UINT32)]), Value::Int64(4119514107));
+        assert_eq!(call(&mut m, "__read", &[Value::Int64(0)]), Value::Int64(9007199254740993));
+    }
+
     fn call(m: &mut MemStream, method: &str, args: &[Value]) -> Value {
         m.call(method, args).unwrap()
     }

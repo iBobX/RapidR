@@ -722,6 +722,24 @@ mod tests {
         assert_eq!(call(&h, "queryscalar", &[v_str("SELECT ? IS NULL"), Value::Null]), "1");
     }
 
+    /// INT64 / UINT64 parameters (docs/big-numbers-audit.md): an INT64 an
+    /// INTEGER, whole; a UINT64 SQLite can't hold refused with a message,
+    /// never stored as a rounded REAL.
+    #[test]
+    fn sixty_four_bit_parameters() {
+        let h = Log::default();
+        call(&h, "connect", &[v_str("")]);
+        call(&h, "query", &[v_str("CREATE TABLE t (n INTEGER)")]);
+        call(&h, "query", &[v_str("INSERT INTO t VALUES (?), (?), (?)"), Value::Int64(-9223372036854775808), Value::Int64(9007199254740993), Value::UInt64(9223372036854775807)]);
+        call(&h, "query", &[v_str("SELECT n, typeof(n) FROM t")]);
+        assert_eq!(rows(&h), ["-9223372036854775808|integer", "9007199254740993|integer", "9223372036854775807|integer"]);
+        h.0.borrow_mut().clear();
+        assert_eq!(call(&h, "query", &[v_str("INSERT INTO t VALUES (?)"), Value::UInt64(u64::MAX)]), "0");
+        let log = h.0.borrow().join("\n");
+        assert!(log.contains("18446744073709551615 doesn't fit in SQLite's whole numbers"), "{log}");
+        assert_eq!(call(&h, "queryscalar", &[v_str("SELECT COUNT(*) FROM t")]), "3", "nothing stored");
+    }
+
     #[test]
     fn wrong_counts_are_errors() {
         let h = Log::default();
