@@ -1267,7 +1267,7 @@ text is back to what the designer has). See Left.
 6.4 ms).
 
 The web Studio (headless Chromium, the page's main thread per animation
-frame, `tests/results/bench/web_edit_pause.mjs`, before and after built the
+frame, `tools/bench/ui/web_edit_pause.mjs`, before and after built the
 same way and run back to back): during an edit round's pause in the
 5,000-line program the longest frame was 45–50 ms before, **24–25 ms**
 after (the longest step: the parse and names of the program), p95 1.3–1.9
