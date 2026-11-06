@@ -32,8 +32,9 @@ regalloc2 = "=0.15.2"
 region = "=3.0.2"
 
 # (macOS: MAP_JIT and the per-thread write protection — the hardened
-# runtime's way, docs/jit-design.md §7)
-[target.'cfg(all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
+# runtime's way, docs/jit-design.md §7; macOS and Linux: the thread's
+# stack, SEC-50 §12.7 — already in the tree through region; MIT/Apache-2.0)
+[target.'cfg(all(any(target_os = "macos", target_os = "linux"), any(target_arch = "x86_64", target_arch = "aarch64")))'.dependencies]
 libc = "0.2"
 
 [dev-dependencies]
@@ -41,3 +42,9 @@ libc = "0.2"
 rapidr-lexer = { workspace = true }
 rapidr-parser = { workspace = true }
 rapidr-bcgen = { workspace = true }
+
+# (SEC-50 on the real main thread: `main` runs there, not on a test
+# harness thread — tests/native_stack.rs)
+[[test]]
+name = "native_stack"
+harness = false

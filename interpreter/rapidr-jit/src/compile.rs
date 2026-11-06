@@ -48,7 +48,7 @@ use crate::kinds::K;
 /// The context's fields compiled code reads (`native::Ctx`, `repr(C)`).
 pub const CTX_GLOBALS: i32 = 0;
 pub const CTX_INTERRUPT: i32 = 8;
-pub const CTX_DEPTH_LIMIT: i32 = 16;
+pub const CTX_STACK_LIMIT: i32 = 16;
 
 /// A function's array handles: the module's global arrays, or the entry
 /// frame's local ones.
@@ -277,12 +277,11 @@ pub fn entry_signature(jm: &JITModule) -> Signature {
     s
 }
 
-/// The signature of a callee form: `(ctx, depth, its non-Null parameters)
+/// The signature of a callee form: `(ctx, its non-Null parameters)
 /// -> (status, value bits)` (the generator's own convention between its
 /// functions).
 pub fn callee_signature(params: &[K]) -> Signature {
     let mut s = Signature::new(CallConv::Tail);
-    s.params.push(AbiParam::new(types::I64));
     s.params.push(AbiParam::new(types::I64));
     for k in params {
         if let Some(t) = ty(*k) {
@@ -386,7 +385,6 @@ pub fn build(
         out: FormOut::default(),
         ctx: None,
         locals_ptr: None,
-        depth: None,
         record_base,
         larray_index: HashMap::new(),
     };
@@ -423,7 +421,6 @@ struct Walk<'a, 'b> {
     out: FormOut,
     ctx: Option<V>,
     locals_ptr: Option<V>,
-    depth: Option<V>,
     record_base: usize,
     larray_index: HashMap<u16, usize>,
 }
@@ -481,7 +478,6 @@ impl Walk<'_, '_> {
         let start = match self.kind.clone() {
             FormKind::Entry { ip, .. } => {
                 self.locals_ptr = Some(params[1]);
-                self.depth = Some(self.b.ins().iconst(types::I64, 0));
                 // (the locals it uses, from the buffer the VM filled)
                 for (s, &k) in kinds.iter().enumerate().take(n_locals) {
                     if ty(k).is_none() || self.used_hint.is_some_and(|u| !u.contains(&(s as u16))) {
@@ -495,8 +491,7 @@ impl Walk<'_, '_> {
                 ip
             }
             FormKind::Callee { params: pk } => {
-                self.depth = Some(params[1]);
-                let mut next = 2;
+                let mut next = 1;
                 for (s, k) in pk.iter().enumerate() {
                     if let Some(_t) = ty(*k) {
                         let var = self.var(s as u32, *k);
@@ -1087,14 +1082,17 @@ impl Walk<'_, '_> {
         };
         self.out.globals.extend(info.globals.iter().copied());
         self.out.garrays.extend(info.garrays.iter().copied());
-        // (too deep: the interpreter makes the call — and the stack
-        // overflow error at the depth it always has)
+        // (the machine stack's room, in bytes — SEC-50 —: too little left
+        // for the callee's frame, or as many frames as the VM may have, and
+        // the interpreter makes the call, and the stack overflow error at
+        // the depth it always has. One compare: `Ctx::stack_limit` folds
+        // both in)
         let ctx = self.ctx();
-        let depth = self.depth.expect("depth");
-        let limit = self.b.ins().load(types::I64, MemFlagsData::trusted(), ctx, CTX_DEPTH_LIMIT);
-        let deep = self.b.ins().icmp(IntCC::SignedGreaterThanOrEqual, depth, limit);
-        self.cond_exit(deep, at, kinds, stack, Why::Depth);
-        let mut argv = vec![ctx, self.b.ins().iadd_imm_s(depth, 1)];
+        let sp = self.b.ins().get_stack_pointer(types::I64);
+        let floor = self.b.ins().load(types::I64, MemFlagsData::trusted(), ctx, CTX_STACK_LIMIT);
+        let low = self.b.ins().icmp(IntCC::UnsignedLessThan, sp, floor);
+        self.cond_exit(low, at, kinds, stack, Why::Depth);
+        let mut argv = vec![ctx];
         for (i, a) in args.iter().enumerate().take(n_params) {
             if params[i] != K::Null {
                 argv.push(a.0);
@@ -1573,7 +1571,7 @@ pub fn build_stub(m: &Module, fi: u32, params: &[K], func: &mut ir::Function, fc
     let args = b.block_params(block).to_vec();
     let mut locals = Vec::new();
     let mut vals = Vec::new();
-    let mut next = 2;
+    let mut next = 1;
     for s in 0..f.n_locals as usize {
         let k = params.get(s).copied().unwrap_or(K::Null);
         locals.push((s as u16, k));

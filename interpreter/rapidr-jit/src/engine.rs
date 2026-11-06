@@ -23,13 +23,17 @@ use crate::kinds::{bits_of, value_of, K};
 use crate::native::{self, Ctx};
 use crate::Mode;
 
+/// A compiled frame whose size the code generator didn't say: taken as
+/// this big (it always says; a guess only errs on the safe side).
+const UNKNOWN_FRAME: usize = 256 << 10;
+
 /// Turns of a loop before it is compiled (`always`: at once).
 const LOOP_HOT: u32 = 10_000;
 /// Calls of a routine before it is compiled.
 const CALL_HOT: u32 = 1_000;
-/// Compiled calls inside compiled calls before the interpreter makes the
-/// next one (the machine stack's room: each is a real frame on it).
-const NESTING: usize = 256;
+// (compiled calls inside compiled calls: as deep as the machine stack has
+// room for, in bytes, and never more frames than the VM may have —
+// `Ctx::stack_limit`, SEC-50; it replaced a cap of 256 frames by count)
 /// Times compiled code may find values of other kinds than it was
 /// compiled for before it is used no more.
 const MAX_DEOPTS: u32 = 10;
@@ -90,6 +94,12 @@ struct Stats {
     callees: u32,
     rejected: u32,
     code_bytes: usize,
+    /// The largest compiled frame, in bytes (SEC-50).
+    max_frame: usize,
+    /// The machine stack free where compiled code first ran.
+    stack_free: Option<usize>,
+    /// Entries refused: too little machine stack left there.
+    low_stack: u64,
     compile_time: Duration,
     runs: u64,
     exits: HashMap<&'static str, u64>,
@@ -110,6 +120,13 @@ struct Compiled {
     gbuf: Vec<u64>,
     ctx: Ctx,
     locals: Vec<u64>,
+    /// The largest frame of any routine compiled for the module, its frame
+    /// pointer and return address included: the room each compiled call
+    /// must leave above `native::STACK_MARGIN` (SEC-50).
+    max_frame: usize,
+    /// The smallest: the least stack a compiled call takes (frames the VM
+    /// may have, counted in bytes).
+    min_frame: usize,
     /// The code generator failed beyond repair: nothing more compiled or
     /// run for this module.
     broken: Option<String>,
@@ -143,7 +160,7 @@ impl Engine {
         }
         let id = m as *const Module as usize;
         if self.state.is_none() {
-            match new_state(m) {
+            match new_state(m, self.mode) {
                 Ok(s) => self.state = Some(s),
                 Err(e) => {
                     self.off = Some(e);
@@ -185,7 +202,12 @@ impl Drop for Engine {
     }
 }
 
-fn new_state(m: &Module) -> Result<Compiled, String> {
+/// `RAPIDR_JIT_VERIFY=1` (or `on`, `yes`): the IR verifier on (SEC-52).
+fn verify_asked() -> bool {
+    std::env::var("RAPIDR_JIT_VERIFY").is_ok_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "on" | "yes"))
+}
+
+fn new_state(m: &Module, mode: Mode) -> Result<Compiled, String> {
     let mut flags = settings::builder();
     let set = |f: &mut settings::Builder, k: &str, v: &str| f.set(k, v).map_err(|e| format!("{k}: {e}"));
     set(&mut flags, "opt_level", "speed")?;
@@ -193,7 +215,19 @@ fn new_state(m: &Module) -> Result<Compiled, String> {
     set(&mut flags, "is_pic", "false")?;
     set(&mut flags, "preserve_frame_pointers", "true")?;
     set(&mut flags, "enable_multi_ret_implicit_sret", "true")?;
-    set(&mut flags, "enable_verifier", if cfg!(debug_assertions) { "true" } else { "false" })?;
+    // (SEC-52: the code generator's IR verifier — a function it finds
+    // malformed is refused, the interpreter runs it — in debug builds, in
+    // `always` mode, the tests' way (conformance's vm-jit, the JIT's own
+    // tests), and with RAPIDR_JIT_VERIFY=1; `rapidr run`'s default leaves
+    // it off: a quarter more compile time, docs/jit-design.md §12.7)
+    let verify = cfg!(debug_assertions) || mode == Mode::Always || verify_asked();
+    set(&mut flags, "enable_verifier", if verify { "true" } else { "false" })?;
+    // (SEC-50: a frame larger than a page touches every page on the way
+    // down — none steps over the guard below the stack, and Windows commits
+    // its stack page by page; inline: there is no probe function to call)
+    set(&mut flags, "enable_probestack", "true")?;
+    set(&mut flags, "probestack_strategy", "inline")?;
+    set(&mut flags, "probestack_size_log2", "12")?;
     let isa = cranelift_native::builder()
         .map_err(|e| format!("this processor isn't one the JIT knows ({e})"))?
         .finish(settings::Flags::new(flags))
@@ -218,8 +252,10 @@ fn new_state(m: &Module) -> Result<Compiled, String> {
         loops: HashMap::new(),
         starts: HashMap::new(),
         gbuf: Vec::new(),
-        ctx: Ctx { globals: std::ptr::null_mut(), interrupt: &native::NOT_INTERRUPTED, depth_limit: 0, exits: Vec::new(), garrays: Vec::new(), larrays: Vec::new() },
+        ctx: Ctx { globals: std::ptr::null_mut(), interrupt: &native::NOT_INTERRUPTED, stack_limit: u64::MAX, exits: Vec::new(), garrays: Vec::new(), larrays: Vec::new() },
         locals: Vec::new(),
+        max_frame: 0,
+        min_frame: usize::MAX,
         broken: None,
     })
 }
@@ -459,6 +495,13 @@ impl Compiled {
         jm.define_function(id, &mut ctx)?;
         if let Some(c) = ctx.compiled_code() {
             stats.code_bytes += c.code_buffer().len();
+            // (its frame: below the frame pointer, then the frame pointer
+            // and the return address — the code generator says it; were it
+            // not to, the largest and the least a frame could be)
+            let layout = c.buffer.frame_layout().map(|l| l.frame_to_fp_offset as usize + native::MIN_FRAME);
+            self.max_frame = self.max_frame.max(layout.unwrap_or(UNKNOWN_FRAME));
+            self.min_frame = self.min_frame.min(layout.unwrap_or(native::MIN_FRAME));
+            stats.max_frame = stats.max_frame.max(self.max_frame);
         }
         jm.clear_context(&mut ctx);
         Ok(())
@@ -469,6 +512,29 @@ impl Compiled {
             r.form = form;
             self.records.push(r);
         }
+    }
+
+    /// The lowest stack pointer compiled code may make a call at, from here
+    /// (SEC-50, `Ctx::stack_limit`), and whether the VM's room for frames
+    /// (`depth_room`, before `MAX_CALL_DEPTH`) set it rather than the
+    /// machine stack's: the thread's stack end, the margin the helpers run
+    /// in and the largest compiled frame above it — or, higher, here less
+    /// the smallest compiled frame for each frame the VM has room for (a
+    /// compiled call takes at least that much: never more frames than the
+    /// VM may have). `None`: not room enough here for the entry form's own
+    /// frame (or the stack can't be measured) — the interpreter runs it.
+    fn stack_limit(&self, stats: &mut Stats, depth_room: usize) -> Option<(u64, bool)> {
+        let here = native::stack_here();
+        let end = native::stack_end()?;
+        let floor = end.checked_add(native::STACK_MARGIN)?.checked_add(self.max_frame)?;
+        if stats.stack_free.is_none() {
+            stats.stack_free = Some(here.saturating_sub(end));
+        }
+        if here <= floor {
+            return None;
+        }
+        let frames = here.saturating_sub(depth_room.saturating_mul(self.min_frame.max(native::MIN_FRAME)));
+        Some(if frames > floor { (frames as u64, true) } else { (floor as u64, false) })
     }
 
     /// Runs entry form `fi` on the top frame: `false` when the frame or the
@@ -514,7 +580,6 @@ impl Compiled {
         }
         self.ctx.globals = self.gbuf.as_mut_ptr();
         self.ctx.interrupt = view.interrupt.map_or(&native::NOT_INTERRUPTED as *const u8, native::interrupt_byte);
-        self.ctx.depth_limit = view.depth_room.min(NESTING) as i64;
         self.ctx.exits.clear();
         let code = f.code;
         native::call_entry(code, &mut self.ctx, &mut self.locals);
@@ -630,6 +695,13 @@ impl Engine {
         if st.forms[form].disabled {
             return false;
         }
+        // (too little machine stack left here for compiled frames: the
+        // interpreter goes on — not the form's fault, no deopt counted)
+        let Some((limit, by_frames)) = st.stack_limit(&mut self.stats, view.depth_room) else {
+            self.stats.low_stack += 1;
+            return false;
+        };
+        st.ctx.stack_limit = limit;
         let exits = match st.run(view, form) {
             Ok(e) => e,
             Err(()) => {
@@ -660,8 +732,14 @@ impl Engine {
             f.deopts += 1;
             f.disabled |= f.deopts > MAX_DEOPTS;
         }
+        // (a deep call stopped by the machine stack's room, or by the VM's
+        // room for frames: "deep calls")
         self.stats.runs += 1;
-        self.count_exit(why);
+        if why == Why::Depth && !by_frames {
+            *self.stats.exits.entry("the machine stack's room").or_default() += 1;
+        } else {
+            self.count_exit(why);
+        }
         true
     }
 
@@ -799,6 +877,12 @@ impl rapidr_vm::Jit for Engine {
         if s.rejected > 0 {
             text.push_str(&format!("; {} place(s) left interpreted", s.rejected));
         }
+        if let Some(free) = s.stack_free {
+            text.push_str(&format!("; machine stack {} KB free, frames up to {} KB", free / 1024, s.max_frame.div_ceil(1024)));
+        }
+        if s.low_stack > 0 {
+            text.push_str(&format!("; {} entry(ies) interpreted: too little machine stack left", s.low_stack));
+        }
         let mut exits: Vec<_> = s.exits.iter().collect();
         exits.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
         if !exits.is_empty() {
@@ -809,5 +893,29 @@ impl rapidr_vm::Jit for Engine {
             text.push_str(&format!("\n  {n}"));
         }
         text
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The code generator's settings the security fixes rest on: stack
+    /// probes, inline, in every build (SEC-50); the IR verifier in debug
+    /// builds and `always` mode, the tests' way (SEC-52).
+    #[test]
+    fn the_code_generators_safety_settings() {
+        let m = Module::new();
+        for mode in [Mode::On, Mode::Always] {
+            let mut st = new_state(&m, mode).expect("the JIT's state");
+            let jm = st.jm.take().expect("its module");
+            let flags = jm.isa().flags().clone();
+            native::free(jm);
+            assert!(flags.enable_probestack(), "probestack");
+            assert_eq!(flags.probestack_strategy(), settings::ProbestackStrategy::Inline);
+            assert_eq!(flags.probestack_size_log2(), 12);
+            let verify_expected = cfg!(debug_assertions) || mode == Mode::Always || verify_asked();
+            assert_eq!(flags.enable_verifier(), verify_expected, "{mode:?}");
+        }
     }
 }
