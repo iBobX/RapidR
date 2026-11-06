@@ -2,6 +2,7 @@
 # Preview 6, beta: an AI translation (lane I18N-ZH, 2026-11-06); corrections from people
 # who speak the language are welcome (docs/manual/studio-languages.md).
 # Update from the template: rapidr i18n update crates/rapidr-value/lang/runtime.pot crates/rapidr-value/lang/zh-Hans.po
+# `# legal` marks a permission or privacy text (docs/legal/i18n-zh-legal-texts.md).
 msgid ""
 msgstr ""
 "Project-Id-Version: RapidR runtime\n"
@@ -12,3808 +13,3825 @@ msgstr ""
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "1 step"
-msgstr ""
+msgstr "1 个步骤"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "{n} steps"
-msgstr ""
+msgstr "{n} 个步骤"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "show"
-msgstr ""
+msgstr "显示"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "hide"
-msgstr ""
+msgstr "隐藏"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Copy"
-msgstr ""
+msgstr "复制"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Insert"
-msgstr ""
+msgstr "插入"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Thought for {secs} s"
-msgstr ""
+msgstr "思考了 {secs} 秒"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "An earlier draft said this was done before it was — Studio asked it to actually do it."
-msgstr ""
+msgstr "前一稿说这件事已经完成，但其实还没有——Studio 已请它真正去做。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Choose an AI provider first (Provider)."
-msgstr ""
+msgstr "请先选择 AI 服务商 (Provider)。"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "There is no {provider} API key yet: give one (APIKey), or say where it is kept (APIKeySource)."
-msgstr ""
+msgstr "还没有 {provider} 的 API 密钥：请提供一个 (APIKey)，或指明它保存在哪里 (APIKeySource)。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Continuing (part {n})"
-msgstr ""
+msgstr "继续回答（第 {n} 部分）"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Fixing the errors"
-msgstr ""
+msgstr "正在修复错误"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Fixing 1 problem"
-msgstr ""
+msgstr "正在修复 1 个问题"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Fixing {n} problems"
-msgstr ""
+msgstr "正在修复 {n} 个问题"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Thinking"
-msgstr ""
+msgstr "思考中"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Writing the answer"
-msgstr ""
+msgstr "正在写回答"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Using {name}"
-msgstr ""
+msgstr "正在使用 {name}"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Still answering: wait for it, or Stop."
-msgstr ""
+msgstr "仍在回答：请等待，或点击“停止”。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "There is no question {n} in this chat."
-msgstr ""
+msgstr "这段对话中没有第 {n} 个问题。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "That question is from before the chat was compacted: it can't be edited. Ask it again as a new question."
-msgstr ""
+msgstr "这个问题来自对话被压缩之前：无法编辑。请把它作为新问题重新提问。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Nothing to compact yet: the chat is still short."
-msgstr ""
+msgstr "还没有可压缩的内容：对话还很短。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Choose a model first (RefreshModels lists the provider's)."
-msgstr ""
+msgstr "请先选择模型（RefreshModels 会列出服务商的模型）。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "You"
-msgstr ""
+msgstr "你"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Edit"
-msgstr ""
+msgstr "编辑"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Assistant"
-msgstr ""
+msgstr "助手"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Retry"
-msgstr ""
+msgstr "重试"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Asking the server about the model"
-msgstr ""
+msgstr "正在向服务器询问模型信息"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Compacting the conversation"
-msgstr ""
+msgstr "正在压缩对话"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Summarising the chat to keep it short"
-msgstr ""
+msgstr "正在总结对话以保持简短"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Answering…"
-msgstr ""
+msgstr "正在回答…"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "This model takes {window} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {need}). Choose a model or a server setting with a larger window: 16,384 tokens or more."
-msgstr ""
+msgstr "这个模型一次最多处理 {window} 个 token（即服务器当前运行它时的上下文窗口），比仅指令和工具所需的数量（约 {need}）还少。请选择窗口更大的模型或服务器设置：16,384 个 token 或更多。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Type a question or a request first."
-msgstr ""
+msgstr "请先输入一个问题或请求。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Still answering: wait for it, or Cancel."
-msgstr ""
+msgstr "仍在回答：请等待，或点击“取消”。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Asking {provider} for its models…"
-msgstr ""
+msgstr "正在向 {provider} 获取模型…"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Stopped."
-msgstr ""
+msgstr "已停止。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Error: {message}"
-msgstr ""
+msgstr "错误：{message}"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "This model takes no effort setting: it answers as it usually does."
-msgstr ""
+msgstr "这个模型不支持强度设置：它会按平时的方式回答。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "This model can't think at an effort while it uses tools here: it answers without one."
-msgstr ""
+msgstr "这个模型在这里使用工具时无法按强度来思考：它会不带强度地回答。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "{provider} lists {n} models."
-msgstr ""
+msgstr "{provider} 列出了 {n} 个模型。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "{provider} answered, but not with a models list: {error}."
-msgstr ""
+msgstr "{provider} 有响应，但返回的不是模型列表：{error}。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "The chat was compacted: what each question sends of it went from about {before} tokens to about {after}."
-msgstr ""
+msgstr "对话已压缩：每个问题带上的对话内容，从约 {before} 个 token 减少到约 {after} 个。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "The conversation so far was summarised, to keep each question cheap."
-msgstr ""
+msgstr "到目前为止的对话已被总结，以降低每个问题的费用。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Done."
-msgstr ""
+msgstr "完成。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "The chat wasn't compacted: the model gave no summary."
-msgstr ""
+msgstr "对话没有被压缩：模型没有给出总结。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "{provider} stopped answering: {error}"
-msgstr ""
+msgstr "{provider} 停止了回答：{error}"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Asked the model to make the change it described"
-msgstr ""
+msgstr "已请模型做出它所描述的更改"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Continue in smaller steps"
-msgstr ""
+msgstr "分成更小的步骤继续"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "RAI stopped here: the answer kept reaching its length limit ({tokens} tokens), {parts} parts in a row. What it finished is above."
-msgstr ""
+msgstr "RAI 在这里停下了：回答一再达到长度上限（{tokens} 个 token），连续 {parts} 部分。已完成的内容在上方。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "The model declined to answer this."
-msgstr ""
+msgstr "模型拒绝回答这个问题。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Answer was long: continuing (part {part} of up to {parts})"
-msgstr ""
+msgstr "回答较长：继续（第 {part} 部分，最多 {parts} 部分）"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Continued after the length limit ({n} of {max})"
-msgstr ""
+msgstr "达到长度上限后继续（{n}/{max}）"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Continuing (part {n})…"
-msgstr ""
+msgstr "继续回答（第 {n} 部分）…"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "The assistant didn't make the change you asked for. Ask again, or try a larger model."
-msgstr ""
+msgstr "助手没有做出你要求的更改。请再问一次，或试试更大的模型。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Answered."
-msgstr ""
+msgstr "已回答。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "Summarising the conversation, to keep it cheap…"
-msgstr ""
+msgstr "正在总结对话以降低费用…"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "({n} from the cache)"
-msgstr ""
+msgstr "（其中 {n} 来自缓存）"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "{sent} tokens sent"
-msgstr ""
+msgstr "已发送 {sent} 个 token"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "{n} received"
-msgstr ""
+msgstr "已接收 {n} 个"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "about ${cost}"
-msgstr ""
+msgstr "约 {cost} 美元"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "KeyOwner is RapidR Studio's own: a program's keys are always its own."
-msgstr ""
+msgstr "KeyOwner 是 RapidR Studio 自己专用的：程序的密钥永远只属于程序自己。"
 
 #: crates/rapidr-ai/src/rai.rs
 msgid "A new chat."
-msgstr ""
+msgstr "已开始新对话。"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "APIKeySource names no keychain entry (keychain:NAME) to keep the key under."
-msgstr ""
+msgstr "APIKeySource 没有指定用来保存密钥的钥匙串条目 (keychain:NAME)。"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "There is no key to keep: set APIKey first."
-msgstr ""
+msgstr "没有可保存的密钥：请先设置 APIKey。"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "The key is kept in {place}."
-msgstr ""
+msgstr "密钥保存在{place}中。"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "The key wasn't kept: {error}."
-msgstr ""
+msgstr "密钥没有保存：{error}。"
 
+# legal
 #: crates/rapidr-ai/src/rai.rs
 msgid "The key is forgotten."
-msgstr ""
+msgstr "密钥已被清除。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "({name} says: \"{said}\")"
-msgstr ""
+msgstr "（{name} 说：“{said}”）"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "This Anthropic key isn't made inside a workspace, so Anthropic needs to know which workspace to use: fill in the Workspace ID (the Claude Console lists your workspaces), or make a key inside a workspace."
-msgstr ""
+msgstr "这个 Anthropic 密钥不是在某个工作区内创建的，所以 Anthropic 需要知道该使用哪个工作区：请填写工作区 ID（Claude Console 会列出你的工作区），或者在工作区内创建密钥。"
 
+# legal
 #: crates/rapidr-ai/src/wire.rs
 msgid "Your {name} account has no credit left for this key{quoted}. Add credit on {name}'s website; RapidR can't do it for you."
-msgstr ""
+msgstr "你的 {name} 账户中，这个密钥已没有余额{quoted}。请在 {name} 的网站上充值；RapidR 无法替你充值。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} refused the API key (401){quoted}. Check the key: it may be mistyped, revoked, or a key of another provider."
-msgstr ""
+msgstr "{name} 拒绝了这个 API 密钥 (401){quoted}。请检查密钥：可能输错了、已被撤销，或是其他服务商的密钥。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} doesn't let this key do that (403){quoted}."
-msgstr ""
+msgstr "{name} 不允许这个密钥执行该操作 (403){quoted}。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} is short of memory for this conversation{quoted}. Wait for the model to finish what it is doing, close other apps, start a new chat (it sends less), or choose a smaller model."
-msgstr ""
+msgstr "{name} 的内存不足以处理这段对话{quoted}。请等模型完成手头的工作、关闭其他应用、开始一段新对话（它发送的内容更少），或选择更小的模型。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "The conversation is too long for this model{quoted}. Start a new chat, or pick a model that takes more."
-msgstr ""
+msgstr "这段对话对这个模型来说太长了{quoted}。请开始新对话，或选择能容纳更多内容的模型。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "this model isn't available to your key (404){quoted}. List the provider's models again and pick one of them."
-msgstr ""
+msgstr "你的密钥无法使用这个模型 (404){quoted}。请重新列出服务商的模型，并选择其中一个。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "The model \"{model}\" isn't available to your key (404){quoted}. List the provider's models again and pick one of them."
-msgstr ""
+msgstr "你的密钥无法使用模型“{model}”(404){quoted}。请重新列出服务商的模型，并选择其中一个。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} is limiting how often this key asks (429): wait {n} seconds and try again."
-msgstr ""
+msgstr "{name} 限制了这个密钥的请求频率 (429)：请等待 {n} 秒后重试。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} is limiting how often this key asks (429): wait a minute and try again."
-msgstr ""
+msgstr "{name} 限制了这个密钥的请求频率 (429)：请等待一分钟后重试。"
 
+# legal
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} sent the request on to another address ({status}): RapidR doesn't follow it with your key. If you trust that address, set the base URL to it."
-msgstr ""
+msgstr "{name} 把请求转到了另一个地址 ({status})：RapidR 不会带着你的密钥跟过去。如果你信任该地址，请把基础 URL 设为它。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} is overloaded or having trouble ({status}){quoted}. Try again in a minute."
-msgstr ""
+msgstr "{name} 负载过高或出现故障 ({status}){quoted}。请一分钟后重试。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "{name} refused the request ({status}){quoted}."
-msgstr ""
+msgstr "{name} 拒绝了这次请求 ({status}){quoted}。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "The server at {host} began answering, then sent nothing more ({what}): a model on this computer writing a long change, or short of memory, can be that slow. Try again, ask for a smaller step, or choose a smaller model."
-msgstr ""
+msgstr "位于 {host} 的服务器开始回答后，就不再发送任何内容（{what}）：在这台电脑上写一大段更改的模型，或内存不足时，可能会这么慢。请重试、要求更小的步骤，或选择更小的模型。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "Couldn't reach {host}: {what}. Is the local server running (Ollama, LM Studio)? On the web, Ollama also needs OLLAMA_ORIGINS to allow this page."
-msgstr ""
+msgstr "无法连接到 {host}：{what}。本地服务器正在运行吗（Ollama、LM Studio）？在 Web 上，Ollama 还需要通过 OLLAMA_ORIGINS 允许此页面。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "Couldn't reach {host}: {what}. Try again in a moment, and check the internet connection."
-msgstr ""
+msgstr "无法连接到 {host}：{what}。请稍后重试，并检查网络连接。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "Couldn't reach {host}: {what}. Check the internet connection."
-msgstr ""
+msgstr "无法连接到 {host}：{what}。请检查网络连接。"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the name wasn't found (DNS)"
-msgstr ""
+msgstr "找不到该名称 (DNS)"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the connection failed ({detail})"
-msgstr ""
+msgstr "连接失败（{detail}）"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the connection failed"
-msgstr ""
+msgstr "连接失败"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "too many redirects"
-msgstr ""
+msgstr "重定向次数过多"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the address isn't valid ({detail})"
-msgstr ""
+msgstr "地址无效（{detail}）"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the address isn't valid"
-msgstr ""
+msgstr "地址无效"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "no answer"
-msgstr ""
+msgstr "没有响应"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "timed out"
-msgstr ""
+msgstr "已超时"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the answer stopped coming for {n} seconds"
-msgstr ""
+msgstr "回答已有 {n} 秒没有再传来"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "no connection in {n} seconds"
-msgstr ""
+msgstr "{n} 秒内没有连上"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "no answer came in {n} seconds"
-msgstr ""
+msgstr "{n} 秒内没有收到回答"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "the browser couldn't connect (no network, or the server or this page's security policy doesn't allow it)"
-msgstr ""
+msgstr "浏览器无法连接（没有网络，或服务器或此页面的安全策略不允许）"
 
 #: crates/rapidr-ai/src/wire.rs
 msgid "The server"
-msgstr ""
+msgstr "服务器"
 
 #: crates/rapidr-langsvc/src/compat.rs
 msgid "*Not implemented in RapidR yet.*"
-msgstr ""
+msgstr "*RapidR 尚未实现。*"
 
 #: crates/rapidr-langsvc/src/compat.rs
 msgid "*A RapidR extension.*"
-msgstr ""
+msgstr "*RapidR 的扩展。*"
 
 #: crates/rapidr-langsvc/src/compat.rs
 msgid "*Desktop only (native builds and the interpreter): the web runtime doesn't have it.*"
-msgstr ""
+msgstr "*仅限桌面（原生构建和解释器）：Web 运行时没有它。*"
 
 #: crates/rapidr-langsvc/src/compat.rs
 msgid "*Web only: the desktop doesn't have it.*"
-msgstr ""
+msgstr "*仅限 Web：桌面版没有它。*"
 
 #: crates/rapidr-langsvc/src/compat.rs
 msgid "*From `{inc}`.*"
-msgstr ""
+msgstr "*来自 `{inc}`。*"
 
 #: crates/rapidr-langsvc/src/compat.rs crates/rapidr-langsvc/src/hints.rs
 msgid "Write {name}"
-msgstr ""
+msgstr "写成 {name}"
 
 #: crates/rapidr-langsvc/src/compat.rs
 msgid "Change to {name}"
-msgstr ""
+msgstr "改为 {name}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "Creates a component inside this one."
-msgstr ""
+msgstr "在此组件内创建一个组件。"
 
 #: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/hover.rs
 msgid "global object"
-msgstr ""
+msgstr "全局对象"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "RapidR constant = {value}"
-msgstr ""
+msgstr "RapidR 常量 = {value}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "component (from {inc})"
-msgstr ""
+msgstr "组件（来自 {inc}）"
 
 #: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/value_view.rs
 msgid "component"
-msgstr ""
+msgstr "组件"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "the library"
-msgstr ""
+msgstr "该库"
 
 #: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/hover.rs
 msgid "from {source}"
-msgstr ""
+msgstr "来自 {source}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "RapidR's name for {name}"
-msgstr ""
+msgstr "{name} 在 RapidR 中的名称"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "RapidR name: {name}"
-msgstr ""
+msgstr "RapidR 名称：{name}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "classic name for {name}"
-msgstr ""
+msgstr "{name} 的经典名称"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "built-in constant = {value}"
-msgstr ""
+msgstr "内置常量 = {value}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "constant = {value}"
-msgstr ""
+msgstr "常量 = {value}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: a .bas file reads the name as a variable that is always 0 without it.*"
-msgstr ""
+msgstr "*选择它时，也会在文件顶部添加 `$INCLUDE \"RAPIDQ.INC\"`：没有它的话，.bas 文件会把这个名称当作始终为 0 的变量。*"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "*A library written in BASIC, which RapidR supplies.*"
-msgstr ""
+msgstr "*RapidR 提供的、用 BASIC 编写的库。*"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "{properties} properties, {methods} methods, {events} events"
-msgstr ""
+msgstr "{properties} 个属性，{methods} 个方法，{events} 个事件"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "its default event is {event}"
-msgstr ""
+msgstr "默认事件是 {event}"
 
 #: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/help.rs
 msgid "type"
-msgstr ""
+msgstr "类型"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "RapidR type"
-msgstr ""
+msgstr "RapidR 类型"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "SUB of {type}"
-msgstr ""
+msgstr "{type} 的 SUB"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "FUNCTION of {type}"
-msgstr ""
+msgstr "{type} 的 FUNCTION"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "property of {owner} ({type}, read only)"
-msgstr ""
+msgstr "{owner} 的属性（{type}，只读）"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "property of {owner} ({type})"
-msgstr ""
+msgstr "{owner} 的属性（{type}）"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "method of {owner}: {signature}"
-msgstr ""
+msgstr "{owner} 的方法：{signature}"
 
 #: crates/rapidr-langsvc/src/complete.rs
 msgid "event of {owner}: {signature}"
-msgstr ""
+msgstr "{owner} 的事件：{signature}"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "classic"
-msgstr ""
+msgstr "经典"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "RapidR's own"
-msgstr ""
+msgstr "RapidR 专有"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "desktop and web"
-msgstr ""
+msgstr "桌面和 Web"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "desktop only"
-msgstr ""
+msgstr "仅限桌面"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "web only"
-msgstr ""
+msgstr "仅限 Web"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "its default event {event}"
-msgstr ""
+msgstr "默认事件 {event}"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Property of {comp}"
-msgstr ""
+msgstr "{comp} 的属性"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
 msgid "default {value}"
-msgstr ""
+msgstr "默认值 {value}"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Method of {comp}"
-msgstr ""
+msgstr "{comp} 的方法"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "its handler: SUB Name{params}"
-msgstr ""
+msgstr "它的事件处理程序：SUB Name{params}"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Event of {comp}"
-msgstr ""
+msgstr "{comp} 的事件"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties"
-msgstr ""
+msgstr "属性"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Methods"
-msgstr ""
+msgstr "方法"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Events"
-msgstr ""
+msgstr "事件"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Object"
-msgstr ""
+msgstr "对象"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Component"
-msgstr ""
+msgstr "组件"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Function"
-msgstr ""
+msgstr "函数"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Statement"
-msgstr ""
+msgstr "语句"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Directive"
-msgstr ""
+msgstr "指令"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Keyword ({kind})"
-msgstr ""
+msgstr "关键字（{kind}）"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Type"
-msgstr ""
+msgstr "类型"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Constant = {v} (&H{hex})"
-msgstr ""
+msgstr "常量 = {v} (&H{hex})"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A member of {component}."
-msgstr ""
+msgstr "{component} 的成员。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Its default event is {event}."
-msgstr ""
+msgstr "它的默认事件是 {event}。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Insert into the code"
-msgstr ""
+msgstr "插入到代码中"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Help"
-msgstr ""
+msgstr "帮助"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Put the caret on a word in your code and press {key}, or type a word in the box above. Click a name here to open its page."
-msgstr ""
+msgstr "把光标放在代码中的一个词上并按 {key}，或在上方的框中输入一个词。点击这里的名称可打开它的页面。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Start with"
-msgstr ""
+msgstr "从这里开始"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "a window"
-msgstr ""
+msgstr "一个窗口"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "a button to click"
-msgstr ""
+msgstr "一个可点击的按钮"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "text on the form"
-msgstr ""
+msgstr "窗体上的文字"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "show text"
-msgstr ""
+msgstr "显示文字"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "choose what to do"
-msgstr ""
+msgstr "选择要做的事"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "repeat something"
-msgstr ""
+msgstr "重复做某件事"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Getting started"
-msgstr ""
+msgstr "入门"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "New to RapidR? Read {page}, the manual's first page, here."
-msgstr ""
+msgstr "刚接触 RapidR？在这里阅读手册的第一页：{page}。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "the RapidR manual"
-msgstr ""
+msgstr "RapidR 手册"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "The whole manual is at {manual}."
-msgstr ""
+msgstr "完整的手册在 {manual}。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "No entry for {word}"
-msgstr ""
+msgstr "没有 {word} 的条目"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Nothing in the language, and nothing in this program, is called {word}."
-msgstr ""
+msgstr "语言中没有、这个程序里也没有叫 {word} 的东西。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "start page"
-msgstr ""
+msgstr "起始页"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Check the spelling, or go back to the {page}."
-msgstr ""
+msgstr "请检查拼写，或返回{page}。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Did you mean:"
-msgstr ""
+msgstr "你是不是想找："
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Or go back to the {page}."
-msgstr ""
+msgstr "或者返回{page}。"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A variable in this program"
-msgstr ""
+msgstr "这个程序中的变量"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A constant in this program"
-msgstr ""
+msgstr "这个程序中的常量"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A parameter in this program"
-msgstr ""
+msgstr "这个程序中的参数"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A SUB in this program"
-msgstr ""
+msgstr "这个程序中的 SUB"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A FUNCTION in this program"
-msgstr ""
+msgstr "这个程序中的 FUNCTION"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A DLL routine in this program"
-msgstr ""
+msgstr "这个程序中的 DLL 例程"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A TYPE in this program"
-msgstr ""
+msgstr "这个程序中的 TYPE"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A field in this program"
-msgstr ""
+msgstr "这个程序中的字段"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A component in this program"
-msgstr ""
+msgstr "这个程序中的组件"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "A label in this program"
-msgstr ""
+msgstr "这个程序中的标签"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "{name}, line {line}"
-msgstr ""
+msgstr "{name}，第 {line} 行"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Declared in {place}"
-msgstr ""
+msgstr "声明于 {place}"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Find References"
-msgstr ""
+msgstr "查找引用"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "Its type is {type}."
-msgstr ""
+msgstr "它的类型是 {type}。"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
 msgid "not used yet"
-msgstr ""
+msgstr "尚未使用"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
 msgid "used once"
-msgstr ""
+msgstr "使用过一次"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
 msgid "used {n} times"
-msgstr ""
+msgstr "使用过 {n} 次"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "object"
-msgstr ""
+msgstr "对象"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "function"
-msgstr ""
+msgstr "函数"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "statement"
-msgstr ""
+msgstr "语句"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "keyword"
-msgstr ""
+msgstr "关键字"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "directive"
-msgstr ""
+msgstr "指令"
 
 #: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs crates/rapidr-ui-kernel/src/value_view.rs
 msgid "constant"
-msgstr ""
+msgstr "常量"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your variable"
-msgstr ""
+msgstr "你的变量"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your constant"
-msgstr ""
+msgstr "你的常量"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your parameter"
-msgstr ""
+msgstr "你的参数"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your sub"
-msgstr ""
+msgstr "你的 SUB"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your function"
-msgstr ""
+msgstr "你的 FUNCTION"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your dll"
-msgstr ""
+msgstr "你的 DLL"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your type"
-msgstr ""
+msgstr "你的 TYPE"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your field"
-msgstr ""
+msgstr "你的字段"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your component"
-msgstr ""
+msgstr "你的组件"
 
 #: crates/rapidr-langsvc/src/help.rs
 msgid "your label"
-msgstr ""
+msgstr "你的标签"
 
 #: crates/rapidr-langsvc/src/hints.rs
 msgid "Add $INCLUDE \"{inc}\""
-msgstr ""
+msgstr "添加 $INCLUDE \"{inc}\""
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "built in"
-msgstr ""
+msgstr "内置"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "RapidR's own: built into a .rr program only"
-msgstr ""
+msgstr "RapidR 专有：仅内置于 .rr 程序中"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "RapidR's own, always there"
-msgstr ""
+msgstr "RapidR 专有，始终可用"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "global variable (implicit: made by its first use)"
-msgstr ""
+msgstr "全局变量（隐式：首次使用时创建）"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "global variable"
-msgstr ""
+msgstr "全局变量"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "local variable in `{routine}`"
-msgstr ""
+msgstr "`{routine}` 中的局部变量"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "local variable"
-msgstr ""
+msgstr "局部变量"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "parameter in `{routine}`"
-msgstr ""
+msgstr "`{routine}` 中的参数"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "parameter"
-msgstr ""
+msgstr "参数"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "variable of `{routine}` (implicit: its own, kept between calls)"
-msgstr ""
+msgstr "`{routine}` 的变量（隐式：它自己的，在两次调用之间保留）"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "STATIC variable"
-msgstr ""
+msgstr "STATIC 变量"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "STATIC variable in `{routine}`"
-msgstr ""
+msgstr "`{routine}` 中的 STATIC 变量"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "constant of {source}"
-msgstr ""
+msgstr "{source} 的常量"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "DLL routine (DECLARE … LIB)"
-msgstr ""
+msgstr "DLL 例程 (DECLARE … LIB)"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "field of TYPE `{type}`"
-msgstr ""
+msgstr "TYPE `{type}` 的字段"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "field"
-msgstr ""
+msgstr "字段"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "label"
-msgstr ""
+msgstr "标签"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "Declared in `{name}`, line {line}; {used}."
-msgstr ""
+msgstr "声明于 `{name}` 的第 {line} 行；{used}。"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "Not used yet."
-msgstr ""
+msgstr "尚未使用。"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "Used once."
-msgstr ""
+msgstr "使用过一次。"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "Used {n} times."
-msgstr ""
+msgstr "使用过 {n} 次。"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "{type} property (read only) of {owner}"
-msgstr ""
+msgstr "{owner} 的 {type} 属性（只读）"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "{type} property (write only) of {owner}"
-msgstr ""
+msgstr "{owner} 的 {type} 属性（只写）"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "{type} property of {owner}"
-msgstr ""
+msgstr "{owner} 的 {type} 属性"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "method of {owner}"
-msgstr ""
+msgstr "{owner} 的方法"
 
 #: crates/rapidr-langsvc/src/hover.rs
 msgid "event of {owner}"
-msgstr ""
+msgstr "{owner} 的事件"
 
 #: crates/rapidr-langsvc/src/lib.rs
 msgid "no analysis for this file"
-msgstr ""
+msgstr "没有此文件的分析结果"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "Nothing to rename here: put the caret on a name of the program"
-msgstr ""
+msgstr "这里没有可重命名的内容：请把光标放在程序中的某个名称上"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "no position"
-msgstr ""
+msgstr "没有位置"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "no reference here"
-msgstr ""
+msgstr "这里没有引用"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "{name} is used where it can't be renamed"
-msgstr ""
+msgstr "{name} 用在了无法重命名的地方"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "{name} belongs to a library RapidR supplies"
-msgstr ""
+msgstr "{name} 属于 RapidR 提供的库"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "Nothing to rename here"
-msgstr ""
+msgstr "这里没有可重命名的内容"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "'{name}' is not a valid name"
-msgstr ""
+msgstr "'{name}' 不是有效的名称"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "'{name}' is a reserved word"
-msgstr ""
+msgstr "'{name}' 是保留字"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "'{name}' is a builtin's name"
-msgstr ""
+msgstr "'{name}' 是内置项的名称"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "'{name}' is already the name of {what} here"
-msgstr ""
+msgstr "'{name}' 在这里已经是{what}的名称了"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "'{name}' would be hidden by {what} in a SUB that uses it"
-msgstr ""
+msgstr "'{name}' 在使用它的 SUB 中会被{what}遮盖"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the global variable"
-msgstr ""
+msgstr "全局变量"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the local variable"
-msgstr ""
+msgstr "局部变量"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the parameter"
-msgstr ""
+msgstr "参数"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the STATIC variable"
-msgstr ""
+msgstr "STATIC 变量"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the constant"
-msgstr ""
+msgstr "常量"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the component"
-msgstr ""
+msgstr "组件"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the SUB"
-msgstr ""
+msgstr "SUB"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the FUNCTION"
-msgstr ""
+msgstr "FUNCTION"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the DLL routine"
-msgstr ""
+msgstr "DLL 例程"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the TYPE"
-msgstr ""
+msgstr "TYPE"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the field"
-msgstr ""
+msgstr "字段"
 
 #: crates/rapidr-langsvc/src/navigate.rs
 msgid "the label"
-msgstr ""
+msgstr "标签"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} proposed before was set aside: {path} changed since."
-msgstr ""
+msgstr "之前提议的对 {path} 的更改已被搁置：{path} 之后又有了更改。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} proposed before was replaced by a newer proposal."
-msgstr ""
+msgstr "之前提议的对 {path} 的更改已被更新的提议取代。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The new program {name} isn't created yet: preview it, then create it."
-msgstr ""
+msgstr "新程序 {name} 尚未创建：请先预览，再创建。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The new program {name} isn't created yet."
-msgstr ""
+msgstr "新程序 {name} 尚未创建。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "A change proposed before still waits for your review."
-msgstr ""
+msgstr "之前提议的一项更改仍在等你审阅。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Changes to {n} files proposed before still wait for your review."
-msgstr ""
+msgstr "之前提议的对 {n} 个文件的更改仍在等你审阅。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant made a new program: preview it, then create it."
-msgstr ""
+msgstr "助手制作了一个新程序：请先预览，再创建。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant made a new program that doesn't compile yet: preview it, or ask it to fix the errors."
-msgstr ""
+msgstr "助手制作了一个新程序，但它还不能编译：请预览它，或请助手修复错误。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant made a new program."
-msgstr ""
+msgstr "助手制作了一个新程序。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant made a new program that doesn't compile yet."
-msgstr ""
+msgstr "助手制作了一个新程序，但它还不能编译。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant proposed a change: review it."
-msgstr ""
+msgstr "助手提议了一项更改：请审阅。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant proposed a change that doesn't compile yet: review it, or ask it to fix the errors."
-msgstr ""
+msgstr "助手提议了一项还不能编译的更改：请审阅，或请助手修复错误。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant proposed changes to {files} files: review them."
-msgstr ""
+msgstr "助手提议了对 {files} 个文件的更改：请审阅。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The assistant proposed changes to {files} files that don't compile yet: review them, or ask it to fix the errors."
-msgstr ""
+msgstr "助手提议了对 {files} 个文件的更改，但它们还不能编译：请审阅，或请助手修复错误。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "You applied the change to {path}."
-msgstr ""
+msgstr "你已应用对 {path} 的更改。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "You applied part of the change to {path}."
-msgstr ""
+msgstr "你已应用对 {path} 的部分更改。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "You rejected the change to {path}."
-msgstr ""
+msgstr "你已拒绝对 {path} 的更改。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} wasn't applied: {path} changed after the assistant read it. Ask again."
-msgstr ""
+msgstr "对 {path} 的更改没有应用：助手读取之后，{path} 又有了更改。请再问一次。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "The change to {path} couldn't be applied in its editor: {path} is as it was. Ask again."
-msgstr ""
+msgstr "对 {path} 的更改无法在它的编辑器中应用：{path} 保持原样。请再问一次。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Started from the recipe {recipe}, unchanged: the model's own {n} tries didn't work"
-msgstr ""
+msgstr "直接采用配方 {recipe}，未作更改：模型自己的 {n} 次尝试都没有成功"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Started from the recipe {recipe}"
-msgstr ""
+msgstr "以配方 {recipe} 为起点"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "1 line added"
-msgstr ""
+msgstr "新增 1 行"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "{n} lines added"
-msgstr ""
+msgstr "新增 {n} 行"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "1 line removed"
-msgstr ""
+msgstr "删除 1 行"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "{n} lines removed"
-msgstr ""
+msgstr "删除 {n} 行"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Review"
-msgstr ""
+msgstr "审阅"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "New file {file}"
-msgstr ""
+msgstr "新文件 {file}"
 
 #: crates/rapidr-studio/src/ai.rs crates/rapidr-studio/src/notes.rs
 msgid "Proposed a change to {file}"
-msgstr ""
+msgstr "提议了对 {file} 的更改"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "compiles"
-msgstr ""
+msgstr "可以编译"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "New program {title}"
-msgstr ""
+msgstr "新程序 {title}"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Fixed 1 error"
-msgstr ""
+msgstr "已修复 1 个错误"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Fixed {n} errors"
-msgstr ""
+msgstr "已修复 {n} 个错误"
 
+# legal
 #: crates/rapidr-studio/src/ai.rs
 msgid "RAI wants to click and type in your running program. It sees whatever the program shows, including private data."
-msgstr ""
+msgstr "RAI 想在你正在运行的程序中点击和输入。它能看到程序显示的一切，包括私人数据。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Allow for this run"
-msgstr ""
+msgstr "本次运行允许"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Don't allow"
-msgstr ""
+msgstr "不允许"
 
+# legal
 #: crates/rapidr-studio/src/ai.rs
 msgid "You allowed RAI to use your running program for this run"
-msgstr ""
+msgstr "你已允许 RAI 在本次运行中使用你正在运行的程序"
 
+# legal
 #: crates/rapidr-studio/src/ai.rs
 msgid "You didn't allow RAI to use your running program"
-msgstr ""
+msgstr "你没有允许 RAI 使用你正在运行的程序"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "1 error left"
-msgstr ""
+msgstr "还剩 1 个错误"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "{n} errors left"
-msgstr ""
+msgstr "还剩 {n} 个错误"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Created {title}"
-msgstr ""
+msgstr "已创建 {title}"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Open"
-msgstr ""
+msgstr "打开"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Undo"
-msgstr ""
+msgstr "撤销"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "There is no new program to undo."
-msgstr ""
+msgstr "没有可撤销的新程序。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "{file} was changed"
-msgstr ""
+msgstr "{file} 已更改"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "{file} is gone"
-msgstr ""
+msgstr "{file} 已不存在"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "{file} was added"
-msgstr ""
+msgstr "{file} 已添加"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Undone: the new program {title} was removed."
-msgstr ""
+msgstr "已撤销：新程序 {title} 已删除。"
 
 #: crates/rapidr-studio/src/ai.rs
 msgid "Undone: the new program {title} was removed (the files you added stay in its folder)."
-msgstr ""
+msgstr "已撤销：新程序 {title} 已删除（你添加的文件仍保留在它的文件夹中）。"
 
 #: crates/rapidr-studio/src/ai.rs crates/rapidr-studio/src/notes.rs
 msgid "1 error to fix"
-msgstr ""
+msgstr "有 1 个错误待修复"
 
 #: crates/rapidr-studio/src/ai.rs crates/rapidr-studio/src/notes.rs
 msgid "{n} errors to fix"
-msgstr ""
+msgstr "有 {n} 个错误待修复"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading a file"
-msgstr ""
+msgstr "正在读取文件"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading {file}"
-msgstr ""
+msgstr "正在读取 {file}"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Listing the files"
-msgstr ""
+msgstr "正在列出文件"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading the project's outline"
-msgstr ""
+msgstr "正在读取项目大纲"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Searching the manual"
-msgstr ""
+msgstr "正在搜索手册"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Finding an example"
-msgstr ""
+msgstr "正在查找示例"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading RapidR's reference"
-msgstr ""
+msgstr "正在阅读 RapidR 参考资料"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading the help of {name}"
-msgstr ""
+msgstr "正在阅读 {name} 的帮助"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Looking at the form"
-msgstr ""
+msgstr "正在查看窗体"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Checking (compiling)"
-msgstr ""
+msgstr "正在检查（编译）"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Laying out the buttons"
-msgstr ""
+msgstr "正在排布按钮"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Reading the running program's layout"
-msgstr ""
+msgstr "正在读取运行中程序的布局"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Looking at the running program"
-msgstr ""
+msgstr "正在查看运行中的程序"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Letting the running program work"
-msgstr ""
+msgstr "正在让运行中的程序工作"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Clicking in the running program"
-msgstr ""
+msgstr "正在运行中的程序里点击"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Clicking \"{what}\" in the running program"
-msgstr ""
+msgstr "正在运行中的程序里点击“{what}”"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Clicking {what} in the running program"
-msgstr ""
+msgstr "正在运行中的程序里点击 {what}"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Clicking the box beside \"{what}\" in the running program"
-msgstr ""
+msgstr "正在运行中的程序里点击“{what}”旁边的框"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing 1 character in the running program"
-msgstr ""
+msgstr "正在运行中的程序里输入 1 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing {n} characters in the running program"
-msgstr ""
+msgstr "正在运行中的程序里输入 {n} 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing 1 character into \"{what}\" in the running program"
-msgstr ""
+msgstr "正在向运行中的程序的“{what}”输入 1 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing {n} characters into \"{what}\" in the running program"
-msgstr ""
+msgstr "正在向运行中的程序的“{what}”输入 {n} 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing 1 character into {what} in the running program"
-msgstr ""
+msgstr "正在向运行中的程序的 {what} 输入 1 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing {n} characters into {what} in the running program"
-msgstr ""
+msgstr "正在向运行中的程序的 {what} 输入 {n} 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing 1 character into the box beside \"{what}\" in the running program"
-msgstr ""
+msgstr "正在向运行中的程序的“{what}”旁边的框输入 1 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Typing {n} characters into the box beside \"{what}\" in the running program"
-msgstr ""
+msgstr "正在向运行中的程序的“{what}”旁边的框输入 {n} 个字符"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Pressing {keys} in the running program"
-msgstr ""
+msgstr "正在运行中的程序里按 {keys}"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Pressing a key in the running program"
-msgstr ""
+msgstr "正在运行中的程序里按一个键"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Pressing {n} keys in the running program"
-msgstr ""
+msgstr "正在运行中的程序里按 {n} 个键"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Pressing keys in the running program"
-msgstr ""
+msgstr "正在运行中的程序里按键"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Dragging in the running program"
-msgstr ""
+msgstr "正在运行中的程序里拖动"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Dragging \"{what}\" in the running program"
-msgstr ""
+msgstr "正在运行中的程序里拖动“{what}”"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Dragging {what} in the running program"
-msgstr ""
+msgstr "正在运行中的程序里拖动 {what}"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Dragging the box beside \"{what}\" in the running program"
-msgstr ""
+msgstr "正在运行中的程序里拖动“{what}”旁边的框"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Scrolling in the running program"
-msgstr ""
+msgstr "正在运行中的程序里滚动"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Scrolling \"{what}\" in the running program"
-msgstr ""
+msgstr "正在运行中的程序里滚动“{what}”"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Scrolling {what} in the running program"
-msgstr ""
+msgstr "正在运行中的程序里滚动 {what}"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Scrolling the box beside \"{what}\" in the running program"
-msgstr ""
+msgstr "正在运行中的程序里滚动“{what}”旁边的框"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Writing a change"
-msgstr ""
+msgstr "正在写入更改"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Writing {file}"
-msgstr ""
+msgstr "正在写入 {file}"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Writing a file"
-msgstr ""
+msgstr "正在写入文件"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "Writing the new program"
-msgstr ""
+msgstr "正在写入新程序"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "(+1 line)"
-msgstr ""
+msgstr "（+1 行）"
 
 #: crates/rapidr-studio/src/ai_tools.rs
 msgid "(+{n} lines)"
-msgstr ""
+msgstr "（+{n} 行）"
 
 #: crates/rapidr-studio/src/build.rs
 msgid "a build is running already"
-msgstr ""
+msgstr "已有一个构建正在运行"
 
 #: crates/rapidr-studio/src/coach.rs
 msgid "A hint showed the whole solution too early: Studio asked RAI for the hint it was on."
-msgstr ""
+msgstr "某条提示过早地给出了完整答案：Studio 已请 RAI 重新给出当前这一级的提示。"
 
 #: crates/rapidr-studio/src/coach.rs
 msgid "Asked for the hint without the solution"
-msgstr ""
+msgstr "已请 RAI 给出不含答案的提示"
 
 #: crates/rapidr-studio/src/coach.rs
 msgid "A first hint showed code too early: Studio asked RAI for a nudge without it."
-msgstr ""
+msgstr "第一条提示过早地显示了代码：Studio 已请 RAI 给出不含代码的点拨。"
 
 #: crates/rapidr-studio/src/coach.rs
 msgid "Asked for the hint without code"
-msgstr ""
+msgstr "已请 RAI 给出不含代码的提示"
 
 #: crates/rapidr-studio/src/crash.rs
 msgid "{name}: there is no such report"
-msgstr ""
+msgstr "{name}：没有这样的报告"
 
 #: crates/rapidr-studio/src/crash.rs crates/rapidr-studio/src/recovery.rs
 msgid "no file named"
-msgstr ""
+msgstr "没有指定文件名"
 
 #: crates/rapidr-studio/src/import.rs
 msgid "nothing to import"
-msgstr ""
+msgstr "没有可导入的内容"
 
 #: crates/rapidr-studio/src/import.rs
 msgid "{source}: nothing there to import"
-msgstr ""
+msgstr "{source}：那里没有可导入的内容"
 
 #: crates/rapidr-studio/src/langsvc.rs
 msgid "Not translated yet: this page is in English."
-msgstr ""
+msgstr "尚未翻译：此页面为英文。"
 
 #: crates/rapidr-studio/src/lib.rs
 msgid "there is no file manager here"
-msgstr ""
+msgstr "这里没有文件管理器"
 
 #: crates/rapidr-studio/src/local_ai.rs
 msgid "{address} isn't an address on this computer (only 127.0.0.1, [::1] or localhost)."
-msgstr ""
+msgstr "{address} 不是这台电脑上的地址（只支持 127.0.0.1、[::1] 或 localhost）。"
 
 #: crates/rapidr-studio/src/local_ai.rs
 msgid "A web page can't look for AI apps on this computer by itself: type the address of yours."
-msgstr ""
+msgstr "网页无法自己查找这台电脑上的 AI 应用：请输入你的 AI 应用的地址。"
 
 #: crates/rapidr-studio/src/local_ai.rs
 msgid "Checking models runs in RapidR Studio on the desktop."
-msgstr ""
+msgstr "检查模型需要在桌面版 RapidR Studio 中进行。"
 
 #: crates/rapidr-studio/src/local_ai.rs
 msgid "A check is running: wait for it, or stop it."
-msgstr ""
+msgstr "正在检查：请等待，或停止它。"
 
 #: crates/rapidr-studio/src/local_history.rs
 msgid "there is no project folder to keep the history in"
-msgstr ""
+msgstr "没有可用来保存历史记录的项目文件夹"
 
 #: crates/rapidr-studio/src/local_history.rs
 msgid "{file} is bigger than {mb} MB: its local history isn't kept (save versions of it instead)"
-msgstr ""
+msgstr "{file} 大于 {mb} MB：不会保留它的本地历史记录（请改为保存它的版本）"
 
 #: crates/rapidr-studio/src/local_history.rs
 msgid "there is no snapshot {n} in the local history"
-msgstr ""
+msgstr "本地历史记录中没有快照 {n}"
 
 #: crates/rapidr-studio/src/local_history.rs
 msgid "the copy of {file} kept at snapshot {n} is missing"
-msgstr ""
+msgstr "快照 {n} 中保存的 {file} 副本不见了"
 
 #: crates/rapidr-studio/src/local_history.rs
 msgid "the copy of {file} kept at snapshot {n} is damaged, so it isn't shown"
-msgstr ""
+msgstr "快照 {n} 中保存的 {file} 副本已损坏，所以不显示"
 
 #: crates/rapidr-studio/src/login_path.rs
 msgid "From your login shell ({shell}), as Terminal has it."
-msgstr ""
+msgstr "来自你的登录 shell ({shell})，与“终端”中的一致。"
 
 #: crates/rapidr-studio/src/login_path.rs
 msgid "Your login shell couldn't say ({why}): Studio's own PATH and the usual folders that are on this computer."
-msgstr ""
+msgstr "你的登录 shell 没能给出答案（{why}）：改用 Studio 自己的 PATH 和这台电脑上的常用文件夹。"
 
 #: crates/rapidr-studio/src/login_path.rs
 msgid "{shell} didn't answer in 1 second"
-msgstr ""
+msgstr "{shell} 在 1 秒内没有响应"
 
 #: crates/rapidr-studio/src/login_path.rs
 msgid "{shell} didn't answer in {secs} seconds"
-msgstr ""
+msgstr "{shell} 在 {secs} 秒内没有响应"
 
 #: crates/rapidr-studio/src/login_path.rs
 msgid "{shell} didn't print its PATH"
-msgstr ""
+msgstr "{shell} 没有输出它的 PATH"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "(errors to fix)"
-msgstr ""
+msgstr "（有待修复的错误）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Read {file} ({lines} lines)"
-msgstr ""
+msgstr "已读取 {file}（{lines} 行）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Read {target}'s properties"
-msgstr ""
+msgstr "已读取 {target} 的属性"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Read {file}"
-msgstr ""
+msgstr "已读取 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Looked up {target} in RapidR's registry"
-msgstr ""
+msgstr "已在 RapidR 的参考资料中查找 {target}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Looked up {target}: not found"
-msgstr ""
+msgstr "已查找 {target}：未找到"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Looked up {target}"
-msgstr ""
+msgstr "已查找 {target}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Looked at the form"
-msgstr ""
+msgstr "已查看窗体"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Kept the recipe's program"
-msgstr ""
+msgstr "保留了配方中的程序"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: not in Coach mode"
-msgstr ""
+msgstr "{name}：辅导模式下不可用"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Looked at the project: none is open"
-msgstr ""
+msgstr "已查看项目：没有打开的项目"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Looked for an example of {query}: none close"
-msgstr ""
+msgstr "已查找 {query} 的示例：没有相近的"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Listed the files"
-msgstr ""
+msgstr "已列出文件"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Listed the new project {name}'s files"
-msgstr ""
+msgstr "已列出新项目 {name} 的文件"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Listed the project's files ({n})"
-msgstr ""
+msgstr "已列出项目的文件（{n}）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Listed the forms' components ({n})"
-msgstr ""
+msgstr "已列出窗体的组件（{n}）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "1 error"
-msgstr ""
+msgstr "1 个错误"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{n} errors"
-msgstr ""
+msgstr "{n} 个错误"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "1 warning"
-msgstr ""
+msgstr "1 个警告"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{n} warnings"
-msgstr ""
+msgstr "{n} 个警告"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Checked: {what}"
-msgstr ""
+msgstr "已检查：{what}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Checked the code"
-msgstr ""
+msgstr "已检查代码"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Checked {file}: no problems"
-msgstr ""
+msgstr "已检查 {file}：没有问题"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Checked {file}: {errors} errors, {warnings} warnings"
-msgstr ""
+msgstr "已检查 {file}：{errors} 个错误，{warnings} 个警告"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Found an example: {title}"
-msgstr ""
+msgstr "找到了一个示例：{title}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Found an example"
-msgstr ""
+msgstr "找到了一个示例"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Laid out the buttons"
-msgstr ""
+msgstr "已排布按钮"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Laid out {n} buttons"
-msgstr ""
+msgstr "已排布 {n} 个按钮"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Wrote the program"
-msgstr ""
+msgstr "已写入程序"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Wrote the new program {title} ({files}): it compiles"
-msgstr ""
+msgstr "已写入新程序 {title}（{files}）：可以编译"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Wrote the new program {title}"
-msgstr ""
+msgstr "已写入新程序 {title}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Changed the new project {name}: {file}"
-msgstr ""
+msgstr "已更改新项目 {name}：{file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Changed {file}"
-msgstr ""
+msgstr "已更改 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Outlined the project: none is open"
-msgstr ""
+msgstr "已查看项目大纲：没有打开的项目"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Outlined the project ({n} files)"
-msgstr ""
+msgstr "已查看项目大纲（{n} 个文件）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Searched the manual for {query}: found in RapidR's reference"
-msgstr ""
+msgstr "已在手册中搜索 {query}：在 RapidR 参考资料中找到"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Searched the manual for {query}: nothing"
-msgstr ""
+msgstr "已在手册中搜索 {query}：没有结果"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Searched the manual for {query}: {where}"
-msgstr ""
+msgstr "已在手册中搜索 {query}：{where}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Couldn't read {file}: not a file of the project"
-msgstr ""
+msgstr "无法读取 {file}：它不是项目中的文件"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Couldn't read {file}"
-msgstr ""
+msgstr "无法读取 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused to read {file}: outside the project"
-msgstr ""
+msgstr "拒绝读取 {file}：它在项目之外"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused to write {file}: outside the project"
-msgstr ""
+msgstr "拒绝写入 {file}：它在项目之外"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused a change to {file}: {why}"
-msgstr ""
+msgstr "拒绝了对 {file} 的更改：{why}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused a whole-file rewrite of {file}: only a few lines change"
-msgstr ""
+msgstr "拒绝了对 {file} 的整个文件重写：只需更改几行"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused a shortened {file} that doesn't compile"
-msgstr ""
+msgstr "拒绝了被缩短且无法编译的 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused the new program {title}: its main file {main} wasn't sent"
-msgstr ""
+msgstr "拒绝了新程序 {title}：没有发送它的主文件 {main}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused the new program {title}: {file} is cut off"
-msgstr ""
+msgstr "拒绝了新程序 {title}：{file} 被截断了"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Refused {file}: {why}"
-msgstr ""
+msgstr "拒绝了 {file}：{why}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "A change to {file} didn't fit the file"
-msgstr ""
+msgstr "对 {file} 的一项更改与文件内容对不上"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Proposed a change to {file}: {summary}"
-msgstr ""
+msgstr "提议了对 {file} 的更改：{summary}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Proposed the new file {file}: {summary}"
-msgstr ""
+msgstr "提议了新文件 {file}：{summary}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Proposed the new file {file}"
-msgstr ""
+msgstr "提议了新文件 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Proposed a new text for {file}: {summary}"
-msgstr ""
+msgstr "提议了 {file} 的新文本：{summary}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "Proposed a new text for {file}"
-msgstr ""
+msgstr "提议了 {file} 的新文本"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "errors to fix"
-msgstr ""
+msgstr "有待修复的错误"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "write_file: no files"
-msgstr ""
+msgstr "write_file：没有文件"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "write_file: no file named"
-msgstr ""
+msgstr "write_file：没有指定文件名"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "write_file: no project open"
-msgstr ""
+msgstr "write_file：没有打开的项目"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "propose_edit: {file} not found"
-msgstr ""
+msgstr "propose_edit：找不到 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "check_code: outside the project"
-msgstr ""
+msgstr "check_code：在项目之外"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "check_code: nothing to check"
-msgstr ""
+msgstr "check_code：没有可检查的内容"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "check_code: {file} not found"
-msgstr ""
+msgstr "check_code：找不到 {file}"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "create_project {name}: no files"
-msgstr ""
+msgstr "create_project {name}：没有文件"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "create_project {name}: a path outside it"
-msgstr ""
+msgstr "create_project {name}：有路径在项目之外"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "create_project {name}: a file given twice"
-msgstr ""
+msgstr "create_project {name}：有文件重复给出"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "create_project {name}: no main file"
-msgstr ""
+msgstr "create_project {name}：没有主文件"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "layout: no rows"
-msgstr ""
+msgstr "layout：没有行"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "search_manual: no question"
-msgstr ""
+msgstr "search_manual：没有问题"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: not allowed (read-only)"
-msgstr ""
+msgstr "{name}：不允许（只读）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: the program isn't running"
-msgstr ""
+msgstr "{name}：程序没有在运行"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: arguments not understood"
-msgstr ""
+msgstr "{name}：无法理解参数"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: no such tool"
-msgstr ""
+msgstr "{name}：没有这个工具"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: no answer"
-msgstr ""
+msgstr "{name}：没有回应"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: cut off, to be written again in smaller parts"
-msgstr ""
+msgstr "{name}：被截断了，需要分成更小的部分重新写入"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: no project open"
-msgstr ""
+msgstr "{name}：没有打开的项目"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: not done"
-msgstr ""
+msgstr "{name}：未完成"
 
+# legal
 #: crates/rapidr-studio/src/notes.rs
 msgid "{name}: you didn't allow it"
-msgstr ""
+msgstr "{name}：你没有允许"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "it is cut off at the end (again)"
-msgstr ""
+msgstr "末尾被截断了（又一次）"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "it is cut off at the end"
-msgstr ""
+msgstr "末尾被截断了"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "the same syntax error again"
-msgstr ""
+msgstr "又是同样的语法错误"
 
 #: crates/rapidr-studio/src/notes.rs
 msgid "a syntax error"
-msgstr ""
+msgstr "一个语法错误"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{path}: not a RapidR project"
-msgstr ""
+msgstr "{path}：不是 RapidR 项目"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{path}: no such file"
-msgstr ""
+msgstr "{path}：没有这个文件"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{path}: not a project or a source file"
-msgstr ""
+msgstr "{path}：不是项目或源文件"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "no project is open"
-msgstr ""
+msgstr "没有打开的项目"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{path} isn't a copy of one of RapidR's examples"
-msgstr ""
+msgstr "{path} 不是 RapidR 某个示例的副本"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "the web keeps the examples you change in the page's store"
-msgstr ""
+msgstr "Web 版会把你修改过的示例保存在页面的存储中"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{folder}: no RapidR project or source in it"
-msgstr ""
+msgstr "{folder}：里面没有 RapidR 项目或源文件"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{file} is in the project already"
-msgstr ""
+msgstr "{file} 已在项目中"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "{file} isn't in the project"
-msgstr ""
+msgstr "{file} 不在项目中"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Build Web App makes a web app and Run shows the program"
-msgstr ""
+msgstr "“构建原生应用”和“构建解释执行应用”在桌面版 RapidR Studio（macOS、Windows、Linux）中生成应用；在 Web 上，“构建 Web 应用”生成 Web 应用，“运行”则直接显示程序"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "Installing Rust is the desktop's: run `rapidr setup` on the computer"
-msgstr ""
+msgstr "安装 Rust 要在桌面版中进行：请在电脑上运行 `rapidr setup`"
 
 #: crates/rapidr-studio/src/project.rs
 msgid "nothing built yet"
-msgstr ""
+msgstr "还没有构建任何内容"
 
 #: crates/rapidr-studio/src/recovery.rs
 msgid "{path} is there already"
-msgstr ""
+msgstr "{path} 已存在"
 
 #: crates/rapidr-studio/src/recovery.rs
 msgid "its folder can't be made: {folder} is a file"
-msgstr ""
+msgstr "无法创建它的文件夹：{folder} 是一个文件"
 
 #: crates/rapidr-studio/src/recovery.rs
 msgid "{folder} can't be written: {error}"
-msgstr ""
+msgstr "无法写入 {folder}：{error}"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Undid: {what}"
-msgstr ""
+msgstr "已撤销：{what}"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Before: {what}"
-msgstr ""
+msgstr "之前：{what}"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Checkpoint: {label}"
-msgstr ""
+msgstr "检查点：{label}"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Saved the version “{message}”"
-msgstr ""
+msgstr "已保存版本“{message}”"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Started the experiment “{experiment}”"
-msgstr ""
+msgstr "已开始实验“{experiment}”"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Switched to the experiment “{experiment}”"
-msgstr ""
+msgstr "已切换到实验“{experiment}”"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Brought “{experiment}” in"
-msgstr ""
+msgstr "已并入“{experiment}”"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Got the latest from the shared folder ({experiment})"
-msgstr ""
+msgstr "已从共享文件夹获取最新内容（{experiment}）"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Restored {file} from version {id}"
-msgstr ""
+msgstr "已从版本 {id} 恢复 {file}"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to the checkpoint “{label}”"
-msgstr ""
+msgstr "已回到检查点“{label}”"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to “{message}” ({id}) for {file}"
-msgstr ""
+msgstr "已将 {file} 回到“{message}”({id})"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to “{message}” ({id})"
-msgstr ""
+msgstr "已回到“{message}”({id})"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Went back to {what}"
-msgstr ""
+msgstr "已回到 {what}"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project)."
-msgstr ""
+msgstr "版本记录的是项目自己的文件夹，而这是一整个磁盘。请先把项目放进它自己的文件夹（文件 > 新建项目）。"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Versions keep a project's own folder, and {folder} holds much more than this project. Put the project in a folder of its own first (File > New Project, or Save All into a new folder)."
-msgstr ""
+msgstr "版本记录的是项目自己的文件夹，而 {folder} 里的内容远不止这个项目。请先把项目放进它自己的文件夹（文件 > 新建项目，或把“全部保存”保存到一个新文件夹）。"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "This project is inside {folder}, which already has versions of its own. Studio keeps the versions of a project's own folder only, so it doesn't start new ones inside it. Copy the project into a folder of its own to version it here."
-msgstr ""
+msgstr "此项目位于 {folder} 内，而该文件夹已有自己的版本。Studio 只记录项目自己文件夹的版本，所以不会在它里面另起新的版本。请把项目复制到它自己的文件夹中，再在这里记录版本。"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Open a project first: versions are kept for a project's folder."
-msgstr ""
+msgstr "请先打开一个项目：版本是针对项目文件夹记录的。"
 
 #: crates/rapidr-studio/src/repository.rs
 msgid "Versions need RapidR Studio on your computer: in a browser, Studio keeps a local history of your saves only."
-msgstr ""
+msgstr "版本功能需要你电脑上的 RapidR Studio：在浏览器中，Studio 只会保留你每次保存的本地历史记录。"
 
 #: crates/rapidr-studio/src/session.rs
 msgid "no program to run"
-msgstr ""
+msgstr "没有可运行的程序"
 
 #: crates/rapidr-studio/src/session.rs
 msgid "Studio runs in a browser already: Run (F5) runs the program here"
-msgstr ""
+msgstr "Studio 已经在浏览器中运行：“运行”(F5) 会直接在这里运行程序"
 
 #: crates/rapidr-studio/src/session.rs
 msgid "[Run in Browser ended: exit code {code}]"
-msgstr ""
+msgstr "[在浏览器中运行已结束：退出代码 {code}]"
 
 #: crates/rapidr-ui-app/src/dialogs.rs
 msgid "Color"
-msgstr ""
+msgstr "颜色"
 
 #: crates/rapidr-ui-app/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Font"
-msgstr ""
+msgstr "字体"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}, column {column}"
-msgstr ""
+msgstr "第 {line} 行，第 {column} 列"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "{count} cursors"
-msgstr ""
+msgstr "{count} 个光标"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "{errors} errors, {warnings} warnings"
-msgstr ""
+msgstr "{errors} 个错误，{warnings} 个警告"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "helpers on this line: Ctrl+K H reads them, Ctrl+. edits"
-msgstr ""
+msgstr "这一行的代码辅助：Ctrl+K H 可查看，Ctrl+. 可编辑"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Suggestions"
-msgstr ""
+msgstr "建议"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Code editor"
-msgstr ""
+msgstr "代码编辑器"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}"
-msgstr ""
+msgstr "第 {line} 行"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Column {column}"
-msgstr ""
+msgstr "第 {column} 列"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "{label} ({kind}), {current} of {total}"
-msgstr ""
+msgstr "{label}（{kind}），第 {current}/{total} 项"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "No language service for this file"
-msgstr ""
+msgstr "此文件没有语言服务"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Replaced {count}"
-msgstr ""
+msgstr "已替换 {count} 处"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Replace"
-msgstr ""
+msgstr "替换"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "All"
-msgstr ""
+msgstr "全部"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Find"
-msgstr ""
+msgstr "查找"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Go to line (1–{count}), :column"
-msgstr ""
+msgstr "转到行 (1–{count})，:列"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "New name"
-msgstr ""
+msgstr "新名称"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
 msgid "No results"
-msgstr ""
+msgstr "没有结果"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-value/src/panels/console.rs
 msgid "{current} of {total}"
-msgstr ""
+msgstr "第 {current}/{total} 项"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "? of {total}"
-msgstr ""
+msgstr "?/{total}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Create handler “{name}”"
-msgstr ""
+msgstr "创建事件处理程序“{name}”"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Create handler {name}"
-msgstr ""
+msgstr "创建事件处理程序 {name}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Handler"
-msgstr ""
+msgstr "事件处理程序"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Link"
-msgstr ""
+msgstr "链接"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "not on this computer"
-msgstr ""
+msgstr "不在这台电脑上"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "That name can't be written in the code (it has a quote)"
-msgstr ""
+msgstr "这个名称无法写进代码（其中含有引号）"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Changed"
-msgstr ""
+msgstr "已更改"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/input.rs
 msgid "Line {line}: added since the last version. Escape closes it."
-msgstr ""
+msgstr "第 {line} 行：自上一个版本以来新增。按 Esc 关闭。"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/input.rs
 msgid "Line {line}: lines removed after it since the last version. Escape closes it."
-msgstr ""
+msgstr "第 {line} 行：自上一个版本以来，其后有行被删除。按 Esc 关闭。"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/input.rs
 msgid "Line {line}: changed since the last version. Escape closes it."
-msgstr ""
+msgstr "第 {line} 行：自上一个版本以来已更改。按 Esc 关闭。"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "No quick fixes here"
-msgstr ""
+msgstr "这里没有快速修复"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "The language service is busy"
-msgstr ""
+msgstr "语言服务正忙"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "Added since the last version"
-msgstr ""
+msgstr "自上一个版本以来新增"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "Removed since the last version. It was:"
-msgstr ""
+msgstr "自上一个版本以来已删除。原来是："
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "Changed since the last version. It was:"
-msgstr ""
+msgstr "自上一个版本以来已更改。原来是："
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "1 more line"
-msgstr ""
+msgstr "还有 1 行"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "{n} more lines"
-msgstr ""
+msgstr "还有 {n} 行"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "Undo This Change"
-msgstr ""
+msgstr "撤销此更改"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Close"
-msgstr ""
+msgstr "关闭"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
 msgid "The change was undone."
-msgstr ""
+msgstr "更改已撤销。"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "Set DataSource to see the rows here"
-msgstr ""
+msgstr "设置 DataSource 后可在这里查看数据行"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "{rows} rows, {columns} columns"
-msgstr ""
+msgstr "{rows} 行，{columns} 列"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "Headings"
-msgstr ""
+msgstr "标题"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "Row {row} of {total}"
-msgstr ""
+msgstr "第 {row}/{total} 行"
 
 #: crates/rapidr-ui-kernel/src/components/design.rs
 msgid "Add a Form"
-msgstr ""
+msgstr "添加窗体"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Accepted"
-msgstr ""
+msgstr "已接受"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Rejected"
-msgstr ""
+msgstr "已拒绝"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs crates/rapidr-value/src/objects/diffview.rs
 msgid "Accept"
-msgstr ""
+msgstr "接受"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs crates/rapidr-value/src/objects/diffview.rs
 msgid "Reject"
-msgstr ""
+msgstr "拒绝"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Before"
-msgstr ""
+msgstr "之前"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "After"
-msgstr ""
+msgstr "之后"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(the form isn't there any more)"
-msgstr ""
+msgstr "（该窗体已不存在）"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(a new form)"
-msgstr ""
+msgstr "（一个新窗体）"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "The forms are the same."
-msgstr ""
+msgstr "两个窗体相同。"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "added"
-msgstr ""
+msgstr "新增"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "removed"
-msgstr ""
+msgstr "已删除"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs crates/rapidr-ui-kernel/src/value_view.rs
 msgid "changed"
-msgstr ""
+msgstr "已更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "1 property changed"
-msgstr ""
+msgstr "1 个属性已更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} properties changed"
-msgstr ""
+msgstr "{count} 个属性已更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(not set)"
-msgstr ""
+msgstr "（未设置）"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(removed)"
-msgstr ""
+msgstr "（已删除）"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Differences"
-msgstr ""
+msgstr "差异"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Form changes"
-msgstr ""
+msgstr "窗体的更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Table changes"
-msgstr ""
+msgstr "表格的更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "1 change"
-msgstr ""
+msgstr "1 处更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} changes"
-msgstr ""
+msgstr "{count} 处更改"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} hunk: {accepted} accepted, {rejected} rejected, {undecided} undecided"
-msgstr ""
+msgstr "{count} 个更改块：已接受 {accepted}，已拒绝 {rejected}，未决定 {undecided}"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} hunks: {accepted} accepted, {rejected} rejected, {undecided} undecided"
-msgstr ""
+msgstr "{count} 个更改块：已接受 {accepted}，已拒绝 {rejected}，未决定 {undecided}"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "current hunk"
-msgstr ""
+msgstr "当前更改块"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Dock"
-msgstr ""
+msgstr "停靠"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Auto Hide"
-msgstr ""
+msgstr "自动隐藏"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Close {name}"
-msgstr ""
+msgstr "关闭 {name}"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Undo"
-msgstr ""
+msgstr "撤销(&U)"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "Cu&t"
-msgstr ""
+msgstr "剪切(&T)"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Copy"
-msgstr ""
+msgstr "复制(&C)"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Paste"
-msgstr ""
+msgstr "粘贴(&P)"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Delete"
-msgstr ""
+msgstr "删除(&D)"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "Select &All"
-msgstr ""
+msgstr "全选(&A)"
 
 #: crates/rapidr-ui-kernel/src/components/menubar.rs
 msgid "Menu"
-msgstr ""
+msgstr "菜单"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Search"
-msgstr ""
+msgstr "搜索"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "No problems"
-msgstr ""
+msgstr "没有问题"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
 msgid "Output"
-msgstr ""
+msgstr "输出"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Pages"
-msgstr ""
+msgstr "页面"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} error)"
-msgstr ""
+msgstr "问题（{count} 个错误）"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} errors)"
-msgstr ""
+msgstr "问题（{count} 个错误）"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} warning)"
-msgstr ""
+msgstr "问题（{count} 个警告）"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} warnings)"
-msgstr ""
+msgstr "问题（{count} 个警告）"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} info)"
-msgstr ""
+msgstr "问题（{count} 条信息）"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} infos)"
-msgstr ""
+msgstr "问题（{count} 条信息）"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
 msgid "Problems"
-msgstr ""
+msgstr "问题"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "No selection"
-msgstr ""
+msgstr "未选择任何内容"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "mixed types"
-msgstr ""
+msgstr "类型不同"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "{count} components"
-msgstr ""
+msgstr "{count} 个组件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Search events"
-msgstr ""
+msgstr "搜索事件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Search properties"
-msgstr ""
+msgstr "搜索属性"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Not changed"
-msgstr ""
+msgstr "未更改"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Select a component on the form."
-msgstr ""
+msgstr "请在窗体上选择一个组件。"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Set Target (a component's name) or Designer to inspect."
-msgstr ""
+msgstr "设置 Target（组件名称）或 Designer 以进行检查。"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Select a row to see what it does."
-msgstr ""
+msgstr "选择一行，查看它的作用。"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, stretches down"
-msgstr ""
+msgstr "横向拉伸，纵向拉伸"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, stays at the top"
-msgstr ""
+msgstr "横向拉伸，纵向贴顶"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, follows the bottom"
-msgstr ""
+msgstr "横向拉伸，纵向贴底"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, keeps the middle"
-msgstr ""
+msgstr "横向拉伸，纵向居中"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, stretches down"
-msgstr ""
+msgstr "横向靠左，纵向拉伸"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, stays at the top"
-msgstr ""
+msgstr "横向靠左，纵向贴顶"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, follows the bottom"
-msgstr ""
+msgstr "横向靠左，纵向贴底"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, keeps the middle"
-msgstr ""
+msgstr "横向靠左，纵向居中"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, stretches down"
-msgstr ""
+msgstr "横向靠右，纵向拉伸"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, stays at the top"
-msgstr ""
+msgstr "横向靠右，纵向贴顶"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, follows the bottom"
-msgstr ""
+msgstr "横向靠右，纵向贴底"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, keeps the middle"
-msgstr ""
+msgstr "横向靠右，纵向居中"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, stretches down"
-msgstr ""
+msgstr "横向居中，纵向拉伸"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, stays at the top"
-msgstr ""
+msgstr "横向居中，纵向贴顶"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, follows the bottom"
-msgstr ""
+msgstr "横向居中，纵向贴底"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, keeps the middle"
-msgstr ""
+msgstr "横向居中，纵向居中"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Nothing matches the search"
-msgstr ""
+msgstr "没有与搜索匹配的内容"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "No events"
-msgstr ""
+msgstr "没有事件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Nothing to inspect"
-msgstr ""
+msgstr "没有可检查的内容"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
 msgid "new"
-msgstr ""
+msgstr "新"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
 msgid "Not in classic programs"
-msgstr ""
+msgstr "经典程序中没有"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties of {name} ({type})"
-msgstr ""
+msgstr "{name}（{type}）的属性"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties of {count} components"
-msgstr ""
+msgstr "{count} 个组件的属性"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Sort A to Z"
-msgstr ""
+msgstr "按 A 到 Z 排序"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Anchors editor"
-msgstr ""
+msgstr "锚点编辑器"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "{count} properties"
-msgstr ""
+msgstr "{count} 个属性"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "values differ"
-msgstr ""
+msgstr "值各不相同"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor left"
-msgstr ""
+msgstr "锚定左侧"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor top"
-msgstr ""
+msgstr "锚定顶部"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor right"
-msgstr ""
+msgstr "锚定右侧"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor bottom"
-msgstr ""
+msgstr "锚定底部"
 
 #: crates/rapidr-ui-kernel/src/components/panels/markdown.rs
 msgid "code"
-msgstr ""
+msgstr "代码"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "No commands"
-msgstr ""
+msgstr "没有命令"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "No matching commands"
-msgstr ""
+msgstr "没有匹配的命令"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "Command palette"
-msgstr ""
+msgstr "命令面板"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "Commands"
-msgstr ""
+msgstr "命令"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs
 msgid "No project"
-msgstr ""
+msgstr "没有项目"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs
 msgid "main"
-msgstr ""
+msgstr "主文件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "Remove {name} from the project?"
-msgstr ""
+msgstr "要把 {name} 从项目中移除吗？"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "Remove"
-msgstr ""
+msgstr "移除"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/dialogs.rs
 msgid "Cancel"
-msgstr ""
+msgstr "取消"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "form"
-msgstr ""
+msgstr "窗体"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "module"
-msgstr ""
+msgstr "模块"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "include"
-msgstr ""
+msgstr "包含文件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "resource"
-msgstr ""
+msgstr "资源"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "asset"
-msgstr ""
+msgstr "素材"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "data"
-msgstr ""
+msgstr "数据"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Project"
-msgstr ""
+msgstr "项目"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "Project {name}"
-msgstr ""
+msgstr "项目 {name}"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "project"
-msgstr ""
+msgstr "项目"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "1 file"
-msgstr ""
+msgstr "1 个文件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{count} files"
-msgstr ""
+msgstr "{count} 个文件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "folder"
-msgstr ""
+msgstr "文件夹"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{kind}, {n} forms"
-msgstr ""
+msgstr "{kind}，{n} 个窗体"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{kind}, the main file"
-msgstr ""
+msgstr "{kind}，主文件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{kind}, {badge}"
-msgstr ""
+msgstr "{kind}，{badge}"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "File name"
-msgstr ""
+msgstr "文件名"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbar.rs
 msgid "More buttons"
-msgstr ""
+msgstr "更多按钮"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbar.rs
 msgid "Toolbar"
-msgstr ""
+msgstr "工具栏"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbar.rs
 msgid "More buttons and customize"
-msgstr ""
+msgstr "更多按钮和自定义"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "Search components"
-msgstr ""
+msgstr "搜索组件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "No components"
-msgstr ""
+msgstr "没有组件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "No components match"
-msgstr ""
+msgstr "没有匹配的组件"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "Toolbox"
-msgstr ""
+msgstr "工具箱"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "{name} — template"
-msgstr ""
+msgstr "{name} — 模板"
 
 #: crates/rapidr-ui-kernel/src/components/plot.rs
 msgid "Sample data"
-msgstr ""
+msgstr "示例数据"
 
 #: crates/rapidr-ui-kernel/src/components/richedit.rs
 msgid "At the caret: {format}"
-msgstr ""
+msgstr "光标处：{format}"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs
 msgid "OK"
-msgstr ""
+msgstr "确定"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Basic colors:"
-msgstr ""
+msgstr "基本颜色(&B):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Custom colors:"
-msgstr ""
+msgstr "自定义颜色(&C):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Define Custom Colors >>"
-msgstr ""
+msgstr "定义自定义颜色(&D) >>"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|S&olid"
-msgstr ""
+msgstr "颜色|纯色(&O)"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Add to Custom Colors"
-msgstr ""
+msgstr "添加到自定义颜色(&A)"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Font st&yle:"
-msgstr ""
+msgstr "字形(&Y):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Size:"
-msgstr ""
+msgstr "大小(&S):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Font:"
-msgstr ""
+msgstr "字体(&F):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Effects"
-msgstr ""
+msgstr "效果"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Stri&keout"
-msgstr ""
+msgstr "删除线(&K)"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Underline"
-msgstr ""
+msgstr "下划线(&U)"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Color:"
-msgstr ""
+msgstr "颜色(&C):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Sample"
-msgstr ""
+msgstr "示例"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Apply"
-msgstr ""
+msgstr "应用(&A)"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Help"
-msgstr ""
+msgstr "帮助(&H)"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color matrix"
-msgstr ""
+msgstr "颜色矩阵"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Luminosity"
-msgstr ""
+msgstr "亮度"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|Solid"
-msgstr ""
+msgstr "颜色|纯色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
 msgid "Warning"
-msgstr ""
+msgstr "警告"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
 msgid "Error"
-msgstr ""
+msgstr "错误"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
 msgid "Information"
-msgstr ""
+msgstr "信息"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Question"
-msgstr ""
+msgstr "确认"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Hu&e:"
-msgstr ""
+msgstr "色相(&E):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Sat:"
-msgstr ""
+msgstr "饱和度(&S):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Lum:"
-msgstr ""
+msgstr "亮度(&L):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Red:"
-msgstr ""
+msgstr "红(&R):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Green:"
-msgstr ""
+msgstr "绿(&G):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Bl&ue:"
-msgstr ""
+msgstr "蓝(&U):"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Regular"
-msgstr ""
+msgstr "常规"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Italic"
-msgstr ""
+msgstr "斜体"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Bold"
-msgstr ""
+msgstr "粗体"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Bold Italic"
-msgstr ""
+msgstr "粗斜体"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Black"
-msgstr ""
+msgstr "黑色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Maroon"
-msgstr ""
+msgstr "栗色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Green"
-msgstr ""
+msgstr "绿色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Olive"
-msgstr ""
+msgstr "橄榄色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Navy"
-msgstr ""
+msgstr "海军蓝"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Purple"
-msgstr ""
+msgstr "紫色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Teal"
-msgstr ""
+msgstr "蓝绿色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Gray"
-msgstr ""
+msgstr "灰色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Silver"
-msgstr ""
+msgstr "银色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Red"
-msgstr ""
+msgstr "红色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Lime"
-msgstr ""
+msgstr "青柠色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Yellow"
-msgstr ""
+msgstr "黄色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Blue"
-msgstr ""
+msgstr "蓝色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Fuchsia"
-msgstr ""
+msgstr "品红色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Aqua"
-msgstr ""
+msgstr "浅青色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "White"
-msgstr ""
+msgstr "白色"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Custom"
-msgstr ""
+msgstr "自定义"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "was · now"
-msgstr ""
+msgstr "原来 · 现在"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Standard"
-msgstr ""
+msgstr "标准"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "System"
-msgstr ""
+msgstr "系统"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Apply"
-msgstr ""
+msgstr "应用"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Hue"
-msgstr ""
+msgstr "色相"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "{degrees} degrees"
-msgstr ""
+msgstr "{degrees} 度"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Saturation and brightness"
-msgstr ""
+msgstr "饱和度和亮度"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "saturation {saturation}, brightness {brightness}"
-msgstr ""
+msgstr "饱和度 {saturation}，亮度 {brightness}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Left and Right: saturation; Up and Down: brightness"
-msgstr ""
+msgstr "左右键：饱和度；上下键：亮度"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Palette"
-msgstr ""
+msgstr "调色板"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "{color} (was {original})"
-msgstr ""
+msgstr "{color}（原来是 {original}）"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Hex"
-msgstr ""
+msgstr "十六进制"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Filter"
-msgstr ""
+msgstr "筛选"
 
 #: crates/rapidr-ui-kernel/src/value_edit/list.rs
 msgid "missing"
-msgstr ""
+msgstr "缺失"
 
 #: crates/rapidr-ui-kernel/src/value_edit/list.rs
 msgid "Type to filter"
-msgstr ""
+msgstr "输入以筛选"
 
 #: crates/rapidr-ui-kernel/src/value_edit/list.rs
 msgid "Nothing matches"
-msgstr ""
+msgstr "没有匹配的内容"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Colour"
-msgstr ""
+msgstr "颜色"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Choose a value"
-msgstr ""
+msgstr "选择一个值"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Choose the flags"
-msgstr ""
+msgstr "选择标志"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "True or False"
-msgstr ""
+msgstr "True 或 False"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Picture"
-msgstr ""
+msgstr "图片"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Sound"
-msgstr ""
+msgstr "声音"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "File"
-msgstr ""
+msgstr "文件"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{title}: {value}"
-msgstr ""
+msgstr "{title}：{value}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Font: {name}"
-msgstr ""
+msgstr "字体：{name}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{size} pt"
-msgstr ""
+msgstr "{size} pt"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "bold"
-msgstr ""
+msgstr "粗体"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "italic"
-msgstr ""
+msgstr "斜体"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Enter keeps · Esc cancels"
-msgstr ""
+msgstr "Enter 确认 · Esc 取消"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Space ticks · Enter keeps"
-msgstr ""
+msgstr "空格 勾选 · Enter 确认"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Space turns · Enter keeps"
-msgstr ""
+msgstr "空格 切换 · Enter 确认"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Enter picks · Esc cancels"
-msgstr ""
+msgstr "Enter 选定 · Esc 取消"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Not in the project"
-msgstr ""
+msgstr "不在项目中"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "No preview"
-msgstr ""
+msgstr "无预览"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "The quick brown fox 0123"
-msgstr ""
+msgstr "快速的棕色狐狸 Abc 0123"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{title} editor"
-msgstr ""
+msgstr "{title} 编辑器"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Size"
-msgstr ""
+msgstr "大小"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "whole number"
-msgstr ""
+msgstr "整数"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "decimal number"
-msgstr ""
+msgstr "小数"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "text"
-msgstr ""
+msgstr "文本"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "true or false"
-msgstr ""
+msgstr "真或假"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "array"
-msgstr ""
+msgstr "数组"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "record"
-msgstr ""
+msgstr "记录"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour"
-msgstr ""
+msgstr "颜色"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "handle"
-msgstr ""
+msgstr "句柄"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "empty"
-msgstr ""
+msgstr "空"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "row"
-msgstr ""
+msgstr "行"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "included names"
-msgstr ""
+msgstr "包含的名称"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "components"
-msgstr ""
+msgstr "组件"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "more"
-msgstr ""
+msgstr "更多"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "locals"
-msgstr ""
+msgstr "局部变量"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "globals"
-msgstr ""
+msgstr "全局变量"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "watch"
-msgstr ""
+msgstr "监视"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "call stack"
-msgstr ""
+msgstr "调用堆栈"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint"
-msgstr ""
+msgstr "断点"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "call"
-msgstr ""
+msgstr "调用"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "current call"
-msgstr ""
+msgstr "当前调用"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "1 item"
-msgstr ""
+msgstr "1 项"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "{count} items"
-msgstr ""
+msgstr "{count} 项"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "1 field"
-msgstr ""
+msgstr "1 个字段"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "{count} fields"
-msgstr ""
+msgstr "{count} 个字段"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "on"
-msgstr ""
+msgstr "开"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "off"
-msgstr ""
+msgstr "关"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "{kind} {value}"
-msgstr ""
+msgstr "{kind} {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "empty text"
-msgstr ""
+msgstr "空文本"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "text {value}"
-msgstr ""
+msgstr "文本 {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "array {bounds}, {count}"
-msgstr ""
+msgstr "数组 {bounds}，{count}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "record {name}, {count}"
-msgstr ""
+msgstr "记录 {name}，{count}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "constant {name}"
-msgstr ""
+msgstr "常量 {name}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour {name}"
-msgstr ""
+msgstr "颜色 {name}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour red {red}, green {green}, blue {blue}"
-msgstr ""
+msgstr "颜色：红 {red}，绿 {green}，蓝 {blue}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour, the system's colour {number}"
-msgstr ""
+msgstr "颜色，系统颜色 {number}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "whole number {value}"
-msgstr ""
+msgstr "整数 {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "Empty"
-msgstr ""
+msgstr "空"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "row, {value}"
-msgstr ""
+msgstr "行，{value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "result"
-msgstr ""
+msgstr "结果"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint, off"
-msgstr ""
+msgstr "断点，已关闭"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint, not bound to code yet"
-msgstr ""
+msgstr "断点，尚未绑定到代码"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "conditional breakpoint"
-msgstr ""
+msgstr "条件断点"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint with a hit count"
-msgstr ""
+msgstr "带命中次数的断点"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "log point"
-msgstr ""
+msgstr "日志点"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "Confirm"
-msgstr ""
+msgstr "确认"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "&Yes"
-msgstr ""
+msgstr "是(&Y)"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "&No"
-msgstr ""
+msgstr "否(&N)"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "&Retry"
-msgstr ""
+msgstr "重试(&R)"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "&Abort"
-msgstr ""
+msgstr "中止(&A)"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "&Ignore"
-msgstr ""
+msgstr "忽略(&I)"
 
 #: crates/rapidr-value/src/dialogs.rs
 msgid "&All"
-msgstr ""
+msgstr "全部(&A)"
 
 #: crates/rapidr-value/src/dock/access.rs crates/rapidr-value/src/dock/look.rs
 msgid "Documents"
-msgstr ""
+msgstr "文档"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Resize {a} and {b}"
-msgstr ""
+msgstr "调整 {a} 和 {b} 的大小"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "{pane} (auto-hidden)"
-msgstr ""
+msgstr "{pane}（自动隐藏）"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Floating"
-msgstr ""
+msgstr "浮动"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Auto-hidden"
-msgstr ""
+msgstr "自动隐藏"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Dock {pane}"
-msgstr ""
+msgstr "停靠 {pane}"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Auto Hide {pane}"
-msgstr ""
+msgstr "自动隐藏 {pane}"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Close {pane}"
-msgstr ""
+msgstr "关闭 {pane}"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Documents, group {n}"
-msgstr ""
+msgstr "文档，第 {n} 组"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Not saved"
-msgstr ""
+msgstr "未保存"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "{pane} view"
-msgstr ""
+msgstr "{pane} 视图"
 
 #: crates/rapidr-value/src/dock/access.rs
 msgid "Resize document groups"
-msgstr ""
+msgstr "调整文档组的大小"
 
 #: crates/rapidr-value/src/dock/geometry.rs
 msgid "Side by Side"
-msgstr ""
+msgstr "并排"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Dock left"
-msgstr ""
+msgstr "停靠到左侧"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Dock top"
-msgstr ""
+msgstr "停靠到顶部"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Dock right"
-msgstr ""
+msgstr "停靠到右侧"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Dock bottom"
-msgstr ""
+msgstr "停靠到底部"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Left of {pane}"
-msgstr ""
+msgstr "{pane} 的左侧"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Right of {pane}"
-msgstr ""
+msgstr "{pane} 的右侧"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Above of {pane}"
-msgstr ""
+msgstr "{pane} 的上方"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Below of {pane}"
-msgstr ""
+msgstr "{pane} 的下方"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "As a document"
-msgstr ""
+msgstr "作为文档"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Tab with {pane}"
-msgstr ""
+msgstr "与 {pane} 合并为标签页"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Float"
-msgstr ""
+msgstr "浮动"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Auto-hide left"
-msgstr ""
+msgstr "自动隐藏到左侧"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Auto-hide top"
-msgstr ""
+msgstr "自动隐藏到顶部"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Auto-hide right"
-msgstr ""
+msgstr "自动隐藏到右侧"
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Auto-hide bottom"
-msgstr ""
+msgstr "自动隐藏到底部"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "black"
-msgstr ""
+msgstr "黑色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "dark grey"
-msgstr ""
+msgstr "深灰色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "grey"
-msgstr ""
+msgstr "灰色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "light grey"
-msgstr ""
+msgstr "浅灰色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "white"
-msgstr ""
+msgstr "白色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "red"
-msgstr ""
+msgstr "红色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "brown"
-msgstr ""
+msgstr "棕色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "orange"
-msgstr ""
+msgstr "橙色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "yellow"
-msgstr ""
+msgstr "黄色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "green"
-msgstr ""
+msgstr "绿色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "cyan"
-msgstr ""
+msgstr "青色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "blue"
-msgstr ""
+msgstr "蓝色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "purple"
-msgstr ""
+msgstr "紫色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "pink"
-msgstr ""
+msgstr "粉色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "dark {name}"
-msgstr ""
+msgstr "深{name}"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "light {name}"
-msgstr ""
+msgstr "浅{name}"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "a system colour"
-msgstr ""
+msgstr "系统颜色"
 
 #: crates/rapidr-value/src/objects/codehelp.rs
 msgid "{name}, the system's colour"
-msgstr ""
+msgstr "{name}，系统颜色"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "Hunk {n} of {total}: {what}"
-msgstr ""
+msgstr "第 {n}/{total} 个更改块：{what}"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "accepted"
-msgstr ""
+msgstr "已接受"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "rejected"
-msgstr ""
+msgstr "已拒绝"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "undecided"
-msgstr ""
+msgstr "未决定"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "Hunk {n} of {total}: {what}, {state}"
-msgstr ""
+msgstr "第 {n}/{total} 个更改块：{what}，{state}"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "line {n} changed"
-msgstr ""
+msgstr "第 {n} 行已更改"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "lines {from}–{to} changed"
-msgstr ""
+msgstr "第 {from}–{to} 行已更改"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "1 line added after line {after}"
-msgstr ""
+msgstr "在第 {after} 行之后新增 1 行"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "{n} lines added after line {after}"
-msgstr ""
+msgstr "在第 {after} 行之后新增 {n} 行"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "line {n} removed"
-msgstr ""
+msgstr "第 {n} 行已删除"
 
 #: crates/rapidr-value/src/objects/diffview.rs
 msgid "lines {from}–{to} removed"
-msgstr ""
+msgstr "第 {from}–{to} 行已删除"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
-msgstr ""
+msgstr "构建"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "{file} line {line}"
-msgstr ""
+msgstr "{file} 第 {line} 行"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "{total} found"
-msgstr ""
+msgstr "找到 {total} 个"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Accessibility"
-msgstr ""
+msgstr "辅助功能"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Appearance"
-msgstr ""
+msgstr "外观"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Behavior"
-msgstr ""
+msgstr "行为"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs crates/rapidr-value/src/panels/project_tree/model.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Data"
-msgstr ""
+msgstr "数据"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Drawing"
-msgstr ""
+msgstr "绘图"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Layout"
-msgstr ""
+msgstr "布局"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Media"
-msgstr ""
+msgstr "媒体"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Misc"
-msgstr ""
+msgstr "其他"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Network"
-msgstr ""
+msgstr "网络"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Window"
-msgstr ""
+msgstr "窗口"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Add a column"
-msgstr ""
+msgstr "添加一列"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Add a line"
-msgstr ""
+msgstr "添加一行"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a whole number"
-msgstr ""
+msgstr "“{text}”不是整数"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a number"
-msgstr ""
+msgstr "“{text}”不是数字"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not True or False"
-msgstr ""
+msgstr "“{text}”不是 True 或 False"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not one of {values}"
-msgstr ""
+msgstr "“{text}”不是 {values} 中的一个"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a set of {values}"
-msgstr ""
+msgstr "“{text}”不是 {values} 的集合"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a colour (clRed, &HBBGGRR, #RRGGBB)"
-msgstr ""
+msgstr "“{text}”不是颜色 (clRed, &HBBGGRR, #RRGGBB)"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "(none)"
-msgstr ""
+msgstr "（无）"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "1 line"
-msgstr ""
+msgstr "1 行"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "1 column"
-msgstr ""
+msgstr "1 列"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "{n} lines"
-msgstr ""
+msgstr "{n} 行"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "{n} columns"
-msgstr ""
+msgstr "{n} 列"
 
 #: crates/rapidr-value/src/panels/palette.rs
 msgid "Type a command"
-msgstr ""
+msgstr "输入命令"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Forms"
-msgstr ""
+msgstr "窗体"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Modules"
-msgstr ""
+msgstr "模块"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Includes"
-msgstr ""
+msgstr "包含文件"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Resources"
-msgstr ""
+msgstr "资源"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Assets"
-msgstr ""
+msgstr "素材"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "new, not in a version yet"
-msgstr ""
+msgstr "新文件，尚未进入任何版本"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "removed since the last version"
-msgstr ""
+msgstr "自上一个版本以来已删除"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "changed since the last version"
-msgstr ""
+msgstr "自上一个版本以来已更改"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A file name is needed."
-msgstr ""
+msgstr "需要一个文件名。"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A name can't hold / or \\."
-msgstr ""
+msgstr "名称中不能包含 / 或 \\。"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A name can't hold < > : \" | ? *."
-msgstr ""
+msgstr "名称中不能包含 < > : \" | ? *。"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "That isn't a file name."
-msgstr ""
+msgstr "这不是有效的文件名。"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "{name} is already in the project."
-msgstr ""
+msgstr "{name} 已在项目中。"
 
 #: crates/rapidr-value/src/panels/toolbar.rs
 msgid "Buttons shown:"
-msgstr ""
+msgstr "显示的按钮："
 
 #: crates/rapidr-value/src/panels/toolbar.rs
 msgid "{label} (on)"
-msgstr ""
+msgstr "{label}（已开启）"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Additional"
-msgstr ""
+msgstr "附加"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Dialogs"
-msgstr ""
+msgstr "对话框"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Data Science"
-msgstr ""
+msgstr "数据科学"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "DirectX"
-msgstr ""
+msgstr "DirectX"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Direct3D"
-msgstr ""
+msgstr "Direct3D"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Web"
-msgstr ""
+msgstr "Web"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "AI"
-msgstr ""
+msgstr "AI"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "IDE"
-msgstr ""
+msgstr "Studio"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Templates"
-msgstr ""
+msgstr "模板"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "(desktop only)"
-msgstr ""
+msgstr "（仅限桌面）"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "(web only)"
-msgstr ""
+msgstr "（仅限 Web）"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: Project > Add Form, a new form file of the program; dragged onto an RFormMDI: one of its child windows."
-msgstr ""
+msgstr "点击或双击：项目 > 添加窗体，即程序的一个新窗体文件；拖到 RFormMDI 上：它的一个子窗口。"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: a new MDI main window file of the program."
-msgstr ""
+msgstr "点击或双击：程序的一个新 MDI 主窗口文件。"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Division by zero"
-msgstr ""
+msgstr "除以零"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"
-msgstr ""
+msgstr "下标超出范围：索引 {i} 不在 {lo} TO {hi} 之内"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Out of DATA: READ found no more DATA items"
-msgstr ""
+msgstr "DATA 已用完：READ 找不到更多的 DATA 项"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "indexing a value that is not an array"
-msgstr ""
+msgstr "对不是数组的值使用了索引"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "assigning to an element of a variable that is not an array (DIM it with a size first)"
-msgstr ""
+msgstr "给不是数组的变量的元素赋值（请先用 DIM 指定大小）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "stack overflow: more than {n} nested calls (a SUB or FUNCTION calling itself without end?)"
-msgstr ""
+msgstr "堆栈溢出：嵌套调用超过 {n} 层（是不是某个 SUB 或 FUNCTION 在无休止地调用自己？）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "arrays have at most {n} dimensions"
-msgstr ""
+msgstr "数组最多有 {n} 个维度"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "string too long: strings are limited to {n} characters"
-msgstr ""
+msgstr "字符串太长：字符串最多 {n} 个字符"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "this variable does not refer to an object (reading a field of {what})"
-msgstr ""
+msgstr "这个变量没有引用任何对象（正在读取 {what} 的字段）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "this variable does not refer to an object (setting a field of {what})"
-msgstr ""
+msgstr "这个变量没有引用任何对象（正在设置 {what} 的字段）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "CALLFUNC: {ptr} is not a function pointer (use BIND or CODEPTR)"
-msgstr ""
+msgstr "CALLFUNC：{ptr} 不是函数指针（请使用 BIND 或 CODEPTR）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Unknown builtin function '{name}'"
-msgstr ""
+msgstr "未知的内置函数 '{name}'"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "the evaluation ran too long and was stopped"
-msgstr ""
+msgstr "计算运行时间过长，已被停止"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "END can't run in an evaluation"
-msgstr ""
+msgstr "END 不能在计算中运行"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "the evaluation ended the program"
-msgstr ""
+msgstr "这次计算结束了程序"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "the evaluation would wait (a dialog or a form): not while the program is stopped"
-msgstr ""
+msgstr "这次计算需要等待（对话框或窗体）：程序停止期间不能这样做"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "too many event arguments"
-msgstr ""
+msgstr "事件参数太多"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "no frame {i}"
-msgstr ""
+msgstr "没有栈帧 {i}"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "{what}({n}): strings are limited to {max} characters"
-msgstr ""
+msgstr "{what}({n})：字符串最多 {max} 个字符"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "{what} ran inside itself {n} times: its handler fires it again before it ends"
-msgstr ""
+msgstr "{what} 在自己内部运行了 {n} 次：它的事件处理程序在结束之前又触发了它"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "events ran inside each other {n} deep (the last: {what}): their handlers fire events before they end"
-msgstr ""
+msgstr "事件相互嵌套运行了 {n} 层（最后一个：{what}）：它们的事件处理程序在结束之前又触发了事件"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "{name} reads or writes a hardware port, which a program can't do on a modern system"
-msgstr ""
+msgstr "{name} 会读写硬件端口，而在现代系统上，程序无法这样做"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "'{name}' is a function of a DLL ({base}): this program calls Windows itself, and the web can't load DLLs, so it runs on Windows only"
-msgstr ""
+msgstr "'{name}' 是 DLL ({base}) 中的函数：这个程序直接调用 Windows，而 Web 无法加载 DLL，所以它只能在 Windows 上运行"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "'{name}' is a Windows function ({base}): this program calls Windows itself, so it runs on Windows only"
-msgstr ""
+msgstr "'{name}' 是 Windows 函数 ({base})：这个程序直接调用 Windows，所以它只能在 Windows 上运行"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "'{name}' is a function of {base}.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only"
-msgstr ""
+msgstr "'{name}' 是 {base}.dll（一个 Windows DLL）中的函数：这个程序调用了 DLL，所以它只能在 Windows 上运行"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "this variable does not refer to an object (reading field {slot} of {what})"
-msgstr ""
+msgstr "这个变量没有引用任何对象（正在读取 {what} 的字段 {slot}）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "this variable does not refer to an object (setting field {slot} of {what})"
-msgstr ""
+msgstr "这个变量没有引用任何对象（正在设置 {what} 的字段 {slot}）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "out of memory for addresses (VARPTR)"
-msgstr ""
+msgstr "地址的内存不足 (VARPTR)"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "address {addr} belongs to an array or TYPE that no longer exists"
-msgstr ""
+msgstr "地址 {addr} 属于一个已不存在的数组或 TYPE"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)"
-msgstr ""
+msgstr "地址 {addr} 不是这个程序的内存（请使用变量、数组元素、TYPE 的 VARPTR，或流的 Pointer）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "{n} bytes at address {addr} run past the end of its memory ({left} bytes left)"
-msgstr ""
+msgstr "地址 {addr} 处的 {n} 个字节超出了其内存的末尾（还剩 {left} 个字节）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "a STRING isn't an address: use VARPTR(s$)"
-msgstr ""
+msgstr "STRING 不是地址：请使用 VARPTR(s$)"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "VARPTR of an element of something that isn't an array"
-msgstr ""
+msgstr "对不是数组的东西的元素使用了 VARPTR"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "a negative byte count ({n})"
-msgstr ""
+msgstr "字节数为负数（{n}）"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "PEEK takes an address, or a page and an address"
-msgstr ""
+msgstr "PEEK 需要一个地址，或一个页和一个地址"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "POKE takes an address and a byte, or a page, an address and a byte"
-msgstr ""
+msgstr "POKE 需要一个地址和一个字节，或一个页、一个地址和一个字节"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Cannot open file {path}."
-msgstr ""
+msgstr "无法打开文件 {path}。"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Cannot create file {path}."
-msgstr ""
+msgstr "无法创建文件 {path}。"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "{what}: argument is not an array, or it has no dimension {d}"
-msgstr ""
+msgstr "{what}：参数不是数组，或没有第 {d} 维"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "Waiting for events"
-msgstr ""
+msgstr "正在等待事件"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "run-time error: {message}"
-msgstr ""
+msgstr "运行时错误：{message}"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "The breakpoint's condition `{cond}` failed: {error}"
-msgstr ""
+msgstr "断点的条件 `{cond}` 失败了：{error}"
 
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "(at {file} line {n})"
-msgstr ""
+msgstr "（位于 {file} 第 {n} 行）"

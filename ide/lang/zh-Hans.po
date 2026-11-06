@@ -2,6 +2,9 @@
 # Preview 6, beta: an AI translation (lane I18N-ZH, 2026-11-06); corrections from people
 # who speak the language are welcome (docs/manual/studio-languages.md).
 # Update from the template: rapidr i18n update ide/lang/studio.pot ide/lang/zh-Hans.po
+# `# legal` above an entry marks a consent, privacy, cost, key, age or permission text,
+# translated point by point: docs/legal/i18n-zh-legal-texts.md lists them for the lawyer check.
+# `#, review` marks a doubt. A menu or button mnemonic is written (&X) after the Chinese, as Windows does.
 msgid ""
 msgstr ""
 "Project-Id-Version: RapidR Studio\n"
@@ -12,6640 +15,6681 @@ msgstr ""
 
 #: ide/ai.inc
 msgid "Review the Assistant's Changes"
-msgstr ""
+msgstr "审阅助手的更改"
 
 #: ide/ai.inc
 msgid "What will be applied"
-msgstr ""
+msgstr "将要应用的内容"
 
 #: ide/ai.inc
 msgid "Accept &All"
-msgstr ""
+msgstr "全部接受(&A)"
 
 #: ide/ai.inc
 msgid "Accept every change of every file"
-msgstr ""
+msgstr "接受所有文件的所有更改"
 
 #: ide/ai.inc
 msgid "&Reject All"
-msgstr ""
+msgstr "全部拒绝(&R)"
 
 #: ide/ai.inc
 msgid "Reject every change of every file"
-msgstr ""
+msgstr "拒绝所有文件的所有更改"
 
 #: ide/ai.inc ide/mcp.inc
 msgid "A&pply"
-msgstr ""
+msgstr "应用(&P)"
 
 #: ide/ai.inc
 msgid "Apply the accepted changes"
-msgstr ""
+msgstr "应用已接受的更改"
 
 #: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
-msgstr ""
+msgstr "取消"
 
 #: ide/ai.inc ide/mcp.inc
 msgid "What the change does"
-msgstr ""
+msgstr "此更改的作用"
 
 #: ide/ai.inc
 msgid "Files the assistant changes"
-msgstr ""
+msgstr "助手更改的文件"
 
 #: ide/ai.inc ide/mcp.inc
 msgid "The change: the file as it is on the left, as proposed on the right"
-msgstr ""
+msgstr "更改内容：左侧是文件现在的样子，右侧是提议的样子"
 
 #: ide/ai.inc
 msgid "A New Program from the Assistant"
-msgstr ""
+msgstr "助手制作的新程序"
 
 #: ide/ai.inc
 msgid "Create &in:"
-msgstr ""
+msgstr "创建位置(&I):"
 
 #: ide/ai.inc
 msgid "The folder the new project goes in"
-msgstr ""
+msgstr "新项目所在的文件夹"
 
 #: ide/ai.inc
 msgid "&Browse..."
-msgstr ""
+msgstr "浏览(&B)..."
 
 #: ide/ai.inc
 msgid "Choose the folder the new project goes in"
-msgstr ""
+msgstr "选择新项目所在的文件夹"
 
 #: ide/ai.inc
 msgid "&Create and Open"
-msgstr ""
+msgstr "创建并打开(&C)"
 
 #: ide/ai.inc
 msgid "The new program's files"
-msgstr ""
+msgstr "新程序的文件"
 
 #: ide/ai.inc
 msgid "The form, as it will look"
-msgstr ""
+msgstr "窗体的最终外观"
 
 #: ide/ai.inc
 msgid "The file's code"
-msgstr ""
+msgstr "文件的代码"
 
 #: ide/ai.inc
 msgid "What Was Sent"
-msgstr ""
+msgstr "已发送的内容"
 
 #: ide/ai.inc ide/aisetup.inc ide/debug.inc
 msgid "Close"
-msgstr ""
+msgstr "关闭"
 
+# legal
 #: ide/ai.inc
 msgid "The last request, as sent (your key isn't in it)"
-msgstr ""
+msgstr "上一次发送的请求原文（其中不含你的密钥）"
 
 #: ide/ai.inc
 msgid "AI Assistant"
-msgstr ""
+msgstr "AI 助手"
 
 #: ide/ai.inc ide/aichats.inc
 msgid "Chats"
-msgstr ""
+msgstr "对话"
 
 #: ide/ai.inc
 msgid "This project's chats: switch, rename, delete, search"
-msgstr ""
+msgstr "本项目的对话：切换、重命名、删除、搜索"
 
 #: ide/ai.inc
 msgid "This chat"
-msgstr ""
+msgstr "当前对话"
 
 #: ide/ai.inc ide/aisetup.inc ide/settings.inc
 msgid "Model"
-msgstr ""
+msgstr "模型"
 
 #: ide/ai.inc
 msgid "Refresh the model list"
-msgstr ""
+msgstr "刷新模型列表"
 
 #: ide/ai.inc
 msgid "Ask the provider for its models again"
-msgstr ""
+msgstr "再次向服务商获取模型列表"
 
 #: ide/ai.inc
 msgid "Effort: Auto"
-msgstr ""
+msgstr "强度：自动"
 
 #: ide/ai.inc
 msgid "Effort: Low"
-msgstr ""
+msgstr "强度：低"
 
 #: ide/ai.inc
 msgid "Effort: Medium"
-msgstr ""
+msgstr "强度：中"
 
 #: ide/ai.inc
 msgid "Effort: High"
-msgstr ""
+msgstr "强度：高"
 
 #: ide/ai.inc
 msgid "Reasoning effort"
-msgstr ""
+msgstr "推理强度"
 
 #: ide/ai.inc
 msgid "How hard the model thinks before it answers: more takes longer and costs more"
-msgstr ""
+msgstr "模型回答前思考的力度：力度越大，耗时越长，费用也越高"
 
 #: ide/ai.inc
 msgid "New Chat"
-msgstr ""
+msgstr "新对话"
 
 #: ide/ai.inc
 msgid "Start a new chat"
-msgstr ""
+msgstr "开始新对话"
 
 #: ide/ai.inc
 msgid "This chat is kept: Chats lists it"
-msgstr ""
+msgstr "这段对话已保存：可在“对话”中找到"
 
 #: ide/ai.inc
 msgid "Assistant status"
-msgstr ""
+msgstr "助手状态"
 
 #: ide/ai.inc
 msgid "Ask the assistant"
-msgstr ""
+msgstr "向助手提问"
 
 #: ide/ai.inc
 msgid "Enter sends; Shift+Enter starts a new line"
-msgstr ""
+msgstr "按 Enter 发送；按 Shift+Enter 换行"
 
 #: ide/ai.inc
 msgid "Send"
-msgstr ""
+msgstr "发送"
 
 #: ide/ai.inc
 msgid "Send to the assistant"
-msgstr ""
+msgstr "发送给助手"
 
 #: ide/ai.inc
 msgid "Stop"
-msgstr ""
+msgstr "停止"
 
 #: ide/ai.inc
 msgid "Stop the answer"
-msgstr ""
+msgstr "停止回答"
 
 #: ide/ai.inc
 msgid "What Send shares"
-msgstr ""
+msgstr "“发送”会分享的内容"
 
 #: ide/ai.inc
 msgid "Tokens used"
-msgstr ""
+msgstr "已用 token"
 
 #: ide/ai.inc ide/settings.inc
 msgid "What was sent"
-msgstr ""
+msgstr "已发送的内容"
 
 #: ide/ai.inc
 msgid "What was sent to the assistant"
-msgstr ""
+msgstr "发送给助手的内容"
 
 #: ide/ai.inc
 msgid "Time the answer has taken"
-msgstr ""
+msgstr "回答已用时间"
 
 #: ide/ai.inc
 msgid "Context used"
-msgstr ""
+msgstr "已用上下文"
 
 #: ide/ai.inc
 msgid "Context"
-msgstr ""
+msgstr "上下文"
 
 #: ide/ai.inc
 msgid "Compact"
-msgstr ""
+msgstr "压缩"
 
 #: ide/ai.inc
 msgid "Compact the chat"
-msgstr ""
+msgstr "压缩对话"
 
 #: ide/ai.inc
 msgid "Summarises this chat now, so each question sends less (/compact)"
-msgstr ""
+msgstr "立即总结这段对话，之后每次提问发送的内容会更少 (/compact)"
 
 #: ide/ai.inc
 msgid "Commands"
-msgstr ""
+msgstr "命令"
 
 #: ide/ai.inc
 msgid "Commands: Up and Down choose, Tab completes, Enter runs"
-msgstr ""
+msgstr "命令：上下键选择，Tab 补全，Enter 运行"
 
 #: ide/ai.inc
 msgid "Editing a sent question"
-msgstr ""
+msgstr "正在编辑已发送的问题"
 
 #: ide/ai.inc
 msgid "Stop editing the question"
-msgstr ""
+msgstr "停止编辑问题"
 
 #: ide/ai.inc
 msgid "Queued message"
-msgstr ""
+msgstr "排队中的消息"
 
 #: ide/ai.inc
 msgid "Cancel the queued message"
-msgstr ""
+msgstr "取消排队中的消息"
 
 #: ide/ai.inc
 msgid "It won't be sent"
-msgstr ""
+msgstr "不会发送"
 
 #: ide/ai.inc
 msgid "Review the Changes..."
-msgstr ""
+msgstr "审阅更改..."
 
 #: ide/ai.inc
 msgid "Review the proposed changes"
-msgstr ""
+msgstr "审阅提议的更改"
 
 #: ide/ai.inc
 msgid "What the assistant is doing"
-msgstr ""
+msgstr "助手正在做什么"
 
 #: ide/ai.inc
 msgid "What the assistant is doing now"
-msgstr ""
+msgstr "助手现在正在做什么"
 
 #: ide/ai.inc
 msgid "Time this answer has taken"
-msgstr ""
+msgstr "本次回答已用时间"
 
 #: ide/ai.inc
 msgid "Steps done in this answer"
-msgstr ""
+msgstr "本次回答已完成的步骤"
 
 #: ide/ai.inc
 msgid "Conversation with the assistant"
-msgstr ""
+msgstr "与助手的对话"
 
 #: ide/ai.inc
 msgid "The assistant's new program"
-msgstr ""
+msgstr "助手制作的新程序"
 
 #: ide/ai.inc
 msgid "Run it"
-msgstr ""
+msgstr "运行"
 
 #: ide/ai.inc
 msgid "Runs the new program (F5). Nothing runs until you press it."
-msgstr ""
+msgstr "运行新程序 (F5)。在你点击之前，什么都不会运行。"
 
 #: ide/ai.inc
 msgid "Ask It to Fix"
-msgstr ""
+msgstr "请它修复"
 
 #: ide/ai.inc
 msgid "Ask the assistant to fix the errors"
-msgstr ""
+msgstr "请助手修复这些错误"
 
 #: ide/ai.inc ide/aichats.inc ide/versions.inc
 msgid "Undo"
-msgstr ""
+msgstr "撤销"
 
 #: ide/ai.inc
 msgid "Closes the new program and removes the files the assistant wrote"
-msgstr ""
+msgstr "关闭新程序，并删除助手写入的文件"
 
 #: ide/ai.inc
 msgid "What Did It Do?"
-msgstr ""
+msgstr "它做了什么？"
 
 #: ide/ai.inc
 msgid "What did it do?"
-msgstr ""
+msgstr "它做了什么？"
 
 #: ide/ai.inc
 msgid "Shows what the assistant did, in the Assistant pane"
-msgstr ""
+msgstr "在“助手”面板中显示助手做了什么"
 
 #: ide/ai.inc
 msgid "Close the banner"
-msgstr ""
+msgstr "关闭横幅"
 
 #: ide/ai.inc ide/panels.inc ide/settings.inc
 msgid "General"
-msgstr ""
+msgstr "常规"
 
 #: ide/ai.inc ide/settings.inc
 msgid "AI"
-msgstr ""
+msgstr "AI"
 
 #: ide/ai.inc
 msgid "Assistant"
-msgstr ""
+msgstr "助手"
 
 #: ide/ai.inc
 msgid "RAI needs a place to answer from: Tools > Set up RAI walks you through it (free on this computer, or a cloud key)."
-msgstr ""
+msgstr "RAI 需要一个回答问题的地方：“工具 > 配置 RAI”会一步步带你完成（在这台电脑上免费使用，或使用云端密钥）。"
 
 #: ide/ai.inc
 msgid "Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program."
-msgstr ""
+msgstr "添加你的 API 密钥（工具 > 配置 RAI，或 工具 > 设置 > AI），然后就可以询问关于本项目的问题，或请它写一个新程序。"
 
 #: ide/ai.inc
 msgid "Choose a model in the list above (↻ asks the provider for its models)."
-msgstr ""
+msgstr "在上方的列表中选择一个模型（点击 ↻ 可向服务商重新获取模型）。"
 
 #: ide/ai.inc
 msgid "Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
-msgstr ""
+msgstr "询问关于本项目的问题，或请它写一个新程序：{q}添加一个清除按钮{q}、{q}做一个小费计算器{q}。新程序会在 Studio 中打开，随时可以运行；对你的文件所做的更改会等你审阅。输入 / 可查看命令。"
 
 #: ide/ai.inc
 msgid "the provider"
-msgstr ""
+msgstr "服务商"
 
 #: ide/ai.inc
 msgid "the server at {url}"
-msgstr ""
+msgstr "位于 {url} 的服务器"
 
+# legal
 #: ide/ai.inc
 msgid "Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with {provider}: nothing else, nothing before."
-msgstr ""
+msgstr "“发送”会把你的消息、这段对话、助手读取的本项目内容，以及程序运行期间其窗口显示的内容（会先征求你的同意）分享给 {provider}：除此之外不会分享任何内容，也不会提前分享。"
 
 #: ide/ai.inc
 msgid "Less"
-msgstr ""
+msgstr "收起"
 
 #: ide/ai.inc
 msgid "Show less about what Send shares"
-msgstr ""
+msgstr "收起“发送”所分享内容的说明"
 
 #: ide/ai.inc
 msgid "Send shares this chat with {provider}."
-msgstr ""
+msgstr "“发送”会把这段对话分享给 {provider}。"
 
 #: ide/ai.inc
 msgid "Details"
-msgstr ""
+msgstr "详情"
 
 #: ide/ai.inc
 msgid "What Send shares: details"
-msgstr ""
+msgstr "“发送”分享的内容：详情"
 
 #: ide/ai.inc
 msgid "A model of {provider}. The provider is chosen in Tools > Settings > AI, or Set up RAI."
-msgstr ""
+msgstr "{provider} 的模型。服务商可在 工具 > 设置 > AI 或 配置 RAI 中选择。"
 
 #: ide/ai.inc
 msgid "{provider}'s models (the provider: Tools > Settings > AI)"
-msgstr ""
+msgstr "{provider} 的模型（服务商在 工具 > 设置 > AI 中选择）"
 
 #: ide/ai.inc
 msgid "Low, Medium or High: the model thinks more before it answers (slower, costs more). Auto: as it usually does."
-msgstr ""
+msgstr "低、中或高：模型回答前会思考得更多（更慢，费用更高）。自动：保持模型平时的做法。"
 
 #: ide/ai.inc
 msgid "This provider's models choose how much to think for themselves."
-msgstr ""
+msgstr "此服务商的模型会自行决定思考多少。"
 
 #: ide/ai.inc
 msgid "Effort: Auto, as the model usually thinks."
-msgstr ""
+msgstr "强度：自动，保持模型平时的思考方式。"
 
 #: ide/ai.inc
 msgid "Effort: Low — slower, and it costs more."
-msgstr ""
+msgstr "强度：低——更慢，费用更高。"
 
 #: ide/ai.inc
 msgid "Effort: Medium — slower, and it costs more."
-msgstr ""
+msgstr "强度：中——更慢，费用更高。"
 
 #: ide/ai.inc
 msgid "Effort: High — slower, and it costs more."
-msgstr ""
+msgstr "强度：高——更慢，费用更高。"
 
 #: ide/ai.inc
 msgid "Effort: {effort} — slower, and it costs more."
-msgstr ""
+msgstr "强度：{effort}——更慢，费用更高。"
 
 #: ide/ai.inc
 msgid "RAI is answering: ↻ works once it is done (or Stop)."
-msgstr ""
+msgstr "RAI 正在回答：回答完成后（或点击“停止”后）才能使用 ↻。"
 
 #: ide/ai.inc
 msgid "Context: empty"
-msgstr ""
+msgstr "上下文：空"
 
 #: ide/ai.inc
 msgid "Context: {used} of {limit} ({pct}%)"
-msgstr ""
+msgstr "上下文：{used} / {limit}（{pct}%）"
 
 #: ide/ai.inc
 msgid "Context: {pct}%"
-msgstr ""
+msgstr "上下文：{pct}%"
 
 #: ide/ai.inc
 msgid "About {used} tokens go with the next question. At {limit} the chat is compacted by itself; Compact does it now."
-msgstr ""
+msgstr "下一个问题大约会带上 {used} 个 token。达到 {limit} 时对话会自动压缩；点击“压缩”可立即压缩。"
 
 #: ide/ai.inc
 msgid "{n} s"
-msgstr ""
+msgstr "{n} 秒"
 
 #: ide/ai.inc
 msgid "No answer from the model for {n} s: wait, or Stop."
-msgstr ""
+msgstr "模型已有 {n} 秒没有回应：请等待，或点击“停止”。"
 
 #: ide/ai.inc
 msgid "Compacting the chat…"
-msgstr ""
+msgstr "正在压缩对话…"
 
 #: ide/ai.inc
 msgid "Queued: {message}"
-msgstr ""
+msgstr "排队中：{message}"
 
 #: ide/ai.inc
 msgid "The queued message won't be sent."
-msgstr ""
+msgstr "排队中的消息不会发送。"
 
 #: ide/ai.inc
 msgid "Summarise this chat now: each question then sends less"
-msgstr ""
+msgstr "立即总结这段对话：之后每次提问发送的内容会更少"
 
 #: ide/ai.inc
 msgid "Start a new chat (this one is kept in Chats)"
-msgstr ""
+msgstr "开始新对话（当前对话会保存在“对话”中）"
 
 #: ide/ai.inc
 msgid "Choose the model (/model name picks it)"
-msgstr ""
+msgstr "选择模型（/model 名称 可直接选定）"
 
 #: ide/ai.inc
 msgid "How hard it thinks: /effort low, medium, high or auto"
-msgstr ""
+msgstr "思考力度：/effort low、medium、high 或 auto"
 
 #: ide/ai.inc
 msgid "Undo the assistant's last change"
-msgstr ""
+msgstr "撤销助手的上一次更改"
 
 #: ide/ai.inc
 msgid "What you can type here"
-msgstr ""
+msgstr "这里可以输入的内容"
 
 #: ide/ai.inc
 msgid "Choose the model in the list (↻ asks {provider} for its models again)."
-msgstr ""
+msgstr "在列表中选择模型（点击 ↻ 可再次向 {provider} 获取模型）。"
 
 #: ide/ai.inc
 msgid "The model is {model} now."
-msgstr ""
+msgstr "现在使用的模型是 {model}。"
 
 #: ide/ai.inc
 msgid "/effort takes low, medium, high or auto."
-msgstr ""
+msgstr "/effort 后可接 low、medium、high 或 auto。"
 
 #: ide/ai.inc
 msgid "Commands: /compact, /new, /chats, /model, /effort, /undo, /help. Type / to see them listed."
-msgstr ""
+msgstr "命令：/compact、/new、/chats、/model、/effort、/undo、/help。输入 / 可查看列表。"
 
 #: ide/ai.inc
 msgid "{command} isn't a command: /help lists them. (To send it, start it with a space.)"
-msgstr ""
+msgstr "{command} 不是命令：/help 会列出所有命令。（若要原样发送，请在开头加一个空格。）"
 
 #: ide/ai.inc
 msgid "Nothing to undo: the assistant changed nothing since Studio started (or it was undone)."
-msgstr ""
+msgstr "没有可撤销的内容：自 Studio 启动以来助手没有更改任何内容（或更改已被撤销）。"
 
 #: ide/ai.inc
 msgid "a closed file"
-msgstr ""
+msgstr "已关闭的文件"
 
 #: ide/ai.inc
 msgid "Undone in {n} file(s); {files} changed since: Edit > Undo there."
-msgstr ""
+msgstr "已在 {n} 个文件中撤销；{files} 之后又有更改：请在那里使用 编辑 > 撤销。"
 
 #: ide/ai.inc
 msgid "Undone: the assistant's last change is taken back (Edit > Redo puts it back)."
-msgstr ""
+msgstr "已撤销：助手的上一次更改已被收回（编辑 > 重做 可恢复）。"
 
 #: ide/ai.inc
 msgid "Undone: the assistant's last changes are taken back in {n} files."
-msgstr ""
+msgstr "已撤销：助手在 {n} 个文件中的上一次更改已被收回。"
 
 #: ide/ai.inc
 msgid "Not edited: the chat is as it was."
-msgstr ""
+msgstr "未编辑：对话保持原样。"
 
+# legal
 #: ide/ai.inc
 msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
-msgstr ""
+msgstr "RAI 想在你正在运行的程序中点击和输入：请在它的对话中选择“本次运行允许”或“不允许”。"
 
 #: ide/ai.inc
 msgid "Waiting for you — {status}"
-msgstr ""
+msgstr "等待你的操作：{status}"
 
 #: ide/ai.inc
 msgid "Stopped. Your queued message is back in the box, not sent."
-msgstr ""
+msgstr "已停止。你排队中的消息已放回输入框，没有发送。"
 
 #: ide/ai.inc
 msgid "Preview the New Program..."
-msgstr ""
+msgstr "预览新程序..."
 
 #: ide/ai.inc
 msgid "Preview the new program before it is created"
-msgstr ""
+msgstr "在创建之前预览新程序"
 
 #: ide/ai.inc
 msgid "There is no key for {provider}: Tools > Settings > AI."
-msgstr ""
+msgstr "还没有 {provider} 的密钥：请到 工具 > 设置 > AI 中添加。"
 
 #: ide/ai.inc
 msgid "AI: {model} is no longer in the provider's list: choose a model again"
-msgstr ""
+msgstr "AI：{model} 已不在服务商的列表中：请重新选择模型"
 
 #: ide/ai.inc
 msgid "{status} Choose one in the list."
-msgstr ""
+msgstr "{status} 请在列表中选择一个。"
 
 #: ide/ai.inc ide/aisetup.inc
 msgid "RAI is ready: {model}."
-msgstr ""
+msgstr "RAI 已就绪：{model}。"
 
 #: ide/ai.inc
 msgid "Nothing has been sent yet."
-msgstr ""
+msgstr "还没有发送过任何内容。"
 
+# legal
 #: ide/ai.inc
 msgid "Your key is never shown or logged. Every request and change is in the audit log on this computer: {location}"
-msgstr ""
+msgstr "你的密钥绝不会被显示或记录。每一次请求和更改都记在这台电脑的审计日志中：{location}"
 
 #: ide/ai.inc ide/versions.inc
 msgid "{file} (new)"
-msgstr ""
+msgstr "{file}（新建）"
 
 #: ide/ai.inc
 msgid "{accepted} of {n} change accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
 msgid_plural "{accepted} of {n} changes accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "此文件已接受 {accepted}/{n} 处更改。F7：下一处更改；Enter 接受，Backspace 拒绝。"
 
 #: ide/ai.inc
 msgid "{file} is proposed twice"
-msgstr ""
+msgstr "{file} 被提议了两次"
 
 #: ide/ai.inc ide/project.inc
 msgid "{file} isn't there any more"
-msgstr ""
+msgstr "{file} 已不存在"
 
 #: ide/ai.inc
 msgid "{file} changed since the assistant read it"
-msgstr ""
+msgstr "助手读取 {file} 之后，该文件又有了更改"
 
 #: ide/ai.inc
 msgid "{file}: it can't be opened"
-msgstr ""
+msgstr "{file}：无法打开"
 
 #: ide/ai.inc
 msgid "{file}: its editor refused the change"
-msgstr ""
+msgstr "{file}：它的编辑器拒绝了这项更改"
 
 #: ide/ai.inc
 msgid "Nothing was changed: no change was accepted."
-msgstr ""
+msgstr "没有更改任何内容：没有接受任何更改。"
 
 #: ide/ai.inc
 msgid "1 file changed: Edit > Undo takes it back."
-msgstr ""
+msgstr "已更改 1 个文件：使用 编辑 > 撤销 可收回。"
 
 #: ide/ai.inc
 msgid "{n} files changed: Edit > Undo in each takes it back."
-msgstr ""
+msgstr "已更改 {n} 个文件：在每个文件中使用 编辑 > 撤销 可收回。"
 
 #: ide/ai.inc
 msgid "AI: not applied — {reason}"
-msgstr ""
+msgstr "AI：未应用——{reason}"
 
 #: ide/ai.inc
 msgid "Nothing was changed: {reason}. What this Apply had done was taken back; the changes still wait (Review)."
-msgstr ""
+msgstr "没有更改任何内容：{reason}。这次“应用”已做的部分已被收回；这些更改仍在等待（审阅）。"
 
 #: ide/ai.inc
 msgid "Nothing was changed: {reason} (and {n} more in the Output). The changes still wait (Review)."
-msgstr ""
+msgstr "没有更改任何内容：{reason}（输出中还有另外 {n} 条）。这些更改仍在等待（审阅）。"
 
 #: ide/ai.inc
 msgid "Nothing was changed: {reason}. The changes still wait (Review)."
-msgstr ""
+msgstr "没有更改任何内容：{reason}。这些更改仍在等待（审阅）。"
 
 #: ide/ai.inc
 msgid "{name}: {n} file, previewed: nothing is written until you press Create"
 msgid_plural "{name}: {n} files, previewed: nothing is written until you press Create"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{name}：{n} 个文件，仅预览：在你点击“创建”之前不会写入任何内容"
 
 #: ide/ai.inc
 msgid "Where the New Program Goes"
-msgstr ""
+msgstr "新程序的位置"
 
 #: ide/ai.inc
 msgid "Can't create the project: {error}"
-msgstr ""
+msgstr "无法创建项目：{error}"
 
 #: ide/ai.inc
 msgid "The new program isn't created yet: your changes came first. Preview the New Program creates it."
-msgstr ""
+msgstr "新程序尚未创建：你的更改在先。请使用“预览新程序”来创建它。"
 
 #: ide/ai.inc
 msgid "Can't create the new program in {folder}: {error}. Preview the New Program lets you choose another folder."
-msgstr ""
+msgstr "无法在 {folder} 中创建新程序：{error}。使用“预览新程序”可选择其他文件夹。"
 
 #: ide/ai.inc
 msgid "Made {title}: Run It is at the top."
-msgstr ""
+msgstr "已制作 {title}：顶部有“运行”按钮。"
 
 #: ide/ai.inc
 msgid "Made {title}, {n} error left: see the top."
 msgid_plural "Made {title}, {n} errors left: see the top."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已制作 {title}，还剩 {n} 个错误：请看顶部。"
 
 #: ide/ai.inc
 msgid "The assistant made this program for you."
-msgstr ""
+msgstr "助手为你制作了这个程序。"
 
 #: ide/ai.inc
 msgid "▶  Run It"
-msgstr ""
+msgstr "▶  运行"
 
 #: ide/ai.inc
 msgid "The assistant made this program — it still has {n} error."
 msgid_plural "The assistant made this program — it still has {n} errors."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "助手制作了这个程序，但它还有 {n} 个错误。"
 
 #: ide/ai.inc
 msgid "▶  Run Anyway"
-msgstr ""
+msgstr "▶  仍然运行"
 
 #: ide/ai.inc
 msgid "Run anyway"
-msgstr ""
+msgstr "仍然运行"
 
 #: ide/ai.inc
 msgid "↺  Undo"
-msgstr ""
+msgstr "↺  撤销"
 
 #: ide/ai.inc
 msgctxt "the word looked for in a status line"
 msgid "error"
-msgstr ""
+msgstr "错误"
 
 #: ide/ai.inc
 msgid "{status} The program has {n} error: Problems lists them."
 msgid_plural "{status} The program has {n} errors: Problems lists them."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{status} 程序有 {n} 个错误：“问题”面板会列出它们。"
 
 #: ide/ai.inc
 msgid "Please fix the errors that are left."
-msgstr ""
+msgstr "请修复剩下的错误。"
 
 #: ide/ai.inc
 msgid "There is no new program to undo."
-msgstr ""
+msgstr "没有可撤销的新程序。"
 
 #: ide/ai.inc
 msgid "{file} has changes not saved"
-msgstr ""
+msgstr "{file} 有未保存的更改"
 
 #: ide/ai.inc
 msgid "Undo the new program {title}?"
-msgstr ""
+msgstr "撤销新程序 {title}？"
 
 #: ide/ai.inc
 msgid "It changed since the assistant made it: {changes}. Undo removes the files the assistant wrote, with your changes to them; files you added stay."
-msgstr ""
+msgstr "它在助手制作之后又有了更改：{changes}。撤销会删除助手写入的文件（包括你对这些文件的更改）；你自己添加的文件会保留。"
 
 #: ide/ai.inc
 msgid "Undone: {title} was removed."
-msgstr ""
+msgstr "已撤销：{title} 已删除。"
 
 #: ide/ai.inc
 msgid "Undone: the assistant's files of {title} were removed; the files you added stay in {folder}."
-msgstr ""
+msgstr "已撤销：{title} 中助手写入的文件已删除；你添加的文件仍保留在 {folder} 中。"
 
 #: ide/ai.inc
 msgid "Copied the code."
-msgstr ""
+msgstr "已复制代码。"
 
 #: ide/ai.inc
 msgid "Copied the code"
-msgstr ""
+msgstr "已复制代码"
 
 #: ide/ai.inc
 msgid "Nothing waits for review: those changes were applied or rejected already."
-msgstr ""
+msgstr "没有等待审阅的内容：这些更改已被应用或拒绝。"
 
 #: ide/ai.inc
 msgid "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
-msgstr ""
+msgstr "该程序已不是助手的最新作品（已撤销，或之后又做了另一个）：请用 文件 > 打开 来打开它。"
 
 #: ide/ai.inc
 msgid "Fixing the errors…"
-msgstr ""
+msgstr "正在修复错误…"
 
 #: ide/ai.inc
 msgid "Thinking…"
-msgstr ""
+msgstr "正在思考…"
 
 #: ide/ai.inc
 msgid "Working…"
-msgstr ""
+msgstr "正在处理…"
 
 #: ide/ai.inc
 msgid "the server"
-msgstr ""
+msgstr "服务器"
 
 #: ide/ai.inc
 msgid "{min} min {n} s"
-msgstr ""
+msgstr "{min} 分 {n} 秒"
 
 #: ide/ai.inc
 msgid "Waiting for the provider…"
-msgstr ""
+msgstr "正在等待服务商…"
 
 #: ide/ai.inc
 msgid "Waiting for {name}'s answer… {n} s"
-msgstr ""
+msgstr "正在等待 {name} 的回答… {n} 秒"
 
 #: ide/ai.inc
 msgid "{n} earlier step"
 msgid_plural "{n} earlier steps"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "之前的 {n} 个步骤"
 
 #: ide/ai.inc
 msgid "This answer: {in} in ({cached} cached) · {out} out · part {part} of {parts}"
-msgstr ""
+msgstr "本次回答：输入 {in}（缓存 {cached}）· 输出 {out} · 第 {part}/{parts} 部分"
 
 #: ide/ai.inc
 msgid "This answer: {in} in ({cached} cached) · {out} out"
-msgstr ""
+msgstr "本次回答：输入 {in}（缓存 {cached}）· 输出 {out}"
 
 #: ide/ai.inc
 msgid "This answer: {in} in · {out} out · part {part} of {parts}"
-msgstr ""
+msgstr "本次回答：输入 {in} · 输出 {out} · 第 {part}/{parts} 部分"
 
 #: ide/ai.inc
 msgid "This answer: {in} in · {out} out"
-msgstr ""
+msgstr "本次回答：输入 {in} · 输出 {out}"
 
 #: ide/ai.inc
 msgid "Open a file in the editor first: Insert types the code at its caret."
-msgstr ""
+msgstr "请先在编辑器中打开一个文件：“插入”会把代码输入到光标所在位置。"
 
 #: ide/ai.inc
 msgid "Inserted the code at the caret in {file} (Ctrl+Z takes it back)."
-msgstr ""
+msgstr "已把代码插入到 {file} 的光标处（Ctrl+Z 可收回）。"
 
 #: ide/ai.inc
 msgid "Inserted the code"
-msgstr ""
+msgstr "已插入代码"
 
 #: ide/ai.inc
 msgid "Continue where you stopped, in smaller steps: several changes of at most about 100 lines each, and keep your explanations short."
-msgstr ""
+msgstr "从你停下的地方继续，分成更小的步骤：每次更改最多约 100 行，分几次完成，并保持说明简短。"
 
 #: ide/ai.inc
 msgid "Choose a Provider first: its models are listed here then."
-msgstr ""
+msgstr "请先选择服务商：然后这里会列出它的模型。"
 
+# legal
 #: ide/ai.inc
 msgid "Type the API key in APIKey (kept in your keychain, never in the code): the provider's models are listed here then."
-msgstr ""
+msgstr "请在 APIKey 中输入 API 密钥（保存在你的钥匙串中，绝不会放进代码里）：然后这里会列出服务商的模型。"
 
 #: ide/ai.inc
 msgid "Loading {provider}'s models…"
-msgstr ""
+msgstr "正在加载 {provider} 的模型…"
 
 #: ide/ai.inc
 msgid "↻ Refresh the list"
-msgstr ""
+msgstr "↻ 刷新列表"
 
 #: ide/ai.inc
 msgid "{n} model from {provider}, fast, low-cost ones first: pick one."
 msgid_plural "{n} models from {provider}, fast, low-cost ones first: pick one."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{provider} 提供了 {n} 个模型，速度快、费用低的排在前面：请选择一个。"
 
 #: ide/ai.inc
 msgid "{n} model from {provider}: pick one."
 msgid_plural "{n} models from {provider}: pick one."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{provider} 提供了 {n} 个模型：请选择一个。"
 
+# legal
 #: ide/ai.inc
 msgid "The key is kept in {store} as {q}{name}{q}: the program names it, never the key."
-msgstr ""
+msgstr "密钥保存在 {store} 中，名称为 {q}{name}{q}：程序只引用这个名称，不含密钥本身。"
 
+# legal
 #: ide/ai.inc
 msgid "A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it."
-msgstr ""
+msgstr "密钥（{hint}）保存在 {store} 中，名称为 {q}{name}{q}：代码只引用这个名称，不含密钥本身。输入另一个密钥可替换它。"
 
+# legal
 #: ide/ai.inc
 msgid "A key ({hint}) is found in the {source}: the code never holds it."
-msgstr ""
+msgstr "在{source}中找到了一个密钥（{hint}）：代码里绝不会存放它。"
 
 #: ide/aichats.inc
 msgid "Search:"
-msgstr ""
+msgstr "搜索:"
 
 #: ide/aichats.inc
 msgid "Search chats"
-msgstr ""
+msgstr "搜索对话"
 
 #: ide/aichats.inc
 msgid "Their titles and what was said; Down goes to the list, Escape back to the chat"
-msgstr ""
+msgstr "搜索标题和对话内容；按向下键进入列表，按 Esc 返回对话"
 
 #: ide/aichats.inc ide/panels.inc
 msgid "Open"
-msgstr ""
+msgstr "打开"
 
 #: ide/aichats.inc
 msgid "Open the chat"
-msgstr ""
+msgstr "打开对话"
 
 #: ide/aichats.inc
 msgid "Rename"
-msgstr ""
+msgstr "重命名"
 
 #: ide/aichats.inc
 msgid "Rename the chat"
-msgstr ""
+msgstr "重命名对话"
 
 #: ide/aichats.inc
 msgid "Delete"
-msgstr ""
+msgstr "删除"
 
 #: ide/aichats.inc
 msgid "Delete the chat"
-msgstr ""
+msgstr "删除对话"
 
 #: ide/aichats.inc
 msgid "It is removed from this computer; Undo puts it back"
-msgstr ""
+msgstr "它会从这台电脑上移除；“撤销”可以恢复"
 
 #: ide/aichats.inc
 msgid "Chat deleted"
-msgstr ""
+msgstr "对话已删除"
 
 #: ide/aichats.inc
 msgid "Undo: put the chat back"
-msgstr ""
+msgstr "撤销：恢复这段对话"
 
 #: ide/aichats.inc
 msgid "The chat's new name"
-msgstr ""
+msgstr "对话的新名称"
 
 #: ide/aichats.inc
 msgid "Enter keeps it, Escape leaves the name as it was"
-msgstr ""
+msgstr "按 Enter 保留，按 Esc 则保持原名称"
 
 #: ide/aichats.inc
 msgid "Save"
-msgstr ""
+msgstr "保存"
 
 #: ide/aichats.inc
 msgid "Save the new name"
-msgstr ""
+msgstr "保存新名称"
 
 #: ide/aichats.inc
 msgid "Keep the name as it was"
-msgstr ""
+msgstr "保持原名称"
 
 #: ide/aichats.inc
 msgid "Where chats are kept"
-msgstr ""
+msgstr "对话的保存位置"
 
 #: ide/aichats.inc
 msgid "This project's chats, the newest first"
-msgstr ""
+msgstr "本项目的对话，最新的在前"
 
 #: ide/aichats.inc
 msgid "New chat"
-msgstr ""
+msgstr "新对话"
 
 #: ide/aichats.inc
 msgid "This chat: {title}"
-msgstr ""
+msgstr "当前对话：{title}"
 
 #: ide/aichats.inc
 msgid "AI: this chat couldn't be kept: {error}"
-msgstr ""
+msgstr "AI：无法保存这段对话：{error}"
 
 #: ide/aichats.inc
 msgid "That chat can't be read any more (removed outside Studio?)."
-msgstr ""
+msgstr "无法再读取这段对话（是否在 Studio 之外被删除了？）"
 
 #: ide/aichats.inc
 msgid "A new chat. The last one is kept: Chats lists it."
-msgstr ""
+msgstr "已开始新对话。上一段对话已保存：可在“对话”中找到。"
 
 #: ide/aichats.inc
 msgid "A new chat."
-msgstr ""
+msgstr "已开始新对话。"
 
+# legal
 #: ide/aichats.inc
 msgid "Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good."
-msgstr ""
+msgstr "保存在这台电脑上 Studio 自己的文件夹中，绝不会放进项目里。“删除”会永久删除对话。"
 
 #: ide/aichats.inc
 msgid "Kept in {folder}"
-msgstr ""
+msgstr "保存在 {folder}"
 
 #: ide/aichats.inc ide/aisetup.inc
 msgid "Back"
-msgstr ""
+msgstr "返回"
 
 #: ide/aichats.inc
 msgid "Back to the chat"
-msgstr ""
+msgstr "返回对话"
 
 #: ide/aichats.inc
 msgid "{title} — {n} question, {date}"
 msgid_plural "{title} — {n} questions, {date}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{title} — {n} 个问题，{date}"
 
 #: ide/aichats.inc
 msgid "{item}: {q}{snippet}{q}"
-msgstr ""
+msgstr "{item}：{q}{snippet}{q}"
 
 #: ide/aichats.inc
 msgid "{item} (open)"
-msgstr ""
+msgstr "{item}（已打开）"
 
 #: ide/aichats.inc
 msgid "No chats kept for this project yet."
-msgstr ""
+msgstr "本项目还没有保存的对话。"
 
 #: ide/aichats.inc
 msgid "No chat has {q}{text}{q}."
-msgstr ""
+msgstr "没有包含 {q}{text}{q} 的对话。"
 
 #: ide/aichats.inc
 msgid "{n} chat"
 msgid_plural "{n} chats"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 段对话"
 
 #: ide/aichats.inc
 msgid "Opened {q}{title}{q}."
-msgstr ""
+msgstr "已打开 {q}{title}{q}。"
 
 #: ide/aichats.inc
 msgid "Renamed: {q}{title}{q}."
-msgstr ""
+msgstr "已重命名：{q}{title}{q}。"
 
 #: ide/aichats.inc
 msgid "That chat couldn't be renamed."
-msgstr ""
+msgstr "无法重命名这段对话。"
 
 #: ide/aichats.inc
 msgid "That chat couldn't be deleted."
-msgstr ""
+msgstr "无法删除这段对话。"
 
 #: ide/aichats.inc
 msgid "Deleted {q}{title}{q}."
-msgstr ""
+msgstr "已删除 {q}{title}{q}。"
 
 #: ide/aichats.inc
 msgid "Deleted {q}{title}{q}. Undo puts it back."
-msgstr ""
+msgstr "已删除 {q}{title}{q}。“撤销”可以恢复。"
 
 #: ide/aichats.inc
 msgid "The chat couldn't be put back."
-msgstr ""
+msgstr "无法恢复这段对话。"
 
 #: ide/aichats.inc
 msgid "Put back: {q}{title}{q}."
-msgstr ""
+msgstr "已恢复：{q}{title}{q}。"
 
 #: ide/aichats.inc
 msgid "RAI is answering: wait for it, or Stop, then edit a question."
-msgstr ""
+msgstr "RAI 正在回答：请等它回答完，或点击“停止”，然后再编辑问题。"
 
 #: ide/aichats.inc
 msgid "Editing a question: Send replaces it, Escape cancels."
-msgstr ""
+msgstr "正在编辑问题：“发送”会替换原问题，按 Esc 取消。"
 
 #: ide/aichats.inc
 msgid "Editing your question. Send replaces it: its answer moves to a saved copy of this chat (in Chats)."
-msgstr ""
+msgstr "正在编辑你的问题。“发送”会替换原问题：它的回答会移到这段对话的一份已保存副本中（在“对话”里）。"
 
 #: ide/aichats.inc
 msgid "Editing your question. Send replaces it: its answer and the {n} question after it move to a saved copy of this chat (in Chats)."
 msgid_plural "Editing your question. Send replaces it: its answer and the {n} questions after it move to a saved copy of this chat (in Chats)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "正在编辑你的问题。“发送”会替换原问题：它的回答以及之后的 {n} 个问题会移到这段对话的一份已保存副本中（在“对话”里）。"
 
 #: ide/aichats.inc
 msgid "{title} (before the edit)"
-msgstr ""
+msgstr "{title}（编辑前）"
 
 #: ide/aichats.inc
 msgid "{title} (before Retry)"
-msgstr ""
+msgstr "{title}（重试前）"
 
 #: ide/aichats.inc
 msgid "AI: the copy couldn't be kept: {error}"
-msgstr ""
+msgstr "AI：无法保存副本：{error}"
 
 #: ide/aichats.inc
 msgid "RAI is answering: wait for it, or Stop, then send the edited question."
-msgstr ""
+msgstr "RAI 正在回答：请等它回答完，或点击“停止”，然后再发送编辑后的问题。"
 
 #: ide/aichats.inc
 msgid "The question wasn't changed: the chat couldn't be copied first."
-msgstr ""
+msgstr "问题没有更改：因为无法先复制这段对话。"
 
 #: ide/aichats.inc
 msgid "AI: the chat before the edit is kept as {q}{title}{q} (Chats)."
-msgstr ""
+msgstr "AI：编辑前的对话已保存为 {q}{title}{q}（在“对话”中）。"
 
 #: ide/aichats.inc
 msgid "Not retried: the chat couldn't be copied first."
-msgstr ""
+msgstr "没有重试：因为无法先复制这段对话。"
 
 #: ide/aichats.inc
 msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
-msgstr ""
+msgstr "AI：重试前的回答已保存在 {q}{title}{q} 中（在“对话”里）。"
 
 #: ide/aicoach.inc
 msgid "a nudge"
-msgstr ""
+msgstr "一点点拨"
 
 #: ide/aicoach.inc
 msgid "the idea"
-msgstr ""
+msgstr "思路"
 
 #: ide/aicoach.inc
 msgid "the shape of the code"
-msgstr ""
+msgstr "代码的大致结构"
 
 #: ide/aicoach.inc
 msgid "the code"
-msgstr ""
+msgstr "代码"
 
 #: ide/aicoach.inc
 msgid "Build"
-msgstr ""
+msgstr "构建"
 
 #: ide/aicoach.inc
 msgid "Coach"
-msgstr ""
+msgstr "辅导"
 
 #: ide/aicoach.inc
 msgid "Coach hints"
-msgstr ""
+msgstr "辅导提示"
 
 #: ide/aicoach.inc
 msgid "I &Got It"
-msgstr ""
+msgstr "我明白了(&G)"
 
 #: ide/aicoach.inc
 msgid "Ends this problem: your next question starts again at the first hint"
-msgstr ""
+msgstr "结束这个问题：你的下一个问题会从第一条提示重新开始"
 
 #: ide/aicoach.inc
 msgid "&Help With This Error"
-msgstr ""
+msgstr "帮我解决这个错误(&H)"
 
 #: ide/aicoach.inc
 msgid "Coach, chosen"
-msgstr ""
+msgstr "已选择辅导"
 
 #: ide/aicoach.inc
 msgid "Build, chosen"
-msgstr ""
+msgstr "已选择构建"
 
 #: ide/aicoach.inc
 msgid "RAI writes changes for you to review and apply"
-msgstr ""
+msgstr "RAI 会写出更改，供你审阅和应用"
 
 #: ide/aicoach.inc
 msgid "RAI gives hints one step at a time and never writes the answer into your code"
-msgstr ""
+msgstr "RAI 一步一步地给出提示，绝不会把答案写进你的代码"
 
 #: ide/aicoach.inc
 msgid "Your school keeps RAI in Coach mode."
-msgstr ""
+msgstr "你的学校将 RAI 保持在辅导模式。"
 
 #: ide/aicoach.inc
 msgid "Your teacher keeps RAI in Coach mode."
-msgstr ""
+msgstr "你的老师将 RAI 保持在辅导模式。"
 
 #: ide/aicoach.inc
 msgid "Coach mode: RAI gives hints one step at a time. You write the code."
-msgstr ""
+msgstr "辅导模式：RAI 一步一步地给出提示，代码由你自己来写。"
 
 #: ide/aicoach.inc
 msgid "Build mode: RAI writes changes for you to review and apply."
-msgstr ""
+msgstr "构建模式：RAI 写出更改，供你审阅和应用。"
 
 #: ide/aicoach.inc
 msgid "Hint {n} of 4"
-msgstr ""
+msgstr "提示 {n}/4"
 
 #: ide/aicoach.inc
 msgid "Hint {n} of 4: {what}"
-msgstr ""
+msgstr "提示 {n}/4：{what}"
 
 #: ide/aicoach.inc
 msgid "&Show the Code"
-msgstr ""
+msgstr "显示代码(&S)"
 
 #: ide/aicoach.inc
 msgid "&Next Hint"
-msgstr ""
+msgstr "下一条提示(&N)"
 
 #: ide/aicoach.inc
 msgid "The fourth hint: RAI shows the code, for you to type or copy in yourself"
-msgstr ""
+msgstr "第四条提示：RAI 会显示代码，由你自己输入或复制"
 
 #: ide/aicoach.inc
 msgid "RAI gives the next hint: a little more each time"
-msgstr ""
+msgstr "RAI 给出下一条提示：每次多透露一点"
 
 #: ide/aicoach.inc
 msgid "RAI says what the error means, why it happens, and gives a hint to fix it yourself: {error}"
-msgstr ""
+msgstr "RAI 会说明这个错误的含义和原因，并给出一条提示，让你自己修复：{error}"
 
 #: ide/aicoach.inc
 msgid "I Got It"
-msgstr ""
+msgstr "我明白了"
 
 #: ide/aicoach.inc
 msgid "Show me the code."
-msgstr ""
+msgstr "请给我看代码。"
 
 #: ide/aicoach.inc
 msgid "Give me the next hint."
-msgstr ""
+msgstr "请给我下一条提示。"
 
 #: ide/aicoach.inc
 msgid "Nice work. Ask about the next thing when you're ready."
-msgstr ""
+msgstr "做得好。准备好了就问下一个问题吧。"
 
 #: ide/aicoach.inc
 msgid "Help me with this error: {error}"
-msgstr ""
+msgstr "请帮我解决这个错误：{error}"
 
 #: ide/aicoach.inc
 msgid "Coach mode: ask about your code, or about what you want to make. RAI gives one hint at a time — a nudge, the idea, the shape of the code — and shows code only when you ask a fourth time. You write the code yourself."
-msgstr ""
+msgstr "辅导模式：询问你的代码，或你想做的东西。RAI 每次只给一条提示——点拨、思路、代码结构——只有在你第四次提问时才会显示代码。代码由你自己来写。"
 
 #: ide/aisetup.inc ide/mcp.inc
 msgid "Set Up RAI"
-msgstr ""
+msgstr "配置 RAI"
 
 #: ide/aisetup.inc
 msgid "< &Back"
-msgstr ""
+msgstr "< 上一步(&B)"
 
 #: ide/aisetup.inc
 msgid "&Next >"
-msgstr ""
+msgstr "下一步(&N) >"
 
 #: ide/aisetup.inc
 msgid "Where RAI's answers come from"
-msgstr ""
+msgstr "RAI 的回答来自哪里"
 
 #: ide/aisetup.inc
 msgid "Free, on &this computer"
-msgstr ""
+msgstr "免费，在这台电脑上(&T)"
 
+# legal
 #: ide/aisetup.inc
 msgid "It costs nothing, and Studio sends what you ask only to a local AI app on this computer — a free program you install that keeps AI models on your computer — so what you ask stays here, unless that app is set up to pass it on to a service elsewhere. Studio finds the models it already has and checks which ones fit this computer. Answers are slower and simpler than a cloud model's."
-msgstr ""
+msgstr "完全免费，Studio 只会把你的提问发送给这台电脑上的本地 AI 应用——一个你自己安装的免费程序，AI 模型就保存在你的电脑里——所以你的提问会留在这里，除非该应用被设置为把它转交给其他地方的服务。Studio 会找出已有的模型，并检查哪些适合这台电脑。回答比云端模型更慢、更简单。"
 
 #: ide/aisetup.inc
 msgid "The AI models found on this computer"
-msgstr ""
+msgstr "在这台电脑上找到的 AI 模型"
 
 #: ide/aisetup.inc
 msgid "&Look Again"
-msgstr ""
+msgstr "重新查找(&L)"
 
 #: ide/aisetup.inc
 msgid "Look again for AI models on this computer"
-msgstr ""
+msgstr "重新查找这台电脑上的 AI 模型"
 
 #: ide/aisetup.inc
 msgid "A &cloud service, with your own key"
-msgstr ""
+msgstr "使用你自己密钥的云服务(&C)"
 
+# legal
 #: ide/aisetup.inc
 msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
-msgstr ""
+msgstr "Anthropic (Claude)、OpenAI 或 DeepSeek：通常能给出最好的回答。你在服务商的网站上创建密钥，并按用量向其付费：一个问题的费用通常从十分之一美分（小而快的模型）到几美分（最大的模型）不等。你发送的内容——你的提问、对话、RAI 读取的项目部分，以及程序运行期间其窗口显示的内容——会发送给该服务商，并受其隐私条款约束。你的密钥保存在这台电脑的钥匙串中，绝不会放进项目里。"
 
 #: ide/aisetup.inc
 msgid "The AI models on this computer"
-msgstr ""
+msgstr "这台电脑上的 AI 模型"
 
 #: ide/aisetup.inc
 msgid "This computer's memory"
-msgstr ""
+msgstr "这台电脑的内存"
 
 #: ide/aisetup.inc
 msgid "The AI models on this computer, the best match first"
-msgstr ""
+msgstr "这台电脑上的 AI 模型，最匹配的排在前面"
 
 #: ide/aisetup.inc
 msgid "Each says whether it fits this computer and how it does with RAI. Choose one, then Finish."
-msgstr ""
+msgstr "每个模型都会说明它是否适合这台电脑，以及搭配 RAI 的表现如何。选择一个，然后点击“完成”。"
 
 #: ide/aisetup.inc
 msgid "How to add a local AI app"
-msgstr ""
+msgstr "如何添加本地 AI 应用"
 
 #: ide/aisetup.inc
 msgid "How to add a local AI app: the manual's page, in Help"
-msgstr ""
+msgstr "如何添加本地 AI 应用：手册中的相关页面，在“帮助”里"
 
 #: ide/aisetup.inc
 msgid "About the model chosen"
-msgstr ""
+msgstr "关于所选模型"
 
 #: ide/aisetup.inc
 msgid "&Check My Models"
-msgstr ""
+msgstr "检查我的模型(&C)"
 
 #: ide/aisetup.inc
 msgid "Read the L&icence..."
-msgstr ""
+msgstr "阅读许可证(&I)..."
 
 #: ide/aisetup.inc
 msgid "Read the chosen model's licence, as its local AI app reports it"
-msgstr ""
+msgstr "阅读所选模型的许可证（以其本地 AI 应用报告的为准）"
 
 #: ide/aisetup.inc
 msgid "Check My Models"
-msgstr ""
+msgstr "检查我的模型"
 
 #: ide/aisetup.inc
 msgid "Another &address:"
-msgstr ""
+msgstr "其他地址(&A):"
 
 #: ide/aisetup.inc
 msgid "Another address on this computer"
-msgstr ""
+msgstr "这台电脑上的其他地址"
 
+# legal
 #: ide/aisetup.inc
 msgid "A local AI app's address on this computer, for example 127.0.0.1:8080. Studio only asks this computer."
-msgstr ""
+msgstr "这台电脑上本地 AI 应用的地址，例如 127.0.0.1:8080。Studio 只会向这台电脑发出询问。"
 
 #: ide/aisetup.inc
 msgid "Loo&k"
-msgstr ""
+msgstr "查找(&K)"
 
 #: ide/aisetup.inc
 msgid "Look for models at this address"
-msgstr ""
+msgstr "在此地址查找模型"
 
 #: ide/aisetup.inc
 msgid "A cloud service"
-msgstr ""
+msgstr "云服务"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "&Provider:"
-msgstr ""
+msgstr "服务商(&P):"
 
 #: ide/aisetup.inc
 msgid "The cloud provider"
-msgstr ""
+msgstr "云服务商"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "Get a key"
-msgstr ""
+msgstr "获取密钥"
 
 #: ide/aisetup.inc
 msgid "Get a key on the provider's website, in the browser"
-msgstr ""
+msgstr "在浏览器中打开服务商的网站，获取密钥"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "API &key:"
-msgstr ""
+msgstr "API 密钥(&K):"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "API key"
-msgstr ""
+msgstr "API 密钥"
 
+# legal
 #: ide/aisetup.inc
 msgid "Paste the key the provider gave you: it is kept in this computer's keychain, never in a project"
-msgstr ""
+msgstr "粘贴服务商给你的密钥：它会保存在这台电脑的钥匙串中，绝不会放进项目里"
 
 #: ide/aisetup.inc
 msgid "&Test the Key"
-msgstr ""
+msgstr "测试密钥(&T)"
 
 #: ide/aisetup.inc
 msgid "Test the key: ask the provider for its models"
-msgstr ""
+msgstr "测试密钥：向服务商获取它的模型列表"
 
 #: ide/aisetup.inc
 msgid "The key's test"
-msgstr ""
+msgstr "密钥测试"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "&Model:"
-msgstr ""
+msgstr "模型(&M):"
 
+# legal
 #: ide/aisetup.inc
 msgid "What it costs, and what is sent"
-msgstr ""
+msgstr "费用，以及发送的内容"
 
 #: ide/aisetup.inc
 msgid "Licence"
-msgstr ""
+msgstr "许可证"
 
 #: ide/aisetup.inc
 msgid "The licence's text"
-msgstr ""
+msgstr "许可证全文"
 
 #: ide/aisetup.inc
 msgid "Stop Checking"
-msgstr ""
+msgstr "停止检查"
 
 #: ide/aisetup.inc
 msgid "Read the Licence..."
-msgstr ""
+msgstr "阅读许可证..."
 
 #: ide/aisetup.inc
 msgid "Where should RAI's answers come from?"
-msgstr ""
+msgstr "RAI 的回答应该来自哪里？"
 
 #: ide/aisetup.inc
 msgid "RAI on this computer"
-msgstr ""
+msgstr "在这台电脑上使用 RAI"
 
 #: ide/aisetup.inc
 msgid "&Finish"
-msgstr ""
+msgstr "完成(&F)"
 
 #: ide/aisetup.inc
 msgid "RAI from a cloud service"
-msgstr ""
+msgstr "通过云服务使用 RAI"
 
 #: ide/aisetup.inc
 msgid "Set Up RAI — {title}"
-msgstr ""
+msgstr "配置 RAI — {title}"
 
 #: ide/aisetup.inc
 msgid "Looking for AI apps on this computer…"
-msgstr ""
+msgstr "正在查找这台电脑上的 AI 应用…"
 
 #: ide/aisetup.inc
 msgid "✓ Found {n} model in {k} local AI apps on this computer."
 msgid_plural "✓ Found {n} models in {k} local AI apps on this computer."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "✓ 在这台电脑的 {k} 个本地 AI 应用中找到了 {n} 个模型。"
 
 #: ide/aisetup.inc
 msgid "✓ Found {n} model in a local AI app on this computer."
 msgid_plural "✓ Found {n} models in a local AI app on this computer."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "✓ 在这台电脑的一个本地 AI 应用中找到了 {n} 个模型。"
 
 #: ide/aisetup.inc
 msgid "In a browser Studio can't look around this computer: Next asks for your local AI app's address."
-msgstr ""
+msgstr "在浏览器中，Studio 无法查看这台电脑上有什么：点击“下一步”后需要填写本地 AI 应用的地址。"
 
 #: ide/aisetup.inc
 msgid "A local AI app answers on this computer, but it has no model yet: add one in it, then Look Again."
-msgstr ""
+msgstr "这台电脑上有一个本地 AI 应用在响应，但它还没有模型：请在其中添加一个，然后点击“重新查找”。"
 
 #: ide/aisetup.inc
 msgid "No local AI app found running on this computer: Next says what one is and how to add one."
-msgstr ""
+msgstr "没有发现这台电脑上运行着本地 AI 应用：点击“下一步”会说明它是什么以及如何添加。"
 
 #: ide/aisetup.inc
 msgid "timing an answer"
-msgstr ""
+msgstr "测量回答速度"
 
 #: ide/aisetup.inc
 msgid "trying a tool call"
-msgstr ""
+msgstr "试用工具调用"
 
 #: ide/aisetup.inc
 msgid "building a tiny app"
-msgstr ""
+msgstr "制作一个小应用"
 
 #: ide/aisetup.inc
 msgid "loading it"
-msgstr ""
+msgstr "加载模型"
 
+# legal
 #: ide/aisetup.inc
 msgid "Runs elsewhere"
-msgstr ""
+msgstr "在别处运行"
 
 #: ide/aisetup.inc
 msgid "Fits"
-msgstr ""
+msgstr "适合"
 
 #: ide/aisetup.inc
 msgid "Fits if you close other apps"
-msgstr ""
+msgstr "关闭其他应用后适合"
 
 #: ide/aisetup.inc
 msgid "Too big for this computer"
-msgstr ""
+msgstr "对这台电脑来说太大"
 
 #: ide/aisetup.inc
 msgid "Size not known"
-msgstr ""
+msgstr "大小未知"
 
 #: ide/aisetup.inc
 msgid "Checking it now: {step}…"
-msgstr ""
+msgstr "正在检查：{step}…"
 
 #: ide/aisetup.inc
 msgid "Waiting for its check…"
-msgstr ""
+msgstr "等待检查…"
 
 #: ide/aisetup.inc
 msgid "Can't chat: its local AI app says it is made for something else."
-msgstr ""
+msgstr "无法对话：它的本地 AI 应用说这个模型是为其他用途设计的。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Its local AI app runs this model on a service elsewhere: what you ask is sent there."
-msgstr ""
+msgstr "它的本地 AI 应用在别处的服务上运行这个模型：你的提问会被发送到那里。"
 
 #: ide/aisetup.inc
 msgid "Too big for this computer: it needs {need}; a model can have {most} here at most."
-msgstr ""
+msgstr "对这台电脑来说太大：它需要 {need}；这里的模型最多可用 {most}。"
 
 #: ide/aisetup.inc
 msgid "Its check couldn't finish: {why}"
-msgstr ""
+msgstr "检查未能完成：{why}"
 
 #: ide/aisetup.inc
 msgid "Can chat, but can't build apps with RAI: its tool calls didn't work here."
-msgstr ""
+msgstr "可以对话，但无法配合 RAI 制作应用：它的工具调用在这里没有成功。"
 
 #: ide/aisetup.inc
 msgid "Best match for this computer: it built Studio's test app, answers in about {s} s."
-msgstr ""
+msgstr "最适合这台电脑：它制作出了 Studio 的测试应用，约 {s} 秒给出一次回答。"
 
 #: ide/aisetup.inc
 msgid "It built Studio's test app, answers in about {s} s."
-msgstr ""
+msgstr "它制作出了 Studio 的测试应用，约 {s} 秒给出一次回答。"
 
 #: ide/aisetup.inc
 msgid "Works, but slowly here (about {s} s per answer)."
-msgstr ""
+msgstr "可以使用，但在这里比较慢（每次回答约 {s} 秒）。"
 
 #: ide/aisetup.inc
 msgid "Uses RAI's tools, but couldn't build the test app here: RAI starts its programs from RapidR's recipes."
-msgstr ""
+msgstr "能使用 RAI 的工具，但在这里没能制作出测试应用：RAI 会从 RapidR 的配方出发来写程序。"
 
 #: ide/aisetup.inc
 msgid "Its local AI app says it takes no tools, so RAI can't build apps with it."
-msgstr ""
+msgstr "它的本地 AI 应用表示不支持工具，所以 RAI 无法用它来制作应用。"
 
 #: ide/aisetup.inc
 msgid "A browser can't tell if it fits: Studio on the desktop can check it."
-msgstr ""
+msgstr "浏览器无法判断是否适合：桌面版 Studio 可以检查。"
 
 #: ide/aisetup.inc
 msgid "Its size isn't known: Check My Models to see how it does here."
-msgstr ""
+msgstr "它的大小未知：点击“检查我的模型”看看它在这里表现如何。"
 
 #: ide/aisetup.inc
 msgid "Best match for this computer by its size: Check My Models to see how it does."
-msgstr ""
+msgstr "按大小来看最适合这台电脑：点击“检查我的模型”看看它的表现。"
 
 #: ide/aisetup.inc
 msgid "Needs {need}: close other apps, Look Again, then Check My Models."
-msgstr ""
+msgstr "需要 {need}：请关闭其他应用，点击“重新查找”，再点击“检查我的模型”。"
 
 #: ide/aisetup.inc
 msgid "Needs {need} with a {k}K context. Not checked yet."
-msgstr ""
+msgstr "需要 {need}（上下文为 {k}K）。尚未检查。"
 
 #: ide/aisetup.inc
 msgid "A browser can't tell how much memory this computer has free, so a model's fit can't be checked here: Studio on the desktop can."
-msgstr ""
+msgstr "浏览器无法得知这台电脑还有多少空闲内存，所以无法在这里检查模型是否适合：桌面版 Studio 可以。"
 
 #: ide/aisetup.inc
 msgid "Type your local AI app's address on this computer (for example http://127.0.0.1:11434), then Look. It must allow this page to ask it: the manual says how."
-msgstr ""
+msgstr "输入这台电脑上本地 AI 应用的地址（例如 http://127.0.0.1:11434），然后点击“查找”。它必须允许此页面访问：手册里有具体做法。"
 
 #: ide/aisetup.inc
 msgid "This computer: {total} of memory; {free} free for a model now ({most} with other apps closed)."
-msgstr ""
+msgstr "这台电脑：内存共 {total}；现在可供模型使用的有 {free}（关闭其他应用后可达 {most}）。"
 
+# legal
 #: ide/aisetup.inc
 msgid "No AI model answered on this computer. A local AI app is a free program you install: it keeps AI models on your computer and answers RAI here, so what you ask stays on this computer, unless the app is set up to pass it on. Install one, add a model in it, start it, then go Back and Look Again — or type its address below if it uses another one."
-msgstr ""
+msgstr "没有 AI 模型在这台电脑上响应。本地 AI 应用是一个你自己安装的免费程序：它把 AI 模型保存在你的电脑里，并在本机回答 RAI，因此你的提问会留在这台电脑上，除非该应用被设置为把它转交出去。请安装一个，在其中添加模型并启动它，然后点击“上一步”再点击“重新查找”——如果它使用其他地址，也可以在下方输入它的地址。"
 
 #: ide/aisetup.inc
 msgid "{n} parameters"
-msgstr ""
+msgstr "{n} 参数"
 
 #: ide/aisetup.inc
 msgid "takes tools"
-msgstr ""
+msgstr "支持工具"
 
 #: ide/aisetup.inc
 msgid "no tools"
-msgstr ""
+msgstr "不支持工具"
 
 #: ide/aisetup.inc
 msgid "RAI gets a {k} context"
-msgstr ""
+msgstr "RAI 可使用 {k} 的上下文"
 
 #: ide/aisetup.inc
 msgid "and its small-model mode (shorter instructions, a recipe first)"
-msgstr ""
+msgstr "并启用其小模型模式（更短的指令，先给配方）"
 
+# legal
 #: ide/aisetup.inc
 msgid "Licence, as its local AI app reports it (Studio doesn't check it; it can be wrong or out of date): {licence}."
-msgstr ""
+msgstr "许可证（以其本地 AI 应用报告的为准；Studio 不会核实，可能有误或已过期）：{licence}。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Its local AI app doesn't say its licence: check it where you got the model."
-msgstr ""
+msgstr "它的本地 AI 应用没有说明许可证：请到你获取该模型的地方去核实。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
-msgstr ""
+msgstr "要制作用于销售的应用吗？请查看此模型的许可证：它可能限制商业用途，或限制你如何使用模型所写的内容。"
 
 #: ide/aisetup.inc
 msgid "Stopping the check…"
-msgstr ""
+msgstr "正在停止检查…"
 
 #: ide/aisetup.inc
 msgid "Every model that fits is checked already."
-msgstr ""
+msgstr "所有适合的模型都已检查过。"
 
 #: ide/aisetup.inc
 msgid "Checking models runs in RapidR Studio on the desktop."
-msgstr ""
+msgstr "检查模型需要在桌面版 RapidR Studio 中进行。"
 
 #: ide/aisetup.inc
 msgid "&Stop Checking"
-msgstr ""
+msgstr "停止检查(&S)"
 
 #: ide/aisetup.inc
 msgid "Checking {model} ({k} of {n}): {step}…"
-msgstr ""
+msgstr "正在检查 {model}（第 {k}/{n} 个）：{step}…"
 
 #: ide/aisetup.inc
 msgid "The check stopped. {n} model isn't checked yet: Check My Models goes on with it."
 msgid_plural "The check stopped. {n} models aren't checked yet: Check My Models goes on with them."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "检查已停止。还有 {n} 个模型尚未检查：点击“检查我的模型”可继续。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Optional, about {n} minute: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
 msgid_plural "Optional, about {n} minutes: Studio loads each model that fits here, one at a time, and tries it — how fast it answers, whether it can use RAI's tools, and a tiny app — then lets it go (a model whose size isn't known is tried too). It uses this computer's memory and processor meanwhile, and may close a model another app has loaded. You can stop at any time. Studio only talks to this computer."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "可选，大约 {n} 分钟：Studio 会逐个加载适合这里的模型并试用——测试回答速度、能否使用 RAI 的工具，以及能否做出一个小应用——然后释放它（大小未知的模型也会试用）。期间会占用这台电脑的内存和处理器，并可能关闭其他应用已加载的模型。你可以随时停止。Studio 只会与这台电脑通信。"
 
 #: ide/aisetup.inc
 msgid "Every model that fits is checked. Choose one, then Finish."
-msgstr ""
+msgstr "所有适合的模型都已检查过。选择一个，然后点击“完成”。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Studio only asks this computer: {why}"
-msgstr ""
+msgstr "Studio 只会向这台电脑发出询问：{why}"
 
 #: ide/aisetup.inc
 msgid "Asking {url}…"
-msgstr ""
+msgstr "正在询问 {url}…"
 
 #: ide/aisetup.inc
 msgid "Nothing answered at {url}: {why}"
-msgstr ""
+msgstr "{url} 没有响应：{why}"
 
 #: ide/aisetup.inc
 msgid "Licence of {model}"
-msgstr ""
+msgstr "{model} 的许可证"
 
+# legal
 #: ide/aisetup.inc
 msgid "As its local AI app reports it (Studio doesn't check it). Building apps to sell? Check this model's licence: it may limit commercial use, or what you may do with what the model writes."
-msgstr ""
+msgstr "以其本地 AI 应用报告的为准（Studio 不会核实）。要制作用于销售的应用吗？请查看此模型的许可证：它可能限制商业用途，或限制你如何使用模型所写的内容。"
 
 #: ide/aisetup.inc
 msgid "A key for {name} is already found ({hint}, {store}): Test it, or paste another."
-msgstr ""
+msgstr "已找到 {name} 的密钥（{hint}，{store}）：请测试它，或粘贴另一个。"
 
 #: ide/aisetup.inc
 msgid "Paste the key {name} gave you (Get a key opens its page), then Test the Key."
-msgstr ""
+msgstr "粘贴 {name} 给你的密钥（点击“获取密钥”会打开它的页面），然后点击“测试密钥”。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "Claude 的小型快速模型（Haiku）每个问题约需十分之一美分；最大的模型（Opus）约需几美分。Anthropic 会按你的用量从你的账户扣费：请在其网站上设置每月上限。你发送的内容——你的提问、对话、RAI 读取的项目部分，以及程序运行期间其窗口显示的内容——会发送给 Anthropic，并受其隐私条款约束。你的密钥保存在这台电脑的钥匙串中，绝不会放进项目里。云服务面向成年人：如果你未满 18 岁，请让家长或老师来创建密钥。"
 
+# legal
 #: ide/aisetup.inc
 msgid "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "OpenAI 的小型模型（mini、nano）每个问题只需不到一美分；最大的模型约需几美分。OpenAI 会按你的用量从你的账户扣费：请在其网站上设置每月上限。你发送的内容——你的提问、对话、RAI 读取的项目部分，以及程序运行期间其窗口显示的内容——会发送给 OpenAI，并受其隐私条款约束。你的密钥保存在这台电脑的钥匙串中，绝不会放进项目里。云服务面向成年人：如果你未满 18 岁，请让家长或老师来创建密钥。"
 
+# legal
 #: ide/aisetup.inc
 msgid "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "DeepSeek 的模型每个问题只需不到一美分。DeepSeek 会按你的用量从你的账户扣费（需要在其网站上预先充值）。你发送的内容——你的提问、对话、RAI 读取的项目部分，以及程序运行期间其窗口显示的内容——会发送给位于中国的 DeepSeek，并受其隐私条款约束。你的密钥保存在这台电脑的钥匙串中，绝不会放进项目里。云服务面向成年人：如果你未满 18 岁，请让家长或老师来创建密钥。"
 
+# legal
 #: ide/aisetup.inc
 msgid "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "你需要按用量向服务商付费。你发送的内容——包括程序运行期间其窗口显示的内容——会发送给它，并受其隐私条款约束。你的密钥保存在这台电脑的钥匙串中，绝不会放进项目里。云服务面向成年人：如果你未满 18 岁，请让家长或老师来创建密钥。"
 
+# legal
 #: ide/aisetup.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows."
-msgstr ""
+msgstr "请先粘贴你的 API 密钥：服务商只会向它认识的密钥列出模型。"
 
 #: ide/aisetup.inc
 msgid "Testing the key…"
-msgstr ""
+msgstr "正在测试密钥…"
 
 #: ide/aisetup.inc
 msgid "The key works, but it can chat with no model: check it on the provider's website."
-msgstr ""
+msgstr "密钥有效，但它无法用任何模型进行对话：请到服务商的网站上检查。"
 
 #: ide/aisetup.inc
 msgid "✓ The key works: {n} model. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
 msgid_plural "✓ The key works: {n} models. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "✓ 密钥有效：共 {n} 个模型。第一个 {model} 速度快、费用低，是个不错的开始。选好后点击“完成”。"
 
 #: ide/aisetup.inc
 msgid "Choose a model first: Studio lists the ones on this computer. Start your local AI app and Look Again if the list is empty."
-msgstr ""
+msgstr "请先选择一个模型：Studio 会列出这台电脑上的模型。如果列表为空，请启动本地 AI 应用，然后点击“重新查找”。"
 
+# legal
 #: ide/aisetup.inc
 msgid "{model} runs on a service elsewhere, not on this computer: choose a model that runs here, or set that service up as a cloud service."
-msgstr ""
+msgstr "{model} 在别处的服务上运行，而不是在这台电脑上：请选择在本机运行的模型，或把该服务设置为云服务。"
 
 #: ide/aisetup.inc
 msgid "{model} can't chat: choose another model."
-msgstr ""
+msgstr "{model} 无法对话：请选择其他模型。"
 
 #: ide/aisetup.inc
 msgid "{model} is too big for this computer: choose another model."
-msgstr ""
+msgstr "{model} 对这台电脑来说太大：请选择其他模型。"
 
 #: ide/aisetup.inc
 msgid "Test the key first: then choose one of the provider's models."
-msgstr ""
+msgstr "请先测试密钥：然后选择服务商的一个模型。"
 
 #: ide/aisetup.inc
 msgid "RAI isn't ready yet: {why}"
-msgstr ""
+msgstr "RAI 还没有准备好：{why}"
 
 #: ide/build.inc
 msgid "Project Options"
-msgstr ""
+msgstr "项目选项"
 
 #: ide/build.inc
 msgid "The app's icon"
-msgstr ""
+msgstr "应用图标"
 
 #: ide/build.inc
 msgid "App &name:"
-msgstr ""
+msgstr "应用名称(&N):"
 
 #: ide/build.inc
 msgid "&Bundle ID:"
-msgstr ""
+msgstr "Bundle ID(&B):"
 
 #: ide/build.inc
 msgid "&Version:"
-msgstr ""
+msgstr "版本(&V):"
 
 #: ide/build.inc
 msgid "&Company:"
-msgstr ""
+msgstr "公司(&C):"
 
 #: ide/build.inc
 msgid "&Icon:"
-msgstr ""
+msgstr "图标(&I):"
 
 #: ide/build.inc
 msgid "Choose the icon file"
-msgstr ""
+msgstr "选择图标文件"
 
 #: ide/build.inc
 msgid "Use RapidR's icon"
-msgstr ""
+msgstr "使用 RapidR 的图标"
 
 #: ide/build.inc
 msgid "&Targets:"
-msgstr ""
+msgstr "目标平台(&T):"
 
 #: ide/build.inc
 msgid "Desktop"
-msgstr ""
+msgstr "桌面"
 
 #: ide/build.inc
 msgid "Web"
-msgstr ""
+msgstr "Web"
 
 #: ide/build.inc
 msgid "Desktop and web"
-msgstr ""
+msgstr "桌面和 Web"
 
 #: ide/build.inc
 msgid "Targets: where the program runs"
-msgstr ""
+msgstr "目标平台：程序运行的位置"
 
 #: ide/build.inc
 msgid "B&uild:"
-msgstr ""
+msgstr "构建方式(&U):"
 
 #: ide/build.inc
 msgid "Compiled (native: needs Rust)"
-msgstr ""
+msgstr "编译（原生：需要 Rust）"
 
 #: ide/build.inc
 msgid "Interpreted (no Rust needed)"
-msgstr ""
+msgstr "解释执行（不需要 Rust）"
 
 #: ide/build.inc
 msgid "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
-msgstr ""
+msgstr "发布版本的构建：经过优化，是你要发布的版本。“运行”(F5) 用于运行并调试程序。"
 
 #: ide/build.inc
 msgid "&Output folder:"
-msgstr ""
+msgstr "输出文件夹(&O):"
 
 #: ide/build.inc
 msgid "Output folder: where Build puts the app"
-msgstr ""
+msgstr "输出文件夹：“构建”会把应用放在这里"
 
 #: ide/build.inc
 msgid "Choose the output folder"
-msgstr ""
+msgstr "选择输出文件夹"
 
 #: ide/build.inc
 msgid "&Keep the generated Rust source"
-msgstr ""
+msgstr "保留生成的 Rust 源代码(&K)"
 
 #: ide/build.inc ide/safety.inc ide/settings.inc
 msgid "OK"
-msgstr ""
+msgstr "确定"
 
 #: ide/build.inc
 msgid "In a browser. Problems notes what works on the desktop only."
-msgstr ""
+msgstr "在浏览器中运行。“问题”面板会标出只能在桌面上使用的功能。"
 
 #: ide/build.inc
 msgid "On the desktop and in a browser. Problems notes what works on one of them only."
-msgstr ""
+msgstr "在桌面和浏览器中运行。“问题”面板会标出只能在其中一处使用的功能。"
 
 #: ide/build.inc
 msgid "Native builds and the interpreter. What works on the desktop only isn't noted."
-msgstr ""
+msgstr "原生构建和解释器。只能在桌面上使用的功能不会被标出。"
 
 #: ide/build.inc
 msgid "RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own."
-msgstr ""
+msgstr "程序默认使用 RapidR 的图标。也可选择 .icns、.ico、.png（最好是 1024 x 1024）或 .svg 作为应用自己的图标。"
 
 #: ide/build.inc
 msgid "The app's icon, made into every size each system shows."
-msgstr ""
+msgstr "应用图标，会生成各系统所需的各种尺寸。"
 
 #: ide/build.inc
 msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
-msgstr ""
+msgstr "Rust 是免费的：“构建原生应用”会提示安装它。解释执行则不需要。"
 
 #: ide/build.inc
 msgid "An interpreted build has no Rust: the app runs the program's bytecode."
-msgstr ""
+msgstr "解释执行的构建不含 Rust：应用会运行程序的字节码。"
 
 #: ide/build.inc
 msgid "Left in {path}, beside the app, to read."
-msgstr ""
+msgstr "保留在 {path}（应用旁边），供你阅读。"
 
 #: ide/build.inc
 msgid "Off: the Rust RapidR generates is deleted after the build."
-msgstr ""
+msgstr "关闭：构建后会删除 RapidR 生成的 Rust 代码。"
 
 #: ide/build.inc
 msgid "Compiled (Rust not installed)"
-msgstr ""
+msgstr "编译（未安装 Rust）"
 
 #: ide/build.inc
 msgid "The App's Icon"
-msgstr ""
+msgstr "应用图标"
 
 #: ide/build.inc
 msgid "Icons and pictures"
-msgstr ""
+msgstr "图标和图片"
 
 #: ide/build.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
-msgstr ""
+msgstr "所有文件"
 
 #: ide/build.inc
 msgid "The Output Folder"
-msgstr ""
+msgstr "输出文件夹"
 
 #: ide/build.inc
 msgid "Build: {n} error (see Problems)."
 msgid_plural "Build: {n} errors (see Problems)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "构建：{n} 个错误（见“问题”面板）。"
 
 #: ide/build.inc
 msgid "Can't build: the program has errors"
-msgstr ""
+msgstr "无法构建：程序有错误"
 
 #: ide/build.inc
 msgid "Building {file}..."
-msgstr ""
+msgstr "正在构建 {file}..."
 
 #: ide/build.inc
 msgid "Can't build: {error}"
-msgstr ""
+msgstr "无法构建：{error}"
 
 #: ide/build.inc
 msgid "Can't build {file}"
-msgstr ""
+msgstr "无法构建 {file}"
 
 #: ide/build.inc
 msgid "Installing Rust..."
-msgstr ""
+msgstr "正在安装 Rust..."
 
 #: ide/build.inc
 msgid "Can't install Rust: {error}"
-msgstr ""
+msgstr "无法安装 Rust：{error}"
 
 #: ide/build.inc
 msgid "Can't install Rust"
-msgstr ""
+msgstr "无法安装 Rust"
 
 #: ide/build.inc
 msgid "native"
-msgstr ""
+msgstr "原生"
 
 #: ide/build.inc
 msgid "interpreted"
-msgstr ""
+msgstr "解释执行"
 
 #: ide/build.inc
 msgid "web"
-msgstr ""
+msgstr "Web"
 
 #: ide/build.inc
 msgid "✓ Rust is installed ({seconds} s): Run > Build Native App is ready."
-msgstr ""
+msgstr "✓ Rust 已安装（{seconds} 秒）：可以使用 运行 > 构建原生应用 了。"
 
 #: ide/build.inc
 msgid "Rust is installed"
-msgstr ""
+msgstr "Rust 已安装"
 
 #: ide/build.inc
 msgid "✗ Installing Rust failed (exit code {code}) after {seconds} s: see above. `rapidr setup` in a terminal asks the same questions."
-msgstr ""
+msgstr "✗ 安装 Rust 失败（退出代码 {code}），用时 {seconds} 秒：请看上方的说明。在终端中运行 `rapidr setup` 会提出同样的问题。"
 
 #: ide/build.inc
 msgid "Installing Rust failed"
-msgstr ""
+msgstr "安装 Rust 失败"
 
 #: ide/build.inc
 msgid "✓ Built {file} — unzip on any web host"
-msgstr ""
+msgstr "✓ 已构建 {file}——可在任何 Web 主机上解压使用"
 
 #: ide/build.inc
 msgid "Reveal in {manager}"
-msgstr ""
+msgstr "在 {manager} 中显示"
 
 #: ide/build.inc
 msgid "Built {file}"
-msgstr ""
+msgstr "已构建 {file}"
 
 #: ide/build.inc
 msgid "✓ Built {file} ({mode}) in {seconds} s"
-msgstr ""
+msgstr "✓ 已构建 {file}（{mode}），用时 {seconds} 秒"
 
 #: ide/build.inc
 msgid "✗ The build failed (exit code {code}) after {seconds} s: see above."
-msgstr ""
+msgstr "✗ 构建失败（退出代码 {code}），用时 {seconds} 秒：请看上方的说明。"
 
 #: ide/build.inc
 msgid "The build failed"
-msgstr ""
+msgstr "构建失败"
 
 #: ide/build.inc
 msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
-msgstr ""
+msgstr "还没有构建任何内容：使用 运行 > 构建 (Ctrl+Shift+B) 来生成应用。"
 
 #: ide/build.inc ide/panels.inc
 msgid "Can't show it: {error}"
-msgstr ""
+msgstr "无法显示：{error}"
 
 #: ide/chrome.inc ide/versions.inc
 msgid "{experiment} is the experiment you're on (Git calls it a branch)"
-msgstr ""
+msgstr "{experiment} 是你当前所在的实验（Git 称之为分支）"
 
 #: ide/chrome.inc ide/editor.inc
 msgid "Ln {line}, Col {col}"
-msgstr ""
+msgstr "行 {line}，列 {col}"
 
 #: ide/commands.inc
 msgid "&New Project..."
-msgstr ""
+msgstr "新建项目(&N)..."
 
 #: ide/commands.inc
 msgid "&Open Project or File..."
-msgstr ""
+msgstr "打开项目或文件(&O)..."
 
 #: ide/commands.inc
 msgid "Open &Folder..."
-msgstr ""
+msgstr "打开文件夹(&F)..."
 
 #: ide/commands.inc
 msgid "Open &Recent"
-msgstr ""
+msgstr "打开最近的文件(&R)"
 
 #: ide/commands.inc
 msgid "No Recent Projects or Files"
-msgstr ""
+msgstr "没有最近的项目或文件"
 
 #: ide/commands.inc
 msgid "&Clear Recent"
-msgstr ""
+msgstr "清除最近记录(&C)"
 
 #: ide/commands.inc
 msgid "Open &Example..."
-msgstr ""
+msgstr "打开示例(&E)..."
 
 #: ide/commands.inc
 msgid "Copy Example Again from the Ori&ginal..."
-msgstr ""
+msgstr "从原版重新复制示例(&G)..."
 
 #: ide/commands.inc
 msgid "&Import RapidQ Project or File..."
-msgstr ""
+msgstr "导入 RapidQ 项目或文件(&I)..."
 
 #: ide/commands.inc
 msgid "Import RapidQ Fol&der..."
-msgstr ""
+msgstr "导入 RapidQ 文件夹(&D)..."
 
 #: ide/commands.inc ide/prompts.inc
 msgid "&Save"
-msgstr ""
+msgstr "保存(&S)"
 
 #: ide/commands.inc
 msgid "Save &As..."
-msgstr ""
+msgstr "另存为(&A)..."
 
 #: ide/commands.inc
 msgid "Save A&ll"
-msgstr ""
+msgstr "全部保存(&L)"
 
 #: ide/commands.inc
 msgid "Save a &Version..."
-msgstr ""
+msgstr "保存版本(&V)..."
 
 #: ide/commands.inc
 msgid "Versio&ns"
-msgstr ""
+msgstr "版本(&N)"
 
 #: ide/commands.inc
 msgid "&Start Versioning This Project"
-msgstr ""
+msgstr "开始记录此项目的版本(&S)"
 
 #: ide/commands.inc ide/versions.inc
 msgid "What &Changed?"
-msgstr ""
+msgstr "有哪些更改？(&C)"
 
 #: ide/commands.inc
 msgid "What Changed Since the &Last Version"
-msgstr ""
+msgstr "查看自上一个版本以来的更改(&L)"
 
 #: ide/commands.inc ide/versions.inc
 msgid "&Go Back to This Version..."
-msgstr ""
+msgstr "回到此版本(&G)..."
 
 #: ide/commands.inc ide/versions.inc
 msgid "Go Back to This Version for This &File..."
-msgstr ""
+msgstr "将此文件回到此版本(&F)..."
 
 #: ide/commands.inc
 msgid "&Undo the Last Versions Action"
-msgstr ""
+msgstr "撤销上一次版本操作(&U)"
 
 #: ide/commands.inc
 msgid "S&how This Line's Change"
-msgstr ""
+msgstr "显示此行的更改(&H)"
 
 #: ide/commands.inc
 msgid "Undo This &Line's Change"
-msgstr ""
+msgstr "撤销此行的更改(&L)"
 
 #: ide/commands.inc
 msgid "Local &History of This File..."
-msgstr ""
+msgstr "此文件的本地历史记录(&H)..."
 
 #: ide/commands.inc
 msgid "Changed Outside S&tudio"
-msgstr ""
+msgstr "在 Studio 之外被更改(&T)"
 
 #: ide/commands.inc
 msgid "&Compare with the Disk's Version"
-msgstr ""
+msgstr "与磁盘上的版本比较(&C)"
 
 #: ide/commands.inc ide/external.inc ide/versions.inc
 msgid "&Use Disk Version"
-msgstr ""
+msgstr "使用磁盘上的版本(&U)"
 
 #: ide/commands.inc ide/external.inc
 msgid "&Keep Mine"
-msgstr ""
+msgstr "保留我的版本(&K)"
 
 #: ide/commands.inc
 msgid "&Close Document"
-msgstr ""
+msgstr "关闭文档(&C)"
 
 #: ide/commands.inc
 msgid "Reo&pen Project"
-msgstr ""
+msgstr "重新打开项目(&P)"
 
 #: ide/commands.inc
 msgid "Close Pro&ject"
-msgstr ""
+msgstr "关闭项目(&J)"
 
 #: ide/commands.inc
 msgid "E&xit"
-msgstr ""
+msgstr "退出(&X)"
 
 #: ide/commands.inc ide/versions.inc
 msgid "&Undo"
-msgstr ""
+msgstr "撤销(&U)"
 
 #: ide/commands.inc
 msgid "&Redo"
-msgstr ""
+msgstr "重做(&R)"
 
 #: ide/commands.inc ide/search.inc
 msgid "Cu&t"
-msgstr ""
+msgstr "剪切(&T)"
 
 #: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc ide/search.inc
 msgid "&Copy"
-msgstr ""
+msgstr "复制(&C)"
 
 #: ide/commands.inc ide/search.inc
 msgid "&Paste"
-msgstr ""
+msgstr "粘贴(&P)"
 
 #: ide/commands.inc
 msgid "&Delete"
-msgstr ""
+msgstr "删除(&D)"
 
 #: ide/commands.inc ide/search.inc
 msgid "Select &All"
-msgstr ""
+msgstr "全选(&A)"
 
 #: ide/commands.inc
 msgid "D&uplicate"
-msgstr ""
+msgstr "创建副本(&U)"
 
 #: ide/commands.inc
 msgid "&Find..."
-msgstr ""
+msgstr "查找(&F)..."
 
 #: ide/commands.inc
 msgid "R&eplace..."
-msgstr ""
+msgstr "替换(&E)..."
 
 #: ide/commands.inc ide/search.inc
 msgid "Find in F&iles..."
-msgstr ""
+msgstr "在文件中查找(&I)..."
 
 #: ide/commands.inc
 msgid "&Go to Line..."
-msgstr ""
+msgstr "转到行(&G)..."
 
 #: ide/commands.inc
 msgid "Find &Next"
-msgstr ""
+msgstr "查找下一个(&N)"
 
 #: ide/commands.inc
 msgid "Find Pre&vious"
-msgstr ""
+msgstr "查找上一个(&V)"
 
 #: ide/commands.inc
 msgid "Ad&vanced"
-msgstr ""
+msgstr "高级(&V)"
 
 #: ide/commands.inc
 msgid "&Indent Lines"
-msgstr ""
+msgstr "增加缩进(&I)"
 
 #: ide/commands.inc
 msgid "&Outdent Lines"
-msgstr ""
+msgstr "减少缩进(&O)"
 
 #: ide/commands.inc
 msgid "Select Next &Occurrence"
-msgstr ""
+msgstr "选择下一个匹配项(&O)"
 
 #: ide/commands.inc
 msgid "Go to Matching &Bracket"
-msgstr ""
+msgstr "转到匹配的括号(&B)"
 
 #: ide/commands.inc
 msgid "&Fold"
-msgstr ""
+msgstr "折叠(&F)"
 
 #: ide/commands.inc
 msgid "&Unfold"
-msgstr ""
+msgstr "展开(&U)"
 
 #: ide/commands.inc
 msgid "Fold &All"
-msgstr ""
+msgstr "全部折叠(&A)"
 
 #: ide/commands.inc
 msgid "Unfold A&ll"
-msgstr ""
+msgstr "全部展开(&L)"
 
 #: ide/commands.inc
 msgid "&Parameter Info"
-msgstr ""
+msgstr "参数信息(&P)"
 
 #: ide/commands.inc
 msgid "Show &Hover"
-msgstr ""
+msgstr "显示悬停提示(&H)"
 
 #: ide/commands.inc
 msgid "&Word Wrap"
-msgstr ""
+msgstr "自动换行(&W)"
 
 #: ide/commands.inc
 msgid "Complete &Word"
-msgstr ""
+msgstr "补全单词(&W)"
 
 #: ide/commands.inc
 msgid "&Quick Fix..."
-msgstr ""
+msgstr "快速修复(&Q)..."
 
 #: ide/commands.inc ide/search.inc
 msgid "Go to &Definition"
-msgstr ""
+msgstr "转到定义(&D)"
 
 #: ide/commands.inc
 msgid "Find Re&ferences"
-msgstr ""
+msgstr "查找引用(&F)"
 
 #: ide/commands.inc
 msgid "Navigate &Back"
-msgstr ""
+msgstr "向后导航(&B)"
 
 #: ide/commands.inc
 msgid "Navigate For&ward"
-msgstr ""
+msgstr "向前导航(&W)"
 
 #: ide/commands.inc ide/search.inc
 msgid "Re&name Symbol..."
-msgstr ""
+msgstr "重命名符号(&N)..."
 
 #: ide/commands.inc
 msgid "Toggle &Comment"
-msgstr ""
+msgstr "切换注释(&C)"
 
 #: ide/commands.inc
 msgid "F&ormat Document"
-msgstr ""
+msgstr "格式化文档(&O)"
 
 #: ide/commands.inc
 msgid "Command &Palette..."
-msgstr ""
+msgstr "命令面板(&P)..."
 
 #: ide/commands.inc
 msgid "&Go to Anything..."
-msgstr ""
+msgstr "转到任何内容(&G)..."
 
 #: ide/commands.inc
 msgid "&Project"
-msgstr ""
+msgstr "项目(&P)"
 
 #: ide/commands.inc
 msgid "&Toolbox"
-msgstr ""
+msgstr "工具箱(&T)"
 
 #: ide/commands.inc
 msgid "P&roperties"
-msgstr ""
+msgstr "属性(&R)"
 
 #: ide/commands.inc
 msgid "O&utline"
-msgstr ""
+msgstr "大纲(&U)"
 
 #: ide/commands.inc
 msgid "&Output"
-msgstr ""
+msgstr "输出(&O)"
 
 #: ide/commands.inc
 msgid "Pro&blems"
-msgstr ""
+msgstr "问题(&B)"
 
 #: ide/commands.inc
 msgid "Wrap &Long Output Lines"
-msgstr ""
+msgstr "长输出行自动换行(&L)"
 
 #: ide/commands.inc
 msgid "&Immediate"
-msgstr ""
+msgstr "即时(&I)"
 
 #: ide/commands.inc
 msgid "&Variables"
-msgstr ""
+msgstr "变量(&V)"
 
 #: ide/commands.inc
 msgid "W&atch"
-msgstr ""
+msgstr "监视(&A)"
 
 #: ide/commands.inc
 msgid "Call &Stack"
-msgstr ""
+msgstr "调用堆栈(&S)"
 
 #: ide/commands.inc
 msgid "&Breakpoints"
-msgstr ""
+msgstr "断点(&B)"
 
 #: ide/commands.inc
 msgid "&Debug Panes"
-msgstr ""
+msgstr "调试面板(&D)"
 
 #: ide/commands.inc
 msgid "&Welcome Page"
-msgstr ""
+msgstr "欢迎页(&W)"
 
 #: ide/commands.inc
 msgid "&AI Assistant"
-msgstr ""
+msgstr "AI 助手(&A)"
 
 #: ide/commands.inc
 msgid "&Code"
-msgstr ""
+msgstr "代码(&C)"
 
 #: ide/commands.inc
 msgid "&Designer"
-msgstr ""
+msgstr "设计器(&D)"
 
 #: ide/commands.inc
 msgid "Zoom &In"
-msgstr ""
+msgstr "放大(&I)"
 
 #: ide/commands.inc
 msgid "Zoom O&ut"
-msgstr ""
+msgstr "缩小(&U)"
 
 #: ide/commands.inc
 msgid "Actual Si&ze"
-msgstr ""
+msgstr "实际大小(&Z)"
 
 #: ide/commands.inc
 msgid "Zoom to &Fit"
-msgstr ""
+msgstr "缩放以适应(&F)"
 
 #: ide/commands.inc
 msgid "Toggle &Form / Code"
-msgstr ""
+msgstr "切换窗体 / 代码(&F)"
 
 #: ide/commands.inc
 msgid "Designer and Code &Side by Side"
-msgstr ""
+msgstr "设计器与代码并排显示(&S)"
 
 #: ide/commands.inc
 msgid "T&heme"
-msgstr ""
+msgstr "主题(&H)"
 
 #: ide/commands.inc
 msgid "&RapidR (as the System)"
-msgstr ""
+msgstr "RapidR（跟随系统）(&R)"
 
 #: ide/commands.inc
 msgid "RapidR &Light"
-msgstr ""
+msgstr "RapidR 浅色(&L)"
 
 #: ide/commands.inc
 msgid "RapidR &Dark"
-msgstr ""
+msgstr "RapidR 深色(&D)"
 
 #: ide/commands.inc
 msgid "RapidR &High Contrast"
-msgstr ""
+msgstr "RapidR 高对比度(&H)"
 
 #: ide/commands.inc
 msgid "&Classic (Windows)"
-msgstr ""
+msgstr "经典（Windows）(&C)"
 
 #: ide/commands.inc
 msgid "&Reset Layout"
-msgstr ""
+msgstr "重置布局(&R)"
 
 #: ide/commands.inc
 msgid "Add &File..."
-msgstr ""
+msgstr "添加文件(&F)..."
 
 #: ide/commands.inc
 msgid "Add F&orm"
-msgstr ""
+msgstr "添加窗体(&O)"
 
 #: ide/commands.inc
 msgid "Add &Module"
-msgstr ""
+msgstr "添加模块(&M)"
 
 #: ide/commands.inc
 msgid "Add a Form to This F&ile"
-msgstr ""
+msgstr "向此文件添加窗体(&I)"
 
 #: ide/commands.inc
 msgid "Project &Options..."
-msgstr ""
+msgstr "项目选项(&O)..."
 
 #: ide/commands.inc
 msgid "&Run"
-msgstr ""
+msgstr "运行(&R)"
 
 #: ide/commands.inc
 msgid "Run &Without Debugging"
-msgstr ""
+msgstr "不调试运行(&W)"
 
 #: ide/commands.inc ide/mcp.inc
 msgid "&Stop"
-msgstr ""
+msgstr "停止(&S)"
 
 #: ide/commands.inc
 msgid "R&estart"
-msgstr ""
+msgstr "重新启动(&E)"
 
 #: ide/commands.inc
 msgid "Run in &Browser"
-msgstr ""
+msgstr "在浏览器中运行(&B)"
 
 #: ide/commands.inc
 msgid "&Build Web App (.zip)"
-msgstr ""
+msgstr "构建 Web 应用 (.zip)(&B)"
 
 #: ide/commands.inc
 msgid "&Build"
-msgstr ""
+msgstr "构建(&B)"
 
 #: ide/commands.inc
 msgid "Build &Native App"
-msgstr ""
+msgstr "构建原生应用(&N)"
 
 #: ide/commands.inc
 msgid "Build &Interpreted App"
-msgstr ""
+msgstr "构建解释执行应用(&I)"
 
 #: ide/commands.inc
 msgid "Build &Web App"
-msgstr ""
+msgstr "构建 Web 应用(&W)"
 
 #: ide/commands.inc
 msgid "Reveal the &App"
-msgstr ""
+msgstr "显示应用所在位置(&A)"
 
 #: ide/commands.inc
 msgid "&Continue"
-msgstr ""
+msgstr "继续(&C)"
 
 #: ide/commands.inc
 msgid "&Pause"
-msgstr ""
+msgstr "暂停(&P)"
 
 #: ide/commands.inc
 msgid "Show Program &Window"
-msgstr ""
+msgstr "显示程序窗口(&W)"
 
 #: ide/commands.inc
 msgid "Step &Into"
-msgstr ""
+msgstr "单步进入(&I)"
 
 #: ide/commands.inc
 msgid "Step &Over"
-msgstr ""
+msgstr "单步跳过(&O)"
 
 #: ide/commands.inc
 msgid "Step O&ut"
-msgstr ""
+msgstr "单步跳出(&U)"
 
 #: ide/commands.inc
 msgid "Run to C&ursor"
-msgstr ""
+msgstr "运行到光标处(&U)"
 
 #: ide/commands.inc
 msgid "Set &Next Statement"
-msgstr ""
+msgstr "设为下一条语句(&N)"
 
 #: ide/commands.inc
 msgid "Step Into &Specific..."
-msgstr ""
+msgstr "单步进入指定函数(&S)..."
 
 #: ide/commands.inc
 msgid "Toggle &Breakpoint"
-msgstr ""
+msgstr "切换断点(&B)"
 
 #: ide/commands.inc
 msgid "&Edit Breakpoint..."
-msgstr ""
+msgstr "编辑断点(&E)..."
 
 #: ide/commands.inc
 msgid "&Delete All Breakpoints"
-msgstr ""
+msgstr "删除所有断点(&D)"
 
 #: ide/commands.inc ide/debug.inc
 msgid "Add &Watch"
-msgstr ""
+msgstr "添加监视(&W)"
 
 #: ide/commands.inc
 msgid "Stop at Run-time &Errors"
-msgstr ""
+msgstr "在运行时错误处停止(&E)"
 
 #: ide/commands.inc
 msgid "Align &Lefts"
-msgstr ""
+msgstr "左对齐(&L)"
 
 #: ide/commands.inc
 msgid "Align &Rights"
-msgstr ""
+msgstr "右对齐(&R)"
 
 #: ide/commands.inc
 msgid "Align &Tops"
-msgstr ""
+msgstr "顶端对齐(&T)"
 
 #: ide/commands.inc
 msgid "Align &Bottoms"
-msgstr ""
+msgstr "底端对齐(&B)"
 
 #: ide/commands.inc
 msgid "Align C&enters"
-msgstr ""
+msgstr "水平居中对齐(&E)"
 
 #: ide/commands.inc
 msgid "Align &Middles"
-msgstr ""
+msgstr "垂直居中对齐(&M)"
 
 #: ide/commands.inc
 msgid "Make Same &Width"
-msgstr ""
+msgstr "宽度相同(&W)"
 
 #: ide/commands.inc
 msgid "Make Same &Height"
-msgstr ""
+msgstr "高度相同(&H)"
 
 #: ide/commands.inc
 msgid "Make Same &Size"
-msgstr ""
+msgstr "大小相同(&S)"
 
 #: ide/commands.inc
 msgid "Space Evenly Acr&oss"
-msgstr ""
+msgstr "水平等间距(&O)"
 
 #: ide/commands.inc
 msgid "Space Evenly &Down"
-msgstr ""
+msgstr "垂直等间距(&D)"
 
 #: ide/commands.inc
 msgid "Center H&orizontally"
-msgstr ""
+msgstr "水平居中(&O)"
 
 #: ide/commands.inc
 msgid "Center &Vertically"
-msgstr ""
+msgstr "垂直居中(&V)"
 
 #: ide/commands.inc
 msgid "Bring to &Front"
-msgstr ""
+msgstr "置于顶层(&F)"
 
 #: ide/commands.inc
 msgid "Send to Bac&k"
-msgstr ""
+msgstr "置于底层(&K)"
 
 #: ide/commands.inc
 msgid "Edit &Caption"
-msgstr ""
+msgstr "编辑标题(&C)"
 
 #: ide/commands.inc
 msgid "&Menu Editor"
-msgstr ""
+msgstr "菜单编辑器(&M)"
 
 #: ide/commands.inc
 msgid "Tab &Order"
-msgstr ""
+msgstr "Tab 键顺序(&O)"
 
 #: ide/commands.inc
 msgid "&Settings..."
-msgstr ""
+msgstr "设置(&S)..."
 
 #: ide/commands.inc
 msgid "&Keyboard Shortcuts"
-msgstr ""
+msgstr "键盘快捷键(&K)"
 
 #: ide/commands.inc ide/settings.inc
 msgid "Set &Up RAI..."
-msgstr ""
+msgstr "配置 RAI(&U)..."
 
 #: ide/commands.inc
 msgid "&AI Settings..."
-msgstr ""
+msgstr "AI 设置(&A)..."
 
 #: ide/commands.inc
 msgid "New AI &Chat"
-msgstr ""
+msgstr "新建 AI 对话(&C)"
 
 #: ide/commands.inc
 msgid "AI C&hats"
-msgstr ""
+msgstr "AI 对话(&H)"
 
 #: ide/commands.inc
 msgid "Co&mpact the AI Chat"
-msgstr ""
+msgstr "压缩 AI 对话(&M)"
 
 #: ide/commands.inc
 msgid "&Review the AI's Changes..."
-msgstr ""
+msgstr "审阅 AI 的更改(&R)..."
 
 #: ide/commands.inc
 msgid "&What Was Sent to the AI..."
-msgstr ""
+msgstr "发送给 AI 的内容(&W)..."
 
 #: ide/commands.inc
 msgid "AI A&pps Settings..."
-msgstr ""
+msgstr "AI 应用设置(&P)..."
 
 #: ide/commands.inc
 msgid "AI Apps Acti&vity"
-msgstr ""
+msgstr "AI 应用活动(&V)"
 
 #: ide/commands.inc
 msgid "School &Lock..."
-msgstr ""
+msgstr "学校锁定(&L)..."
 
 #: ide/commands.inc
 msgid "Split &Right"
-msgstr ""
+msgstr "向右拆分(&R)"
 
 #: ide/commands.inc
 msgid "Split &Down"
-msgstr ""
+msgstr "向下拆分(&D)"
 
 #: ide/commands.inc
 msgid "&Next Document"
-msgstr ""
+msgstr "下一个文档(&N)"
 
 #: ide/commands.inc
 msgid "&Previous Document"
-msgstr ""
+msgstr "上一个文档(&P)"
 
 #: ide/commands.inc
 msgid "Next &Area"
-msgstr ""
+msgstr "下一个区域(&A)"
 
 #: ide/commands.inc
 msgid "&Resize Panes"
-msgstr ""
+msgstr "调整面板大小(&R)"
 
 #: ide/commands.inc
 msgid "Close &All Documents"
-msgstr ""
+msgstr "关闭所有文档(&A)"
 
 #: ide/commands.inc
 msgid "RapidR &Help"
-msgstr ""
+msgstr "RapidR 帮助(&H)"
 
 #: ide/commands.inc
 msgid "&Examples"
-msgstr ""
+msgstr "示例(&E)"
 
 #: ide/commands.inc
 msgid "&About RapidR Studio"
-msgstr ""
+msgstr "关于 RapidR Studio(&A)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&File"
-msgstr ""
+msgstr "文件(&F)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Edit"
-msgstr ""
+msgstr "编辑(&E)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&View"
-msgstr ""
+msgstr "视图(&V)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Project"
-msgstr ""
+msgstr "项目(&P)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Run"
-msgstr ""
+msgstr "运行(&R)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Debug"
-msgstr ""
+msgstr "调试(&D)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "F&ormat"
-msgstr ""
+msgstr "格式(&O)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Tools"
-msgstr ""
+msgstr "工具(&T)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Window"
-msgstr ""
+msgstr "窗口(&W)"
 
 #: ide/commands.inc
 msgctxt "menubar"
 msgid "&Help"
-msgstr ""
+msgstr "帮助(&H)"
 
 #: ide/consent.inc
 msgid "Learn more"
-msgstr ""
+msgstr "了解更多"
 
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
-msgstr ""
+msgstr "在浏览器中打开手册中的相关页面"
 
 #: ide/crash.inc
 msgid "&View Report"
-msgstr ""
+msgstr "查看报告(&V)"
 
 #: ide/crash.inc
 msgid "Cop&y Report"
-msgstr ""
+msgstr "复制报告(&Y)"
 
 #: ide/crash.inc
 msgid "Sa&ve Report..."
-msgstr ""
+msgstr "保存报告(&S)..."
 
 #: ide/crash.inc
 msgid "Report on &GitHub..."
-msgstr ""
+msgstr "在 GitHub 上报告(&G)..."
 
 #: ide/crash.inc
 msgid "&Dismiss"
-msgstr ""
+msgstr "忽略(&D)"
 
 #: ide/crash.inc
 msgid "Opens the report in a tab"
-msgstr ""
+msgstr "在标签页中打开报告"
 
 #: ide/crash.inc
 msgid "Copies the report's text"
-msgstr ""
+msgstr "复制报告文本"
 
 #: ide/crash.inc
 msgid "Saves a copy of the report where you choose"
-msgstr ""
+msgstr "把报告的副本保存到你选择的位置"
 
+# legal
 #: ide/crash.inc
 msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
-msgstr ""
+msgstr "在浏览器中打开 GitHub 上的新议题页面，并填入报告内容。在你亲自到那里提交之前，不会发送任何内容。"
 
+# legal
 #: ide/crash.inc
 msgid "Closes this note. The report stays on this computer for 30 days."
-msgstr ""
+msgstr "关闭此提示。报告会在这台电脑上保留 30 天。"
 
 #: ide/crash.inc
 msgid "RapidR Studio isn't responding"
-msgstr ""
+msgstr "RapidR Studio 没有响应"
 
+# legal
 #: ide/crash.inc
 msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
-msgstr ""
+msgstr "它的窗口已有几秒钟没有回应。“等待”会再给它一些时间。“保存副本并退出”会关闭它：你输入时它每 20 秒保留的未保存工作副本，会在它再次启动时提供给你。这台电脑上已写入一份报告。"
 
 #: ide/crash.inc
 msgid "&Wait"
-msgstr ""
+msgstr "等待(&W)"
 
 #: ide/crash.inc
 msgid "&Save Copies and Quit"
-msgstr ""
+msgstr "保存副本并退出(&S)"
 
 #: ide/crash.inc
 msgid "RapidR Studio stopped responding last time and was closed."
-msgstr ""
+msgstr "上次 RapidR Studio 停止响应，已被关闭。"
 
 #: ide/crash.inc
 msgid "RapidR Studio closed unexpectedly last time."
-msgstr ""
+msgstr "上次 RapidR Studio 意外关闭了。"
 
+# legal
 #: ide/crash.inc
 msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
-msgstr ""
+msgstr "发生了什么的报告保存在这台电脑上，没有发送任何内容。你可以查看、复制、保存它，也可以在 GitHub 上报告这个问题来帮助修复。"
 
 #: ide/crash.inc
 msgid "The report isn't there any more."
-msgstr ""
+msgstr "报告已不存在。"
 
 #: ide/crash.inc
 msgid "The report was copied."
-msgstr ""
+msgstr "报告已复制。"
 
 #: ide/crash.inc
 msgid "Save Report"
-msgstr ""
+msgstr "保存报告"
 
 #: ide/crash.inc
 msgid "Text files"
-msgstr ""
+msgstr "文本文件"
 
 #: ide/crash.inc
 msgid "Saved the report as {file}."
-msgstr ""
+msgstr "报告已保存为 {file}。"
 
 #: ide/crash.inc
 msgid "Couldn't save the report: {error}"
-msgstr ""
+msgstr "无法保存报告：{error}"
 
 #: ide/crash.inc
 msgid "Report this on GitHub?"
-msgstr ""
+msgstr "在 GitHub 上报告此问题？"
 
+# legal
 #: ide/crash.inc
 msgid "Your browser opens RapidR's page for a new issue on GitHub, filled in with this report. Nothing is sent until you send it there yourself."
-msgstr ""
+msgstr "你的浏览器会打开 RapidR 在 GitHub 上的新议题页面，并填入这份报告。在你亲自到那里提交之前，不会发送任何内容。"
 
 #: ide/crash.inc
 msgid "It shows"
-msgstr ""
+msgstr "内容包括"
 
+# legal
 #: ide/crash.inc
 msgid "RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords."
-msgstr ""
+msgstr "RapidR 的版本、你的系统、停止的位置、最后几条消息，以及最后几次 AI 调用的名称。你的主文件夹显示为 ~；不含文件内容、密钥或密码。"
 
 #: ide/crash.inc
 msgid "You need"
-msgstr ""
+msgstr "你需要"
 
+# legal
 #: ide/crash.inc
 msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
-msgstr ""
+msgstr "一个 GitHub 账号。GitHub 的条款要求年满 13 岁；更小的学生可以请老师或家长代为报告。"
 
+# legal
 #: ide/crash.inc ide/mcp.inc
 msgid "Keep in mind"
-msgstr ""
+msgstr "请注意"
 
+# legal
 #: ide/crash.inc
 msgid "Issues on GitHub are public: anyone can read them. Read the report first, and take out anything you don't want to share."
-msgstr ""
+msgstr "GitHub 上的议题是公开的：任何人都可以阅读。请先阅读报告，并删去你不想分享的内容。"
 
 #: ide/crash.inc
 msgid "&Open GitHub"
-msgstr ""
+msgstr "打开 GitHub(&O)"
 
 #: ide/crash.inc
 msgid "The page has a shorter report; the whole one was copied: paste it into the issue's text too."
-msgstr ""
+msgstr "页面中的报告较短；完整的报告已复制：请也把它粘贴到议题的正文中。"
 
 #: ide/crash.inc
 msgid "the stack overflowed (calls went too deep)"
-msgstr ""
+msgstr "堆栈溢出（调用嵌套太深）"
 
 #: ide/crash.inc ide/safety.inc
 msgid "{file} line {n}"
-msgstr ""
+msgstr "{file} 第 {n} 行"
 
 #: ide/crash.inc ide/safety.inc
 msgid "line {n}"
-msgstr ""
+msgstr "第 {n} 行"
 
 #: ide/crash.inc
 msgid "{place}, in {routine}"
-msgstr ""
+msgstr "{place}，位于 {routine} 中"
 
 #: ide/crash.inc
 msgid "{place}, in the main program"
-msgstr ""
+msgstr "{place}，位于主程序中"
 
 #: ide/crash.inc
 msgid "{event} of {component}"
-msgstr ""
+msgstr "{component} 的 {event}"
 
 #: ide/crash.inc
 msgid "Your program stopped: {what}, at {where}."
-msgstr ""
+msgstr "你的程序已停止：{what}，位置：{where}。"
 
 #: ide/crash.inc
 msgid "Your program stopped: {what}."
-msgstr ""
+msgstr "你的程序已停止：{what}。"
 
 #: ide/crash.inc
 msgid "RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer:"
-msgstr ""
+msgstr "RapidR 停止了它：这是 RapidR 的问题，不是你的代码的问题。报告保存在这台电脑上："
 
 #: ide/crash.inc
 msgid "View Report"
-msgstr ""
+msgstr "查看报告"
 
 #: ide/crash.inc
 msgid "Your program stopped: a problem in RapidR"
-msgstr ""
+msgstr "你的程序已停止：RapidR 出现问题"
 
 #: ide/debug.inc
 msgid "Text"
-msgstr ""
+msgstr "文本"
 
 #: ide/debug.inc
 msgid "The text"
-msgstr ""
+msgstr "文本内容"
 
 #: ide/debug.inc
 msgid "Set Value"
-msgstr ""
+msgstr "设置值"
 
 #: ide/debug.inc
 msgid "The new text"
-msgstr ""
+msgstr "新文本"
 
 #: ide/debug.inc
 msgid "&Set"
-msgstr ""
+msgstr "设置(&S)"
 
 #: ide/debug.inc
 msgid "Running…"
-msgstr ""
+msgstr "正在运行…"
 
 #: ide/debug.inc
 msgid "The program has no window to bring to the front"
-msgstr ""
+msgstr "程序没有可置于前台的窗口"
 
 #: ide/debug.inc
 msgid "Breakpoint removed: {file}, line {line}"
-msgstr ""
+msgstr "已移除断点：{file}，第 {line} 行"
 
 #: ide/debug.inc
 msgid "Breakpoint at {file}, line {line}"
-msgstr ""
+msgstr "断点位于 {file}，第 {line} 行"
 
 #: ide/debug.inc
 msgid "Every breakpoint removed"
-msgstr ""
+msgstr "已移除所有断点"
 
 #: ide/debug.inc
 msgid "(off)"
-msgstr ""
+msgstr "（关）"
 
 #: ide/debug.inc
 msgid "(no code here: never stops)"
-msgstr ""
+msgstr "（这里没有代码：永远不会停下）"
 
 #: ide/debug.inc
 msgid "when {condition}"
-msgstr ""
+msgstr "当 {condition}"
 
 #: ide/debug.inc
 msgid "hit {count}"
-msgstr ""
+msgstr "命中 {count}"
 
 #: ide/debug.inc
 msgid "log {message}"
-msgstr ""
+msgstr "日志 {message}"
 
 #: ide/debug.inc
 msgid "Breakpoints ({n})"
-msgstr ""
+msgstr "断点 ({n})"
 
 #: ide/debug.inc
 msgid "Breakpoints"
-msgstr ""
+msgstr "断点"
 
 #: ide/debug.inc
 msgid "Breakpoint {text}"
-msgstr ""
+msgstr "断点 {text}"
 
 #: ide/debug.inc
 msgid "Nothing to run: open a project or a program first (File > Open, or an example)."
-msgstr ""
+msgstr "没有可运行的内容：请先打开项目或程序（文件 > 打开，或打开示例）。"
 
 #: ide/debug.inc
 msgid "Nothing to run: no project is open"
-msgstr ""
+msgstr "没有可运行的内容：没有打开项目"
 
 #: ide/debug.inc
 msgid "{file} is running already: Stop it first (Shift+F5)"
-msgstr ""
+msgstr "{file} 已在运行：请先停止它 (Shift+F5)"
 
 #: ide/debug.inc
 msgid "{file} is paused already: Stop it first (Shift+F5)"
-msgstr ""
+msgstr "{file} 已处于暂停状态：请先停止它 (Shift+F5)"
 
 #: ide/debug.inc
 msgid "Can't run: the project's main file isn't set. Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
-msgstr ""
+msgstr "无法运行：尚未设置项目的主文件。请在项目属性中选择：先在“项目”面板中选中项目名称，再设置 MainFile。"
 
 #: ide/debug.inc
 msgid "Can't run: the project's main file {file} isn't there. Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
-msgstr ""
+msgstr "无法运行：项目的主文件 {file} 不存在。请在项目属性中选择：先在“项目”面板中选中项目名称，再设置 MainFile。"
 
 #: ide/debug.inc
 msgid "Can't run: no main file"
-msgstr ""
+msgstr "无法运行：没有主文件"
 
 #: ide/debug.inc
 msgid "Can't run: {n} error. The first is selected."
 msgid_plural "Can't run: {n} errors. The first is selected."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "无法运行：有 {n} 个错误。已选中第一个。"
 
 #: ide/debug.inc
 msgid "Running {file}"
-msgstr ""
+msgstr "正在运行 {file}"
 
 #: ide/debug.inc
 msgid "Can't run {file}: {error}"
-msgstr ""
+msgstr "无法运行 {file}：{error}"
 
 #: ide/debug.inc
 msgid "Can't run {file}"
-msgstr ""
+msgstr "无法运行 {file}"
 
 #: ide/debug.inc
 msgid "Debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output"
-msgstr ""
+msgstr "调试布局：变量、监视、调用堆栈和断点显示在输出旁边"
 
 #: ide/debug.inc
 msgid "Editing layout: the bottom panel is full width"
-msgstr ""
+msgstr "编辑布局：底部面板占满整个宽度"
 
 #: ide/debug.inc
 msgid "Run in Browser: building {file} for the web..."
-msgstr ""
+msgstr "在浏览器中运行：正在为 Web 构建 {file}..."
 
 #: ide/debug.inc
 msgid "Opening {file} in the browser..."
-msgstr ""
+msgstr "正在浏览器中打开 {file}..."
 
 #: ide/debug.inc
 msgid "Breakpoint: {place}"
-msgstr ""
+msgstr "断点：{place}"
 
 #: ide/debug.inc
 msgid "Paused at the start: {place}"
-msgstr ""
+msgstr "在开头暂停：{place}"
 
 #: ide/debug.inc
 msgid "Run-time error: {place}"
-msgstr ""
+msgstr "运行时错误：{place}"
 
 #: ide/debug.inc
 msgid "Next statement: {place}"
-msgstr ""
+msgstr "下一条语句：{place}"
 
 #: ide/debug.inc
 msgid "Paused: {place}"
-msgstr ""
+msgstr "已暂停：{place}"
 
 #: ide/debug.inc
 msgid "Paused, {message}: {place}"
-msgstr ""
+msgstr "已暂停，{message}：{place}"
 
 #: ide/debug.inc
 msgid "[{file} ended, exit code {code}]"
-msgstr ""
+msgstr "[{file} 已结束，退出代码 {code}]"
 
 #: ide/debug.inc
 msgid "{file} ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties."
-msgstr ""
+msgstr "{file} 运行后立即结束了：它没有显示任何窗口，也没有输出任何内容。如果程序从另一个文件开始，请把那个文件设为主文件：先在“项目”面板中选中项目名称，再在“属性”中设置 MainFile。"
 
 #: ide/debug.inc
 msgid "Ended with exit code {code}"
-msgstr ""
+msgstr "已结束，退出代码 {code}"
 
 #: ide/debug.inc
 msgid "… {n} more"
-msgstr ""
+msgstr "… 还有 {n} 项"
 
 #: ide/debug.inc
 msgid "Running… the values show when it pauses (F9 sets a breakpoint)."
-msgstr ""
+msgstr "正在运行…程序暂停时会显示这些值（按 F9 设置断点）。"
 
 #: ide/debug.inc
 msgid "Not paused: F9 sets a breakpoint, F5 runs."
-msgstr ""
+msgstr "未暂停：按 F9 设置断点，按 F5 运行。"
 
 #: ide/debug.inc
 msgid "Locals"
-msgstr ""
+msgstr "局部变量"
 
 #: ide/debug.inc
 msgid "(none)"
-msgstr ""
+msgstr "（无）"
 
 #: ide/debug.inc
 msgid "Globals"
-msgstr ""
+msgstr "全局变量"
 
 #: ide/debug.inc
 msgid "Components"
-msgstr ""
+msgstr "组件"
 
 #: ide/debug.inc
 msgid "(running)"
-msgstr ""
+msgstr "（正在运行）"
 
 #: ide/debug.inc
 msgid "(not paused)"
-msgstr ""
+msgstr "（未暂停）"
 
 #: ide/debug.inc
 msgid "Type an expression after the =, such as ={name} * 2."
-msgstr ""
+msgstr "在 = 后面输入一个表达式，例如 ={name} * 2。"
 
 #: ide/debug.inc
 msgid "Type the new value of {name}."
-msgstr ""
+msgstr "输入 {name} 的新值。"
 
 #: ide/debug.inc
 msgid "{name} takes one of: {choices}."
-msgstr ""
+msgstr "{name} 可取以下值之一：{choices}。"
 
 #: ide/debug.inc
 msgid "{name} is on or off: type on, off, 1 or 0."
-msgstr ""
+msgstr "{name} 只有开或关两种状态：输入 on、off、1 或 0。"
 
 #: ide/debug.inc
 msgid "{name} is True or False: type True or False."
-msgstr ""
+msgstr "{name} 的值是 True 或 False：请输入 True 或 False。"
 
 #: ide/debug.inc
 msgid "A colour as the web writes it has six hex digits, such as #FF8000."
-msgstr ""
+msgstr "Web 写法的颜色有六位十六进制数字，例如 #FF8000。"
 
 #: ide/debug.inc
 msgid "{name} is a colour: type a number, a colour's name such as clRed, or #RRGGBB."
-msgstr ""
+msgstr "{name} 是颜色：请输入一个数字、一个颜色名（如 clRed），或 #RRGGBB。"
 
 #: ide/debug.inc
 msgid "{name} holds a number: type one, such as 42."
-msgstr ""
+msgstr "{name} 存放的是数字：请输入一个数字，例如 42。"
 
 #: ide/debug.inc
 msgid "Values can be changed while the program is paused (F9 sets a breakpoint)."
-msgstr ""
+msgstr "程序暂停时可以修改这些值（按 F9 设置断点）。"
 
 #: ide/debug.inc
 msgid "{name} isn't a value that can be set."
-msgstr ""
+msgstr "{name} 不是可以设置的值。"
 
 #: ide/debug.inc
 msgid "{name} can't be changed: it's read-only."
-msgstr ""
+msgstr "{name} 无法更改：它是只读的。"
 
 #: ide/debug.inc
 msgid "{name} is an array: open it and set its elements one at a time."
-msgstr ""
+msgstr "{name} 是一个数组：请展开它，逐个设置其中的元素。"
 
 #: ide/debug.inc
 msgid "{name} is a component: open it and set its properties."
-msgstr ""
+msgstr "{name} 是一个组件：请展开它，设置它的属性。"
 
 #: ide/debug.inc
 msgid "{name} is a record (a TYPE): open it and set its fields one at a time."
-msgstr ""
+msgstr "{name} 是一条记录（一个 TYPE）：请展开它，逐个设置其中的字段。"
 
 #: ide/debug.inc
 msgid "Enter sets it, Esc leaves it"
-msgstr ""
+msgstr "按 Enter 确认设置，按 Esc 放弃"
 
 #: ide/debug.inc
 msgid "{name} holds a secret: it isn't shown, so it can't be edited here."
-msgstr ""
+msgstr "{name} 存放的是机密内容：它不会显示，因此无法在这里编辑。"
 
 #: ide/debug.inc
 msgid "Set {name}"
-msgstr ""
+msgstr "设置 {name}"
 
 #: ide/debug.inc
 msgid "Can't set {name}: see Output"
-msgstr ""
+msgstr "无法设置 {name}：请查看“输出”"
 
 #: ide/debug.inc
 msgid "{name} is unchanged."
-msgstr ""
+msgstr "{name} 没有变化。"
 
 #: ide/debug.inc ide/versions.inc
 msgid "Nothing to undo"
-msgstr ""
+msgstr "没有可撤销的内容"
 
 #: ide/debug.inc
 msgid "(the program)"
-msgstr ""
+msgstr "（程序）"
 
 #: ide/debug.inc
 msgid "(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)"
-msgstr ""
+msgstr "（程序未暂停：按 F9 设置断点，使用 调试 > 暂停 可让它停下）"
 
 #: ide/debug.inc
 msgid "Can't set {name}"
-msgstr ""
+msgstr "无法设置 {name}"
 
 #: ide/debug.inc
 msgid "{name} is back to {value}"
-msgstr ""
+msgstr "{name} 已恢复为 {value}"
 
 #: ide/debug.inc
 msgid "(Ctrl+Z undoes)"
-msgstr ""
+msgstr "（按 Ctrl+Z 撤销）"
 
 #: ide/debug.inc
 msgid "Can't copy: {error}"
-msgstr ""
+msgstr "无法复制：{error}"
 
 #: ide/debug.inc
 msgid "Copied the value ({n} character)"
 msgid_plural "Copied the value ({n} characters)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已复制该值（{n} 个字符）"
 
 #: ide/debug.inc
 msgid "Can't show {expr}: {error}"
-msgstr ""
+msgstr "无法显示 {expr}：{error}"
 
 #: ide/debug.inc
 msgid "Set Next Statement: {error}"
-msgstr ""
+msgstr "设为下一条语句：{error}"
 
 #: ide/debug.inc
 msgid "{n} more"
-msgstr ""
+msgstr "还有 {n} 项"
 
 #: ide/debug.inc
 msgid "Copied the value"
-msgstr ""
+msgstr "已复制该值"
 
 #: ide/debug.inc
 msgid "Copied {expr}"
-msgstr ""
+msgstr "已复制 {expr}"
 
 #: ide/debug.inc
 msgid "(value)"
-msgstr ""
+msgstr "（值）"
 
 #: ide/debug.inc
 msgid "{characters}, {lines}"
-msgstr ""
+msgstr "{characters}，{lines}"
 
 #: ide/debug.inc
 msgid "{n} character"
 msgid_plural "{n} characters"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 个字符"
 
 #: ide/debug.inc
 msgid "{n} line"
 msgid_plural "{n} lines"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 行"
 
 #: ide/debug.inc
 msgid "Text of {expr}"
-msgstr ""
+msgstr "{expr} 的文本"
 
 #: ide/debug.inc ide/safety.inc
 msgid "Copied"
-msgstr ""
+msgstr "已复制"
 
 #: ide/debug.inc
 msgid "This line calls no SUB or FUNCTION: stepping over it"
-msgstr ""
+msgstr "这一行没有调用任何 SUB 或 FUNCTION：直接跳过它"
 
 #: ide/debug.inc
 msgid "Step into {name}"
-msgstr ""
+msgstr "进入 {name}"
 
 #: ide/debug.inc
 msgid "&Copy Value"
-msgstr ""
+msgstr "复制值(&C)"
 
 #: ide/debug.inc
 msgid "Copy &Expression"
-msgstr ""
+msgstr "复制表达式(&E)"
 
 #: ide/debug.inc
 msgid "&View Text..."
-msgstr ""
+msgstr "查看文本(&V)..."
 
 #: ide/debug.inc
 msgid "&Set Value..."
-msgstr ""
+msgstr "设置值(&S)..."
 
 #: ide/debug.inc
 msgid "Copied the call"
-msgstr ""
+msgstr "已复制该调用"
 
 #: ide/debug.inc
 msgid "Copied the breakpoint"
-msgstr ""
+msgstr "已复制该断点"
 
 #: ide/debug.inc
 msgid "Copied {n} call"
 msgid_plural "Copied {n} calls"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已复制 {n} 个调用"
 
 #: ide/debug.inc
 msgid "Copied {n} breakpoint"
 msgid_plural "Copied {n} breakpoints"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已复制 {n} 个断点"
 
 #: ide/debug.inc ide/mcp.inc ide/panels.inc
 msgid "Copy &All"
-msgstr ""
+msgstr "全部复制(&A)"
 
 #: ide/debug.inc
 msgid "Run-time errors end the program"
-msgstr ""
+msgstr "运行时错误会结束程序"
 
 #: ide/debug.inc
 msgid "Variables"
-msgstr ""
+msgstr "变量"
 
 #: ide/debug.inc
 msgid "Watch"
-msgstr ""
+msgstr "监视"
 
 #: ide/debug.inc
 msgid "&Add a watch:"
-msgstr ""
+msgstr "添加监视(&A):"
 
 #: ide/debug.inc
 msgid "Add a watch: an expression, then Enter"
-msgstr ""
+msgstr "添加监视：输入一个表达式，然后按 Enter"
 
 #: ide/debug.inc
 msgid "Add a watch"
-msgstr ""
+msgstr "添加监视"
 
 #: ide/debug.inc
 msgid "Watches"
-msgstr ""
+msgstr "监视项"
 
 #: ide/debug.inc
 msgid "Call Stack"
-msgstr ""
+msgstr "调用堆栈"
 
 #: ide/debug.inc
 msgid "&When"
-msgstr ""
+msgstr "条件(&W)"
 
 #: ide/debug.inc
 msgid "A condition: it stops when this is true (clicks > 1)"
-msgstr ""
+msgstr "条件：当它为真时停止 (clicks > 1)"
 
 #: ide/debug.inc
 msgid "Condition"
-msgstr ""
+msgstr "条件"
 
 #: ide/debug.inc
 msgid "&Hit"
-msgstr ""
+msgstr "命中次数(&H)"
 
 #: ide/debug.inc
 msgid "A hit count: 3 (the third time), >= 3, % 3 (every third)"
-msgstr ""
+msgstr "命中次数：3（第三次）、>= 3、% 3（每三次）"
 
 #: ide/debug.inc
 msgid "Hit count"
-msgstr ""
+msgstr "命中次数"
 
 #: ide/debug.inc
 msgid "&Log"
-msgstr ""
+msgstr "日志(&L)"
 
 #: ide/debug.inc
 msgid "A logpoint: prints this ({{expr}} shows a value) and goes on"
-msgstr ""
+msgstr "日志点：输出这段内容（{{expr}} 会显示一个值），然后继续运行"
 
 #: ide/debug.inc
 msgid "Log message"
-msgstr ""
+msgstr "日志消息"
 
 #: ide/debug.inc
 msgid "On"
-msgstr ""
+msgstr "开"
 
 #: ide/designer.inc ide/panels.inc
 msgid "Designer: {message}"
-msgstr ""
+msgstr "设计器：{message}"
 
 #: ide/documents.inc
 msgid "{n} error"
 msgid_plural "{n} errors"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 个错误"
 
 #: ide/documents.inc
 msgid "{n} warning"
 msgid_plural "{n} warnings"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 个警告"
 
 #: ide/documents.inc
 msgid "{n} note"
 msgid_plural "{n} notes"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 条备注"
 
 #: ide/documents.inc
 msgid "{file} (deleted on disk)"
-msgstr ""
+msgstr "{file}（已在磁盘上删除）"
 
 #: ide/documents.inc
 msgid "Opened {file}"
-msgstr ""
+msgstr "已打开 {file}"
 
 #: ide/documents.inc
 msgid "{file} makes a form: now under Forms"
-msgstr ""
+msgstr "{file} 包含窗体：现在归在“窗体”下"
 
 #: ide/documents.inc
 msgid "{file} makes no form: now under Includes"
-msgstr ""
+msgstr "{file} 不包含窗体：现在归在“包含文件”下"
 
 #: ide/documents.inc
 msgid "{file} makes no form: now under Modules"
-msgstr ""
+msgstr "{file} 不包含窗体：现在归在“模块”下"
 
 #: ide/editor.inc
 msgid "Rename: {file} couldn't be opened"
-msgstr ""
+msgstr "重命名：无法打开 {file}"
 
 #: ide/external.inc
 msgid "&Compare"
-msgstr ""
+msgstr "比较(&C)"
 
 #: ide/external.inc
 msgid "Shows the disk's version beside yours"
-msgstr ""
+msgstr "把磁盘上的版本显示在你的版本旁边"
 
 #: ide/external.inc ide/versions.inc
 msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
-msgstr ""
+msgstr "载入磁盘上的文件。你的版本会保存在本地历史记录中，“撤销”可以把它找回来。"
 
 #: ide/external.inc
 msgid "Keeps your version here. Saving it will ask before it replaces the disk's version."
-msgstr ""
+msgstr "在这里保留你的版本。保存时会先询问，再替换磁盘上的版本。"
 
 #: ide/external.inc
 msgid "&Show"
-msgstr ""
+msgstr "显示(&S)"
 
 #: ide/external.inc
 msgid "Lists the files in the Output"
-msgstr ""
+msgstr "在“输出”中列出这些文件"
 
 #: ide/external.inc
 msgid "C&lose"
-msgstr ""
+msgstr "关闭(&L)"
 
 #: ide/external.inc
 msgid "Close the note"
-msgstr ""
+msgstr "关闭提示"
 
 #: ide/external.inc
 msgid "{file} changed outside Studio."
-msgstr ""
+msgstr "{file} 在 Studio 之外被更改了。"
 
 #: ide/external.inc
 msgid "{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine."
-msgstr ""
+msgstr "{file} 在 Studio 之外被更改了，而你在其中还有未保存的更改：请选择“比较”、“使用磁盘上的版本”或“保留我的版本”。"
 
 #: ide/external.inc
 msgid "{n} file was updated outside Studio."
 msgid_plural "{n} files were updated outside Studio."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "有 {n} 个文件在 Studio 之外被更新了。"
 
 #: ide/external.inc ide/versions.inc
 msgid "Local history: {why}"
-msgstr ""
+msgstr "本地历史记录：{why}"
 
 #: ide/external.inc
 msgid "{file} was deleted outside Studio: its text is kept here"
-msgstr ""
+msgstr "{file} 在 Studio 之外被删除了：它的文本保留在这里"
 
 #: ide/external.inc
 msgid "{file} changed outside Studio, and you have unsaved changes in it"
-msgstr ""
+msgstr "{file} 在 Studio 之外被更改了，而你在其中还有未保存的更改"
 
 #: ide/external.inc
 msgid "{file} was updated outside Studio"
-msgstr ""
+msgstr "{file} 在 Studio 之外被更新了"
 
 #: ide/external.inc
 msgid "{n} file was updated outside Studio"
 msgid_plural "{n} files were updated outside Studio"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "有 {n} 个文件在 Studio 之外被更新了"
 
 #: ide/external.inc
 msgid "{file} was deleted outside Studio: Save All makes it again"
-msgstr ""
+msgstr "{file} 在 Studio 之外被删除了：使用“全部保存”可重新创建它"
 
 #: ide/external.inc
 msgid "{file} was updated outside Studio: the Project pane follows it"
-msgstr ""
+msgstr "{file} 在 Studio 之外被更新了：“项目”面板会同步更新"
 
 #: ide/external.inc ide/panels.inc
 msgid "Can't read the project again: {error}"
-msgstr ""
+msgstr "无法重新读取项目：{error}"
 
 #: ide/external.inc
 msgid "Loaded the disk's version of {file}: yours is in the local history, and Undo brings it back"
-msgstr ""
+msgstr "已载入磁盘上的 {file}：你的版本在本地历史记录中，“撤销”可以把它找回来"
 
 #: ide/external.inc
 msgid "Loaded the disk's version. Undo brings yours back."
-msgstr ""
+msgstr "已载入磁盘上的版本。“撤销”可找回你的版本。"
 
 #: ide/external.inc
 msgid "Keeping your version of {file}: saving it asks first"
-msgstr ""
+msgstr "保留你的 {file} 版本：保存时会先询问"
 
 #: ide/external.inc
 msgid "Keeping your version. Saving it asks first."
-msgstr ""
+msgstr "保留你的版本。保存时会先询问。"
 
 #: ide/external.inc
 msgid "{n} file was updated outside Studio:"
 msgid_plural "{n} files were updated outside Studio:"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "有 {n} 个文件在 Studio 之外被更新了："
 
 #: ide/external.inc
 msgid "Save {file} again?"
-msgstr ""
+msgstr "再次保存 {file}？"
 
 #: ide/external.inc
 msgid "{file} was deleted outside Studio. Saving makes the file again with the text you have here."
-msgstr ""
+msgstr "{file} 在 Studio 之外被删除了。保存会用你这里的文本重新创建该文件。"
 
 #: ide/external.inc
 msgid "&Save Again"
-msgstr ""
+msgstr "再次保存(&S)"
 
 #: ide/external.inc
 msgid "Save {file} anyway?"
-msgstr ""
+msgstr "仍然保存 {file}？"
 
 #: ide/external.inc
 msgid "{file} changed outside Studio since you opened it. Saving replaces the version on disk with yours; Studio keeps the disk's version in the local history first."
-msgstr ""
+msgstr "自你打开以来，{file} 在 Studio 之外被更改了。保存会用你的版本替换磁盘上的版本；Studio 会先把磁盘上的版本保存到本地历史记录中。"
 
 #: ide/external.inc
 msgid "&Save Anyway"
-msgstr ""
+msgstr "仍然保存(&S)"
 
 #: ide/external.inc
 msgid "Not saved: {file} changed outside Studio"
-msgstr ""
+msgstr "未保存：{file} 在 Studio 之外被更改了"
 
 #: ide/external.inc
 msgid "Opened {file} again from the disk"
-msgstr ""
+msgstr "已从磁盘重新打开 {file}"
 
 #: ide/markdown.inc ide/project.inc
 msgid "Ready"
-msgstr ""
+msgstr "就绪"
 
 #: ide/markdown.inc
 msgid "Opened {url} in the browser"
-msgstr ""
+msgstr "已在浏览器中打开 {url}"
 
 #: ide/markdown.inc
 msgid "Can't open {url}: there is no {file}"
-msgstr ""
+msgstr "无法打开 {url}：没有 {file}"
 
 #: ide/mcp.inc
 msgid "AI Apps"
-msgstr ""
+msgstr "AI 应用"
 
 #: ide/mcp.inc
 msgid "AI apps"
-msgstr ""
+msgstr "AI 应用"
 
 #: ide/mcp.inc
 msgid "What the AI app does now"
-msgstr ""
+msgstr "AI 应用现在在做什么"
 
 #: ide/mcp.inc
 msgid "What AI apps may do"
-msgstr ""
+msgstr "AI 应用可以做什么"
 
 #: ide/mcp.inc
 msgid "Read only, Ask before changes, Allow edits or Allow everything: for this project"
-msgstr ""
+msgstr "只读、更改前询问、允许编辑或全部允许：针对本项目"
 
+# legal
 #: ide/mcp.inc
 msgid "Warning: AI apps may change and run anything in this project without asking"
-msgstr ""
+msgstr "警告：AI 应用可能不经询问就更改并运行本项目中的任何内容"
 
 #: ide/mcp.inc
 msgid "No questions asked"
-msgstr ""
+msgstr "不再询问"
 
 #: ide/mcp.inc
 msgid "Stop the server: every AI app is disconnected"
-msgstr ""
+msgstr "停止服务器：所有 AI 应用都会断开连接"
 
 #: ide/mcp.inc
 msgid "What an AI app asks to do"
-msgstr ""
+msgstr "AI 应用请求做的事"
 
 #: ide/mcp.inc
 msgid "Allow &Once"
-msgstr ""
+msgstr "允许一次(&O)"
 
 #: ide/mcp.inc
 msgid "Allow for This Se&ssion"
-msgstr ""
+msgstr "本次会话中允许(&S)"
 
 #: ide/mcp.inc
 msgid "Calls of this kind are allowed until Studio closes or the server stops"
-msgstr ""
+msgstr "这类调用在 Studio 关闭或服务器停止之前都会被允许"
 
 #: ide/mcp.inc
 msgid "&Deny"
-msgstr ""
+msgstr "不允许(&D)"
 
 #: ide/mcp.inc
 msgid "&Review..."
-msgstr ""
+msgstr "审阅(&R)..."
 
 #: ide/mcp.inc
 msgid "Review the change before deciding"
-msgstr ""
+msgstr "先审阅这项更改，再做决定"
 
 #: ide/mcp.inc
 msgid "What AI apps did"
-msgstr ""
+msgstr "AI 应用做过的事"
 
 #: ide/mcp.inc
 msgid "&Let AI apps use RapidR Studio"
-msgstr ""
+msgstr "允许 AI 应用使用 RapidR Studio(&L)"
 
+# legal
 #: ide/mcp.inc
 msgid "Off by default. On: an AI app on this computer that has the address and token below can work with your open project"
-msgstr ""
+msgstr "默认关闭。开启后：这台电脑上拿到下方地址和令牌的 AI 应用可以操作你打开的项目"
 
+# legal
 #: ide/mcp.inc
 msgid "When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings."
-msgstr ""
+msgstr "开启后，这台电脑上拿到下方地址和令牌的 AI 应用可以操作你打开的项目；它所做的一切都会显示在“AI 应用”面板中（工具 > AI 应用活动）。请把两者都粘贴到 AI 应用的 MCP 设置中。"
 
 #: ide/mcp.inc
 msgid "P&ort:"
-msgstr ""
+msgstr "端口(&O):"
 
 #: ide/mcp.inc
 msgid "Port"
-msgstr ""
+msgstr "端口"
 
 #: ide/mcp.inc
 msgid "The port AI apps connect to on 127.0.0.1 (this computer only)"
-msgstr ""
+msgstr "AI 应用在 127.0.0.1 上连接的端口（仅限这台电脑）"
 
 #: ide/mcp.inc
 msgid "Address:"
-msgstr ""
+msgstr "地址:"
 
 #: ide/mcp.inc
 msgid "The address AI apps connect to"
-msgstr ""
+msgstr "AI 应用连接的地址"
 
 #: ide/mcp.inc
 msgid "Copy &Address"
-msgstr ""
+msgstr "复制地址(&A)"
 
 #: ide/mcp.inc
 msgid "Header:"
-msgstr ""
+msgstr "请求头:"
 
 #: ide/mcp.inc
 msgid "The header AI apps send: Authorization, Bearer and the token"
-msgstr ""
+msgstr "AI 应用发送的请求头：Authorization、Bearer 和令牌"
 
 #: ide/mcp.inc
 msgid "Copy &Header"
-msgstr ""
+msgstr "复制请求头(&H)"
 
 #: ide/mcp.inc
 msgid "Sho&w"
-msgstr ""
+msgstr "显示(&W)"
 
 #: ide/mcp.inc
 msgid "Show or hide the token"
-msgstr ""
+msgstr "显示或隐藏令牌"
 
 #: ide/mcp.inc
 msgid "&Reset Token"
-msgstr ""
+msgstr "重置令牌(&R)"
 
 #: ide/mcp.inc
 msgid "A new token: every AI app that had the old one is disconnected"
-msgstr ""
+msgstr "生成新令牌：所有使用旧令牌的 AI 应用都会断开连接"
 
 #: ide/mcp.inc
 msgid "What AI apps may &do:"
-msgstr ""
+msgstr "AI 应用可以做什么(&D):"
 
 #: ide/mcp.inc
 msgid "What AI apps may do in this project"
-msgstr ""
+msgstr "AI 应用在本项目中可以做什么"
 
 #: ide/mcp.inc
 msgid "What the choice means"
-msgstr ""
+msgstr "这个选择的含义"
 
 #: ide/mcp.inc
 msgid "Learn more about AI apps"
-msgstr ""
+msgstr "进一步了解 AI 应用"
 
 #: ide/mcp.inc
 msgid "C&lear Activity..."
-msgstr ""
+msgstr "清除活动记录(&L)..."
 
 #: ide/mcp.inc
 msgid "Removes the list of what AI apps did from this computer"
-msgstr ""
+msgstr "从这台电脑上删除 AI 应用做过的事的列表"
 
 #: ide/mcp.inc
 msgid "Review the AI App's Change"
-msgstr ""
+msgstr "审阅 AI 应用的更改"
 
 #: ide/mcp.inc
 msgid "&Reject"
-msgstr ""
+msgstr "拒绝(&R)"
 
 #: ide/mcp.inc
 msgid "Files the AI app changes"
-msgstr ""
+msgstr "AI 应用更改的文件"
 
 #: ide/mcp.inc
 msgid "Read only"
-msgstr ""
+msgstr "只读"
 
 #: ide/mcp.inc
 msgid "Allow edits"
-msgstr ""
+msgstr "允许编辑"
 
 #: ide/mcp.inc
 msgid "Allow everything"
-msgstr ""
+msgstr "全部允许"
 
 #: ide/mcp.inc
 msgid "Ask before changes"
-msgstr ""
+msgstr "更改前询问"
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program."
-msgstr ""
+msgstr "AI 应用可以查看——读取项目、检查代码、查阅资料、查看程序的输出和 Studio——但不能更改、运行、查看或使用你的程序。"
 
+# legal
 #: ide/mcp.inc
 msgid "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
-msgstr ""
+msgstr "对文件的更改会立即生效（每次更改是一步“撤销”，并列在“AI 应用”面板中）；运行程序、查看或使用程序，以及向 RAI 提问，仍然需要等你同意。"
 
+# legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
-msgstr ""
+msgstr "不再等待你：AI 应用会自行更改文件、运行程序、查看并使用程序，以及向 RAI 提问——而程序可以做你在这台电脑上能做的任何事。所有操作仍会列出，“停止”可结束一切，Studio 自带的工具也绝不会交出密钥或项目之外的文件。"
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
-msgstr ""
+msgstr "AI 应用可以随意查看项目；每一次更改、运行、查看你正在运行的程序，或向 RAI 提问，都会在“AI 应用”面板中等你决定：允许一次、本次会话中允许，或不允许。"
 
+# legal
 #: ide/mcp.inc
 msgid "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
-msgstr ""
+msgstr "新项目：允许编辑。“全部允许”不会带到新项目：如果需要，请在这里重新选择。"
 
 #: ide/mcp.inc
 msgid "New project: same permission as before ({mode})"
-msgstr ""
+msgstr "新项目：与之前相同的权限（{mode}）"
 
 #: ide/mcp.inc
 msgid "AI apps may now: {mode}"
-msgstr ""
+msgstr "AI 应用现在的权限：{mode}"
 
 #: ide/mcp.inc
 msgid "AI apps: {mode}"
-msgstr ""
+msgstr "AI 应用：{mode}"
 
+# legal
 #: ide/mcp.inc
 msgid "Allow everything for AI apps in this project?"
-msgstr ""
+msgstr "对本项目中的 AI 应用全部允许？"
 
+# legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
-msgstr ""
+msgstr "不再等待你：AI 应用会自行更改文件、运行程序、查看程序、在程序中点击和输入，以及向 RAI 提问（这可能产生费用）。"
 
+# legal
 #: ide/mcp.inc
 msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
-msgstr ""
+msgstr "它们运行的程序可以做你在这台电脑上能做的任何事，它们在程序中点击的内容也是真实有效的。只有在你亲自看着一个你信任的 AI 应用时，才选择这一项。"
 
+# legal
 #: ide/mcp.inc
 msgid "You still see"
-msgstr ""
+msgstr "你仍然能看到"
 
+# legal
 #: ide/mcp.inc
 msgid "Everything they do, listed in the AI Apps pane; Stop ends it."
-msgstr ""
+msgstr "它们所做的一切，都列在“AI 应用”面板中；“停止”可结束一切。"
 
+# legal
 #: ide/mcp.inc ide/settings.inc
 msgid "Never"
-msgstr ""
+msgstr "绝不会"
 
+# legal
 #: ide/mcp.inc
 msgid "Studio's own tools never hand over your keys, or files outside the project."
-msgstr ""
+msgstr "Studio 自带的工具绝不会交出你的密钥，或项目之外的文件。"
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps change and run anything in this project without asking"
-msgstr ""
+msgstr "AI 应用可不经询问就更改并运行本项目中的任何内容"
 
 #: ide/mcp.inc
 msgid "The permission stays as it was"
-msgstr ""
+msgstr "权限保持原样"
 
 #: ide/mcp.inc
 msgid "&Allow Everything"
-msgstr ""
+msgstr "全部允许(&A)"
 
 #: ide/mcp.inc
 msgid "AI apps: off. Confirm again in Settings > AI Apps."
-msgstr ""
+msgstr "AI 应用：已关闭。请在 设置 > AI 应用 中重新确认。"
 
 #: ide/mcp.inc
 msgid "AI apps: the token couldn't be kept in the keychain ({error}): it is new each time Studio starts."
-msgstr ""
+msgstr "AI 应用：令牌无法保存到钥匙串（{error}）：每次 Studio 启动时都会生成新令牌。"
 
+# legal
 #: ide/mcp.inc
 msgid "It can see"
-msgstr ""
+msgstr "它能看到"
 
+# legal
 #: ide/mcp.inc
 msgid "It can"
-msgstr ""
+msgstr "它能做"
 
+# legal
 #: ide/mcp.inc
 msgid "It never sees"
-msgstr ""
+msgstr "它绝对看不到"
 
+# legal
 #: ide/mcp.inc
 msgid "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them."
-msgstr ""
+msgstr "你打开的项目的文件——你的代码、窗体和数据文件——除此之外，你电脑上的其他内容都看不到。它还会收到 Studio 窗口和你正在运行的程序窗口的图片，以及这些窗口所显示内容的文字清单，与你看到的一样。"
 
+# legal
 #: ide/mcp.inc
 msgid "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
-msgstr ""
+msgstr "检查代码，并读取你的程序输出的内容和 RAI 的对话。它还可以更改窗体和代码、打开其他项目、运行、调试、查看你的程序、在其中点击和输入，以及向 RAI 提问（这可能产生费用），每一项都只在你的权限模式允许时才能进行；默认会先询问你。"
 
+# legal
 #: ide/mcp.inc
 msgid "Your AI provider keys or passwords: your keychain keeps them."
-msgstr ""
+msgstr "你的 AI 服务商密钥或密码：它们由你的钥匙串保管。"
 
+# legal
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
-msgstr ""
+msgstr "RapidR 不会把这些内容发送到任何地方，但 AI 应用可能会按其开发公司的条款，把它读取到的内容转交给该公司。程序可能显示私人数据（你的或他人的），而在其中点击就相当于以你的身份操作：真实的“发送”“支付”或“删除”按钮会真的执行，所以请使用测试数据。许多 AI 应用仅限成年人使用：如果你未满 18 岁，请在家长或老师的陪同下进行设置。只连接你信任的 AI 应用。"
 
+# legal
 #: ide/mcp.inc
 msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
-msgstr ""
+msgstr "只分享你有权分享的内容：学校作业、雇主的代码或他人获得许可的代码，可能不属于你，不能随意分享。关闭此项或重置令牌，可断开所有 AI 应用。Studio 只在这台电脑上保存它们所做操作的列表；“清除活动记录”会删除它。"
 
 #: ide/mcp.inc
 msgid "AI apps can't start: School Lock is on (Tools > School Lock...)."
-msgstr ""
+msgstr "AI 应用无法启动：学校锁定已开启（工具 > 学校锁定...）。"
 
 #: ide/mcp.inc
 msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
-msgstr ""
+msgstr "AI 应用无法连接：{error}。请在 工具 > 设置 > AI 应用 中选择另一个端口。"
 
 #: ide/mcp.inc
 msgid "AI apps: port {port} is taken"
-msgstr ""
+msgstr "AI 应用：端口 {port} 已被占用"
 
 #: ide/mcp.inc
 msgid "AI apps can connect at {url} (this computer only; the header is in Tools > Settings > AI Apps)."
-msgstr ""
+msgstr "AI 应用可以通过 {url} 连接（仅限这台电脑；请求头在 工具 > 设置 > AI 应用 中）。"
 
 #: ide/mcp.inc
 msgid "AI apps: stopped. Every AI app was disconnected."
-msgstr ""
+msgstr "AI 应用：已停止。所有 AI 应用都已断开连接。"
 
 #: ide/mcp.inc
 msgid "AI apps: on, none connected"
-msgstr ""
+msgstr "AI 应用：已开启，暂无连接"
 
 #: ide/mcp.inc
 msgid "Waiting at {url} (this computer only)"
-msgstr ""
+msgstr "在 {url} 等待连接（仅限这台电脑）"
 
 #: ide/mcp.inc
 msgid "AI apps: {names}"
-msgstr ""
+msgstr "AI 应用：{names}"
 
 #: ide/mcp.inc
 msgid "{n} call"
 msgid_plural "{n} calls"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 次调用"
 
 #: ide/mcp.inc
 msgid "AI apps: off"
-msgstr ""
+msgstr "AI 应用：已关闭"
 
 #: ide/mcp.inc
 msgid "School Lock is on: AI apps can't connect."
-msgstr ""
+msgstr "学校锁定已开启：AI 应用无法连接。"
 
 #: ide/mcp.inc
 msgid "Tools > Settings > AI Apps turns them on."
-msgstr ""
+msgstr "在 工具 > 设置 > AI 应用 中可以开启。"
 
 #: ide/mcp.inc
 msgid "&Turn On..."
-msgstr ""
+msgstr "开启(&T)..."
 
 #: ide/mcp.inc
 msgid "AI apps: allow everything"
-msgstr ""
+msgstr "AI 应用：全部允许"
 
 #: ide/mcp.inc
 msgid "AI apps: waiting for you"
-msgstr ""
+msgstr "AI 应用：等待你的决定"
 
 #: ide/mcp.inc
 msgid "AI apps: on"
-msgstr ""
+msgstr "AI 应用：已开启"
 
 #: ide/mcp.inc
 msgid "AI apps: {what}"
-msgstr ""
+msgstr "AI 应用：{what}"
 
 #: ide/mcp.inc
 msgid "AI apps: connected"
-msgstr ""
+msgstr "AI 应用：已连接"
 
 #: ide/mcp.inc
 msgid "ok"
-msgstr ""
+msgstr "成功"
 
 #: ide/mcp.inc
 msgid "error"
-msgstr ""
+msgstr "错误"
 
 #: ide/mcp.inc
 msgid "applied"
-msgstr ""
+msgstr "已应用"
 
 #: ide/mcp.inc
 msgid "applied (you allowed it)"
-msgstr ""
+msgstr "已应用（你已允许）"
 
 #: ide/mcp.inc
 msgid "denied by you"
-msgstr ""
+msgstr "已被你拒绝"
 
 #: ide/mcp.inc
 msgid "refused"
-msgstr ""
+msgstr "被拒绝"
 
 #: ide/mcp.inc
 msgid "couldn't run"
-msgstr ""
+msgstr "未能运行"
 
 #: ide/mcp.inc
 msgid "started"
-msgstr ""
+msgstr "已启动"
 
 #: ide/mcp.inc
 msgid "sent"
-msgstr ""
+msgstr "已发送"
 
 #: ide/mcp.inc
 msgid "RAI didn't start"
-msgstr ""
+msgstr "RAI 没有启动"
 
 #: ide/mcp.inc
 msgid "refused: {why}"
-msgstr ""
+msgstr "被拒绝：{why}"
 
 #: ide/mcp.inc
 msgid "error: {why}"
-msgstr ""
+msgstr "错误：{why}"
 
 #: ide/mcp.inc
 msgid "refused ({dialog} open)"
-msgstr ""
+msgstr "被拒绝（{dialog}已打开）"
 
 #: ide/mcp.inc ide/settings.inc
 msgid "Settings"
-msgstr ""
+msgstr "设置"
 
 #: ide/mcp.inc
 msgid "a question"
-msgstr ""
+msgstr "一个提问"
 
 #: ide/mcp.inc
 msgid "a review window"
-msgstr ""
+msgstr "一个审阅窗口"
 
 #: ide/mcp.inc
 msgid "a dialog"
-msgstr ""
+msgstr "一个对话框"
 
 #: ide/mcp.inc
 msgid "a value's window"
-msgstr ""
+msgstr "一个值的窗口"
 
 #: ide/mcp.inc
 msgid "{client} connected"
-msgstr ""
+msgstr "{client} 已连接"
 
 #: ide/mcp.inc
 msgid "{client} connected to Studio"
-msgstr ""
+msgstr "{client} 已连接到 Studio"
 
 #: ide/mcp.inc
 msgid "{client} left"
-msgstr ""
+msgstr "{client} 已离开"
 
 #: ide/mcp.inc
 msgid "Opening a project"
-msgstr ""
+msgstr "正在打开项目"
 
 #: ide/mcp.inc
 msgid "Opening {path}"
-msgstr ""
+msgstr "正在打开 {path}"
 
 #: ide/mcp.inc
 msgid "waiting for you"
-msgstr ""
+msgstr "等待你的决定"
 
 #: ide/mcp.inc
 msgid "{client}: {what} (waiting for you)"
-msgstr ""
+msgstr "{client}：{what}（等待你的决定）"
 
 #: ide/mcp.inc
 msgid "{client} asks: {what}. Allow it in the AI Apps pane."
-msgstr ""
+msgstr "{client} 请求：{what}。请在“AI 应用”面板中决定是否允许。"
 
 #: ide/mcp.inc
 msgid "{client} wants to open {what}."
-msgstr ""
+msgstr "{client} 想打开 {what}。"
 
 #: ide/mcp.inc
 msgid "{client} wants to change {files}: {summary}"
-msgstr ""
+msgstr "{client} 想更改 {files}：{summary}"
 
 #: ide/mcp.inc
 msgid "{client} wants to run your program ({what})."
-msgstr ""
+msgstr "{client} 想运行你的程序（{what}）。"
 
+# legal
 #: ide/mcp.inc
 msgid "{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
-msgstr ""
+msgstr "{client} 想查看或使用你正在运行的程序：{what}。“允许一次”涵盖截图、点击和输入，直到本次运行结束。它可能看到程序显示的一切，包括私人数据。"
 
 #: ide/mcp.inc
 msgid "{client} wants to ask RAI: {prompt}"
-msgstr ""
+msgstr "{client} 想向 RAI 提问：{prompt}"
 
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
-msgstr ""
+msgstr "{question}（还有 {n} 项在等待）"
 
 #: ide/mcp.inc
 msgid "Program status"
-msgstr ""
+msgstr "程序状态"
 
 #: ide/mcp.inc
 msgid "Stopped the program"
-msgstr ""
+msgstr "已停止程序"
 
 #: ide/mcp.inc
 msgid "Running the program"
-msgstr ""
+msgstr "正在运行程序"
 
 #: ide/mcp.inc
 msgid "Debugger state"
-msgstr ""
+msgstr "调试器状态"
 
 #: ide/mcp.inc
 msgid "Debugger: {action}"
-msgstr ""
+msgstr "调试器：{action}"
 
 #: ide/mcp.inc
 msgid "A picture of Studio"
-msgstr ""
+msgstr "Studio 的截图"
 
 #: ide/mcp.inc
 msgid "Asking RAI: {prompt}"
-msgstr ""
+msgstr "正在询问 RAI：{prompt}"
 
 #: ide/mcp.inc
 msgid "(turn AI apps on: a token is made)"
-msgstr ""
+msgstr "（开启 AI 应用后会生成令牌）"
 
 #: ide/mcp.inc
 msgid "In {project}, AI apps may &do:"
-msgstr ""
+msgstr "在 {project} 中，AI 应用可以做什么(&D):"
 
+# legal
 #: ide/mcp.inc
 msgid "Let AI apps use RapidR Studio?"
-msgstr ""
+msgstr "允许 AI 应用使用 RapidR Studio？"
 
+# legal
 #: ide/mcp.inc
 msgid "With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane."
-msgstr ""
+msgstr "开启后，这台电脑上拿到你的令牌的 AI 应用可以通过 Studio 操作你打开的项目，它所做的一切都会显示在“AI 应用”面板中。"
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps that have the token can connect to RapidR Studio"
-msgstr ""
+msgstr "拿到令牌的 AI 应用可以连接到 RapidR Studio"
 
 #: ide/mcp.inc
 msgid "AI apps stay off"
-msgstr ""
+msgstr "AI 应用保持关闭"
 
 #: ide/mcp.inc
 msgid "&Turn On"
-msgstr ""
+msgstr "开启(&T)"
 
 #: ide/mcp.inc
 msgid "AI apps: off. Every AI app was disconnected."
-msgstr ""
+msgstr "AI 应用：已关闭。所有 AI 应用都已断开连接。"
 
 #: ide/mcp.inc
 msgid "Address copied"
-msgstr ""
+msgstr "地址已复制"
 
 #: ide/mcp.inc
 msgid "Header copied"
-msgstr ""
+msgstr "请求头已复制"
 
 #: ide/mcp.inc
 msgid "&Hide"
-msgstr ""
+msgstr "隐藏(&H)"
 
 #: ide/mcp.inc
 msgid "AI apps: the new token couldn't be kept in the keychain ({error})."
-msgstr ""
+msgstr "AI 应用：新令牌无法保存到钥匙串（{error}）。"
 
 #: ide/mcp.inc
 msgid "A new token: AI apps need the new header"
-msgstr ""
+msgstr "已生成新令牌：AI 应用需要使用新的请求头"
 
 #: ide/mcp.inc
 msgid "Clear the AI apps' activity?"
-msgstr ""
+msgstr "清除 AI 应用的活动记录？"
 
+# legal
 #: ide/mcp.inc
 msgid "The list of what AI apps did is removed from this computer ({location})."
-msgstr ""
+msgstr "AI 应用做过的事的列表将从这台电脑上删除（{location}）。"
 
 #: ide/mcp.inc
 msgid "The list stays"
-msgstr ""
+msgstr "保留列表"
 
 #: ide/mcp.inc
 msgid "Removes the list of what AI apps did"
-msgstr ""
+msgstr "删除 AI 应用做过的事的列表"
 
 #: ide/mcp.inc
 msgid "C&lear"
-msgstr ""
+msgstr "清除(&L)"
 
 #: ide/panels.inc ide/shell.inc
 msgid "Example"
-msgstr ""
+msgstr "示例"
 
 #: ide/panels.inc
 msgid "Go to line {}"
-msgstr ""
+msgstr "转到第 {} 行"
 
 #: ide/panels.inc
 msgid "Component"
-msgstr ""
+msgstr "组件"
 
 #: ide/panels.inc
 msgid "Symbol"
-msgstr ""
+msgstr "符号"
 
 #: ide/panels.inc
 msgid "Can't make {file}: {error}"
-msgstr ""
+msgstr "无法创建 {file}：{error}"
 
 #: ide/panels.inc
 msgid "Can't add {file}: {error}"
-msgstr ""
+msgstr "无法添加 {file}：{error}"
 
 #: ide/panels.inc
 msgid "{main} includes {file} ($INCLUDE): its forms are made when the program starts"
-msgstr ""
+msgstr "{main} 包含了 {file} ($INCLUDE)：它的窗体会在程序启动时创建"
 
 #: ide/panels.inc
 msgid "{form} added: drop components on it; show it with {form}.Show"
-msgstr ""
+msgstr "已添加 {form}：把组件放到它上面；用 {form}.Show 显示它"
 
 #: ide/panels.inc
 msgid "{file} is there already"
-msgstr ""
+msgstr "{file} 已存在"
 
 #: ide/panels.inc
 msgid "{main} includes {file} now"
-msgstr ""
+msgstr "{main} 现在包含了 {file}"
 
 #: ide/panels.inc
 msgid "The main file stays in the project"
-msgstr ""
+msgstr "主文件会保留在项目中"
 
 #: ide/panels.inc
 msgid "{file} taken out of the project (still on the disk)"
-msgstr ""
+msgstr "{file} 已从项目中移除（仍在磁盘上）"
 
 #: ide/panels.inc
 msgid "{main} no longer includes {file}"
-msgstr ""
+msgstr "{main} 不再包含 {file}"
 
 #: ide/panels.inc
 msgid "Can't save the project's order"
-msgstr ""
+msgstr "无法保存项目的排序"
 
 #: ide/panels.inc ide/shell.inc
 msgid "Open or make a project first (File > New Project)"
-msgstr ""
+msgstr "请先打开或创建一个项目（文件 > 新建项目）"
 
 #: ide/panels.inc
 msgid "Open a form to add a {type}"
-msgstr ""
+msgstr "请先打开一个窗体，再添加 {type}"
 
 #: ide/panels.inc
 msgid "A form can't go inside a form: {form} was added as a new window. For child windows, make {mdi} an RFormMDI."
-msgstr ""
+msgstr "窗体不能放进窗体里：{form} 已作为新窗口添加。如需子窗口，请把 {mdi} 设为 RFormMDI。"
 
 #: ide/panels.inc ide/panes.inc ide/window.inc
 msgid "Properties"
-msgstr ""
+msgstr "属性"
 
 #: ide/panels.inc
 msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR Light"
-msgstr ""
+msgstr "RapidR 浅色"
 
 #: ide/panels.inc
 msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR Dark"
-msgstr ""
+msgstr "RapidR 深色"
 
 #: ide/panels.inc
 msgctxt "a look in the Properties pane's Theme row"
 msgid "RapidR High Contrast"
-msgstr ""
+msgstr "RapidR 高对比度"
 
 #: ide/panels.inc
 msgid "Classic"
-msgstr ""
+msgstr "经典"
 
 #: ide/panels.inc ide/panes.inc ide/window.inc
 msgid "Project"
-msgstr ""
+msgstr "项目"
 
 #: ide/panels.inc
 msgid "Appearance"
-msgstr ""
+msgstr "外观"
 
 #: ide/panels.inc
 msgid "The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too)."
-msgstr ""
+msgstr "程序绘制时采用的外观：RapidR 跟随系统，也可以选择浅色、深色、高对比度或经典。它对应主文件顶部的 $THEME 行；无论 Studio 本身是什么外观，窗体设计器都会显示你选择的外观（RapidR：Studio 自己的外观，同样跟随系统）。"
 
 #: ide/panels.inc
 msgid "The project's name, as the Project pane and the window's title show it. Its files keep their names."
-msgstr ""
+msgstr "项目的名称，显示在“项目”面板和窗口标题中。它的文件保持原来的名称。"
 
 #: ide/panels.inc
 msgid "The file the program starts from: Run, Build and the checks begin there."
-msgstr ""
+msgstr "程序开始运行的文件：运行、构建和检查都从这里开始。"
 
 #: ide/panels.inc
 msgid "Where the program runs: on the desktop, in a browser, or both. The Problems pane notes what works on one only when the program runs on the other."
-msgstr ""
+msgstr "程序运行的位置：桌面、浏览器，或两者皆可。如果程序要在另一处运行，“问题”面板会标出只在其中一处可用的功能。"
 
 #: ide/panels.inc
 msgid "Run"
-msgstr ""
+msgstr "运行"
 
 #: ide/panels.inc
 msgid "The command-line arguments Run gives the program (what COMMAND$ reads), separated by spaces; a {q}quoted{q} one keeps its spaces."
-msgstr ""
+msgstr "“运行”传给程序的命令行参数（COMMAND$ 读取的内容），以空格分隔；用 {q}引号{q}括起来的参数会保留其中的空格。"
 
 #: ide/panels.inc
 msgid "Designer"
-msgstr ""
+msgstr "设计器"
 
 #: ide/panels.inc
 msgid "The form designer's grid, in pixels: what Snap snaps to."
-msgstr ""
+msgstr "窗体设计器的网格，以像素为单位：吸附时对齐的间距。"
 
 #: ide/panels.inc
 msgid "The form designer snaps what you move or size to the grid."
-msgstr ""
+msgstr "窗体设计器会把你移动或调整大小的内容吸附到网格上。"
 
 #: ide/panels.inc
 msgid "The form designer shows alignment guides and snaps to them."
-msgstr ""
+msgstr "窗体设计器会显示对齐参考线，并吸附到参考线上。"
 
 #: ide/panels.inc
 msgid "A project needs a name"
-msgstr ""
+msgstr "项目需要一个名称"
 
 #: ide/panels.inc
 msgid "{file} is not one of the project's source files"
-msgstr ""
+msgstr "{file} 不是项目的源文件"
 
 #: ide/panels.inc
 msgid "The grid is 1 to 64 pixels"
-msgstr ""
+msgstr "网格为 1 到 64 像素"
 
 #: ide/panels.inc
 msgid "Theme: the $THEME line is out of {file}: the program follows the system"
-msgstr ""
+msgstr "主题：{file} 中的 $THEME 行已被移除：程序跟随系统"
 
 #: ide/panels.inc
 msgid "Theme: {file} says $THEME {look}"
-msgstr ""
+msgstr "主题：{file} 中写的是 $THEME {look}"
 
 #: ide/panels.inc
 msgid "Copy &All Problems"
-msgstr ""
+msgstr "复制全部问题(&A)"
 
 #: ide/panels.inc
 msgid "Copied {n} problem"
 msgid_plural "Copied {n} problems"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已复制 {n} 个问题"
 
 #: ide/panels.inc
 msgid "Copied {n} line"
 msgid_plural "Copied {n} lines"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已复制 {n} 行"
 
 #: ide/panels.inc
 msgid "Copied {n} character"
 msgid_plural "Copied {n} characters"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已复制 {n} 个字符"
 
 #: ide/panels.inc
 msgid "Nothing selected to copy"
-msgstr ""
+msgstr "没有选中可复制的内容"
 
 #: ide/panels.inc
 msgid "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
-msgstr ""
+msgstr "没有打开的项目。使用 文件 > 新建项目 (Ctrl+N)，或打开 (Ctrl+O)。"
 
 #: ide/panels.inc
 msgid "Select a component on a form to see its properties."
-msgstr ""
+msgstr "选中窗体上的一个组件，即可查看它的属性。"
 
 #: ide/panels.inc
 msgid "Press F5 to run the program; its output shows here."
-msgstr ""
+msgstr "按 F5 运行程序；程序的输出会显示在这里。"
 
 #: ide/panels.inc
 msgid "Copy &Line"
-msgstr ""
+msgstr "复制行(&L)"
 
 #: ide/panels.inc
 msgid "&Select All"
-msgstr ""
+msgstr "全选(&S)"
 
 #: ide/panels.inc
 msgid "&Wrap Long Lines"
-msgstr ""
+msgstr "长行自动换行(&W)"
 
 #: ide/panels.inc
 msgid "Cl&ear"
-msgstr ""
+msgstr "清除(&E)"
 
 #: ide/panels.inc
 msgid "Double-click or press Enter to add a component to the form; drag it to place it."
-msgstr ""
+msgstr "双击或按 Enter 可把组件添加到窗体；拖动它可放置到指定位置。"
 
 #: ide/panels.inc
 msgid "({step}: refused)"
-msgstr ""
+msgstr "（{step}：被拒绝）"
 
 #: ide/panes.inc ide/window.inc
 msgid "Toolbox"
-msgstr ""
+msgstr "工具箱"
 
 #: ide/panes.inc ide/window.inc
 msgid "Outline"
-msgstr ""
+msgstr "大纲"
 
 #: ide/panes.inc ide/window.inc
 msgid "Output"
-msgstr ""
+msgstr "输出"
 
 #: ide/panes.inc ide/window.inc
 msgid "Immediate"
-msgstr ""
+msgstr "即时"
 
 #: ide/panes.inc ide/window.inc ide/workspace.inc
 msgid "Welcome"
-msgstr ""
+msgstr "欢迎"
 
 #: ide/panes.inc ide/versions.inc
 msgid "Versions"
-msgstr ""
+msgstr "版本"
 
 #: ide/panes.inc
 msgid "Example {name}: {what}"
-msgstr ""
+msgstr "示例 {name}：{what}"
 
 #: ide/panes.inc
 msgid "New Project..."
-msgstr ""
+msgstr "新建项目..."
 
 #: ide/panes.inc
 msgid "Open Project or File..."
-msgstr ""
+msgstr "打开项目或文件..."
 
 #: ide/panes.inc
 msgid "Import a RapidQ Program..."
-msgstr ""
+msgstr "导入 RapidQ 程序..."
 
 #: ide/panes.inc
 msgid "Open an Example"
-msgstr ""
+msgstr "打开示例"
 
 #: ide/panes.inc
 msgid "All Commands"
-msgstr ""
+msgstr "所有命令"
 
 #: ide/panes.inc
 msgid "Drop a CSV, see it charted"
-msgstr ""
+msgstr "拖入 CSV，即刻成图"
 
 #: ide/panes.inc
 msgid "CSV, grid and edits, linked"
-msgstr ""
+msgstr "CSV、表格与编辑，相互联动"
 
 #: ide/panes.inc
 msgid "A million rows, analysed"
-msgstr ""
+msgstr "百万行数据，轻松分析"
 
 #: ide/panes.inc
 msgid "JSON records in a grid"
-msgstr ""
+msgstr "表格中的 JSON 记录"
 
 #: ide/panes.inc
 msgid "A form, a button, its OnClick"
-msgstr ""
+msgstr "一个窗体，一个按钮，以及它的 OnClick"
 
 #: ide/panes.inc
 msgid "The focus: OnEnter, OnExit"
-msgstr ""
+msgstr "焦点：OnEnter、OnExit"
 
 #: ide/panes.inc
 msgid "Main and pop-up menus"
-msgstr ""
+msgstr "主菜单和弹出菜单"
 
 #: ide/panes.inc
 msgid "Open, save, colour, font"
-msgstr ""
+msgstr "打开、保存、颜色、字体"
 
 #: ide/panes.inc
 msgid "A rich-text editor (.rtf)"
-msgstr ""
+msgstr "富文本编辑器 (.rtf)"
 
 #: ide/panes.inc
 msgid "A list and a grid together"
-msgstr ""
+msgstr "列表与表格并用"
 
 #: ide/panes.inc
 msgid "The themes, switched live"
-msgstr ""
+msgstr "主题实时切换"
 
 #: ide/panes.inc
 msgid "A big window: a dashboard"
-msgstr ""
+msgstr "一个大窗口：仪表板"
 
 #: ide/panes.inc
 msgid "A data frame and a chart"
-msgstr ""
+msgstr "数据框与图表"
 
 #: ide/panes.inc
 msgid "Debug it: values as trees"
-msgstr ""
+msgstr "调试它：以树形展示的值"
 
 #: ide/panes.inc
 msgid "Ask an AI: models, an answer"
-msgstr ""
+msgstr "询问 AI：模型与回答"
 
 #: ide/panes.inc
 msgid "A program in the classic style"
-msgstr ""
+msgstr "经典风格的程序"
 
 #: ide/panes.inc
 msgid "PRINT, FOR, SUB, FUNCTION"
-msgstr ""
+msgstr "PRINT、FOR、SUB、FUNCTION"
 
 #: ide/panes.inc
 msgid "The code shows its own values: colours, pictures, fonts"
-msgstr ""
+msgstr "代码会展示自己的值：颜色、图片、字体"
 
 #: ide/panes.inc
 msgid "A bug in a handler: the program goes on and says so"
-msgstr ""
+msgstr "事件处理程序中的错误：程序继续运行，并告诉你出了问题"
 
 #: ide/panes.inc
 msgid "What this computer has: memory, processor, disk"
-msgstr ""
+msgstr "这台电脑的配置：内存、处理器、磁盘"
 
 #: ide/panes.inc
 msgid "Click the sky: rockets and thousands of sparks"
-msgstr ""
+msgstr "点击天空：火箭与成千上万的火花"
 
 #: ide/panes.inc
 msgid "A Markdown notes app, live preview"
-msgstr ""
+msgstr "Markdown 笔记应用，实时预览"
 
 #: ide/panes.inc
 msgid "A snake game, for the keyboard alone"
-msgstr ""
+msgstr "贪吃蛇游戏，只用键盘玩"
 
 #: ide/panes.inc
 msgid "Four pictures, the very same numbers"
-msgstr ""
+msgstr "四幅图，同样的数字"
 
 #: ide/panes.inc
 msgid "Pi by throwing darts, live"
-msgstr ""
+msgstr "扔飞镖求圆周率，实时演示"
 
 #: ide/panes.inc
 msgid "A lit 3D planet with a ring and a moon"
-msgstr ""
+msgstr "一颗带光环和月亮、受光照的 3D 行星"
 
 #: ide/panes.inc
 msgid "A signal generator, an oscilloscope and an FFT spectrum"
-msgstr ""
+msgstr "信号发生器、示波器和 FFT 频谱"
 
 #: ide/panes.inc
 msgid "A 3D scene that dances to a song (reads the MIDI file itself)"
-msgstr ""
+msgstr "随歌曲舞动的 3D 场景（自己读取 MIDI 文件）"
 
 #: ide/panes.inc
 msgid "Composes the visualizer's song and writes a .mid file"
-msgstr ""
+msgstr "为可视化程序谱写歌曲，并写出 .mid 文件"
 
 #: ide/panes.inc
 msgid "Values as the debugger shows them: icons, swatches, changes"
-msgstr ""
+msgstr "调试器中显示的值：图标、色块、变化"
 
 #: ide/panes.inc
 msgid "A million rows from SQLite in the background, an SQL editor"
-msgstr ""
+msgstr "在后台从 SQLite 读取百万行数据，附带 SQL 编辑器"
 
 #: ide/panes.inc
 msgid "A transaction you can see; closing asks, Enter answers No"
-msgstr ""
+msgstr "看得见的事务；关闭时会询问，按 Enter 即回答“否”"
 
 #: ide/panes.inc
 msgid "A web API in your program (RHttpServer), this computer only"
-msgstr ""
+msgstr "你的程序中的 Web API (RHttpServer)，仅限这台电脑"
 
 #: ide/panes.inc
 msgid "Code in Markdown, coloured: SQL and BASIC"
-msgstr ""
+msgstr "Markdown 中的彩色代码：SQL 和 BASIC"
 
 #: ide/panes.inc
 msgid "Labels as links: Tab, a focus ring, Enter or Space"
-msgstr ""
+msgstr "用作链接的标签：Tab 键、焦点环、Enter 或空格键"
 
 #: ide/panes.inc
 msgid "A tone made sample by sample, with an oscilloscope"
-msgstr ""
+msgstr "逐个采样生成的音调，配有示波器"
 
 #: ide/panes.inc
 msgid "A one-bit speaker played the way an emulator plays it"
-msgstr ""
+msgstr "像模拟器那样播放的 1 位扬声器"
 
 #: ide/panes.inc
 msgid "A three-voice square-wave music player"
-msgstr ""
+msgstr "三声部方波音乐播放器"
 
 #: ide/panes.inc
 msgid "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
-msgstr ""
+msgstr "可选择并复制的日志：Ctrl+C、复制行、全部复制"
 
 #: ide/panes.inc
 msgid "Versions from a program: save, go back, undo, the local history"
-msgstr ""
+msgstr "在程序中使用版本：保存、回退、撤销、本地历史记录"
 
 #: ide/panes.inc
 msgid "A picture of its own window, its own layout checked"
-msgstr ""
+msgstr "为自己的窗口截图，并检查自己的布局"
 
 #: ide/panes.inc
 msgid "Show me: a pointer types and clicks for you"
-msgstr ""
+msgstr "演示给我看：由一个指针替你输入和点击"
 
 #: ide/panes.inc
 msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
-msgstr ""
+msgstr "快速绘制像素：每秒 50 帧的等离子特效和生命游戏 (SetPixels8)"
 
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
-msgstr ""
+msgstr "配方：带 sqrt、sin、log 的计算器，所有按键共用一个事件处理程序"
 
 #: ide/panes.inc
 msgid "Recipe: a tip calculator"
-msgstr ""
+msgstr "配方：小费计算器"
 
 #: ide/panes.inc
 msgid "Recipe: a stopwatch (RTimer)"
-msgstr ""
+msgstr "配方：秒表 (RTimer)"
 
 #: ide/panes.inc
 msgid "Recipe: a to-do list, add and remove"
-msgstr ""
+msgstr "配方：待办事项列表，可添加和删除"
 
 #: ide/panes.inc
 msgid "Recipe: a unit converter"
-msgstr ""
+msgstr "配方：单位换算器"
 
 #: ide/panes.inc
 msgid "Recipe: a quiz with a score"
-msgstr ""
+msgstr "配方：带得分的小测验"
 
 #: ide/panes.inc
 msgid "Recipe: a drawing pad (RCanvas)"
-msgstr ""
+msgstr "配方：画板 (RCanvas)"
 
 #: ide/panes.inc
 msgid "Recipe: a password generator"
-msgstr ""
+msgstr "配方：密码生成器"
 
 #: ide/panes.inc
 msgid "Recipe: a CSV file in a grid"
-msgstr ""
+msgstr "配方：在表格中显示 CSV 文件"
 
 #: ide/panes.inc
 msgid "Recipe: a list with Start, Stop and Restart"
-msgstr ""
+msgstr "配方：带“开始”“停止”和“重新开始”的列表"
 
 #: ide/panes.inc
 msgid "Systems recipe: memory as a byte array, words, wrapping addresses"
-msgstr ""
+msgstr "系统配方：把内存当作字节数组、字、回绕的地址"
 
 #: ide/panes.inc
 msgid "Systems recipe: bits and flags, an 8-bit ALU"
-msgstr ""
+msgstr "系统配方：位与标志，8 位 ALU"
 
 #: ide/panes.inc
 msgid "Systems recipe: a tiny CPU, fetch, decode, execute"
-msgstr ""
+msgstr "系统配方：迷你 CPU，取指、译码、执行"
 
 #: ide/panes.inc
 msgid "Systems recipe: the stack, PUSH, POP, CALL, RET"
-msgstr ""
+msgstr "系统配方：堆栈、PUSH、POP、CALL、RET"
 
 #: ide/panes.inc
 msgid "Systems recipe: a hex dump, a memory viewer"
-msgstr ""
+msgstr "系统配方：十六进制转储，内存查看器"
 
 #: ide/panes.inc
 msgid "Systems recipe: a disassembler, an opcode table"
-msgstr ""
+msgstr "系统配方：反汇编器，操作码表"
 
 #: ide/panes.inc
 msgid "Systems recipe: a binary file into memory, its header"
-msgstr ""
+msgstr "系统配方：把二进制文件载入内存，及其文件头"
 
 #: ide/panes.inc
 msgid "Systems recipe: video memory drawn on a canvas"
-msgstr ""
+msgstr "系统配方：把显存绘制到画布上"
 
 #: ide/panes.inc
 msgid "Systems recipe: a keyboard matrix and an IN port"
-msgstr ""
+msgstr "系统配方：键盘矩阵与 IN 端口"
 
 #: ide/panes.inc
 msgid "Systems recipe: a CPU run in cycles per frame"
-msgstr ""
+msgstr "系统配方：每帧按周期数运行的 CPU"
 
 #: ide/panes.inc
 msgid "Recipe: emulator sound from a speaker bit's flips"
-msgstr ""
+msgstr "配方：由扬声器位的翻转产生的模拟器声音"
 
 #: ide/panes.inc
 msgid "Open Recent"
-msgstr ""
+msgstr "打开最近的文件"
 
 #: ide/panes.inc
 msgid "Reopen {name}"
-msgstr ""
+msgstr "重新打开 {name}"
 
 #: ide/panes.inc
 msgid "and the file you had open"
 msgid_plural "and the {n} files you had open"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "以及你打开过的 {n} 个文件"
 
 #: ide/panes.inc
 msgid "where you left it"
-msgstr ""
+msgstr "恢复到你离开时的样子"
 
 #: ide/panes.inc
 msgid "{title}, {text}"
-msgstr ""
+msgstr "{title}，{text}"
 
 #: ide/preview.inc
 msgid "Preview in &Classic"
-msgstr ""
+msgstr "以经典外观预览(&C)"
 
 #: ide/preview.inc
 msgid "Preview in Classic: Run and the designer show the program in the classic look."
-msgstr ""
+msgstr "以经典外观预览：“运行”和设计器会用经典外观显示程序。"
 
 #: ide/preview.inc
 msgid "Preview in Classic off: the program in its own look."
-msgstr ""
+msgstr "已关闭以经典外观预览：程序使用它自己的外观。"
 
 #: ide/project.inc
 msgid "Can't open the example {file}: {error}"
-msgstr ""
+msgstr "无法打开示例 {file}：{error}"
 
 #: ide/project.inc
 msgid "Can't open {file}"
-msgstr ""
+msgstr "无法打开 {file}"
 
 #: ide/project.inc
 msgid "Can't open {file}: {error}"
-msgstr ""
+msgstr "无法打开 {file}：{error}"
 
 #: ide/project.inc
 msgid "The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties."
-msgstr ""
+msgstr "主文件 {main} 被 {by} 包含：程序很可能是从 {by} 开始的。要从那里运行，请先在“项目”面板中选中项目名称，再在“属性”中设置 MainFile。"
 
 #: ide/project.inc
 msgid "The main file is {main}, which {by} includes"
-msgstr ""
+msgstr "主文件是 {main}，它被 {by} 包含"
 
 #: ide/project.inc
 msgid "Copied {file} again from the original, in:"
-msgstr ""
+msgstr "已从原版重新复制 {file}，位置："
 
 #: ide/project.inc
 msgid "Made your copy of the example {file} (the installed examples can't be changed), in:"
-msgstr ""
+msgstr "已创建示例 {file} 的副本（已安装的示例不能更改），位置："
 
 #: ide/project.inc
 msgid "Your copy of the example {file}, as you left it, in:"
-msgstr ""
+msgstr "示例 {file} 的副本，保持着你离开时的样子，位置："
 
 #: ide/project.inc
 msgid "Copy again from the original"
-msgstr ""
+msgstr "从原版重新复制"
 
 #: ide/project.inc
 msgid "Copy {name} again from the original?"
-msgstr ""
+msgstr "从原版重新复制 {name}？"
 
 #: ide/project.inc
 msgid "Your changes to the example's own files, saved or not, are replaced by RapidR's. Files you added to its folder stay."
-msgstr ""
+msgstr "你对示例自身文件所做的更改（无论是否已保存）都会被 RapidR 的原版替换。你添加到其文件夹中的文件会保留。"
 
 #: ide/project.inc
 msgid "Can't copy {name} again: {error}"
-msgstr ""
+msgstr "无法重新复制 {name}：{error}"
 
 #: ide/project.inc
 msgid "Can't copy {name} again"
-msgstr ""
+msgstr "无法重新复制 {name}"
 
 #: ide/project.inc
 msgid "Open Project or File"
-msgstr ""
+msgstr "打开项目或文件"
 
 #: ide/project.inc
 msgid "RapidR projects and sources"
-msgstr ""
+msgstr "RapidR 项目和源文件"
 
 #: ide/project.inc
 msgid "Open Folder"
-msgstr ""
+msgstr "打开文件夹"
 
 #: ide/project.inc
 msgid "No RapidR project in {folder}"
-msgstr ""
+msgstr "{folder} 中没有 RapidR 项目"
 
 #: ide/project.inc
 msgid "{file}: the browser gave RapidR Studio this file only, not the project's files in its folder"
-msgstr ""
+msgstr "{file}：浏览器只把这一个文件交给了 RapidR Studio，没有交出项目文件夹中的其他文件"
 
 #: ide/project.inc
 msgid "Open the folder {file} is in?"
-msgstr ""
+msgstr "打开 {file} 所在的文件夹？"
 
 #: ide/project.inc
 msgid "The browser let RapidR Studio read only the file you picked. The project's files are in its folder."
-msgstr ""
+msgstr "浏览器只允许 RapidR Studio 读取你选择的那个文件。项目的文件都在它所在的文件夹里。"
 
 #: ide/project.inc
 msgid "File > Open Folder... opens the project with its files"
-msgstr ""
+msgstr "使用 文件 > 打开文件夹... 可以连同所有文件一起打开项目"
 
 #: ide/project.inc
 msgid "Open the folder {file} is in to open the project"
-msgstr ""
+msgstr "请打开 {file} 所在的文件夹来打开项目"
 
 #: ide/project.inc
 msgid "Import RapidQ Project or File"
-msgstr ""
+msgstr "导入 RapidQ 项目或文件"
 
 #: ide/project.inc
 msgid "RapidQ programs"
-msgstr ""
+msgstr "RapidQ 程序"
 
 #: ide/project.inc
 msgid "RapidR projects"
-msgstr ""
+msgstr "RapidR 项目"
 
 #: ide/project.inc
 msgid "Import RapidQ Folder"
-msgstr ""
+msgstr "导入 RapidQ 文件夹"
 
 #: ide/project.inc
 msgid "Importing {source}: a copy with RapidR's names and every file it includes (the original is only read)"
-msgstr ""
+msgstr "正在导入 {source}：生成一份使用 RapidR 名称的副本，并包含它引用的所有文件（原文件只会被读取）"
 
 #: ide/project.inc
 msgid "Can't import {source}: {error}"
-msgstr ""
+msgstr "无法导入 {source}：{error}"
 
 #: ide/project.inc
 msgid "Can't import {file}"
-msgstr ""
+msgstr "无法导入 {file}"
 
 #: ide/project.inc
 msgid "{file}: include file not found: {include} - {what}"
-msgstr ""
+msgstr "{file}：找不到包含文件：{include} - {what}"
 
 #: ide/project.inc
 msgid "The copy: {path}"
-msgstr ""
+msgstr "副本：{path}"
 
 #: ide/project.inc
 msgid "Imported {file}, but {n} include file wasn't found: see Output"
 msgid_plural "Imported {file}, but {n} include files weren't found: see Output"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已导入 {file}，但有 {n} 个包含文件未找到：请查看“输出”"
 
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
-msgstr ""
+msgstr "已将 {file} 作为使用 RapidR 名称的副本导入"
 
 #: ide/project.inc
 msgid "Where the new project goes"
-msgstr ""
+msgstr "新项目的位置"
 
 #: ide/project.inc
 msgid "Can't make the project: {error}"
-msgstr ""
+msgstr "无法创建项目：{error}"
 
 #: ide/project.inc
 msgid "Saved {file}"
-msgstr ""
+msgstr "已保存 {file}"
 
 #: ide/project.inc
 msgid "Can't save the project: {error}"
-msgstr ""
+msgstr "无法保存项目：{error}"
 
 #: ide/project.inc
 msgid "{file} isn't there any more ({path}): taken off Open Recent"
-msgstr ""
+msgstr "{file} 已不存在（{path}）：已从“打开最近的文件”中移除"
 
 #: ide/project.inc
 msgid "Open Recent cleared"
-msgstr ""
+msgstr "“打开最近的文件”已清除"
 
 #: ide/project.inc
 msgid "The last project, {file}, isn't there any more ({path}): taken off Open Recent"
-msgstr ""
+msgstr "上一个项目 {file} 已不存在（{path}）：已从“打开最近的文件”中移除"
 
 #: ide/prompts.inc
 msgid "&Review Changes..."
-msgstr ""
+msgstr "审阅更改(&R)..."
 
 #: ide/prompts.inc
 msgid "Do&n't Save"
-msgstr ""
+msgstr "不保存(&N)"
 
 #: ide/prompts.inc
 msgid "&Restore"
-msgstr ""
+msgstr "恢复(&R)"
 
 #: ide/prompts.inc
 msgid "&Discard"
-msgstr ""
+msgstr "放弃(&D)"
 
 #: ide/prompts.inc
 msgid "Not Now"
-msgstr ""
+msgstr "以后再说"
 
 #: ide/prompts.inc
 msgid "&Open Folder..."
-msgstr ""
+msgstr "打开文件夹(&O)..."
 
 #: ide/prompts.inc
 msgid "&Copy Again"
-msgstr ""
+msgstr "重新复制(&C)"
 
 #: ide/prompts.inc
 msgid "&Build Interpreted Instead"
-msgstr ""
+msgstr "改为构建解释执行版(&B)"
 
 #: ide/prompts.inc
 msgid "&Install Rust..."
-msgstr ""
+msgstr "安装 Rust(&I)..."
 
 #: ide/prompts.inc
 msgid "Save &All"
-msgstr ""
+msgstr "全部保存(&A)"
 
 #: ide/prompts.inc
 msgid "&Discard Changes"
-msgstr ""
+msgstr "放弃更改(&D)"
 
 #: ide/prompts.inc
 msgid "Native builds need Rust (it is free)."
-msgstr ""
+msgstr "原生构建需要 Rust（它是免费的）。"
 
 #: ide/prompts.inc
 msgid "Rust is not installed on this computer. An interpreted app needs none and runs the same program."
-msgstr ""
+msgstr "这台电脑上没有安装 Rust。解释执行的应用不需要它，运行的是同一个程序。"
 
 #: ide/prompts.inc
 msgid "&Undo Anyway"
-msgstr ""
+msgstr "仍然撤销(&U)"
 
 #: ide/safety.inc
 msgid "&Copy Details"
-msgstr ""
+msgstr "复制详情(&C)"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio: {message} ({where}). Your work is safe; Studio goes on."
-msgstr ""
+msgstr "Studio 出了点问题：{message}（{where}）。你的工作是安全的，Studio 会继续运行。"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio: {message}. Your work is safe; Studio goes on."
-msgstr ""
+msgstr "Studio 出了点问题：{message}。你的工作是安全的，Studio 会继续运行。"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio ({n} time)"
 msgid_plural "Something went wrong in Studio ({n} times)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Studio 出了点问题（{n} 次）"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio"
-msgstr ""
+msgstr "Studio 出了点问题"
 
 #: ide/safety.inc
 msgid "Your work is safe: nothing was lost, and Studio goes on. A copy of your unsaved changes is kept. Copy Details copies what happened; Studio's log keeps it too."
-msgstr ""
+msgstr "你的工作是安全的：没有丢失任何内容，Studio 会继续运行。你未保存的更改已保留了一份副本。“复制详情”会复制发生的情况；Studio 的日志中也有记录。"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio. Your work is safe."
-msgstr ""
+msgstr "Studio 出了点问题。你的工作是安全的。"
 
 #: ide/safety.inc
 msgid "{names} and {n} more"
-msgstr ""
+msgstr "{names} 等另外 {n} 个"
 
 #: ide/safety.inc
 msgid "Studio closed before a file was saved: {names}. Restore puts your changes back in its editor (not saved yet; Undo goes back to the file)."
 msgid_plural "Studio closed before {n} files were saved: {names}. Restore puts your changes back in their editors (not saved yet; Undo goes back to the file)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Studio 在 {n} 个文件保存之前关闭了：{names}。“恢复”会把你的更改放回它们的编辑器中（尚未保存；“撤销”可回到文件原来的内容）。"
 
 #: ide/safety.inc
 msgid "Restore your unsaved work?"
-msgstr ""
+msgstr "恢复你未保存的工作？"
 
 #: ide/safety.inc
 msgid "The unsaved work Studio kept was let go."
-msgstr ""
+msgstr "Studio 保留的未保存工作已被放弃。"
 
 #: ide/safety.inc
 msgid "Studio keeps your unsaved work: it asks again at the next start."
-msgstr ""
+msgstr "Studio 会继续保留你未保存的工作：下次启动时会再次询问。"
 
 #: ide/safety.inc
 msgid "Couldn't restore {file} (it isn't there any more): its copy is kept for the next start."
-msgstr ""
+msgstr "无法恢复 {file}（它已不存在）：它的副本会保留到下次启动。"
 
 #: ide/safety.inc
 msgid "Couldn't restore {file}: its copy is kept for the next start."
-msgstr ""
+msgstr "无法恢复 {file}：它的副本会保留到下次启动。"
 
 #: ide/safety.inc
 msgid "Restored the unsaved work of {n} file (not saved yet)."
 msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已恢复 {n} 个文件的未保存工作（尚未保存）。"
 
 #: ide/schoollock.inc
 msgid "School Lock"
-msgstr ""
+msgstr "学校锁定"
 
 #: ide/schoollock.inc
 msgid "What to lock:"
-msgstr ""
+msgstr "要锁定的内容:"
 
 #: ide/schoollock.inc
 msgid "&AI in Studio (RAI)"
-msgstr ""
+msgstr "Studio 中的 AI (RAI)(&A)"
 
 #: ide/schoollock.inc
 msgid "The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI"
-msgstr ""
+msgstr "“AI 助手”面板、配置 RAI，以及 设置 > AI：不会向任何 AI 发送任何内容"
 
 #: ide/schoollock.inc
 msgid "AI apps (&MCP)"
-msgstr ""
+msgstr "AI 应用 (MCP)(&M)"
 
 #: ide/schoollock.inc
 msgid "AI apps on this computer can't connect to RapidR Studio"
-msgstr ""
+msgstr "这台电脑上的 AI 应用无法连接到 RapidR Studio"
 
 #: ide/schoollock.inc
 msgid "Keep RAI in &Coach mode"
-msgstr ""
+msgstr "让 RAI 保持在辅导模式(&C)"
 
+# legal
 #: ide/schoollock.inc
 msgid "RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this."
-msgstr ""
+msgstr "RAI 保持开启，但只给出提示。它绝不会把答案写进学生的代码。取消勾选“Studio 中的 AI”即可选择此项。"
 
 #: ide/schoollock.inc
 msgid "&Password:"
-msgstr ""
+msgstr "密码(&P):"
 
 #: ide/schoollock.inc
 msgid "Password"
-msgstr ""
+msgstr "密码"
 
 #: ide/schoollock.inc
 msgid "Type it a&gain:"
-msgstr ""
+msgstr "再次输入(&G):"
 
 #: ide/schoollock.inc
 msgid "Type the password again"
-msgstr ""
+msgstr "再次输入密码"
 
 #: ide/schoollock.inc
 msgid "About the password"
-msgstr ""
+msgstr "关于密码"
 
 #: ide/schoollock.inc
 msgid "Learn more about School Lock"
-msgstr ""
+msgstr "进一步了解学校锁定"
 
 #: ide/schoollock.inc
 msgid "Opens the manual's page for teachers in your browser"
-msgstr ""
+msgstr "在浏览器中打开手册里面向老师的页面"
 
 #: ide/schoollock.inc
 msgid "&Turn School Lock Off"
-msgstr ""
+msgstr "关闭学校锁定(&T)"
 
 #: ide/schoollock.inc
 msgid "RAI and AI apps are off in RapidR Studio on this computer."
-msgstr ""
+msgstr "在这台电脑上的 RapidR Studio 中，RAI 和 AI 应用已关闭。"
 
 #: ide/schoollock.inc
 msgid "RAI is off in RapidR Studio on this computer."
-msgstr ""
+msgstr "在这台电脑上的 RapidR Studio 中，RAI 已关闭。"
 
+# legal
 #: ide/schoollock.inc
 msgid "RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer."
-msgstr ""
+msgstr "RAI 保持在辅导模式，这台电脑上的 AI 应用无法连接到 RapidR Studio。"
 
+# legal
 #: ide/schoollock.inc
 msgid "RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files."
-msgstr ""
+msgstr "在这台电脑上的 RapidR Studio 中，RAI 保持在辅导模式：它一步一步地给出提示，不会更改学生的文件。"
 
 #: ide/schoollock.inc
 msgid "AI apps can't connect to RapidR Studio on this computer."
-msgstr ""
+msgstr "这台电脑上的 AI 应用无法连接到 RapidR Studio。"
 
 #: ide/schoollock.inc
 msgid "AI is turned off by your school"
-msgstr ""
+msgstr "AI 已被你的学校关闭"
 
 #: ide/schoollock.inc
 msgid "AI is turned off by your teacher"
-msgstr ""
+msgstr "AI 已被你的老师关闭"
 
 #: ide/schoollock.inc
 msgid "turned off by your school"
-msgstr ""
+msgstr "已被你的学校关闭"
 
 #: ide/schoollock.inc
 msgid "turned off by your teacher"
-msgstr ""
+msgstr "已被你的老师关闭"
 
 #: ide/schoollock.inc
 msgid "School Lock: this computer's policy ({file}) can't be read: {error}. AI stays off until your school's IT fixes it."
-msgstr ""
+msgstr "学校锁定：无法读取这台电脑的策略文件 ({file})：{error}。在学校的 IT 人员修复之前，AI 会一直保持关闭。"
 
 #: ide/schoollock.inc
 msgid "AI apps: stopped, School Lock is on. Every AI app was disconnected."
-msgstr ""
+msgstr "AI 应用：已停止，学校锁定已开启。所有 AI 应用都已断开连接。"
 
 #: ide/schoollock.inc
 msgid "School Lock is on: {what}"
-msgstr ""
+msgstr "学校锁定已开启：{what}"
 
 #: ide/schoollock.inc
 msgid "School Lock is unlocked until Studio closes."
-msgstr ""
+msgstr "学校锁定已解锁，直到 Studio 关闭。"
 
 #: ide/schoollock.inc
 msgid "School Lock is off."
-msgstr ""
+msgstr "学校锁定已关闭。"
 
 #: ide/schoollock.inc
 msgid "Everything else works as usual."
-msgstr ""
+msgstr "其他一切照常使用。"
 
 #: ide/schoollock.inc
 msgid "&Unlock..."
-msgstr ""
+msgstr "解锁(&U)..."
 
 #: ide/schoollock.inc
 msgid "Asks for the password"
-msgstr ""
+msgstr "需要输入密码"
 
 #: ide/schoollock.inc
 msgid "School Lock: unlocked"
-msgstr ""
+msgstr "学校锁定：已解锁"
 
 #: ide/schoollock.inc
 msgid "School Lock is unlocked until Studio closes"
-msgstr ""
+msgstr "学校锁定已解锁，直到 Studio 关闭"
 
 #: ide/schoollock.inc
 msgid "These settings can't be changed while School Lock is on."
-msgstr ""
+msgstr "学校锁定开启期间，无法更改这些设置。"
 
 #: ide/schoollock.inc
 msgid "RAI can't be set up while School Lock is on."
-msgstr ""
+msgstr "学校锁定开启期间，无法配置 RAI。"
 
 #: ide/schoollock.inc
 msgid "Turn on School Lock?"
-msgstr ""
+msgstr "开启学校锁定？"
 
+# legal
 #: ide/schoollock.inc
 msgid "Features of RapidR Studio are turned off for everyone who uses this account on this computer, until someone types the password. Everything else keeps working."
-msgstr ""
+msgstr "在这台电脑上，使用此账户的所有人都无法使用 RapidR Studio 的某些功能，直到有人输入密码。其他一切照常运行。"
 
+# legal
 #: ide/schoollock.inc
 msgid "RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do."
-msgstr ""
+msgstr "RapidR 在这台电脑上只保存密码的单向加密形式，绝不保存密码本身。任何知道密码的人都可以解锁，直到 Studio 关闭，所以请保管好密码，不要告诉别人。忘记了？手册里面向老师的页面会告诉你怎么办。"
 
 #: ide/schoollock.inc
 msgid "&Lock"
-msgstr ""
+msgstr "锁定(&L)"
 
 #: ide/schoollock.inc
 msgid "Turns School Lock on with this password"
-msgstr ""
+msgstr "用这个密码开启学校锁定"
 
 #: ide/schoollock.inc
 msgid "At least 6 characters."
-msgstr ""
+msgstr "至少 6 个字符。"
 
 #: ide/schoollock.inc
 msgid "Type the password to unlock it until Studio closes."
-msgstr ""
+msgstr "输入密码即可解锁，直到 Studio 关闭。"
 
 #: ide/schoollock.inc
 msgid "Your school's IT set this for every account on this computer. It can be unlocked until Studio closes, but only IT can turn it off."
-msgstr ""
+msgstr "这是你学校的 IT 人员为这台电脑上的所有账户设置的。可以解锁到 Studio 关闭为止，但只有 IT 人员才能将它关闭。"
 
 #: ide/schoollock.inc
 msgid "Turn School Lock Off ends the lock on this account until a teacher turns it on again. It needs the password too."
-msgstr ""
+msgstr "“关闭学校锁定”会结束此账户上的锁定，直到老师再次开启。这同样需要输入密码。"
 
 #: ide/schoollock.inc
 msgid "&Unlock Until Studio Closes"
-msgstr ""
+msgstr "解锁到 Studio 关闭为止(&U)"
 
 #: ide/schoollock.inc
 msgid "AI works again until RapidR Studio closes"
-msgstr ""
+msgstr "AI 在 RapidR Studio 关闭之前可以再次使用"
 
 #: ide/schoollock.inc
 msgid "AI works again until RapidR Studio closes. It is locked again the next time Studio starts."
-msgstr ""
+msgstr "AI 在 RapidR Studio 关闭之前可以再次使用。下次 Studio 启动时会再次锁定。"
 
 #: ide/schoollock.inc
 msgid "Your school's IT set this for every account on this computer: only IT can turn it off."
-msgstr ""
+msgstr "这是你学校的 IT 人员为这台电脑上的所有账户设置的：只有 IT 人员才能将它关闭。"
 
 #: ide/schoollock.inc
 msgid "To turn School Lock off for good, type the password and choose Turn School Lock Off."
-msgstr ""
+msgstr "要彻底关闭学校锁定，请输入密码并选择“关闭学校锁定”。"
 
 #: ide/schoollock.inc
 msgid "Lock &Again"
-msgstr ""
+msgstr "重新锁定(&A)"
 
 #: ide/schoollock.inc
 msgid "AI is turned off again now"
-msgstr ""
+msgstr "AI 现在又被关闭了"
 
 #: ide/schoollock.inc
 msgid "The two passwords differ."
-msgstr ""
+msgstr "两次输入的密码不一致。"
 
 #: ide/schoollock.inc
 msgid "Weak: easy to guess. A longer one with numbers or symbols is safer."
-msgstr ""
+msgstr "弱：容易被猜到。更长的、含数字或符号的密码更安全。"
 
 #: ide/schoollock.inc
 msgid "Fair. Longer, with capitals, numbers or symbols, is stronger."
-msgstr ""
+msgstr "一般。更长的、含大写字母、数字或符号的密码更强。"
 
 #: ide/schoollock.inc
 msgid "Strong."
-msgstr ""
+msgstr "强。"
 
 #: ide/schoollock.inc
 msgid "Too many wrong passwords. Try again in {time}."
-msgstr ""
+msgstr "输错密码的次数太多。请在 {time} 后重试。"
 
 #: ide/schoollock.inc
 msgid "You can try the password again."
-msgstr ""
+msgstr "你可以再次尝试输入密码。"
 
 #: ide/schoollock.inc
 msgid "That isn't the password. {n} more try before a one-minute wait."
 msgid_plural "That isn't the password. {n} more tries before a one-minute wait."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "密码不对。再试 {n} 次后需要等待一分钟。"
 
 #: ide/schoollock.inc
 msgid "Your school's IT set this lock: only IT can turn it off."
-msgstr ""
+msgstr "这个锁定是你学校的 IT 人员设置的：只有 IT 人员才能将它关闭。"
 
 #: ide/schoollock.inc
 msgid "No password can unlock this lock: ask your school's IT."
-msgstr ""
+msgstr "没有任何密码可以解开这个锁定：请联系学校的 IT 人员。"
 
 #: ide/schoollock.inc
 msgid "Choose at least one feature to lock."
-msgstr ""
+msgstr "请至少选择一项要锁定的功能。"
 
 #: ide/schoollock.inc
 msgid "The password needs at least 6 characters."
-msgstr ""
+msgstr "密码至少需要 6 个字符。"
 
 #: ide/schoollock.inc
 msgid "The two passwords differ: type the same one twice."
-msgstr ""
+msgstr "两次输入的密码不一致：请输入两次相同的密码。"
 
 #: ide/schoollock.inc
 msgid "Type the password."
-msgstr ""
+msgstr "请输入密码。"
 
 #: ide/schoollock.inc
 msgid "Type the password to turn School Lock off."
-msgstr ""
+msgstr "请输入密码以关闭学校锁定。"
 
 #: ide/schoollock.inc
 msgid "School Lock couldn't be turned on: {error}"
-msgstr ""
+msgstr "无法开启学校锁定：{error}"
 
 #: ide/search.inc
 msgid "Search"
-msgstr ""
+msgstr "搜索"
 
 #: ide/search.inc
 msgid "Search for"
-msgstr ""
+msgstr "搜索内容"
 
 #: ide/search.inc
 msgid "Search (Enter)"
-msgstr ""
+msgstr "搜索 (Enter)"
 
 #: ide/search.inc
 msgid "Replace with"
-msgstr ""
+msgstr "替换为"
 
 #: ide/search.inc
 msgid "Case"
-msgstr ""
+msgstr "大小写"
 
 #: ide/search.inc
 msgid "Match case"
-msgstr ""
+msgstr "区分大小写"
 
 #: ide/search.inc
 msgid "Word"
-msgstr ""
+msgstr "整词"
 
 #: ide/search.inc
 msgid "Whole words only"
-msgstr ""
+msgstr "仅匹配整个单词"
 
 #: ide/search.inc
 msgid "Regex"
-msgstr ""
+msgstr "正则"
 
 #: ide/search.inc
 msgid "A regular expression"
-msgstr ""
+msgstr "正则表达式"
 
 #: ide/search.inc
 msgid "Find"
-msgstr ""
+msgstr "查找"
 
 #: ide/search.inc
 msgid "Replace All"
-msgstr ""
+msgstr "全部替换"
 
 #: ide/search.inc
 msgid "In:"
-msgstr ""
+msgstr "范围:"
 
 #: ide/search.inc
 msgid "Search in"
-msgstr ""
+msgstr "搜索范围"
 
 #: ide/search.inc
 msgid "This file"
-msgstr ""
+msgstr "当前文件"
 
 #: ide/search.inc
 msgid "Open files"
-msgstr ""
+msgstr "已打开的文件"
 
 #: ide/search.inc
 msgid "Modules"
-msgstr ""
+msgstr "模块"
 
 #: ide/search.inc
 msgid "Forms"
-msgstr ""
+msgstr "窗体"
 
 #: ide/search.inc
 msgid "Resources"
-msgstr ""
+msgstr "资源"
 
 #: ide/search.inc
 msgid "Whole project"
-msgstr ""
+msgstr "整个项目"
 
 #: ide/search.inc
 msgid "A folder..."
-msgstr ""
+msgstr "某个文件夹..."
 
 #: ide/search.inc
 msgid "Type what to find, then Enter."
-msgstr ""
+msgstr "输入要查找的内容，然后按 Enter。"
 
 #: ide/search.inc
 msgid "Search results"
-msgstr ""
+msgstr "搜索结果"
 
 #: ide/search.inc
 msgid "Find &References"
-msgstr ""
+msgstr "查找引用(&R)"
 
 #: ide/search.inc
 msgid "Help"
-msgstr ""
+msgstr "帮助"
 
 #: ide/search.inc
 msgid "Search the help"
-msgstr ""
+msgstr "搜索帮助"
 
 #: ide/search.inc
 msgid "Type a word of the language or a name of your program. Up and Down choose, Enter opens, Escape goes back to the code."
-msgstr ""
+msgstr "输入语言中的一个词或你程序中的一个名称。上下键选择，Enter 打开，Esc 返回代码。"
 
 #: ide/search.inc
 msgid "Names that match: Up and Down choose, Enter opens"
-msgstr ""
+msgstr "匹配的名称：上下键选择，Enter 打开"
 
 #: ide/search.inc
 msgid "Help page"
-msgstr ""
+msgstr "帮助页面"
 
 #: ide/search.inc
 msgid "No results for {text} in this file"
-msgstr ""
+msgstr "在当前文件中没有找到 {text}"
 
 #: ide/search.inc
 msgid "No results for {text} in the open files"
-msgstr ""
+msgstr "在已打开的文件中没有找到 {text}"
 
 #: ide/search.inc
 msgid "No results for {text} in the modules"
-msgstr ""
+msgstr "在模块中没有找到 {text}"
 
 #: ide/search.inc
 msgid "No results for {text} in the forms"
-msgstr ""
+msgstr "在窗体中没有找到 {text}"
 
 #: ide/search.inc
 msgid "No results for {text} in the resources"
-msgstr ""
+msgstr "在资源中没有找到 {text}"
 
 #: ide/search.inc
 msgid "No results for {text} in {folder}"
-msgstr ""
+msgstr "在 {folder} 中没有找到 {text}"
 
 #: ide/search.inc
 msgid "No results for {text} in the project"
-msgstr ""
+msgstr "在项目中没有找到 {text}"
 
 #: ide/search.inc
 msgid "Choose a folder: In, A folder..."
-msgstr ""
+msgstr "请选择一个文件夹：范围，某个文件夹..."
 
 #: ide/search.inc
 msgid "Not a regular expression: {error}"
-msgstr ""
+msgstr "不是有效的正则表达式：{error}"
 
 #: ide/search.inc
 msgid "{results} in {files}"
-msgstr ""
+msgstr "{results}，在 {files} 中"
 
 #: ide/search.inc
 msgid "{n} result"
 msgid_plural "{n} results"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 个结果"
 
 #: ide/search.inc ide/versions.inc
 msgid "{n} file"
 msgid_plural "{n} files"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 个文件"
 
 #: ide/search.inc
 msgid "(the first 1,990 shown)"
-msgstr ""
+msgstr "（仅显示前 1,990 个）"
 
 #: ide/search.inc
 msgid "Search in a Folder"
-msgstr ""
+msgstr "在文件夹中搜索"
 
 #: ide/search.inc
 msgid "Replaced in {n} file. {info}"
 msgid_plural "Replaced in {n} files. {info}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已在 {n} 个文件中替换。{info}"
 
 #: ide/search.inc
 msgid "No references: put the caret on a name of the program (a variable, a SUB, a component)."
-msgstr ""
+msgstr "没有引用：请把光标放在程序中的某个名称上（变量、SUB 或组件）。"
 
 #: ide/search.inc
 msgid "References to {name}: {n} in {files}"
-msgstr ""
+msgstr "{name} 的引用：{files} 中共 {n} 处"
 
 #: ide/search.inc
 msgid "Nothing to go back to"
-msgstr ""
+msgstr "没有可返回的位置"
 
 #: ide/search.inc
 msgid "Nothing to go forward to"
-msgstr ""
+msgstr "没有可前进的位置"
 
 #: ide/search.inc
 msgid "Help: how to use it"
-msgstr ""
+msgstr "帮助：使用方法"
 
 #: ide/search.inc
 msgid "Help: {word}"
-msgstr ""
+msgstr "帮助：{word}"
 
 #: ide/search.inc
 msgid "{n} name matches. {first}"
 msgid_plural "{n} names match. {first}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "有 {n} 个名称匹配。{first}"
 
 #: ide/settings.inc
 msgid "Settings pages"
-msgstr ""
+msgstr "设置页面"
 
 #: ide/settings.inc
 msgid "&Language"
-msgstr ""
+msgstr "语言(&L)"
 
 #: ide/settings.inc
 msgid "Language"
-msgstr ""
+msgstr "语言"
 
 #: ide/settings.inc
 msgid "The language RapidR Studio's menus, dialogs and messages are in. It changes at once."
-msgstr ""
+msgstr "RapidR Studio 的菜单、对话框和消息所使用的语言。更改后立即生效。"
 
 #: ide/settings.inc
 msgid "&Include folders"
-msgstr ""
+msgstr "包含文件夹(&I)"
 
 #: ide/settings.inc
 msgid "Where $INCLUDE looks after the program's own folder, in this order: add the folder that holds your include files and libraries. The classic RAPIDQ.INC needs none: RapidR has it built in."
-msgstr ""
+msgstr "$INCLUDE 在程序自己的文件夹之后按此顺序查找的位置：请添加存放你的包含文件和库的文件夹。经典的 RAPIDQ.INC 不需要这样做：RapidR 已内置。"
 
 #: ide/settings.inc
 msgid "Include folders"
-msgstr ""
+msgstr "包含文件夹"
 
 #: ide/settings.inc
 msgid "&Add Folder..."
-msgstr ""
+msgstr "添加文件夹(&A)..."
 
 #: ide/settings.inc
 msgid "Add an include folder"
-msgstr ""
+msgstr "添加包含文件夹"
 
 #: ide/settings.inc
 msgid "&Remove"
-msgstr ""
+msgstr "移除(&R)"
 
 #: ide/settings.inc
 msgid "Remove the selected include folder"
-msgstr ""
+msgstr "移除所选的包含文件夹"
 
 #: ide/settings.inc
 msgid "Themes and &Views..."
-msgstr ""
+msgstr "主题和视图(&V)..."
 
 #: ide/settings.inc
 msgid "The themes and views, in the command palette"
-msgstr ""
+msgstr "命令面板中的主题和视图"
 
 #: ide/settings.inc
 msgid "&Offer to reopen the last project and its files at start-up"
-msgstr ""
+msgstr "启动时提示重新打开上次的项目及其文件(&O)"
 
 #: ide/settings.inc
 msgid "On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it"
-msgstr ""
+msgstr "开启：欢迎页会提供你上次打开的项目，以及你当时在其中打开的文件；按 Enter 即可重新打开"
 
 #: ide/settings.inc
 msgid "Code &helpers"
-msgstr ""
+msgstr "代码辅助(&H)"
 
 #: ide/settings.inc
 msgid "Code helpers"
-msgstr ""
+msgstr "代码辅助"
 
 #: ide/settings.inc
 msgid "What the code editor shows beside your code: colour swatches, pictures, a line's help, the argument names"
-msgstr ""
+msgstr "代码编辑器在代码旁边显示的内容：颜色色块、图片、某一行的帮助、参数名称"
 
 #: ide/settings.inc
 msgid "Swatches for colours, thumbnails for pictures (a red mark when the file is missing), the caret line's help and the argument names. Click a mark, or press Ctrl+. on a value, to change it; hold Ctrl a moment to see every argument's name."
-msgstr ""
+msgstr "颜色的色块、图片的缩略图（文件缺失时显示红色标记）、光标所在行的帮助，以及参数名称。点击标记，或在某个值上按 Ctrl+.，即可修改它；按住 Ctrl 片刻可查看每个参数的名称。"
 
 #: ide/settings.inc
 msgid "Programs' &PATH"
-msgstr ""
+msgstr "程序的 PATH(&P)"
 
 #: ide/settings.inc
 msgid "The folders programs run from Studio find commands in, in order"
-msgstr ""
+msgstr "从 Studio 运行的程序按此顺序在这些文件夹中查找命令"
 
 #: ide/settings.inc
 msgid "Re&fresh"
-msgstr ""
+msgstr "刷新(&F)"
 
 #: ide/settings.inc
 msgid "Read your login shell's PATH again"
-msgstr ""
+msgstr "重新读取你的登录 shell 的 PATH"
 
 #: ide/settings.inc
 msgid "&Debug panes"
-msgstr ""
+msgstr "调试面板(&D)"
 
 #: ide/settings.inc
 msgid "Debug panes"
-msgstr ""
+msgstr "调试面板"
 
 #: ide/settings.inc
 msgid "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
-msgstr ""
+msgstr "自动：程序运行时，变量、监视、调用堆栈和断点会显示在输出旁边。使用 视图 > 调试面板 (Ctrl+Shift+D) 可显示或隐藏它们。"
 
 #: ide/settings.inc
 msgid "&Turn on the AI assistant"
-msgstr ""
+msgstr "开启 AI 助手(&T)"
 
 #: ide/settings.inc
 msgid "Set up RAI, step by step"
-msgstr ""
+msgstr "一步步配置 RAI"
 
 #: ide/settings.inc
 msgid "Free on this computer, or a cloud service with your key: what each costs and sends, in plain words"
-msgstr ""
+msgstr "在这台电脑上免费使用，或使用带你自己密钥的云服务：用通俗的话说明各自的费用和发送的内容"
 
+# legal
 #: ide/settings.inc
 msgid "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run."
-msgstr ""
+msgstr "默认关闭。开启后，Studio 会显示“AI 助手”面板（视图 > AI 助手，Ctrl+I）：你可以询问关于项目的问题，或请它写一个新程序。在你点击那里的“发送”之前，不会发送任何内容。它制作的新程序会立即在 Studio 中打开（“撤销”可收回）；对你的文件的更改会先展示给你审阅，在你点击“运行”之前，不会运行任何内容。"
 
 #: ide/settings.inc
 msgid "AI provider"
-msgstr ""
+msgstr "AI 服务商"
 
 #: ide/settings.inc
 msgid "See prices"
-msgstr ""
+msgstr "查看价格"
 
 #: ide/settings.inc
 msgid "The provider's prices, in the browser"
-msgstr ""
+msgstr "在浏览器中查看服务商的价格"
 
+# legal
 #: ide/settings.inc
 msgid "Paste the key the provider gave you; it is kept in your system's keychain, never in a project"
-msgstr ""
+msgstr "粘贴服务商给你的密钥；它会保存在你系统的钥匙串中，绝不会放进项目里"
 
 #: ide/settings.inc
 msgid "&Save Key"
-msgstr ""
+msgstr "保存密钥(&S)"
 
 #: ide/settings.inc
 msgid "Keep the API key"
-msgstr ""
+msgstr "保存 API 密钥"
 
 #: ide/settings.inc
 msgid "Remo&ve"
-msgstr ""
+msgstr "移除(&V)"
 
 #: ide/settings.inc
 msgid "Remove the API key"
-msgstr ""
+msgstr "移除 API 密钥"
 
 #: ide/settings.inc
 msgid "R&emember on this device"
-msgstr ""
+msgstr "在此设备上记住(&E)"
 
+# legal
 #: ide/settings.inc
 msgid "Kept in this browser's storage for the page: anyone using this browser profile could read it"
-msgstr ""
+msgstr "保存在此浏览器为该页面提供的存储中：使用这个浏览器用户配置文件的任何人都能读取它"
 
 #: ide/settings.inc
 msgid "&Workspace ID:"
-msgstr ""
+msgstr "工作区 ID(&W):"
 
 #: ide/settings.inc
 msgid "Anthropic workspace ID (optional)"
-msgstr ""
+msgstr "Anthropic 工作区 ID（可选）"
 
 #: ide/settings.inc
 msgid "&Base URL:"
-msgstr ""
+msgstr "基础 URL(&B):"
 
 #: ide/settings.inc
 msgid "The server's base URL"
-msgstr ""
+msgstr "服务器的基础 URL"
 
 #: ide/settings.inc
 msgid "&Fetch Models"
-msgstr ""
+msgstr "获取模型(&F)"
 
 #: ide/settings.inc
 msgid "Ask the provider which models your key can use"
-msgstr ""
+msgstr "询问服务商你的密钥可以使用哪些模型"
 
 #: ide/settings.inc
 msgid "Fetch Models' result"
-msgstr ""
+msgstr "“获取模型”的结果"
 
 #: ide/settings.inc
 msgid "Longest &answer:"
-msgstr ""
+msgstr "最长回答(&A):"
 
 #: ide/settings.inc
 msgid "Longest answer, in tokens a part"
-msgstr ""
+msgstr "最长回答，按每部分的 token 数计"
 
 #: ide/settings.inc
 msgid "tokens a part, up to the model's limit"
-msgstr ""
+msgstr "每部分的 token 数，最多到模型的上限"
 
 #: ide/settings.inc
 msgid "About the answer's length and the chat's size"
-msgstr ""
+msgstr "关于回答的长度和对话的大小"
 
 #: ide/settings.inc
 msgid "&Prices:"
-msgstr ""
+msgstr "价格(&P):"
 
 #: ide/settings.inc
 msgid "Price of a million tokens sent, in dollars (optional)"
-msgstr ""
+msgstr "每百万个已发送 token 的价格，以美元计（可选）"
 
 #: ide/settings.inc
 msgid "Price of a million tokens received, in dollars (optional)"
-msgstr ""
+msgstr "每百万个已接收 token 的价格，以美元计（可选）"
 
 #: ide/settings.inc
 msgid "$ per million tokens sent / received"
-msgstr ""
+msgstr "美元 / 每百万 token（发送 / 接收）"
 
 #: ide/settings.inc
 msgid "&It may:"
-msgstr ""
+msgstr "它可以(&I):"
 
 #: ide/settings.inc
 msgid "What the assistant may do"
-msgstr ""
+msgstr "助手可以做什么"
 
 #: ide/settings.inc
 msgid "&RAI answers in:"
-msgstr ""
+msgstr "RAI 回答所用的语言(&R):"
 
 #: ide/settings.inc
 msgid "The language of the assistant's answers"
-msgstr ""
+msgstr "助手回答所用的语言"
 
 #: ide/settings.inc
 msgid "Studio's language: the assistant answers in the language Studio speaks, unless you clearly write in another one. The language I write in: it answers in the language of your latest message."
-msgstr ""
+msgstr "Studio 的语言：助手使用 Studio 所用的语言回答，除非你明显用另一种语言书写。我书写所用的语言：助手使用你最新一条消息的语言回答。"
 
 #: ide/settings.inc
 msgid "Ask before the assistant &creates or changes files"
-msgstr ""
+msgstr "助手创建或更改文件之前先询问(&C)"
 
 #: ide/settings.inc
 msgid "On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo."
-msgstr ""
+msgstr "开启：新程序会先展示给你，在你点击“创建”后才会创建。关闭：新程序会立即在 Studio 中打开，并带有“运行”和“撤销”。"
 
 #: ide/settings.inc
 msgid "The provider's links"
-msgstr ""
+msgstr "服务商的链接"
 
 #: ide/settings.inc
 msgid "Off"
-msgstr ""
+msgstr "关"
 
 #: ide/settings.inc
 msgid "Quiet: the marks only"
-msgstr ""
+msgstr "安静：只显示标记"
 
 #: ide/settings.inc
 msgid "Helpful: marks, the line's help, argument names"
-msgstr ""
+msgstr "有帮助：标记、该行的帮助、参数名称"
 
 #: ide/settings.inc
 msgid "Everything: every argument's name, choices marked too"
-msgstr ""
+msgstr "全部：每个参数的名称，选项也加以标记"
 
 #: ide/settings.inc
 msgid "Automatic"
-msgstr ""
+msgstr "自动"
 
 #: ide/settings.inc
 msgid "Always"
-msgstr ""
+msgstr "始终"
 
 #: ide/settings.inc
 msgid "Add an Include Folder"
-msgstr ""
+msgstr "添加包含文件夹"
 
 #: ide/settings.inc
 msgid "Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order. {source}"
-msgstr ""
+msgstr "从 Studio 运行的程序，以及它们的 SHELL 和 RUN 命令，按此顺序在这些文件夹中查找命令。{source}"
 
 #: ide/settings.inc
 msgid "Programs' PATH read again. {source}"
-msgstr ""
+msgstr "已重新读取程序的 PATH。{source}"
 
 #: ide/settings.inc
 msgid "System default"
-msgstr ""
+msgstr "系统默认"
 
 #: ide/settings.inc
 msgid "beta"
-msgstr ""
+msgstr "测试版"
 
 #: ide/settings.inc
 msgid "Read the project, propose changes you review"
-msgstr ""
+msgstr "读取项目，提出更改供你审阅"
 
 #: ide/settings.inc
 msgid "Only read the project and answer"
-msgstr ""
+msgstr "只读取项目并回答"
 
 #: ide/settings.inc
 msgid "Studio's language"
-msgstr ""
+msgstr "Studio 的语言"
 
 #: ide/settings.inc
 msgid "The language I write in"
-msgstr ""
+msgstr "我书写所用的语言"
 
 #: ide/settings.inc
 msgid "Include folders: none ($INCLUDE looks in the program's folder)"
-msgstr ""
+msgstr "包含文件夹：无（$INCLUDE 会在程序所在的文件夹中查找）"
 
 #: ide/settings.inc
 msgid "Include folders: {folders}"
-msgstr ""
+msgstr "包含文件夹：{folders}"
 
 #: ide/settings.inc
 msgid "An answer that reaches this length goes on by itself, in up to {parts} parts."
-msgstr ""
+msgstr "达到这个长度的回答会自动接着写下去，最多分 {parts} 部分。"
 
 #: ide/settings.inc
 msgid "The chat is summarised, keeping your request word for word, when it holds about {tokens} tokens (70% of this model's window)."
-msgstr ""
+msgstr "当对话达到约 {tokens} 个 token（此模型窗口的 70%）时，会对对话进行总结，并逐字保留你的请求。"
 
 #: ide/settings.inc
 msgid "The chat is summarised, keeping your request word for word, when it fills 70% of the model's window."
-msgstr ""
+msgstr "当对话占满模型窗口的 70% 时，会对对话进行总结，并逐字保留你的请求。"
 
+# legal
 #: ide/settings.inc
 msgid "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
-msgstr ""
+msgstr "“发送”会分享你的消息、到目前为止的对话、RapidR 的指令，以及助手读取的已打开项目的内容——不含项目之外的任何内容，在你点击“发送”之前也不会分享任何内容。每次请求和更改的日志都保存在这台电脑上。"
 
+# legal
 #: ide/settings.inc
 msgid "the macOS Keychain"
-msgstr ""
+msgstr "macOS 钥匙串"
 
+# legal
 #: ide/settings.inc
 msgid "Windows Credential Manager"
-msgstr ""
+msgstr "Windows 凭据管理器"
 
+# legal
 #: ide/settings.inc
 msgid "the Secret Service (GNOME Keyring or KWallet)"
-msgstr ""
+msgstr "Secret Service（GNOME Keyring 或 KWallet）"
 
+# legal
 #: ide/settings.inc
 msgid "this browser tab, until it closes"
-msgstr ""
+msgstr "此浏览器标签页（直到关闭）"
 
+# legal
 #: ide/settings.inc
 msgid "this browser, on this device"
-msgstr ""
+msgstr "此浏览器（在这台设备上）"
 
+# legal
 #: ide/settings.inc
 msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
-msgstr ""
+msgstr "内存（直到程序结束；这台电脑上没有 RapidR 可用的钥匙串）"
 
+# legal
 #: ide/settings.inc
 msgid "memory, for this session only"
-msgstr ""
+msgstr "内存（仅限本次会话）"
 
+# legal
 #: ide/settings.inc
 msgid "this program's memory, until it ends"
-msgstr ""
+msgstr "此程序的内存（直到程序结束）"
 
+# legal
 #: ide/settings.inc
 msgid "an environment variable"
-msgstr ""
+msgstr "一个环境变量"
 
+# legal
 #: ide/settings.inc
 msgid "A local server needs no key (one is kept if you give it: some servers ask for one)."
-msgstr ""
+msgstr "本地服务器不需要密钥（如果你提供了密钥，会保存下来：有些服务器会要求密钥）。"
 
 #: ide/settings.inc
 msgid "Using the key in {env} ({hint}). A key saved here goes first."
-msgstr ""
+msgstr "正在使用 {env} 中的密钥（{hint}）。保存在这里的密钥优先。"
 
 #: ide/settings.inc
 msgid "Trying the key you typed ({hint}): OK or Save Key keeps it."
-msgstr ""
+msgstr "正在试用你输入的密钥（{hint}）：点击“确定”或“保存密钥”即可保留它。"
 
+# legal
 #: ide/settings.inc
 msgid "Your key {hint} is kept in {store}, never in a project."
-msgstr ""
+msgstr "你的密钥 {hint} 保存在{store}中，绝不会放进项目里。"
 
+# legal
 #: ide/settings.inc
 msgid "Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project."
-msgstr ""
+msgstr "粘贴你的密钥并点击“保存密钥”：它会保存在{store}中（如果你勾选了该选项，则保存在这台设备上），绝不会放进项目里。"
 
+# legal
 #: ide/settings.inc
 msgid "Paste your key and press Save Key: it is kept in {store}, never in a project."
-msgstr ""
+msgstr "粘贴你的密钥并点击“保存密钥”：它会保存在{store}中，绝不会放进项目里。"
 
 #: ide/settings.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one)."
-msgstr ""
+msgstr "请先粘贴你的 API 密钥：服务商只会向它认识的密钥列出模型（下方的“获取密钥”会打开创建密钥的页面）。"
 
 #: ide/settings.inc
 msgid "Asking {provider} for its models..."
-msgstr ""
+msgstr "正在向 {provider} 获取模型..."
 
 #: ide/settings.inc
 msgid "{status} None this key can chat with: check the key, or the server's models."
-msgstr ""
+msgstr "{status} 这个密钥没有可用于对话的模型：请检查密钥，或服务器的模型。"
 
 #: ide/settings.inc
 msgid "{status} Choose one in the Model list (the fast, low-cost ones are first)."
-msgstr ""
+msgstr "{status} 请在“模型”列表中选择一个（速度快、费用低的排在前面）。"
 
 #: ide/settings.inc
 msgid "{status} {model} is still chosen."
-msgstr ""
+msgstr "{status} 仍然选择着 {model}。"
 
 #: ide/shell.inc
 msgid "RapidR Studio (RapidR {version})"
-msgstr ""
+msgstr "RapidR Studio (RapidR {version})"
 
 #: ide/shell.inc ide/window.inc
 msgid "BASIC is powerful again: desktop and web apps from one source."
-msgstr ""
+msgstr "BASIC 再次强大起来：一份源码，桌面应用和 Web 应用都能做。"
 
+# legal
 #: ide/shell.inc
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
-msgstr ""
+msgstr "Copyright (c) 2025-2026 Ruta Internet SRL。MIT 许可证。"
 
 #: ide/shell.inc
 msgid "Save As"
-msgstr ""
+msgstr "另存为"
 
 #: ide/shell.inc
 msgid "RapidR sources"
-msgstr ""
+msgstr "RapidR 源文件"
 
 #: ide/shell.inc
 msgid "Add a File to the Project"
-msgstr ""
+msgstr "向项目添加文件"
 
 #: ide/shell.inc
 msgid "No splitter to move"
-msgstr ""
+msgstr "没有可移动的分隔条"
 
 #: ide/shell.inc
 msgid "({id}: not there yet)"
-msgstr ""
+msgstr "（{id}：尚不存在）"
 
 #: ide/shell.inc
 msgid "RapidR Studio is ready."
-msgstr ""
+msgstr "RapidR Studio 已就绪。"
 
 #: ide/versions.inc
 msgid "&Start Keeping Versions of This Project"
-msgstr ""
+msgstr "开始为此项目记录版本(&S)"
 
 #: ide/versions.inc
 msgid "Start keeping versions of this project (Git calls this git init)"
-msgstr ""
+msgstr "开始为此项目记录版本（Git 称之为 git init）"
 
 #: ide/versions.inc
 msgid "Start keeping versions of this project"
-msgstr ""
+msgstr "开始为此项目记录版本"
 
 #: ide/versions.inc
 msgid "&Local History..."
-msgstr ""
+msgstr "本地历史记录(&L)..."
 
 #: ide/versions.inc
 msgid "The copies Studio kept of this file each time it was saved"
-msgstr ""
+msgstr "Studio 在每次保存此文件时保留的副本"
 
 #: ide/versions.inc
 msgid "Changes"
-msgstr ""
+msgstr "更改"
 
 #: ide/versions.inc
 msgid "&Save a Version..."
-msgstr ""
+msgstr "保存版本(&S)..."
 
 #: ide/versions.inc
 msgid "Save a version of your files (Git calls this a commit)"
-msgstr ""
+msgstr "保存文件的一个版本（Git 称之为 commit）"
 
 #: ide/versions.inc
 msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
-msgstr ""
+msgstr "把已更改的文件按现在的样子保存下来，并附上几句关于更改内容的说明（Git 称之为 commit）"
 
 #: ide/versions.inc
 msgid "Filter the changed files"
-msgstr ""
+msgstr "筛选已更改的文件"
 
 #: ide/versions.inc
 msgid "Shows only the files whose name or folder has these letters"
-msgstr ""
+msgstr "只显示名称或文件夹中含有这些字母的文件"
 
 #: ide/versions.inc
 msgid "Files not saved as a version, by folder"
-msgstr ""
+msgstr "尚未保存为版本的文件（按文件夹分组）"
 
 #: ide/versions.inc
 msgid "A double click or Enter opens a file; Right opens a folder, Left closes it"
-msgstr ""
+msgstr "双击或按 Enter 可打开文件；按右方向键展开文件夹，按左方向键折叠"
 
 #: ide/versions.inc
 msgid "Timeline"
-msgstr ""
+msgstr "时间线"
 
 #: ide/versions.inc
 msgid "Every version, newest first (Git calls this the log)"
-msgstr ""
+msgstr "所有版本，最新的在前（Git 称之为 log）"
 
 #: ide/versions.inc
 msgid "Timeline: every version, newest first"
-msgstr ""
+msgstr "时间线：所有版本，最新的在前"
 
 #: ide/versions.inc
 msgid "Up and Down pick a version; Enter shows what it changed; Shift+F10 opens its menu: What Changed?, Go Back..., Undo"
-msgstr ""
+msgstr "上下键选择版本；按 Enter 查看它更改了什么；按 Shift+F10 打开它的菜单：有哪些更改？、回到此版本...、撤销"
 
 #: ide/versions.inc
 msgid "What this version changed (Git calls this a diff)"
-msgstr ""
+msgstr "此版本更改了什么（Git 称之为 diff）"
 
 #: ide/versions.inc
 msgid "What Changed?"
-msgstr ""
+msgstr "有哪些更改？"
 
 #: ide/versions.inc
 msgid "&Go Back..."
-msgstr ""
+msgstr "回到此版本(&G)..."
 
 #: ide/versions.inc
 msgid "Go back to this version: a new version with its files (Git calls this a revert)"
-msgstr ""
+msgstr "回到此版本：用它的文件生成一个新版本（Git 称之为 revert）"
 
 #: ide/versions.inc
 msgid "Go Back..."
-msgstr ""
+msgstr "回到此版本..."
 
 #: ide/versions.inc
 msgid "What changed"
-msgstr ""
+msgstr "更改内容"
 
 #: ide/versions.inc
 msgid "&Restore This Copy"
-msgstr ""
+msgstr "恢复此副本(&R)"
 
 #: ide/versions.inc
 msgid "Files"
-msgstr ""
+msgstr "文件"
 
 #: ide/versions.inc
 msgid "Save a Version"
-msgstr ""
+msgstr "保存版本"
 
 #: ide/versions.inc
 msgid "A version keeps the files you choose as they are now, with a few words about what changed, so you can always come back to them. Git calls it a commit."
-msgstr ""
+msgstr "版本会把你选择的文件按现在的样子保存下来，并附上几句关于更改内容的说明，这样你随时都能回到它们。Git 称之为 commit。"
 
 #: ide/versions.inc
 msgid "&What changed:"
-msgstr ""
+msgstr "更改内容(&W):"
 
 #: ide/versions.inc
 msgid "Say in a few words what this version changes"
-msgstr ""
+msgstr "用几句话说明这个版本更改了什么"
 
 #: ide/versions.inc
 msgid "&Files in this version:"
-msgstr ""
+msgstr "此版本中的文件(&F):"
 
 #: ide/versions.inc
 msgid "Files in this version: Space ticks or unticks one"
-msgstr ""
+msgstr "此版本中的文件：按空格键可勾选或取消勾选"
 
 #: ide/versions.inc
 msgid "&Your name:"
-msgstr ""
+msgstr "你的名字(&Y):"
 
 #: ide/versions.inc
 msgid "Your name, saved with the version"
-msgstr ""
+msgstr "你的名字，会随版本一起保存"
 
 #: ide/versions.inc
 msgid "These aren't real keys or passwords: save them &anyway"
-msgstr ""
+msgstr "这些不是真正的密钥或密码：仍然保存(&A)"
 
 #: ide/versions.inc
 msgid "&Save Version"
-msgstr ""
+msgstr "保存版本(&S)"
 
 #: ide/versions.inc
 msgid "The &Whole Project"
-msgstr ""
+msgstr "整个项目(&W)"
 
 #: ide/versions.inc
 msgid "Only This &File"
-msgstr ""
+msgstr "仅此文件(&F)"
 
 #: ide/versions.inc
 msgid "File"
-msgstr ""
+msgstr "文件"
 
 #: ide/versions.inc
 msgid "Change"
-msgstr ""
+msgstr "更改"
 
 #: ide/versions.inc
 msgid "just now"
-msgstr ""
+msgstr "刚刚"
 
 #: ide/versions.inc
 msgid "{n} minute ago"
 msgid_plural "{n} minutes ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 分钟前"
 
 #: ide/versions.inc
 msgid "{n} hour ago"
 msgid_plural "{n} hours ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 小时前"
 
 #: ide/versions.inc
 msgid "yesterday"
-msgstr ""
+msgstr "昨天"
 
 #: ide/versions.inc
 msgid "{n} day ago"
 msgid_plural "{n} days ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 天前"
 
 #: ide/versions.inc
 msgid "AI checkpoint: {what}, {when}"
-msgstr ""
+msgstr "AI 检查点：{what}，{when}"
 
 #: ide/versions.inc
 msgid "saved by {who}, {when}"
-msgstr ""
+msgstr "由 {who} 保存，{when}"
 
 #: ide/versions.inc
 msgid "the current version"
-msgstr ""
+msgstr "当前版本"
 
 #: ide/versions.inc
 msgid "new, not in a version yet"
-msgstr ""
+msgstr "新文件，尚未进入任何版本"
 
 #: ide/versions.inc
 msgid "deleted since the last version"
-msgstr ""
+msgstr "自上一个版本以来已删除"
 
 #: ide/versions.inc
 msgid "changed since the last version"
-msgstr ""
+msgstr "自上一个版本以来已更改"
 
 #: ide/versions.inc
 msgid "closed"
-msgstr ""
+msgstr "已折叠"
 
 #: ide/versions.inc
 msgid "open"
-msgstr ""
+msgstr "已展开"
 
 #: ide/versions.inc
 msgid "Folder {folder}, {changes}, {state}"
-msgstr ""
+msgstr "文件夹 {folder}，{changes}，{state}"
 
 #: ide/versions.inc
 msgid "{n} change"
 msgid_plural "{n} changes"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 处更改"
 
 #: ide/versions.inc
 msgid "{file}: {state}"
-msgstr ""
+msgstr "{file}：{state}"
 
 #: ide/versions.inc
 msgid "{file} in {folder}: {state}"
-msgstr ""
+msgstr "{folder} 中的 {file}：{state}"
 
 #: ide/versions.inc
 msgid "{folder} opened"
-msgstr ""
+msgstr "已展开 {folder}"
 
 #: ide/versions.inc
 msgid "{folder} closed"
-msgstr ""
+msgstr "已折叠 {folder}"
 
 #: ide/versions.inc
 msgid "No project open"
-msgstr ""
+msgstr "没有打开的项目"
 
 #: ide/versions.inc
 msgid "Open a project to keep versions of it: every step of your work, so nothing is ever lost."
-msgstr ""
+msgstr "打开一个项目，才能为它记录版本：记下你工作的每一步，这样就不会丢失任何内容。"
 
 #: ide/versions.inc
 msgid "Not in a browser"
-msgstr ""
+msgstr "浏览器中不可用"
 
 #: ide/versions.inc
 msgid "Versions need RapidR Studio on your computer: a browser can't keep them yet."
-msgstr ""
+msgstr "版本功能需要你电脑上的 RapidR Studio：浏览器暂时还不能保存版本。"
 
 #: ide/versions.inc
 msgid "Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them."
-msgstr ""
+msgstr "Studio 仍会在每次保存时，在这个浏览器中保存每个文件的一份副本。“本地历史记录”会显示它们。"
 
 #: ide/versions.inc
 msgid "No versions yet"
-msgstr ""
+msgstr "还没有版本"
 
 #: ide/versions.inc
 msgid "A version keeps all your files as they are now, with a few words about what changed, so you can always go back. Git calls versions commits."
-msgstr ""
+msgstr "版本会把你的所有文件按现在的样子保存下来，并附上几句关于更改内容的说明，这样你随时都能回去。Git 把版本称为 commit。"
 
 #: ide/versions.inc
 msgid "Until then Studio keeps a copy of each file every time you save it. Local History shows them."
-msgstr ""
+msgstr "在那之前，Studio 会在每次保存时保存每个文件的一份副本。“本地历史记录”会显示它们。"
 
 #: ide/versions.inc
 msgid "Experiment: {experiment}"
-msgstr ""
+msgstr "实验：{experiment}"
 
 #: ide/versions.inc
 msgid "All saved"
-msgstr ""
+msgstr "全部已保存"
 
 #: ide/versions.inc
 msgid "Everything is saved in a version."
-msgstr ""
+msgstr "所有内容都已保存到版本中。"
 
 #: ide/versions.inc
 msgid "Undo: {what}"
-msgstr ""
+msgstr "撤销：{what}"
 
 #: ide/versions.inc
 msgid "no changes since the last version"
-msgstr ""
+msgstr "自上一个版本以来没有更改"
 
 #: ide/versions.inc
 msgid "{n} change not saved as a version"
 msgid_plural "{n} changes not saved as a version"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} 处更改尚未保存为版本"
 
 #: ide/versions.inc
 msgid "&Start Keeping Versions"
-msgstr ""
+msgstr "开始记录版本(&S)"
 
 #: ide/versions.inc
 msgid "{n} min ago"
-msgstr ""
+msgstr "{n} 分钟前"
 
 #: ide/versions.inc
 msgid "{n} h ago"
-msgstr ""
+msgstr "{n} 小时前"
 
 #: ide/versions.inc
 msgid "AI checkpoint: {what}"
-msgstr ""
+msgstr "AI 检查点：{what}"
 
 #: ide/versions.inc
 msgid "{who} · {when}"
-msgstr ""
+msgstr "{who} · {when}"
 
 #: ide/versions.inc
 msgid "Current"
-msgstr ""
+msgstr "当前"
 
 #: ide/versions.inc
 msgid "New"
-msgstr ""
+msgstr "新增"
 
 #: ide/versions.inc
 msgid "Deleted"
-msgstr ""
+msgstr "已删除"
 
 #: ide/versions.inc
 msgid "Changed"
-msgstr ""
+msgstr "已更改"
 
 #: ide/versions.inc
 msgid "Go Back to This Version for {file}..."
-msgstr ""
+msgstr "将 {file} 回到此版本..."
 
 #: ide/versions.inc
 msgid "&Undo: {what}"
-msgstr ""
+msgstr "撤销：{what}(&U)"
 
 #: ide/versions.inc
 msgid "Only {file}"
-msgstr ""
+msgstr "仅 {file}"
 
 #: ide/versions.inc
 msgid "Versions didn't start: {why}"
-msgstr ""
+msgstr "无法开始记录版本：{why}"
 
 #: ide/versions.inc
 msgid "Versions didn't start"
-msgstr ""
+msgstr "无法开始记录版本"
 
 #: ide/versions.inc
 msgid "This project keeps versions now: {folder}"
-msgstr ""
+msgstr "此项目现在开始记录版本了：{folder}"
 
 #: ide/versions.inc
 msgid "Versions started: save your first version"
-msgstr ""
+msgstr "已开始记录版本：请保存你的第一个版本"
 
 #: ide/versions.inc
 msgid "Versions started. Save a Version keeps your files as they are now."
-msgstr ""
+msgstr "已开始记录版本。“保存版本”会把你的文件按现在的样子保存下来。"
 
 #: ide/versions.inc
 msgid "Nothing changed since the last version"
-msgstr ""
+msgstr "自上一个版本以来没有任何更改"
 
 #: ide/versions.inc
 msgid "Nothing changed since the last version, so there is nothing to save."
-msgstr ""
+msgstr "自上一个版本以来没有任何更改，所以没有可保存的内容。"
 
 #: ide/versions.inc
 msgid "new"
-msgstr ""
+msgstr "新增"
 
 #: ide/versions.inc
 msgid "deleted"
-msgstr ""
+msgstr "已删除"
 
 #: ide/versions.inc
 msgid "changed"
-msgstr ""
+msgstr "已更改"
 
 #: ide/versions.inc
 msgid "Save &Anyway"
-msgstr ""
+msgstr "仍然保存(&A)"
 
 #: ide/versions.inc
 msgid "Tick at least one file to save in this version."
-msgstr ""
+msgstr "请至少勾选一个要保存到此版本的文件。"
 
 #: ide/versions.inc
 msgid "{file}, line {line}: {what}"
-msgstr ""
+msgstr "{file}，第 {line} 行：{what}"
 
 #: ide/versions.inc
 msgid "and {n} more line"
 msgid_plural "and {n} more lines"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "以及另外 {n} 行"
 
+# legal
 #: ide/versions.inc
 msgid "This line looks like a key or a password. Versions are often shared, and a secret saved in one stays in the timeline: take it out first, or save anyway if it isn't a real one."
 msgid_plural "These {n} lines look like keys or passwords. Versions are often shared, and a secret saved in one stays in the timeline: take them out first, or save anyway if they aren't real ones."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "这 {n} 行看起来像密钥或密码。版本常常会被分享，保存进版本的机密内容会一直留在时间线里：请先把它们去掉，如果它们不是真的，也可以仍然保存。"
 
+# legal
 #: ide/versions.inc
 msgid "Not saved: lines look like keys or passwords. The dialog lists them."
-msgstr ""
+msgstr "未保存：有些行看起来像密钥或密码。对话框中列出了它们。"
 
 #: ide/versions.inc
 msgid "Saved the version “{message}” ({id})"
-msgstr ""
+msgstr "已保存版本“{message}”（{id}）"
 
 #: ide/versions.inc
 msgid "Saved the version “{message}”"
-msgstr ""
+msgstr "已保存版本“{message}”"
 
 #: ide/versions.inc
 msgid "Version saved."
-msgstr ""
+msgstr "版本已保存。"
 
 #: ide/versions.inc
 msgid "Pick a version in the timeline first"
-msgstr ""
+msgstr "请先在时间线中选择一个版本"
 
 #: ide/versions.inc
 msgid "Go back to “{message}” for {file}?"
-msgstr ""
+msgstr "将 {file} 回到“{message}”？"
 
 #: ide/versions.inc
 msgid "{file} becomes as it was in that version, saved as a new version. The other files stay as they are, and the newer versions stay on the timeline. Undo takes it back."
-msgstr ""
+msgstr "{file} 会恢复成它在那个版本中的样子，并保存为一个新版本。其他文件保持原样，较新的版本也仍留在时间线上。“撤销”可以收回。"
 
 #: ide/versions.inc
 msgid "Go back to “{message}”?"
-msgstr ""
+msgstr "回到“{message}”？"
 
 #: ide/versions.inc
 msgid "Your files become as they were in that version, saved as a new version. The newer versions stay on the timeline, and Undo takes it back. Git calls this a revert."
-msgstr ""
+msgstr "你的文件会恢复成它们在那个版本中的样子，并保存为一个新版本。较新的版本仍留在时间线上，“撤销”可以收回。Git 称之为 revert。"
 
 #: ide/versions.inc
 msgid "&Go Back"
-msgstr ""
+msgstr "回到此版本(&G)"
 
 #: ide/versions.inc
 msgid "Didn't go back: {why}"
-msgstr ""
+msgstr "没有回退：{why}"
 
 #: ide/versions.inc
 msgid "Didn't go back: see the Output"
-msgstr ""
+msgstr "没有回退：请查看“输出”"
 
 #: ide/versions.inc
 msgid "Went back to “{message}”: a new version ({id}). Undo takes it back."
-msgstr ""
+msgstr "已回到“{message}”：生成了一个新版本 ({id})。“撤销”可以收回。"
 
 #: ide/versions.inc
 msgid "Went back to “{message}”"
-msgstr ""
+msgstr "已回到“{message}”"
 
 #: ide/versions.inc
 msgid "Went back to {message}. Undo takes it back."
-msgstr ""
+msgstr "已回到 {message}。“撤销”可以收回。"
 
 #: ide/versions.inc
 msgid "Nothing to undo in the versions"
-msgstr ""
+msgstr "版本中没有可撤销的内容"
 
 #: ide/versions.inc
 msgid "Couldn't undo: {why}"
-msgstr ""
+msgstr "无法撤销：{why}"
 
 #: ide/versions.inc
 msgid "Couldn't undo: see the Output"
-msgstr ""
+msgstr "无法撤销：请查看“输出”"
 
 #: ide/versions.inc
 msgid "Undid: {what}"
-msgstr ""
+msgstr "已撤销：{what}"
 
 #: ide/versions.inc
 msgid "Open a file to see its local history"
-msgstr ""
+msgstr "打开一个文件，即可查看它的本地历史记录"
 
 #: ide/versions.inc
 msgid "Local History: {file}"
-msgstr ""
+msgstr "本地历史记录：{file}"
 
 #: ide/versions.inc
 msgid "A copy each time the file was saved, kept in the project's .rapidr folder (never in a version)"
-msgstr ""
+msgstr "每次保存文件时留下的副本，保存在项目的 .rapidr 文件夹中（不会进入版本）"
 
 #: ide/versions.inc
 msgid "Copies of {file}, newest first"
-msgstr ""
+msgstr "{file} 的副本，最新的在前"
 
 #: ide/versions.inc
 msgid "Puts this copy's text in the editor; Undo (Ctrl+Z) takes it back"
-msgstr ""
+msgstr "把这份副本的文本放入编辑器；“撤销”(Ctrl+Z) 可以收回"
 
 #: ide/versions.inc
 msgid "As it was on disk, {when}"
-msgstr ""
+msgstr "当时磁盘上的样子，{when}"
 
 #: ide/versions.inc
 msgid "Before reloading, {when}"
-msgstr ""
+msgstr "重新载入之前，{when}"
 
 #: ide/versions.inc
 msgid "Before a restore, {when}"
-msgstr ""
+msgstr "恢复之前，{when}"
 
 #: ide/versions.inc
 msgid "When it was deleted outside Studio, {when}"
-msgstr ""
+msgstr "在 Studio 之外被删除时，{when}"
 
 #: ide/versions.inc
 msgid "Saved, {when}"
-msgstr ""
+msgstr "保存于 {when}"
 
 #: ide/versions.inc
 msgid "No copies yet: Studio keeps one each time you save this file."
-msgstr ""
+msgstr "还没有副本：每次保存此文件时，Studio 都会保留一份。"
 
 #: ide/versions.inc
 msgid "Compare: {file}"
-msgstr ""
+msgstr "比较：{file}"
 
 #: ide/versions.inc
 msgid "{file}: the disk's version and yours"
-msgstr ""
+msgstr "{file}：磁盘上的版本和你的版本"
 
 #: ide/versions.inc
 msgid "Left: on disk, changed outside Studio. Right: yours, not saved."
-msgstr ""
+msgstr "左侧：磁盘上的版本，在 Studio 之外被更改。右侧：你的版本，尚未保存。"
 
 #: ide/versions.inc
 msgid "What Changed: {message}"
-msgstr ""
+msgstr "更改内容：{message}"
 
 #: ide/versions.inc
 msgid "What changed in “{message}”"
-msgstr ""
+msgstr "“{message}”中的更改内容"
 
 #: ide/versions.inc
 msgid "{who} · {when} · {files}"
-msgstr ""
+msgstr "{who} · {when} · {files}"
 
 #: ide/versions.inc
 msgid "What Changed"
-msgstr ""
+msgstr "更改内容"
 
 #: ide/versions.inc
 msgid "What changed since the last version"
-msgstr ""
+msgstr "自上一个版本以来的更改内容"
 
 #: ide/versions.inc
 msgid "Files that changed"
-msgstr ""
+msgstr "已更改的文件"
 
 #: ide/versions.inc
 msgid "{file} (removed)"
-msgstr ""
+msgstr "{file}（已删除）"
 
 #: ide/versions.inc
 msgid "Restored a copy of {file}: save it to keep it, Ctrl+Z takes it back"
-msgstr ""
+msgstr "已恢复 {file} 的一份副本：保存后才会保留，Ctrl+Z 可以收回"
 
 #: ide/versions.inc
 msgid "Restored. Save the file to keep it; Undo takes it back."
-msgstr ""
+msgstr "已恢复。保存文件后才会保留；“撤销”可以收回。"
 
 #: ide/versions.inc
 msgid "This line is as the last version has it"
-msgstr ""
+msgstr "这一行与上一个版本中的相同"
 
 #: ide/versions.inc
 msgid "Start versioning the project to see what changed since a version"
-msgstr ""
+msgstr "开始为项目记录版本，即可查看自某个版本以来的更改"
 
 #: ide/versions.inc
 msgid "Line {n} was: {text}"
-msgstr ""
+msgstr "第 {n} 行原来是：{text}"
 
 #: ide/versions.inc
 msgid "The change was undone. Ctrl+Z brings it back."
-msgstr ""
+msgstr "更改已撤销。Ctrl+Z 可以恢复。"
 
 #: ide/window.inc
 msgid "Tool bar"
-msgstr ""
+msgstr "工具栏"
 
 #: ide/window.inc
 msgid "Status"
-msgstr ""
+msgstr "状态"
 
 #: ide/window.inc
 msgid "Start"
-msgstr ""
+msgstr "开始"
 
 #: ide/window.inc
 msgid "Recent"
-msgstr ""
+msgstr "最近"
 
 #: ide/window.inc
 msgid "No recent projects yet"
-msgstr ""
+msgstr "还没有最近的项目"
 
 #: ide/window.inc
 msgid "Examples"
-msgstr ""
+msgstr "示例"
 
 #: ide/window.inc
 msgid "Type a command, :line, or an example"
-msgstr ""
+msgstr "输入命令、:行号 或示例名称"
 
 #: ide/window.inc
 msgid "Command Palette"
-msgstr ""
+msgstr "命令面板"
 
 #: ide/window.inc
 msgid "New Project"
-msgstr ""
+msgstr "新建项目"
 
 #: ide/window.inc
 msgid "&Name:"
-msgstr ""
+msgstr "名称(&N):"
 
 #: ide/window.inc
 msgid "Template:"
-msgstr ""
+msgstr "模板:"
 
 #: ide/window.inc
 msgid "&Folder:"
-msgstr ""
+msgstr "文件夹(&F):"
 
 #: ide/window.inc
 msgid "Choose the folder"
-msgstr ""
+msgstr "选择文件夹"
 
 #: ide/window.inc
 msgid "Create"
-msgstr ""
+msgstr "创建"
 
 #: ide/workspace.inc
 msgid "Design"
-msgstr ""
+msgstr "设计"
 
 #: ide/workspace.inc
 msgid "Code"
-msgstr ""
+msgstr "代码"
 
 #: ide/workspace.inc
 msgid "Preview"
-msgstr ""
+msgstr "预览"
 
 #: ide/workspace.inc
 msgid "Source"
-msgstr ""
+msgstr "源码"
 
 #: ide/workspace.inc
 msgid "{title}: {what}"
-msgstr ""
+msgstr "{title}：{what}"
 
 #: ide/workspace.inc
 msgid "Do you want to save the changes you made to {file}?"
-msgstr ""
+msgstr "要保存你对 {file} 所做的更改吗？"
 
 #: ide/workspace.inc
 msgid "Your changes will be lost if you don't save them."
-msgstr ""
+msgstr "如果不保存，你的更改将会丢失。"
 
 #: ide/workspace.inc
 msgid "You have {n} document with unsaved changes. Do you want to save it before quitting?"
 msgid_plural "You have {n} documents with unsaved changes. Do you want to save them before quitting?"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "你有 {n} 个文档含有未保存的更改。要在退出前保存它们吗？"
 
 #: ide/workspace.inc
 msgid "Review Changes asks about each one. If you discard them, all your changes will be lost."
-msgstr ""
+msgstr "“审阅更改”会逐个询问。如果你放弃它们，所有更改都会丢失。"
 
 #: ide/workspace.inc
 msgid "Form app"
-msgstr ""
+msgstr "窗体应用"
 
 #: ide/workspace.inc
 msgid "A window to design, with its code beside it."
-msgstr ""
+msgstr "一个可以设计的窗口，代码就在旁边。"
 
 #: ide/workspace.inc
 msgid "Console"
-msgstr ""
+msgstr "控制台"
 
 #: ide/workspace.inc
 msgid "PRINT and INPUT in a text window."
-msgstr ""
+msgstr "在文本窗口中使用 PRINT 和 INPUT。"
 
 #: ide/workspace.inc
 msgid "Classic form app"
-msgstr ""
+msgstr "经典窗体应用"
 
 #: ide/workspace.inc
 msgid "A .bas with the classic names only, checked as classic."
-msgstr ""
+msgstr "只使用经典名称的 .bas 文件，按经典规则检查。"
 
 #: ide/workspace.inc
 msgid "Data dashboard"
-msgstr ""
+msgstr "数据仪表板"
 
 #: ide/workspace.inc
 msgid "A table in a grid and a chart of it."
-msgstr ""
+msgstr "表格中的数据，以及它的图表。"
 
 #: ide/workspace.inc
 msgid "MDI app"
-msgstr ""
+msgstr "MDI 应用"
 
 #: ide/workspace.inc
 msgid "Child windows, File and Window menus."
-msgstr ""
+msgstr "子窗口，以及“文件”和“窗口”菜单。"

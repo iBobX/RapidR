@@ -180,8 +180,16 @@ pub fn coverage(template: &[Message], file: &[Message]) -> Coverage {
 /// what is wrong ([`markers::check`]).
 pub fn check(language: &str, file: &[Message]) -> Vec<(String, Vec<String>)> {
     let mut out = Vec::new();
+    // (a language with one plural form — Chinese, Japanese … — has that one
+    // form stand for the singular and the plural, so it keeps the plural
+    // text's markers: "{n} files", not "a file")
+    let one_form = crate::tags::plural_forms(language).starts_with("nplurals=1");
     for m in file.iter().filter(|m| !m.is_header() && m.translated()) {
-        let mut problems = markers::check_for(language, &m.id, m.forms.first().map(String::as_str).unwrap_or(""));
+        let first_source = match (&m.plural, one_form) {
+            (Some(plural), true) => plural,
+            _ => &m.id,
+        };
+        let mut problems = markers::check_for(language, first_source, m.forms.first().map(String::as_str).unwrap_or(""));
         if let Some(p) = &m.plural {
             for f in m.forms.iter().skip(1).filter(|f| !f.is_empty()) {
                 problems.extend(markers::check_for(language, p, f));
@@ -300,6 +308,19 @@ mod tests {
         assert!(check("es", &new).is_empty());
         let bad = po::read_messages("msgid \"&Open {f}\"\nmsgstr \"Abrir\"\n");
         assert_eq!(check("es", &bad)[0].1.len(), 2);
+    }
+
+    #[test]
+    fn a_language_with_one_plural_form_keeps_the_plural_texts_markers() {
+        let text = "msgid \"a file saved\"\nmsgid_plural \"{n} files saved\"\nmsgstr[0] \"已保存 {n} 个文件\"\n";
+        let file = po::read_messages(text);
+        // (Chinese's one form is checked against the plural: it has {n})
+        assert!(check("zh-Hans", &file).is_empty(), "{:?}", check("zh-Hans", &file));
+        // (Spanish's first form is the singular: it must not have {n})
+        assert_eq!(check("es", &file).len(), 1);
+        let singular = po::read_messages("msgid \"a file saved\"\nmsgid_plural \"{n} files saved\"\nmsgstr[0] \"un archivo guardado\"\nmsgstr[1] \"{n} archivos guardados\"\n");
+        assert!(check("es", &singular).is_empty());
+        assert_eq!(check("zh-Hans", &singular).len(), 1);
     }
 
     #[test]

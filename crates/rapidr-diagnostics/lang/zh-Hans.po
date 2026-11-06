@@ -13,565 +13,565 @@ msgstr ""
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0001"
 msgid "Member {member} not part of class {class}"
-msgstr ""
+msgstr "成员 {member} 不属于类 {class}"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0002"
 msgid "{name} is a read-only value."
-msgstr ""
+msgstr "{name} 是只读的值。"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0003"
 msgid "Property {property} of {class} is read-only."
-msgstr ""
+msgstr "{class} 的属性 {property} 是只读的。"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0004"
 msgid "Undeclared identifier {name}"
-msgstr ""
+msgstr "未声明的标识符：{name}"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0005"
 msgid "Expected end-of-line but got {got}"
-msgstr ""
+msgstr "应为行尾，但得到的是 {got}"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0006"
 msgid "Expected {expected} but got \"{got}\""
-msgstr ""
+msgstr "应为 {expected}，但得到的是 \"{got}\""
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0007"
 msgid "Identifier {name} already used, try another name"
-msgstr ""
+msgstr "标识符 {name} 已被使用，请换一个名称"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0008"
 msgid "Unknown type {name}"
-msgstr ""
+msgstr "未知的类型：{name}"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0009"
 msgid "ICON file {file} does not exist."
-msgstr ""
+msgstr "ICON 文件 {file} 不存在。"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0010"
 msgid "Array of {type} is not supported!"
-msgstr ""
+msgstr "不支持 {type} 的数组！"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0011"
 msgid "Create Method only works for QObjects, not {name}"
-msgstr ""
+msgstr "Create 方法只适用于 QObject，不适用于 {name}"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0012"
 msgid "Datatype {type} not supported in STRUCT"
-msgstr ""
+msgstr "STRUCT 中不支持数据类型 {type}"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0013"
 msgid "{name} is not a valid data type for your FUNCTION"
-msgstr ""
+msgstr "{name} 不是你的 FUNCTION 的有效数据类型"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0014"
 msgid "Component assignment is not yet supported."
-msgstr ""
+msgstr "尚不支持组件赋值。"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0015"
 msgid "Too many actual parameters for {name}"
-msgstr ""
+msgstr "{name} 的实际参数太多"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0016"
 msgid "Expected end-of-line"
-msgstr ""
+msgstr "应为行尾"
 
 #. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0017"
 msgid "Expected {expected}"
-msgstr ""
+msgstr "应为 {expected}"
 
 msgctxt "RR0001"
 msgid "Syntax error in {word} statement (did you mean {fix}?)"
-msgstr ""
+msgstr "{word} 语句的语法错误（你是不是想写 {fix}？）"
 
 msgctxt "RR0002"
 msgid "Syntax error in {word} statement"
-msgstr ""
+msgstr "{word} 语句的语法错误"
 
 msgctxt "RR0003"
 msgid "Syntax error near '{text}'"
-msgstr ""
+msgstr "'{text}' 附近有语法错误"
 
 msgctxt "RR0004"
 msgid "Syntax error: unexpected '{text}'"
-msgstr ""
+msgstr "语法错误：不应出现 '{text}'"
 
 msgctxt "RR0005"
 msgid "Syntax error: unexpected end of file"
-msgstr ""
+msgstr "语法错误：文件意外结束"
 
 msgctxt "RR0006"
 msgid "Unknown SUB or FUNCTION '{name}'"
-msgstr ""
+msgstr "未知的 SUB 或 FUNCTION '{name}'"
 
 msgctxt "RR0007"
 msgid "Label '{label}' not found in {routine}"
-msgstr ""
+msgstr "在 {routine} 中找不到标签 '{label}'"
 
 msgctxt "RR0008"
 msgid "Label '{label}' is defined more than once"
-msgstr ""
+msgstr "标签 '{label}' 被定义了多次"
 
 msgctxt "RR0009"
 msgid "EXIT {kind} is not inside a {kind} loop"
-msgstr ""
+msgstr "EXIT {kind} 不在 {kind} 循环之内"
 
 msgctxt "RR0010"
 msgid "EXIT {kind} is not inside a {kind}"
-msgstr ""
+msgstr "EXIT {kind} 不在 {kind} 之内"
 
 msgctxt "RR0011"
 msgid "'{word}' is a reserved word and can't be used as a name"
-msgstr ""
+msgstr "'{word}' 是保留字，不能用作名称"
 
 msgctxt "RR0012"
 msgid "EVENT {name} is missing END EVENT"
-msgstr ""
+msgstr "EVENT {name} 缺少 END EVENT"
 
 msgctxt "RR0013"
 msgid "PROPERTY SET {name} is missing END PROPERTY"
-msgstr ""
+msgstr "PROPERTY SET {name} 缺少 END PROPERTY"
 
 msgctxt "RR0014"
 msgid "Field {field} in TYPE {type} needs a type: `{field} AS INTEGER`"
-msgstr ""
+msgstr "TYPE {type} 中的字段 {field} 需要指定类型：`{field} AS INTEGER`"
 
 msgctxt "RR0015"
 msgid "Unexpected '{text}' after field declaration"
-msgstr ""
+msgstr "字段声明之后不应出现 '{text}'"
 
 msgctxt "RR0016"
 msgid "GOSUB needs a label"
-msgstr ""
+msgstr "GOSUB 需要一个标签"
 
 msgctxt "RR0017"
 msgid "FOR {name} AS {type}: {name} is already declared AS {declared}"
-msgstr ""
+msgstr "FOR {name} AS {type}：{name} 已声明为 AS {declared}"
 
 msgctxt "RR0018"
 msgid "{file}: no errors"
-msgstr ""
+msgstr "{file}：没有错误"
 
 msgctxt "RR0019"
 msgid "{key} works on the desktop only: the web runtime doesn't have it ({n} uses)"
-msgstr ""
+msgstr "{key} 只能在桌面上使用：Web 运行时没有它（使用了 {n} 次）"
 
 msgctxt "RR0020"
 msgid "{key} works on the desktop only: the web runtime doesn't have it (1 use)"
-msgstr ""
+msgstr "{key} 只能在桌面上使用：Web 运行时没有它（使用了 1 次）"
 
 msgctxt "RR0021"
 msgid "{key} works in the web runtime only: the desktop doesn't have it ({n} uses)"
-msgstr ""
+msgstr "{key} 只能在 Web 运行时使用：桌面版没有它（使用了 {n} 次）"
 
 msgctxt "RR0022"
 msgid "{key} works in the web runtime only: the desktop doesn't have it (1 use)"
-msgstr ""
+msgstr "{key} 只能在 Web 运行时使用：桌面版没有它（使用了 1 次）"
 
 msgctxt "RR0023"
 msgid "{what} works on the desktop only: the web runtime doesn't have it"
-msgstr ""
+msgstr "{what} 只能在桌面上使用：Web 运行时没有它"
 
 msgctxt "RR0024"
 msgid "{what} works in the web runtime only: the desktop doesn't have it"
-msgstr ""
+msgstr "{what} 只能在 Web 运行时使用：桌面版没有它"
 
 msgctxt "RR0025"
 msgid "{what} is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)"
-msgstr ""
+msgstr "{what} 是 RapidR 的扩展：经典编译器不接受它（此项目保持与经典兼容）"
 
 msgctxt "RR0026"
 msgid "The classic {what} is not implemented in RapidR yet"
-msgstr ""
+msgstr "RapidR 尚未实现经典的 {what}"
 
 msgctxt "RR0027"
 msgid "{written} is not a classic name: RapidR reads it as {name}"
-msgstr ""
+msgstr "{written} 不是经典名称：RapidR 将它读作 {name}"
 
 msgctxt "RR0028"
 msgid "{shown} is RapidR's name: a classic compiler knows it as {q}"
-msgstr ""
+msgstr "{shown} 是 RapidR 的名称：经典编译器称它为 {q}"
 
 msgctxt "RR0029"
 msgid "{name} is RapidR's own component: a classic compiler doesn't have it (this project is kept classic-compatible)"
-msgstr ""
+msgstr "{name} 是 RapidR 自己的组件：经典编译器没有它（此项目保持与经典兼容）"
 
 msgctxt "RR0030"
 msgid "{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"
-msgstr ""
+msgstr "{name} 的值是 1，而 NOT 1 是 -2（真）：请写成 {shown} = 0"
 
 msgctxt "RR0031"
 msgid "Inside FUNCTION {function}, Result is the FUNCTION's own value (RESULT): this variable can't be used there. Give it another name"
-msgstr ""
+msgstr "在 FUNCTION {function} 内部，Result 是该 FUNCTION 自己的值 (RESULT)：这个变量在那里无法使用。请给它换一个名称"
 
 msgctxt "RR0032"
 msgid "&& is not a logical AND in RapidR (& joins text), so this test is never what was meant"
-msgstr ""
+msgstr "在 RapidR 中 && 不是逻辑 AND（& 用于连接文本），所以这个判断绝不会是你想要的意思"
 
 msgctxt "RR0033"
 msgid "{name} is not RapidR: nothing is printed"
-msgstr ""
+msgstr "{name} 不是 RapidR 的语法：不会输出任何内容"
 
 msgctxt "RR0034"
 msgid "{name} is a {inc} constant — add $INCLUDE \"{inc}\""
-msgstr ""
+msgstr "{name} 是 {inc} 中的常量——请添加 $INCLUDE \"{inc}\""
 
 #. The word that labels a hint under a compiler message
 msgctxt "hint.label"
 msgid "hint"
-msgstr ""
+msgstr "提示"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.set"
 msgid "RapidR has no SET: write x = 1 (the name, =, then the value)"
-msgstr ""
+msgstr "RapidR 没有 SET：请写 x = 1（先写名称，再写 =，然后写值）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.let"
 msgid "RapidR has no LET: write x = 1 (the name, =, then the value)"
-msgstr ""
+msgstr "RapidR 没有 LET：请写 x = 1（先写名称，再写 =，然后写值）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.var"
 msgid "a variable is declared with DIM name AS type (DIM total AS DOUBLE); a constant with CONST NAME = value"
-msgstr ""
+msgstr "变量用 DIM name AS type 声明（DIM total AS DOUBLE）；常量用 CONST NAME = value"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.as-as"
 msgid "a name takes one `AS type`: DIM ready AS INTEGER (not AS INTEGER AS INTEGER)"
-msgstr ""
+msgstr "一个名称只能带一个 `AS type`：DIM ready AS INTEGER（不是 AS INTEGER AS INTEGER）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.for-foreign"
 msgid "a counting loop is FOR i = 1 TO 10 … NEXT (STEP 2 to skip); RapidR has no `for … in range()`, `for (…;…;…)` or FOR EACH — to visit a list's items count them: FOR i = 0 TO List.ItemCount - 1"
-msgstr ""
+msgstr "计数循环是 FOR i = 1 TO 10 … NEXT（用 STEP 2 可以隔一个跳一个）；RapidR 没有 `for … in range()`、`for (…;…;…)` 或 FOR EACH——要遍历列表中的项目，请用计数的方式：FOR i = 0 TO List.ItemCount - 1"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.end-loop"
 msgid "a FOR loop ends with NEXT, a WHILE with WEND, a DO with LOOP — not END FOR, END WHILE or END DO"
-msgstr ""
+msgstr "FOR 循环以 NEXT 结束，WHILE 以 WEND 结束，DO 以 LOOP 结束——而不是 END FOR、END WHILE 或 END DO"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.endif"
 msgid "it's END IF, two words"
-msgstr ""
+msgstr "应写成 END IF，是两个单词"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.endword"
 msgid "END SUB, END FUNCTION, END IF, END SELECT, END WITH, END TYPE and END CREATE are two words with a space"
-msgstr ""
+msgstr "END SUB、END FUNCTION、END IF、END SELECT、END WITH、END TYPE 和 END CREATE 都是两个单词，中间有空格"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.elseif"
 msgid "it's ELSEIF, one word: IF … THEN … ELSEIF … THEN … ELSE … END IF"
-msgstr ""
+msgstr "应写成 ELSEIF，是一个单词：IF … THEN … ELSEIF … THEN … ELSE … END IF"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.if-then"
 msgid "IF needs THEN on the same line: IF a = 1 THEN … END IF"
-msgstr ""
+msgstr "IF 需要在同一行写 THEN：IF a = 1 THEN … END IF"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.missing-next"
 msgid "every FOR needs its NEXT: FOR i = 1 TO 3 … NEXT i"
-msgstr ""
+msgstr "每个 FOR 都需要对应的 NEXT：FOR i = 1 TO 3 … NEXT i"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.missing-wend"
 msgid "every WHILE needs its WEND: WHILE a < 3 … WEND"
-msgstr ""
+msgstr "每个 WHILE 都需要对应的 WEND：WHILE a < 3 … WEND"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.missing-loop"
 msgid "every DO needs its LOOP: DO … LOOP UNTIL a > 3"
-msgstr ""
+msgstr "每个 DO 都需要对应的 LOOP：DO … LOOP UNTIL a > 3"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.missing-end-if"
 msgid "every block IF needs its END IF: IF a THEN, the lines, END IF (a one-line IF needs none)"
-msgstr ""
+msgstr "每个多行 IF 都需要对应的 END IF：IF a THEN，若干行代码，END IF（单行 IF 不需要）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.else-if"
 msgid "ELSE IF starts a second IF that needs an END IF of its own: write ELSEIF, one word — IF … THEN … ELSEIF … THEN … ELSE … END IF"
-msgstr ""
+msgstr "ELSE IF 会开始第二个 IF，它需要自己的 END IF：请写成 ELSEIF，一个单词——IF … THEN … ELSEIF … THEN … ELSE … END IF"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.missing-end-select"
 msgid "every SELECT CASE needs its END SELECT"
-msgstr ""
+msgstr "每个 SELECT CASE 都需要对应的 END SELECT"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.and-and"
 msgid "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` is `&`: it joins text and adds numbers, so such a test is never what you meant)"
-msgstr ""
+msgstr "RapidR 使用 AND 和 OR：IF a > 0 AND b > 0 THEN（`&&` 就是 `&`：它用来连接文本和加数字，所以这样的判断绝不会是你想要的意思）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.else-line"
 msgid "a one-line IF takes its ELSE on the same line (IF a THEN x ELSE y); for several lines write IF a THEN, the lines, ELSE, the lines, END IF"
-msgstr ""
+msgstr "单行 IF 的 ELSE 要写在同一行（IF a THEN x ELSE y）；要写多行，请写成 IF a THEN，若干行，ELSE，若干行，END IF"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.colon"
 msgid "no `:` after IF, ELSE, FOR, WHILE or SUB: write IF a = 1 THEN, the statements on the lines below, then END IF"
-msgstr ""
+msgstr "IF、ELSE、FOR、WHILE 或 SUB 之后不要写 `:`：请写 IF a = 1 THEN，把语句写在下面的几行，最后写 END IF"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.braces"
 msgid "BASIC has no braces: a block ends with its own words — END SUB, END FUNCTION, END IF, NEXT, WEND, LOOP"
-msgstr ""
+msgstr "BASIC 没有花括号：代码块用自己的结束词收尾——END SUB、END FUNCTION、END IF、NEXT、WEND、LOOP"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.semicolon"
 msgid "statements end at the end of the line: no `;`"
-msgstr ""
+msgstr "语句在行尾结束：不要写 `;`"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.function"
 msgid "a routine is SUB Name(a AS INTEGER) … END SUB, or FUNCTION Name(a AS INTEGER) AS INTEGER … Result = … END FUNCTION"
-msgstr ""
+msgstr "例程写成 SUB Name(a AS INTEGER) … END SUB，或 FUNCTION Name(a AS INTEGER) AS INTEGER … Result = … END FUNCTION"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.return"
 msgid "a FUNCTION gives its value with `Result = …` (or `FunctionName = …`); RETURN only goes back from a GOSUB"
-msgstr ""
+msgstr "FUNCTION 用 `Result = …`（或 `FunctionName = …`）给出它的值；RETURN 只用于从 GOSUB 返回"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.switch"
 msgid "RapidR has no switch: write SELECT CASE x, CASE 1, CASE ELSE, END SELECT"
-msgstr ""
+msgstr "RapidR 没有 switch：请写 SELECT CASE x、CASE 1、CASE ELSE、END SELECT"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.break"
 msgid "RapidR has no break: leave a loop with EXIT FOR, EXIT DO or EXIT WHILE"
-msgstr ""
+msgstr "RapidR 没有 break：请用 EXIT FOR、EXIT DO 或 EXIT WHILE 退出循环"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.continue"
 msgid "RapidR has no continue: put the rest of the loop inside IF … THEN … END IF"
-msgstr ""
+msgstr "RapidR 没有 continue：请把循环的其余部分放进 IF … THEN … END IF 里"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.include"
 msgid "to use another file write $INCLUDE \"file.rr\" at the top: RapidR has no #include or import"
-msgstr ""
+msgstr "要使用另一个文件，请在顶部写 $INCLUDE \"file.rr\"：RapidR 没有 #include 或 import"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.new"
 msgid "components are made with CREATE Name AS RButton … END CREATE (or DIM Name AS RButton), not `new`"
-msgstr ""
+msgstr "组件用 CREATE Name AS RButton … END CREATE（或 DIM Name AS RButton）创建，而不是 `new`"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.event"
 msgid "an event takes a SUB's name: OnChange = ValueChanged — with DECLARE SUB ValueChanged at the top and SUB ValueChanged … END SUB below; leave the line out if nothing should happen"
-msgstr ""
+msgstr "事件接受一个 SUB 的名称：OnChange = ValueChanged——顶部要写 DECLARE SUB ValueChanged，下面写 SUB ValueChanged … END SUB；如果什么都不需要发生，就不要写这一行"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.console-log"
 msgid "use PRINT to write a line: PRINT \"hi\" (console.log is JavaScript); in a window, set a label's Caption"
-msgstr ""
+msgstr "用 PRINT 输出一行：PRINT \"hi\"（console.log 是 JavaScript 的写法）；在窗口中，请设置标签的 Caption"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.print"
 msgid "to write a line: PRINT \"Total: \"; total (no brackets around the list); in a window, set a label's Caption instead"
-msgstr ""
+msgstr "输出一行请写：PRINT \"Total: \"; total（列表不要加括号）；在窗口中，请改为设置标签的 Caption"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.mod"
 msgid "RapidR has no %: a remainder is MOD — 7 MOD 3 is 1 (a \\ b is whole division, a / b exact)"
-msgstr ""
+msgstr "RapidR 没有 %：求余数用 MOD——7 MOD 3 等于 1（a \\ b 是整除，a / b 是精确除法）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.compound"
 msgid "the shortcuts are += -= *= /= &=; for any other write it out: x = x ^ 2, x = x \\ 2, x = x MOD 3"
-msgstr ""
+msgstr "简写形式有 += -= *= /= &=；其他运算请完整写出：x = x ^ 2、x = x \\ 2、x = x MOD 3"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.pow"
 msgid "RapidR has no **: a power is ^ — 2 ^ 3 is 8"
-msgstr ""
+msgstr "RapidR 没有 **：乘方用 ^——2 ^ 3 等于 8"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.intdiv"
 msgid "RapidR has no //: whole division is \\ — 7 \\ 2 is 3 (a / b gives decimals)"
-msgstr ""
+msgstr "RapidR 没有 //：整除用 \\——7 \\ 2 等于 3（a / b 会得到小数）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.ternary"
 msgid "RapidR has no a ? b : c: write IF a THEN x = 1 ELSE x = 2, or x = IIF(a, 1, 2)"
-msgstr ""
+msgstr "RapidR 没有 a ? b : c：请写 IF a THEN x = 1 ELSE x = 2，或 x = IIF(a, 1, 2)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.ne"
 msgid "`!=` isn't BASIC: \"not equal\" is `<>` — IF a <> b THEN"
-msgstr ""
+msgstr "`!=` 不是 BASIC 的写法：“不等于”是 `<>`——IF a <> b THEN"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.bang"
 msgid "`!` isn't BASIC: \"not equal\" is `<>` (IF a <> b THEN), and \"is false\" is IF x = 0 THEN"
-msgstr ""
+msgstr "`!` 不是 BASIC 的写法：“不等于”是 `<>`（IF a <> b THEN），“为假”写成 IF x = 0 THEN"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.or"
 msgid "`||` isn't BASIC: use OR — IF a > 0 OR b > 0 THEN"
-msgstr ""
+msgstr "`||` 不是 BASIC 的写法：请用 OR——IF a > 0 OR b > 0 THEN"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.brackets"
 msgid "BASIC has no `[ ]`: an array is DIM names(3) AS STRING, filled one item at a time — names(1) = \"Ana\"; its items are names(i)"
-msgstr ""
+msgstr "BASIC 没有 `[ ]`：数组写成 DIM names(3) AS STRING，逐项赋值——names(1) = \"Ana\"；它的元素是 names(i)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.squote"
 msgid "text goes in double quotes — s = \"hello\" (a single quote starts a comment)"
-msgstr ""
+msgstr "文本要放在双引号里——s = \"hello\"（单引号表示注释的开始）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.comment"
 msgid "a comment starts with ' (an apostrophe), not //"
-msgstr ""
+msgstr "注释以 '（单引号）开头，而不是 //"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.null"
 msgid "BASIC has no null: use \"\" for an empty string, 0 for a number"
-msgstr ""
+msgstr "BASIC 没有 null：空字符串用 \"\"，数字用 0"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.bool"
 msgid "truth values are numbers: 1 is true, 0 is false — DIM done AS INTEGER: done = 1, then IF done THEN (a .rr program's True is -1 while a check box's Checked is 1: don't compare with True)"
-msgstr ""
+msgstr "真假值是数字：1 表示真，0 表示假——DIM done AS INTEGER：done = 1，然后 IF done THEN（.rr 程序中的 True 是 -1，而复选框的 Checked 是 1：不要和 True 比较）"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.length"
 msgid "a string's length is LEN(s); a list's items are .ItemCount"
-msgstr ""
+msgstr "字符串的长度是 LEN(s)；列表的项数是 .ItemCount"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-str"
 msgid "RapidR has no str(): text from a number is STR$(n) — PRINT \"n = \" + STR$(n)"
-msgstr ""
+msgstr "RapidR 没有 str()：把数字转成文本用 STR$(n)——PRINT \"n = \" + STR$(n)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-tostring"
 msgid "RapidR has no toString(): text from a number is STR$(n)"
-msgstr ""
+msgstr "RapidR 没有 toString()：把数字转成文本用 STR$(n)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-int"
 msgid "RapidR has no int(): a number from text is VAL(s); INT(x) cuts the decimals of a number"
-msgstr ""
+msgstr "RapidR 没有 int()：把文本转成数字用 VAL(s)；INT(x) 会去掉数字的小数部分"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-float"
 msgid "RapidR has no float(): a number from text is VAL(s)"
-msgstr ""
+msgstr "RapidR 没有 float()：把文本转成数字用 VAL(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-parseint"
 msgid "RapidR has no parseInt(): a number from text is VAL(s)"
-msgstr ""
+msgstr "RapidR 没有 parseInt()：把文本转成数字用 VAL(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-parsefloat"
 msgid "RapidR has no parseFloat(): a number from text is VAL(s)"
-msgstr ""
+msgstr "RapidR 没有 parseFloat()：把文本转成数字用 VAL(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-input"
 msgid "RapidR has no input(): in a console program INPUT name; in a window an REdit, read its Text"
-msgstr ""
+msgstr "RapidR 没有 input()：控制台程序中用 INPUT name；窗口中用 REdit，读取它的 Text"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-prompt"
 msgid "RapidR has no prompt(): ask with INPUTBOX$(\"Question\") or read an REdit's Text"
-msgstr ""
+msgstr "RapidR 没有 prompt()：用 INPUTBOX$(\"Question\") 提问，或读取 REdit 的 Text"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-alert"
 msgid "RapidR has no alert(): a message box is ShowMessage \"text\""
-msgstr ""
+msgstr "RapidR 没有 alert()：消息框用 ShowMessage \"text\""
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-toupper"
 msgid "upper case is UCASE$(s)"
-msgstr ""
+msgstr "大写用 UCASE$(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-touppercase"
 msgid "upper case is UCASE$(s)"
-msgstr ""
+msgstr "大写用 UCASE$(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-upper"
 msgid "upper case is UCASE$(s)"
-msgstr ""
+msgstr "大写用 UCASE$(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-tolower"
 msgid "lower case is LCASE$(s)"
-msgstr ""
+msgstr "小写用 LCASE$(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-tolowercase"
 msgid "lower case is LCASE$(s)"
-msgstr ""
+msgstr "小写用 LCASE$(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-lower"
 msgid "lower case is LCASE$(s)"
-msgstr ""
+msgstr "小写用 LCASE$(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-strlen"
 msgid "a string's length is LEN(s)"
-msgstr ""
+msgstr "字符串的长度是 LEN(s)"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-length"
 msgid "a string's length is LEN(s); a list's items are .ItemCount"
-msgstr ""
+msgstr "字符串的长度是 LEN(s)；列表的项数是 .ItemCount"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-substr"
 msgid "part of a string is MID$(s, start, count), LEFT$(s, n) or RIGHT$(s, n); the first character is 1"
-msgstr ""
+msgstr "取字符串的一部分用 MID$(s, start, count)、LEFT$(s, n) 或 RIGHT$(s, n)；第一个字符的位置是 1"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-substring"
 msgid "part of a string is MID$(s, start, count), LEFT$(s, n) or RIGHT$(s, n); the first character is 1"
-msgstr ""
+msgstr "取字符串的一部分用 MID$(s, start, count)、LEFT$(s, n) 或 RIGHT$(s, n)；第一个字符的位置是 1"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-random"
 msgid "a random number is RND (0 up to 1): INT(RND * 6) + 1 is a die"
-msgstr ""
+msgstr "随机数用 RND（从 0 到 1）：INT(RND * 6) + 1 就是掷一次骰子"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-rand"
 msgid "a random number is RND (0 up to 1): INT(RND * 6) + 1 is a die"
-msgstr ""
+msgstr "随机数用 RND（从 0 到 1）：INT(RND * 6) + 1 就是掷一次骰子"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-sleep"
 msgid "to wait write SLEEP 500 (milliseconds); in a window use an RTimer"
-msgstr ""
+msgstr "要等待，请写 SLEEP 500（毫秒）；在窗口中，请使用 RTimer"
 
 #. A hint under a compiler message: what to write in RapidR instead (code stays as written)
 msgctxt "hint.fn-trim"
 msgid "trimming is TRIM$(s) (LTRIM$ and RTRIM$ for one side)"
-msgstr ""
+msgstr "去掉空格用 TRIM$(s)（只去一侧用 LTRIM$ 和 RTRIM$）"
