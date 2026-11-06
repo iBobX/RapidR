@@ -683,6 +683,10 @@ properties = [
   { name = "PaneCount", type = "int", access = "read", design = false, doc = "How many panes the manager has (documents included)." },
   { name = "DocumentCount", type = "int", access = "read", design = false, doc = "How many documents are open." },
   { name = "DocumentGroupCount", type = "int", access = "read", design = false, doc = "Tabbed documents: how many groups of tabs the documents area is split into (0 with no documents)." },
+  { name = "DocumentLeft", type = "int", access = "read", design = false, origin = "rapidr", doc = "Where the documents area is, in the dock manager's own pixels: its left edge (0 when there are no documents). With DocumentTop, DocumentWidth and DocumentHeight it is what a program lays something over the documents with (RapidR Studio's toasts sit in its corner)." },
+  { name = "DocumentTop", type = "int", access = "read", design = false, origin = "rapidr", doc = "The documents area's top edge (see DocumentLeft)." },
+  { name = "DocumentWidth", type = "int", access = "read", design = false, origin = "rapidr", doc = "The documents area's width (see DocumentLeft)." },
+  { name = "DocumentHeight", type = "int", access = "read", design = false, origin = "rapidr", doc = "The documents area's height (see DocumentLeft)." },
   { name = "Layout", type = "string", design = false, doc = "The whole layout as text: reading it is SaveLayout, setting it LoadLayout." },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string", default = "" },
@@ -733,4 +737,106 @@ events = [
   { name = "OnDocumentClose", params = "Name AS STRING, BYREF Cancel AS INTEGER", doc = "A document is about to close; set Cancel to keep it open." },
   { name = "OnLayoutChange", doc = "The layout changed (the user or the program moved, docked, floated or hid a pane)." },
   { name = "OnDocumentView", params = "Name AS STRING, View AS STRING", doc = "Tabbed documents: a document now shows another view (its caption, or \"Split\" for side by side)." },
+  { name = "OnDocumentList", params = "Right AS INTEGER, Bottom AS INTEGER", origin = "rapidr", doc = "Tabbed documents: the user pressed the list of open tabs at the right end of a tab strip (the strip scrolls when its tabs, each at least 112 pixels wide, don't all fit). Right and Bottom are the button's right edge and bottom, in the dock manager's pixels: show the program's list of documents there (RapidR Studio opens a searchable card)." },
+]
+
+[[component]]
+name = "RNOTIFY"
+display = "Notify"
+visual = true
+size = [440, 200]
+default_event = "OnAction"
+sets = ["layout", "a11y"]
+doc = "Small messages that pop up, say what happened and get out of the way: toasts, drawn in the program's own look. Show puts one at a corner of the component (the bottom right by default): a line or two of text, an icon for its kind, up to two action links (\"Show\", \"Undo\") and a close button. Several stack, three at most (the oldest goes into the history); a message with the same Key replaces the one on screen, so a burst of the same thing is one toast. Each stays as long as its words need to be read (3 seconds and 80 milliseconds a character, 2 seconds more with an action, 5 to 20 seconds; a warning half as long again; an error until it is closed), and the time stands still while the mouse is on it or the keyboard is. A toast never takes the keyboard, and a screen reader says it once, politely. Everything said is kept in a history (ShowHistory) with its time and its action again, so nothing is lost when a toast was missed. Drop it on a form and leave Align as alClient: it covers the form but takes the mouse only where a toast is."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alClient" },
+  { name = "Position", type = "enum", values = ["npBottomRight", "npBottomLeft", "npTopRight", "npTopLeft"], default = "npBottomRight", origin = "rapidr", category = "Appearance", doc = "The corner of the component the toasts sit in; the newest is nearest the corner and the others stack away from it." },
+  { name = "MaxVisible", type = "int", default = 3, origin = "rapidr", category = "Behavior", doc = "How many toasts show at once (1 to 8, three by default). A newer one pushes the oldest out; it stays in the history." },
+  { name = "Timeout", type = "int", default = -1, origin = "rapidr", category = "Behavior", doc = "How long a toast stays, in milliseconds, when Show says none: -1 (the default) fits it to its length (3 seconds and 80 milliseconds a character, 2 seconds more with an action, 5 to 20 seconds; a warning one and a half times as long, an error until it is closed), 0 until it is closed." },
+  { name = "TimeScale", type = "int", default = 100, origin = "rapidr", category = "Behavior", doc = "How long toasts stay as a percentage of what they would (100 as is, 200 twice as long, 0 until they are closed): for a setting like \"Notifications stay longer\"." },
+  { name = "HistorySize", type = "int", default = 50, origin = "rapidr", category = "Behavior", doc = "How many messages the history keeps (1 to 500)." },
+  { name = "Margin", type = "int", default = 12, origin = "rapidr", category = "Appearance", doc = "The space between the toasts and the edges of the component (or of the area SetArea gave)." },
+  { name = "Count", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many toasts are on screen." },
+  { name = "HistoryCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many messages the history holds." },
+  { name = "UnseenCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many messages in the history have not been looked at (opening the history, or MarkSeen, marks them): the number for a bell." },
+  { name = "HistoryOpen", type = "bool", default = false, design = false, origin = "rapidr", doc = "Whether the history card is open." },
+  { name = "Height", type = "int" },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = true },
+  { name = "Font", type = "font", doc = "The toasts' font; RapidR's own when the program sets none." },
+]
+methods = [
+  { name = "Show", value = true, params = "Text AS STRING, [Kind AS STRING], [Action AS STRING], [Timeout AS INTEGER], [Key AS STRING]", returns = "INTEGER", origin = "rapidr", effects = ["ui"], example = "Notify.Show \"Saved\", \"success\"", doc = "Says Text in a toast and in the history; returns the toast's number (0 when Text is empty). Kind is \"info\" (the default), \"success\", \"warning\" or \"error\". Action is one or two captions separated by | (\"Show\", \"Run It|Undo\"; & marks a letter): the links in the toast, which OnAction hears. Timeout is milliseconds (-1: fit the text, 0: until closed). A Key that a toast on screen already has makes this message replace that toast's words and start its time again, so a count that goes up is one toast. It is announced to a screen reader once, politely (an error at once)." },
+  { name = "Update", params = "Id AS INTEGER, Text AS STRING", returns = "INTEGER", origin = "rapidr", doc = "Changes the words of a toast still on screen and starts its time again: True when it was there." },
+  { name = "Close", value = true, params = "Id AS INTEGER", origin = "rapidr", doc = "Takes a toast away (OnClosed hears \"program\"). It stays in the history." },
+  { name = "CloseAll", origin = "rapidr", doc = "Takes every toast away." },
+  { name = "Press", params = "Id AS INTEGER, [Index AS INTEGER]", returns = "INTEGER", origin = "rapidr", effects = ["ui", "state"], test = "skip: needs a toast", doc = "Does what a click on a toast's action does (Index 1 or 2, 1 by default): OnAction hears it. A toast number, or a history message's (HistoryId): True when there was such an action and it can still be done. How a program, RAI or an AI app presses what it reads." },
+  { name = "Retire", params = "Key AS STRING, [Reason AS STRING]", returns = "INTEGER", origin = "rapidr", doc = "Says that the actions of every message with that Key can no longer be done (\"Undo\" after the thing was deleted for good): they go from a toast on screen, and in the history they are greyed with Reason as their tooltip. Returns how many messages it touched." },
+  { name = "SetArea", params = "Left AS INTEGER, Top AS INTEGER, Width AS INTEGER, Height AS INTEGER", origin = "rapidr", doc = "Makes the toasts sit in this part of the component (its own pixels) instead of all of it: RapidR Studio's editor area, less the editor's scroll bar. A Width or Height of 0 goes back to all of it." },
+  { name = "ShowHistory", params = "[Right AS INTEGER], [Bottom AS INTEGER]", origin = "rapidr", effects = ["ui"], doc = "Opens the history: a card of the last messages, newest first, each with its time, its whole text and its action again (greyed, with the reason, when it can't be done any more), and Clear at the top. Right and Bottom say where its bottom right corner hangs (a bell's corner), in the component's pixels; without them it sits at the corner of the toasts' area. Opening it marks everything seen. A click outside it, or Escape, closes it." },
+  { name = "HideHistory", origin = "rapidr", doc = "Closes the history." },
+  { name = "ClearHistory", origin = "rapidr", doc = "Forgets every message in the history." },
+  { name = "MarkSeen", origin = "rapidr", doc = "Marks every message in the history as looked at: UnseenCount goes to 0." },
+  { name = "Text", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "The words of the toast on screen at Index (from 0, the oldest first); \"\" when there is none." },
+  { name = "Kind", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Its kind: \"info\", \"success\", \"warning\" or \"error\"." },
+  { name = "Key", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Its Key (\"\" when it had none)." },
+  { name = "Id", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Its number, as Show returned it, for Close, Update and Press." },
+  { name = "ActionText", params = "Index AS INTEGER, [Action AS INTEGER]", returns = "STRING", origin = "rapidr", doc = "The caption of its action 1 or 2 (1 by default), without its & mark; \"\" when it has none." },
+  { name = "HistoryText", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "The words of the history's message at Index (from 0, the newest first)." },
+  { name = "HistoryKind", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Its kind." },
+  { name = "HistoryTime", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "The time of day it was said, as \"14:32\"." },
+  { name = "HistoryKey", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Its Key." },
+  { name = "HistoryId", params = "Index AS INTEGER", returns = "STRING", origin = "rapidr", doc = "Its number, for Press." },
+  { name = "HistoryAction", params = "Index AS INTEGER, [Action AS INTEGER]", returns = "STRING", origin = "rapidr", doc = "The caption of its action 1 or 2; when Retire took it away, the caption and the reason in brackets." },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"], doc = "Gives the keyboard to the toasts (or the open history) while there is one: Tab and the arrows move between them, Enter presses, Escape closes." },
+]
+events = [
+  { name = "OnAction", params = "Id AS INTEGER, Index AS INTEGER, Key AS STRING", origin = "rapidr", doc = "The user pressed a toast's action, or one in the history (Press does it too): the message's number, which action (1 or 2) and its Key. A toast closes when its action was pressed." },
+  { name = "OnClosed", params = "Id AS INTEGER, Reason AS STRING, Key AS STRING", origin = "rapidr", doc = "A toast went: Reason is \"timeout\", \"user\" (its close button or Escape), \"action\", \"program\" (Close, CloseAll) or \"pushed\" (a newer one needed its place)." },
+  { name = "OnUnseenChange", params = "Count AS INTEGER", origin = "rapidr", doc = "The number of unseen messages in the history changed: draw it on a bell." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
+]
+
+[[component]]
+name = "RNOTIFYBAR"
+display = "NotifyBar"
+visual = true
+size = [400, 36]
+default_event = "OnChoose"
+sets = ["layout", "a11y"]
+doc = "A question the person must answer before work goes on, as one slim line across the top of what it is about: a mark in the warning colour, an icon, the question in bold and compact buttons at the right end (under the question when there is no room for both). It is not a dialog and not a toast: it stays on the thing it asks about until a button is pressed, and covers nothing, because Align = alTop pushes what is under it down. Ask shows it and has a screen reader say it once, at once; OnChoose hears the button. Keyboard: Tab and the arrows move between the buttons, Enter presses one, a button's underlined letter presses it, Escape leaves it with the question still asked (OnEscape)."
+properties = [
+  { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alTop" },
+  { name = "Text", type = "string", default = "", origin = "rapidr", category = "Appearance", doc = "The question. It is cut with an ellipsis when it doesn't fit beside the buttons (its tooltip and a screen reader have it whole)." },
+  { name = "Kind", type = "string", default = "warning", origin = "rapidr", category = "Appearance", doc = "\"warning\" (the default), \"info\", \"success\" or \"error\": the colour of its mark and its icon." },
+  { name = "Buttons", type = "string", default = "", origin = "rapidr", category = "Appearance", doc = "The buttons' captions, separated by commas, up to six; an & before a letter underlines it and makes it press the button (\"&Compare,&Use Disk Version,&Keep Mine\")." },
+  { name = "ButtonCount", type = "int", access = "read", design = false, origin = "rapidr", doc = "How many buttons it has." },
+  { name = "Choice", type = "int", access = "read", design = false, origin = "rapidr", doc = "The button pressed last (from 1; 0 until one was)." },
+  { name = "Height", type = "int", doc = "Its height: one line (36 pixels in RapidR's look), two when the width has no room for the question beside the buttons. The component sets it as the width changes." },
+  { name = "Hint", type = "string" },
+  { name = "Left", type = "int", default = 0 },
+  { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL", "QTABCONTROL"], access = "write", design = false },
+  { name = "Top", type = "int", default = 0 },
+  { name = "Width", type = "int" },
+  { name = "Enabled", type = "bool", default = true },
+  { name = "Visible", type = "bool", default = false },
+  { name = "Font", type = "font", doc = "The question's and the buttons' font; RapidR's own when the program sets none." },
+]
+methods = [
+  { name = "Ask", params = "Text AS STRING, Buttons AS STRING, [Kind AS STRING]", origin = "rapidr", effects = ["ui"], example = "Bar.Ask \"main.rr changed on disk.\", \"&Compare,&Keep Mine\"", doc = "Shows the strip with this question and these buttons (a comma-separated list, & marking each one's letter), and has a screen reader say it once, at once. Kind is \"warning\" by default." },
+  { name = "Hide", value = true, origin = "rapidr", doc = "Takes the strip away without an answer." },
+  { name = "Press", params = "Index AS INTEGER", returns = "INTEGER", origin = "rapidr", effects = ["ui", "state"], test = "skip: needs a shown strip", doc = "Does what a click on button Index (from 1) does: the strip goes and OnChoose hears it. True when it was shown and had that button. How a program, RAI or an AI app answers it." },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"], doc = "Gives the keyboard to the strip's buttons." },
+]
+events = [
+  { name = "OnChoose", params = "Index AS INTEGER, Caption AS STRING", origin = "rapidr", doc = "A button was pressed (by the mouse, the keyboard, its letter or Press): its number from 1 and its caption without the & mark. The strip has already gone." },
+  { name = "OnEscape", origin = "rapidr", doc = "The user pressed Escape in the strip: give the keyboard back to what they were doing; the question stays." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]

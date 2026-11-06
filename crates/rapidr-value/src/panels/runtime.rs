@@ -61,6 +61,13 @@ pub trait Runtime: Copy + 'static {
     /// system's; the tests' own under `RAPIDR_TEST_CLIPBOARD`); nothing by
     /// default.
     fn set_clipboard(self, _text: &str) {}
+    /// The time of day as "14:32" (the history's times); empty by default.
+    fn clock(self) -> String {
+        String::new()
+    }
+    /// Has screen readers say `text` without the focus moving: politely, or
+    /// at once when `assertive` (`Application.Announce`); nothing by default.
+    fn announce(self, _text: &str, _assertive: bool) {}
 }
 
 /// The type `name` is, if it is a panel (`RTOOLBOX` …).
@@ -81,6 +88,8 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
         "RTOOLBAR" => super::toolbar::rt_method(rt, name, &method, args),
         "RCOMMANDPALETTE" => super::palette::rt_method(rt, name, &method, args),
         "RMARKDOWNVIEW" => super::markdown::rt_method(rt, name, &method, args),
+        "RNOTIFY" => super::notify::rt_method(rt, name, &method, args),
+        "RNOTIFYBAR" => super::notifybar::rt_method(rt, name, &method, args),
         _ => None,
     };
     if out.is_some() {
@@ -101,6 +110,8 @@ pub fn rt_get<R: Runtime>(rt: R, name: &str, prop: &str) -> Option<Value> {
         "RTOOLBAR" => super::toolbar::rt_get(rt, name, &prop),
         "RCOMMANDPALETTE" => super::palette::rt_get(rt, name, &prop),
         "RMARKDOWNVIEW" => super::markdown::rt_get(rt, name, &prop),
+        "RNOTIFY" => super::notify::rt_get(rt, name, &prop),
+        "RNOTIFYBAR" => super::notifybar::rt_get(rt, name, &prop),
         _ => None,
     }
 }
@@ -118,6 +129,8 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
         "RTOOLBAR" => super::toolbar::rt_set(rt, name, &prop, v),
         "RCOMMANDPALETTE" => super::palette::rt_set(rt, name, &prop, v),
         "RMARKDOWNVIEW" => super::markdown::rt_set(rt, name, &prop, v),
+        "RNOTIFY" => super::notify::rt_set(rt, name, &prop, v),
+        "RNOTIFYBAR" => super::notifybar::rt_set(rt, name, &prop, v),
         _ => false,
     };
     if done {
@@ -130,6 +143,10 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
 /// panels that show it follow (an inspector whose target it is).
 pub fn rt_after_set<R: Runtime>(rt: R, name: &str, prop: &str) {
     super::inspector::rt_after_set(rt, name, prop);
+    // (a question's strip given another width: one line or two again)
+    if prop.eq_ignore_ascii_case("width") && rt.type_of(name).eq_ignore_ascii_case("RNOTIFYBAR") {
+        super::notifybar::width_changed(rt, name);
+    }
 }
 
 /// What the user did to panel `name` (the kernel's `Container::Panel`).
@@ -142,6 +159,8 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
         User::ToolBar(a) => super::toolbar::rt_user(rt, name, a),
         User::Palette(a) => super::palette::rt_user(rt, name, a),
         User::Markdown(a) => super::markdown::rt_user(rt, name, a),
+        User::Notify(a) => super::notify::rt_user(rt, name, a),
+        User::NotifyBar(a) => super::notifybar::rt_user(rt, name, a),
         User::Picked(item) => match panel_type(rt, name).as_deref() {
             Some("RPROPERTYINSPECTOR") => super::inspector::rt_picked(rt, name, item),
             Some("RTOOLBAR") => super::toolbar::rt_picked(rt, name, item),

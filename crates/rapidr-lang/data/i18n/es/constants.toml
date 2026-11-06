@@ -82,3 +82,4 @@
 "VIRTUAL KEY CODES" = "Códigos de las teclas del teclado, tal como los dan los eventos OnKeyDown y OnKeyUp."
 "WAVE AUDIO" = "Comandos y estados de la biblioteca de audio wave (qwave.inc) —reproducir, pausar, detener, grabar— y formatos de grabación: canales, bits por muestra, frecuencias de muestreo."
 "WINDOW STATES" = "El WindowState de un formulario: normal, minimizado o maximizado."
+"NOTIFICATION POSITIONS" = "Dónde pone un RNotify sus avisos: la esquina de su área desde la que se apilan (npBottomRight, la predeterminada, npBottomLeft, npTopRight, npTopLeft). Solo está integrado en un programa de RapidR (`.rr`): un programa `.bas` lee los nombres como variables que valen 0."

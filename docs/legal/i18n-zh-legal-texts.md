@@ -305,7 +305,7 @@ English:
 
 > {model} 在别处的服务上运行，而不是在这台电脑上：请选择在本机运行的模型，或把该服务设置为云服务。
 
-### 30. ide/crash.inc
+### 30. ide/crash.inc (retired by NOTIFY: see the note at 33)
 
 English:
 
@@ -315,7 +315,7 @@ English:
 
 > 在浏览器中打开 GitHub 上的新议题页面，并填入报告内容。在你亲自到那里提交之前，不会发送任何内容。
 
-### 31. ide/crash.inc
+### 31. ide/crash.inc (retired by NOTIFY: see the note at 33)
 
 English:
 
@@ -335,15 +335,17 @@ English:
 
 > 它的窗口已有几秒钟没有回应。“等待”会再给它一些时间。“保存副本并退出”会关闭它：你输入时它每 20 秒保留的未保存工作副本，会在它再次启动时提供给你。这台电脑上已写入一份报告。
 
-### 33. ide/crash.inc
+### 33. ide/crash.inc (replaced by NOTIFY)
+
+NOTIFY (2026-11-06): the crash strip is now one line (RNotifyBar): its buttons have no descriptions of their own, and its one sentence replaces entries 30, 31 and 33 below; the promise "nothing is sent until you send it there yourself" is still in the consent window that Report on GitHub... opens (entries 34 to 38).
 
 English:
 
-> A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it.
+> A report stays on this computer; nothing was sent.
 
 简体中文:
 
-> 发生了什么的报告保存在这台电脑上，没有发送任何内容。你可以查看、复制、保存它，也可以在 GitHub 上报告这个问题来帮助修复。
+> 报告保存在这台电脑上，没有发送任何内容。
 
 ### 34. ide/crash.inc
 

@@ -396,6 +396,8 @@ SUB LoadSettings
     IF Reg.ValueExists("ReopenLast") THEN ReopenLast = Flag(Reg.ReadString("ReopenLast") <> "0")
     ' (the code's helpers: helpful unless chosen otherwise)
     IF Reg.ValueExists("Helpers") THEN EditorHelpers = Reg.ReadString("Helpers")
+    ' (how long notifications stay: 0 as the words need, 1 longer, 2 until closed)
+    IF Reg.ValueExists("NotifyStay") THEN NotifyStay = VAL(Reg.ReadString("NotifyStay"))
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
     ' (Tools > Settings > Include folders: settings.inc)
     IF Reg.ValueExists("IncludeFolders") THEN Proj.IncludeFolders = Reg.ReadString("IncludeFolders")
@@ -431,6 +433,7 @@ SUB SaveSettings
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("ReopenLast", LTRIM$(STR$(ReopenLast)))
   Reg.WriteString("Helpers", EditorHelpers)
+  Reg.WriteString("NotifyStay", LTRIM$(STR$(NotifyStay)))
   Reg.WriteString("Folder", DefaultFolder)
   Reg.WriteString("IncludeFolders", Proj.IncludeFolders)
   SaveAISettings

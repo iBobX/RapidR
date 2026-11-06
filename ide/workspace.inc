@@ -107,7 +107,7 @@ END SUB
 ' opens on it, the switch saying Design | Code.
 SUB AddDocumentTab(d AS INTEGER)
   DIM title AS STRING
-  title = FileTitle(DocFile(d))
+  title = TabTitle(d)
   IF DocHasForm(d) THEN
     Dock.AddPane(CodeDoc(d), title, "documents", "form")
     Dock.AddView(DocPane(d), DesignDoc(d), ViewCaption("Design"))
@@ -282,17 +282,30 @@ END FUNCTION
 ' Window > Next Area (F6 in the panes themselves): the project, the
 ' document, the properties, the output, round.
 SUB NextArea
-  DIM a AS STRING, k AS INTEGER, i AS INTEGER, areas(4) AS STRING
-  areas(0) = "projecttree": areas(1) = "": areas(2) = "inspector": areas(3) = "outputbox"
-  IF ActiveCode >= 0 THEN areas(1) = DocPane(ActiveCode)
+  DIM a AS STRING, k AS INTEGER, i AS INTEGER, t AS STRING, areas(6) AS STRING
+  areas(0) = "projecttree": areas(1) = "": areas(2) = "": areas(3) = "inspector": areas(4) = "outputbox": areas(5) = ""
+  IF ActiveCode >= 0 THEN areas(2) = DocPane(ActiveCode)
+  ' (the question on the document in front comes before it; the toasts,
+  ' while there are some, after the Output — notify.inc, external.inc)
+  IF ExtBarMode = "ask" THEN areas(1) = "extbar"
+  IF Notify.Count > 0 OR Notify.HistoryOpen THEN areas(5) = "notify"
   a = LCASE$(Dock.ActivePane)
+  IF ExtBarFocused THEN a = "extbar"
+  IF NotifyFocused THEN a = "notify"
   k = -1
-  FOR i = 0 TO 3
+  FOR i = 0 TO 5
     IF areas(i) = a THEN k = i
   NEXT
-  FOR i = 1 TO 4
-    IF areas((k + i + 4) MOD 4) <> "" THEN
-      Dock.FocusPane(areas((k + i + 4) MOD 4))
+  FOR i = 1 TO 6
+    t = areas((k + i + 6) MOD 6)
+    IF t <> "" THEN
+      IF t = "notify" THEN
+        Notify.SetFocus
+      ELSEIF t = "extbar" THEN
+        ExtBar.SetFocus
+      ELSE
+        Dock.FocusPane(t)
+      END IF
       EXIT SUB
     END IF
   NEXT
@@ -407,6 +420,8 @@ END SUB
 SUB LayoutChanged
   LayoutSaver.Enabled = 0
   LayoutSaver.Enabled = 1
+  ' (the toasts sit in the corner of the editor area: it moved)
+  LayOutNotify
   ' (the assistant's controls follow the width its pane is given: its
   ' OnResize, which the dock fires when it gives a pane a new size — S8)
 END SUB

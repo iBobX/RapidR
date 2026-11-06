@@ -155,6 +155,9 @@ SITES = {
     ("crates/rapidr-value/src/panels/console.rs", "*"): "ROUTPUTCONSOLE",
     ("crates/rapidr-value/src/panels/toolbar.rs", "*"): "RTOOLBAR",
     ("crates/rapidr-value/src/panels/palette.rs", "*"): "RCOMMANDPALETTE",
+    # (NOTIFY: the toasts and the question's strip, every runtime)
+    ("crates/rapidr-value/src/panels/notify.rs", "*"): "RNOTIFY",
+    ("crates/rapidr-value/src/panels/notifybar.rs", "*"): "RNOTIFYBAR",
     ("crates/rapidr-value/src/panels/markdown.rs", "*"): "RMARKDOWNVIEW",
     ("crates/rapidr-value/src/objects/grid.rs", "*"): "RSTRINGGRID",
     ("crates/rapidr-value/src/objects/header.rs", "call", "member"): "HEADERSECTION",

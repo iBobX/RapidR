@@ -176,14 +176,14 @@ A toast is never used for something that needs an answer (it can vanish), a fail
 
 - **One line, 36 px** (the compact control's 24 and 6 above and below; 33 in the classic look), across the top of the one editor it is about, under its tabs and above its views, which move down: it covers nothing. It is **not** across the whole work area, and never over another editor.
 - **Anatomy:** the warning colour's 4-px mark (`status.warning.border`), 12, the 16-px icon, 8, the question in bold (`UIFont`), then the **compact buttons** (24 px, 8 apart, 12 from the right edge, the main choice nearest the edge) with mnemonics. No primary button unless one answer is clearly the expected one.
-- **Narrow:** the question is cut with an ellipsis (its whole in the tooltip and for the screen reader) down to 24 characters; below that the buttons go on a second line under it from where the words start, as the inline question strip in a pane.
-- **Keyboard and screen readers:** F6 reaches it (it comes first in that editor's order), Tab moves between its buttons, Enter presses one, Esc gives the focus back to the editor without choosing: the question stays. It is announced **assertively, once**, when it appears, never again when it is redrawn.
+- **Narrow:** the question is cut with an ellipsis (its whole in the tooltip and for the screen reader) down to 24 characters; below that the buttons go on a second line under it from where the words start, as the inline question strip in a pane, and on a row more each time the next button would pass the right edge.
+- **Keyboard and screen readers:** F6 reaches it (after the editor, before the toasts), Tab moves between its buttons, Enter presses one, Esc gives the focus back to the editor without choosing: the question stays. It is announced **assertively, once**, when it appears, never again when it is redrawn.
 - It goes away when answered, when the thing it asks about is gone (the file closed) or when the answer becomes known some other way (the file saved).
 
 ### The history
 
 - **The bell** is the status bar's right-hand chip: the `notifications` icon and a count of **unseen** messages (nothing when there are none; "9+" over nine), the icon 12 px in the bar's font size, `AccessibleName` "Notifications" with the count. Clicking it, Enter or Space on it, or Ctrl+Shift+N opens the list.
-- **The list** is a card above the bell, 360 wide, at most eight rows tall and then it scrolls: each row the kind's icon, the time ("14:32"), the text (wrapped, whole) and its action link again; **Clear** at the foot. The last 50 messages are kept for the session. Opening the list marks everything seen.
+- **The list** is a card above the bell, 360 wide, at most eight rows tall and then it scrolls: each row the kind's icon, the time ("14:32"), the text (wrapped, whole) and its action link again; **Clear** at the foot. The last 50 messages are kept for the session. Opening the list marks everything seen and takes the toasts on screen away (they are in it), so the card never covers one.
 - Nothing is lost: a toast that went before it was read is in the list, with its action still working (an action whose file or thing is gone says so; it never fails silently).
 
 | Do | Don't |
@@ -203,7 +203,7 @@ Where Studio's messages go: files reloaded, copied, a build finished, a version 
 - **A pane's tabs, when narrow:** a tab strip that can't fit every name shows icons only, each with its name as tooltip and `AccessibleName` — never a cut name ("P…"). The panes' icons differ from each other, so an icon tells which pane it is.
 - **Document tabs keep their names.** A document's icon is the same for every file of a kind (every `.rr` file has the same page), so an icon alone tells nothing: a document tab is **never icons only**.
   - **Width:** as wide as its name needs (up to 260 px) and **never narrower than 112 px** (the 16-px icon, 6, at least 8 characters of the name, the 20-px close button, and the padding).
-  - **A long name** is cut in the **middle**: "form_invoi…ces.rr", so the beginning and the extension stay; the tooltip and the accessible name have it whole. Two open files with the same name show their folder after it ("main.rr · tests").
+  - **A long name** is cut in the **middle**: "form….rr", so the beginning and the extension stay; the tooltip and the accessible name have it whole. Two open files with the same name show their folder after it ("main.rr · tests").
   - **When the tabs don't fit:** the strip **scrolls**. Two 24-px arrow buttons at the right end of the strip (before the view switch) move it a tab at a time; the mouse wheel and a two-finger swipe over the strip scroll it; the shown tab is always scrolled into view (Ctrl+Tab, a click on a name in the list, opening a file). A tab half seen at an edge is simply clipped by the strip, its name is never replaced by an icon.
   - **All open tabs:** a 24-px list button at the right end ("Open tabs", a chevron) opens a card with **every** open document and a search field (type to filter, the arrows to move, Enter to open, Esc to close): each row its icon, its name and, dim, its folder; a dot marks one with unsaved changes. It is the way to a tab that has scrolled out of sight.
   - The shown tab, the close button, the unsaved dot and the middle click to close do not change.

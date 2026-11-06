@@ -11,6 +11,8 @@ pub mod console;
 pub mod console_flow;
 pub mod inspector;
 pub mod markdown;
+pub mod notify;
+pub mod notifybar;
 pub mod palette;
 pub mod project_tree;
 pub mod toolbar;

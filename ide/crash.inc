@@ -29,14 +29,13 @@ DECLARE SUB CrashOfferTick
 DECLARE SUB CrashCheck
 DECLARE SUB CrashShowBar
 DECLARE SUB CrashHideBar
-DECLARE SUB CrashLayOut
-DECLARE SUB CrashPick(Sender AS RButton)
+DECLARE SUB CrashChoose(Index AS INTEGER, Caption AS STRING)
+DECLARE SUB CrashAct(Tag AS INTEGER)
 DECLARE SUB CrashView(Name AS STRING)
 DECLARE SUB CrashCopy(Name AS STRING)
 DECLARE SUB CrashSaveAs(Name AS STRING)
 DECLARE SUB CrashGitHub(Name AS STRING)
 DECLARE SUB CrashWatchStart
-DECLARE FUNCTION CrashButtonW(B AS RButton) AS INTEGER
 
 ' (the report the strip offers)
 DIM CrashName AS STRING
@@ -51,7 +50,9 @@ DIM CrashAnswer AS INTEGER
 ' (what Report on GitHub opened last, and what Copy copied: crash:report)
 DIM CrashLastURL AS STRING
 DIM CrashCopied AS INTEGER
-DIM CrashBmp AS RBitmap
+' (the strip's buttons, in order: "1,2,3,4,5" — View, Copy, Save, GitHub,
+' Dismiss —, without 4 under School Lock)
+DIM CrashTags AS STRING
 
 CREATE CrashOfferTimer AS RTimer
   Interval = 600
@@ -59,62 +60,20 @@ CREATE CrashOfferTimer AS RTimer
   OnTimer = CrashOfferTick
 END CREATE
 
-' The strip under the tool bar (a question's strip: docs/design-guidelines.md).
-CREATE CrashBar AS RPanel
-  BevelOuter = 0
-  Visible = 0
-  Height = 84
-  CREATE CrashBarMark AS RPanel
-    Left = 0: Top = 0: Width = 4: Height = 84
-    BevelOuter = 0
-    AccessibleHidden = 1
-  END CREATE
-  CREATE CrashBarIcon AS RImage
-    Left = 16: Top = 11: Width = 16: Height = 16
-    AccessibleHidden = 1
-  END CREATE
-  CREATE CrashBarText AS RLabel
-    Left = 40: Top = 10: Height = 18
-    AutoSize = 0
-    AccessibleHidden = 1
-  END CREATE
-  CREATE CrashBarDetail AS RLabel
-    Left = 40: Top = 30: Height = 18
-    AutoSize = 0: WordWrap = 1
-    AccessibleHidden = 1
-  END CREATE
-  CREATE CrashViewB AS RButton
-    Caption = TR$("&View Report")
-    OnClick = CrashPick
-    Tag = 1
-  END CREATE
-  CREATE CrashCopyB AS RButton
-    Caption = TR$("Cop&y Report")
-    OnClick = CrashPick
-    Tag = 2
-  END CREATE
-  CREATE CrashSaveB AS RButton
-    Caption = TR$("Sa&ve Report...")
-    OnClick = CrashPick
-    Tag = 3
-  END CREATE
-  CREATE CrashGitB AS RButton
-    Caption = TR$("Report on &GitHub...")
-    OnClick = CrashPick
-    Tag = 4
-  END CREATE
-  CREATE CrashDismissB AS RButton
-    Caption = TR$("&Dismiss")
-    OnClick = CrashPick
-    Tag = 5
-  END CREATE
+' The question under the tool bar: one slim line across the window
+' (RNotifyBar, docs/design-guidelines.md "Notifications"). The buttons
+' are, in this order, View Report, Copy Report, Save Report..., Report on
+' GitHub... (not while School Lock is on) and Dismiss; CrashTags says which
+' one each is.
+CREATE CrashBar AS RNotifyBar
+  Align = 1
+  OnChoose = CrashChoose
 END CREATE
 
 SUB SetUpCrash
   CrashBar.Parent = Studio
   CrashBar.Align = 1
   CrashBar.Top = ToolBar.Top + ToolBar.Height
-  CrashBar.OnResize = CrashLayOut
   CrashWatchStart
   ' (once Studio's window is up: a Studio that ended unexpectedly last time)
   CrashOfferTimer.Enabled = 1
@@ -122,27 +81,7 @@ END SUB
 
 ' The look and the words again (ApplyChrome: the theme, the language).
 SUB ApplyCrashChrome
-  CrashBar.Color = TC("card")
-  CrashBarMark.Color = TC("status.warning.border")
-  CrashBarText.Font = UIFont
-  CrashBarText.Font.Bold = 1
-  CrashBarText.Font.Color = TC("page.text")
-  CrashBarText.Transparent = 1
-  CrashBarDetail.Font = UIFont
-  CrashBarDetail.Font.Color = TC("page.dim")
-  CrashBarDetail.Transparent = 1
-  CrashViewB.Font = UIFont: CrashViewB.Caption = TR$("&View Report")
-  CrashViewB.AccessibleDescription = TR$("Opens the report in a tab")
-  CrashCopyB.Font = UIFont: CrashCopyB.Caption = TR$("Cop&y Report")
-  CrashCopyB.AccessibleDescription = TR$("Copies the report's text")
-  CrashSaveB.Font = UIFont: CrashSaveB.Caption = TR$("Sa&ve Report...")
-  CrashSaveB.AccessibleDescription = TR$("Saves a copy of the report where you choose")
-  CrashGitB.Font = UIFont: CrashGitB.Caption = TR$("Report on &GitHub...")
-  CrashGitB.AccessibleDescription = TR$("Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself.")
-  CrashDismissB.Font = UIFont: CrashDismissB.Caption = TR$("&Dismiss")
-  CrashDismissB.AccessibleDescription = TR$("Closes this note. The report stays on this computer for 30 days.")
-  CrashBmp.LoadIcon "warning", 16
-  CrashBarIcon.BMPHandle = CrashBmp
+  CrashBar.Font = UIFont
   IF CrashBar.Visible THEN CrashShowBar
   CrashWatchStart
 END SUB
@@ -172,75 +111,44 @@ SUB CrashCheck
   IF n = "" THEN EXIT SUB
   CrashName = n
   CrashShowBar
-  Application.Announce CrashBar.AccessibleName, 0
 END SUB
 
 SUB CrashShowBar
-  DIM t AS STRING, d AS STRING
+  DIM t AS STRING, b AS STRING
   IF CrashName = "" THEN EXIT SUB
   IF Proj.CrashField(CrashName, "Kind") = "hang" THEN
     t = TR$("RapidR Studio stopped responding last time and was closed.")
   ELSE
     t = TR$("RapidR Studio closed unexpectedly last time.")
   END IF
-  d = TR$("A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it.")
-  CrashBarText.Caption = t
-  CrashBarDetail.Caption = d
-  CrashBar.AccessibleName = t + " " + d
+  t = t + " " + TR$("A report stays on this computer; nothing was sent.")
+  b = TR$("&View Report") + "," + TR$("Cop&y Report") + "," + TR$("Sa&ve Report...") + ","
+  CrashTags = "1,2,3,"
+  IF CrashLocked = 0 THEN
+    b = b + TR$("Report on &GitHub...") + ","
+    CrashTags = CrashTags + "4,"
+  END IF
+  b = b + TR$("&Dismiss")
+  CrashTags = CrashTags + "5"
   CrashBar.Hint = Proj.CrashPath(CrashName)
-  CrashGitB.Visible = Flag(CrashLocked = 0)
-  CrashLayOut
-  CrashBar.Visible = 1
+  ' (asked once, aloud: the strip itself says it to a screen reader)
+  CrashBar.Ask t, b, "warning"
 END SUB
 
 SUB CrashHideBar
-  CrashBar.Visible = 0
+  CrashBar.Hide
 END SUB
 
-' (a compact button as wide as its words: 12 each side, 72 at least)
-FUNCTION CrashButtonW(B AS RButton) AS INTEGER
-  Result = UITextWidth(B.Caption) + 24
-  IF Result < 72 THEN Result = 72
-END FUNCTION
-
-' The strip: the icon and the bold sentence, the second sentence under it,
-' the buttons under them — compact, 8 apart, from where the words start.
-SUB CrashLayOut
-  DIM w AS INTEGER, ch AS INTEGER, x AS INTEGER, y AS INTEGER, h AS INTEGER, dh AS INTEGER
-  ch = UiCompactH
-  w = CrashBar.ClientWidth
-  IF w < 200 THEN w = Studio.ClientWidth
-  IF w < 200 THEN w = 800
-  ' (the second sentence wraps in a narrow window or a longer language)
-  AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
-  dh = AISetLinesHigh(CrashBarDetail.Caption, w - 52)
-  IF dh < 18 THEN dh = 18
-  CrashBarIcon.Left = 16: CrashBarIcon.Top = 11
-  CrashBarText.Left = 40: CrashBarText.Top = 10: CrashBarText.Width = w - 52: CrashBarText.Height = 18
-  CrashBarDetail.Left = 40: CrashBarDetail.Top = 30: CrashBarDetail.Width = w - 52: CrashBarDetail.Height = dh
-  y = 30 + dh + 8
-  x = 40
-  CrashViewB.Left = x: CrashViewB.Top = y: CrashViewB.Width = CrashButtonW(CrashViewB): CrashViewB.Height = ch
-  x = x + CrashViewB.Width + 8
-  CrashCopyB.Left = x: CrashCopyB.Top = y: CrashCopyB.Width = CrashButtonW(CrashCopyB): CrashCopyB.Height = ch
-  x = x + CrashCopyB.Width + 8
-  CrashSaveB.Left = x: CrashSaveB.Top = y: CrashSaveB.Width = CrashButtonW(CrashSaveB): CrashSaveB.Height = ch
-  x = x + CrashSaveB.Width + 8
-  IF CrashGitB.Visible THEN
-    CrashGitB.Left = x: CrashGitB.Top = y: CrashGitB.Width = CrashButtonW(CrashGitB): CrashGitB.Height = ch
-    x = x + CrashGitB.Width + 8
-  END IF
-  CrashDismissB.Left = x: CrashDismissB.Top = y: CrashDismissB.Width = CrashButtonW(CrashDismissB): CrashDismissB.Height = ch
-  h = y + ch + 12
-  IF CrashBar.Height <> h THEN CrashBar.Height = h
-  CrashBarMark.Left = 0: CrashBarMark.Top = 0: CrashBarMark.Height = h
+' The strip's button (its number from 1): which action it is, by CrashTags.
+SUB CrashChoose(Index AS INTEGER, Caption AS STRING)
+  CrashAct VAL(FIELD$(CrashTags, ",", Index))
 END SUB
 
-SUB CrashPick(Sender AS RButton)
+SUB CrashAct(Tag AS INTEGER)
   IF CrashName = "" THEN EXIT SUB
   ' (any answer: it isn't offered again at the next start)
   Proj.CrashSeen CrashName
-  SELECT CASE Sender.Tag
+  SELECT CASE Tag
     CASE 1: CrashView CrashName
     CASE 2: CrashCopy CrashName
     CASE 3: CrashSaveAs CrashName
@@ -384,19 +292,19 @@ FUNCTION CrashStep(Stp AS STRING) AS INTEGER
     CASE "check"
       CrashCheck
     CASE "view"
-      CrashPick CrashViewB
+      CrashAct 1
     CASE "copy"
-      CrashPick CrashCopyB
+      CrashAct 2
     CASE "save"
-      CrashPick CrashSaveB
+      CrashAct 3
     CASE "github=yes", "github=no"
       CrashAnswer = IIF(s = "github=yes", 1, 2)
-      CrashPick CrashGitB
+      CrashAct 4
       CrashAnswer = 0
     CASE "github"
-      CrashPick CrashGitB
+      CrashAct 4
     CASE "dismiss"
-      CrashPick CrashDismissB
+      CrashAct 5
     CASE "lock"
       CrashSchoolLock 1
     CASE "report"

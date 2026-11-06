@@ -1,0 +1,2 @@
+' tests/main.rr: the same name as main.rr, in another folder.
+PRINT "tests"

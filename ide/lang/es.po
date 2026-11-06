@@ -299,50 +299,6 @@ msgstr "Pasos hechos en esta respuesta"
 msgid "Conversation with the assistant"
 msgstr "Conversación con el asistente"
 
-#: ide/ai.inc
-msgid "The assistant's new program"
-msgstr "El programa nuevo del asistente"
-
-#: ide/ai.inc
-msgid "Run it"
-msgstr "Ejecutarlo"
-
-#: ide/ai.inc
-msgid "Runs the new program (F5). Nothing runs until you press it."
-msgstr "Ejecuta el programa nuevo (F5). No se ejecuta nada hasta que lo presionas."
-
-#: ide/ai.inc
-msgid "Ask It to Fix"
-msgstr "Pedir que lo corrija"
-
-#: ide/ai.inc
-msgid "Ask the assistant to fix the errors"
-msgstr "Pedir al asistente que corrija los errores"
-
-#: ide/ai.inc ide/aichats.inc ide/versions.inc
-msgid "Undo"
-msgstr "Deshacer"
-
-#: ide/ai.inc
-msgid "Closes the new program and removes the files the assistant wrote"
-msgstr "Cierra el programa nuevo y quita los archivos que escribió el asistente"
-
-#: ide/ai.inc
-msgid "What Did It Do?"
-msgstr "¿Qué hizo?"
-
-#: ide/ai.inc
-msgid "What did it do?"
-msgstr "¿Qué hizo?"
-
-#: ide/ai.inc
-msgid "Shows what the assistant did, in the Assistant pane"
-msgstr "Muestra lo que hizo el asistente, en el panel Asistente"
-
-#: ide/ai.inc
-msgid "Close the banner"
-msgstr "Cerrar el aviso"
-
 #: ide/ai.inc ide/panels.inc ide/settings.inc
 msgid "General"
 msgstr "General"
@@ -680,22 +636,16 @@ msgid "Can't create the new program in {folder}: {error}. Preview the New Progra
 msgstr "No se puede crear el programa nuevo en {folder}: {error}. Vista previa del programa nuevo te deja elegir otra carpeta."
 
 #: ide/ai.inc
-msgid "Made {title}: Run It is at the top."
-msgstr "Se creó {title}: Ejecutarlo está arriba."
-
-#: ide/ai.inc
-msgid "Made {title}, {n} error left: see the top."
-msgid_plural "Made {title}, {n} errors left: see the top."
-msgstr[0] "Se creó {title}, queda {n} error: mira arriba."
-msgstr[1] "Se creó {title}, quedan {n} errores: mira arriba."
-
-#: ide/ai.inc
 msgid "The assistant made this program for you."
 msgstr "El asistente hizo este programa para ti."
 
 #: ide/ai.inc
-msgid "▶  Run It"
-msgstr "▶  Ejecutarlo"
+msgid "Run It"
+msgstr "Ejecutarlo"
+
+#: ide/ai.inc ide/aichats.inc ide/versions.inc
+msgid "Undo"
+msgstr "Deshacer"
 
 #: ide/ai.inc
 msgid "The assistant made this program — it still has {n} error."
@@ -704,16 +654,12 @@ msgstr[0] "El asistente hizo este programa — todavía tiene {n} error."
 msgstr[1] "El asistente hizo este programa — todavía tiene {n} errores."
 
 #: ide/ai.inc
-msgid "▶  Run Anyway"
-msgstr "▶  Ejecutar de todos modos"
-
-#: ide/ai.inc
-msgid "Run anyway"
+msgid "Run Anyway"
 msgstr "Ejecutar de todos modos"
 
 #: ide/ai.inc
-msgid "↺  Undo"
-msgstr "↺  Deshacer"
+msgid "Ask It to Fix"
+msgstr "Pedir que lo corrija"
 
 #: ide/ai.inc
 msgctxt "the word looked for in a status line"
@@ -725,6 +671,10 @@ msgid "{status} The program has {n} error: Problems lists them."
 msgid_plural "{status} The program has {n} errors: Problems lists them."
 msgstr[0] "{status} El programa tiene {n} error: Problemas lo muestra."
 msgstr[1] "{status} El programa tiene {n} errores: Problemas los muestra."
+
+#: ide/ai.inc
+msgid "That program isn't open any more."
+msgstr "Ese programa ya no está abierto."
 
 #: ide/ai.inc
 msgid "Please fix the errors that are left."
@@ -895,14 +845,6 @@ msgid "Their titles and what was said; Down goes to the list, Escape back to the
 msgstr "Sus títulos y lo que se dijo; la flecha abajo va a la lista, Escape vuelve al chat"
 
 #: ide/aichats.inc
-msgid "Chat deleted"
-msgstr "Chat eliminado"
-
-#: ide/aichats.inc
-msgid "Undo: put the chat back"
-msgstr "Deshacer: devolver el chat"
-
-#: ide/aichats.inc
 msgid "Where chats are kept"
 msgstr "Dónde se guardan los chats"
 
@@ -1045,16 +987,20 @@ msgid "That chat couldn't be deleted."
 msgstr "No se pudo eliminar ese chat."
 
 #: ide/aichats.inc
+msgid "Another chat was deleted since, and only the last one is kept."
+msgstr "Después se borró otro chat, y solo se conserva el último."
+
+#: ide/aichats.inc
 msgid "Deleted {q}{title}{q}."
 msgstr "Se eliminó {q}{title}{q}."
 
 #: ide/aichats.inc
-msgid "Deleted {q}{title}{q}. Undo puts it back."
-msgstr "Se eliminó {q}{title}{q}. Deshacer lo devuelve."
-
-#: ide/aichats.inc
 msgid "The chat couldn't be put back."
 msgstr "No se pudo devolver el chat."
+
+#: ide/aichats.inc
+msgid "The chat was put back."
+msgstr "Se devolvió el chat."
 
 #: ide/aichats.inc
 msgid "Put back: {q}{title}{q}."
@@ -2372,6 +2318,10 @@ msgid "O&utline"
 msgstr "&Estructura"
 
 #: ide/commands.inc
+msgid "&Notifications"
+msgstr "&Notificaciones"
+
+#: ide/commands.inc
 msgid "&Output"
 msgstr "&Salida"
 
@@ -3467,54 +3417,10 @@ msgstr "Se copió el mensaje"
 msgid "{file} taken off Recent"
 msgstr "{file} se quitó de recientes"
 
-# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
-#: ide/crash.inc
-msgid "&View Report"
-msgstr "&Ver informe"
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr "Cop&iar informe"
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr "&Guardar informe..."
-
-#: ide/crash.inc
-msgid "Report on &GitHub..."
-msgstr "Informar en Git&Hub..."
-
-#: ide/crash.inc
-msgid "&Dismiss"
-msgstr "&Ocultar"
-
-#: ide/crash.inc
-msgid "Opens the report in a tab"
-msgstr "Abre el informe en una pestaña"
-
-#: ide/crash.inc
-msgid "Copies the report's text"
-msgstr "Copia el texto del informe"
-
-#: ide/crash.inc
-msgid "Saves a copy of the report where you choose"
-msgstr "Guarda una copia del informe donde elijas"
-
-# legal
-#: ide/crash.inc
-msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
-msgstr "Abre en tu navegador la página de GitHub para informar un problema nuevo, con el informe ya escrito. No se envía nada hasta que tú lo envíes allí."
-
-# legal
-#: ide/crash.inc
-msgid "Closes this note. The report stays on this computer for 30 days."
-msgstr "Cierra este aviso. El informe queda en esta computadora durante 30 días."
-
 #: ide/crash.inc
 msgid "RapidR Studio isn't responding"
 msgstr "RapidR Studio no responde"
 
-# legal
 #: ide/crash.inc
 msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
 msgstr "Su ventana no responde desde hace unos segundos. Esperar le da más tiempo. Guardar copias y salir lo cierra: las copias de tu trabajo sin guardar que Studio guarda mientras escribes (cada 20 segundos) se ofrecen cuando vuelva a abrirse. Se escribió un informe en esta computadora."
@@ -3537,8 +3443,29 @@ msgstr "La última vez, RapidR Studio se cerró de forma inesperada."
 
 # legal
 #: ide/crash.inc
-msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
-msgstr "Un informe de lo que pasó queda en esta computadora; no se envió nada. Puedes verlo, copiarlo, guardarlo o informar el problema en GitHub para ayudar a corregirlo."
+msgid "A report stays on this computer; nothing was sent."
+msgstr "Un informe queda en esta computadora; no se envió nada."
+
+# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
+#: ide/crash.inc
+msgid "&View Report"
+msgstr "&Ver informe"
+
+#: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "Cop&iar informe"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "&Guardar informe..."
+
+#: ide/crash.inc
+msgid "Report on &GitHub..."
+msgstr "Informar en Git&Hub..."
+
+#: ide/crash.inc
+msgid "&Dismiss"
+msgstr "&Ocultar"
 
 #: ide/crash.inc
 msgid "The report isn't there any more."
@@ -4168,50 +4095,16 @@ msgid "Rename: {file} couldn't be opened"
 msgstr "Renombrar: no se pudo abrir {file}"
 
 #: ide/external.inc
+msgid "{file} changed on disk while you were editing it."
+msgstr "{file} cambió en el disco mientras lo editabas."
+
+#: ide/external.inc
 msgid "&Compare"
 msgstr "&Comparar"
 
 #: ide/external.inc
-msgid "Shows the disk's version beside yours"
-msgstr "Muestra la versión del disco junto a la tuya"
-
-#: ide/external.inc ide/versions.inc
-msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
-msgstr "Carga el archivo como está en el disco. Tu versión se guarda en el historial local, y Deshacer la recupera."
-
-#: ide/external.inc
-msgid "Keeps your version here. Saving it will ask before it replaces the disk's version."
-msgstr "Conserva tu versión aquí. Al guardarla, Studio pregunta antes de reemplazar la versión del disco."
-
-#: ide/external.inc
-msgid "&Show"
-msgstr "&Mostrar"
-
-#: ide/external.inc
-msgid "Lists the files in the Output"
-msgstr "Muestra la lista de archivos en la Salida"
-
-#: ide/external.inc
-msgid "C&lose"
-msgstr "&Cerrar"
-
-#: ide/external.inc
-msgid "Close the note"
-msgstr "Cerrar el aviso"
-
-#: ide/external.inc
-msgid "{file} changed outside Studio."
-msgstr "{file} cambió fuera de Studio."
-
-#: ide/external.inc
-msgid "{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine."
-msgstr "{file} cambió fuera de Studio, y tienes cambios sin guardar en él: Comparar, Usar la versión del disco o Conservar la mía."
-
-#: ide/external.inc
-msgid "{n} file was updated outside Studio."
-msgid_plural "{n} files were updated outside Studio."
-msgstr[0] "{n} archivo se actualizó fuera de Studio."
-msgstr[1] "{n} archivos se actualizaron fuera de Studio."
+msgid "Compare shows the disk's version beside yours. Use Disk Version loads it: yours is kept in the local history, and Undo brings it back. Keep Mine keeps yours: saving it asks before it replaces the disk's version."
+msgstr "Comparar muestra la versión del disco junto a la tuya. Usar la versión del disco la carga: la tuya se guarda en el historial local, y Deshacer la recupera. Conservar la mía mantiene la tuya: al guardarla, Studio pregunta antes de reemplazar la versión del disco."
 
 #: ide/external.inc ide/versions.inc
 msgid "Local history: {why}"
@@ -4230,10 +4123,24 @@ msgid "{file} was updated outside Studio"
 msgstr "{file} se actualizó fuera de Studio"
 
 #: ide/external.inc
+msgid "{file} was reloaded"
+msgstr "{file} se recargó"
+
+#: ide/external.inc
+msgid "Show"
+msgstr "Mostrar"
+
+#: ide/external.inc
 msgid "{n} file was updated outside Studio"
 msgid_plural "{n} files were updated outside Studio"
 msgstr[0] "{n} archivo se actualizó fuera de Studio"
 msgstr[1] "{n} archivos se actualizaron fuera de Studio"
+
+#: ide/external.inc
+msgid "{n} file was reloaded: {names}"
+msgid_plural "{n} files were reloaded: {names}"
+msgstr[0] "{n} archivo se recargó: {names}"
+msgstr[1] "{n} archivos se recargaron: {names}"
 
 #: ide/external.inc
 msgid "{file} was deleted outside Studio: Save All makes it again"
@@ -4262,12 +4169,6 @@ msgstr "Se conserva tu versión de {file}: al guardarla, Studio pregunta primero
 #: ide/external.inc
 msgid "Keeping your version. Saving it asks first."
 msgstr "Se conserva tu versión. Al guardarla, Studio pregunta primero."
-
-#: ide/external.inc
-msgid "{n} file was updated outside Studio:"
-msgid_plural "{n} files were updated outside Studio:"
-msgstr[0] "{n} archivo se actualizó fuera de Studio:"
-msgstr[1] "{n} archivos se actualizaron fuera de Studio:"
 
 #: ide/external.inc
 msgid "Save {file} again?"
@@ -4929,6 +4830,20 @@ msgstr "Quita la lista de lo que hicieron las aplicaciones de IA"
 #: ide/mcp.inc
 msgid "C&lear"
 msgstr "&Borrar"
+
+#: ide/notify.inc
+msgid "Notifications"
+msgstr "Notificaciones"
+
+#: ide/notify.inc ide/search.inc
+msgid "Search"
+msgstr "Búsqueda"
+
+#: ide/notify.inc
+msgid "Notifications: {n} new"
+msgid_plural "Notifications: {n} new"
+msgstr[0] "Notificaciones: {n} nueva"
+msgstr[1] "Notificaciones: {n} nuevas"
 
 #: ide/panels.inc
 msgid "Go to line {}"
@@ -6050,10 +5965,6 @@ msgid "School Lock couldn't be turned on: {error}"
 msgstr "No se pudo activar el bloqueo escolar: {error}"
 
 #: ide/search.inc
-msgid "Search"
-msgstr "Búsqueda"
-
-#: ide/search.inc
 msgid "Search for"
 msgstr "Buscar"
 
@@ -6360,6 +6271,18 @@ msgid "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Out
 msgstr "Automático: Variables, Observar, Pila de llamadas y Puntos de interrupción aparecen junto a Salida mientras se ejecuta un programa. Ver > Paneles de depuración (Ctrl+Shift+D) los muestra u oculta."
 
 #: ide/settings.inc
+msgid "Notifications &stay"
+msgstr "Las notificaciones se &quedan"
+
+#: ide/settings.inc
+msgid "How long notifications stay"
+msgstr "Cuánto tiempo se quedan las notificaciones"
+
+#: ide/settings.inc
+msgid "Notifications are the small messages in the corner of the editor. Every one is kept in the bell's history whatever you choose here."
+msgstr "Las notificaciones son los mensajes pequeños de la esquina del editor. Cada una se guarda en el historial de la campana, elijas lo que elijas aquí."
+
+#: ide/settings.inc
 msgid "&Turn on the AI assistant"
 msgstr "&Activar el asistente de IA"
 
@@ -6518,6 +6441,18 @@ msgstr "Desactivado, la opción más segura: un programa que ejecuta RAI o una a
 #: ide/settings.inc
 msgid "The provider's links"
 msgstr "Los enlaces del proveedor"
+
+#: ide/settings.inc
+msgid "As long as their words need"
+msgstr "El tiempo que necesiten sus palabras"
+
+#: ide/settings.inc
+msgid "Longer"
+msgstr "Más tiempo"
+
+#: ide/settings.inc
+msgid "Until I close them"
+msgstr "Hasta que las cierre"
 
 #: ide/settings.inc
 msgid "Off"
@@ -7433,6 +7368,10 @@ msgstr "{file}: la versión del disco y la tuya"
 #: ide/versions.inc
 msgid "Left: on disk, changed outside Studio. Right: yours, not saved."
 msgstr "Izquierda: en el disco, cambiada fuera de Studio. Derecha: la tuya, sin guardar."
+
+#: ide/versions.inc
+msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
+msgstr "Carga el archivo como está en el disco. Tu versión se guarda en el historial local, y Deshacer la recupera."
 
 #: ide/versions.inc
 msgid "What Changed: {message}"

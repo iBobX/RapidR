@@ -298,50 +298,6 @@ msgstr "本次回答已完成的步骤"
 msgid "Conversation with the assistant"
 msgstr "与助手的对话"
 
-#: ide/ai.inc
-msgid "The assistant's new program"
-msgstr "助手制作的新程序"
-
-#: ide/ai.inc
-msgid "Run it"
-msgstr "运行"
-
-#: ide/ai.inc
-msgid "Runs the new program (F5). Nothing runs until you press it."
-msgstr "运行新程序 (F5)。在你点击之前，什么都不会运行。"
-
-#: ide/ai.inc
-msgid "Ask It to Fix"
-msgstr "请它修复"
-
-#: ide/ai.inc
-msgid "Ask the assistant to fix the errors"
-msgstr "请助手修复这些错误"
-
-#: ide/ai.inc ide/aichats.inc ide/versions.inc
-msgid "Undo"
-msgstr "撤销"
-
-#: ide/ai.inc
-msgid "Closes the new program and removes the files the assistant wrote"
-msgstr "关闭新程序，并删除助手写入的文件"
-
-#: ide/ai.inc
-msgid "What Did It Do?"
-msgstr "它做了什么？"
-
-#: ide/ai.inc
-msgid "What did it do?"
-msgstr "它做了什么？"
-
-#: ide/ai.inc
-msgid "Shows what the assistant did, in the Assistant pane"
-msgstr "在“助手”面板中显示助手做了什么"
-
-#: ide/ai.inc
-msgid "Close the banner"
-msgstr "关闭横幅"
-
 #: ide/ai.inc ide/panels.inc ide/settings.inc
 msgid "General"
 msgstr "常规"
@@ -678,22 +634,16 @@ msgid "Can't create the new program in {folder}: {error}. Preview the New Progra
 msgstr "无法在 {folder} 中创建新程序：{error}。使用“预览新程序”可选择其他文件夹。"
 
 #: ide/ai.inc
-msgid "Made {title}: Run It is at the top."
-msgstr "已制作 {title}：顶部有“运行”按钮。"
-
-#: ide/ai.inc
-msgid "Made {title}, {n} error left: see the top."
-msgid_plural "Made {title}, {n} errors left: see the top."
-msgstr[0] "已制作 {title}，还剩 {n} 个错误：请看顶部。"
-msgstr[1] ""
-
-#: ide/ai.inc
 msgid "The assistant made this program for you."
 msgstr "助手为你制作了这个程序。"
 
 #: ide/ai.inc
-msgid "▶  Run It"
-msgstr "▶  运行"
+msgid "Run It"
+msgstr "运行"
+
+#: ide/ai.inc ide/aichats.inc ide/versions.inc
+msgid "Undo"
+msgstr "撤销"
 
 #: ide/ai.inc
 msgid "The assistant made this program — it still has {n} error."
@@ -702,16 +652,12 @@ msgstr[0] "助手制作了这个程序，但它还有 {n} 个错误。"
 msgstr[1] ""
 
 #: ide/ai.inc
-msgid "▶  Run Anyway"
-msgstr "▶  仍然运行"
-
-#: ide/ai.inc
-msgid "Run anyway"
+msgid "Run Anyway"
 msgstr "仍然运行"
 
 #: ide/ai.inc
-msgid "↺  Undo"
-msgstr "↺  撤销"
+msgid "Ask It to Fix"
+msgstr "请它修复"
 
 #: ide/ai.inc
 msgctxt "the word looked for in a status line"
@@ -723,6 +669,10 @@ msgid "{status} The program has {n} error: Problems lists them."
 msgid_plural "{status} The program has {n} errors: Problems lists them."
 msgstr[0] "{status} 程序有 {n} 个错误：“问题”面板会列出它们。"
 msgstr[1] ""
+
+#: ide/ai.inc
+msgid "That program isn't open any more."
+msgstr "那个程序已不再打开。"
 
 #: ide/ai.inc
 msgid "Please fix the errors that are left."
@@ -891,14 +841,6 @@ msgid "Their titles and what was said; Down goes to the list, Escape back to the
 msgstr "搜索标题和对话内容；按向下键进入列表，按 Esc 返回对话"
 
 #: ide/aichats.inc
-msgid "Chat deleted"
-msgstr "对话已删除"
-
-#: ide/aichats.inc
-msgid "Undo: put the chat back"
-msgstr "撤销：恢复这段对话"
-
-#: ide/aichats.inc
 msgid "Where chats are kept"
 msgstr "对话的保存位置"
 
@@ -1040,16 +982,20 @@ msgid "That chat couldn't be deleted."
 msgstr "无法删除这段对话。"
 
 #: ide/aichats.inc
+msgid "Another chat was deleted since, and only the last one is kept."
+msgstr "之后又删除了另一段对话，只保留最后一段。"
+
+#: ide/aichats.inc
 msgid "Deleted {q}{title}{q}."
 msgstr "已删除 {q}{title}{q}。"
 
 #: ide/aichats.inc
-msgid "Deleted {q}{title}{q}. Undo puts it back."
-msgstr "已删除 {q}{title}{q}。“撤销”可以恢复。"
-
-#: ide/aichats.inc
 msgid "The chat couldn't be put back."
 msgstr "无法恢复这段对话。"
+
+#: ide/aichats.inc
+msgid "The chat was put back."
+msgstr "已恢复这段对话。"
 
 #: ide/aichats.inc
 msgid "Put back: {q}{title}{q}."
@@ -2325,6 +2271,10 @@ msgid "O&utline"
 msgstr "大纲(&U)"
 
 #: ide/commands.inc
+msgid "&Notifications"
+msgstr "通知(&N)"
+
+#: ide/commands.inc
 msgid "&Output"
 msgstr "输出(&O)"
 
@@ -3421,52 +3371,9 @@ msgid "{file} taken off Recent"
 msgstr "已从最近记录中移除 {file}"
 
 #: ide/crash.inc
-msgid "&View Report"
-msgstr "查看报告(&V)"
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr "复制报告(&Y)"
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr "保存报告(&S)..."
-
-#: ide/crash.inc
-msgid "Report on &GitHub..."
-msgstr "在 GitHub 上报告(&G)..."
-
-#: ide/crash.inc
-msgid "&Dismiss"
-msgstr "忽略(&D)"
-
-#: ide/crash.inc
-msgid "Opens the report in a tab"
-msgstr "在标签页中打开报告"
-
-#: ide/crash.inc
-msgid "Copies the report's text"
-msgstr "复制报告文本"
-
-#: ide/crash.inc
-msgid "Saves a copy of the report where you choose"
-msgstr "把报告的副本保存到你选择的位置"
-
-# legal
-#: ide/crash.inc
-msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
-msgstr "在浏览器中打开 GitHub 上的新议题页面，并填入报告内容。在你亲自到那里提交之前，不会发送任何内容。"
-
-# legal
-#: ide/crash.inc
-msgid "Closes this note. The report stays on this computer for 30 days."
-msgstr "关闭此提示。报告会在这台电脑上保留 30 天。"
-
-#: ide/crash.inc
 msgid "RapidR Studio isn't responding"
 msgstr "RapidR Studio 没有响应"
 
-# legal
 #: ide/crash.inc
 msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
 msgstr "它的窗口已有几秒钟没有回应。“等待”会再给它一些时间。“保存副本并退出”会关闭它：你输入时它每 20 秒保留的未保存工作副本，会在它再次启动时提供给你。这台电脑上已写入一份报告。"
@@ -3489,8 +3396,28 @@ msgstr "上次 RapidR Studio 意外关闭了。"
 
 # legal
 #: ide/crash.inc
-msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
-msgstr "发生了什么的报告保存在这台电脑上，没有发送任何内容。你可以查看、复制、保存它，也可以在 GitHub 上报告这个问题来帮助修复。"
+msgid "A report stays on this computer; nothing was sent."
+msgstr "报告保存在这台电脑上，没有发送任何内容。"
+
+#: ide/crash.inc
+msgid "&View Report"
+msgstr "查看报告(&V)"
+
+#: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "复制报告(&Y)"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "保存报告(&S)..."
+
+#: ide/crash.inc
+msgid "Report on &GitHub..."
+msgstr "在 GitHub 上报告(&G)..."
+
+#: ide/crash.inc
+msgid "&Dismiss"
+msgstr "忽略(&D)"
 
 #: ide/crash.inc
 msgid "The report isn't there any more."
@@ -4112,50 +4039,16 @@ msgid "Rename: {file} couldn't be opened"
 msgstr "重命名：无法打开 {file}"
 
 #: ide/external.inc
+msgid "{file} changed on disk while you were editing it."
+msgstr "你编辑时，{file} 已在磁盘上更改。"
+
+#: ide/external.inc
 msgid "&Compare"
 msgstr "比较(&C)"
 
 #: ide/external.inc
-msgid "Shows the disk's version beside yours"
-msgstr "把磁盘上的版本显示在你的版本旁边"
-
-#: ide/external.inc ide/versions.inc
-msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
-msgstr "载入磁盘上的文件。你的版本会保存在本地历史记录中，“撤销”可以把它找回来。"
-
-#: ide/external.inc
-msgid "Keeps your version here. Saving it will ask before it replaces the disk's version."
-msgstr "在这里保留你的版本。保存时会先询问，再替换磁盘上的版本。"
-
-#: ide/external.inc
-msgid "&Show"
-msgstr "显示(&S)"
-
-#: ide/external.inc
-msgid "Lists the files in the Output"
-msgstr "在“输出”中列出这些文件"
-
-#: ide/external.inc
-msgid "C&lose"
-msgstr "关闭(&L)"
-
-#: ide/external.inc
-msgid "Close the note"
-msgstr "关闭提示"
-
-#: ide/external.inc
-msgid "{file} changed outside Studio."
-msgstr "{file} 在 Studio 之外被更改了。"
-
-#: ide/external.inc
-msgid "{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine."
-msgstr "{file} 在 Studio 之外被更改了，而你在其中还有未保存的更改：请选择“比较”、“使用磁盘上的版本”或“保留我的版本”。"
-
-#: ide/external.inc
-msgid "{n} file was updated outside Studio."
-msgid_plural "{n} files were updated outside Studio."
-msgstr[0] "有 {n} 个文件在 Studio 之外被更新了。"
-msgstr[1] ""
+msgid "Compare shows the disk's version beside yours. Use Disk Version loads it: yours is kept in the local history, and Undo brings it back. Keep Mine keeps yours: saving it asks before it replaces the disk's version."
+msgstr "“比较”会把磁盘上的版本显示在你的版本旁边。“使用磁盘上的版本”会载入它：你的版本会保存在本地历史记录中，“撤销”可以把它找回来。“保留我的版本”会保留你的版本：保存时，Studio 会先询问，再替换磁盘上的版本。"
 
 #: ide/external.inc ide/versions.inc
 msgid "Local history: {why}"
@@ -4174,9 +4067,23 @@ msgid "{file} was updated outside Studio"
 msgstr "{file} 在 Studio 之外被更新了"
 
 #: ide/external.inc
+msgid "{file} was reloaded"
+msgstr "{file} 已重新载入"
+
+#: ide/external.inc
+msgid "Show"
+msgstr "显示"
+
+#: ide/external.inc
 msgid "{n} file was updated outside Studio"
 msgid_plural "{n} files were updated outside Studio"
 msgstr[0] "有 {n} 个文件在 Studio 之外被更新了"
+msgstr[1] ""
+
+#: ide/external.inc
+msgid "{n} file was reloaded: {names}"
+msgid_plural "{n} files were reloaded: {names}"
+msgstr[0] "已重新载入 {n} 个文件：{names}"
 msgstr[1] ""
 
 #: ide/external.inc
@@ -4206,12 +4113,6 @@ msgstr "保留你的 {file} 版本：保存时会先询问"
 #: ide/external.inc
 msgid "Keeping your version. Saving it asks first."
 msgstr "保留你的版本。保存时会先询问。"
-
-#: ide/external.inc
-msgid "{n} file was updated outside Studio:"
-msgid_plural "{n} files were updated outside Studio:"
-msgstr[0] "有 {n} 个文件在 Studio 之外被更新了："
-msgstr[1] ""
 
 #: ide/external.inc
 msgid "Save {file} again?"
@@ -4872,6 +4773,20 @@ msgstr "删除 AI 应用做过的事的列表"
 #: ide/mcp.inc
 msgid "C&lear"
 msgstr "清除(&L)"
+
+#: ide/notify.inc
+msgid "Notifications"
+msgstr "通知"
+
+#: ide/notify.inc ide/search.inc
+msgid "Search"
+msgstr "搜索"
+
+#: ide/notify.inc
+msgid "Notifications: {n} new"
+msgid_plural "Notifications: {n} new"
+msgstr[0] "通知：{n} 条新消息"
+msgstr[1] ""
 
 #: ide/panels.inc
 msgid "Go to line {}"
@@ -5987,10 +5902,6 @@ msgid "School Lock couldn't be turned on: {error}"
 msgstr "无法开启学校锁定：{error}"
 
 #: ide/search.inc
-msgid "Search"
-msgstr "搜索"
-
-#: ide/search.inc
 msgid "Search for"
 msgstr "搜索内容"
 
@@ -6295,6 +6206,18 @@ msgid "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Out
 msgstr "自动：程序运行时，变量、监视、调用堆栈和断点会显示在输出旁边。使用 视图 > 调试面板 (Ctrl+Shift+D) 可显示或隐藏它们。"
 
 #: ide/settings.inc
+msgid "Notifications &stay"
+msgstr "通知停留时间(&S)"
+
+#: ide/settings.inc
+msgid "How long notifications stay"
+msgstr "通知停留多久"
+
+#: ide/settings.inc
+msgid "Notifications are the small messages in the corner of the editor. Every one is kept in the bell's history whatever you choose here."
+msgstr "通知是编辑器角落里的小消息。无论你在这里怎么选择，每一条都会保存在铃铛的历史记录中。"
+
+#: ide/settings.inc
 msgid "&Turn on the AI assistant"
 msgstr "开启 AI 助手(&T)"
 
@@ -6453,6 +6376,18 @@ msgstr "关闭（更安全的选择）：RAI 或 AI 应用运行的程序不能�
 #: ide/settings.inc
 msgid "The provider's links"
 msgstr "服务商的链接"
+
+#: ide/settings.inc
+msgid "As long as their words need"
+msgstr "按文字所需的时间"
+
+#: ide/settings.inc
+msgid "Longer"
+msgstr "更长"
+
+#: ide/settings.inc
+msgid "Until I close them"
+msgstr "直到我关闭"
 
 #: ide/settings.inc
 msgid "Off"
@@ -7371,6 +7306,10 @@ msgstr "{file}：磁盘上的版本和你的版本"
 #: ide/versions.inc
 msgid "Left: on disk, changed outside Studio. Right: yours, not saved."
 msgstr "左侧：磁盘上的版本，在 Studio 之外被更改。右侧：你的版本，尚未保存。"
+
+#: ide/versions.inc
+msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
+msgstr "载入磁盘上的文件。你的版本会保存在本地历史记录中，“撤销”可以把它找回来。"
 
 #: ide/versions.inc
 msgid "What Changed: {message}"

@@ -29,6 +29,8 @@ pub mod look;
 pub mod manager;
 pub mod runtime;
 #[cfg(test)]
+mod tab_tests;
+#[cfg(test)]
 mod tests;
 
 pub use manager::{is_docs_area, with, with_mut, Manager};

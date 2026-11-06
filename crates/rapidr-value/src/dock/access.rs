@@ -26,6 +26,7 @@ const CLOSES: usize = 4000;
 const VIEWS: usize = 5000;
 const DOC_SPLITTERS: usize = 6000;
 const DOC_TABLISTS: usize = 7000;
+const DOC_BUTTONS: usize = 8000;
 const TABLIST: usize = 999;
 
 /// Where splitter `index` of a split whose children are `ext` long is: the
@@ -52,6 +53,9 @@ pub enum AccessPart {
     /// A document group's view switch: (group, segment).
     View(usize, usize),
     DocSplitter(usize),
+    /// A document strip's button: (group, 0 scroll left, 1 scroll right, 2
+    /// the list of open tabs).
+    DocButton(usize, usize),
 }
 
 pub fn decode(index: usize) -> Option<AccessPart> {
@@ -63,6 +67,7 @@ pub fn decode(index: usize) -> Option<AccessPart> {
         i if (CLOSES..CLOSES + 1000).contains(&i) => AccessPart::Close(i - CLOSES),
         i if (VIEWS..DOC_SPLITTERS).contains(&i) => AccessPart::View((i - VIEWS) / 16, (i - VIEWS) % 16),
         i if (DOC_SPLITTERS..DOC_TABLISTS).contains(&i) => AccessPart::DocSplitter(i - DOC_SPLITTERS),
+        i if (DOC_BUTTONS..DOC_BUTTONS + 400).contains(&i) => AccessPart::DocButton((i - DOC_BUTTONS) / 4, (i - DOC_BUTTONS) % 4),
         _ => return None,
     })
 }
@@ -212,6 +217,17 @@ pub fn describe_documents(id: &str, m: &Manager, d: &Documents, at: (i64, i64)) 
             k += 1;
         }
         n.children.push(list);
+        // (the strip's buttons: scroll the tabs, the list of open tabs)
+        let buttons = [(0, gr.arrows.map(|a| a.0), "Scroll Tabs Left"), (1, gr.arrows.map(|a| a.1), "Scroll Tabs Right"), (2, gr.list, "Open Tabs")];
+        for (kind, rect, name) in buttons {
+            let Some(r) = rect else { continue };
+            let mut b = AccessNode::new(part_id(id, PART_ITEM, DOC_BUTTONS + g * 4 + kind), Role::Button);
+            b.name = tr_ui(name);
+            b.states.disabled = (kind == 0 && gr.scroll <= 0) || (kind == 1 && gr.scroll >= gr.max_scroll);
+            b.actions = if b.states.disabled { Vec::new() } else { vec![Action::Click] };
+            b.bounds = moved(r, at);
+            n.children.push(b);
+        }
         if !gr.switch.is_empty() {
             let shown = gr.shown().cloned().unwrap_or_default();
             let now = titles.view(&shown);

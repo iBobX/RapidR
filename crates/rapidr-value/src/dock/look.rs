@@ -253,6 +253,28 @@ fn fitted(s: &str, font: &Font, w: i64) -> String {
     String::new()
 }
 
+/// A document tab's name in `room` pixels: whole; else a long name cut in its
+/// middle, so its start and its extension stay (a name `main.rr · tests`, the
+/// folder a second file of that name adds, keeps `main.rr` whole and cuts the
+/// folder after it: the tooltip and a screen reader have all of it).
+pub fn tab_title(title: &str, font: &Font, room: i64) -> String {
+    use crate::objects::text::text_size;
+    if let Some((name, folder)) = title.split_once(" \u{b7} ") {
+        let sep = " \u{b7} ";
+        let used = text_size(name, font).0 + text_size(sep, font).0;
+        if used + text_size("\u{2026}", font).0 + 6 <= room {
+            let f = fitted(folder, font, room - used);
+            if f.len() > '\u{2026}'.len_utf8() {
+                return format!("{name}{sep}{f}");
+            }
+        }
+        if text_size(name, font).0 <= room {
+            return name.to_string();
+        }
+    }
+    crate::panels::notify::middle(title, font, room)
+}
+
 /// The chrome's font: the dock manager's.
 fn bold(font: &Font) -> Font {
     Font { styles: font.styles | 1, ..font.clone() }
@@ -994,6 +1016,8 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
         } else {
             frame(&mut ops, (gx, gy + strip - 1, gw, gh - strip + 1), p.border, 1);
         }
+        // (the tabs show in their viewport: a tab scrolled past it is clipped)
+        ops.push(Op::ClipPush { rect: gr.viewport });
         for (i, tab) in gr.tabs.iter().enumerate() {
             let shown = gr.active == i;
             let (x, y, tw, th) = tab.rect;
@@ -1047,7 +1071,8 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
             }
             let close = tab.close.unwrap_or((x + tw, y, 0, 0));
             let room = tab.text.1 - tx;
-            let title = fitted(&titles.title(&tab.pane), font, room);
+            // (a long name is cut in its middle: its start and its extension stay)
+            let title = tab_title(&titles.title(&tab.pane), font, room);
             text(&mut ops, (tx, y, room.max(0), th), &title, font, ink, Place::Left, 0);
             // (a change not saved: a dot, the close button under the mouse;
             // else the close button on the shown tab and under the mouse)
@@ -1062,6 +1087,16 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
                 let (cx, cy) = (close.0 + close.2 / 2, close.1 + close.3 / 2);
                 ops.push(Op::Round { rect: (cx - 4, cy - 4, 8, 8), radius: 4.0, fill: Some(if shown { p.title_active } else { p.glyph }), stroke: None, width: 0.0 });
             }
+        }
+        ops.push(Op::ClipPop);
+        // (the scroll arrows, while the tabs don't all fit, and the list of
+        // open tabs: 24 square, a chevron each)
+        if let Some((l, r)) = gr.arrows {
+            tab_button(&mut ops, l, TabButton::Left, gr.scroll > 0, hover == Some(DocHit::ScrollLeft(g)), &p);
+            tab_button(&mut ops, r, TabButton::Right, gr.scroll < gr.max_scroll, hover == Some(DocHit::ScrollRight(g)), &p);
+        }
+        if let Some(r) = gr.list {
+            tab_button(&mut ops, r, TabButton::List, true, hover == Some(DocHit::List(g)), &p);
         }
         // (the shown document's view switch)
         if !gr.switch.is_empty() {
@@ -1109,6 +1144,30 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
         splitter_ops(&mut ops, sp.rect, sp.axis == super::Axis::Row, false, &p, look);
     }
     ops
+}
+
+/// The document strip's buttons: the scroll arrows and the list of open tabs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TabButton {
+    Left,
+    Right,
+    List,
+}
+
+/// One of them in `r` (24 square): a chevron, dimmed when it can't do
+/// anything (the strip is at that end), a soft square under the mouse.
+fn tab_button(ops: &mut Vec<Op>, r: Rect, b: TabButton, on: bool, hot: bool, p: &Palette) {
+    if hot && on {
+        ops.push(Op::Round { rect: r, radius: if p.contrast { 0.0 } else { 4.0 }, fill: Some(p.button_hover), stroke: if p.contrast { Some(p.hot_outline) } else { None }, width: 1.0 });
+    }
+    let ink = if !on { mix(p.doc_strip, p.glyph, 0.4) } else if hot { p.title_active } else { p.glyph };
+    let (cx, cy) = (r.0 as f64 + r.2 as f64 / 2.0, r.1 as f64 + r.3 as f64 / 2.0);
+    let pts = match b {
+        TabButton::Left => vec![(cx + 2.5, cy - 4.5), (cx - 2.5, cy), (cx + 2.5, cy + 4.5)],
+        TabButton::Right => vec![(cx - 2.5, cy - 4.5), (cx + 2.5, cy), (cx - 2.5, cy + 4.5)],
+        TabButton::List => vec![(cx - 4.5, cy - 2.0), (cx, cy + 2.5), (cx + 4.5, cy - 2.0)],
+    };
+    ops.push(Op::Stroke { points: pts, color: ink, width: 1.4 });
 }
 
 /// Over the documents while a tab is dragged: where it would go (the

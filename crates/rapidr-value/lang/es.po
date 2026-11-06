@@ -4102,3 +4102,43 @@ msgstr "la memoria de este programa, hasta que termine"
 #: crates/rapidr-ai/src/rai.rs
 msgid "an environment variable"
 msgstr "una variable de entorno"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Scroll Tabs Left"
+msgstr "Desplazar las pestañas a la izquierda"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Scroll Tabs Right"
+msgstr "Desplazar las pestañas a la derecha"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Open Tabs"
+msgstr "Pestañas abiertas"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Notifications"
+msgstr "Notificaciones"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Done"
+msgstr "Listo"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Notification history"
+msgstr "Historial de notificaciones"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Clear"
+msgstr "Borrar"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Nothing yet."
+msgstr "Todavía no hay nada."
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "A question: choose one answer."
+msgstr "Una pregunta: elige una respuesta."
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "This can no longer be done."
+msgstr "Esto ya no se puede hacer."

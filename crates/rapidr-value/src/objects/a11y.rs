@@ -680,6 +680,9 @@ pub fn role_of(type_name: &str) -> Role {
         "RCOMMANDPALETTE" => Role::Dialog,
         // (a Markdown text shown: its headings, lists, tables and links inside)
         "RMARKDOWNVIEW" => Role::Document,
+        // (NOTIFY: toasts as groups, each with its action and close buttons;
+        // a question's strip as a group with its buttons)
+        "RNOTIFY" | "RNOTIFYBAR" => Role::Group,
         "RSTATUSBAR" => Role::Status,
         "RSPLITTER" => Role::Splitter,
         // (and a kernel-drawn message box's icon)
@@ -699,7 +702,9 @@ pub fn role_of(type_name: &str) -> Role {
 
 /// Whether a component of `type_name` takes the keyboard focus when it's
 /// shown and enabled (Windows': labels, panels, pictures, a cool button
-/// don't; a click on one leaves the focus where it was).
+/// don't; a click on one leaves the focus where it was). (RNOTIFY and
+/// RNOTIFYBAR: not here — they are reached by F6 and Tab only while a toast
+/// or a question shows, which the kernel's kind answers.)
 pub fn takes_focus(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_uppercase().as_str(),

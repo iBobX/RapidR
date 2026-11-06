@@ -73,6 +73,18 @@ impl Runtime for Web {
     fn set_clipboard(self, text: &str) {
         crate::globals_web::set("clipboard", "text", &Value::String(text.to_string().into()));
     }
+    /// The local time of day, "14:32" (the page's clock).
+    fn clock(self) -> String {
+        let d = js_sys::Date::new_0();
+        format!("{:02}:{:02}", d.get_hours(), d.get_minutes())
+    }
+    /// `Application.Announce` for a toast or a question: the page's live
+    /// region.
+    fn announce(self, text: &str, assertive: bool) {
+        if let Some(a) = rapidr_value::objects::a11y::announce(text, assertive) {
+            rapidr_ui_host_web::host::announce(&a.text, a.assertive);
+        }
+    }
 }
 
 /// A panel's method (`None`: not one of its own).

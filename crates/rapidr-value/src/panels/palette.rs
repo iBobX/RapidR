@@ -87,11 +87,14 @@ pub struct Palette {
     /// {}"), its id the prefix and the rest (`:42`) — in place of the list
     /// (VS Code's quick open modes).
     pub prefixes: Vec<(String, String)>,
+    /// ShowAt's place: the palette's right edge and top in its form (`None`:
+    /// at the top, centred).
+    pub anchor: Option<(i64, i64)>,
 }
 
 impl Default for Palette {
     fn default() -> Self {
-        Palette { commands: Vec::new(), mru: Vec::new(), filter: String::new(), placeholder: "Type a command".into(), max_rows: 10, active: None, top: 0, hover: None, pressed: None, shown: false, shows: 0, prefixes: Vec::new() }
+        Palette { commands: Vec::new(), mru: Vec::new(), filter: String::new(), placeholder: "Type a command".into(), max_rows: 10, active: None, top: 0, hover: None, pressed: None, shown: false, shows: 0, prefixes: Vec::new(), anchor: None }
     }
 }
 
@@ -320,10 +323,16 @@ fn place<R: Runtime>(rt: R, name: &str) {
         _ => WIDTH,
     };
     let w = if pw > 0 { want.min(pw - 32).max(120) } else { want };
-    let left = if pw > 0 { (pw - w) / 2 } else { rt.get(name, "left").to_i64() };
+    let anchor = with(name, |p| p.anchor).flatten();
+    // (ShowAt: its right edge where it was asked, but inside the form)
+    let left = match anchor {
+        Some((right, _)) if pw > 0 => (right - w).clamp(8, (pw - w - 8).max(8)),
+        _ if pw > 0 => (pw - w) / 2,
+        _ => rt.get(name, "left").to_i64(),
+    };
     let h = with_mut(name, |p| p.height());
     rt.set(name, "left", Value::Integer(left));
-    rt.set(name, "top", Value::Integer(8));
+    rt.set(name, "top", Value::Integer(anchor.map_or(8, |a| a.1.max(0))));
     rt.set(name, "width", Value::Integer(w));
     rt.set(name, "height", Value::Integer(h));
 }
@@ -415,6 +424,15 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             Some(Value::String(with(name, |p| usize::try_from(i).ok().and_then(|i| p.command_at(i)).map(|c| c.id.clone())).flatten().unwrap_or_default().into()))
         }
         "show" => {
+            with_mut(name, |p| p.anchor = None);
+            show(rt, name);
+            Some(Value::Null)
+        }
+        // ShowAt(Right, Top): opens it with its right edge at Right and its top
+        // at Top (a button's corner), in the form's pixels
+        "showat" => {
+            let at = (args.first().map(Value::to_i64).unwrap_or(0), args.get(1).map(Value::to_i64).unwrap_or(8));
+            with_mut(name, |p| p.anchor = Some(at));
             show(rt, name);
             Some(Value::Null)
         }

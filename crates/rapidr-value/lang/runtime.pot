@@ -2316,7 +2316,7 @@ msgstr ""
 msgid "Undo This Change"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs crates/rapidr-ui-kernel/src/components/dock.rs
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs crates/rapidr-ui-kernel/src/components/dock.rs crates/rapidr-ui-kernel/src/components/panels/notify.rs
 msgid "Close"
 msgstr ""
 
@@ -2450,6 +2450,18 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Close {name}"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Scroll Tabs Left"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Scroll Tabs Right"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Open Tabs"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
@@ -2688,6 +2700,42 @@ msgstr ""
 msgid "code"
 msgstr ""
 
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Notifications"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Information"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Done"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Warning"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Error"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Notification history"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-value/src/panels/notify.rs
+msgid "Clear"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Nothing yet."
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "A question: choose one answer."
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "No commands"
 msgstr ""
@@ -2902,18 +2950,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|Solid"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
-msgid "Warning"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
-msgid "Error"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
-msgid "Information"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
@@ -3734,6 +3770,10 @@ msgstr ""
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "{n} columns"
+msgstr ""
+
+#: crates/rapidr-value/src/panels/notify.rs
+msgid "This can no longer be done."
 msgstr ""
 
 #: crates/rapidr-value/src/panels/palette.rs

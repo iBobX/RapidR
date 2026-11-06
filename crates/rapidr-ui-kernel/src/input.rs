@@ -650,7 +650,11 @@ impl FormUi {
         if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) && !crate::components::design::takes_tab(self, store) {
             // (an RMARKDOWNVIEW's links are Tab stops inside it, one by one:
             // components/panels/markdown.rs)
-            if !crate::components::panels::markdown::tab(self, mods.shift) {
+            // (a toast's or a question strip's buttons, likewise: components/panels/notify.rs, notifybar.rs)
+            if !crate::components::panels::markdown::tab(self, mods.shift)
+                && !crate::components::panels::notify::tab(self, mods.shift)
+                && !crate::components::panels::notifybar::tab(self, mods.shift)
+            {
                 self.move_focus(store, mods.shift);
             }
             handled = true;

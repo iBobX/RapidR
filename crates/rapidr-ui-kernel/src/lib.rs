@@ -63,6 +63,8 @@ pub mod virtual_cursor;
 pub mod window_frame;
 
 #[cfg(test)]
+mod notify_tests;
+#[cfg(test)]
 mod pointer_tests;
 #[cfg(test)]
 mod tests;

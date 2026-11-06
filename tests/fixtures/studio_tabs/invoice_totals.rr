@@ -1,0 +1,2 @@
+' invoice_totals.rr: a file of the tabs walk (tests/studio_flows.mjs, tabs-*).
+PRINT "invoice_totals.rr"

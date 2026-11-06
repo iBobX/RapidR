@@ -85,6 +85,8 @@ impl FormUi {
         // (a view with links: the keyboard starts at its first stop, or its
         // last coming back)
         crate::components::panels::markdown::entered(self, next, back);
+        crate::components::panels::notify::entered(self, next, back);
+        crate::components::panels::notifybar::entered(self, next, back);
         // (out of view in a scroll box — the form's own bars too —: shown,
         // as RapidQ's AutoScrollInView)
         crate::components::scrollbox::show_focused(self, store);
@@ -124,6 +126,9 @@ impl FormUi {
                 if t == "RMARKDOWNVIEW" {
                     crate::components::panels::markdown::blurred(&id);
                 }
+                if t == "RNOTIFY" {
+                    crate::components::panels::notify::blurred(&id);
+                }
                 self.left(old);
             }
             // (a dock manager's splitter given the keyboard: where it goes
@@ -134,6 +139,8 @@ impl FormUi {
             crate::components::dock::focus_moved(old_id.as_ref().map(|(a, b)| (a.as_str(), b.as_str())), new_id.as_ref().map(|(a, b)| (a.as_str(), b.as_str())));
             if let Some(new) = i {
                 self.entered(new);
+                // (a toast's or a strip's keyboard starts at its first button: Tab, F6, SetFocus)
+                crate::components::panels::notify::arrived(self, new);
             }
         }
         self.focus = i;

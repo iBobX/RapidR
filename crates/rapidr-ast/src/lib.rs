@@ -2892,8 +2892,18 @@ pub const VALUE_METHODS: &[&str] = &["showmodal", "execute", "leechfile"];
 /// which `rapidr_preprocessor` supplies): there without an include, and a
 /// program's own variable or constant of the same name wins (both
 /// backends). Anchors' akLeft … akBottom (`rapidr_value::layout::AK_LEFT`
-/// …).
-pub const RAPIDR_CONSTANTS: &[(&str, i64)] = &[("akleft", 1), ("aktop", 2), ("akright", 4), ("akbottom", 8)];
+/// …), RNotify's npBottomRight … npTopLeft.
+pub const RAPIDR_CONSTANTS: &[(&str, i64)] = &[
+    ("akleft", 1),
+    ("aktop", 2),
+    ("akright", 4),
+    ("akbottom", 8),
+    // (RNotify's Position: the corner its toasts sit in)
+    ("npbottomright", 0),
+    ("npbottomleft", 1),
+    ("nptopright", 2),
+    ("nptopleft", 3),
+];
 
 /// The value of RapidR constant `name` (any case), if it is one.
 pub fn rapidr_constant(name: &str) -> Option<i64> {

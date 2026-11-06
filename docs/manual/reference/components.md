@@ -21,6 +21,8 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/bevel.svg" width="20" height="20" alt=""> | [`RBevel`](members.md#rbevel) | everywhere |
 | <img src="../icons/light/components/glassframe.svg" width="20" height="20" alt=""> | [`RGlassFrame`](members.md#rglassframe) | everywhere |
 | <img src="../icons/light/components/dockmanager.svg" width="20" height="20" alt=""> | [`RDockManager`](members.md#rdockmanager) | everywhere |
+| <img src="../icons/light/components/notify.svg" width="20" height="20" alt=""> | [`RNotify`](members.md#rnotify) | everywhere |
+| <img src="../icons/light/components/notifybar.svg" width="20" height="20" alt=""> | [`RNotifyBar`](members.md#rnotifybar) | everywhere |
 
 ## Buttons and input
 
@@ -226,4 +228,4 @@ These objects aren't in RapidR yet. Variables of the OLE types compile as generi
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-126 components.
+128 components.

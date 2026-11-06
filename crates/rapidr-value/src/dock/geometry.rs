@@ -28,6 +28,13 @@ pub const SWITCH_H: i64 = 22;
 pub const SWITCH_SPLIT: i64 = 30;
 /// The least a tab shrinks to when a strip is full.
 pub const MIN_TAB: i64 = 64;
+/// The least a document's tab is: its icon, at least eight characters of its
+/// name and its close button. Narrower and a name would be gone, so the
+/// strip scrolls instead (docs/design-guidelines.md, "Tabs").
+pub const MIN_DOC_TAB: i64 = 112;
+/// A document strip's scroll arrows and its list of open tabs: 24 square
+/// (WCAG 2.5.8).
+pub const TAB_BTN: i64 = 24;
 /// An auto-hide strip's thickness.
 pub const STRIP: i64 = 24;
 /// A header button's side.
@@ -158,6 +165,20 @@ pub struct DocGroup {
     /// side with the splitter between them.
     pub places: Vec<Rect>,
     pub view_splitter: Option<Rect>,
+    /// Where the tabs show (the rest of the strip is the scroll arrows, the
+    /// list of open tabs and the view switch): a tab beyond it is clipped.
+    pub viewport: Rect,
+    /// How far the tabs are scrolled, and the most they can be (0 when they
+    /// all fit).
+    pub scroll: i64,
+    pub max_scroll: i64,
+    /// Each tab's place before scrolling, relative to the strip's left: its
+    /// left edge and its width.
+    pub offsets: Vec<(i64, i64)>,
+    /// The scroll arrows (left, right), while the tabs don't all fit.
+    pub arrows: Option<(Rect, Rect)>,
+    /// The "list of open tabs" button (with two tabs or more).
+    pub list: Option<Rect>,
 }
 
 impl DocGroup {
@@ -216,6 +237,11 @@ pub trait Titles {
     }
     fn modified(&self, _pane: &str) -> bool {
         false
+    }
+    /// How far the document strip of the group at `path` is scrolled, in
+    /// pixels (0 when its tabs fit).
+    fn doc_scroll(&self, _path: &[usize]) -> i64 {
+        0
     }
 }
 
@@ -410,7 +436,10 @@ pub fn weighted(weights: &[i64], avail: i64) -> Vec<i64> {
 
 fn place_docs(node: &DocNode, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font, d: &mut Documents) {
     match node {
-        DocNode::Group { docs, active } => d.groups.push(doc_group(docs, *active, rect, path, titles, font)),
+        DocNode::Group { docs, active } => {
+            let scroll = titles.doc_scroll(&path);
+            d.groups.push(doc_group(docs, *active, rect, path, titles, font, scroll))
+        }
         DocNode::Split { axis, children, weights } => {
             let (x, y, w, h) = rect;
             let along = if *axis == Axis::Row { w } else { h };
@@ -435,10 +464,13 @@ fn place_docs(node: &DocNode, rect: Rect, path: Vec<usize>, titles: &dyn Titles,
 }
 
 /// One group of tabbed documents at `rect` (the document area's
-/// coordinates): its tabs (shrunk alike when they don't fit, none under
-/// [`MIN_TAB`]), the shown document's view switch at the strip's right,
-/// and where its view(s) go.
-pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font) -> DocGroup {
+/// coordinates): its tabs, the shown document's view switch at the strip's
+/// right, and where its view(s) go. A document's tab is as wide as its name
+/// needs (260 at most) and never narrower than [`MIN_DOC_TAB`]: when they
+/// don't all fit — shrunk alike down to that —, the strip **scrolls** (by
+/// `scroll` pixels), with two arrows beside the list of open tabs, which
+/// sits at the strip's right end with two tabs or more.
+pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font, scroll: i64) -> DocGroup {
     let (gx, gy, gw, gh) = rect;
     let active = active.min(docs.len().saturating_sub(1));
     let shown = docs.get(active).cloned().unwrap_or_default();
@@ -458,20 +490,47 @@ pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, t
         }
         right -= total + 8;
     }
+    let n = docs.len() as i64;
     let room = (right - gx).max(0);
-    let want: Vec<i64> = docs.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).min(260)).collect();
+    let want: Vec<i64> = docs.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).clamp(MIN_DOC_TAB, 260)).collect();
+    // (the list of open tabs at the right end, from two tabs: 24 square and
+    // a gap; the arrows left of it once the tabs don't all fit)
+    let list_room = if docs.len() >= 2 { TAB_BTN + 6 } else { 0 };
     // (too many to fit — each tab's pixel of gap counted: the padding goes
-    // first, then the widest tabs are trimmed alike, none under MIN_TAB)
-    let widths = squeeze(&want, room - docs.len() as i64, DOC_GIVE, MIN_TAB);
-    let mut x = gx;
+    // first, then the widest tabs are trimmed alike, none under MIN_DOC_TAB)
+    let layout_for = |vw: i64| squeeze(&want, vw - n, DOC_GIVE, MIN_DOC_TAB);
+    let mut vw = room - list_room;
+    let mut widths = layout_for(vw);
+    let overflow = widths.iter().sum::<i64>() + n > vw;
+    if overflow {
+        vw = room - list_room - 2 * TAB_BTN - 4;
+        widths = layout_for(vw);
+    }
+    let vw = vw.max(0);
+    let strip: i64 = widths.iter().sum::<i64>() + n - 1;
+    let max_scroll = if overflow { (strip - vw).max(0) } else { 0 };
+    let scroll = if overflow { scroll.clamp(0, max_scroll) } else { 0 };
+    let mut x = gx - scroll;
+    let mut left = 0;
     let mut tabs = Vec::new();
-    for ((p, wd), want) in docs.iter().zip(widths).zip(want) {
+    let mut offsets = Vec::new();
+    for ((p, wd), want) in docs.iter().zip(&widths).zip(&want) {
+        let wd = *wd;
         let close = (x + wd - BUTTON - 6, gy + (DOC_TABS - BUTTON) / 2 + 1, BUTTON - 2, BUTTON - 2);
         let icon = if titles.icon(p).is_empty() { 0 } else { ICON + 6 };
         let shed = (want - wd).clamp(0, DOC_GIVE);
         tabs.push(Tab { pane: p.clone(), rect: (x, gy, wd, DOC_TABS), close: Some(close), text: (x + 12 - shed + icon, close.0 - 4) });
+        offsets.push((left, wd));
         x += wd + 1;
+        left += wd + 1;
     }
+    // (the buttons: the list at the strip's right end, the arrows before it)
+    let by = gy + (DOC_TABS - TAB_BTN) / 2;
+    let list = (docs.len() >= 2).then_some((right - 2 - TAB_BTN, by, TAB_BTN, TAB_BTN));
+    let arrows = (overflow).then(|| {
+        let r = (list.map_or(right - 2, |l| l.0) - TAB_BTN, by, TAB_BTN, TAB_BTN);
+        ((r.0 - TAB_BTN, by, TAB_BTN, TAB_BTN), r)
+    });
     // (under the strip, inside the group's 1-pixel frame on the left, the
     // right and the bottom: one edge the whole height, as a docked group's)
     let content = (gx + 1, gy + DOC_TABS, (gw - 2).max(0), (gh - DOC_TABS - 1).max(0));
@@ -483,7 +542,7 @@ pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, t
     } else {
         (vec![content], None)
     };
-    DocGroup { path, rect, docs: docs.to_vec(), active, tabs, switch, content, places, view_splitter }
+    DocGroup { path, rect, docs: docs.to_vec(), active, tabs, switch, content, places, view_splitter, viewport: (gx, gy, vw, DOC_TABS), scroll, max_scroll, offsets, arrows, list }
 }
 
 /// Extents along a split for `avail` pixels: each child its size (at
@@ -816,6 +875,10 @@ pub enum DocHit {
     Strip(usize),
     Splitter(usize),
     ViewSplitter(usize),
+    /// The strip's scroll arrows (left, right) and its list of open tabs.
+    ScrollLeft(usize),
+    ScrollRight(usize),
+    List(usize),
 }
 
 impl Documents {
@@ -832,12 +895,26 @@ impl Documents {
             if let Some(k) = gr.switch.iter().position(|(_, _, r)| inside(r)) {
                 return Some(DocHit::View(g, k));
             }
-            for (i, t) in gr.tabs.iter().enumerate() {
-                if t.close.as_ref().is_some_and(inside) {
-                    return Some(DocHit::Close(g, i));
+            if let Some((l, r)) = &gr.arrows {
+                if inside(l) {
+                    return Some(DocHit::ScrollLeft(g));
                 }
-                if inside(&t.rect) {
-                    return Some(DocHit::Tab(g, i));
+                if inside(r) {
+                    return Some(DocHit::ScrollRight(g));
+                }
+            }
+            if gr.list.as_ref().is_some_and(inside) {
+                return Some(DocHit::List(g));
+            }
+            // (a tab scrolled out of the strip's viewport is not there)
+            if inside(&gr.viewport) {
+                for (i, t) in gr.tabs.iter().enumerate() {
+                    if t.close.as_ref().is_some_and(inside) {
+                        return Some(DocHit::Close(g, i));
+                    }
+                    if inside(&t.rect) {
+                        return Some(DocHit::Tab(g, i));
+                    }
                 }
             }
             if inside(&(gr.rect.0, gr.rect.1, gr.rect.2, DOC_TABS)) {
