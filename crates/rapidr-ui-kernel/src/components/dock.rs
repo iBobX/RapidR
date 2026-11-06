@@ -465,6 +465,19 @@ impl ComponentKind for DockGroup {
                     d.ui.hover = None;
                 }
             }),
+            // (CONTEXT-MENUS: a right press on a pane's tab or title names
+            // that pane — the dock's ContextPane — for its menu)
+            MouseKind::Down if m.button == Button::Right => {
+                let pane = match hit {
+                    Some(GroupHit::Tab(i)) => gr.panes.get(i).cloned(),
+                    Some(GroupHit::Header) | Some(GroupHit::Button(_)) => gr.panes.get(gr.active).cloned(),
+                    _ => None,
+                };
+                manager::with_mut(&dock, |d| {
+                    d.ui.context_pane = pane;
+                    d.ui.context_document = None;
+                });
+            }
             MouseKind::Down if m.button == Button::Left => match hit {
                 Some(GroupHit::Button(b)) => manager::with_mut(&dock, |d| d.ui.pressed = Some(Part::Group(slot, GroupHit::Button(b)))),
                 Some(GroupHit::Tab(_)) | Some(GroupHit::Header) => {
@@ -675,7 +688,10 @@ impl ComponentKind for DockDocs {
                     Some(DocHit::Tab(g, i) | DocHit::Close(g, i)) => Some(d.groups[g].tabs[i].pane.clone()),
                     _ => None,
                 };
-                manager::with_mut(&dock, |mm| mm.ui.context_document = doc);
+                manager::with_mut(&dock, |mm| {
+                    mm.ui.context_document = doc;
+                    mm.ui.context_pane = None;
+                });
             }
             MouseKind::Down if m.button == Button::Left => match hit {
                 Some(DocHit::Tab(g, i)) => {

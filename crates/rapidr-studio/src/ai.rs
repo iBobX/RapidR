@@ -1846,6 +1846,10 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         "restorechat" => s(rapidr_ai::chats::restore(&arg(0), &arg(1)).unwrap_or_default()),
         "renamechat" => crate::flag(rapidr_ai::chats::rename(&arg(0), &arg(1), &arg(2))),
         "chattitle" => s(rapidr_ai::chats::title_of(&arg(0))),
+        // (CONTEXT-MENUS: a kept chat as Markdown — its title, then each
+        // question and answer under the words Studio gives, You and RAI —
+        // for Copy as Markdown; "" when it can't be read)
+        "chatmarkdown" => s(chat_markdown(&arg(0), &arg(1), &arg(2), &arg(3), &arg(4))),
         // (an AI app's calls, through Studio's MCP server: the same tools)
         // (Coach's hint ladder: a question typed, Next Hint, Help With This
         // Error, I Got It — each gives the rung the next answer writes)
@@ -1974,3 +1978,28 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "ai_tests.rs"]
 mod tests;
+
+/// (CONTEXT-MENUS) A kept chat as Markdown: `# Title`, then `**You**` /
+/// `**RAI**` (the words given, in Studio's language) before each question
+/// and answer; RapidR's own notes between them are left out.
+pub(crate) fn chat_markdown(project: &str, id: &str, title: &str, you: &str, rai: &str) -> String {
+    let Some(state) = rapidr_ai::chats::load(project, id) else { return String::new() };
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(&state) else { return String::new() };
+    let mut out = String::new();
+    if !title.trim().is_empty() {
+        out.push_str(&format!("# {}\n", title.trim()));
+    }
+    for row in v["log"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+        let (who, text) = (row[0].as_str().unwrap_or(""), row[1].as_str().unwrap_or(""));
+        let head = match who {
+            "user" => you,
+            "assistant" => rai,
+            _ => continue,
+        };
+        if !out.is_empty() {
+            out.push('\n');
+        }
+        out.push_str(&format!("**{head}**\n\n{}\n", text.trim_end()));
+    }
+    out
+}

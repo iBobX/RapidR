@@ -143,6 +143,9 @@ pub struct Toolbox {
     pub drag: Option<Drag>,
     /// What was typed for type-ahead (the list's keys).
     pub typed: String,
+    /// (CONTEXT-MENUS) The row the last right click (or the keyboard's
+    /// menu) was on: `ContextKind`.
+    pub context: Option<Key>,
 }
 
 crate::panel_models!(Toolbox);
@@ -613,6 +616,17 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
         "filter" => Some(Value::String(with(name, |t| t.filter.clone()).unwrap_or_default().into())),
         "shownames" => Some(Value::String(with(name, |t| t.names.as_str()).unwrap_or("rapidr").to_string().into())),
         "selected" => Some(Value::String(with(name, |t| t.selected.as_ref().map(Toolbox::written)).flatten().unwrap_or_default().into())),
+        // (CONTEXT-MENUS: what the last right click — or the keyboard's
+        // menu — was on: "item" a component, "group" a group's heading)
+        "contextkind" => Some(Value::String(
+            with(name, |t| match &t.context {
+                Some(Key::Group(_)) => "group",
+                Some(_) => "item",
+                None => "",
+            })
+            .unwrap_or("")
+            .into(),
+        )),
         "count" => Some(Value::Integer(with_mut(name, |t| t.items().len()) as i64)),
         _ => None,
     }

@@ -191,7 +191,13 @@ pub fn paint_panel(p: &mut Painter, rect: Rect, items: &[ItemView], hot: Option<
             }
             let lit = hot == Some(k);
             if lit {
-                if t.fluent() {
+                if t.fluent() && !item.enabled {
+                    // (CONTEXT-MENUS 2b: a greyed item chosen — the mouse on
+                    // it, the keys — is framed, not filled: its grey words
+                    // stay on the menu's ground, readable, and its tip says
+                    // why it can't be used)
+                    p.round((bd + 1, y + 1, w - 2 * bd - 2, rh - 2), (t.radius - 1.0).max(2.0), None, Some(t.focus), 1.0);
+                } else if t.fluent() {
                     p.round((bd + 1, y + 1, w - 2 * bd - 2, rh - 2), (t.radius - 1.0).max(2.0), Some(t.menu_highlight), None, 1.0);
                 } else {
                     p.fill((bd, y, w - 2 * bd, rh), t.menu_highlight);
@@ -295,6 +301,10 @@ impl FormUi {
         if std::mem::take(&mut m.keyboard) {
             m.hot_top = None;
             self.dirty = true;
+        }
+        // (CONTEXT-MENUS: a greyed item's tip goes with its menu)
+        if self.tip.node.is_none() && !self.tip.text.is_empty() {
+            self.tip_hide();
         }
     }
 
@@ -519,7 +529,23 @@ impl FormUi {
                 self.dirty = true;
             }
         }
+        self.menu_tip();
         true
+    }
+
+    /// (CONTEXT-MENUS) The innermost panel's chosen item, when it is greyed
+    /// and its Hint says why: that reason as a tooltip beside it (screen
+    /// readers hear it as the item's description already).
+    fn menu_tip(&mut self) {
+        let item = self.menus.panels.last().and_then(|panel| {
+            let k = panel.hot?;
+            let list = items(&panel.parent);
+            let item = list.get(k).filter(|i| !i.enabled && !i.separator)?;
+            let (top, h) = rows(&list)[k];
+            let (x, y, w, _) = panel.rect;
+            Some((item.hint.clone(), (x, y + top, w, h)))
+        });
+        self.tip_for_menu(item);
     }
 
     /// A release: whether it was the menus' (an item let go on is picked).
@@ -553,6 +579,9 @@ impl FormUi {
         if self.menu_open() {
             self.dirty = true;
             self.menu_open_key(store, vk);
+            if self.menu_open() {
+                self.menu_tip();
+            }
             return true;
         }
         // (the input lane's: the bar selected from the keyboard)
@@ -761,7 +790,9 @@ impl FormUi {
         let last = pi + 1 == self.menus.panels.len();
         let list = items(&panel.parent);
         let mut menu_node = AccessNode::new(part_id(&panel.parent, PART_POPUP, 0), Role::Menu);
-        menu_node.name = menu::with(&panel.parent, |n| mnemonic(menu::split_caption(&n.caption).0).0).filter(|c| !c.is_empty()).unwrap_or_else(|| rapidr_value::i18n::tr_ui("Menu"));
+        // (a pop-up menu: its AccessibleName — "Actions for orders.rr" —
+        // else the caption of the item it drops from)
+        menu_node.name = menu::with(&panel.parent, |n| if n.accessible_name.is_empty() { mnemonic(menu::split_caption(&n.caption).0).0 } else { n.accessible_name.clone() }).filter(|c| !c.is_empty()).unwrap_or_else(|| rapidr_value::i18n::tr_ui("Menu"));
         menu_node.bounds = panel.rect;
         menu_node.orientation = Some(Orientation::Vertical);
         menu_node.states.focused = last && panel.hot.is_none();
@@ -999,6 +1030,34 @@ mod tests {
         click(&mut f, &s, &mut ts, 250.0, 150.0);
         assert!(!f.menu_open());
         assert!(f.take_events().is_empty(), "the closing click reaches nothing");
+    }
+
+    /// (CONTEXT-MENUS 2b) A greyed item chosen — by the keys or under the
+    /// mouse — has its Hint, why it can't be used now, as a tooltip beside
+    /// the menu; an enabled one has none, and it goes with the menu.
+    #[test]
+    fn a_greyed_items_reason_is_a_tooltip() {
+        let mut s = store("gt");
+        s.set("gtquit", "hint", v_str("Nothing to quit"));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "gtform", true);
+        drop(f.paint(&s, &mut ts, 1.0));
+        let bar = f.bar_items(&s);
+        click(&mut f, &s, &mut ts, (bar[0].1 .0 + 5) as f64, 10.0);
+        assert!(f.menu_open());
+        let mut clip = MemClipboard::default();
+        // (Up from the top: the last item, Exit — greyed)
+        f.key_down(&s, &mut ts, 38, "", Mods::NONE, &mut clip);
+        assert_eq!(f.tip.text, "Nothing to quit");
+        let p = f.menus.panels[0].rect;
+        assert!(f.tip.at.0 >= p.0 + p.2 || f.tip.at.0 < p.0, "beside the menu: {:?} {:?}", f.tip.at, p);
+        // (Expert: enabled, no tip; back to Exit: the tip again)
+        f.key_down(&s, &mut ts, 38, "", Mods::NONE, &mut clip);
+        assert!(f.tip.text.is_empty());
+        f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut clip);
+        assert_eq!(f.tip.text, "Nothing to quit");
+        f.close_menus();
+        assert!(f.tip.text.is_empty());
     }
 
     #[test]

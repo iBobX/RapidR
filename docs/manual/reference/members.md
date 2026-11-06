@@ -676,6 +676,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | Property | Type | Default | |
 |---|---|---|---|
 | `ContextDocument` (read-only) | string |  | The document whose tab the last right click was on (its name), for the dock manager's OnContextMenu; "" when it was on the tab strip's empty part. |
+| `ContextPane` (read-only) | string |  | The pane whose tab or title the last right click was on (its name), for the dock manager's OnContextMenu; "" when it was on a document's tab or elsewhere. |
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `DocumentMode` | string | `"mdi"` | How documents show: "mdi" (windows in the documents area, the default) or "tabs". |
 | `ActiveDocument` | string |  | The active document's name; setting it activates that document. |
@@ -707,6 +708,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `ShowPane(Name AS STRING)` | Shows a pane where it was last (or slides an auto-hidden one out). |
 | `HidePane(Name AS STRING)` | Hides a pane; ShowPane brings it back where it was. |
 | `FloatPane(Name AS STRING)` | Floats a pane in its own window. |
+| `DockBack(Name AS STRING)` | Docks a floating pane back where it was docked before it floated (as its floating window's Dock button does), with the panes floating with it. |
 | `AutoHide(Name AS STRING, [On AS INTEGER])` | Pins a pane to its edge's auto-hide strip (On False: docks it again). |
 | `FocusPane(Name AS STRING)` | Shows a pane, makes it the active one and gives it the keyboard. |
 | `ClosePane(Name AS STRING)` | Closes a document (OnDocumentClose may cancel) or hides a tool pane. |
@@ -1593,6 +1595,9 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
 | `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
 | `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
+| `ProblemAt(Line AS INTEGER, Column AS INTEGER) AS STRING` | The problem at a line and column (from 1; its squiggle's span): its message — an error before a warning —, "" when there is none. A context menu's own group for it, at CaretLine and CaretColumn after a right click. |
+| `FixAt(Line AS INTEGER, Column AS INTEGER) AS STRING` | The title of the language service's first fix for the problem at a line and column (else on its line), as Ctrl+. lists it first ("Change to Caption"); "" when there is none or the editor has no FileName. |
+| `ApplyFixAt(Line AS INTEGER, Column AS INTEGER) AS INTEGER` | Applies that first fix (FixAt's) as one undo step: True when it did. |
 | `QuickFix` | Lists the language service's fixes for the problem at the caret (or on its line), as Ctrl+. (Cmd+. on a Mac) does: a misspelt member's nearest names, a name spelled the other way. Enter or Tab applies the one picked, as one undo step. |
 | `OpenHelper` | Opens the value editor of the helper at the caret, as Ctrl+. (Cmd+.) does on a value: a colour's, a picture's, a font's, a choice's, a link's or a handler's ("Create handler"); elsewhere the quick fixes. |
 | `ReadLineWithHelpers` | Has a screen reader say the caret's line with its helpers (Ctrl+K H): HelperText. |
@@ -2469,6 +2474,8 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
+| `Heading(Index AS INTEGER, [On AS INTEGER]) AS INTEGER` | Item Index as a heading row: `Heading i, 1` makes it a group's title ("Today", "Earlier") drawn bold in the quieter text colour; a click doesn't select it, the arrow keys, Home and End pass over it, it has no row actions, and a screen reader hears it as a heading. `Heading(i)` reads it (1 or 0). It goes with its item when items are added, deleted or sorted. |
+| `EditItem(Index AS INTEGER, [Text AS STRING])` | Opens item Index's editor in place, over its text, holding Text (the item's own text when left out): rename in the list itself. Enter keeps what was typed (OnEdited, then the item gets it), Esc leaves the item as it was, a click elsewhere keeps it. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
@@ -2507,6 +2514,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnChange` | The person moved the selection to another item: a click on another item, the arrow keys, Page Up / Down, Home or End; before that click's OnClick. A click on the item already selected fires OnClick only; the program's own ItemIndex = n fires nothing. |
+| `OnEdited(Index AS INTEGER, BYREF S AS STRING)` | Item Index's editor (EditItem) was closed keeping S, what was typed: change S to change what the item gets (set it back to the item's own text to refuse). As RTreeView's OnEdited. |
 | `OnRowAction(Index AS INTEGER, Action AS STRING)` | One of RowActions was used on item Index: its icon clicked, or F2 (rename) or Del (delete) on the selected row. Action is the action's name, as RowActions names it ("rename", "delete"). |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows. |
@@ -2782,6 +2790,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `ContextIndex` | int |  | The node the last context menu is for: the one right-clicked (a right click doesn't select it), the selected one for Shift+F10 or the Menu key; -1 for none. Read it in OnContextMenu; set ItemIndex = ContextIndex there to select it as well. |
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -3061,6 +3070,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `WindowHandle` | int |  | The window that gets the popup menu's messages. |
 | `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
+| `AccessibleName` | string | `""` | What a screen reader calls the menu while it is open — say what it is for: "Actions for orders.rr". Without it, "Menu". |
 | `SystemMenu` | bool | True | True (the default): on macOS and Windows the system shows the menu, as its other menus. False: RapidR draws it on every system, in the program's look (RapidR's light, dark, high contrast), so it shows in screenshots and recordings and RapidR's AI tools can see and pick its items. RapidR Studio's menus are drawn this way. |
 
 | Method | |
@@ -5506,6 +5516,7 @@ The palette of components a form designer places, under RapidR's names (RButton)
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
 | `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "classic" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or "titles" (in words: "Button"). |
 | `Selected` | string | `""` | The selected component's type under RapidR's name (RButton), or a template's name. |
+| `ContextKind` (read-only) | string |  | What the last context menu is for: "item" a component (a right click selects it first: Selected names it), "group" a group's heading, "" nothing (the empty part). Read it in OnContextMenu. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -5669,6 +5680,8 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `AddProblem(File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING)` | Adds a problem (Severity "error", "warning" or "info") to the Problems page. Severity "file" (or "file:" and an icon of RapidR's set, `kind:form` a project kind's) adds a file's heading instead: File's name in bold, its folder dimmed, Line in a pill (how many problems it has), Message what a screen reader hears ("1 error, 2 warnings"); under headings, problems show their line and column in a column of their own, not their file. |
 | `ClearProblems` | Empties the Problems page. |
 | `Line(Index AS INTEGER) AS STRING` | The shown page's line Index (from 0), without colours. |
+| `PlaceFile(Index AS INTEGER) AS STRING` | The file the shown page's line Index (from 0) names — its first `file:line` place, or the problem's on the Problems page — as a click on it opens it (OnLinkClick); "" when the line names none. With ClickedLine: a context menu's "Go to main.rr, Line 12". |
+| `PlaceLine(Index AS INTEGER) AS INTEGER` | The line number the shown page's line Index names (see PlaceFile); 0 when none (a file's heading on the Problems page). |
 | `Find(Text AS STRING) AS INTEGER` | Searches the shown page (as the search box does): how many matches; the first is shown. |
 | `FindNext AS INTEGER` | Shows the next match: its line, -1 when there is none. |
 
@@ -5741,6 +5754,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `FollowEnd` | bool | False | True: a view scrolled to its end stays at the end as Text grows (a chat, a log), while one the user scrolled up stays where they put it. False: the scroll stays where it is. |
 | `PlainText` (read-only) | string |  | The text as shown, without the Markdown marks: a line per paragraph, list item or heading; a table's cells separated by tabs. |
 | `SelText` (read-only) | string |  | The text the user selected, as PlainText has it. |
+| `ContextCode` (read-only) | string |  | The code block the last right click was on, its text whole ("" when it wasn't on one): for a context menu's Copy Code or Try It. Read it in OnContextMenu. |
 | `LinkCount` (read-only) | int |  | How many links the text has. |
 | `Headings` (read-only) | string |  | The headings, one a line: the level (1 to 6), the heading's text, its anchor as a `#` link names it ("getting-started") and the line of the text it is on (from 1), separated by tabs. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -6227,6 +6241,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `DeleteChat(Project AS STRING, Id AS STRING) AS STRING` | Removes a kept chat for good (its file; on the web, its item): what it was, for RestoreChat (Undo); "" when there was none. |
 | `RestoreChat(Project AS STRING, Kept AS STRING) AS STRING` | Puts back a chat DeleteChat removed (Undo): its id. |
 | `RenameChat(Project AS STRING, Id AS STRING, Title AS STRING) AS INTEGER` | Gives a kept chat the title the user typed (kept from then on). True when it was renamed. |
+| `ChatMarkdown(Project AS STRING, Id AS STRING, Title AS STRING, You AS STRING, Assistant AS STRING) AS STRING` | A kept chat as Markdown, for the clipboard: `# Title`, then each question under `**You**` and each answer under `**Assistant**` (the words given, in Studio's language); Studio's own notes left out. "" when it can't be read. |
 | `ChatTitle(Question AS STRING) AS STRING` | A chat's title made from its first question: its first line, at most 48 characters. |
 | `ToolNames AS STRING` | Every tool of RapidR Studio's one tool set (docs/ai-tools.md), a name a line, as its MCP server lists them for AI apps — in every permission (a call the permission refuses is told why). RAI gets the same tools, but those its permission, Coach and the program's state allow. |
 | `ToolDescription(Name AS STRING) AS STRING` | A tool's description, as the model reads it (RMcpServer.AddTool's Description). |

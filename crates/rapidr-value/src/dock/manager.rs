@@ -205,6 +205,9 @@ pub struct Ui {
     /// (CONTEXT-MENUS) The document whose tab was right-clicked last
     /// (`ContextDocument`).
     pub context_document: Option<String>,
+    /// (CONTEXT-MENUS) The pane whose tab or title was right-clicked last
+    /// (`ContextPane`).
+    pub context_pane: Option<String>,
 }
 
 /// An event for the program (OnPaneChange (Name), OnDocumentActivate
@@ -1117,7 +1120,7 @@ impl Manager {
     }
 
     /// A floating group's panes back where they were docked.
-    fn dock_back(&mut self, group: Vec<String>) -> Outcome {
+    pub(crate) fn dock_back(&mut self, group: Vec<String>) -> Outcome {
         let mut out = Outcome::default();
         let mut first: Option<String> = None;
         for p in group {

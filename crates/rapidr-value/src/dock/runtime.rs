@@ -153,6 +153,8 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
         "showpane" => manager::with_mut(dock, |m| m.show_pane(&name(0))),
         "hidepane" => manager::with_mut(dock, |m| m.hide_pane(&name(0))),
         "floatpane" => manager::with_mut(dock, |m| m.float_pane(&name(0), None)),
+        // (CONTEXT-MENUS, RapidR's: a floating pane docked back where it was)
+        "dockback" => manager::with_mut(dock, |m| m.dock_back(vec![name(0)])),
         "autohide" => {
             let on = args.len() < 2 || arg(1).to_bool();
             manager::with_mut(dock, |m| m.auto_hide(&name(0), on))
@@ -368,6 +370,8 @@ pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
             // (CONTEXT-MENUS: the document whose tab the last right click
             // was on; "" none — the strip's empty part, a pane)
             "contextdocument" => Value::String(m.ui.context_document.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default().into()),
+            // (…and the pane whose tab or title it was on; "" none)
+            "contextpane" => Value::String(m.ui.context_pane.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default().into()),
             "panecount" => Value::Integer(m.panes.len() as i64),
             "documentcount" => Value::Integer(m.layout.documents.len() as i64),
             "documentgroupcount" => Value::Integer(if m.layout.documents.is_empty() { 0 } else { m.layout.group_count() as i64 }),

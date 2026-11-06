@@ -629,6 +629,7 @@ sets = ["layout", "a11y"]
 doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. Tabbed documents can be split into groups by dragging a tab to a side, reordered by dragging along the strip, and given views (a Design | Code switch). The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
 properties = [
   { name = "ContextDocument", type = "string", access = "read", design = false, origin = "rapidr", doc = "The document whose tab the last right click was on (its name), for the dock manager's OnContextMenu; \"\" when it was on the tab strip's empty part." },
+  { name = "ContextPane", type = "string", access = "read", design = false, origin = "rapidr", doc = "The pane whose tab or title the last right click was on (its name), for the dock manager's OnContextMenu; \"\" when it was on a document's tab or elsewhere." },
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "DocumentMode", type = "string", default = "mdi", category = "Behavior", doc = "How documents show: \"mdi\" (windows in the documents area, the default) or \"tabs\"." },
   { name = "ActiveDocument", type = "string", design = false, doc = "The active document's name; setting it activates that document." },
@@ -651,6 +652,7 @@ methods = [
   { name = "ShowPane", params = "Name AS STRING", doc = "Shows a pane where it was last (or slides an auto-hidden one out)." },
   { name = "HidePane", params = "Name AS STRING", doc = "Hides a pane; ShowPane brings it back where it was." },
   { name = "FloatPane", params = "Name AS STRING", doc = "Floats a pane in its own window." },
+  { name = "DockBack", params = "Name AS STRING", origin = "rapidr", doc = "Docks a floating pane back where it was docked before it floated (as its floating window's Dock button does), with the panes floating with it." },
   { name = "AutoHide", params = "Name AS STRING, [On AS INTEGER]", doc = "Pins a pane to its edge's auto-hide strip (On False: docks it again)." },
   { name = "FocusPane", params = "Name AS STRING", doc = "Shows a pane, makes it the active one and gives it the keyboard." },
   { name = "ClosePane", params = "Name AS STRING", doc = "Closes a document (OnDocumentClose may cancel) or hides a tool pane." },

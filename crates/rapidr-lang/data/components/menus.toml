@@ -71,6 +71,7 @@ properties = [
   { name = "Tag", type = "int" },
   { name = "WindowHandle", type = "int" },
   { name = "ItemCount", type = "int", design = false, origin = "rapidr" },
+  { name = "AccessibleName", type = "string", default = "", origin = "rapidr", category = "Accessibility", doc = "What a screen reader calls the menu while it is open — say what it is for: \"Actions for orders.rr\". Without it, \"Menu\"." },
   { name = "SystemMenu", type = "bool", default = true, origin = "rapidr", category = "Appearance", doc = "True (the default): on macOS and Windows the system shows the menu, as its other menus. False: RapidR draws it on every system, in the program's look (RapidR's light, dark, high contrast), so it shows in screenshots and recordings and RapidR's AI tools can see and pick its items. RapidR Studio's menus are drawn this way." },
 ]
 methods = [
