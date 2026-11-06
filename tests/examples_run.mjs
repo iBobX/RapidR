@@ -362,6 +362,11 @@ export const cases = [
   // studio/
   // (the code helpers' window: its button turns the form's colour round
   // three, twice here)
+  // language_service.rr (Studio's components: rapidr run, native builds and the
+  // web; an interpreted executable leaves the language service out): RLanguageService's Analyze on its own thread (a step
+  // between frames on the web); OnAnalyzed fills the outline and the count
+  { file: "studio/language_service.rr", runtimes: ["run", "native", "web"], events: "form.__wait_3000", dump: "outline.itemcount,said.caption",
+    expect: ["outline.itemcount=2", "said.caption=No errors."] },
   { file: "studio/helpers.rr", runtimes: ["run", "interp", "native", "web"], events: "again.onclick,again.onclick", dump: "title.caption,form.color",
     expect: ["title.caption=Colour 3 of 3", "form.color=16445676"] },
   { file: "studio/panels.rr", runtimes: ["run", "interp", "native", "web"], events: "box.__dblclick_60_170", dump: "tree.projectname,tree.filecount,designer.compcount,insp.targettype",
