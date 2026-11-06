@@ -1,0 +1,18 @@
+start1001
+  B.OnClick01
+B=10101
+  A.OnClick10
+A=11001
+A=00001
+  C.OnClick10
+C=10010
+  B.OnClick01
+B=10110
+shown0110
+  A.OnClick10
+A=11010
+D=11001
+C to Form1001
+  C.OnClick11
+C=10011
+done

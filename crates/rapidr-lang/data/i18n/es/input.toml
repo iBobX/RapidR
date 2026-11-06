@@ -766,7 +766,7 @@
 "RRICHEDIT.WHEREY" = "La línea del cursor, desde 0; solo lectura."
 "RRICHEDIT.WIDTH" = "El ancho, en píxeles; en `Screen`, el de la pantalla."
 "RRICHEDIT.WORDWRAP" = "Ajusta las líneas largas al borde del control."
-"RSCROLLBAR" = "Una barra de desplazamiento horizontal o vertical que la persona mueve para elegir una Position entre Min y Max."
+"RSCROLLBAR" = "Una barra de desplazamiento horizontal o vertical que la persona mueve para elegir una Position entre Min y Max: sus flechas, su canal, su cuadro de desplazamiento, las teclas, y, en un programa de RapidR (un archivo .rr), la rueda del mouse sobre ella (tres SmallChange por muesca; la de un programa clásico no se mueve con la rueda, como la de RapidQ)."
 "RSCROLLBAR.ACCESSIBLEDESCRIPTION" = "Una descripción más larga que un lector de pantalla da después del nombre (qué hace el control, un atajo)."
 "RSCROLLBAR.ACCESSIBLEHIDDEN" = "True: el control es decoración —un punto parpadeante, un adorno— y un lector de pantalla lo omite (sigue en la ventana, para los ojos). Nunca lo establezcas en nada que una persona pueda usar o necesite leer."
 "RSCROLLBAR.ACCESSIBLENAME" = "Cómo llama un lector de pantalla al control, cuando su título o texto no basta (un botón de imagen, un campo de edición sin etiqueta)."

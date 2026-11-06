@@ -91,6 +91,15 @@ pub enum KernelEvent {
     /// OnMouseDown / OnMouseMove / OnMouseUp, at (x, y) in `id` (a
     /// component, or the form: its client area).
     Mouse { id: String, kind: Mouse, button: Button, x: i64, y: i64, shift: i64 },
+    /// RapidR's OnMouseWheel (Delta, X, Y, Shift): the wheel turned over a
+    /// component no part of the window scrolled with (no list, memo or
+    /// scroll bar under the mouse took it, no scroll box's or form's bars):
+    /// `chain` is the component under the mouse, then its parents up to
+    /// the form, each with the mouse's place in it — the first whose
+    /// OnMouseWheel the program bound hears it. `delta` is whole notches,
+    /// 1 away from the person (up), -1 toward them, as RapidQ2.inc's
+    /// QFormEx counts them.
+    Wheel { chain: Vec<(String, i64, i64)>, delta: i64, shift: i64 },
     /// The window's close box.
     Close(String),
     /// The client area resized (logical pixels).
@@ -486,9 +495,22 @@ impl FormUi {
         let (nx, ny) = (rx.trunc(), ry.trunc());
         self.wheel_rest = (rx - nx, ry - ny);
         let (notches, horizontal) = if ny != 0.0 { (ny as i64, mods.shift) } else { (nx as i64, true) };
-        if notches != 0 {
-            crate::components::scrollbox::bars_wheel(self, store, x, y, notches, horizontal);
+        if notches == 0 || crate::components::scrollbox::bars_wheel(self, store, x, y, notches, horizontal) {
+            return;
         }
+        // (nothing scrolled: the program's OnMouseWheel — a list it paints
+        // itself scrolls by it; RAPIDR-ISSUES #17. Up and down only: a
+        // sideways turn without Shift isn't a notch of this wheel)
+        if ny == 0.0 {
+            return;
+        }
+        let place = |n: &crate::tree::Node| ((x - n.abs.0 as f64).floor() as i64, (y - n.abs.1 as f64).floor() as i64);
+        let mut chain: Vec<(String, i64, i64)> = self.hit(x, y).map(|i| self.ancestry(i)).unwrap_or_default().into_iter().filter(|&i| self.nodes[i].enabled).map(|i| {
+            let (lx, ly) = place(&self.nodes[i]);
+            (self.nodes[i].id.clone(), lx, ly)
+        }).collect();
+        chain.push((self.form.clone(), x.floor() as i64, (y - self.menu_offset as f64).floor() as i64));
+        self.events.push(KernelEvent::Wheel { chain, delta: -(ny as i64), shift: mods.shift_state() });
     }
 
     /// The components a key goes to: the focused one up to the form.

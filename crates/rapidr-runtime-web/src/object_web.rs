@@ -625,7 +625,13 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 }
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
+    // (a component moved to another parent: the one it left follows —
+    // its layout and its scroll bars)
+    let left = prop.eq_ignore_ascii_case("parent").then(|| rp_comp_get(name, "parent").to_string_val());
     comp_set(name, prop, val);
+    if let Some(old) = left {
+        crate::layout_web::parent_left(name, &old);
+    }
     updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links_web::apply();
@@ -655,7 +661,17 @@ fn updown_buddy(name: &str, prop: &str) {
 /// [`rp_comp_set`].
 pub fn rp_prop_set(name: &str, prop: &str, val: Value) {
     let t = rp_comp_type(name);
-    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e));
+    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e), || radio_group_off(name));
+}
+
+/// A radio button the program turned on: its parent's other radio buttons
+/// go off (`rapidr_value::events::radio_group_off`, RapidQ's group).
+fn radio_group_off(name: &str) {
+    let parent = rp_comp_get(name, "parent").to_string_val();
+    if parent.trim().is_empty() {
+        return;
+    }
+    rapidr_value::events::radio_group_off(name, &get_children_of(&parent), |o| rp_comp_get(o, "checked").to_bool(), |o| rp_comp_set(o, "checked", v_int(0)));
 }
 
 fn comp_set(name: &str, prop: &str, val: Value) {

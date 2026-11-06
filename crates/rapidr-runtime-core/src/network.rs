@@ -48,12 +48,10 @@ fn socket_connect(name: &str) -> Value {
     let timeout_ms = crate::object::rp_comp_get(name, "timeout").to_i64().max(1000) as u64;
 
     let addr = format!("{}:{}", host, port);
-    match TcpStream::connect_timeout(
-        &addr.parse().unwrap_or_else(|_| {
-            format!("127.0.0.1:{}", port).parse().unwrap()
-        }),
-        Duration::from_millis(timeout_ms),
-    ) {
+    let addr = addr.parse().unwrap_or_else(|_| format!("127.0.0.1:{}", port).parse().unwrap());
+    // (the connection made on a thread of its own, the windows served
+    // meanwhile: crate::waiting)
+    match crate::waiting::off_thread(move || TcpStream::connect_timeout(&addr, Duration::from_millis(timeout_ms))) {
         Ok(stream) => {
             let _ = stream.set_read_timeout(Some(Duration::from_millis(timeout_ms)));
             let _ = stream.set_write_timeout(Some(Duration::from_millis(timeout_ms)));
@@ -75,14 +73,92 @@ fn socket_connect(name: &str) -> Value {
     }
 }
 
+/// `Disconnect` / `Close` (RapidR's, no argument): the connection closed —
+/// the one RapidR's `Connect` made, and the one `Connect(Host, Port)` made
+/// (its number in MySocket), so the server sees it end at once
+/// (RAPIDR-ISSUES #14: php-fpm's children stayed busy for ever).
 fn socket_close(name: &str) -> Value {
     SOCKETS.with(|s| {
         if let Some(state) = s.borrow_mut().remove(name) {
             let _ = state.stream.shutdown(std::net::Shutdown::Both);
         }
     });
+    let mine = crate::object::rp_comp_get(name, "mysocket").to_i64();
+    qsocket::close_stream(mine);
     rp_comp_set(name, "connected", v_int(0));
     v_null()
+}
+
+/// `Connected` (RapidR's): 1 while the socket's connection is open — the
+/// one `Connect` made, RapidR's or RapidQ's (`Connect(Host, Port)`) — or
+/// what it sent is still to be read; 0 once it closed (either side) or
+/// before any (RAPIDR-ISSUES #13: it stayed 0 after `Connect(Host, Port)`).
+pub fn connected(name: &str) -> Value {
+    let name = name.to_lowercase();
+    let own = SOCKETS.with(|s| s.borrow().get(&name).map(|state| open(&state.stream, !state.reader.buffer().is_empty())));
+    if let Some(open) = own {
+        return v_int(i64::from(open));
+    }
+    let mine = crate::object::rp_comp_get(&name, "mysocket").to_i64();
+    v_int(i64::from(qsocket::stream_open(mine)))
+}
+
+/// Whether a connection is open, without waiting: the peer hasn't closed
+/// it, or `buffered` (or what's in the socket) is still to be read.
+fn open(stream: &TcpStream, buffered: bool) -> bool {
+    if buffered {
+        return true;
+    }
+    let _ = stream.set_nonblocking(true);
+    let mut one = [0u8; 1];
+    let r = stream.peek(&mut one);
+    let _ = stream.set_nonblocking(false);
+    match r {
+        Ok(n) => n > 0,
+        Err(e) => e.kind() == std::io::ErrorKind::WouldBlock,
+    }
+}
+
+/// The Timeout the program gave a socket (RapidR's, in ms): `Connect(Host,
+/// Port)` gives up after it and each read waits at most so long. `None`
+/// when the program set none, or 0: RapidQ's QSOCKET has no Timeout — its
+/// calls wait as long as it takes, and so they do here.
+fn program_timeout(name: &str) -> Option<Duration> {
+    if !crate::object::rp_comp_get(name, "__timeoutset").to_bool() {
+        return None;
+    }
+    let ms = crate::object::rp_comp_get(name, "timeout").to_i64();
+    (ms > 0).then(|| Duration::from_millis(ms as u64))
+}
+
+/// Reads into `buf` what arrives next on `s`, waiting up to `timeout`
+/// (`None`: as long as it takes) with the windows served meanwhile
+/// (crate::waiting); `Ok(0)` at the connection's end, `Err` for a timeout
+/// or an error.
+fn read_waiting(s: &mut TcpStream, buf: &mut [u8], timeout: Option<Duration>) -> std::io::Result<usize> {
+    use std::io::ErrorKind;
+    let deadline = timeout.map(|t| std::time::Instant::now() + t);
+    let mut steps = crate::waiting::Steps::new();
+    loop {
+        let left = crate::waiting::left(deadline);
+        if left == Some(Duration::ZERO) {
+            return Err(ErrorKind::TimedOut.into());
+        }
+        // (windows to serve: short looks between their turns; else the
+        // read waits on its own, all of what's left)
+        let serving = crate::waiting::serves();
+        let slice = if serving { Some(Duration::from_millis(5)) } else { left };
+        let _ = s.set_read_timeout(slice.map(|d| d.max(Duration::from_millis(1))));
+        match s.read(buf) {
+            Ok(n) => return Ok(n),
+            Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted) => {
+                if serving {
+                    crate::waiting::moment(steps.next());
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 fn socket_write(name: &str, args: &[Value], newline: bool) -> Value {
@@ -112,7 +188,7 @@ fn socket_read(name: &str, args: &[Value]) -> Value {
         let mut sockets = s.borrow_mut();
         if let Some(state) = sockets.get_mut(name) {
             let mut buf = vec![0u8; max_bytes];
-            match state.stream.read(&mut buf) {
+            match read_waiting(&mut state.stream, &mut buf, Some(own_timeout(name))) {
                 Ok(n) => v_str(&String::from_utf8_lossy(&buf[..n])),
                 Err(_) => v_str(""),
             }
@@ -123,9 +199,20 @@ fn socket_read(name: &str, args: &[Value]) -> Value {
 }
 
 fn socket_readline(name: &str) -> Value {
+    let timeout = own_timeout(name);
     SOCKETS.with(|s| {
         let mut sockets = s.borrow_mut();
         if let Some(state) = sockets.get_mut(name) {
+            // (the windows served while the line comes: what's buffered
+            // first, then the socket's bytes — read_waiting)
+            if state.reader.buffer().is_empty() {
+                let deadline = std::time::Instant::now() + timeout;
+                let mut steps = crate::waiting::Steps::new();
+                while crate::waiting::serves() && !open_with_data(state.reader.get_ref()) && std::time::Instant::now() < deadline {
+                    crate::waiting::moment(steps.next());
+                }
+            }
+            let _ = state.reader.get_ref().set_read_timeout(Some(timeout));
             let mut line = String::new();
             match state.reader.read_line(&mut line) {
                 Ok(0) => v_str(""),
@@ -138,6 +225,21 @@ fn socket_readline(name: &str) -> Value {
     })
 }
 
+/// RapidR's own Connect's Timeout (1 s at least, as its connection's).
+fn own_timeout(name: &str) -> Duration {
+    Duration::from_millis(crate::object::rp_comp_get(name, "timeout").to_i64().max(1000) as u64)
+}
+
+/// Whether something waits to be read on `s` (or it ended: a read won't
+/// wait either), without waiting.
+fn open_with_data(s: &TcpStream) -> bool {
+    let _ = s.set_nonblocking(true);
+    let mut one = [0u8; 1];
+    let r = s.peek(&mut one);
+    let _ = s.set_nonblocking(false);
+    !matches!(r, Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock)
+}
+
 // ---------------------------------------------------------------------------
 // RapidQ's QSOCKET: numbered sockets, as its manual (Appendix A) has them
 // ---------------------------------------------------------------------------
@@ -146,11 +248,12 @@ fn socket_readline(name: &str) -> Value {
 /// for a server, `S.Accept(Sock%)`, `S.ReadLine(Sock%)`, `S.Write(Sock%,
 /// Msg$, n)`, `S.IsServerReady(Sock%)`, … — told from RapidR's own RSOCKET
 /// methods by their arguments (RapidR's take none, or only the data). The
-/// calls block as RapidQ's do; the `…Ready` checks don't.
+/// calls block as RapidQ's do (the windows served meanwhile; a Timeout the
+/// program set — RapidR's — limits them); the `…Ready` checks don't.
 mod qsocket {
     use std::cell::RefCell;
     use std::collections::HashMap;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
     use crate::object::rp_comp_set;
@@ -206,16 +309,37 @@ mod qsocket {
         }
     }
 
-    /// Fills the buffer with what arrives next (blocking); false at the end.
-    fn fill(s: &mut TcpStream, buf: &mut Vec<u8>) -> bool {
+    /// Fills the buffer with what arrives next, waiting up to `timeout`
+    /// (the program's Timeout; `None`: as long as it takes, RapidQ's), the
+    /// windows served meanwhile (super::read_waiting); false at the end, or
+    /// when nothing came in time.
+    fn fill(s: &mut TcpStream, buf: &mut Vec<u8>, timeout: Option<std::time::Duration>) -> bool {
         let mut chunk = [0u8; 4096];
-        match s.read(&mut chunk) {
+        match super::read_waiting(s, &mut chunk, timeout) {
             Ok(n) if n > 0 => {
                 buf.extend_from_slice(&chunk[..n]);
                 true
             }
             _ => false,
         }
+    }
+
+    /// Socket `n`'s connection closed now (RapidR's `Disconnect`): the
+    /// peer sees it end at once.
+    pub(super) fn close_stream(n: i64) {
+        if let Some(Sock::Stream { s, .. }) = SOCKS.with(|s| s.borrow_mut().1.remove(&n)) {
+            let _ = s.shutdown(std::net::Shutdown::Both);
+        }
+    }
+
+    /// Whether socket `n` is a connection still open (or with bytes still
+    /// to read), or a server listening.
+    pub(super) fn stream_open(n: i64) -> bool {
+        with(n, |sock| match sock {
+            Sock::Stream { s, buf } => super::open(s, !buf.is_empty()),
+            Sock::Server { .. } => true,
+        })
+        .unwrap_or(false)
     }
 
     fn text(bytes: &[u8]) -> Value {
@@ -230,12 +354,24 @@ mod qsocket {
         let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
         let flag = |b: bool| v_int(b as i64);
         let transferred = |k: usize| rp_comp_set(name, "transferred", v_int(k as i64));
+        let timeout = super::program_timeout(name);
         Some(match (method, args.len()) {
             ("connect", 2) => {
                 let addr = format!("{}:{}", args[0].to_string_val(), n(1));
-                let stream = addr.to_socket_addrs().ok().and_then(|mut a| a.find_map(|a| TcpStream::connect(a).ok()));
+                // (on a thread of its own, the windows served meanwhile;
+                // the program's Timeout, when it set one, limits the wait)
+                let stream = crate::waiting::off_thread(move || {
+                    addr.to_socket_addrs().ok().and_then(|mut a| {
+                        a.find_map(|a| match timeout {
+                            Some(t) => TcpStream::connect_timeout(&a, t).ok(),
+                            None => TcpStream::connect(a).ok(),
+                        })
+                    })
+                });
                 let id = stream.map_or(-1, |s| add(Sock::Stream { s, buf: Vec::new() }));
                 rp_comp_set(name, "mysocket", v_int(id));
+                // (RapidR's Connected: 1 while it's open — RAPIDR-ISSUES #13)
+                rp_comp_set(name, "connected", v_int(i64::from(id >= 0)));
                 v_int(id)
             }
             // (RapidR's: the address listened on — Open's second argument,
@@ -270,6 +406,9 @@ mod qsocket {
             }
             ("close", 1) => {
                 SOCKS.with(|s| s.borrow_mut().1.remove(&n(0)));
+                if crate::object::rp_comp_get(name, "mysocket").to_i64() == n(0) {
+                    rp_comp_set(name, "connected", v_int(0));
+                }
                 Value::Null
             }
             ("read" | "peek", 2) => {
@@ -278,7 +417,7 @@ mod qsocket {
                 let got = with(n(0), |s| match s {
                     Sock::Stream { s, buf } => {
                         if buf.is_empty() {
-                            fill(s, buf);
+                            fill(s, buf, timeout);
                         }
                         let k = want.min(buf.len());
                         if peek { buf[..k].to_vec() } else { buf.drain(..k).collect() }
@@ -293,7 +432,7 @@ mod qsocket {
                 let b = with(n(0), |s| match s {
                     Sock::Stream { s, buf } => {
                         if buf.is_empty() {
-                            fill(s, buf);
+                            fill(s, buf, timeout);
                         }
                         (!buf.is_empty()).then(|| buf.remove(0))
                     }
@@ -313,7 +452,7 @@ mod qsocket {
                             }
                             break l;
                         }
-                        if !fill(s, buf) {
+                        if !fill(s, buf, timeout) {
                             break std::mem::take(buf);
                         }
                     },
@@ -389,6 +528,11 @@ struct ServerState {
     events: mpsc::Receiver<ServerEvent>,
     /// Flag to signal shutdown
     running: Arc<Mutex<bool>>,
+    /// The thread accepting the connections (it owns the listener): Stop
+    /// waits for it, so the port is free again when Stop returns
+    /// (RAPIDR-ISSUES #8: Stop then Start on the same port failed with
+    /// "Address already in use" while it still held the listener).
+    accept: Option<std::thread::JoinHandle<()>>,
 }
 
 thread_local! {
@@ -449,7 +593,7 @@ fn server_start(name: &str) -> Value {
     let accept_tx = tx.clone();
     let accept_next_id = Arc::clone(&next_id);
 
-    std::thread::spawn(move || {
+    let accept = std::thread::spawn(move || {
         while *accept_running.lock().unwrap() {
             match listener.accept() {
                 Ok((stream, addr)) => {
@@ -494,7 +638,7 @@ fn server_start(name: &str) -> Value {
     });
 
     SERVERS.with(|s| {
-        s.borrow_mut().insert(name.to_string(), ServerState { clients, events: rx, running });
+        s.borrow_mut().insert(name.to_string(), ServerState { clients, events: rx, running, accept: Some(accept) });
     });
     v_int(1)
 }
@@ -580,12 +724,17 @@ fn server_poll(name: &str) -> Value {
 
 fn server_stop(name: &str) -> Value {
     SERVERS.with(|s| {
-        if let Some(state) = s.borrow_mut().remove(name) {
+        if let Some(mut state) = s.borrow_mut().remove(name) {
             *state.running.lock().unwrap() = false;
             // (the clients' connections closed now, not when their readers
             // next look)
             for (_, stream, _) in state.clients.lock().unwrap().iter() {
                 let _ = stream.shutdown(std::net::Shutdown::Both);
+            }
+            // (the listener closed before Stop returns: at most one 20 ms
+            // look of the accepting thread)
+            if let Some(t) = state.accept.take() {
+                let _ = t.join();
             }
         }
     });

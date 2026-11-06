@@ -37,8 +37,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value as Json};
@@ -157,7 +156,7 @@ struct Call {
 }
 
 struct Server {
-    running: Arc<AtomicBool>,
+    running: httpserver::Accepting,
     events: mpsc::Receiver<Arrived>,
     path: String,
     info: Info,
@@ -518,7 +517,7 @@ fn start(name: &str) -> Value {
 
 fn stop(name: &str) {
     if let Some(mut s) = SERVERS.with(|s| s.borrow_mut().remove(name)) {
-        s.running.store(false, Ordering::Relaxed);
+        s.running.stop();
         // (each call still waiting: told, then closed)
         for (_, c) in s.calls.drain() {
             let answer = error_message(&c.id, INTERNAL_ERROR, "The server stopped before this call was answered.");
@@ -1474,7 +1473,7 @@ mod tests {
         let (_tx, rx) = mpsc::channel();
         let info = Info { name: "rapidr-test".into(), version: "1.0".into(), ..Info::default() };
         SERVERS.with(|s| {
-            s.borrow_mut().insert(name.to_string(), Server { running: Arc::new(AtomicBool::new(true)), events: rx, path: "/mcp".into(), info, sessions: HashMap::new(), clients: Vec::new(), shut_out: Vec::new(), calls: HashMap::new(), queue: VecDeque::new(), busy: Rc::new(Cell::new(false)), idle: Duration::from_secs(900) })
+            s.borrow_mut().insert(name.to_string(), Server { running: httpserver::Accepting::none(), events: rx, path: "/mcp".into(), info, sessions: HashMap::new(), clients: Vec::new(), shut_out: Vec::new(), calls: HashMap::new(), queue: VecDeque::new(), busy: Rc::new(Cell::new(false)), idle: Duration::from_secs(900) })
         });
     }
 

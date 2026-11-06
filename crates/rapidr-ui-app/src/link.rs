@@ -8,6 +8,7 @@
 //! {"do":"screenshot","window":"","scale":"screen","frame":true}
 //! {"do":"layout","window":"calc"}
 //! {"do":"click","caption":"7"}            (or "name", "label", or "window" + "x", "y")
+//! {"do":"click","menu":"File > Open"}     (a menu item by its captions or name: picked, the menu not opened)
 //! {"do":"type","label":"Name","text":"Ada"}
 //! {"do":"key","keys":"Ctrl+S"}
 //! {"do":"drag","name":"slider","to_x":180,"to_y":20}
@@ -144,7 +145,13 @@ pub fn act_of(j: &Json) -> Result<Act, String> {
         Some("middle") => rapidr_value::input::Button::Middle,
         _ => rapidr_value::input::Button::Left,
     };
+    // (a menu item: picked by what it says, any menu — a pop-up's too —
+    // without opening it; app_click's `menu`)
+    if let Some(path) = s(j, "menu").filter(|_| matches!(what.as_str(), "click" | "menu" | "pick")) {
+        return Ok(Act::Menu { path });
+    }
     Ok(match what.as_str() {
+        "menu" | "pick" => return Err("Name the menu item: \"menu\": \"File > Open\" (its captions from the top, or its name).".into()),
         "click" => Act::Click { target, button, double: b(j, "double", false) },
         "double_click" | "doubleclick" | "dblclick" => Act::Click { target, button, double: true },
         "right_click" | "rightclick" => Act::Click { target, button: rapidr_value::input::Button::Right, double: false },
@@ -228,6 +235,9 @@ mod tests {
     fn requests_become_jobs_or_say_what_is_wrong() {
         let j = |t: &str| serde_json::from_str::<Json>(t).unwrap();
         assert!(matches!(act_of(&j(r#"{"do":"click","caption":"7"}"#)), Ok(Act::Click { double: false, .. })));
+        assert_eq!(act_of(&j(r#"{"do":"click","menu":"File > Open"}"#)), Ok(Act::Menu { path: "File > Open".into() }));
+        assert_eq!(act_of(&j(r#"{"do":"menu","menu":"Delete"}"#)), Ok(Act::Menu { path: "Delete".into() }));
+        assert!(act_of(&j(r#"{"do":"menu"}"#)).unwrap_err().contains("File > Open"));
         // (a caption a JSON builder made a number, text typed as one)
         let Ok(Act::Click { target, .. }) = act_of(&j(r#"{"do":"click","caption":7}"#)) else { panic!() };
         assert_eq!(target.caption.as_deref(), Some("7"));

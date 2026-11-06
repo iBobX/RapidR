@@ -173,7 +173,7 @@ struct Open {
 }
 
 struct Server {
-    running: Arc<AtomicBool>,
+    running: Accepting,
     events: mpsc::Receiver<Arrived>,
     queue: VecDeque<Arrived>,
     open: HashMap<i64, Open>,
@@ -311,7 +311,7 @@ impl ListenOptions {
 /// A server listening: the requests its connections read arrive on
 /// `events` (the connections' threads wake the loop for each).
 pub(crate) struct Listening {
-    pub(crate) running: Arc<AtomicBool>,
+    pub(crate) running: Accepting,
     pub(crate) events: mpsc::Receiver<Arrived>,
     pub(crate) port: u16,
     pub(crate) url: String,
@@ -343,17 +343,57 @@ pub(crate) fn listen(o: &ListenOptions) -> Result<Listening, String> {
     let (tx, rx) = mpsc::channel::<Arrived>();
     let ids = Arc::new(AtomicI64::new(1));
     let active = Arc::new(AtomicUsize::new(0));
-    {
-        let running = running.clone();
-        std::thread::spawn(move || accept_loop(listener, cfg, tx, ids, running, active));
-    }
+    let accepting = {
+        let flag = running.clone();
+        Accepting::new(running, std::thread::spawn(move || accept_loop(listener, cfg, tx, ids, flag, active)))
+    };
     let shown = if host.contains(':') { format!("[{host}]") } else if host == "0.0.0.0" { "127.0.0.1".to_string() } else { host };
-    Ok(Listening { running, events: rx, port, url: format!("http://{shown}:{port}/") })
+    Ok(Listening { running: accepting, events: rx, port, url: format!("http://{shown}:{port}/") })
+}
+
+/// A listening socket's accepting thread (it owns the listener): [`stop`]
+/// (or dropping it) tells it to end and waits until it has — the port is
+/// free again when Stop returns, so a Start on the same port right after
+/// works (RAPIDR-ISSUES #8: "Address already in use" while the thread still
+/// held the listener for its next look). The accept loops look every 15-20
+/// ms, so the wait is that long at most.
+///
+/// [`stop`]: Accepting::stop
+pub(crate) struct Accepting {
+    running: Arc<AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Accepting {
+    pub(crate) fn new(running: Arc<AtomicBool>, thread: std::thread::JoinHandle<()>) -> Self {
+        Accepting { running, thread: Some(thread) }
+    }
+
+    /// None at all (the tests' servers: nothing listens).
+    #[cfg(test)]
+    pub(crate) fn none() -> Self {
+        Accepting { running: Arc::new(AtomicBool::new(true)), thread: None }
+    }
+
+    /// The thread told to end, and waited for (its listener closed).
+    pub(crate) fn stop(&mut self) {
+        self.running.store(false, Ordering::Relaxed);
+        if let Some(t) = self.thread.take() {
+            // (never the thread itself: it doesn't run the program's code)
+            let _ = t.join();
+        }
+    }
+}
+
+impl Drop for Accepting {
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
 
 fn stop(name: &str) {
-    if let Some(s) = SERVERS.with(|s| s.borrow_mut().remove(name)) {
-        s.running.store(false, Ordering::Relaxed);
+    if let Some(mut s) = SERVERS.with(|s| s.borrow_mut().remove(name)) {
+        s.running.stop();
         // (each open request's connection closed: its thread's channel ends)
         for (_, o) in s.open {
             let _ = o.conn.send(Out::Close);

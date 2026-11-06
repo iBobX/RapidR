@@ -41,6 +41,39 @@ A port is a number from 1 to 65535; use one above 1024 that no other
 program uses. Port 0 lets the system pick a free one: after `Start`,
 `Port` says which.
 
+## RSocket: a TCP client
+
+`Connect(Host, Port)` opens a connection and gives its socket number (also
+in `MySocket`; -1 when nothing answers there). Then every call names that
+number: `Write(Sock, Text, Length)`, `WriteLine(Sock, Text)`, `Read(Sock,
+Bytes)`, `ReadLine(Sock)`, `ReadByte(Sock)`, `Peek(Sock, Bytes)`.
+RapidR adds three members:
+
+| Member | |
+|---|---|
+| `Connected` | 1 while the connection is open — or what the server sent is still to be read; 0 once either side closed it |
+| `Timeout` | in milliseconds: `Connect` gives up after it, and each `Read`, `ReadLine` or `ReadByte` waits at most so long (then `""`). Without one, they wait as long as it takes, as the classic `QSOCKET`'s do |
+| `Disconnect` | closes the connection: the server sees its client go at once |
+
+`IsServerReady(Sock)` says whether something has arrived, without waiting:
+the way to read only when there is something to read. A `Read` that does
+wait keeps your windows painting meanwhile (your code waits there, as
+before).
+
+```basic
+DIM Client AS RSocket
+Client.Timeout = 2000                         ' 2 s at most for each wait
+IF Client.Connect("127.0.0.1", 47120) >= 0 THEN
+    Client.WriteLine Client.MySocket, "hello"
+    PRINT Client.ReadLine(Client.MySocket)    ' "" if nothing came in 2 s
+    Client.Disconnect
+END IF
+```
+
+[socket_client.rr](../../examples/network/socket_client.rr) has a client
+and a server in one window: Connect, send, Disconnect, the server
+restarted on the same port, and `Connected` following it all.
+
 ## RServerSocket: a TCP server
 
 `RServerSocket` listens on `Host:Port`, and tells the program what its
@@ -69,7 +102,9 @@ and RServerSocket listens on every network interface unless `Host =
 To answer: `SendTo(Address, Data)` sends Data and a line end, `Send(Address,
 Data)` (RapidR's) sends it as it is, `Broadcast(Data)` sends it with a line
 end to everyone, `Disconnect(Address)` (RapidR's) closes that client's
-connection, `Stop` closes them all.
+connection, `Stop` closes them all. The port is free again when `Stop`
+returns: a `Start` on the same port right after works (an RHttpServer's
+and an RMcpServer's too).
 
 The [echo server example](../../examples/network/echo_server.rr) answers
 web requests itself with `Mode = "http"`: each request's body comes back,

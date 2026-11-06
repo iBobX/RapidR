@@ -62,6 +62,10 @@ pub mod ai;
 #[cfg(feature = "gui")]
 pub mod ui;
 
+/// Builtins that hold the program (SHELLWAIT, a socket's read, a
+/// connection made) wait with its windows served.
+pub mod waiting;
+
 /// QDXSCREEN / QDXTIMER on the desktop (the DirectX lane's).
 #[cfg(feature = "gui")]
 pub mod directx;

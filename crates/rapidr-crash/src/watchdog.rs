@@ -22,6 +22,16 @@
 //!
 //! Under the GUI tests' hooks nothing is shown: the report is written and
 //! said on standard error.
+//!
+//! A program RapidR Studio runs (and `rapidr run`'s) has the same watchdog
+//! ([`start_program`], RUNTIME-BUGS 2026-11-05: RapidR Web Server's window
+//! stopped answering and nobody could tell where): its window's thread
+//! busy for longer than the limit, a hang report is written at once —
+//! where the program is, its RapidR line (file, line, SUB, the event it
+//! handles), the threads by name — and said on standard error in plain
+//! words, which Studio shows in Output; answering again is said too. No
+//! window asks anything (Studio's Stop ends the program), and nothing is
+//! ever sent anywhere.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -35,6 +45,18 @@ static BASE: OnceLock<Instant> = OnceLock::new();
 static BUSY_SINCE: AtomicU64 = AtomicU64::new(0);
 static STARTED: AtomicBool = AtomicBool::new(false);
 static TEXTS: Mutex<Option<Texts>> = Mutex::new(None);
+/// The watchdog watches a program (not Studio): reports and says, never
+/// asks.
+static PROGRAM: AtomicBool = AtomicBool::new(false);
+/// The program shows a window (one that can stop answering).
+static WINDOWS: AtomicBool = AtomicBool::new(false);
+
+/// Whether the program shows a window now (the runtime says so at each
+/// turn of its window loop): a program without one is never said hung.
+#[inline]
+pub fn set_windows_shown(shown: bool) {
+    WINDOWS.store(shown, Ordering::Relaxed);
+}
 
 fn now_ms() -> u64 {
     BASE.get_or_init(Instant::now).elapsed().as_millis() as u64 + 1
@@ -89,6 +111,19 @@ pub fn start(after: Duration, texts: Texts) {
     let _ = std::thread::Builder::new().name("rapidr-watchdog".into()).spawn(move || watch(after));
 }
 
+/// Starts the watchdog for a program (`rapidr run`, Studio's Run): it is
+/// said hung once its window's thread has been busy for `after` (only a
+/// program with a window: the hosts mark busy and idle) — a report written,
+/// plain words on standard error; nothing asked.
+pub fn start_program(after: Duration) {
+    PROGRAM.store(true, Ordering::Release);
+    if STARTED.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let _ = BASE.get_or_init(Instant::now);
+    let _ = std::thread::Builder::new().name("rapidr-watchdog".into()).spawn(move || watch(after));
+}
+
 /// Whether the watchdog runs.
 pub fn started() -> bool {
     STARTED.load(Ordering::Acquire) && !STOPPED.load(Ordering::Acquire)
@@ -120,7 +155,9 @@ fn watch(after: Duration) {
             if let Some((mut r, path)) = report.take() {
                 r.outcome = format!("Answered again after {} s", (now.saturating_sub(reported) + 500) / 1000);
                 let _ = std::fs::write(&path, r.render());
-                if crate::testing() {
+                if PROGRAM.load(Ordering::Acquire) {
+                    eprintln!("[rapidr] Your program's window answers again (after {} s).", (now.saturating_sub(reported) + 500) / 1000);
+                } else if crate::testing() {
                     eprintln!("[rapidr] (test) Studio answered again: {}", r.outcome);
                 }
             }
@@ -129,17 +166,28 @@ fn watch(after: Duration) {
         if since == 0 || now.saturating_sub(since) < limit {
             continue;
         }
+        // (a program with no window shown: nothing to answer)
+        if PROGRAM.load(Ordering::Acquire) && !WINDOWS.load(Ordering::Relaxed) {
+            continue;
+        }
         if reported != since {
             reported = since;
             let secs = now.saturating_sub(since) / 1000;
-            let r = hang_report(secs);
+            let program = PROGRAM.load(Ordering::Acquire);
+            let r = if program { program_hang_report(secs) } else { hang_report(secs) };
+            let place = r.place.clone();
             report = crate::write(&r).map(|p| (r, p));
-            if let Some((_, p)) = &report {
+            if program {
+                // (in plain words, where the person sees it: Studio's Output)
+                let at = if place.is_empty() { String::new() } else { format!(" It is busy at {place}.") };
+                let saved = report.as_ref().map(|(_, p)| format!(" A report was saved on this computer: {}", crate::scrub::home(&p.to_string_lossy()))).unwrap_or_default();
+                eprintln!("[rapidr] Your program's window hasn't answered for {secs} s: its code is still running and doesn't let the window take its turn.{at} A long loop needs a DOEVENTS now and then.{saved}");
+            } else if let Some((_, p)) = &report {
                 eprintln!("[rapidr] RapidR Studio isn't responding ({secs} s): a hang report was written: {}", crate::scrub::home(&p.to_string_lossy()));
             }
             next_ask = now;
         }
-        if crate::testing() || now < next_ask {
+        if crate::testing() || PROGRAM.load(Ordering::Acquire) || now < next_ask {
             continue;
         }
         // Asked in a window of its own.
@@ -157,6 +205,17 @@ fn watch(after: Duration) {
             Answer::Answered => next_ask = u64::MAX,
         }
     }
+}
+
+/// A program's hang report: where it is (its RapidR line, the event it
+/// handles: the report's `place`), the threads by name.
+fn program_hang_report(secs: u64) -> Report {
+    let headline = format!("Your program stopped responding: its window didn't answer for {secs} seconds.");
+    let mut r = crate::report_now("hang", &headline, &format!("The window's thread ran the program's code for {secs} s without letting the window take its turn (no DOEVENTS, no wait)."));
+    r.app = crate::App::Program.name().into();
+    r.thread = "main (the window's)".into();
+    r.threads = thread_names();
+    r
 }
 
 /// The hang report: what Studio was doing.

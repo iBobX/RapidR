@@ -304,7 +304,14 @@ fn app_screenshot_args() -> Json {
 }
 
 fn click_args() -> Json {
-    with_target(json!({"double": {"type": "boolean"}, "button": {"type": "string", "enum": ["left", "right"]}}), &[])
+    with_target(
+        json!({
+            "double": {"type": "boolean"},
+            "button": {"type": "string", "enum": ["left", "right"]},
+            "menu": {"type": "string", "description": "a menu item to pick instead: its captions from the top, \"File > Open\", or its name (any menu, a pop-up menu's too; picked without opening the menu)"}
+        }),
+        &[],
+    )
 }
 
 fn type_args() -> Json {
@@ -726,7 +733,7 @@ pub const TOOLS: &[Spec] = &[
         grant: "drive",
         handler: Handler::App,
         offer: Offer::Both,
-        description: "Clicks in the running program as a person would (a pointer shows it): by caption, name, the label beside it, or a point. A message box's buttons: their caption, or b0, b1. Example: {\"caption\": \"OK\"} or {\"name\": \"btnSave\"}.",
+        description: "Clicks in the running program as a person would (a pointer shows it): by caption, name, the label beside it, or a point. A message box's buttons: their caption, or b0, b1. A menu item (any menu, a pop-up menu's too): menu, its captions from the top. Example: {\"caption\": \"OK\"}, {\"name\": \"btnSave\"} or {\"menu\": \"File > Open\"}.",
         lite: "",
         schema: click_args,
         mcp_hint: "change",

@@ -157,6 +157,17 @@ and use it, through these same eyes and hands:
 | `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks and types in it — you see the pointer do it | counts as running it |
 | `app_wait` | Lets it work on its own a moment | always |
 
+**Menus.** `app_layout` lists each window's menu items as a person reads
+them — `File > Open`, a pop-up menu's `Double` — and `app_click` with
+`menu` picks one, from any menu, a pop-up menu's too, without opening it:
+`{"menu": "File > Open"}`, or `{"menu": "CalcMenu > Double"}` for a pop-up
+menu by its name. The program hears it as the person's pick (a pop-up
+menu's `OnPopup` first, then the item's `OnClick`). A disabled item is
+refused with why; a name that isn't there gets the menus there are. A
+right-click the AI plays opens the pop-up menu drawn by RapidR in the
+window — seen in its pictures, picked the same way — rather than the
+system's, which it could neither see nor click.
+
 For AI apps the permission menu decides: **Read only** lets them neither
 look at nor use the program; **Ask before changes** and **Allow edits** ask
 you once for each run of the program (Allow Once covers pictures, clicks and

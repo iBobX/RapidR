@@ -127,6 +127,16 @@ DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
 - **The events your own code fires run at once**, inside the line that
   fires them ([below](#events-your-own-code-fires)): `Canvas.Repaint` runs
   the canvas's `OnPaint` before the next line.
+- **A line that waits for something outside the program** — `SHELLWAIT`
+  until its command ends, a socket's `Read` until the answer comes or its
+  `Timeout` — keeps the windows alive meanwhile: they paint, move and
+  resize, and the system never shows them as not responding. Your code
+  still waits there, as before: no handler runs until that line is done,
+  and what the person clicks or types meanwhile is handled after it.
+- **Code that runs long without waiting** — a loop with no `DOEVENTS` —
+  leaves the window unable to answer. Run from RapidR Studio (or `rapidr
+  run`), the program says so after 5 seconds, with the line it is busy at
+  ([Troubleshooting](troubleshooting.md#your-programs-window-isnt-answering)).
 
 So a handler that fires its own event runs inside itself: a `Repaint`
 inside the same canvas's `OnPaint`, an `OnChange` that gives its edit a new
@@ -179,7 +189,7 @@ components do (the compatibility suite covers it):
 | `RichEdit.Text` (the text changes) | OnChange: once before its form has shown, **twice** after (the rich edit hears its own change and the text's) |
 | `RichEdit.SelText` | OnChange |
 | `CheckBox.Checked` (on or off, a change) | OnClick |
-| `RadioButton.Checked = 1` (it was off) | OnClick — the button it turns off hears nothing |
+| `RadioButton.Checked = 1` (it was off) | the other radio buttons of its parent go off first, as a click does — in a `CREATE` block too —, then OnClick; the button it turns off hears nothing |
 | `ScrollBar.Position` (a change) | OnChange (not OnScroll) |
 | the same value again; `RadioButton.Checked = 0` | nothing |
 | `ComboBox.ItemIndex`, `ComboBox.Text`, `ListBox.ItemIndex`, `TrackBar.Position`, `TabControl.TabIndex` | nothing |
@@ -331,6 +341,60 @@ Messages.ItemIndex = Messages.ItemCount - 1
 (`TopIndex` reads the list as it was last drawn: set it, and it reads what
 the list shows once the window has drawn it, a moment later.)
 
+An `RListBox`'s `OnChange` (RapidR's own) tells you the person moved the
+selection to another item — by a click, the arrow keys, Page Up / Down,
+Home or End —, before that click's `OnClick`. A click on the item that
+was already selected fires `OnClick` only. Your own `ItemIndex = n` fires
+nothing, as before.
+
+```basic
+CREATE Planets AS RListBox
+    OnChange = Picked
+END CREATE
+
+SUB Picked
+    Said.Caption = "Picked: " + Planets.Item(Planets.ItemIndex)
+END SUB
+```
+
+## The mouse wheel
+
+The wheel scrolls what is under the mouse, whichever control has the
+keyboard: a list, a memo, a grid, a tree, a scroll box or form with its own
+scroll bars — and, in a RapidR program (a `.rr` file), an `RScrollBar`,
+which moves three `SmallChange` steps a notch (down or right forward; a
+horizontal bar takes a sideways turn, or Shift and the wheel) and fires its
+`OnChange`, as a click on its arrow does. In a classic program (`.bas`,
+`.rqw` …) the wheel leaves a scroll bar alone and fires nothing, exactly as
+RapidQ's does.
+
+Where nothing under the mouse scrolls by itself — a list you paint with
+labels on a panel, a canvas, a game — `OnMouseWheel (Delta, X, Y, Shift)`
+(RapidR's) tells your program, on a form, a panel, a scroll box, a group
+box, a bevel, a label, an image or a canvas. The first one with a handler,
+from the control under the mouse up to its form, hears it:
+
+| Argument | |
+|---|---|
+| `Delta` | whole notches: `1` a notch away from you (up), `-1` toward you (down); a touchpad's small turns add up to a notch |
+| `X`, `Y` | the mouse, in that component's own pixels |
+| `Shift` | the keys and buttons held, as in `OnMouseMove` |
+
+```basic
+CREATE Card AS RPanel
+    OnMouseWheel = CardWheel
+END CREATE
+
+SUB CardWheel (Delta AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    Bar.Position = Bar.Position - Delta     ' a row a notch; Bar's OnChange shows the rows
+END SUB
+```
+
+[wheel_list.rr](../../examples/gui/wheel_list.rr) is a whole painted list
+scrolled this way, with an `RListBox`'s `OnChange` beside it:
+
+![The painted list after two notches of the wheel (it starts at 3. Earth), and Mars picked in the list beside it](images/components/wheel-list.png)
+
 ## RUpDown: arrows that step a number
 
 An `RUpDown` is two small arrow buttons that step `Position` between `Min` and
@@ -447,6 +511,8 @@ compiler doesn't know it).
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
 | `Placeholder = "Search the help"` on an edit | the grey line shown while the box is empty, saying what to type; never read back as the text, gone when the user types (RapidR Studio's Help box uses it) |
 | `Form.OnDropFiles (Files AS STRING)` | files dragged from the computer and dropped on the window (below) |
+| `OnMouseWheel (Delta, X, Y, Shift)` on a form, panel, scroll box, group box, bevel, label, image or canvas | the mouse wheel turned over it, where nothing scrolls by itself ([The mouse wheel](#the-mouse-wheel)) |
+| `OnChange` on a list box | the person moved the selection: a click on another item, the arrow keys ([Lists](#lists-scroll-to-what-you-pick)) |
 
 ### Files dropped on a form
 

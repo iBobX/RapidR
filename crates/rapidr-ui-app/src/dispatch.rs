@@ -51,6 +51,14 @@ fn event<R: Program + Windows>(rt: R, ev: KernelEvent) {
             }
         }
         KernelEvent::Mouse { id, kind, button, x, y, shift } => mouse_event(rt, &id, kind, button, x, y, shift),
+        // (RapidR's OnMouseWheel (Delta, X, Y, Shift): the first along the
+        // chain — under the mouse, then its parents, the form — whose
+        // handler the program bound)
+        KernelEvent::Wheel { chain, delta, shift } => {
+            if let Some((name, x, y)) = chain.iter().find(|(name, _, _)| rt.has_handler(name, "onmousewheel")) {
+                rt.fire_args(name, "onmousewheel", &[v_int(delta), v_int(*x), v_int(*y), v_int(shift)]);
+            }
+        }
         KernelEvent::Close(f) => forms::close(rt, &f),
         KernelEvent::Resized(f, w, h) => {
             let menu = i64::from(forms::menu_offset(rt, &f));

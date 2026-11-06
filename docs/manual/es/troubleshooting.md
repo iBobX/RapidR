@@ -190,6 +190,28 @@ en el escritorio). El programa continúa.
 remoto** — RapidR dibuja con la CPU cuando la única GPU es una por software; si
 la detección falla, define `RAPIDR_RENDERER=cpu`.
 
+### La ventana de tu programa no responde
+
+Una ventana le responde al sistema —se dibuja, se mueve, recibe clics— solo
+mientras tu programa espera: `ShowModal`, `DOEVENTS`, un cuadro de diálogo, o
+una línea que espera algo de fuera del programa (`SHELLWAIT`, el `Read` de un
+socket), que mantiene viva la ventana por sí sola. El código que se ejecuta
+mucho tiempo sin esperar —un bucle grande, un cálculo largo— deja la ventana
+trabada, y el sistema pronto la muestra como que no responde.
+
+Ejecutado desde RapidR Studio (o con `rapidr run`), tu programa lo dice cuando
+su ventana lleva 5 segundos sin responder, en la Salida, con la línea en la
+que está ocupado:
+
+```
+[rapidr] Your program's window hasn't answered for 5 s: its code is still running and doesn't let the window take its turn. It is busy at server.rr line 812, in SUB Serve (OnTimer of Poll). A long loop needs a DOEVENTS now and then. A report was saved on this computer: ~/Library/Application Support/RapidR/crashes/…-program-…-hang.txt
+```
+
+y otra vez cuando vuelve a responder ("Your program's window answers again
+(after 7 s).") —no se envía nada a ningún lado—. Pon un `DOEVENTS` en ese
+bucle, cada unos cientos de pasos, o haz el trabajo por partes desde un
+`RTimer`. `RAPIDR_HANG_SECONDS` (de 2 a 120) cambia los 5 segundos.
+
 **El programa no se ve como el aspecto clásico de Windows** — los programas se
 dibujan con el aspecto propio de RapidR, a menos que digan `$THEME Classic` (el
 aspecto clásico; los tamaños y las posiciones son los mismos en ambos). Revisa
@@ -282,6 +304,10 @@ dice dónde estaba, con enlaces a la línea y al informe:
 Tu programa se detuvo: index out of bounds, en main.rr línea 24, en SUB Tick (OnTimer de Ticker).
 RapidR lo detuvo: es un problema de RapidR, no de tu código. Un informe queda en esta computadora: Ver informe
 ```
+
+**Cuando la ventana de tu programa deja de responder** durante 5 segundos,
+también se escribe un informe de bloqueo, y la Salida dice dónde está ocupado
+([más arriba](#la-ventana-de-tu-programa-no-responde)).
 
 **Cuando Studio deja de responder** durante 5 segundos, se escribe de inmediato
 un informe de bloqueo y una ventana pequeña pregunta: *RapidR Studio no

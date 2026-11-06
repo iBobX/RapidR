@@ -382,6 +382,26 @@ pub fn layout(desk: &mut Desktop, store: &dyn Store, only: Option<&str>) -> Json
             }
             comps.push(c);
         }
+        // (its menus — the main menu, the pop-ups it holds —: each item as
+        // app_click's `menu` names it, "File > Open", disabled ones marked)
+        let menus: Vec<Json> = store
+            .children(key)
+            .into_iter()
+            .filter(|(_, t)| matches!(t.to_ascii_uppercase().as_str(), "RMAINMENU" | "RPOPUPMENU"))
+            .map(|(id, t)| {
+                let items: Vec<String> = rapidr_value::objects::menu::entries(&id)
+                    .into_iter()
+                    .filter(|e| !e.submenu)
+                    .map(|e| {
+                        let mut said: Vec<String> = e.path.iter().map(|c| c.replace('&', "")).collect();
+                        said.push(e.caption.replace('&', ""));
+                        let said = said.join(" > ");
+                        if e.enabled { said } else { format!("{said} (disabled)") }
+                    })
+                    .collect();
+                json!({"name": id, "kind": if t.eq_ignore_ascii_case("RPOPUPMENU") { "popup" } else { "main" }, "items": items})
+            })
+            .collect();
         let (x, y) = f.spec.position.unwrap_or((0, 0));
         windows.push(json!({
             "name": key,
@@ -393,6 +413,8 @@ pub fn layout(desk: &mut Desktop, store: &dyn Store, only: Option<&str>) -> Json
             "front": front.as_deref() == Some(key.as_str()),
             "modal": modal.iter().any(|m| m.eq_ignore_ascii_case(key)),
             "components": comps,
+            "menus": menus,
+            "popupOpen": ui.popup_open(),
             "problems": warnings,
         }));
     }
@@ -446,6 +468,17 @@ pub fn layout_text(report: &Json) -> String {
             }
             out.push_str(&line);
             out.push('\n');
+        }
+        for m in w["menus"].as_array().into_iter().flatten() {
+            let items: Vec<&str> = m["items"].as_array().into_iter().flatten().filter_map(Json::as_str).collect();
+            if items.is_empty() {
+                continue;
+            }
+            let which = if m["kind"] == json!("popup") { format!("Pop-up menu {}", m["name"].as_str().unwrap_or("")) } else { "Menu".to_string() };
+            out.push_str(&format!("  {which}: {} (app_click's menu picks one)\n", items.join(", ")));
+        }
+        if let Some(open) = w["popupOpen"].as_str() {
+            out.push_str(&format!("  Pop-up menu {open} is open now (app_click's menu picks from it; Escape closes it)\n"));
         }
         let problems = w["problems"].as_array().cloned().unwrap_or_default();
         if problems.is_empty() {

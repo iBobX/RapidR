@@ -534,6 +534,115 @@ pub fn panel_size(rows: &[(&str, &str, bool)]) -> (i64, i64) {
     (w.max(80), h.max(BORDER * 2 + 4))
 }
 
+/// Every pop-up menu there is (lower case, sorted).
+pub fn popups() -> Vec<String> {
+    let mut out: Vec<String> = MENUS.with(|m| m.borrow().iter().filter(|(_, n)| n.kind == Kind::Popup).map(|(k, _)| k.clone()).collect());
+    out.sort();
+    out
+}
+
+/// A menu item found by what a person reads ([`find_item`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct FoundItem {
+    /// The item's name (lower case).
+    pub id: String,
+    /// The menu it is in (main or pop-up; lower case).
+    pub root: String,
+    /// How it is said: its captions from the top, `File > Open`.
+    pub said: String,
+}
+
+/// A caption as a person reads it: no `&`, no trailing dots, no case.
+fn plain(caption: &str) -> String {
+    let c = caption.replace('&', "");
+    let c = c.split('\t').next().unwrap_or("");
+    c.trim().trim_end_matches('…').trim_end_matches("...").trim().to_lowercase()
+}
+
+/// A menu item found by what a person reads, as RapidR Studio's AI tools
+/// pick one (app_click's `menu`: the item's OnClick, as a pick, without
+/// opening the menu — a pop-up menu's too, which the system's own menu
+/// would hold the program for): `path` is its captions from the menu's
+/// top, `>` or `/` between them ("File > Open", "&Edit/Copy"; `&`, case,
+/// a trailing "..." and spaces don't matter; a pop-up's items may start
+/// with the pop-up's name), its last captions alone when they name one
+/// item only, or its name. Among `roots`, the menus the program shows
+/// (main and pop-up). An item that is disabled or holds a submenu, an
+/// item not found, or one found twice: why, in words, with what there is.
+pub fn find_item(roots: &[String], path: &str) -> Result<FoundItem, String> {
+    let want: Vec<String> = path.split(['>', '/']).map(plain).filter(|s| !s.is_empty()).collect();
+    if want.is_empty() {
+        return Err("Name a menu item: its captions from the top, \"File > Open\", or its name.".into());
+    }
+    // (every visible item, with its full path as said and as compared)
+    let mut all: Vec<(Entry, String, Vec<String>, String)> = Vec::new();
+    for root in roots {
+        let popup = kind(root) == Some(Kind::Popup);
+        for e in entries(root) {
+            if e.separator {
+                continue;
+            }
+            let mut said: Vec<String> = e.path.iter().map(|c| c.replace('&', "")).collect();
+            said.push(e.caption.replace('&', ""));
+            let mut cmp: Vec<String> = e.path.iter().map(|c| plain(c)).collect();
+            cmp.push(plain(&e.caption));
+            if popup {
+                cmp.insert(0, root.to_lowercase());
+            }
+            all.push((e, said.join(" > "), cmp, root.to_lowercase()));
+        }
+    }
+    let by_name = (want.len() == 1).then(|| all.iter().filter(|(e, ..)| e.name.eq_ignore_ascii_case(path.trim())).collect::<Vec<_>>()).unwrap_or_default();
+    let hits: Vec<&(Entry, String, Vec<String>, String)> = if !by_name.is_empty() {
+        by_name
+    } else {
+        // (the whole path — a pop-up's with its name first —, else its
+        // end: "Open" alone, "Recent > a.txt"; an end two menus share is
+        // said to be both)
+        let whole: Vec<_> = all.iter().filter(|(_, _, cmp, _)| *cmp == want).collect();
+        if !whole.is_empty() { whole } else { all.iter().filter(|(_, _, cmp, _)| cmp.len() >= want.len() && cmp[cmp.len() - want.len()..] == want[..]).collect() }
+    };
+    let menus_said = || {
+        let mut parts = Vec::new();
+        for root in roots {
+            let tops: Vec<String> = all.iter().filter(|(e, _, _, r)| r == &root.to_lowercase() && e.path.is_empty()).map(|(e, said, _, _)| if e.submenu { format!("{said} (…)") } else { said.clone() }).collect();
+            if tops.is_empty() {
+                continue;
+            }
+            match kind(root) {
+                Some(Kind::Popup) => parts.push(format!("pop-up menu {root}: {}", tops.join(", "))),
+                _ => parts.push(format!("main menu: {}", tops.join(", "))),
+            }
+        }
+        if parts.is_empty() { "The program shows no menu now.".to_string() } else { format!("The menus: {}.", parts.join("; ")) }
+    };
+    match hits.as_slice() {
+        [] => Err(format!("No menu item \"{}\". {}", path.trim(), menus_said())),
+        [(e, said, _, root)] => {
+            if e.submenu {
+                let inside: Vec<String> = all.iter().filter(|(x, ..)| x.path.len() == e.path.len() + 1 && x.path.last().is_some_and(|c| *c == e.caption)).map(|(x, ..)| x.caption.replace('&', "")).collect();
+                return Err(format!("{said} opens a submenu: name one of its items ({}).", inside.join(", ")));
+            }
+            if !e.enabled {
+                return Err(format!("{said} is disabled (Enabled = False) now: do what enables it first."));
+            }
+            // (an item under a disabled one can't be reached either)
+            let mut up = with(&e.name, |n| n.parent.clone()).flatten();
+            while let Some(p) = up {
+                if kind(&p) != Some(Kind::Item) {
+                    break;
+                }
+                if with(&p, |n| !n.enabled).unwrap_or(false) {
+                    return Err(format!("{said} is under a disabled menu (Enabled = False) now: do what enables it first."));
+                }
+                up = with(&p, |n| n.parent.clone()).flatten();
+            }
+            Ok(FoundItem { id: e.name.to_lowercase(), root: root.clone(), said: said.clone() })
+        }
+        many => Err(format!("\"{}\" names {} menu items: {}. Give more of its path.", path.trim(), many.len(), many.iter().map(|(_, said, _, r)| if kind(r) == Some(Kind::Popup) { format!("{said} (pop-up menu {r})") } else { said.clone() }).collect::<Vec<_>>().join(", "))),
+    }
+}
+
 /// Forgets every menu (a program was replaced).
 pub fn clear() {
     MENUS.with(|m| m.borrow_mut().clear());
@@ -585,5 +694,40 @@ mod tests {
         assert_eq!(root_of("x").as_deref(), Some("mm"));
         assert_eq!(parse_shortcut("Shift+Ctrl+F5"), Some(Shortcut { vk: 116, ctrl: true, shift: true, alt: false }));
         assert_eq!(parse_shortcut("Del").map(|s| s.text()).as_deref(), Some("Del"));
+    }
+
+    #[test]
+    fn items_are_found_by_what_a_person_reads() {
+        // (a main menu File (New, Open..., Recent (a.txt), Save disabled),
+        // Edit (Copy); a pop-up ListMenu (Copy, Delete))
+        create("fmm", "RMAINMENU");
+        for (id, cap, parent) in [("ffile", "&File", "fmm"), ("fnew", "&New", "ffile"), ("fopen", "&Open...", "ffile"), ("frecent", "Recent", "ffile"), ("fa", "a.txt", "frecent"), ("fsave", "&Save", "ffile"), ("fedit", "&Edit", "fmm"), ("fcopy", "&Copy", "fedit")] {
+            item(id, cap);
+            set(id, "parent", &v_str(parent));
+        }
+        set("fsave", "enabled", &v_int(0));
+        create("listmenu", "RPOPUPMENU");
+        for (id, cap) in [("lcopy", "Copy"), ("ldel", "&Delete")] {
+            item(id, cap);
+            set(id, "parent", &v_str("listmenu"));
+        }
+        let roots = vec!["fmm".to_string(), "listmenu".to_string()];
+        let id = |p: &str| find_item(&roots, p).map(|f| (f.id, f.said));
+        assert_eq!(id("File > Open"), Ok(("fopen".into(), "File > Open...".into())));
+        assert_eq!(id("&file/open..."), Ok(("fopen".into(), "File > Open...".into())));
+        assert_eq!(id("New"), Ok(("fnew".into(), "File > New".into())));
+        assert_eq!(id("Recent > a.txt"), Ok(("fa".into(), "File > Recent > a.txt".into())));
+        assert_eq!(id("Delete").map(|f| f.0), Ok("ldel".into()));
+        assert_eq!(id("ListMenu > Copy").map(|f| f.0), Ok("lcopy".into()));
+        assert_eq!(id("Edit > Copy").map(|f| f.0), Ok("fcopy".into()));
+        assert_eq!(id("fnew").map(|f| f.0), Ok("fnew".into()), "by name");
+        let e = id("Copy").unwrap_err();
+        assert!(e.contains("names 2 menu items") && e.contains("Edit > Copy") && e.contains("pop-up menu listmenu"), "{e}");
+        let e = id("File > Save").unwrap_err();
+        assert!(e.contains("disabled"), "{e}");
+        let e = id("Recent").unwrap_err();
+        assert!(e.contains("submenu") && e.contains("a.txt"), "{e}");
+        let e = id("Print").unwrap_err();
+        assert!(e.contains("No menu item \"Print\"") && e.contains("main menu: File (…), Edit (…)") && e.contains("pop-up menu listmenu: Copy, Delete"), "{e}");
     }
 }

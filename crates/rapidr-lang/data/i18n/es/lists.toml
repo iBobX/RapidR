@@ -154,7 +154,7 @@
 "RLISTBOX.MINHEIGHT" = "La altura mínima del control, en píxeles; 0 para no tener límite. También `Constraints.MinHeight`."
 "RLISTBOX.MINWIDTH" = "El ancho mínimo del control, en píxeles, sea quien sea que lo cambie de tamaño (el programa, Align, Anchors, la persona); 0 para no tener límite. También `Constraints.MinWidth`."
 "RLISTBOX.MULTISELECT" = "Permite seleccionar más de un elemento o archivo."
-"RLISTBOX.ONCHANGE" = "Se produce cuando cambia el valor del control: el texto de un campo de edición, la selección de una lista, un árbol o una pestaña, la posición de una barra de desplazamiento o de un control deslizante, la fecha de un selector, el estado de un objeto multimedia."
+"RLISTBOX.ONCHANGE" = "La persona movió la selección a otro elemento: un clic en otro elemento, las flechas, Re Pág / Av Pág, Inicio o Fin; antes del OnClick de ese clic. Un clic en el elemento que ya estaba seleccionado dispara solo OnClick; el ItemIndex = n del propio programa no dispara nada."
 "RLISTBOX.ONCLICK" = "Se produce cuando la persona hace clic en el control (o presiona su atajo, o Space o Enter en un botón con el foco)."
 "RLISTBOX.ONDBLCLICK" = "Se produce cuando la persona hace doble clic en el control (en una superficie de diseño: el componente diseñado Index)."
 "RLISTBOX.ONDRAWITEM" = "Se produce por cada elemento de una lista o lista desplegable dibujada por el programa (Index: el elemento, State: seleccionado o con el foco, R: el rectángulo donde dibujarlo)."

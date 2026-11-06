@@ -432,9 +432,13 @@ pub fn rp_run(command: &Value) -> Value {
     }
 }
 
-/// SHELLWAIT — execute a command and wait, return exit code
+/// SHELLWAIT — execute a command and wait, return exit code. The program
+/// waits as RapidQ's does (none of its code runs until the command ends),
+/// its windows served meanwhile: a long command (a PHP page, a build) no
+/// longer leaves them "not responding" (crate::waiting).
 pub fn rp_shellwait(command: &Value) -> Value {
-    match shell_command("SHELLWAIT", &command.to_string_val()).status() {
+    let Ok(mut child) = shell_command("SHELLWAIT", &command.to_string_val()).spawn() else { return v_int(-1) };
+    match crate::waiting::child(&mut child) {
         Ok(status) => v_int(status.code().unwrap_or(-1) as i64),
         Err(_) => v_int(-1),
     }

@@ -60,7 +60,7 @@ export const cases = [
   // differ: blank); the search "cap"; the columns' line dragged 30 right.
   { name: "panel_inspector", events: "insp.__mousedown_200_237,insp.__mouseup_200_237,insp.__enter,insp.__key_68,insp.__key_69,insp.__key_70,insp.__mousedown_164_404,insp.__mouseup_164_404,insp.__mousedown_60_206,insp.__mouseup_60_206,insp.__mousedown_270_206,insp.__mouseup_270_206,insp.__key_40,insp.__key_40,insp.__key_13,insp.__key_65,insp.__key_78,insp.__key_67,insp.__key_39,insp.__key_40,insp.__key_32,insp.__mousedown_196_352,insp.__mouseup_196_352,insp.__key_67,insp.__key_85,insp.__key_46,insp.__mousedown_140_46,insp.__mouseup_140_46,insp.__dblclick_60_104,insp.__mousedown_285_104,insp.__mouseup_285_104,insp.__key_40,insp.__key_13,bform.onclick,breport.onclick,bboth.onclick,insp.__mousedown_40_46,insp.__mouseup_40_46,insp.__mousedown_100_76,insp.__mouseup_100_76,insp.__key_67,insp.__key_65,insp.__key_80,insp.__mousedown_150_126,insp.__mousemove_180_126,insp.__mouseup_180_126,breport.onclick",
     dump: "trace.caption",
-    expect: ["trace.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=18 OnClose= nw=148] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=178] | "] },
+    expect: ["trace.caption=sel Caption | change Caption=Renamed | sel Default | change Default=True | sel Cursor | change Cursor=crArrow | sel Align | sel Anchors | change Anchors=akLeft | change Anchors=akLeft + akRight | sel Caption | sel Cursor | change Cursor=crDefault | sel OnClick | dbl OnClick | change OnClick=Button1Click | [RForm caption=Inspector anchors=akLeft, akTop1 page=events filter= rows=19 OnClose= nw=148] | [RButton caption= anchors=0 page=properties filter=cap rows=2 Caption= nw=178] | "] },
   // RPROPERTYINSPECTOR following an RDESIGNSURFACE (its designer model):
   // Caption typed, NameEdit picked on the surface (the inspector follows),
   // its Hint typed, OkButton picked again, its top anchor pin turned off,
@@ -264,6 +264,25 @@ export const cases = [
   // the Preview button, then d65 p97 u65 (a letter) and d40 u40 (an arrow).
   { name: "list_keys", events: "lst.__key_65,lst.__key_40,pv.onclick,lst.__key_65,lst.__key_40", dump: "lk.caption",
     expect: ["lk.caption=| d65 p97 u65 d40 u40 "] },
+  // RListBox's OnChange (RapidR's own: RapidQ's QLISTBOX has none) when the
+  // user moves the selection — a click on another item as the arrows do
+  // (RAPIDR-ISSUES #9: the click didn't), each before OnClick; a click on
+  // the item already selected: OnClick only (and Up on the first item:
+  // nothing). Before: " click1 click2 click2 click0 click3".
+  { name: "list_onchange", events: "l.__item_1,l.__key_40,l.__item_2,l.__item_0,l.__key_38,l.__key_35", dump: "lk.caption,l.itemindex",
+    expect: ["lk.caption= change1 click1 change2 click2 click2 change0 click0 change3 click3", "l.itemindex=3"] },
+  // The mouse wheel (RAPIDR-ISSUES #17: it did nothing on a scroll bar or a
+  // painted list): over the RScrollBar, one notch down then up (three
+  // SmallChanges each), five down (Max, 10); over a label on the panel,
+  // two up: the panel's OnMouseWheel (Delta 2, the mouse in the panel),
+  // which moves the bar; over the form's open area: nothing.
+  { name: "wheel_scroll", events: "s.__wheel_8_70_1,s.__wheel_8_70_-1,s.__wheel_8_70_5,row1.__wheel_5_6_-2,f.__wheel_240_100_1", dump: "lk.caption,s.position",
+    expect: ["lk.caption= pos3 pos0 pos10 wheel2@9,10 pos8", "s.position=8"] },
+  // A classic program's QSCROLLBAR and the wheel: nothing moves, nothing
+  // fires — RC.EXE's own run (WM_MOUSEWHEEL sent and posted to each bar's
+  // window and to the form's: Position 5, no OnChange, no OnScroll).
+  { name: "wheel_scroll_classic", events: "sv.__wheel_8_90_1,sv.__wheel_8_90_-1,sh.__wheel_100_8_1,form.__wheel_150_100_1", dump: "lk.caption,sv.position,sh.position",
+    expect: ["lk.caption=-", "sv.position=5", "sh.position=5"] },
   { name: "list_columns", events: "lst.__item_4,cb.__item_2", dump: "lbl.caption,lbl2.caption,cb.itemindex",
     expect: ["lbl.caption=i4 a4 cols2", "lbl2.caption=c2 0-18/112 18-38/112 38-60/112", "cb.itemindex=2"] },
   // QLISTBOX scrolls to what the program picks (Windows' LB_SETCURSEL and

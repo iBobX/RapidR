@@ -49,8 +49,10 @@ pub use kernel::{
     // the front handed between RapidR Studio and its program)
     gui_serve_paused, gui_closed_while_paused, gui_debugger_stopped,
     gui_choice, gui_dialog_execute,
-    // (the I/O lane's: a method waiting for work done in the background)
-    gui_wait_task,
+    // (the I/O lane's: a method waiting for work done in the background;
+    // a builtin that blocks — SHELLWAIT, a socket's read — with the
+    // windows served meanwhile)
+    gui_wait_task, gui_serve_waiting, gui_waits_serve,
     // What only the host knows (`app_active`: the DirectX lane's).
     window_shown, form_window_exists, form_scale, menu_offset, is_modal, modal_result_closes, mouse_in_form, app_active,
     // Methods drawn by the host.

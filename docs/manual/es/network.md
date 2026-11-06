@@ -43,6 +43,38 @@ Un puerto es un número del 1 al 65 535; usa uno por encima de 1024 que ningún
 otro programa use. El puerto 0 deja que el sistema elija uno libre: después de
 `Start`, `Port` dice cuál.
 
+## RSocket: un cliente TCP
+
+`Connect(Host, Port)` abre una conexión y da su número de socket (también en
+`MySocket`; -1 cuando nada responde allí). Después, cada llamada nombra ese
+número: `Write(Sock, Text, Length)`, `WriteLine(Sock, Text)`, `Read(Sock,
+Bytes)`, `ReadLine(Sock)`, `ReadByte(Sock)`, `Peek(Sock, Bytes)`. RapidR añade
+tres miembros:
+
+| Miembro | |
+|---|---|
+| `Connected` | 1 mientras la conexión está abierta —o mientras queda por leer lo que envió el servidor—; 0 cuando cualquiera de los dos lados la cerró |
+| `Timeout` | en milisegundos: `Connect` se rinde después de ese tiempo, y cada `Read`, `ReadLine` o `ReadByte` espera como mucho eso (luego `""`). Sin él, esperan lo que haga falta, como los del `QSOCKET` clásico |
+| `Disconnect` | cierra la conexión: el servidor ve que su cliente se fue al instante |
+
+`IsServerReady(Sock)` dice si llegó algo, sin esperar: la manera de leer solo
+cuando hay algo para leer. Un `Read` que sí espera mantiene tus ventanas
+dibujándose mientras tanto (tu código espera allí, como antes).
+
+```basic
+DIM Client AS RSocket
+Client.Timeout = 2000                         ' 2 s como mucho en cada espera
+IF Client.Connect("127.0.0.1", 47120) >= 0 THEN
+    Client.WriteLine Client.MySocket, "hola"
+    PRINT Client.ReadLine(Client.MySocket)    ' "" si no llegó nada en 2 s
+    Client.Disconnect
+END IF
+```
+
+[socket_client.rr](../../../examples/network/socket_client.rr) tiene un cliente
+y un servidor en una ventana: conectar, enviar, desconectar, el servidor
+reiniciado en el mismo puerto, y `Connected` siguiendo todo.
+
 ## RServerSocket: un servidor TCP
 
 `RServerSocket` escucha en `Host:Port`, y le dice al programa lo que hacen sus
@@ -72,7 +104,9 @@ Origin), y RServerSocket escucha en todas las interfaces de red salvo que `Host 
 Para responder: `SendTo(Address, Data)` envía Data y un fin de línea,
 `Send(Address, Data)` (propio de RapidR) lo envía tal cual, `Broadcast(Data)` lo
 envía con un fin de línea a todos, `Disconnect(Address)` (propio de RapidR) cierra
-la conexión de ese cliente, `Stop` las cierra todas.
+la conexión de ese cliente, `Stop` las cierra todas. El puerto queda libre
+cuando `Stop` termina: un `Start` en el mismo puerto justo después funciona
+(también el de un RHttpServer y el de un RMcpServer).
 
 El [ejemplo del servidor de eco](../../../examples/network/echo_server.rr)
 responde por sí mismo a las solicitudes web con `Mode = "http"`: el cuerpo de

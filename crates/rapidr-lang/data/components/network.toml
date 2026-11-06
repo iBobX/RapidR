@@ -21,8 +21,8 @@ properties = [
   { name = "Host", type = "string", origin = "rapidr" },
   { name = "BindAddress", type = "string", default = "0.0.0.0", origin = "rapidr", only = "desktop", values = ["0.0.0.0", "127.0.0.1"], category = "Network", doc = "The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections)." },
   { name = "Port", type = "int", origin = "rapidr" },
-  { name = "Connected", type = "int", origin = "rapidr" },
-  { name = "Timeout", type = "int", origin = "rapidr" },
+  { name = "Connected", type = "int", origin = "rapidr", doc = "1 while the connection Connect opened is open, or what the server sent is still to be read; 0 once either side closed it (Disconnect, the server's Stop) or before any." },
+  { name = "Timeout", type = "int", origin = "rapidr", doc = "Milliseconds: Connect(Host, Port) gives up after it, and each Read, ReadLine or ReadByte waits at most so long (then gives \"\"). Without one the program set, they wait as long as it takes, as the classic QSOCKET's do. While they wait, the program's windows keep painting." },
   { name = "Type", type = "int" },
 ]
 methods = [
@@ -43,7 +43,7 @@ methods = [
   { name = "Write", params = "Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER", value = true },
   { name = "WriteByte", params = "Socket AS INTEGER, B AS BYTE" },
   { name = "WriteLine", params = "Socket AS INTEGER, Message AS STRING", returns = "VARIANT", value = true },
-  { name = "Disconnect", origin = "rapidr" },
+  { name = "Disconnect", origin = "rapidr", doc = "Closes the connection Connect opened: the server sees its client go at once, and Connected reads 0." },
   { name = "Send", origin = "rapidr", only = "web" },
   { name = "Receive", origin = "rapidr", only = "web" },
 ]

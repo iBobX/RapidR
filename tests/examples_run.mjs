@@ -176,6 +176,12 @@ export const cases = [
     expect: ["note.caption=The Videos page.", "pages.tabicons=image,audio,video,settings", "pages.tabindex=2"] },
   { file: "gui/tab_icons.rr", runtimes: ["run", "interp", "native", "web"], events: "widthbtn.onclick,pages.__mousedown_100_12,pages.__mouseup_100_12", dump: "form.width,pages.width,widthbtn.caption,note.caption",
     expect: ["form.width=220", "pages.width=188", "widthbtn.caption=&Wider", "note.caption=The Settings page."] },
+  // (RUNTIME-BUGS: the wheel over the painted rows — the card's OnMouseWheel,
+  // two notches down — and over the bar itself; a planet picked in the list
+  // by a click, then Down: its OnChange; "8 rows" checked from code, "5
+  // rows" off)
+  { file: "gui/wheel_list.rr", runtimes: ["run", "interp", "native", "web"], events: "card.__wheel_50_40_2,bar.__wheel_8_60_1,pick.__item_2,pick.__key_40", dump: "said.caption,bar.position,five.checked,rows(1).caption",
+    expect: ["said.caption=Picked: Mars", "bar.position=4", "five.checked=0", "rows(1).caption=5. Jupiter"] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
     dump: "laps.itemcount,state.caption,timelabel.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "timelabel.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
@@ -589,6 +595,14 @@ export const cases = [
   // Content-Length and chunked, each back whole; it ends after 3 requests
   { file: "network/echo_server.rr", runtimes: ["run", "interp", "native"], args: ["{port}", "3"], client: { mode: "echo" },
     expect: ["client: echo word 200 same", "client: echo 1 MB 200 same", "client: echo 1 MB chunked 200 same", "1048576 characters", "Served 3 requests."] },
+  // socket_client.rr (RUNTIME-BUGS #8, #13, #14): its own server on
+  // 127.0.0.1 (a free port) and an RSocket client — Connect (Connected 1),
+  // a line sent and its echo read once IsServerReady says so; the server
+  // restarted on the same port at once (its client cut off: Connected 0)
+  { file: "network/socket_client.rr", runtimes: ["run", "interp", "native"], events: "bconnect.onclick,form.__wait_300,bsend.onclick,form.__wait_500", dump: "answer.caption,status.caption",
+    expect: ["answer.caption=Got: echo: hello1", "clients:1 · client Connected:1"] },
+  { file: "network/socket_client.rr", runtimes: ["run", "interp", "native"], events: "bconnect.onclick,form.__wait_300,brestart.onclick,form.__wait_300", dump: "answer.caption,status.caption",
+    expect: ["answer.caption=The server stopped and started again on port", "clients:0 · client Connected:0"] },
   // local_api.rr: RHttpServer refusing what it must by itself (no or a
   // wrong token, another site's page, another host name, too large), its
   // answers, three Server-Sent Events

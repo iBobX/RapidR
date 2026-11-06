@@ -104,7 +104,7 @@ pub fn app_request(name: &str, input: &Json) -> Json {
     let mut req = serde_json::Map::new();
     req.insert("do".into(), json!(name.trim_start_matches("app_")));
     let get = |k: &str| input.get(k).or_else(|| input.as_object().and_then(|o| o.iter().find(|(x, _)| x.eq_ignore_ascii_case(k)).map(|(_, v)| v))).filter(|v| !v.is_null()).cloned();
-    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("tox", "to_x"), ("to_y", "to_y"), ("toy", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy"), ("scale", "scale"), ("frame", "frame"), ("cursor", "cursor")] {
+    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("tox", "to_x"), ("to_y", "to_y"), ("toy", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy"), ("scale", "scale"), ("frame", "frame"), ("cursor", "cursor"), ("menu", "menu")] {
         if req.contains_key(to) {
             continue;
         }

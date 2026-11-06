@@ -194,6 +194,18 @@ el programa que ejecutas y usarlo, con estos mismos ojos y manos:
 | `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Hace clic y escribe en él: ves cómo lo hace el puntero | cuenta como ejecutarlo |
 | `app_wait` | Deja que trabaje por su cuenta un momento | siempre |
 
+**Menús.** `app_layout` enumera los elementos de menú de cada ventana tal como
+los lee una persona —`File > Open`, el `Double` de un menú emergente— y
+`app_click` con `menu` elige uno, de cualquier menú, también de un menú
+emergente, sin abrirlo: `{"menu": "File > Open"}`, o `{"menu": "CalcMenu >
+Double"}` para un menú emergente por su nombre. El programa lo recibe como la
+elección de la persona (primero el `OnPopup` de un menú emergente, luego el
+`OnClick` del elemento). Un elemento deshabilitado se rechaza diciendo por qué;
+un nombre que no está recibe los menús que hay. Un clic derecho que hace la IA
+abre el menú emergente que RapidR dibuja en la ventana —visible en sus
+imágenes, elegido de la misma manera— en lugar del del sistema, que no podía
+ni ver ni usar.
+
 <!-- legal -->
 Para las aplicaciones de IA decide el menú de permisos: **Solo lectura** no les
 deja ni mirar ni usar el programa; **Preguntar antes de cambiar** y **Permitir

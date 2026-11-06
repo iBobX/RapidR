@@ -74,6 +74,9 @@ pub enum ScriptInput {
     /// `comp.__rightclick_x_y`: the right button pressed and released at
     /// (x, y) in the component.
     RightClick { comp: String, x: i64, y: i64 },
+    /// `comp.__wheel_x_y_n`: the mouse wheel turned n notches (down
+    /// positive) with the mouse at (x, y) in the component.
+    Wheel { comp: String, x: i64, y: i64, notches: i64 },
     /// `comp.__cursor_x_y` in `RAPIDR_TEST_DUMP`: the mouse moved to (x, y)
     /// in the component, and the pointer there noted (its CSS name:
     /// `col-resize`, `text` …; `desktop::take_probe`).

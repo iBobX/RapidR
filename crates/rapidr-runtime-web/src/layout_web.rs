@@ -262,6 +262,16 @@ pub fn after_set(name: &str, prop: &str) {
     }
 }
 
+/// `name` moved to another parent (`old` the one it had): the old one laid
+/// out again and its scroll bars follow (`engine::parent_left`, the
+/// desktop's `layout::parent_left`).
+pub fn parent_left(name: &str, old: &str) {
+    if is_quiet() {
+        return;
+    }
+    engine::parent_left(&mut Rt, &name.to_uppercase(), old);
+}
+
 fn controls_of(parent: &str) -> (Vec<String>, Vec<Control>) {
     engine::controls_of(&Rt, &parent.to_uppercase())
 }

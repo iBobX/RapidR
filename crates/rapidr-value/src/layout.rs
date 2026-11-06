@@ -902,6 +902,23 @@ pub mod engine {
         let parent = s.parent_of(name);
         s.scroll_update(&parent);
     }
+
+    /// `name` moved to another parent (its Parent set; `old` the one it
+    /// had): the parent it left is laid out again — its aligned
+    /// components close the gap — and its scroll bars follow what's left
+    /// in it (RUNTIME-BUGS 2026-11-05: they kept the room of a component
+    /// that had gone). The new parent's side is [`after_set`]'s.
+    pub fn parent_left<S: LayoutStore + ?Sized>(s: &mut S, name: &str, old: &str) {
+        let old = old.trim();
+        if old.is_empty() || old.eq_ignore_ascii_case(&s.parent_of(name)) {
+            return;
+        }
+        let old = s.key(old);
+        if s.has_aligned(&old) {
+            realign(s, &old, None);
+        }
+        s.scroll_update(&old);
+    }
 }
 
 #[cfg(test)]
