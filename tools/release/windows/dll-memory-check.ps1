@@ -135,6 +135,9 @@ if ($Corpus -or $CorpusOnly) {
     elseif (-not (Test-Path $py)) { Write-Host "no python.exe: the corpus skipped" }
     else {
         Write-Host "== RapidQ's DLL examples, interpreted, this build and -Old's (tools/dll_breadth.py)"
+        # (its lines name programs and messages with characters the console's code page
+        # hasn't: printed as UTF-8, or Python stops at the first one)
+        $env:PYTHONIOENCODING = "utf-8"
         # (names of their own: dll_breadth.py ends a program that hangs by its image name)
         Copy-Item -Force "$src\rapidr.exe" "$W\rapidr-dllmem-new.exe"
         if (Test-Path "$W\rapidr-old.exe") { Copy-Item -Force "$W\rapidr-old.exe" "$W\rapidr-dllmem-old.exe" }
