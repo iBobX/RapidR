@@ -502,5 +502,7 @@ END SUB
 SUB SetUpBuild
   Proj.OnBuildOutput = BuildOutput
   Proj.OnBuildDone = BuildDone
+  ' (the outline and the problems once typing pauses: documents.inc)
+  Lang.OnAnalyzed = LangAnalyzed
 END SUB
 

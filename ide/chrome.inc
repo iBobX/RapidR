@@ -369,6 +369,9 @@ END SUB
 ' the status bar, the debugger's, and the dialogs' whether they are open or
 ' not — so nothing keeps the look it had.
 SUB StudioThemeChanged
+  ' (the outline's icons drawn again in the new look)
+  OutlineShownDoc = -1
+  QuickShownKey = ""
   ApplyChrome
   ' (the cards' titles are AutoSize: their fonts set again shrank them to
   ' their text — laid out again, as at the start)

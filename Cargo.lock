@@ -5856,6 +5856,7 @@ dependencies = [
  "fearless_simd",
  "glifo",
  "parley",
+ "rapidr-editor",
  "rapidr-langsvc",
  "rapidr-ui-kernel",
  "rapidr-value",

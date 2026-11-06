@@ -83,7 +83,7 @@ pub(crate) fn signature(s: &Snapshot, file: &Path, text: &str, offset: usize) ->
         let scope = s.model.scope_at(pre);
         match s.model.lookup(name, scope).map(|id| &s.model.symbols[id]) {
             Some(sym) if matches!(sym.kind, SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) => {
-                let st = context::routine_statement(&s.parsed.program, &sym.name)?;
+                let st = s.parsed.routine(&sym.name)?;
                 let (label, params) = routine_label(st);
                 Signature { label, params, doc: None }
             }

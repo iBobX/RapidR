@@ -5,6 +5,14 @@
 
 DIM OutlineLine(400) AS INTEGER
 DIM OutlineCount AS INTEGER
+' (the outline shown: its document and its text — the same again after a
+' pause, nothing is done: FillOutline)
+DIM OutlineShownDoc AS INTEGER
+DIM OutlineShownText AS STRING
+' (SymbolIcons' icons by name, each added once a fill: SymbolIcon)
+DIM SymbolIconName(80) AS STRING
+DIM SymbolIconAt(80) AS INTEGER
+DIM SymbolIconKeys AS INTEGER
 
 ' (a path's file name)
 FUNCTION FileTitle(Path AS STRING) AS STRING
@@ -47,6 +55,25 @@ END FUNCTION
 
 ' ---- the outline (RLanguageService) ------------------------------------------------
 
+' (an icon of SymbolIcons by its name: added once a fill — a big file's
+' thousands of items share a few, each drawn once, not once an item)
+FUNCTION SymbolIcon(Name AS STRING) AS INTEGER
+  DIM i AS INTEGER
+  FOR i = 0 TO SymbolIconKeys - 1
+    IF SymbolIconName(i) = Name THEN
+      Result = SymbolIconAt(i)
+      EXIT FUNCTION
+    END IF
+  NEXT
+  SymbolIcons.AddIcon Name
+  Result = SymbolIcons.Count - 1
+  IF SymbolIconKeys <= 80 THEN
+    SymbolIconName(SymbolIconKeys) = Name
+    SymbolIconAt(SymbolIconKeys) = Result
+    SymbolIconKeys = SymbolIconKeys + 1
+  END IF
+END FUNCTION
+
 ' (an outline kind's icon in SymbolIcons)
 FUNCTION OutlineIcon(Kind AS STRING, Detail AS STRING) AS INTEGER
   DIM t AS STRING
@@ -54,13 +81,11 @@ FUNCTION OutlineIcon(Kind AS STRING, Detail AS STRING) AS INTEGER
     t = UCASE$(Detail)
     IF INSTR(t, " ") > 0 THEN t = MID$(t, RINSTR(t, " ") + 1)
     IF t <> "" THEN
-      SymbolIcons.AddIcon t
-      Result = SymbolIcons.Count - 1
+      Result = SymbolIcon(t)
       EXIT FUNCTION
     END IF
   END IF
-  SymbolIcons.AddIcon "symbols/" + Kind
-  Result = SymbolIcons.Count - 1
+  Result = SymbolIcon("symbols/" + Kind)
 END FUNCTION
 
 SUB FillOutline(d AS INTEGER)
@@ -68,11 +93,20 @@ SUB FillOutline(d AS INTEGER)
   DIM depth AS INTEGER, kind AS STRING, nm AS STRING, detail AS STRING, ln AS INTEGER, img AS INTEGER
   DIM rowAt AS INTEGER, rowEnd AS INTEGER
   DIM parentNode(20) AS INTEGER
+  IF d >= 0 THEN
+    text = Lang.Outline(DocFile(d))
+    ' (the outline shown already — typing inside a SUB, a letter typed and
+    ' taken back —: nothing to do; a big file's thousands of items aren't
+    ' added again after every pause, and what was folded stays folded)
+    IF d = OutlineShownDoc AND text = OutlineShownText AND OutlineTree.ItemCount = OutlineCount THEN EXIT SUB
+  END IF
   OutlineTree.Clear
   SymbolIcons.Clear
+  SymbolIconKeys = 0
   OutlineCount = 0
+  OutlineShownDoc = -1
+  OutlineShownText = ""
   IF d < 0 THEN EXIT SUB
-  text = Lang.Outline(DocFile(d))
   n = TALLY(text, CHR$(10))
   ' (each row where the last one ended: FIELD$ for row i looked through
   ' every row before it — a big include's thousands of rows took seconds)
@@ -101,6 +135,8 @@ SUB FillOutline(d AS INTEGER)
   NEXT
   OutlineCount = OutlineTree.ItemCount
   OutlineTree.FullExpand
+  OutlineShownDoc = d
+  OutlineShownText = text
 END SUB
 
 ' ---- problems (RLanguageService's diagnostics: the compiler's messages) ----------
@@ -439,9 +475,37 @@ SUB CodeChanged(Sender AS RCodeEditor)
   Analyzer.Enabled = 1
 END SUB
 
+' Typing paused: the active document's analysis is asked for — made off the
+' UI thread (RLanguageService's Analyze) — and the panes follow when it's in
+' (LangAnalyzed): a key typed meanwhile never waits for it.
 SUB AnalyzerTick
+  DIM d AS INTEGER
   Analyzer.Enabled = 0
+  d = ActiveCode
+  IF d >= 0 THEN
+    IF IsBasicFile(DocFile(d)) THEN
+      Lang.Update DocFile(d), CodeDoc(d).Text
+      Lang.Analyze DocFile(d)
+      ' (S-PANELS: the project tree lists the form's components as the code has them)
+      ProjectFileChanged d
+      EXIT SUB
+    END IF
+  END IF
   AnalyzeActive
-  ' (S-PANELS: the project tree lists the form's components as the code has them)
   ProjectFileChanged ActiveCode
+END SUB
+
+' The analysis Analyze asked for is in: the active document's outline,
+' problems and the rest, at once — unless it was typed in since (the next
+' pause asks again) or another document is active now.
+SUB LangAnalyzed(File AS STRING)
+  DIM d AS INTEGER
+  d = ActiveCode
+  IF d < 0 THEN EXIT SUB
+  IF LCASE$(REPLACESUBSTR$(DocFile(d), "\", "/")) <> LCASE$(File) THEN EXIT SUB
+  ' (typed since: CodeChanged started the Analyzer again — it asks then;
+  ' else the text is the one Analyze was given, and the answers are in)
+  IF Analyzer.Enabled THEN EXIT SUB
+  IF Lang.Ready(DocFile(d)) = 0 THEN EXIT SUB
+  AnalyzeActive
 END SUB

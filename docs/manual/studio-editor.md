@@ -258,6 +258,16 @@ line and column, then the message. A screen reader hears the heading as
 "ui.rr, 1 error". The list opens at its top; when Studio checks the code
 again while you read, it stays where you scrolled.
 
+Typing never waits for the check. Studio checks the program away from the
+editor (on a thread of its own; in the browser, a little at a time between
+frames) and shows the problems, the colours of your program's names and the
+Outline when the check is done, a moment after you stop. However big the
+program, and with RapidR's or RapidQ's big include files, a key you press
+is handled at once. When several files change at once (RAI's changes
+applied, Save All, files changed outside Studio), every open file is checked
+again once they settle: none keeps a problem or a colour from a moment the
+program has left.
+
 ![Problems: ui.rr with a form's icon and 1 in a pill, its error at 17:5 under it; then globals.rr with 1, its note at 3:12: RServerSocket works on the desktop only: the web runtime doesn't have it (3 uses)](images/studio-editor/problems-grouped.png)
 
 Notes about what works on one runtime only (the desktop, or the web) appear
@@ -304,6 +314,33 @@ underlines it, and the fix writes the test that works,
 `IF FILEEXISTS(f) = 0 THEN` (DIREXISTS the same):
 
 ![IF NOT FILEEXISTS("notes.txt") is underlined; Ctrl+. offers Write FILEEXISTS("notes.txt") = 0](images/studio-editor/not-fileexists.png)
+
+### In your own programs: RLanguageService
+
+The check Studio runs is a component your programs can use too:
+**RLanguageService**. Give it the text with `Update`, start its check with
+`Analyze`, and it answers with `OnAnalyzed` when it's done. Your program
+goes on meanwhile, so typing in your own editor never waits either. Then
+`Outline`, `Diagnostics` and `ProjectDiagnostics` answer at once, and
+`Ready` says whether they still do (the text didn't change since):
+
+```basic
+DIM Lang AS RLanguageService
+Lang.OnAnalyzed = Analyzed
+Lang.Update "sample.rr", Code.Text
+Lang.Analyze "sample.rr"
+
+SUB Analyzed(File AS STRING)
+    IF Lang.Ready("sample.rr") = 0 THEN EXIT SUB   ' typed again since
+    PRINT Lang.Outline("sample.rr")
+END SUB
+```
+
+[examples/studio/language_service.rr](../../examples/studio/language_service.rr)
+is a whole window: a code editor, its outline beside it and how many errors
+it has, which follow the code a moment after you stop typing.
+
+![language_service.rr: a code editor with SUB Greet and FUNCTION Twice; beside it the list shows sub Greet (line 1) and function Twice (line 5), and under it: No errors.](images/studio-editor/language-service.png)
 
 ## Typing help
 

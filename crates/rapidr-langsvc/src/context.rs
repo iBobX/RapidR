@@ -396,6 +396,7 @@ pub(crate) fn pretty_component(upper: &str) -> String {
 
 /// The routine statement a SUB / FUNCTION symbol was declared by (params,
 /// return type), searched in the program and its TYPEs.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn routine_statement<'p>(program: &'p Program, name: &str) -> Option<&'p Statement> {
     fn find<'p>(statements: &'p [Statement], key: &str) -> Option<&'p Statement> {
         for st in statements {
@@ -453,6 +454,23 @@ mod tests {
         }
         let t = "x = äb";
         assert_eq!(line_context(t, t.len()).place, Place::Code { statement_start: false });
+    }
+
+    /// `Parsed::routine` (an index made once) finds what the linear search
+    /// finds, for every name: the first SUB, FUNCTION, library DECLARE or
+    /// TYPE method of that name, suffixes and case aside — and nothing for
+    /// a DECLARE without a library or a variable.
+    #[test]
+    fn the_routine_index_finds_what_the_search_finds() {
+        let src = "DECLARE SUB Later(x AS INTEGER)\nDECLARE FUNCTION Beep LIB \"kernel32\" ALIAS \"Beep\" (f AS LONG, d AS LONG) AS LONG\nTYPE Point\n    X AS INTEGER\n    SUB Move(dx AS INTEGER)\n        X = X + dx\n    END SUB\nEND TYPE\nDIM Total AS INTEGER\nSUB Later(x AS INTEGER)\n    Total = x\nEND SUB\nFUNCTION Name$(n AS INTEGER) AS STRING\n    Result = STR$(n)\nEND FUNCTION\nSUB later2\nEND SUB\n";
+        let parsed = crate::front::parse(std::path::Path::new("/w/routines.rr"), src, &Default::default(), &[]);
+        for name in ["Later", "LATER", "later2", "Beep", "Name", "Name$", "name$", "Move", "Point", "Total", "X", "Nope", ""] {
+            let linear = routine_statement(&parsed.program, name).map(|s| format!("{s:?}"));
+            let indexed = parsed.routine(name).map(|s| format!("{s:?}"));
+            assert_eq!(indexed, linear, "{name}");
+        }
+        assert!(parsed.routine("Move").is_some() && parsed.routine("Beep").is_some() && parsed.routine("Later").is_some());
+        assert!(parsed.routine("Total").is_none());
     }
 
     #[test]

@@ -266,8 +266,16 @@ impl Palette {
         self.keep_active();
     }
 
-    /// The highlight still on a row that can run (after a change).
+    /// The highlight still on a row that can run (after a change). Hidden,
+    /// nothing shows it and Show starts it again (`open`): the list isn't
+    /// matched again for each command a program adds or removes — RapidR
+    /// Studio's Quick Open adds and removes hundreds after each pause in
+    /// typing, each match a sort of the whole list (docs/speed-audit-
+    /// 2026-11.md, "Studio: the edit pause").
     fn keep_active(&mut self) {
+        if !self.shown {
+            return;
+        }
         let found = self.matches();
         match self.active {
             Some(a) if a < found.len() && self.commands[found[a].index].enabled => {}
@@ -388,8 +396,15 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             let on = with_mut(name, |p| {
                 let i = p.index_of(&id)?;
                 if let Some(v) = args.get(1) {
-                    p.commands[i].enabled = truth(v);
-                    p.keep_active();
+                    // (only a change moves the highlight: RapidR Studio sets
+                    // every command's state after each pause in typing, and
+                    // matching the list again for each was most of that —
+                    // docs/speed-audit-2026-11.md, "Studio: the edit pause")
+                    let on = truth(v);
+                    if p.commands[i].enabled != on {
+                        p.commands[i].enabled = on;
+                        p.keep_active();
+                    }
                 }
                 Some(p.commands[i].enabled)
             });

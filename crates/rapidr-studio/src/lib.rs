@@ -221,7 +221,9 @@ pub fn call<H: Host>(host: H, type_name: &str, name: &str, method: &str, args: &
 pub fn poll<H: Host>(host: H) -> bool {
     let sessions = session::poll(host);
     let builds = build::poll(host, project::set_built);
-    sessions || builds
+    // (RLanguageService's Analyze: OnAnalyzed when its work is in)
+    let analyses = langsvc::poll(host);
+    sessions || builds || analyses
 }
 
 // ---- helpers ---------------------------------------------------------------

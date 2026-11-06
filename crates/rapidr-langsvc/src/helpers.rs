@@ -448,7 +448,7 @@ impl Walk<'_> {
         let scope = self.s.model.scope_at(0);
         if let Some(sym) = self.s.model.lookup(name, scope).map(|id| &self.s.model.symbols[id]) {
             if matches!(sym.kind, SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) {
-                let st = context::routine_statement(&self.s.parsed.program, &sym.name)?;
+                let st = self.s.parsed.routine(&sym.name)?;
                 let names = match st {
                     Statement::Subroutine(s) => s.params.iter().map(|p| p.name.clone()).collect(),
                     Statement::Function(f) => f.params.iter().map(|p| p.name.clone()).collect(),

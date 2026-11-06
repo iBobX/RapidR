@@ -5962,6 +5962,12 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | `HelpFind(Query AS STRING, [File AS STRING]) AS STRING` | The names Query may mean, best first, a line each — the name, what it is, separated by tabs: the program's own names (File's program: your variable, your SUB …) and the language's (components under RapidR's names, the classic names finding them too; functions, statements, keywords, types, directives, global objects and, from two letters on, constants). A name that starts with Query comes before one that has it inside; when none does, the names it is close to. At most 12. |
 | `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
 | `ProjectDiagnostics AS STRING` | The open project's problems (Project: its main file), as RapidR Studio's Problems pane lists them: the program compiled whole, as a build compiles it (a module is never checked alone), the registry's word on the project's own files, and what works on one runtime only — when Targets reach the other — once per component or builtin with how many uses. Grouped by file, the files with errors first; in a file errors, then warnings, then notes. The same fields as Diagnostics, a line each; "" with no project. |
+| `Analyze(File AS STRING)` | Starts the analysis of the file for the texts given so far — its outline, its diagnostics and the project's — away from the program's own work (a thread of its own; on the web, a step between frames), and returns at once: typing never waits for it. OnAnalyzed(File) comes when it is done; Outline, Diagnostics and ProjectDiagnostics then answer at once. An Update meanwhile: the analysis is made for the new text, and OnAnalyzed comes for that. |
+| `Ready(File AS STRING) AS INTEGER` | True when Outline, Diagnostics and ProjectDiagnostics of the file answer at once: the analysis is made for the texts as they are now (after OnAnalyzed, until the next Update that changes a text). |
+
+| Event | |
+|---|---|
+| `OnAnalyzed(File AS STRING)` | The analysis Analyze started is done, for the texts as they are: Outline, Diagnostics and ProjectDiagnostics of File answer at once. File has / between its folders. |
 
 <a id="rprogramsession"></a>
 ## RProgramSession

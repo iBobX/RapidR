@@ -27,6 +27,9 @@ use crate::tick::{now, Instant};
 
 /// Diagnostics this long after the last keystroke.
 pub const DIAGNOSE_AFTER: Duration = Duration::from_millis(350);
+/// While the service analyses in the background, looked at this often
+/// (about a frame: the editor never waits for it).
+pub const ANALYSIS_POLL: Duration = Duration::from_millis(8);
 /// A hover this long after the mouse stops.
 pub const HOVER_AFTER: Duration = Duration::from_millis(500);
 /// Files bigger than this get no language service (as large-file modes).
@@ -56,6 +59,8 @@ fn sync(x: &mut Ctx) -> bool {
 /// diagnostics' timer, completion, signature help, keyword case.
 pub fn after_edit(x: &mut Ctx, typed: Option<char>) {
     x.ui.service.diagnose_at = Some(now() + DIAGNOSE_AFTER);
+    // (asked again once typing pauses: not before)
+    x.c.service_gen = None;
     x.c.hover = None;
     let Some(ch) = typed else {
         x.c.completion = None;
@@ -291,14 +296,58 @@ pub fn hover(x: &mut Ctx, at: usize) {
     x.c.hover = (!text.trim().is_empty()).then_some(HoverInfo { text, start: range.start, end: range.end });
 }
 
-/// Diagnostics and semantic colours from the service, now.
+/// Typing paused (or a text came from outside): the file's analysis asked
+/// of the service — in the background where it has one — and its problems,
+/// colours and helpers shown once they're made for the text as it is
+/// ([`take_analysis`]). The service busy (asked from inside one of its own
+/// answers): asked again in a moment, never dropped.
 pub fn diagnose(x: &mut Ctx) {
     x.ui.service.diagnose_at = None;
+    x.ui.service.analysis_at = None;
     if !sync(x) {
         return;
     }
     let file = x.file();
-    let diags = service::with(|s| s.diagnostics(&file)).unwrap_or_default();
+    match service::with(|s| {
+        s.analyze(&file);
+        s.analyzed(&file)
+    }) {
+        Some(true) => take_analysis(x),
+        Some(false) => x.ui.service.analysis_at = Some(now() + ANALYSIS_POLL),
+        None => x.ui.service.diagnose_at = Some(now() + ANALYSIS_POLL),
+    }
+}
+
+/// Whether the problems and colours shown were made for texts the service
+/// has since left (another file of the program changed): the view's
+/// `pending`, which ticks it (lang::tick asks again).
+pub fn outdated(c: &rapidr_value::objects::codeedit::CodeEditor) -> bool {
+    c.service_gen.is_some_and(|shown| service::with(|s| s.generation()).is_some_and(|now| now != shown))
+}
+
+/// The analysis asked for, looked at: taken in when made for the text as it
+/// is, else looked at again in a moment.
+fn look_at_analysis(x: &mut Ctx, at: Instant) {
+    x.ui.service.analysis_at = None;
+    // (typed since: the diagnostics' timer is on again, and asks then)
+    if x.ui.service.diagnose_at.is_some() || !sync(x) {
+        return;
+    }
+    let file = x.file();
+    match service::with(|s| s.analyzed(&file)) {
+        Some(true) => take_analysis(x),
+        _ => x.ui.service.analysis_at = Some(at + ANALYSIS_POLL),
+    }
+}
+
+/// The file's problems, semantic colours and helpers from the service's
+/// analysis (made: they answer at once).
+fn take_analysis(x: &mut Ctx) {
+    let file = x.file();
+    let Some((generation, diags, tokens)) = service::with(|s| (s.generation(), s.diagnostics(&file), s.semantic_tokens(&file))) else {
+        x.ui.service.diagnose_at = Some(now() + ANALYSIS_POLL);
+        return;
+    };
     let same = |f: &str| f == file || std::path::Path::new(f).file_name() == std::path::Path::new(&file).file_name() && f.ends_with(&file);
     let mine: Vec<Diagnostic> = diags
         .into_iter()
@@ -307,7 +356,6 @@ pub fn diagnose(x: &mut Ctx) {
         .collect();
     let before = x.c.line_severity_summary();
     x.c.set_service_diagnostics(mine);
-    let tokens = service::with(|s| s.semantic_tokens(&file)).unwrap_or_default();
     x.c.semantic = tokens.into_iter().map(|t| rapidr_value::objects::codeedit::SemanticSpan { start: t.start, end: t.end, kind: t.kind }).collect();
     // (the code's helpers, from the same analysis: docs/code-helpers-plan.md)
     super::helpers::fetch(x);
@@ -315,6 +363,7 @@ pub fn diagnose(x: &mut Ctx) {
     if x.c.line_severity_summary() != before {
         super::access::announce_line_problems(x);
     }
+    x.c.service_gen = Some(generation);
 }
 
 /// Ctrl+. (Cmd+.) on a helper's value: its value editor; elsewhere the
@@ -454,6 +503,15 @@ pub fn tick(x: &mut Ctx, at: Instant) {
     }
     if x.ui.service.diagnose_at.is_some_and(|t| t <= at) {
         diagnose(x);
+    }
+    if x.ui.service.analysis_at.is_some_and(|t| t <= at) {
+        look_at_analysis(x, at);
+    }
+    // (made for texts the service has since left — another file of the
+    // program changed —: asked again once things settle)
+    if outdated(x.c) && x.ui.service.diagnose_at.is_none() && x.ui.service.analysis_at.is_none() {
+        x.c.service_gen = None;
+        x.ui.service.diagnose_at = Some(at + DIAGNOSE_AFTER);
     }
     if let Some((t, pos)) = x.ui.service.hover_at {
         if t <= at {

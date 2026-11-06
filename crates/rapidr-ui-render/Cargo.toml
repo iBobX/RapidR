@@ -42,3 +42,5 @@ vello = { version = "0.11", optional = true }
 [dev-dependencies]
 # (the code editor benchmark's --service: RapidR's language service answering)
 rapidr-langsvc = { workspace = true }
+# (tests/edit_pause.rs: the service's version, as the editor reads it)
+rapidr-editor = { workspace = true }

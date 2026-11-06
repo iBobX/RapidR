@@ -433,9 +433,15 @@ fn header_paint<P: Program>(p: P, name: &str) {
 /// for the selected one, when what the tree shows changed.
 fn tree_ask_images<P: Program>(p: P, name: &str) {
     let ask = |e: &str| p.has_handler(name, e);
+    // (no handler to ask: nothing to hash — a tree of thousands of nodes,
+    // RapidR Studio's Outline of a big include, was hashed at every turn of
+    // the loop for nothing)
+    if !(ask("ongetimageindex") || ask("ongetselectedindex")) {
+        return;
+    }
     let key = name.to_lowercase();
     let Some(view) = rapidr_value::objects::with_tree(name, |m| m.view_hash()) else { return };
-    if !(ask("ongetimageindex") || ask("ongetselectedindex")) || TREES_ASKED.with(|a| a.borrow().get(&key) == Some(&view)) {
+    if TREES_ASKED.with(|a| a.borrow().get(&key) == Some(&view)) {
         return;
     }
     if !TREES_ASKING.with(|a| a.borrow_mut().insert(key.clone())) {

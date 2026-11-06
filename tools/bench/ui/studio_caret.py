@@ -6,6 +6,8 @@ a scenario; what it costs is the run's CPU and wall time against the same
 run without the scenario (the baseline: Studio's start and the file's open).
 
   moves   N caret moves (the Down arrow)
+  typing  N letters typed, one after the other (a word typed, a space,
+          as at the script's pace), then a pause of 1.5 s
   edits   N rounds of: a letter typed and taken back, a pause of 1.5 s
           (Studio's idle work after an edit), a caret move
 
@@ -112,7 +114,7 @@ def main():
         sys.exit(__doc__)
     file = os.path.abspath(a[0])
     rest = [x for x in a[1:] if not x.startswith("--")]
-    kind = rest[0] if rest and rest[0] in ("moves", "edits") else "moves"
+    kind = rest[0] if rest and rest[0] in ("moves", "edits", "typing") else "moves"
     n = int(rest[1]) if len(rest) > 1 else (40 if kind == "moves" else 4)
     wait = int(a[a.index("--wait") + 1]) if "--wait" in a else 6000
     sample = None
@@ -124,6 +126,11 @@ def main():
     LEAD_EVENTS = lead.count(",") + 1
     if kind == "moves":
         play = ",".join(["codedoc(0).__key_40"] * n)
+    elif kind == "typing":
+        # (letters, a space after every fifth: words, completion opening and
+        # narrowing as a person's typing makes it)
+        keys = ["codedoc(0).__key_32" if i % 6 == 5 else "codedoc(0).__key_" + str(65 + i % 26) for i in range(n)]
+        play = ",".join(keys) + ",studio.__wait_1500"
     else:
         play = ",".join(["codedoc(0).__key_88,codedoc(0).__key_8,studio.__wait_1500,codedoc(0).__key_40"] * n)
     w0, c0, l0, (_, u0) = run(file, lead)
