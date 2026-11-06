@@ -354,12 +354,30 @@ back end): `RAPIDR_JIT=on` or `always` interprets, and `--verbose` says so.
   and runs on XP), a lawyer check, and certificate roots of its own (XP's are out of date). A local
   model over `http://127.0.0.1` needs none of that, and works today wherever such a server runs.
 
+### The build matrix
+
+`tools/release/build-matrix.sh 2.122.1 --only winxp-real,win7real --shots`, with this branch's zips
+(`tools/win7/alpha.sh`, then `tools/winxp/zip.sh`): **all green**. Windows XP SP3 (real, UTM VM): run,
+Build (interp), the built programs and Studio ok, 1:45; Windows 7 (real, UTM VM): the same, 8:37.
+Native builds n/a on both (no Rust for 32-bit Windows). Logs, the table and the pictures:
+`lane-evidence/winxp-recheck/matrix/`.
+
 ### The isolation, again
 
-The XP flavour's commits change only `tools/winxp/` (and this document, the manual). See §7's method:
-the Windows 7 programs built with the XP files present and with them set aside, at the same commit
-(the commit is pinned with `RAPIDR_COMMIT`: `crates/rapidr-crash/build.rs` writes it into every
-program), give the same bytes; the macOS, Linux and web builds do not read `tools/winxp/` at all. The
+The XP flavour's commits change only `tools/winxp/` (and this document, the manual). The Windows 7
+programs were built twice at the same commit (pinned with `RAPIDR_COMMIT=isolation-check`:
+`crates/rapidr-crash/build.rs` writes the commit into every program, so a new commit alone changes the
+bytes): once with `tools/winxp/` in the tree, once with it moved out of the tree altogether. The same
+bytes (`lane-evidence/winxp-recheck/isolation.txt`):
+
+```
+rapidr.exe              60fafd53da5081ea684abf8b4be2398e10daa03607224e1d2d09051a577c4cfa   (both)
+rapidrintr-runner.exe   c3cff1bb70737e79fe7fe807b04116b4cb0c1ed18f8c16a5927beb2657b22b73   (both)
+rapidrintr-runnerw.exe  58c459738de86cc2e89f420dc9ec18cfa6bd1318214e0556ae4a72f9dc1354e6   (both)
+```
+
+The macOS, Linux and web builds do not read `tools/winxp/` at all (only `tools/winxp/` itself,
+`tools/release/winxp-vm.sh` and the build matrix's XP row name it). The
 shared commits change, on every system: Studio's Build menu and Project Options on 32-bit Windows only
 (64-bit unchanged); the Chinese-font note's condition and texts; `RSystemInfo.OSVersion` before
 Windows 10; the font list only where a computer has no system fonts (byte-identical on macOS); a
