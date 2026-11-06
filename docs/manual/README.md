@@ -42,6 +42,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | Chapter | What's in it |
 |---|---|
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidR's BASIC differs from other BASICs |
+| [Big numbers](big-numbers.md) | `INT64`, `UINT64` and `UINT32` that keep every digit everywhere (a `VARIANT`, files, JSON, databases, the debugger), exact `FOR` / `SELECT CASE` / `INPUT` / `FORMAT$`, and the bit functions `LOWORD`, `HIWORD`, `LOBYTE`, `HIBYTE`, `GETBITS`, `SETBITS` |
 | [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es`, captions that follow a change of language, `Application.Languages` and `LanguageName`, the tools (`rapidr i18n`) and the pseudo-language |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the classic names; the global objects; themes, high-DPI and accessibility |
 | [Drawing: canvases, bitmaps and pixels](graphics.md) | `RCanvas`, `RBitmap` and `RImage` draw the same way; **drawing many pixels fast**: `SetPixels`, `SetPixels8` and `GetPixels` put a whole picture in or out of an array in one call (a 256 x 192 screen in about a tenth of a millisecond, not 70), `StretchDraw x, y, w, h` and `Smooth`, a picture every 20 ms on an `RTimer` |

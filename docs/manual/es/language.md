@@ -53,6 +53,7 @@ una terminal.
 | `DWORD` | `???` | 32 bits (con signo) |
 | `INT64` | | 64 bits con signo: -9223372036854775808 … 9223372036854775807 |
 | `UINT64` | | 64 bits sin signo: 0 … 18446744073709551615 |
+| `UINT32` | | 32 bits sin signo: 0 … 4294967295 |
 | `SINGLE` | `!` | punto flotante de 32 bits |
 | `DOUBLE` | `#` | punto flotante de 64 bits |
 | `STRING` | `$` | texto; `STRING * n` siempre tiene n caracteres |
@@ -74,19 +75,21 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 - **Guardar un valor en una variable entera lo trunca** (`i = 2.7` da 2); más
   allá de 32 bits da -2 147 483 648. En cambio, un parámetro `BYVAL` redondea
   los casos intermedios al entero par.
-- **Números enteros de más de 32 bits: `INT64` y `UINT64`.** `PRINT`, `STR$` y
-  `HEX$` los muestran completos (`HEX$` con 16 cifras); `+ - *` dan la vuelta
-  a los 64 bits; `\`, `MOD`, las comparaciones y `AND OR XOR NOT SHL SHR` usan
-  los 64 bits. Un `UINT64` se lee sin signo, y con un `INT64` en la misma
-  expresión el resultado es un `UINT64`; las comparaciones son exactas
-  (`u > -1` es verdadero para cualquier `UINT64`). Un `DOUBLE` que se guarda
-  en uno se trunca hacia cero (fuera del rango: `INT64` recibe
-  -9223372036854775808, `UINT64` 0); un texto se lee como lo lee `VAL`, hasta
-  la última cifra. Los literales hasta 18446744073709551615 y `&H` de hasta
-  16 cifras son exactos. Un `DOUBLE` en la expresión da un `DOUBLE`, como
-  siempre. Un bucle `FOR` sobre uno compara su contador exacto hasta 2^53.
-  Todo lo que no tiene un `INT64` ni un `UINT64` sigue la regla clásica:
-  `PRINT` muestra un número entero como un entero de 32 bits.
+- **Números enteros de más de 32 bits: `INT64`, `UINT64` y `UINT32`**
+  ([Números grandes](big-numbers.md) lo explica todo). Un valor de 64 bits
+  conserva todas sus cifras vaya donde vaya: `PRINT`, `STR$`, unido a un
+  texto con `&` o `+`, `FORMAT$("%d")`, un `VARIANT`, un arreglo, un archivo,
+  JSON, el depurador. `+ - *` dan la vuelta a los 64 bits; `\`, `MOD`, las
+  comparaciones (también contra un `DOUBLE`) y `AND OR XOR NOT SHL SHR` usan
+  los 64 bits; un `UINT64` se lee sin signo y prevalece sobre un `INT64`.
+  `FOR`, `SELECT CASE` e `INPUT` son exactos, y un contador de `FOR` de 64
+  bits se detiene al final de su tipo. Un `DOUBLE` que se guarda en uno se
+  trunca hacia cero (fuera del rango: `INT64` recibe -9223372036854775808,
+  `UINT64` 0); un texto se lee hasta la última cifra. `HEX$` muestra 8
+  cifras, 16 cuando el número necesita más. En un programa que usa estos
+  tipos, un literal de más de 32 bits es un `INT64`; uno que no los usa sigue
+  la regla clásica: `PRINT` muestra un número entero como un entero de 32
+  bits.
 
   ```basic
   DIM big AS INT64 = 9223372036854775807

@@ -1,0 +1,78 @@
+' bits_and_64bit.rr: 64-bit whole numbers that keep every digit, and
+' the bit functions — a file size, a counter, a hash, flags packed into a
+' 32-bit number.
+'
+'   rapidr run bits_and_64bit.rr
+'
+' INT64 (signed), UINT64 (unsigned) and UINT32 (0 to 4294967295) keep all
+' their bits wherever they go: PRINT, joined to text, FORMAT$, a FOR loop,
+' SELECT CASE, INPUT, a VARIANT, a file. LOWORD, HIWORD, LOBYTE, HIBYTE,
+' GETBITS and SETBITS read and change bits (bit 0 is the rightmost).
+' The manual: docs/manual/big-numbers.md.
+$APPTYPE CONSOLE
+
+' A UINT64 above 2^63, joined to text with & and +
+DIM biggest AS UINT64 = 18446744073709551615
+DIM half AS UINT64 = biggest \ 2 + 1
+PRINT "The largest UINT64: " & biggest
+PRINT "Half way: " + STR$(half) + " (that's 2^63)"
+
+' FORMAT$ %d and %x in 64 bits
+PRINT FORMAT$("Decimal %d, hexadecimal %x", biggest, biggest)
+
+' A FOR loop past 2^53, where a DOUBLE can't tell numbers apart
+DIM id AS INT64
+PRINT "IDs:";
+FOR id = 9007199254740991 TO 9007199254740994
+    PRINT " "; id;
+NEXT id
+PRINT
+' ... and a UINT64 counting down to 0 stops there
+DIM n AS UINT64
+DIM turns AS INTEGER
+FOR n = 3 TO 0 STEP -1
+    turns = turns + 1
+NEXT n
+PRINT "Counted down in "; turns; " turns"
+
+' SELECT CASE on a 64-bit size
+FUNCTION SizeName(bytes AS UINT64) AS STRING
+    SELECT CASE bytes
+    CASE IS < 1024
+        SizeName = STR$(bytes) + " bytes"
+    CASE 1024 TO 1099511627775
+        SizeName = STR$(bytes \ 1073741824) + " GB"
+    CASE ELSE
+        SizeName = STR$(bytes \ 1099511627776) + " TB"
+    END SELECT
+END FUNCTION
+DIM disk AS UINT64 = 5 * 3221225472
+PRINT "Five 3 GB files: "; disk; " bytes = "; SizeName(disk)
+PRINT "A 4 TB disk: "; SizeName(4398046511104)
+
+' Text read into one keeps every digit (INPUT reads the same way)
+DIM typed AS UINT64
+DIM digits AS STRING = "18446744073709551614"
+typed = digits
+PRINT "Read from text: "; typed; "; one more is "; typed + 1
+
+' A 64-bit hash (FNV-1a): XOR each byte in, multiply, wrap at 64 bits
+FUNCTION Fnv1a(text AS STRING) AS UINT64
+    DIM h AS UINT64 = &HCBF29CE484222325
+    DIM k AS INTEGER
+    FOR k = 1 TO LEN(text)
+        h = (h XOR ASC(MID$(text, k, 1))) * 1099511628211
+    NEXT k
+    Fnv1a = h
+END FUNCTION
+PRINT "FNV-1a of RapidR: "; HEX$(Fnv1a("RapidR"))
+
+' Flags packed into a 32-bit number, read and changed with the bit functions
+DIM flags AS UINT32 = &HF58ACBFB
+PRINT "Flags: "; flags; " = &H"; HEX$(flags)
+PRINT "High word &H"; HEX$(HIWORD(flags), 4); ", low word &H"; HEX$(LOWORD(flags), 4)
+PRINT "High byte of the low word: "; HIBYTE(flags); ", low byte: "; LOBYTE(flags)
+PRINT "Bits 28 to 31: "; GETBITS(flags, 28, 4)
+flags = SETBITS(flags, 0, 16, &H1234)
+PRINT "Low word set to &H1234: &H"; HEX$(flags)
+IF flags = &HF58A1234 THEN PRINT "And it equals &HF58A1234."
