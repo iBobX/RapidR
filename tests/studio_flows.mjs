@@ -7044,6 +7044,25 @@ const CASES = [
       "outputbox.text": /Versions are off for this project: This project's version history points outside its folder/,
     },
   },
+  // (SEC-33: a project file naming places outside its folder — a main file,
+  // an icon, Build's output folder, an argument: set aside as it opens, and
+  // said in Output; the project's own main.rr is the main file)
+  {
+    name: "project-outside-settings",
+    ...V_OPEN,
+    fsck: false,
+    desktopOnly: true,
+    prepare: (p) => writeFileSync(join(p, "Hello.rrproj"), readFileSync(join(p, "Hello.rrproj"), "utf8").replace('main = "main.rr"', 'main = "../payload.rr"') + '\n[build]\nicon = "/Users/someone/.ssh/id_rsa"\noutput = "/Users/someone/.local/bin"\n\n[run]\nargs = ["/etc/passwd"]\n'),
+    do: "versions.pane",
+    delay: 4,
+    dump: {
+      "proj.mainfile": /^main\.rr$/,
+      "proj.icon": /^$/,
+      "proj.outputfolder": /^$/,
+      "proj.warning": /^This project's settings name places outside its folder, so RapidR doesn't use them: the main file \(\.\.\/payload\.rr\); the app's icon \(\/Users\/someone\/\.ssh\/id_rsa\); Build's output folder \(\/Users\/someone\/\.local\/bin\)\./,
+      "outputbox.text": /This project's settings name places outside its folder[\s\S]*The arguments Run gives the program name places outside the project's folder: \/etc\/passwd\./,
+    },
+  },
   {
     name: "versions-first",
     ...V_OPEN,

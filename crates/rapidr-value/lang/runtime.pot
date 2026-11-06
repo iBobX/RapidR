@@ -1957,6 +1957,26 @@ msgid "{path}: not a project or a source file"
 msgstr ""
 
 #: crates/rapidr-studio/src/project.rs
+msgid "the main file ({value})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the app's icon ({value})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "Build's output folder ({value})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "This project's settings name places outside its folder, so RapidR doesn't use them: {list}. A project from someone else could use them to read or write your other files. If you chose them yourself, set them again and save the project."
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "The arguments Run gives the program name places outside the project's folder: {args}."
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
 msgid "no project is open"
 msgstr ""
 

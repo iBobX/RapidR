@@ -1,4 +1,4 @@
-<!-- translated-from: studio-projects.md b56fc2356fb5c4d1 -->
+<!-- translated-from: studio-projects.md 067ff38e095c9895 -->
 # Proyectos en RapidR Studio
 
 Un programa de RapidR puede ser un archivo o muchos: un archivo principal que
@@ -145,6 +145,21 @@ elige aquí **MainFile** para cambiarlo. Y **Ejecutar** siempre dice por qué no
 arrancó, o qué mirar: nada abierto, un archivo principal que no está, los
 errores del programa (en **Problemas**), o un archivo principal que se ejecutó
 y terminó enseguida, sin ventana y sin imprimir nada.
+
+**La configuración de un proyecto se queda dentro de su carpeta.** Un archivo
+de proyecto de otra persona podría nombrar lugares fuera de la carpeta del
+proyecto: un archivo principal en otro lugar, un archivo privado como ícono de
+la aplicación, una carpeta desde donde tu sistema ejecuta programas como carpeta
+de salida de la compilación. Por eso, cuando Studio abre un proyecto, un archivo
+principal, un ícono o una carpeta de salida que es una ruta completa
+(`/Users/…`, `C:\…`) o que sube con `..` no se usa: en su lugar se usan el
+primer archivo de programa del proyecto, el ícono de RapidR y `build`, y la
+Salida dice cuáles —*La configuración de este proyecto nombra lugares fuera de
+su carpeta, así que RapidR no la usa: …*—. Abrir no cambia el archivo del
+proyecto (al guardarlo, quedan fuera). Uno que elijas tú en Studio, y luego guardes el proyecto, es tuyo:
+Studio lo recuerda en esta computadora, para ese proyecto, y lo usa desde
+entonces. `rapidr build` hace lo mismo. Los argumentos de Ejecutar que nombran
+esos lugares solo se avisan.
 
 ## Al seleccionar un archivo, se muestra
 

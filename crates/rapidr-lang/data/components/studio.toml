@@ -12,6 +12,7 @@ properties = [
   { name = "Folder", type = "string", access = "read", design = false, doc = "The project's folder: its files' paths are relative to it." },
   { name = "Kind", type = "string", access = "read", design = false, doc = "What is open: \"project\" (a .rrproj), \"file\" (a source file and its includes), \"v1\" (a web IDE project, imported) or \"\" (nothing)." },
   { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Open, Save, New, AddFile or RemoveFile failed (\"\" when it worked)." },
+  { name = "Warning", type = "string", access = "read", design = false, doc = "What the last Open set aside from the project file, in plain words: a main file, icon or Build output folder naming a place outside the project's folder (absolute, or climbing out with ..) is not used — the first program file, RapidR's icon and build instead — unless this computer's user chose it (set in Studio, then the project saved); Run arguments naming such places are only told. \"\" when nothing was. `rapidr build` does the same." },
   { name = "Name", type = "string", doc = "The project's name." },
   { name = "MainFile", type = "string", category = "Data", doc = "The file the program starts from (relative to the folder).", kind = "file:any" },
   { name = "FileCount", type = "int", access = "read", design = false, doc = "How many files the project has." },

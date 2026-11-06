@@ -4707,6 +4707,10 @@ msgid "Can't open {file}: {error}"
 msgstr ""
 
 #: ide/project.inc
+msgid "Some of this project's settings name places outside its folder: Output says which"
+msgstr ""
+
+#: ide/project.inc
 msgid "The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties."
 msgstr ""
 

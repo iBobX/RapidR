@@ -5815,6 +5815,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Folder` (read-only) | string |  | The project's folder: its files' paths are relative to it. |
 | `Kind` (read-only) | string |  | What is open: "project" (a .rrproj), "file" (a source file and its includes), "v1" (a web IDE project, imported) or "" (nothing). |
 | `Error` (read-only) | string |  | Why the last Open, Save, New, AddFile or RemoveFile failed ("" when it worked). |
+| `Warning` (read-only) | string |  | What the last Open set aside from the project file, in plain words: a main file, icon or Build output folder naming a place outside the project's folder (absolute, or climbing out with ..) is not used — the first program file, RapidR's icon and build instead — unless this computer's user chose it (set in Studio, then the project saved); Run arguments naming such places are only told. "" when nothing was. `rapidr build` does the same. |
 | `Name` | string |  | The project's name. |
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |

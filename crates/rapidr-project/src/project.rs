@@ -660,6 +660,85 @@ impl Project {
     }
 }
 
+/// A setting of a `.rrproj` that names a place outside the project's
+/// folder (SEC-33, docs/security/audit-2026-11-05-system.md): what Run and
+/// Build would act on without it being in the project's tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutsideSetting {
+    /// `main`, `icon` or `output` (set aside unless the user chose it), or
+    /// `args` (only told: the program gets its arguments as it would
+    /// anyway — they can't make Run or Build act on anything).
+    pub setting: &'static str,
+    /// The setting's value as the file has it (for `args`, the argument).
+    pub value: String,
+}
+
+impl OutsideSetting {
+    /// Whether it is set aside ([`Project::set_aside_outside`]): `main`,
+    /// `icon` and `output`; `args` are only told.
+    pub fn is_set_aside(&self) -> bool {
+        self.setting != "args"
+    }
+}
+
+/// Whether a project path, as a `.rrproj` names it, is outside the
+/// project's folder: absolute (`/x`, `C:\x`, `\\server\x`, a `:` drive or
+/// stream), or climbing out with `..`. A project's own relative paths
+/// (`main.rr`, `art/icon.png`, `build`) are inside.
+pub fn names_outside(path: &str) -> bool {
+    let p = normalize_path(path);
+    p.starts_with('/') || p.split('/').next().is_some_and(|first| first == ".." || first.contains(':'))
+}
+
+impl Project {
+    /// The settings that name places outside the project's folder: `main`,
+    /// `[build] icon` and `output`, and the `[run] args` that look like
+    /// paths outside it (absolute, or starting with `..`).
+    pub fn outside_settings(&self) -> Vec<OutsideSetting> {
+        let mut out = Vec::new();
+        for (setting, value) in [("main", &self.main), ("icon", &self.build.icon), ("output", &self.build.output)] {
+            if !value.trim().is_empty() && names_outside(value) {
+                out.push(OutsideSetting { setting, value: value.clone() });
+            }
+        }
+        for a in &self.run.args {
+            let t = a.trim();
+            if t.starts_with('/') || t.starts_with('\\') || t.starts_with("..") || t.get(1..3).is_some_and(|d| d == ":\\" || d == ":/") {
+                out.push(OutsideSetting { setting: "args", value: a.clone() });
+            }
+        }
+        out
+    }
+
+    /// SEC-33: a project from elsewhere can't point Run and Build at files
+    /// outside its folder. The `main`, `icon` and `output` that name such a
+    /// place are set aside — unless `chosen` says this computer's user
+    /// chose that value for this project —: the main file becomes the
+    /// project's first program file (or none), the icon RapidR's, the
+    /// output folder `build`. Returns every outside setting found and not
+    /// chosen (the `args` too, only to be told); the file on disk is left
+    /// as it is.
+    pub fn set_aside_outside(&mut self, chosen: &dyn Fn(&OutsideSetting) -> bool) -> Vec<OutsideSetting> {
+        let found: Vec<OutsideSetting> = self.outside_settings().into_iter().filter(|o| !chosen(o)).collect();
+        for o in found.iter().filter(|o| o.is_set_aside()) {
+            match o.setting {
+                "main" => {
+                    self.main = self
+                        .files
+                        .iter()
+                        .find(|f| matches!(f.kind, FileKind::Module | FileKind::Form) && !names_outside(&f.path) && matches!(extension(&f.path).as_str(), "rr" | "bas" | "rqw" | "rqb" | "rq"))
+                        .map(|f| f.path.clone())
+                        .unwrap_or_default()
+                }
+                "icon" => self.build.icon.clear(),
+                "output" => self.build.output.clear(),
+                _ => {}
+            }
+        }
+        found
+    }
+}
+
 /// A project path in the file's form: `/` separators, no `./` steps, no
 /// empty steps. Leading `..` steps are kept (a file beside the project).
 pub fn normalize_path(path: &str) -> String {
@@ -832,6 +911,44 @@ pub fn basic_string(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// SEC-33: a planted `.rrproj` naming files outside its folder: main,
+    /// icon and output set aside (the project's own relative paths kept),
+    /// the arguments only told, a value the user chose kept.
+    #[test]
+    fn settings_outside_the_folder_are_set_aside() {
+        for p in ["main.rr", "src/main.rr", "art/icon.png", "build", "./x/../y.rr"] {
+            assert!(!names_outside(p), "{p}");
+        }
+        for p in ["/etc/x.rr", "../x.rr", "a/../../x", "C:\\Users\\x", "c:/x", "\\\\server\\share\\x", "//server/x"] {
+            assert!(names_outside(p), "{p}");
+        }
+        let text = "format = 2\nmain = \"../../evil.rr\"\n[[files]]\npath = \"main.rr\"\n[[files]]\npath = \"lib.inc\"\n[build]\nicon = \"/Users/v/.ssh/id_rsa\"\noutput = \"/Users/v/.local/bin\"\n[run]\nargs = [\"-v\", \"/etc/passwd\", \"..\\\\x\"]\n";
+        let mut p = Project::from_toml(text).unwrap();
+        let found: Vec<(&str, String)> = p.outside_settings().into_iter().map(|o| (o.setting, o.value)).collect();
+        assert_eq!(
+            found,
+            [("main", "../../evil.rr".to_string()), ("icon", "/Users/v/.ssh/id_rsa".into()), ("output", "/Users/v/.local/bin".into()), ("args", "/etc/passwd".into()), ("args", "..\\x".into())]
+        );
+        let aside = p.set_aside_outside(&|_| false);
+        assert_eq!(aside.len(), 5);
+        assert_eq!(p.main, "main.rr", "the project's first program file");
+        assert_eq!((p.build.icon.as_str(), p.build.output_folder()), ("", DEFAULT_OUTPUT));
+        assert_eq!(p.run.args.len(), 3, "the arguments are only told");
+        assert!(p.outside_settings().iter().all(|o| o.setting == "args"));
+
+        // one the user chose (Studio's approval) is kept
+        let mut p = Project::from_toml(text).unwrap();
+        let aside = p.set_aside_outside(&|o| o.setting == "output");
+        assert_eq!(p.build.output, "/Users/v/.local/bin");
+        assert!(aside.iter().all(|o| o.setting != "output"));
+
+        // a project's own paths: nothing set aside
+        let mut own = sample();
+        own.run.args.clear();
+        assert!(own.set_aside_outside(&|_| false).is_empty());
+        assert_eq!(own.build.output, "dist/app");
+    }
 
     fn sample() -> Project {
         let mut p = Project::new("Demo", "Demo.rr");

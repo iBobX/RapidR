@@ -88,12 +88,29 @@ impl Options {
 /// (up to two), when its `main` is exactly this file (`src/main.rr` of a
 /// project kept one folder up). (its folder, the project)
 pub fn project_for(source: &Path, explicit: Option<&str>) -> Result<Option<(PathBuf, rapidr_project::Project)>, String> {
-    let load = |p: &Path| -> Result<(PathBuf, rapidr_project::Project), String> {
-        let project = rapidr_project::Project::load(p).map_err(|e| format!("{}: {e}", p.display()))?;
-        Ok((p.parent().unwrap_or(Path::new(".")).to_path_buf(), project))
+    // (SEC-33: a `main`, `icon` or `output` naming a place outside the
+    // project's folder is set aside unless this computer's user chose it
+    // in RapidR Studio — the same record Studio's Open reads; the build
+    // says so, once)
+    let load = |p: &Path| -> Result<(PathBuf, rapidr_project::Project, String), String> {
+        let mut project = rapidr_project::Project::load(p).map_err(|e| format!("{}: {e}", p.display()))?;
+        let found = rapidr_studio::project::set_aside_outside(&p.to_string_lossy().replace('\\', "/"), &mut project);
+        Ok((p.parent().unwrap_or(Path::new(".")).to_path_buf(), project, rapidr_studio::project::outside_words(&found)))
+    };
+    let warned = |(dir, project, words): (PathBuf, rapidr_project::Project, String)| {
+        static SAID: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        if !words.is_empty() {
+            if let Ok(mut said) = SAID.lock() {
+                if !said.contains(&words) {
+                    eprintln!("Warning: {words}");
+                    said.push(words);
+                }
+            }
+        }
+        (dir, project)
     };
     if let Some(p) = explicit {
-        return load(Path::new(p)).map(Some);
+        return load(Path::new(p)).map(|l| Some(warned(l)));
     }
     let folder = source.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
     let Some(name) = source.file_name() else { return Ok(None) };
@@ -109,7 +126,7 @@ pub fn project_for(source: &Path, explicit: Option<&str>) -> Result<Option<(Path
                 continue;
             }
             // (a web IDE v1 project, or something else: not this one's)
-            let Ok((dir, project)) = load(&p) else { continue };
+            let Ok((dir, project, words)) = load(&p) else { continue };
             let mine = if level == 0 {
                 Path::new(&project.main).file_name().is_some_and(|m| m.eq_ignore_ascii_case(name)) && dir.join(&project.main).is_file()
             } else {
@@ -120,11 +137,11 @@ pub fn project_for(source: &Path, explicit: Option<&str>) -> Result<Option<(Path
                 if found.is_some() {
                     return Ok(None);
                 }
-                found = Some((dir, project));
+                found = Some((dir, project, words));
             }
         }
         if found.is_some() {
-            return Ok(found);
+            return Ok(found.map(warned));
         }
     }
     Ok(None)

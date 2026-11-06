@@ -79,6 +79,13 @@ SUB OpenProject(Path AS STRING)
   ' (its breakpoints and watches: debug.inc)
   LoadDebugState
   SetState "stopped", "Ready"
+  ' (settings naming places outside the project's folder — a main file, an
+  ' icon, Build's output folder — set aside unless the user chose them
+  ' here: said in Output, and to a screen reader — SEC-33)
+  IF Proj.Warning <> "" THEN
+    OutputLine Proj.Warning
+    Application.Announce TR$("Some of this project's settings name places outside its folder: Output says which")
+  END IF
   ' (an example's copy: the Output says where it is, and how to start over)
   ExampleOriginal = Proj.ExampleOf(p, HomeDir + "examples")
   IF ExampleOriginal <> "" THEN SayExampleCopy p, copied

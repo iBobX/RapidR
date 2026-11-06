@@ -6925,3 +6925,7 @@ msgstr "Versiones está desactivado para este proyecto"
 #: ide/versions.inc
 msgid "Studio still keeps a copy of each file every time you save it. Local History shows them."
 msgstr "Studio sigue guardando una copia de cada archivo cada vez que lo guardas. Historial local las muestra."
+
+#: ide/project.inc
+msgid "Some of this project's settings name places outside its folder: Output says which"
+msgstr "Parte de la configuración de este proyecto nombra lugares fuera de su carpeta: Salida dice cuáles"
