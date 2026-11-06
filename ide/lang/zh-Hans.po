@@ -45,7 +45,7 @@ msgstr "应用(&P)"
 msgid "Apply the accepted changes"
 msgstr "应用已接受的更改"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/contextmenu.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "取消"
 
@@ -899,30 +899,6 @@ msgid "Undo: put the chat back"
 msgstr "撤销：恢复这段对话"
 
 #: ide/aichats.inc
-msgid "Rename the chat"
-msgstr "重命名对话"
-
-#: ide/aichats.inc
-msgid "The chat's new name"
-msgstr "对话的新名称"
-
-#: ide/aichats.inc
-msgid "Enter keeps it, Escape leaves the name as it was"
-msgstr "按 Enter 保留，按 Esc 则保持原名称"
-
-#: ide/aichats.inc
-msgid "Save"
-msgstr "保存"
-
-#: ide/aichats.inc
-msgid "Save the new name"
-msgstr "保存新名称"
-
-#: ide/aichats.inc
-msgid "Keep the name as it was"
-msgstr "保持原名称"
-
-#: ide/aichats.inc
 msgid "Where chats are kept"
 msgstr "对话的保存位置"
 
@@ -974,6 +950,18 @@ msgstr "返回"
 #: ide/aichats.inc
 msgid "Back to the chat"
 msgstr "返回对话"
+
+#: ide/aichats.inc
+msgid "Today"
+msgstr "今天"
+
+#: ide/aichats.inc
+msgid "Yesterday"
+msgstr "昨天"
+
+#: ide/aichats.inc
+msgid "Earlier"
+msgstr "更早"
 
 #: ide/aichats.inc
 msgid "{title} — {n} question, {date}"
@@ -1030,6 +1018,22 @@ msgstr "已重命名：{q}{title}{q}。"
 #: ide/aichats.inc
 msgid "That chat couldn't be renamed."
 msgstr "无法重命名这段对话。"
+
+#: ide/aichats.inc
+msgid "You"
+msgstr "你"
+
+#: ide/aichats.inc
+msgid "That chat couldn't be read."
+msgstr "无法读取这段对话。"
+
+#: ide/aichats.inc
+msgid "Copied the chat as Markdown."
+msgstr "已将对话复制为 Markdown。"
+
+#: ide/aichats.inc
+msgid "Copied the chat as Markdown"
+msgstr "已将对话复制为 Markdown"
 
 #: ide/aichats.inc
 msgid "That chat couldn't be deleted."
@@ -1894,7 +1898,7 @@ msgstr "应用图标"
 msgid "Icons and pictures"
 msgstr "图标和图片"
 
-#: ide/build.inc ide/crash.inc ide/project.inc ide/shell.inc
+#: ide/build.inc ide/contextmenu.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
 msgstr "所有文件"
 
@@ -2148,7 +2152,7 @@ msgstr "重做(&R)"
 msgid "Cu&t"
 msgstr "剪切(&T)"
 
-#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc
+#: ide/commands.inc ide/debug.inc ide/mcp.inc
 msgid "&Copy"
 msgstr "复制(&C)"
 
@@ -2520,7 +2524,7 @@ msgstr "编辑断点(&E)..."
 msgid "&Delete All Breakpoints"
 msgstr "删除所有断点(&D)"
 
-#: ide/commands.inc ide/debug.inc
+#: ide/commands.inc
 msgid "Add &Watch"
 msgstr "添加监视(&W)"
 
@@ -2802,7 +2806,7 @@ msgstr "编辑值(&E)"
 msgid "&Reset to Default"
 msgstr "重置为默认值(&R)"
 
-#: ide/contextmenu.inc ide/debug.inc
+#: ide/contextmenu.inc
 msgid "&Copy Value"
 msgstr "复制值(&C)"
 
@@ -2831,12 +2835,160 @@ msgid "As&k RAI..."
 msgstr "向 RAI 提问(&K)..."
 
 #: ide/contextmenu.inc
+msgid "Copy as &Markdown"
+msgstr "复制为 Markdown(&M)"
+
+#: ide/contextmenu.inc
+msgid "Compare with the &Last Version"
+msgstr "与上一个版本比较(&L)"
+
+#: ide/contextmenu.inc
+msgid "Compare with &Another File..."
+msgstr "与其他文件比较(&A)..."
+
+#: ide/contextmenu.inc
+msgid "&Delete File..."
+msgstr "删除文件(&D)..."
+
+#: ide/contextmenu.inc
+msgid "Apply the &Fix"
+msgstr "应用修复(&F)"
+
+#: ide/contextmenu.inc
+msgid "E&xplain This Problem"
+msgstr "解释此问题(&X)"
+
+#: ide/contextmenu.inc
+msgid "&Go to Problem"
+msgstr "转到问题(&G)"
+
+#: ide/contextmenu.inc
+msgid "&Go to the Place"
+msgstr "转到该位置(&G)"
+
+#: ide/contextmenu.inc
+msgid "Copy &Line"
+msgstr "复制行(&L)"
+
+#: ide/contextmenu.inc ide/mcp.inc
+msgid "Copy &All"
+msgstr "全部复制(&A)"
+
+#: ide/contextmenu.inc
+msgid "Cl&ear"
+msgstr "清除(&E)"
+
+#: ide/contextmenu.inc
+msgid "&Set Value..."
+msgstr "设置值(&S)..."
+
+#: ide/contextmenu.inc
+msgid "Copy &Expression"
+msgstr "复制表达式(&E)"
+
+#: ide/contextmenu.inc
+msgid "&View Text..."
+msgstr "查看文本(&V)..."
+
+#: ide/contextmenu.inc
+msgid "&Remove Watch"
+msgstr "移除监视(&R)"
+
+#: ide/contextmenu.inc
+msgid "&Go to This Call"
+msgstr "转到此调用(&G)"
+
+#: ide/contextmenu.inc
+msgid "&Go to Breakpoint"
+msgstr "转到断点(&G)"
+
+#: ide/contextmenu.inc
+msgid "Edit Co&ndition..."
+msgstr "编辑条件(&N)..."
+
+#: ide/contextmenu.inc
+msgid "Disa&ble Breakpoint"
+msgstr "禁用断点(&B)"
+
+#: ide/contextmenu.inc
+msgid "&Remove Breakpoint"
+msgstr "移除断点(&R)"
+
+#: ide/contextmenu.inc
+msgid "&Help on This Component"
+msgstr "关于此组件的帮助(&H)"
+
+#: ide/contextmenu.inc
+msgid "Open an &Example"
+msgstr "打开示例(&E)"
+
+#: ide/contextmenu.inc
+msgid "Open in the Bro&wser"
+msgstr "在浏览器中打开(&W)"
+
+#: ide/contextmenu.inc
+msgid "&Try It"
+msgstr "试一试(&T)"
+
+#: ide/contextmenu.inc
+msgid "Copy &Code"
+msgstr "复制代码(&C)"
+
+#: ide/contextmenu.inc
+msgid "&Insert at the Cursor"
+msgstr "在光标处插入(&I)"
+
+#: ide/contextmenu.inc
+msgid "&Copy Message"
+msgstr "复制消息(&C)"
+
+#: ide/contextmenu.inc
+msgid "&Close Pane"
+msgstr "关闭面板(&C)"
+
+#: ide/contextmenu.inc
+msgid "&Float"
+msgstr "浮动(&F)"
+
+#: ide/contextmenu.inc
+msgid "&Remove from Recent"
+msgstr "从最近记录中移除(&R)"
+
+#: ide/contextmenu.inc
+msgid "&Add to the Form"
+msgstr "添加到窗体(&A)"
+
+#: ide/contextmenu.inc
+msgid "&Expand All"
+msgstr "全部展开(&E)"
+
+#: ide/contextmenu.inc
 msgid "Set up RAI first: Tools > Set Up RAI"
 msgstr "请先配置 RAI：工具 > 配置 RAI"
 
 #: ide/contextmenu.inc
 msgid "Open &Code"
 msgstr "打开代码(&C)"
+
+#: ide/contextmenu.inc
+msgid "Compare &With"
+msgstr "比较对象(&W)"
+
+#: ide/contextmenu.inc
+msgid "the &Disk's Version"
+msgstr "磁盘上的版本(&D)"
+
+#: ide/contextmenu.inc
+msgid "Open it first: the disk's version is compared with yours"
+msgstr "请先打开该文件：磁盘上的版本会与你的版本进行比较"
+
+#: ide/contextmenu.inc
+msgid "the &Last Version"
+msgstr "上一个版本(&L)"
+
+#: ide/contextmenu.inc
+msgid "&Another File..."
+msgstr "其他文件(&A)..."
 
 #: ide/contextmenu.inc
 msgid "Show &History"
@@ -2895,6 +3047,14 @@ msgid "About line {n} of {file}:"
 msgstr "关于 {file} 的第 {n} 行："
 
 #: ide/contextmenu.inc
+msgid "Ask RAI About This Problem..."
+msgstr "就此问题向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About this problem on line {n} of {file}:"
+msgstr "关于 {file} 第 {n} 行的这个问题："
+
+#: ide/contextmenu.inc
 msgid "Ask RAI About This Code..."
 msgstr "就这段代码向 RAI 提问..."
 
@@ -2931,6 +3091,10 @@ msgid "Center in &Form"
 msgstr "在窗体中居中(&F)"
 
 #: ide/contextmenu.inc
+msgid "&Help: {name}"
+msgstr "帮助：{name}(&H)"
+
+#: ide/contextmenu.inc
 msgid "&Zoom"
 msgstr "缩放(&Z)"
 
@@ -2955,10 +3119,6 @@ msgid "Already the default"
 msgstr "已经是默认值"
 
 #: ide/contextmenu.inc
-msgid "&Help: {name}"
-msgstr "帮助：{name}(&H)"
-
-#: ide/contextmenu.inc
 msgid "Ask RAI About {name}..."
 msgstr "就 {name} 向 RAI 提问..."
 
@@ -2969,6 +3129,230 @@ msgstr "关于 {target} 的 {name}："
 #: ide/contextmenu.inc
 msgid "Actions for the chat"
 msgstr "对话的操作"
+
+#: ide/contextmenu.inc
+msgid "Not on a problem"
+msgstr "光标不在问题上"
+
+#: ide/contextmenu.inc
+msgid "Copy &All Problems"
+msgstr "复制全部问题(&A)"
+
+#: ide/contextmenu.inc
+msgid "No problems"
+msgstr "没有问题"
+
+#: ide/contextmenu.inc
+msgid "About this problem:"
+msgstr "关于这个问题："
+
+#: ide/contextmenu.inc
+msgid "Actions for the problem"
+msgstr "问题的操作"
+
+#: ide/contextmenu.inc
+msgid "&Go to {file}, Line {n}"
+msgstr "转到 {file} 第 {n} 行(&G)"
+
+#: ide/contextmenu.inc
+msgid "Not on a line"
+msgstr "没有指向任何一行"
+
+#: ide/contextmenu.inc
+msgid "Nothing to copy"
+msgstr "没有可复制的内容"
+
+#: ide/contextmenu.inc
+msgid "&Select All"
+msgstr "全选(&S)"
+
+#: ide/contextmenu.inc
+msgid "&Wrap Long Lines"
+msgstr "长行自动换行(&W)"
+
+#: ide/contextmenu.inc
+msgid "Nothing to clear"
+msgstr "没有可清除的内容"
+
+#: ide/contextmenu.inc
+msgid "Actions for the output"
+msgstr "输出的操作"
+
+#: ide/contextmenu.inc
+msgid "Actions for Immediate"
+msgstr "“即时”的操作"
+
+#: ide/contextmenu.inc
+msgid "The program isn't paused"
+msgstr "程序未处于暂停状态"
+
+#: ide/contextmenu.inc
+msgid "Not a value"
+msgstr "这不是一个值"
+
+#: ide/contextmenu.inc
+msgid "Only a watch itself can be removed"
+msgstr "只能移除监视项本身，不能移除它的某一部分"
+
+#: ide/contextmenu.inc
+msgid "Actions for the call"
+msgstr "调用的操作"
+
+#: ide/contextmenu.inc
+msgid "Not on a breakpoint"
+msgstr "没有指向任何断点"
+
+#: ide/contextmenu.inc
+msgid "&Enable Breakpoint"
+msgstr "启用断点(&E)"
+
+#: ide/contextmenu.inc
+msgid "No breakpoints"
+msgstr "没有断点"
+
+#: ide/contextmenu.inc
+msgid "Actions for the breakpoint"
+msgstr "断点的操作"
+
+#: ide/contextmenu.inc
+msgid "Open a code file first"
+msgstr "请先打开一个代码文件"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Example..."
+msgstr "就此示例向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "Actions for the example"
+msgstr "示例的操作"
+
+#: ide/contextmenu.inc
+msgid "&Back"
+msgstr "后退(&B)"
+
+#: ide/contextmenu.inc
+msgid "No page before this one"
+msgstr "没有上一页"
+
+#: ide/contextmenu.inc
+msgid "&Forward"
+msgstr "前进(&F)"
+
+#: ide/contextmenu.inc
+msgid "No page after this one"
+msgstr "没有下一页"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI About This Page..."
+msgstr "就此页面向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "About the Help page {q}{title}{q}:"
+msgstr "关于帮助页面 {q}{title}{q}："
+
+#: ide/contextmenu.inc
+msgid "Actions for the Help page"
+msgstr "帮助页面的操作"
+
+#: ide/contextmenu.inc ide/search.inc
+msgid "Help"
+msgstr "帮助"
+
+#: ide/contextmenu.inc
+msgid "No message"
+msgstr "没有消息"
+
+#: ide/contextmenu.inc
+msgid "Actions for the status bar"
+msgstr "状态栏的操作"
+
+#: ide/contextmenu.inc
+msgid "Actions for School Lock"
+msgstr "学校锁定的操作"
+
+#: ide/contextmenu.inc
+msgid "&Dock"
+msgstr "停靠(&D)"
+
+#: ide/contextmenu.inc
+msgid "Actions for the pane"
+msgstr "面板的操作"
+
+#: ide/contextmenu.inc
+msgid "It isn't there any more"
+msgstr "它已不存在"
+
+#: ide/contextmenu.inc
+msgid "Actions for the Toolbox"
+msgstr "“工具箱”的操作"
+
+#: ide/contextmenu.inc
+msgid "Open a form first"
+msgstr "请先打开一个窗体"
+
+#: ide/contextmenu.inc
+msgid "Ask RAI How to Use {name}..."
+msgstr "就如何使用 {name} 向 RAI 提问..."
+
+#: ide/contextmenu.inc
+msgid "How do I use {name}?"
+msgstr "我该如何使用 {name}？"
+
+#: ide/contextmenu.inc
+msgid "Line {n} of {file}"
+msgstr "{file} 第 {n} 行"
+
+#: ide/contextmenu.inc
+msgid "No problem here"
+msgstr "这里没有问题"
+
+#: ide/contextmenu.inc
+msgid "This problem"
+msgstr "这个问题"
+
+#: ide/contextmenu.inc
+msgid "Help: this problem"
+msgstr "帮助：这个问题"
+
+#: ide/contextmenu.inc
+msgid "Move {file} to the Trash?"
+msgstr "要把 {file} 移到回收站吗？"
+
+#: ide/contextmenu.inc
+msgid "It is taken out of the project too. You can put it back from the Trash."
+msgstr "它也会从项目中移除。你可以从回收站把它放回来。"
+
+#: ide/contextmenu.inc
+msgid "&Move to Trash"
+msgstr "移到回收站(&M)"
+
+#: ide/contextmenu.inc
+msgid "{file} couldn't be moved to the Trash"
+msgstr "无法将 {file} 移到回收站"
+
+#: ide/contextmenu.inc
+msgid "{file} couldn't be moved to the Trash ({path}): it may be open in another program, or its disk has no Trash."
+msgstr "无法将 {file} 移到回收站（{path}）：它可能正被其他程序打开，或者它所在的磁盘没有回收站。"
+
+#: ide/contextmenu.inc
+msgid "{file} moved to the Trash"
+msgstr "{file} 已移到回收站"
+
+#: ide/contextmenu.inc
+msgid "Try It"
+msgstr "试一试"
+
+#: ide/contextmenu.inc
+msgid "Can't write {path}"
+msgstr "无法写入 {path}"
+
+#: ide/contextmenu.inc
+msgid "{file} is yours to change: F5 runs it"
+msgstr "{file} 由你随意修改：按 F5 运行"
+
+#: ide/contextmenu.inc
+msgid "Compare With"
+msgstr "比较对象"
 
 #: ide/contextmenu.inc
 msgid "Copied the path"
@@ -2989,6 +3373,28 @@ msgstr "已复制名称"
 #: ide/contextmenu.inc
 msgid "The handler couldn't be removed"
 msgstr "无法移除处理程序"
+
+#: ide/contextmenu.inc ide/panels.inc
+msgid "Copied {n} character"
+msgid_plural "Copied {n} characters"
+msgstr[0] "已复制 {n} 个字符"
+msgstr[1] ""
+
+#: ide/contextmenu.inc
+msgid "No fix here"
+msgstr "这里没有可用的修复"
+
+#: ide/contextmenu.inc ide/panels.inc ide/shell.inc
+msgid "Example"
+msgstr "示例"
+
+#: ide/contextmenu.inc
+msgid "Copied the message"
+msgstr "已复制消息"
+
+#: ide/contextmenu.inc
+msgid "{file} taken off Recent"
+msgstr "已从最近记录中移除 {file}"
 
 #: ide/crash.inc
 msgid "&View Report"
@@ -3544,18 +3950,6 @@ msgid "Step into {name}"
 msgstr "进入 {name}"
 
 #: ide/debug.inc
-msgid "Copy &Expression"
-msgstr "复制表达式(&E)"
-
-#: ide/debug.inc
-msgid "&View Text..."
-msgstr "查看文本(&V)..."
-
-#: ide/debug.inc
-msgid "&Set Value..."
-msgstr "设置值(&S)..."
-
-#: ide/debug.inc
 msgid "Copied the call"
 msgstr "已复制该调用"
 
@@ -3574,10 +3968,6 @@ msgid "Copied {n} breakpoint"
 msgid_plural "Copied {n} breakpoints"
 msgstr[0] "已复制 {n} 个断点"
 msgstr[1] ""
-
-#: ide/debug.inc ide/mcp.inc ide/panels.inc
-msgid "Copy &All"
-msgstr "全部复制(&A)"
 
 #: ide/debug.inc
 msgid "Run-time errors end the program"
@@ -4459,10 +4849,6 @@ msgstr "删除 AI 应用做过的事的列表"
 msgid "C&lear"
 msgstr "清除(&L)"
 
-#: ide/panels.inc ide/shell.inc
-msgid "Example"
-msgstr "示例"
-
 #: ide/panels.inc
 msgid "Go to line {}"
 msgstr "转到第 {} 行"
@@ -4619,10 +5005,6 @@ msgid "Theme: {file} says $THEME {look}"
 msgstr "主题：{file} 中写的是 $THEME {look}"
 
 #: ide/panels.inc
-msgid "Copy &All Problems"
-msgstr "复制全部问题(&A)"
-
-#: ide/panels.inc
 msgid "Copied {n} problem"
 msgid_plural "Copied {n} problems"
 msgstr[0] "已复制 {n} 个问题"
@@ -4632,12 +5014,6 @@ msgstr[1] ""
 msgid "Copied {n} line"
 msgid_plural "Copied {n} lines"
 msgstr[0] "已复制 {n} 行"
-msgstr[1] ""
-
-#: ide/panels.inc
-msgid "Copied {n} character"
-msgid_plural "Copied {n} characters"
-msgstr[0] "已复制 {n} 个字符"
 msgstr[1] ""
 
 #: ide/panels.inc
@@ -4655,22 +5031,6 @@ msgstr "选中窗体上的一个组件，即可查看它的属性。"
 #: ide/panels.inc
 msgid "Press F5 to run the program; its output shows here."
 msgstr "按 F5 运行程序；程序的输出会显示在这里。"
-
-#: ide/panels.inc
-msgid "Copy &Line"
-msgstr "复制行(&L)"
-
-#: ide/panels.inc
-msgid "&Select All"
-msgstr "全选(&S)"
-
-#: ide/panels.inc
-msgid "&Wrap Long Lines"
-msgstr "长行自动换行(&W)"
-
-#: ide/panels.inc
-msgid "Cl&ear"
-msgstr "清除(&E)"
 
 #: ide/panels.inc
 msgid "Double-click or press Enter to add a component to the form; drag it to place it."
@@ -4757,10 +5117,6 @@ msgid "Main and pop-up menus"
 msgstr "主菜单和弹出菜单"
 
 #: ide/panes.inc
-msgid "Right-click menus and row actions"
-msgstr "右键菜单与行操作"
-
-#: ide/panes.inc
 msgid "Open, save, colour, font"
 msgstr "打开、保存、颜色、字体"
 
@@ -4801,6 +5157,10 @@ msgid "PRINT, FOR, SUB, FUNCTION"
 msgstr "PRINT、FOR、SUB、FUNCTION"
 
 #: ide/panes.inc
+msgid "Right-click menus and row actions"
+msgstr "右键菜单与行操作"
+
+#: ide/panes.inc
 msgid "The code shows its own values: colours, pictures, fonts"
 msgstr "代码会展示自己的值：颜色、图片、字体"
 
@@ -4811,6 +5171,10 @@ msgstr "事件处理程序中的错误：程序继续运行，并告诉你出了
 #: ide/panes.inc
 msgid "What this computer has: memory, processor, disk"
 msgstr "这台电脑的配置：内存、处理器、磁盘"
+
+#: ide/panes.inc
+msgid "A file to the Trash, where it can be put back"
+msgstr "把文件移到回收站，需要时还能放回来"
 
 #: ide/panes.inc
 msgid "Click the sky: rockets and thousands of sparks"
@@ -5689,10 +6053,6 @@ msgstr "输入要查找的内容，然后按 Enter。"
 #: ide/search.inc
 msgid "Search results"
 msgstr "搜索结果"
-
-#: ide/search.inc
-msgid "Help"
-msgstr "帮助"
 
 #: ide/search.inc
 msgid "Search the help"
@@ -6963,6 +7323,22 @@ msgstr "还没有副本：每次保存此文件时，Studio 都会保留一份�
 #: ide/versions.inc
 msgid "Compare: {file}"
 msgstr "比较：{file}"
+
+#: ide/versions.inc
+msgid "{file}: the last version and now"
+msgstr "{file}：上一个版本与现在"
+
+#: ide/versions.inc
+msgid "Left: as the last version kept it. Right: as it is now."
+msgstr "左侧：上一个版本保留的样子。右侧：现在的样子。"
+
+#: ide/versions.inc
+msgid "{file} and {other}"
+msgstr "{file} 与 {other}"
+
+#: ide/versions.inc
+msgid "Left: {other}. Right: {file}."
+msgstr "左侧：{other}。右侧：{file}。"
 
 #: ide/versions.inc
 msgid "{file}: the disk's version and yours"
