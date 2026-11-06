@@ -95,7 +95,7 @@ for (const src of sources.filter((s) => !only.length || only.some((f) => s.inclu
     const a11y = join(WORK, `${name}-${theme.replace(/ /g, "-")}.json`);
     const env = {
       ...process.env, RAPIDR_THEME: theme, RAPIDR_SCALE: "1", RAPIDR_CAPTURE: join(WORK, `${name}-cap`), RAPIDR_TEST_A11Y: a11y,
-      RAPIDR_PRINT_TO: join(WORK, "prints"), RAPIDR_REGISTRY: join(WORK, "registry.reg"), RAPIDR_TEST_HTTP: "", RAPIDR_TEST_COMPORT: "", RAPIDR_TEST_MIDI: "",
+      RAPIDR_PRINT_TO: join(WORK, "prints"), RAPIDR_REGISTRY: join(WORK, "registry.reg"), RAPIDR_TEST_HTTP: "", RAPIDR_TEST_COMPORT: "", RAPIDR_TEST_MIDIPORT: "", RAPIDR_TEST_MIDI: "",
       RAPIDR_TEST_WAVE_IN: "tone:440",
     };
     try {

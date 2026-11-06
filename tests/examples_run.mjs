@@ -459,6 +459,15 @@ export const cases = [
     expect: ["beeper.underruns=0", " ms queued, 0 gaps", " -9000 -8955 -8910 -8865 -8821 -8777 -8733 -8689 -8646 -8603 -8559 4982 9457 9410"] },
   { file: "media/chiptune.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 40)}`, dump: "info.caption,chip.underruns,chip.__heard",
     expect: ["chip.underruns=0", " 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 1050 1050"] },
+  // (RMIDIPort on the tests' scripted devices — RAPIDR_TEST_MIDIPORT, never a
+  // real one: `loop:` sends back what is sent, a SysEx in 1 KB pieces as
+  // Windows' driver gives it; `synth:` answers an Identity Request)
+  { file: "media/midi_monitor.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_MIDIPORT: "loop:RapidR Loopback;out:Test Synth" },
+    events: `outlist.__item_0,sendbtn.onclick,${wait("info", 4)},notebtn.onclick,${wait("info", 4)}`, dump: "loglist.itemcount,loglist.text,info.caption,outlist.itemcount",
+    expect: ["loglist.itemcount=5", "80 3C 00    ch 1  note off  C4", "info.caption=Listening to RapidR Loopback;  sending to RapidR Loopback.  3 received", "outlist.itemcount=2"] },
+  { file: "media/midi_sysex_port.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_MIDIPORT: "synth:Test Synth" },
+    events: `outlist.__item_0,sendbtn.onclick,${wait("info", 4)}`, dump: "loglist.itemcount,loglist.text,info.caption",
+    expect: ["loglist.itemcount=3", "Identity Reply: a test or school device, family 01 00, model 02 00, version 01 00 00 00", "info.caption=Answers from Test Synth;  sending to Test Synth"] },
   // data/
   // (RSecrets in the test keystore — the runner's RAPIDR_AI_KEYSTORE=memory,
   // never the keychain: a password typed, saved, read back; an empty one
@@ -884,6 +893,8 @@ const env = (extra = {}) => ({
   RAPIDR_TEST_SOUND: "",
   RAPIDR_TEST_MIDI: "",
   RAPIDR_TEST_COMPORT: "",
+  // (RMIDIPort: the scripted devices only — none unless a case's)
+  RAPIDR_TEST_MIDIPORT: "",
   RAPIDR_TEST_JOYSTICK: "",
   RAPIDR_TEST_WAVE_IN: "tone:440",
   // (no AI provider's key from the machine, none kept in its keychain)
@@ -1072,6 +1083,8 @@ async function runWeb(c) {
         window.__rapidr_assets = assets;
         window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
         if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
+        // (RMIDIPort: the scripted devices, never the browser's prompt)
+        window.RAPIDR_TEST_MIDIPORT = env.RAPIDR_TEST_MIDIPORT || "";
         // (named as its file: a .rr is a RapidR program — RAPIDQ.INC's
         // constants built in —, a .bas a RapidQ one, as on the desktop)
         const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, main, assets);

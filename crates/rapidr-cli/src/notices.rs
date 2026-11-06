@@ -306,6 +306,7 @@ const BANNED: &[(&str, &str)] = &[
     ("dwrote", "MPL-2.0"),
     ("option-ext", "MPL-2.0"),
     ("freetype-sys", "FreeType's licence asks for credit in the documentation"),
+    ("jack-sys", "midir's `jack` feature loads the LGPL libjack at run time: MIDI uses the system's own service"),
     ("wayland-protocols-plasma", "crates.io's is generated from LGPL-2.1-or-later KDE protocol files: RapidR's stand-in (crates/patches) must replace it"),
 ];
 

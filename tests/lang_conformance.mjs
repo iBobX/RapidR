@@ -52,7 +52,7 @@ mkdirSync(PRINTS, { recursive: true });
 const ENV = {
   ...process.env,
   RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: join(WORK, "registry.reg"), RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_AI_KEYSTORE: "memory",
-  RAPIDR_TEST_JOYSTICK: "", RAPIDR_TEST_COMPORT: "", RAPIDR_TEST_SOUND: "", RAPIDR_TEST_MIDI: "", RAPIDR_TEST_WAVE_IN: "",
+  RAPIDR_TEST_JOYSTICK: "", RAPIDR_TEST_COMPORT: "", RAPIDR_TEST_MIDIPORT: "", RAPIDR_TEST_SOUND: "", RAPIDR_TEST_MIDI: "", RAPIDR_TEST_WAVE_IN: "",
   RAPIDR_TEST_FILE_DIALOG: "", RAPIDR_TEST_COLOR_DIALOG: "", RAPIDR_TEST_FONT_DIALOG: "", RAPIDR_TEST_MESSAGE_DIALOG: "",
 };
 const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").trimEnd();

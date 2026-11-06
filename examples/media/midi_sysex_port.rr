@@ -1,0 +1,264 @@
+' midi_sysex_port.rr: talking to a synthesizer with System Exclusive (SysEx)
+' messages through RMIDIPort — pick its MIDI input and output, choose a
+' Universal SysEx message (or type your own in hex), send it, and read what
+' the synthesizer answers. No pointers, no buffers, the same on every
+' system. The first input opens by itself; pick the output yourself, so a
+' message never goes to a device you didn't choose.
+'
+'   rapidr run midi_sysex_port.rr          (or open it in RapidR Studio and press F5)
+'
+' The messages are the MIDI standard's Universal ones, which every General
+' MIDI synthesizer knows: Identity Request (it answers with an Identity
+' Reply: its maker, family, model and version, decoded below), GM System On
+' and Off, GM2 System On, and Master Volume. "Device" picks which synth on
+' the cable answers (All, 7F, is every one). A message of a maker's own goes
+' in the hex box as its manual gives it. SysEx can change settings stored
+' inside a device: send only messages you know.
+'
+' IgnoreSysEx = False is what lets the SysEx answers in: an RMIDIPort drops
+' SysEx until the program asks for it (a browser then asks you for that
+' permission too). Windows, macOS, Linux and the browser.
+$THEME rapidr
+
+DECLARE SUB SysExArrived (Data AS STRING)
+DECLARE SUB Arrived (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)
+DECLARE SUB MidiProblem (Message AS STRING)
+DECLARE SUB DevicesChanged
+DECLARE SUB InputPicked
+DECLARE SUB OutputPicked
+DECLARE SUB MessagePicked
+DECLARE SUB SendSysExClick
+DECLARE SUB SendNoteClick
+DECLARE SUB SendChordClick
+DECLARE SUB Fill
+DECLARE SUB Logged (What AS STRING)
+DECLARE SUB ShowStatus
+
+DIM Midi AS RMIDIPort
+Midi.IgnoreSysEx = 0              ' let SysEx in: the synthesizer's answers
+Midi.OnSysEx = SysExArrived
+Midi.OnMessage = Arrived
+Midi.OnError = MidiProblem
+Midi.OnDevicesChanged = DevicesChanged
+
+DIM filling AS INTEGER
+DIM Mono AS RFont                 ' the log in a fixed-width font: the bytes line up
+Mono.Name = "Courier New"
+
+CREATE Form AS RForm
+    Caption = "SysEx with a synthesizer"
+    ClientWidth = 720: ClientHeight = 500
+    Center
+    CREATE DevBox AS RGroupBox
+        Caption = "MIDI devices": Left = 12: Top = 8: Width = 340: Height = 112
+        CREATE InLabel AS RLabel
+            Caption = "&Input": Left = 12: Top = 30: Width = 60
+        END CREATE
+        CREATE InList AS RComboBox
+            Left = 76: Top = 26: Width = 252: Style = 2
+            OnChange = InputPicked
+            AccessibleName = "MIDI input: where the answers come from"
+        END CREATE
+        CREATE OutLabel AS RLabel
+            Caption = "&Output": Left = 12: Top = 70: Width = 60
+        END CREATE
+        CREATE OutList AS RComboBox
+            Left = 76: Top = 66: Width = 252: Style = 2
+            OnChange = OutputPicked
+            AccessibleName = "MIDI output: the synthesizer"
+        END CREATE
+    END CREATE
+    CREATE MsgBox AS RGroupBox
+        Caption = "Message": Left = 364: Top = 8: Width = 344: Height = 236
+        CREATE Messages AS RListBox
+            Left = 12: Top = 24: Width = 196: Height = 124
+            OnClick = MessagePicked
+            AccessibleName = "Universal SysEx messages"
+        END CREATE
+        CREATE DevLabel AS RLabel
+            Caption = "&Device": Left = 220: Top = 24: Width = 110
+        END CREATE
+        CREATE DevId AS RComboBox
+            Left = 220: Top = 44: Width = 112: Style = 2
+            OnChange = MessagePicked
+            AccessibleName = "Which synthesizer answers"
+        END CREATE
+        CREATE HexLabel AS RLabel
+            Caption = "&Bytes (hex)": Left = 12: Top = 160: Width = 120
+        END CREATE
+        CREATE HexText AS REdit
+            Left = 12: Top = 180: Width = 212
+            AccessibleName = "The message's bytes, in hex"
+        END CREATE
+        CREATE SendBtn AS RButton
+            Caption = "&Send SysEx": Left = 232: Top = 178: Width = 100: Height = 28
+            OnClick = SendSysExClick
+        END CREATE
+    END CREATE
+    CREATE PlayBox AS RGroupBox
+        Caption = "Play": Left = 12: Top = 128: Width = 340: Height = 116
+        CREATE NoteBtn AS RButton
+            Caption = "&Note (C4)": Left = 12: Top = 28: Width = 100: Height = 28
+            OnClick = SendNoteClick
+        END CREATE
+        CREATE ChordBtn AS RButton
+            Caption = "&Chord (C major)": Left = 124: Top = 28: Width = 140: Height = 28
+            OnClick = SendChordClick
+        END CREATE
+        CREATE PlayNote AS RLabel
+            Left = 12: Top = 68: Width = 316: Height = 40
+            Caption = "On channel 1: hear that the output is right."
+        END CREATE
+    END CREATE
+    CREATE LogList AS RListBox
+        Left = 12: Top = 254: Width = 696: Height = 190
+        Font = Mono
+        AccessibleName = "What was sent and what came back"
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 452: Width = 696: Height = 40
+    END CREATE
+END CREATE
+
+' The Universal messages: a name, then the bytes (dd: the device's ID).
+DIM names(5) AS STRING, bytes(5) AS STRING
+names(0) = "Identity Request": bytes(0) = "F0 7E dd 06 01 F7"
+names(1) = "GM System On": bytes(1) = "F0 7E dd 09 01 F7"
+names(2) = "GM System Off": bytes(2) = "F0 7E dd 09 02 F7"
+names(3) = "GM2 System On": bytes(3) = "F0 7E dd 09 03 F7"
+names(4) = "Master Volume 100 %": bytes(4) = "F0 7F dd 04 01 7F 7F F7"
+names(5) = "Master Volume 50 %": bytes(5) = "F0 7F dd 04 01 00 40 F7"
+
+DIM i AS INTEGER
+FOR i = 0 TO 5
+    Messages.AddItems names(i)
+NEXT
+DevId.AddItems "All (7F)"
+FOR i = 1 TO 16
+    DevId.AddItems "Device " + FORMAT$("%d", i)
+NEXT
+DevId.ItemIndex = 0
+Messages.ItemIndex = 0
+MessagePicked
+
+Fill
+' (the first input opens by itself — listening changes nothing —; an
+' output only when you pick it, so nothing goes to a device you didn't choose)
+IF InList.ItemCount > 0 THEN
+    Midi.OpenInput 0
+    Fill
+END IF
+ShowStatus
+Form.ShowModal
+
+' ---- the messages ---------------------------------------------------------------------
+
+' The chosen message's bytes, with the device's ID in them.
+SUB MessagePicked
+    DIM id AS STRING
+    IF Messages.ItemIndex < 0 THEN EXIT SUB
+    IF DevId.ItemIndex <= 0 THEN id = "7F" ELSE id = RIGHT$("0" + HEX$(DevId.ItemIndex - 1), 2)
+    HexText.Text = REPLACESUBSTR$(bytes(Messages.ItemIndex), "dd", id)
+END SUB
+
+SUB SendSysExClick
+    IF Midi.SendHex(HexText.Text) THEN Logged "sent      " + HexText.Text
+    ShowStatus
+END SUB
+
+' (the note is on channel 1: &H90 note on, &H80 note off)
+SUB SendNoteClick
+    IF Midi.SendNoteOn(1, 60, 100) THEN
+        SLEEP 0.4
+        Midi.SendNoteOff 1, 60
+        Logged "sent      note C4"
+    END IF
+    ShowStatus
+END SUB
+
+SUB SendChordClick
+    DIM chord(2) AS INTEGER, n AS INTEGER
+    chord(0) = 60: chord(1) = 64: chord(2) = 67     ' C, E, G
+    FOR n = 0 TO 2
+        Midi.SendNoteOn 1, chord(n), 90
+    NEXT
+    SLEEP 0.8
+    FOR n = 0 TO 2
+        Midi.SendNoteOff 1, chord(n)
+    NEXT
+    IF Midi.Error = "" THEN Logged "sent      chord C E G"
+    ShowStatus
+END SUB
+
+' ---- the answers ----------------------------------------------------------------------
+
+' A maker's ID in words, for a few (the MIDI Association's list has them all).
+FUNCTION Maker (Id AS STRING) AS STRING
+    SELECT CASE Id
+        CASE "41": Maker = "Roland"
+        CASE "42": Maker = "Korg"
+        CASE "43": Maker = "Yamaha"
+        CASE "44": Maker = "Casio"
+        CASE "40": Maker = "Kawai"
+        CASE "7D": Maker = "a test or school device"
+        CASE ELSE: Maker = "maker " + Id
+    END SELECT
+END FUNCTION
+
+SUB SysExArrived (Data AS STRING)
+    DIM hx AS STRING
+    hx = Midi.Hex(Data)
+    IF LEN(hx) > 72 THEN hx = LEFT$(hx, 69) + "..."
+    Logged "received  " + hx + "  (" + FORMAT$("%d", LEN(Data)) + " bytes)"
+    ' (an Identity Reply: F0 7E id 06 02, the maker, family (2), model (2), version (4), F7)
+    IF LEN(Data) >= 15 AND MID$(Data, 2, 1) = CHR$(&H7E) AND MID$(Data, 4, 2) = CHR$(6) + CHR$(2) THEN
+        Logged "          Identity Reply: " + Maker(Midi.Hex(MID$(Data, 6, 1))) + ", family " + Midi.Hex(MID$(Data, 7, 2)) + ", model " + Midi.Hex(MID$(Data, 9, 2)) + ", version " + Midi.Hex(MID$(Data, 11, 4))
+    END IF
+END SUB
+
+SUB Arrived (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)
+    Logged "received  " + Midi.Hex(CHR$(Status) + CHR$(Data1) + CHR$(Data2))
+END SUB
+
+SUB MidiProblem (Message AS STRING)
+    Logged "problem   " + Message
+    ShowStatus
+END SUB
+
+SUB Logged (What AS STRING)
+    LogList.AddItems What
+    IF LogList.ItemCount > 300 THEN LogList.DelItems 0
+    LogList.ItemIndex = LogList.ItemCount - 1
+END SUB
+
+' ---- the devices ----------------------------------------------------------------------
+
+SUB Fill
+    filling = 1
+    Midi.FillInputs InList
+    Midi.FillOutputs OutList
+    filling = 0
+END SUB
+
+SUB DevicesChanged
+    Fill
+    ShowStatus
+END SUB
+
+SUB InputPicked
+    IF filling = 0 AND InList.ItemIndex >= 0 THEN Midi.OpenInput(InList.ItemIndex)
+    ShowStatus
+END SUB
+
+SUB OutputPicked
+    IF filling = 0 AND OutList.ItemIndex >= 0 THEN Midi.OpenOutput(OutList.ItemIndex)
+    ShowStatus
+END SUB
+
+SUB ShowStatus
+    DIM s AS STRING
+    IF Midi.IsInputOpen THEN s = "Answers from " + Midi.InputName ELSE s = "No input open"
+    IF Midi.IsOutputOpen THEN s = s + ";  sending to " + Midi.OutputName ELSE s = s + ";  no output open"
+    IF Midi.Error <> "" THEN s = s + CHR$(10) + Midi.Error
+    Info.Caption = s
+END SUB

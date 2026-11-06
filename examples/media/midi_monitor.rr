@@ -1,0 +1,266 @@
+' midi_monitor.rr: everything a MIDI keyboard, controller or synthesizer
+' sends, shown as it arrives (RMIDIPort) — notes, controls, program
+' changes and whole System Exclusive (SysEx) messages, in hex and in
+' words — and a SysEx typed in hex sent back out.
+'
+'   rapidr run midi_monitor.rr          (or open it in RapidR Studio and press F5)
+'
+' The first input opens by itself: play something, turn a knob. Pick an
+' output to send to (none is opened for you). "Receive SysEx" sets IgnoreSysEx = False: an
+' RMIDIPort drops SysEx until the program asks for it. The box at the bottom
+' holds the Identity Request (F0 7E 7F 06 01 F7): most synthesizers answer it
+' with an Identity Reply, shown here. "Test note" plays middle C on the
+' output. Plug a device in or out and the lists follow (OnDevicesChanged).
+' Windows, macOS, Linux and the browser (it asks you first).
+$THEME rapidr
+
+CONST KEEP = 400                  ' lines the log keeps
+
+DECLARE SUB Arrived (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)
+DECLARE SUB SysExArrived (Data AS STRING)
+DECLARE SUB MidiProblem (Message AS STRING)
+DECLARE SUB DevicesChanged
+DECLARE SUB InputPicked
+DECLARE SUB OutputPicked
+DECLARE SUB SysExToggled
+DECLARE SUB ClockToggled
+DECLARE SUB SendClick
+DECLARE SUB TestNoteClick
+DECLARE SUB ClearClick
+DECLARE SUB Fill
+DECLARE SUB Show (What AS STRING)
+DECLARE SUB Received (What AS STRING)
+DECLARE SUB ShowStatus
+
+DIM Midi AS RMIDIPort
+Midi.IgnoreSysEx = 0
+Midi.OnMessage = Arrived
+Midi.OnSysEx = SysExArrived
+Midi.OnError = MidiProblem
+Midi.OnDevicesChanged = DevicesChanged
+
+DIM Mono AS RFont                 ' the log in a fixed-width font: the columns line up
+Mono.Name = "Courier New"
+
+DIM filling AS INTEGER            ' (the lists being filled: no Open)
+DIM shown AS LONG                 ' messages shown
+
+CREATE Form AS RForm
+    Caption = "MIDI monitor"
+    ClientWidth = 720: ClientHeight = 480
+    Center
+    CREATE InLabel AS RLabel
+        Caption = "&Input": Left = 12: Top = 16: Width = 64
+    END CREATE
+    CREATE InList AS RComboBox
+        Left = 80: Top = 12: Width = 280: Style = 2
+        OnChange = InputPicked
+        AccessibleName = "MIDI input"
+    END CREATE
+    CREATE OutLabel AS RLabel
+        Caption = "&Output": Left = 376: Top = 16: Width = 64
+    END CREATE
+    CREATE OutList AS RComboBox
+        Left = 444: Top = 12: Width = 264: Style = 2
+        OnChange = OutputPicked
+        AccessibleName = "MIDI output"
+    END CREATE
+    CREATE SysExBox AS RCheckBox
+        Caption = "Receive &SysEx": Left = 12: Top = 48: Width = 150: Checked = 1
+        OnClick = SysExToggled
+    END CREATE
+    CREATE ClockBox AS RCheckBox
+        Caption = "Show cloc&k": Left = 170: Top = 48: Width = 130
+        OnClick = ClockToggled
+    END CREATE
+    CREATE ClearBtn AS RButton
+        Caption = "C&lear": Left = 612: Top = 44: Width = 96: Height = 28
+        OnClick = ClearClick
+    END CREATE
+    CREATE LogList AS RListBox
+        Left = 12: Top = 80: Width = 696: Height = 300
+        Font = Mono
+        AccessibleName = "Messages received"
+    END CREATE
+    CREATE HexLabel AS RLabel
+        Caption = "Send (&hex)": Left = 12: Top = 396: Width = 80
+    END CREATE
+    CREATE HexText AS REdit
+        Left = 96: Top = 392: Width = 396
+        Text = "F0 7E 7F 06 01 F7"
+        AccessibleName = "Bytes to send, in hex"
+    END CREATE
+    CREATE SendBtn AS RButton
+        Caption = "Se&nd": Left = 504: Top = 390: Width = 96: Height = 28
+        OnClick = SendClick
+    END CREATE
+    CREATE NoteBtn AS RButton
+        Caption = "&Test note": Left = 612: Top = 390: Width = 96: Height = 28
+        OnClick = TestNoteClick
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 432: Width = 696: Height = 40
+    END CREATE
+END CREATE
+
+Fill
+' (the first input opens by itself — listening changes nothing —; an
+' output only when you pick it, so nothing goes to a device you didn't choose)
+IF InList.ItemCount > 0 THEN
+    Midi.OpenInput 0
+    Fill
+END IF
+ShowStatus
+Form.ShowModal
+
+' ---- what arrives ---------------------------------------------------------------------
+
+FUNCTION NoteName (n AS INTEGER) AS STRING
+    ' (60 is middle C, C4)
+    NoteName = RTRIM$(MID$("C C#D D#E F F#G G#A A#B ", (n MOD 12) * 2 + 1, 2)) + FORMAT$("%d", n \ 12 - 1)
+END FUNCTION
+
+' A short message in words.
+FUNCTION Describe (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER) AS STRING
+    DIM ch AS STRING
+    ch = "ch " + FORMAT$("%d", (Status AND 15) + 1) + "  "
+    SELECT CASE Status AND &HF0
+        CASE &H90
+            IF Data2 > 0 THEN
+                Describe = ch + "note on   " + NoteName(Data1) + "  velocity " + FORMAT$("%d", Data2)
+            ELSE
+                Describe = ch + "note off  " + NoteName(Data1)
+            END IF
+        CASE &H80: Describe = ch + "note off  " + NoteName(Data1)
+        CASE &HA0: Describe = ch + "key pressure  " + NoteName(Data1) + "  " + FORMAT$("%d", Data2)
+        CASE &HB0: Describe = ch + "control " + FORMAT$("%d", Data1) + " = " + FORMAT$("%d", Data2)
+        CASE &HC0: Describe = ch + "program " + FORMAT$("%d", Data1)
+        CASE &HD0: Describe = ch + "channel pressure " + FORMAT$("%d", Data1)
+        CASE &HE0: Describe = ch + "pitch bend " + FORMAT$("%d", Data1 + Data2 * 128 - 8192)
+        CASE ELSE
+            SELECT CASE Status
+                CASE &HF8: Describe = "clock"
+                CASE &HFA: Describe = "start"
+                CASE &HFB: Describe = "continue"
+                CASE &HFC: Describe = "stop"
+                CASE &HFE: Describe = "active sensing"
+                CASE &HFF: Describe = "reset"
+                CASE &HF2: Describe = "song position " + FORMAT$("%d", Data1 + Data2 * 128)
+                CASE ELSE: Describe = "system message"
+            END SELECT
+    END SELECT
+END FUNCTION
+
+' The bytes a message has (a program change has one data byte, a clock none).
+FUNCTION ShortBytes (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER) AS STRING
+    SELECT CASE Status AND &HF0
+        CASE &HC0, &HD0: ShortBytes = CHR$(Status) + CHR$(Data1)
+        CASE &HF0
+            SELECT CASE Status
+                CASE &HF2: ShortBytes = CHR$(Status) + CHR$(Data1) + CHR$(Data2)
+                CASE &HF1, &HF3: ShortBytes = CHR$(Status) + CHR$(Data1)
+                CASE ELSE: ShortBytes = CHR$(Status)
+            END SELECT
+        CASE ELSE: ShortBytes = CHR$(Status) + CHR$(Data1) + CHR$(Data2)
+    END SELECT
+END FUNCTION
+
+SUB Arrived (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)
+    Received LEFT$(Midi.Hex(ShortBytes(Status, Data1, Data2)) + SPACE$(12), 12) + Describe(Status, Data1, Data2)
+END SUB
+
+' A whole SysEx: the first bytes in hex, how long it is, and what a
+' Universal Identity Reply (F0 7E id 06 02 …) says.
+SUB SysExArrived (Data AS STRING)
+    DIM hx AS STRING, what AS STRING
+    hx = Midi.Hex(Data)
+    IF LEN(hx) > 60 THEN hx = LEFT$(hx, 57) + "..."
+    what = "SysEx, " + FORMAT$("%d", LEN(Data)) + " bytes"
+    IF LEN(Data) >= 15 AND ASC(MID$(Data, 2, 1)) = &H7E AND ASC(MID$(Data, 4, 1)) = 6 AND ASC(MID$(Data, 5, 1)) = 2 THEN
+        what = "Identity Reply: maker " + Midi.Hex(MID$(Data, 6, 1)) + ", family " + Midi.Hex(MID$(Data, 7, 2)) + ", model " + Midi.Hex(MID$(Data, 9, 2)) + ", version " + Midi.Hex(MID$(Data, 11, 4))
+    END IF
+    Received hx + "   " + what
+END SUB
+
+SUB MidiProblem (Message AS STRING)
+    Show "        !     " + Message
+    ShowStatus
+END SUB
+
+' A message that arrived: when (ms since the input opened), then what.
+SUB Received (What AS STRING)
+    shown = shown + 1
+    Show FORMAT$("%9.1f", Midi.Timestamp) + " ms  " + What
+END SUB
+
+SUB Show (What AS STRING)
+    LogList.AddItems What
+    IF LogList.ItemCount > KEEP THEN LogList.DelItems 0
+    LogList.ItemIndex = LogList.ItemCount - 1
+    ShowStatus
+END SUB
+
+' ---- the devices ----------------------------------------------------------------------
+
+' The lists read again (the open ones stay selected).
+SUB Fill
+    filling = 1
+    Midi.FillInputs InList
+    Midi.FillOutputs OutList
+    filling = 0
+END SUB
+
+SUB DevicesChanged
+    Fill
+    Show "        --    devices changed: " + FORMAT$("%d", InList.ItemCount) + " in, " + FORMAT$("%d", OutList.ItemCount) + " out"
+END SUB
+
+SUB InputPicked
+    IF filling = 0 AND InList.ItemIndex >= 0 THEN Midi.OpenInput(InList.ItemIndex)
+    ShowStatus
+END SUB
+
+SUB OutputPicked
+    IF filling = 0 AND OutList.ItemIndex >= 0 THEN Midi.OpenOutput(OutList.ItemIndex)
+    ShowStatus
+END SUB
+
+SUB SysExToggled
+    Midi.IgnoreSysEx = 1 - SysExBox.Checked
+END SUB
+
+SUB ClockToggled
+    Midi.IgnoreClock = 1 - ClockBox.Checked
+END SUB
+
+' ---- sending --------------------------------------------------------------------------
+
+SUB SendClick
+    IF Midi.SendHex(HexText.Text) THEN Show "        sent  " + HexText.Text
+    ShowStatus
+END SUB
+
+SUB TestNoteClick
+    IF Midi.SendNoteOn(1, 60, 100) THEN
+        SLEEP 0.3
+        Midi.SendNoteOff 1, 60
+        Show "        sent  90 3C 64, 80 3C 00   ch 1  note C4"
+    END IF
+    ShowStatus
+END SUB
+
+SUB ClearClick
+    LogList.Clear
+    shown = 0
+    ShowStatus
+END SUB
+
+SUB ShowStatus
+    DIM s AS STRING
+    IF Midi.IsInputOpen THEN s = "Listening to " + Midi.InputName ELSE s = "No input open"
+    IF Midi.IsOutputOpen THEN s = s + ";  sending to " + Midi.OutputName ELSE s = s + ";  no output open"
+    s = s + ".  " + FORMAT$("%d", shown) + " received"
+    IF Midi.Dropped > 0 THEN s = s + ", " + FORMAT$("%d", Midi.Dropped) + " dropped"
+    IF Midi.Error <> "" THEN s = s + CHR$(10) + Midi.Error
+    Info.Caption = s
+END SUB

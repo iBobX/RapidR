@@ -1,0 +1,87 @@
+' RMIDIPort on the tests' scripted devices (RAPIDR_TEST_MIDIPORT): Loop sends back what is sent (a SysEx in 1 KB pieces), Synth answers an Identity Request, Taken is in use, Keys plays a stream with running status, clock and active sensing — never a real device
+$APPTYPE CONSOLE
+ENVIRON "RAPIDR_TEST_MIDIPORT=loop:Loop;synth:Synth;busy:Taken;in:Keys=90 3C 64 3E 64 F8 FE B0 40 7F F0 01 02 F7"
+DECLARE SUB Msg (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)
+DECLARE SUB NoteOn (Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)
+DECLARE SUB NoteOff (Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)
+DECLARE SUB Knob (Channel AS INTEGER, Controller AS INTEGER, Value AS INTEGER)
+DECLARE SUB SysEx (Data AS STRING)
+DECLARE SUB Problem (Message AS STRING)
+DIM m AS RMIDIPort
+DIM i AS INTEGER, s AS STRING
+SUB Msg (Status AS INTEGER, Data1 AS INTEGER, Data2 AS INTEGER)
+  PRINT "  message "; HEX$(Status); " "; Data1; " "; Data2
+END SUB
+SUB NoteOn (Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)
+  PRINT "  note on ch"; Channel; " "; Note; " "; Velocity
+END SUB
+SUB NoteOff (Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)
+  PRINT "  note off ch"; Channel; " "; Note
+END SUB
+SUB Knob (Channel AS INTEGER, Controller AS INTEGER, Value AS INTEGER)
+  PRINT "  control ch"; Channel; " "; Controller; "="; Value
+END SUB
+SUB SysEx (Data AS STRING)
+  IF LEN(Data) > 20 THEN
+    PRINT "  sysex "; LEN(Data); " bytes: "; m.Hex(LEFT$(Data, 4)); " ... "; m.Hex(RIGHT$(Data, 2))
+  ELSE
+    PRINT "  sysex "; m.Hex(Data)
+  END IF
+END SUB
+SUB Problem (Message AS STRING)
+  PRINT "  problem: "; Message
+END SUB
+m.OnMessage = Msg
+m.OnNoteOn = NoteOn
+m.OnNoteOff = NoteOff
+m.OnControl = Knob
+m.OnSysEx = SysEx
+m.OnError = Problem
+PRINT "ignore sysex "; m.IgnoreSysEx; " clock "; m.IgnoreClock; " sensing "; m.IgnoreActiveSensing
+PRINT "inputs "; m.InputCount; ", outputs "; m.OutputCount
+FOR i = 0 TO m.InputCount - 1
+  PRINT "  in "; i; ": "; m.InputDevice(i)
+NEXT
+FOR i = 0 TO m.OutputCount - 1
+  PRINT "  out "; i; ": "; m.OutputDevice(i)
+NEXT
+PRINT "past the end ["; m.InputDevice(9); "]"
+' (running status expanded; clock, active sensing and SysEx dropped: the defaults)
+PRINT "open keys "; m.OpenInput("keys"); " "; m.InputName; " open "; m.IsInputOpen
+DOEVENTS
+PRINT "open taken "; m.OpenInput("Taken"); ": "; m.Error
+PRINT "open 9 "; m.OpenInput(9); ": "; m.Error
+PRINT "open drum "; m.OpenOutput("drum"); ": "; m.Error
+PRINT "send, no output "; m.SendNoteOn(1, 60, 1); ": "; m.Error
+m.IgnoreSysEx = 0
+PRINT "open loop "; m.OpenInput("Loop"); " "; m.OpenOutput(0); " "; m.OutputName
+m.SendNoteOn 2, 60, 100
+m.SendNoteOff 2, 60
+m.SendNoteOn 3, 62, 0
+m.SendControl 1, 7, 99
+m.SendProgram 16, 5
+m.Send &HE0, 0, 64
+m.Send &HFA
+s = CHR$(240) + CHR$(125)
+FOR i = 1 TO 3000
+  s = s + CHR$(i MOD 128)
+NEXT
+s = s + CHR$(247)
+PRINT "sent sysex "; m.SendSysEx(s); ", queued so far "; m.Queued
+DOEVENTS
+PRINT "queued now "; m.Queued; ", dropped "; m.Dropped
+PRINT "bad data "; m.Send(&H90, 200, 1); ": "; m.Error
+PRINT "bad status "; m.Send(60); ": "; m.Error
+PRINT "channel 0 "; m.SendNoteOn(0, 60, 1); ": "; m.Error
+PRINT "bad sysex "; m.SendSysEx("abc"); ": "; m.Error
+PRINT "high byte "; m.SendSysEx(CHR$(240) + CHR$(1) + CHR$(200) + CHR$(247)); ": "; m.Error
+PRINT "half message "; m.SendHex("F0 7E 7F 06 01 F7 90 3C"); ": "; m.Error
+PRINT "not hex "; m.SendHex("F0 zz"); ": "; m.Error
+PRINT "hex "; m.SendHex("&HB0, 0x0A, 40"); " ["; m.Error; "]"
+DOEVENTS
+PRINT "Hex: "; m.Hex(CHR$(240) + CHR$(1) + CHR$(127) + CHR$(247))
+PRINT "open synth "; m.OpenInput("Synth"); " "; m.OpenOutput("Synth")
+PRINT "identity request "; m.SendHex("F0 7E 7F 06 01 F7")
+DOEVENTS
+m.Close
+PRINT "closed "; m.IsInputOpen; " "; m.IsOutputOpen; " ["; m.InputName; "]"

@@ -208,6 +208,8 @@ SUB FillExamples
   AddMoreExample "media/tone_generator.rr", "A tone made sample by sample, with an oscilloscope"
   AddMoreExample "media/beeper.rr", "A one-bit speaker played the way an emulator plays it"
   AddMoreExample "media/chiptune.rr", "A three-voice square-wave music player"
+  AddMoreExample "media/midi_monitor.rr", "Everything a MIDI device sends, in hex and in words"
+  AddMoreExample "media/midi_sysex_port.rr", "SysEx with a synthesizer: ask who it is, send a message"
   AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
   AddMoreExample "studio/versions.rr", TR$("Versions from a program: save, go back, undo, the local history")
   AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"

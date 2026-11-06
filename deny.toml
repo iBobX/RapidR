@@ -103,6 +103,7 @@ deny = [
     { name = "dwrote", reason = "MPL-2.0" },
     { name = "option-ext", reason = "MPL-2.0" },
     { name = "freetype-sys", reason = "FreeType's licence asks for credit in the documentation" },
+    { name = "jack-sys", reason = "midir's `jack` feature: loads the LGPL libjack at run time; not needed (docs/legal/review-2026-11-05-midi.md, C1)" },
 ]
 
 [sources]

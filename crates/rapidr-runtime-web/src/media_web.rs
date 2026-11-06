@@ -15,6 +15,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+/// RMIDIPort's devices: MIDI in and out, SysEx asked for separately.
+pub mod port;
+
 use rapidr_value::objects::media::{self, MidiDevice, WaveInput};
 use rapidr_value::objects::midifile::Song;
 use rapidr_value::objects::midiout;

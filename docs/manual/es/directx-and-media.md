@@ -1,4 +1,4 @@
-<!-- translated-from: directx-and-media.md ee0ac415e7616eb3 -->
+<!-- translated-from: directx-and-media.md 95e19ada0588bf77 -->
 # DirectX, multimedia y dispositivos
 
 Los objetos de DirectX, multimedia y dispositivos se ejecutan en todas las
@@ -188,6 +188,125 @@ las muestras reproducidas), [beeper.rr](../../../examples/media/beeper.rr) (el
 altavoz de un bit), [chiptune.rr](../../../examples/media/chiptune.rr) (tres
 voces de onda cuadrada que tocan la melodía propia de RapidR) y la receta
 [frame_audio.rr](../../../examples/recipes/frame_audio.rr).
+
+## Entrada y salida MIDI: RMIDIPort
+
+**RMIDIPort** conecta tu programa con teclados, controladores, pads de
+percusión y sintetizadores MIDI: los muestra, abre una entrada y una salida,
+avisa a tu programa con eventos lo que llega, y envía notas, controles y
+mensajes exclusivos del sistema (SysEx). No hay punteros, búferes ni llamadas
+al sistema que acertar, y funciona igual en Windows, macOS, Linux y el
+navegador.
+
+![El monitor MIDI: arriba, la entrada y la salida elegidas; la lista de los mensajes recibidos con su hora, sus bytes en hexadecimal y lo que significan (un SysEx, una nota encendida y una apagada), y abajo la solicitud de identidad lista para enviar](../images/media/midi-monitor.png)
+
+```basic
+DIM Midi AS RMIDIPort
+
+SUB NoteOn (Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)
+    PRINT "nota "; Note; " en el canal "; Channel; ", velocidad "; Velocity
+END SUB
+
+Midi.OnNoteOn = NoteOn
+IF Midi.InputCount > 0 THEN
+    Midi.OpenInput 0                          ' la primera entrada
+ELSE
+    PRINT "No hay entrada MIDI: "; Midi.Error
+END IF
+```
+
+- **Dispositivos.** `InputCount` y `OutputCount` leen las listas del sistema;
+  `InputDevice(i)` y `OutputDevice(i)` dan los nombres (0 es el primero);
+  `FillInputs List` y `FillOutputs List` los ponen en un `RListBox` o un
+  `RComboBox`. `OpenInput` y `OpenOutput` aceptan un número o un nombre: el
+  nombre exacto, o el primero que lo contiene (`Midi.OpenInput "keys"` abre
+  “USB Keys”). Dos dispositivos con el mismo nombre se distinguen: el segundo
+  es “Nombre (2)”. El evento `OnDevicesChanged` se produce cuando se conecta o
+  desconecta uno. Un `RMIDIPort` abre una entrada y una salida; crea uno por
+  cada teclado que quieras escuchar.
+- **Recibir.** El evento `OnMessage(Status, Data1, Data2)` recibe cada mensaje
+  corto: notas, controles, cambios de programa, inflexión de tono. Para los
+  más comunes hay eventos más sencillos: `OnNoteOn` y `OnNoteOff` (canal de 1
+  a 16, nota, velocidad; una nota encendida con velocidad 0 cuenta como
+  apagada) y `OnControl` (una perilla, un control deslizante, el pedal de
+  sostenido). Los eventos se producen en el hilo de tu programa, en el orden
+  en que llegaron los mensajes; `Timestamp` dice cuándo llegó el mensaje (ms
+  desde que se abrió la entrada). El reloj de sincronía y el sensado activo,
+  que algunos dispositivos envían todo el tiempo, se descartan hasta que
+  pongas `IgnoreClock = False` o `IgnoreActiveSensing = False`.
+- **Enviar.** `SendNoteOn canal, nota, velocidad`, `SendNoteOff`,
+  `SendControl`, `SendProgram`, o `Send status, data1, data2` para cualquier
+  mensaje corto. `SendHex "90 3C 64"` envía bytes escritos en hexadecimal.
+  Cada uno devuelve True cuando el mensaje salió; si no, `Error` dice por qué
+  en palabras simples (un valor mayor que 127, ninguna salida abierta, el
+  dispositivo se desconectó).
+- **Ráfagas.** Los mensajes esperan en una cola hasta que tu programa los
+  toma, así que una ráfaga nunca se pierde; si el programa se queda muy atrás
+  (más de 32 768 en espera), `Dropped` cuenta lo que se perdió y el evento
+  `OnError` lo avisa.
+
+### SysEx: mensajes exclusivos del sistema
+
+Un mensaje SysEx es un bloque completo de bytes de `F0` a `F7`: volcados de
+sonidos, ajustes del dispositivo, la solicitud de identidad a la que un
+sintetizador responde con su fabricante y modelo. **SysEx está apagado hasta
+que tu programa lo pide: pon `IgnoreSysEx = False` para recibir SysEx.**
+Entonces el evento `OnSysEx(Data)` recibe cada mensaje completo, como una
+cadena binaria (el `ASC` de cada carácter es un byte), aunque haya llegado en
+partes; `Hex(Data)` lo muestra como `F0 7E 7F 06 02 …`. `SendSysEx Data`
+envía una cadena binaria, y `SendHex` lo mismo escrito en hexadecimal:
+
+```basic
+Midi.IgnoreSysEx = False                      ' recibir SysEx
+Midi.OnSysEx = Answer                         ' SUB Answer (Data AS STRING)
+Midi.SendHex "F0 7E 7F 06 01 F7"              ' solicitud de identidad: “¿quién eres?”
+```
+
+![SysEx con un sintetizador: a la izquierda los dispositivos, a la derecha los mensajes universales y el dispositivo elegido, los bytes F0 7E 7F 06 01 F7, y abajo el registro: la solicitud de identidad enviada, la respuesta recibida y descifrada (fabricante, familia, modelo, versión)](../images/media/midi-sysex.png)
+
+- **Cuidado con SysEx.** Un mensaje SysEx puede cambiar ajustes guardados
+  dentro de un dispositivo y, en algunos, incluso reemplazar su firmware.
+  Envía solo mensajes que conozcas (del manual del dispositivo) y ejecuta
+  programas que envían SysEx solo si confías en ellos.
+- **Identificadores de fabricante.** El segundo byte de un mensaje SysEx dice
+  de quién es el formato. Los mensajes *universales* del estándar MIDI (`7E`,
+  `7F`), como la solicitud de identidad y GM System On, funcionan con
+  cualquier dispositivo General MIDI; los ejemplos usan solo esos. Si tu
+  programa publicado define un formato SysEx propio, necesita un
+  identificador de fabricante de la MIDI Association (revisa sus condiciones
+  actuales); el identificador `7D` es solo para pruebas, escuelas y trabajos
+  que no se publican.
+
+### En el navegador
+
+La primera vez que el programa muestra o abre un dispositivo, una nota breve
+explica lo que quiere y luego el navegador pide a la persona que permita
+MIDI. El programa espera la respuesta. SysEx es una pregunta aparte, que se
+hace solo cuando el programa pone `IgnoreSysEx = False` o envía un SysEx;
+decirle que no deja funcionando las notas y los controles. Un “no” es un
+mensaje claro en `Error` (“MIDI access was not allowed in this browser”),
+nunca un fallo; después de “Ahora no”, `OpenInput` u `OpenOutput` vuelven a
+preguntar.
+
+- MIDI funciona en un navegador solo en una página servida por HTTPS o desde
+  tu propia computadora; una página mostrada dentro de un marco necesita
+  `allow="midi"` en ese marco. Algunos navegadores no tienen MIDI: entonces
+  las listas quedan vacías y `Error` lo dice.
+- RapidR no envía a ningún sitio los nombres de los dispositivos de la
+  persona. Lo que haga tu propio programa con ellos depende de ti: un nombre
+  de dispositivo puede identificar a una persona (“el teclado de Ana”), así
+  que no lo envíes a un servidor sin preguntar.
+
+En Linux, MIDI (como el sonido) usa la biblioteca ALSA del sistema
+(`libasound2`): si empaquetas tu programa, inclúyela como dependencia y no la
+copies dentro del paquete.
+
+Los ejemplos: [midi_monitor.rr](../../../examples/media/midi_monitor.rr) (todo
+lo que envía un dispositivo, en hexadecimal y en palabras, y un mensaje
+escrito en hexadecimal enviado de vuelta) y
+[midi_sysex_port.rr](../../../examples/media/midi_sysex_port.rr) (mensajes
+SysEx universales enviados a un sintetizador, su respuesta de identidad
+descifrada, una nota y un acorde para comprobar el cable).
 
 ## Dispositivos y red
 

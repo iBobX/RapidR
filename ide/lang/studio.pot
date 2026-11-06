@@ -4557,6 +4557,14 @@ msgid "A three-voice square-wave music player"
 msgstr ""
 
 #: ide/panes.inc
+msgid "Everything a MIDI device sends, in hex and in words"
+msgstr ""
+
+#: ide/panes.inc
+msgid "SysEx with a synthesizer: ask who it is, send a message"
+msgstr ""
+
+#: ide/panes.inc
 msgid "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
 msgstr ""
 

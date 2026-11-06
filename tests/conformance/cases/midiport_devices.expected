@@ -1,0 +1,51 @@
+ignore sysex 1 clock 1 sensing 1
+inputs 4, outputs 3
+  in 0: Loop
+  in 1: Synth
+  in 2: Taken
+  in 3: Keys
+  out 0: Loop
+  out 1: Synth
+  out 2: Taken
+past the end []
+open keys 1 Keys open 1
+  message 00000090 60 100
+  note on ch1 60 100
+  message 00000090 62 100
+  note on ch1 62 100
+  message 000000B0 64 127
+  control ch1 64=127
+open taken 0: MIDI input "Taken" is in use by another program
+open 9 0: There is no MIDI input number 9 (there are 4: 0 to 3)
+open drum 0: No MIDI output is called "drum" (there are: Loop, Synth, Taken)
+send, no output 0: No MIDI output is open: call OpenOutput first
+open loop 1 1 Loop
+sent sysex 1, queued so far 8
+  message 00000091 60 100
+  note on ch2 60 100
+  message 00000081 60 0
+  note off ch2 60
+  message 00000092 62 0
+  note off ch3 62
+  message 000000B0 7 99
+  control ch1 7=99
+  message 000000CF 5 0
+  message 000000E0 0 64
+  message 000000FA 0 0
+  sysex 3003 bytes: F0 7D 01 02 ... 38 F7
+queued now 0, dropped 0
+bad data 0: Data1 is 0 to 127 (it was 200)
+bad status 0: Status is &H80 to &HFF, 128 to 255 (it was 60): a status byte has its top bit set
+channel 0 0: Channel is 1 to 16 (it was 0)
+bad sysex 0: A SysEx message starts with F0 (240) and ends with F7 (247)
+high byte 0: Byte 3 of the SysEx is 200: bytes between F0 and F7 are 0 to 127
+half message 0: The message starting with 90 is missing its data bytes
+not hex 0: "zz" isn't a byte in hex (00 to FF)
+hex 1 []
+  message 000000B0 10 64
+  control ch1 10=64
+Hex: F0 01 7F F7
+open synth 1 1
+identity request 1
+  sysex F0 7E 7F 06 02 7D 01 00 02 00 01 00 00 00 F7
+closed 0 0 []

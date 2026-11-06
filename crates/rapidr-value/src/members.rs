@@ -134,6 +134,10 @@ const WEB: &[&str] = &[
 /// `IF CD.Open`.
 const IO: &[&str] = &["leechfile", "check", "open", "listports", "readline"];
 
+/// RMIDIPort's (objects::midiport): `FOR i = 0 TO Midi.InputCount - 1` — a
+/// method, so a browser can wait for the user's permission there.
+const MIDI_PORT: &[&str] = &["inputcount", "outputcount"];
+
 /// (I7) Linked data's (crate::datascience::link): `IF People.Load THEN`,
 /// `Nav.Next`.
 const LINKED: &[&str] = &["load", "save", "first", "next", "prior", "last"];
@@ -169,6 +173,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RDIFFVIEW" => &[DIFF],
         "RPROPERTYINSPECTOR" | "RTOOLBOX" | "RPROJECTTREE" | "ROUTPUTCONSOLE" | "RCOMMANDPALETTE" | "RTOOLBAR" | "RMARKDOWNVIEW" => &[PANELS],
         "RDOWNLOAD" | "RCDAUDIO" | "RCOMPORT" | "RMIDI" | "RWAVE" | "RVIDEO" => &[IO],
+        "RMIDIPORT" => &[MIDI_PORT],
         "RWEBVIEW" | "RDOM" | "RJAVASCRIPT" | "RWEBSTORAGE" | "RWEBAUDIO" | "RWEBVIDEO" | "RWEBNOTIFICATION"
         | "RWEBGEOLOCATION" | "RROUTER" => &[WEB],
         _ => &[],
@@ -178,7 +183,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, APP_HANDS, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, REPOSITORY, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
+    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, APP_HANDS, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, REPOSITORY, LANGSVC, PANELS, LINKED, AI, AI_TOOLS, MIDI_PORT]
         .iter()
         .any(|list| list.contains(&member))
 }

@@ -172,6 +172,118 @@ played), [beeper.rr](../../examples/media/beeper.rr) (the one-bit speaker),
 playing RapidR's own tune) and the recipe
 [frame_audio.rr](../../examples/recipes/frame_audio.rr).
 
+## MIDI in and out: RMIDIPort
+
+**RMIDIPort** connects your program to MIDI keyboards, controllers, drum
+pads and synthesizers: it lists them, opens one input and one output, tells
+your program what arrives with events, and sends notes, controls and
+System Exclusive (SysEx) messages. There are no pointers, buffers or system
+calls to get right, and it is the same on Windows, macOS, Linux and in the
+browser.
+
+![The MIDI monitor: an input and an output picked at the top, the messages received listed with their time, their bytes in hex and what they mean (a SysEx, a note on and a note off), and the Identity Request ready to send at the bottom](images/media/midi-monitor.png)
+
+```basic
+DIM Midi AS RMIDIPort
+
+SUB NoteOn (Channel AS INTEGER, Note AS INTEGER, Velocity AS INTEGER)
+    PRINT "note "; Note; " on channel "; Channel; ", velocity "; Velocity
+END SUB
+
+Midi.OnNoteOn = NoteOn
+IF Midi.InputCount > 0 THEN
+    Midi.OpenInput 0                          ' the first input
+ELSE
+    PRINT "No MIDI input: "; Midi.Error
+END IF
+```
+
+- **Devices.** `InputCount` and `OutputCount` read the system's lists;
+  `InputDevice(i)` and `OutputDevice(i)` give the names (0 is the first);
+  `FillInputs List` and `FillOutputs List` put them in an `RListBox` or
+  `RComboBox`. `OpenInput` and `OpenOutput` take a number or a name: the
+  exact name, or the first one that contains it (`Midi.OpenInput "keys"`
+  opens "USB Keys"). Two devices with the same name are told apart: the
+  second is "Name (2)". `OnDevicesChanged` runs when one is plugged in or
+  out. One `RMIDIPort` opens one input and one output; make one per
+  keyboard you want to listen to.
+- **Receiving.** `OnMessage(Status, Data1, Data2)` gets every short
+  message: notes, controls, program changes, pitch bend. For the common
+  ones there are easier events: `OnNoteOn` and `OnNoteOff` (channel 1 to
+  16, note, velocity; a note on with velocity 0 counts as a note off) and
+  `OnControl` (a knob, a slider, the sustain pedal). Events run on your
+  program's own thread, in the order the messages came; `Timestamp` says
+  when the message arrived (ms since the input opened). Timing clock and
+  active sensing, which some devices send all the time, are dropped until
+  you set `IgnoreClock = False` or `IgnoreActiveSensing = False`.
+- **Sending.** `SendNoteOn channel, note, velocity`, `SendNoteOff`,
+  `SendControl`, `SendProgram`, or `Send status, data1, data2` for any short
+  message. `SendHex "90 3C 64"` sends bytes written in hex. Each returns
+  True when the message went out; otherwise `Error` says why in plain
+  words (a value over 127, no output open, the device was unplugged).
+- **Bursts.** Messages wait in a queue until your program takes them, so a
+  burst is never lost; if the program falls far behind (more than 32,768
+  waiting), `Dropped` counts what was lost and `OnError` says so.
+
+### SysEx: System Exclusive messages
+
+A SysEx message is a whole block of bytes from `F0` to `F7`: patch dumps,
+device settings, the Identity Request a synthesizer answers with its maker
+and model. **SysEx is off until your program asks for it: set
+`IgnoreSysEx = False` to receive SysEx.** Then `OnSysEx(Data)` gets each
+message whole, as a binary string (`ASC` of each character is a byte),
+even when it came in pieces; `Hex(Data)` shows it as `F0 7E 7F 06 02 …`.
+`SendSysEx Data` sends a binary string, and `SendHex` the same written in
+hex:
+
+```basic
+Midi.IgnoreSysEx = False                      ' receive SysEx
+Midi.OnSysEx = Answer                         ' SUB Answer (Data AS STRING)
+Midi.SendHex "F0 7E 7F 06 01 F7"              ' Identity Request: "who are you?"
+```
+
+![SysEx with a synthesizer: the devices on the left, the Universal messages and the device picked on the right, the bytes F0 7E 7F 06 01 F7, and below the log: the Identity Request sent, the reply received and decoded (maker, family, model, version)](images/media/midi-sysex.png)
+
+- **Be careful with SysEx.** A SysEx message can change settings stored
+  inside a device and, on some devices, even replace its firmware. Send
+  only messages you know (from the device's manual), and run programs that
+  send SysEx only if you trust them.
+- **Manufacturer IDs.** The second byte of a SysEx message says whose
+  format it is. The MIDI standard's *Universal* messages (`7E`, `7F`), like
+  the Identity Request and GM System On, work with any General MIDI
+  device; the examples use only those. If your released program defines a
+  SysEx format of its own, it needs a manufacturer ID from the MIDI
+  Association (check their current terms); ID `7D` is only for tests,
+  schools and work that is not released.
+
+### In the browser
+
+The first time the program lists or opens a device, a short note explains
+what it wants, then the browser asks the person to allow MIDI. The program
+waits for the answer. SysEx is a separate question, asked only when the
+program sets `IgnoreSysEx = False` or sends a SysEx; saying no to it leaves
+notes and controls working. A "no" is a plain message in `Error` ("MIDI
+access was not allowed in this browser"), never a crash; after "Not now",
+`OpenInput` or `OpenOutput` asks again.
+
+- MIDI works in a browser only on a page served over HTTPS or from your own
+  computer; a page shown inside a frame needs `allow="midi"` on that frame.
+  Some browsers have no MIDI support at all: then the lists are empty and
+  `Error` says so.
+- RapidR sends the names of the person's devices nowhere. What your own
+  program does with them is up to you: device names can identify a person
+  ("Ana's keyboard"), so don't send them to a server without asking.
+
+On Linux, MIDI (like sound) uses the system's ALSA library (`libasound2`):
+if you package your program, list it as a dependency and don't copy it into
+the package.
+
+The examples: [midi_monitor.rr](../../examples/media/midi_monitor.rr)
+(everything a device sends, in hex and in words, and a message typed in hex
+sent back) and [midi_sysex_port.rr](../../examples/media/midi_sysex_port.rr)
+(Universal SysEx messages sent to a synthesizer, its Identity Reply
+decoded, a note and a chord to check the cable).
+
 ## Devices and the network
 
 | Object | |

@@ -509,6 +509,11 @@ pub fn step(max_wait: Option<Duration>) {
     if crate::audio_out::busy() {
         at_most(crate::audio_out::POLL_EVERY);
     }
+    // (RMIDIPort: what arrives wakes the loop; the devices are looked at
+    // about once a second while a port is open)
+    if crate::midi_port::busy() {
+        at_most(Duration::from_millis(250));
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
     #[cfg(feature = "studio")]
@@ -525,6 +530,8 @@ pub fn step(max_wait: Option<Duration>) {
     #[cfg(feature = "database")]
     crate::database::poll();
     crate::audio_out::poll();
+    // (RMIDIPort: what arrived — it woke the loop — to the program's events)
+    crate::midi_port::poll();
     crate::object::rp_run_deferred();
     // (a form's WndProc on Windows: its window's messages, as they came)
     deliver_window_messages();

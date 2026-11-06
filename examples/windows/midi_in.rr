@@ -2,6 +2,11 @@
 '
 '   rapidr run midi_in.rr
 '
+' For MIDI in your own programs use RMIDIPort instead: it works on Windows,
+' macOS, Linux and in the browser, with no winmm calls, headers or pointers
+' (examples/media/midi_monitor.rr, midi_sysex_port.rr). This example shows
+' how the Windows API itself does it, for programs that call DLLs.
+'
 ' Windows only: on other systems WndProc receives only the tray icon's
 ' messages (there the buttons stay off and the form says so).
 '
