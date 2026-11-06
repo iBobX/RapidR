@@ -40,6 +40,7 @@ CHANGELOG.md :: Visual Basic
 * :: github.com/JetBrains/
 # (the Studio language walk knows the bundled monospace font's name as a name, not English)
 tests/studio_lang.mjs :: "jetbrains"
+tests/studio_lang_pt.mjs :: "jetbrains"
 crates/rapidr-value/fonts/ ::
 
 # ---- code (behaviour, not wording) ----

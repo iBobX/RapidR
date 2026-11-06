@@ -47,6 +47,11 @@ ide/project.inc :: RapidQ programs
 ide/lang/studio.pot :: RapidQ programs
 ide/lang/es.po :: de RapidQ
 ide/lang/es.po :: RapidQ programs
+# The same importer texts in Brazilian Portuguese and Simplified Chinese (the
+# menu items, the dialog's title and its filter's name).
+ide/lang/pt-BR.po :: do RapidQ
+ide/lang/pt-BR.po :: RapidQ programs
+ide/lang/zh-Hans.po :: RapidQ programs
 # Studio's own component for the importer (Studio.ImportRapidQ's description).
 crates/rapidr-lang/data/components/studio.toml :: Imports a RapidQ program
 crates/rapidr-lang/data/i18n/es/studio.toml :: Importa un programa RapidQ
@@ -75,3 +80,9 @@ examples/ide.rr :: RapidR is compatible with RapidQ; it is not affiliated with i
 
 # ---- a translators' note in the compiler messages' template (never shown) ----
 crates/rapidr-diagnostics/src/messages.rs :: RapidQ's own message (RC.EXE): the English stays beside the translation
+
+# ---- developer tools never shipped ----
+# The Windows DLL-memory check runs the classic example corpus from the folder it
+# is installed in (its path and the step titles name it); a developer runs it in
+# the test VM, no user ever sees it.
+tools/release/windows/dll-memory-check.ps1 ::
