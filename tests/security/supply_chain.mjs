@@ -56,7 +56,15 @@ check(`cargo-audit ignores what cargo-deny does (${auditIgnores} / ${denyIgnores
 const text = read("crates/rapidr-value/src/objects/text.rs");
 const statics = new Set([...text.matchAll(/^(?:pub )?static ([A-Z_]+): &\[u8\] = include_bytes!\(/gm)].map((m) => m[1]));
 const parses = [...text.matchAll(/ttf_parser::Face::parse\(([^,]+),/g)].map((m) => m[1].trim());
-check(`ttf_parser parses only built-in faces (${parses})`, parses.length > 0 && parses.every((p) => statics.has(p) || ["want.data", "regular", "data"].includes(p)));
+// (`f.data`: fallback_face's one exception, since 2026-10-29: a character no
+// built-in face has (Chinese, Japanese, Korean ...) is drawn with a face the
+// HOST's text engine picked among the fonts installed in the operating system
+// (RESOLVER), which the system itself already reads and draws with. ttf_parser
+// is memory-safe Rust built for untrusted fonts; no font file from a program,
+// a project or the network is ever parsed. Checked below: it is fallback_face's
+// only parse of a non-built-in face.)
+check(`ttf_parser parses only built-in faces, or the host's system font in fallback_face (${parses})`, parses.length > 0 && parses.every((p) => statics.has(p) || ["want.data", "regular", "data", "f.data"].includes(p)));
+check("the system-font parse is fallback_face's, the host's pick (RESOLVER)", (text.match(/ttf_parser::Face::parse\(f\.data,/g) || []).length === 1 && /fn fallback_face\([\s\S]*?let resolver = RESOLVER\.get\(\)\?;[\s\S]*?ttf_parser::Face::parse\(f\.data,/.test(text));
 check("want and regular are face()'s", /let want = face\(/.test(text) && /let regular = face\([^)]*\)\.data;/.test(text));
 check("data is BUILTIN_FACES'", (text.match(/ttf_parser::Face::parse\(data,/g) || []).length === (text.match(/for &\(data, _\) in BUILTIN_FACES\.iter\(\)/g) || []).length);
 const faceFn = text.match(/fn face\(name: &str, styles: u8\) -> Face \{([\s\S]*?)\n\}/)?.[1] ?? "";

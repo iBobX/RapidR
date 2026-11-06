@@ -47,7 +47,7 @@ their `OFL.txt`.
 | ash | 0.38.0+1.3.281 | <https://github.com/ash-rs/ash> |
 | async-broadcast | 0.7.2 | <https://github.com/smol-rs/async-broadcast> |
 | async-channel | 2.5.0 | <https://github.com/smol-rs/async-channel> |
-| async-executor | 1.14.0 | <https://github.com/smol-rs/async-executor> |
+| async-executor | 1.14.1 | <https://github.com/smol-rs/async-executor> |
 | async-io | 2.6.0 | <https://github.com/smol-rs/async-io> |
 | async-lock | 3.4.2 | <https://github.com/smol-rs/async-lock> |
 | async-process | 2.5.0 | <https://github.com/smol-rs/async-process> |
@@ -793,7 +793,7 @@ their `OFL.txt`.
 
 | Library | Version | Upstream |
 |---|---|---|
-| clipboard-win | 5.4.1 | <https://github.com/DoumanAsh/clipboard-win> |
+| clipboard-win | 5.4.3 | <https://github.com/DoumanAsh/clipboard-win> |
 | error-code | 3.4.0 | <https://github.com/DoumanAsh/error-code> |
 
 ## (Apache-2.0 OR MIT) AND BSD-3-Clause (1)
