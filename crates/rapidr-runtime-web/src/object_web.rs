@@ -1433,7 +1433,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                 // (Enabled keeps the number stored, as RapidQ's — `Enabled
                 // = -1` reads -1 — while the element agrees)
                 live if lprop == "enabled" => match stored {
-                    Some(n @ (Value::Integer(_) | Value::Double(_))) if n.to_bool() == live.to_bool() => n,
+                    Some(n @ (Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_))) if n.to_bool() == live.to_bool() => n,
                     _ => live,
                 },
                 live => live,
@@ -1834,18 +1834,20 @@ fn image_from_plot(name: &str, plot: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// RJSON web methods — uses js_sys::JSON for parsing/stringifying
+// RJSON web methods: the document is the desktop's (rapidr_value::json_doc,
+// serde_json: whole numbers exact to 64 bits — the browser's JSON reads
+// every number as a double); the page's files are the web's own.
 // ---------------------------------------------------------------------------
 
 thread_local! {
-    static JSON_WEB_STORES: std::cell::RefCell<std::collections::HashMap<String, String>> = std::cell::RefCell::new(std::collections::HashMap::new());
+    static JSON_WEB_STORES: std::cell::RefCell<std::collections::HashMap<String, serde_json::Value>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 /// (I7) RJSON `name`'s document as JSON text, for a frame that takes its
 /// rows from it: what it parsed or loaded, else its FileName's file (Err:
 /// that file and why it can't be read).
 pub(crate) fn json_document(name: &str) -> Option<Result<String, (String, String)>> {
-    if let Some(text) = JSON_WEB_STORES.with(|s| s.borrow().get(&name.to_lowercase()).cloned()) {
+    if let Some(text) = JSON_WEB_STORES.with(|s| s.borrow().get(&name.to_lowercase()).map(|v| v.to_string())) {
         return Some(Ok(text));
     }
     let file = rp_comp_get(name, "filename").to_string_val();
@@ -1857,138 +1859,22 @@ pub(crate) fn json_document(name: &str) -> Option<Result<String, (String, String
 }
 
 fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {
+    use rapidr_value::json_doc;
     let name_lower = name.to_lowercase();
     match method {
         "parse" => {
             let text = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            // Validate JSON via js_sys
-            let js_str = wasm_bindgen::JsValue::from_str(&text);
-            match js_sys::JSON::parse(&text) {
-                Ok(_) => {
+            match json_doc::parse(&text) {
+                Ok(doc) => {
                     rp_comp_set(name, "text", v_str(&text));
-                    JSON_WEB_STORES.with(|s| s.borrow_mut().insert(name_lower, text));
+                    JSON_WEB_STORES.with(|s| s.borrow_mut().insert(name_lower, doc));
                     v_int(1)
                 }
-                Err(_) => {
-                    web_sys::console::warn_1(&js_str);
+                Err(e) => {
+                    web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(&format!("RJSON.Parse() failed: {e}")));
                     v_int(0)
                 }
             }
-        }
-        "stringify" | "prettify" => {
-            JSON_WEB_STORES.with(|s| {
-                if let Some(text) = s.borrow().get(&name_lower) {
-                    if method == "prettify" {
-                        // Parse to JsValue then stringify with indent
-                        if let Ok(val) = js_sys::JSON::parse(text) {
-                            let indent = wasm_bindgen::JsValue::from_f64(2.0);
-                            if let Ok(pretty) = js_sys::JSON::stringify_with_replacer_and_space(
-                                &val,
-                                &wasm_bindgen::JsValue::NULL,
-                                &indent,
-                            ) {
-                                return v_str(&pretty.as_string().unwrap_or_default());
-                            }
-                        }
-                    }
-                    v_str(text)
-                } else {
-                    v_str("{}")
-                }
-            })
-        }
-        "get" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            JSON_WEB_STORES.with(|s| {
-                if let Some(text) = s.borrow().get(&name_lower) {
-                    if let Ok(root) = js_sys::JSON::parse(text) {
-                        let result = json_web_get_path(&root, &key);
-                        return result;
-                    }
-                }
-                v_str("")
-            })
-        }
-        "set" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let val = args.get(1).cloned().unwrap_or(v_null());
-            JSON_WEB_STORES.with(|s| {
-                let mut store = s.borrow_mut();
-                let text = store.entry(name_lower.clone()).or_insert_with(|| "{}".to_string());
-                if let Ok(root) = js_sys::JSON::parse(text) {
-                    json_web_set_path(&root, &key, &val);
-                    if let Ok(updated) = js_sys::JSON::stringify(&root) {
-                        *text = updated.as_string().unwrap_or_default();
-                    }
-                }
-            });
-            v_null()
-        }
-        "has" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            JSON_WEB_STORES.with(|s| {
-                if let Some(text) = s.borrow().get(&name_lower) {
-                    if let Ok(root) = js_sys::JSON::parse(text) {
-                        let js_key = wasm_bindgen::JsValue::from_str(&key);
-                        let has = js_sys::Reflect::has(&root, &js_key).unwrap_or(false);
-                        return v_int(if has { 1 } else { 0 });
-                    }
-                }
-                v_int(0)
-            })
-        }
-        "remove" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            JSON_WEB_STORES.with(|s| {
-                let mut store = s.borrow_mut();
-                if let Some(text) = store.get_mut(&name_lower) {
-                    if let Ok(root) = js_sys::JSON::parse(text) {
-                        let js_key = wasm_bindgen::JsValue::from_str(&key);
-                        if let Some(obj) = root.dyn_ref::<js_sys::Object>() {
-                            let _ = js_sys::Reflect::delete_property(obj, &js_key);
-                        }
-                        if let Ok(updated) = js_sys::JSON::stringify(&root) {
-                            *text = updated.as_string().unwrap_or_default();
-                        }
-                    }
-                }
-            });
-            v_null()
-        }
-        "count" => {
-            JSON_WEB_STORES.with(|s| {
-                if let Some(text) = s.borrow().get(&name_lower) {
-                    if let Ok(root) = js_sys::JSON::parse(text) {
-                        if let Some(obj) = root.dyn_ref::<js_sys::Object>() {
-                            let keys = js_sys::Object::keys(obj);
-                            return v_int(keys.length() as i64);
-                        }
-                        if let Some(arr) = root.dyn_ref::<js_sys::Array>() {
-                            return v_int(arr.length() as i64);
-                        }
-                    }
-                }
-                v_int(0)
-            })
-        }
-        "keys" => {
-            JSON_WEB_STORES.with(|s| {
-                if let Some(text) = s.borrow().get(&name_lower) {
-                    if let Ok(root) = js_sys::JSON::parse(text) {
-                        if let Some(obj) = root.dyn_ref::<js_sys::Object>() {
-                            let keys = js_sys::Object::keys(obj);
-                            let mut result = Vec::new();
-                            for i in 0..keys.length() {
-                                if let Some(k) = keys.get(i).as_string() {
-                                    result.push(k);
-                                }
-                            }
-                            return v_str(&result.join(","));
-                        }
-                    }
-                }
-                v_str("")
-            })
         }
         // The page's files (as OPEN's and EXTRACTRESOURCE's: saved this
         // session, else the project's), as the desktop's are on disk.
@@ -1998,25 +1884,20 @@ fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {
                 object_error(name, "LoadFile", &format!("can't read {filename}"));
                 return v_int(0);
             };
-            if js_sys::JSON::parse(&text).is_err() {
+            let Ok(doc) = json_doc::parse(&text) else {
                 object_error(name, "LoadFile", &format!("{filename} isn't JSON"));
                 return v_int(0);
-            }
+            };
             rp_comp_set(name, "filename", v_str(&filename));
             rp_comp_set(name, "text", v_str(&text));
-            JSON_WEB_STORES.with(|s| s.borrow_mut().insert(name_lower, text));
+            JSON_WEB_STORES.with(|s| s.borrow_mut().insert(name_lower, doc));
             v_int(1)
         }
         "savefile" => {
             let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             // (pretty-printed, as the desktop writes it)
-            let text = JSON_WEB_STORES.with(|s| s.borrow().get(&name_lower).cloned()).unwrap_or_else(|| "{}".into());
-            let pretty = js_sys::JSON::parse(&text)
-                .ok()
-                .and_then(|v| js_sys::JSON::stringify_with_replacer_and_space(&v, &wasm_bindgen::JsValue::NULL, &wasm_bindgen::JsValue::from_f64(2.0)).ok())
-                .and_then(|s| s.as_string())
-                .unwrap_or(text);
-            match web_write_file(&filename, pretty.as_bytes()) {
+            let text = JSON_WEB_STORES.with(|s| json_doc::saved_text(s.borrow().get(&name_lower)));
+            match web_write_file(&filename, text.as_bytes()) {
                 Ok(()) => {
                     rp_comp_set(name, "filename", v_str(&filename));
                     v_int(1)
@@ -2027,85 +1908,18 @@ fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {
                 }
             }
         }
-        "clear" => {
-            JSON_WEB_STORES.with(|s| {
-                s.borrow_mut().insert(name_lower, "{}".to_string());
-            });
-            v_null()
-        }
-        _ => {
-            web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
-                &format!("RJSON.{}() not implemented", method)
-            ));
-            v_null()
-        }
-    }
-}
-
-fn json_web_get_path(root: &wasm_bindgen::JsValue, path: &str) -> Value {
-    let mut current = root.clone();
-    for part in path.split('.') {
-        if part.is_empty() { continue; }
-        let js_key = wasm_bindgen::JsValue::from_str(part);
-        match js_sys::Reflect::get(&current, &js_key) {
-            Ok(val) => {
-                if val.is_undefined() || val.is_null() { return v_str(""); }
-                current = val;
+        _ => JSON_WEB_STORES.with(|s| {
+            let mut store = s.borrow_mut();
+            let mut doc = store.remove(&name_lower);
+            let out = json_doc::call(&mut doc, method, args);
+            if let Some(d) = doc {
+                store.insert(name_lower.clone(), d);
             }
-            Err(_) => return v_str(""),
-        }
-    }
-    if let Some(s) = current.as_string() {
-        v_str(&s)
-    } else if let Some(b) = current.as_bool() {
-        v_int(if b { 1 } else { 0 })
-    } else if let Some(f) = current.as_f64() {
-        if f == f.floor() && f.abs() < i64::MAX as f64 {
-            v_int(f as i64)
-        } else {
-            use crate::value::v_dbl;
-            v_dbl(f)
-        }
-    } else if let Ok(s) = js_sys::JSON::stringify(&current) {
-        v_str(&s.as_string().unwrap_or_default())
-    } else {
-        v_str("")
-    }
-}
-
-fn json_web_set_path(root: &wasm_bindgen::JsValue, path: &str, val: &Value) {
-    let parts: Vec<&str> = path.split('.').filter(|p| !p.is_empty()).collect();
-    if parts.is_empty() { return; }
-    let mut current = root.clone();
-    for part in &parts[..parts.len()-1] {
-        let js_key = wasm_bindgen::JsValue::from_str(part);
-        match js_sys::Reflect::get(&current, &js_key) {
-            Ok(val) if !val.is_undefined() && !val.is_null() => {
-                current = val;
-            }
-            _ => {
-                let new_obj = js_sys::Object::new();
-                let _ = js_sys::Reflect::set(&current, &js_key, &new_obj.into());
-                if let Ok(v) = js_sys::Reflect::get(&current, &js_key) {
-                    current = v;
-                } else { return; }
-            }
-        }
-    }
-    let last_key = wasm_bindgen::JsValue::from_str(parts.last().unwrap());
-    let _ = js_sys::Reflect::set(&current, &last_key, &json_web_value(val));
-}
-
-/// A value set into JSON as the desktop's RJSON sets it
-/// (rapidr-runtime-core's value_to_json): text that is a number becomes a
-/// number, "true" / "false" a boolean, anything else a string.
-fn json_web_value(val: &Value) -> wasm_bindgen::JsValue {
-    let s = val.to_string_val();
-    match s.parse::<f64>() {
-        Ok(f) if f.is_finite() => wasm_bindgen::JsValue::from_f64(f),
-        _ if s == "true" => wasm_bindgen::JsValue::TRUE,
-        _ if s == "false" => wasm_bindgen::JsValue::FALSE,
-        _ => wasm_bindgen::JsValue::from_str(&s),
+            out.unwrap_or_else(|| {
+                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(&format!("RJSON.{}() not implemented", method)));
+                v_null()
+            })
+        }),
     }
 }
 

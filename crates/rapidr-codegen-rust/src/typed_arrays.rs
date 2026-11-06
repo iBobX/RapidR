@@ -72,7 +72,8 @@ impl ArrKind {
             ArrKind::Long | ArrKind::Dword => "i32",
             ArrKind::Single => "f32",
             ArrKind::Double => "f64",
-            ArrKind::Int64 | ArrKind::UInt64 => "i64",
+            ArrKind::Int64 => "i64",
+            ArrKind::UInt64 => "u64",
         }
     }
 
@@ -781,8 +782,8 @@ impl RustCodegen {
                 None => format!("(numeric::double_of(&{})) as f32", self.expr_to_string(inner)),
             },
             None => {
-                let wide = if kind == ArrKind::UInt64 { "UInt64" } else { "Int64" };
-                format!("numeric::int_of(&{}, numeric::NumKind::{wide})", self.expr_to_string(inner))
+                let (wide, cast) = if kind == ArrKind::UInt64 { ("UInt64", " as u64") } else { ("Int64", "") };
+                format!("numeric::int_of(&{}, numeric::NumKind::{wide}){cast}", self.expr_to_string(inner))
             }
         };
         format!("{};", self.element_call(array, "set", indices, Some(number)))

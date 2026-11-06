@@ -556,7 +556,7 @@ pub fn sunken(p: &mut Painter, w: i64, h: i64, background: u32) {
 /// tree's background.
 pub fn background(cx: &Cx) -> u32 {
     match cx.store.get(cx.id, "color") {
-        v @ (Value::Integer(_) | Value::Double(_)) => bgr_to_rgb(v.to_i64()),
+        v @ (Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) => bgr_to_rgb(v.to_i64()),
         _ => rapidr_value::theme::current().window,
     }
 }

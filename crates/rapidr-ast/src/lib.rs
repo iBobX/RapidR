@@ -3853,6 +3853,39 @@ pub(crate) fn child_bodies_mut(stmt: &mut Statement) -> Vec<&mut Vec<Statement>>
 /// is numeric, anything else is its trimmed text
 /// (`DATA my dog ate my homework, "oh, boy!", 34.4`).
 pub fn data_items(raw: &str) -> Vec<LiteralValue> {
+    data_parts(raw)
+        .iter()
+        .map(|part| {
+            let t = part.trim();
+            if let Some(inner) = t.strip_prefix('"') {
+                LiteralValue::String(inner.strip_suffix('"').unwrap_or(inner).to_string())
+            } else if let Ok(n) = t.parse::<i64>() {
+                LiteralValue::Integer(n)
+            } else if let (Ok(f), true) = (t.parse::<f64>(), t.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '-' | '+' | '.'))) {
+                LiteralValue::Float(f)
+            } else {
+                LiteralValue::String(t.to_string())
+            }
+        })
+        .collect()
+}
+
+/// Each DATA item's whole number when it is one beyond
+/// 9223372036854775807 (its [`data_items`] value is a DOUBLE, as RapidQ
+/// reads it): for `crate::wide_literals`, so a READ into a UINT64 gets it
+/// exactly.
+pub fn data_items_whole(raw: &str) -> Vec<Option<u64>> {
+    data_parts(raw)
+        .iter()
+        .map(|part| {
+            let t = part.trim().strip_prefix('+').unwrap_or(part.trim());
+            (t.bytes().all(|b| b.is_ascii_digit()) && t.parse::<i64>().is_err()).then(|| t.parse::<u64>().ok()).flatten()
+        })
+        .collect()
+}
+
+/// A DATA line split at the commas outside quotes.
+fn data_parts(raw: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();
     let mut in_quotes = false;
@@ -3871,20 +3904,6 @@ pub fn data_items(raw: &str) -> Vec<LiteralValue> {
         return Vec::new();
     }
     parts
-        .iter()
-        .map(|part| {
-            let t = part.trim();
-            if let Some(inner) = t.strip_prefix('"') {
-                LiteralValue::String(inner.strip_suffix('"').unwrap_or(inner).to_string())
-            } else if let Ok(n) = t.parse::<i64>() {
-                LiteralValue::Integer(n)
-            } else if let (Ok(f), true) = (t.parse::<f64>(), t.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '-' | '+' | '.'))) {
-                LiteralValue::Float(f)
-            } else {
-                LiteralValue::String(t.to_string())
-            }
-        })
-        .collect()
 }
 
 /// Name of the identifier standing for a left-out argument (`COLOR , 1`,

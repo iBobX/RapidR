@@ -290,7 +290,8 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         "ceil" => rp_ceil(&a0),
         "floor" => rp_floor(&a0),
         "round" => rp_round(&a0),
-        "hex" => rp_hex(&a0),
+        // (RapidR's HEX$(x, digits): at least that many)
+        "hex" => if args.len() > 1 { rapidr_value::builtins::rp_hex_digits(&a0, &a1) } else { rp_hex(&a0) },
         "oct" => rp_oct(&a0),
         "bin" => rp_bin(&a0),
         "rnd" => rp_rnd(&a0),

@@ -49,6 +49,10 @@ pub enum Const {
     Int(i64),
     Double(f64),
     Str(String),
+    /// (2.123) An INT64 / UINT64 (RapidR's 64-bit kinds: a typed default,
+    /// a literal read whole) — a module with one needs [`WIDE_SINCE`].
+    Int64(i64),
+    UInt64(u64),
 }
 
 impl Const {
@@ -57,6 +61,8 @@ impl Const {
             Const::Null => Value::Null,
             Const::Bool(b) => Value::Boolean(*b),
             Const::Int(n) => Value::Integer(*n),
+            Const::Int64(n) => Value::Int64(*n),
+            Const::UInt64(n) => Value::UInt64(*n),
             Const::Double(n) => Value::Double(*n),
             Const::Str(s) => Value::String(s.clone().into()),
         }
@@ -325,8 +331,9 @@ impl Module {
     }
 
     /// The oldest RapidR Runtime that runs this module: [`FAST_OPS_SINCE`]
-    /// when its code has one of 2.123's fused instructions, else
-    /// [`MIN_RUNTIME`] (what the header says).
+    /// when its code has one of 2.123's fused instructions, [`WIDE_SINCE`]
+    /// when it has a 64-bit constant, a conversion to UINT32 or one of
+    /// 2.123's builtins, else [`MIN_RUNTIME`] (what the header says).
     pub fn min_runtime(&self) -> [u16; 3] {
         let fused = self.functions.iter().any(|f| {
             let mut ip = 0;
@@ -338,11 +345,27 @@ impl Module {
             }
             false
         });
+        let wide = self.consts.iter().any(|c| matches!(c, Const::Int64(_) | Const::UInt64(_)))
+            || self.strings.iter().any(|s| builtins::SINCE_2_123.iter().any(|b| s.eq_ignore_ascii_case(b)))
+            || self.functions.iter().any(|f| {
+                let mut ip = 0;
+                while let Some(insn) = disasm::decode(&f.code, ip) {
+                    let new_kind = |k: &i64| u8::try_from(*k).ok().and_then(rapidr_value::numeric::NumKind::from_code).is_some_and(|k| k.code() >= NEW_KINDS_FROM);
+                    if insn.op.kind_operand().is_some_and(|i| insn.operands.get(i).is_some_and(new_kind)) {
+                        return true;
+                    }
+                    ip = insn.next;
+                }
+                false
+            });
+        let mut need = MIN_RUNTIME;
         if fused {
-            FAST_OPS_SINCE.max(MIN_RUNTIME)
-        } else {
-            MIN_RUNTIME
+            need = need.max(FAST_OPS_SINCE);
         }
+        if wide {
+            need = need.max(WIDE_SINCE);
+        }
+        need
     }
 }
 
@@ -365,6 +388,12 @@ pub const MIN_RUNTIME: [u16; 3] = [2, 117, 0];
 /// ([`Module::min_runtime`]), so an older runtime names the version to
 /// get instead of failing at an unknown opcode.
 pub const FAST_OPS_SINCE: [u16; 3] = [2, 123, 0];
+/// The release whose runtime first knows RapidR's 64-bit kinds as values
+/// (docs/big-numbers-design.md): the INT64 / UINT64 constants, the UINT32
+/// conversion and the bit functions.
+pub const WIDE_SINCE: [u16; 3] = [2, 123, 0];
+/// The first conversion code 2.122's runtimes don't know (UINT32's).
+const NEW_KINDS_FROM: u8 = 9;
 /// What this runtime runs, whatever its version number says until the
 /// release that brings it bumps it: every module a compiler of that
 /// release writes ([`Header::check_runtime`]).

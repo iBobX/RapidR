@@ -1026,9 +1026,14 @@ impl<'a> Parser<'a> {
                     self.data_labels.push((label, self.data_items.len()));
                 }
                 let span = tok.span;
-                self.data_items.extend(
-                    data_items(&tok.lexeme).into_iter().map(|value| Expression::Literal(Literal { span, value })),
-                );
+                // (a whole number beyond 64 bits signed is noted whole, for
+                // a READ into a UINT64: rapidr_ast::wide_literals)
+                for (value, whole) in data_items(&tok.lexeme).into_iter().zip(rapidr_ast::data_items_whole(&tok.lexeme)) {
+                    if let (LiteralValue::Float(f), Some(full)) = (&value, whole) {
+                        rapidr_ast::wide_literals::record(span, f.to_bits() as i64, full);
+                    }
+                    self.data_items.push(Expression::Literal(Literal { span, value }));
+                }
                 Some(Statement::Comment(CommentStatement { span, text: format!("DATA{}", tok.lexeme) }))
             }
             // `READ a, s$, p(1, 2)`: each variable takes the next DATA item.
@@ -3648,16 +3653,28 @@ impl<'a> Parser<'a> {
             }
             TokenType::Number => {
                 let tok = self.advance()?;
-                let value = parse_number_literal(&tok.lexeme);
-                // (`&H` past 8 digits: its low 32 bits, as RapidQ reads it;
-                // all 64 noted for an INT64 / UINT64 — rapidr_ast::wide_literals)
-                if let (Some(hex), LiteralValue::Integer(low)) = (tok.lexeme.strip_prefix("0x"), &value) {
-                    let hex = hex.trim_start_matches('0');
-                    if hex.len() > 8 && hex.len() <= 16 {
-                        if let Ok(full) = u64::from_str_radix(hex, 16) {
-                            rapidr_ast::wide_literals::record(tok.span, *low, full);
+                let mut value = parse_number_literal(&tok.lexeme);
+                // (`&H`: RapidQ's 32-bit reading, its low 32 bits; a decimal
+                // beyond 64 bits signed: a DOUBLE, as RapidQ reads it. The
+                // whole number is noted for INT64 / UINT64 / UINT32 —
+                // rapidr_ast::wide_literals)
+                match (tok.lexeme.strip_prefix("0x"), &value) {
+                    (Some(hex), LiteralValue::Integer(low)) => {
+                        let hex = hex.trim_start_matches('0');
+                        if hex.len() <= 16 {
+                            if let Ok(full) = u64::from_str_radix(if hex.is_empty() { "0" } else { hex }, 16) {
+                                rapidr_ast::wide_literals::record(tok.span, *low, full);
+                            }
                         }
                     }
+                    (None, LiteralValue::String(digits)) if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) => {
+                        let f = digits.parse::<f64>().unwrap_or(0.0);
+                        if let Ok(full) = digits.parse::<u64>() {
+                            rapidr_ast::wide_literals::record(tok.span, f.to_bits() as i64, full);
+                        }
+                        value = LiteralValue::Float(f);
+                    }
+                    _ => {}
                 }
                 Some(Expression::Literal(Literal { span: tok.span, value }))
             }

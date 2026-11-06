@@ -11,6 +11,8 @@ pub use basic_string::BasicString;
 pub mod strings;
 pub mod numeric;
 pub mod wide;
+// RJSON's document, every runtime's (exact 64-bit numbers).
+pub mod json_doc;
 pub mod runtime_text;
 pub mod variadic;
 pub mod data;
@@ -91,6 +93,13 @@ pub enum Value {
     /// An instance of a user TYPE: shared by reference, its fields in fixed
     /// slots resolved at compile time (see [`Instance`]).
     Object(Rc<Instance>),
+    /// INT64 (RapidR's; UINT32's values too): a 64-bit signed whole number
+    /// that shows and works in all its bits wherever it goes ([`wide`],
+    /// docs/big-numbers-design.md). A classic [`Value::Integer`] is
+    /// RapidQ's (shown as 32 bits).
+    Int64(i64),
+    /// UINT64 (RapidR's): a 64-bit unsigned whole number ([`wide`]).
+    UInt64(u64),
 }
 
 /// An instance of a user TYPE (RapidQ manual ch. 10). Both backends lower
@@ -215,7 +224,8 @@ pub fn debug_json(v: &Value) -> String {
         match v {
             Value::Null => "null".to_string(),
             Value::Boolean(b) => b.to_string(),
-            Value::Integer(n) => n.to_string(),
+            Value::Integer(n) | Value::Int64(n) => n.to_string(),
+            Value::UInt64(n) => n.to_string(),
             Value::Double(d) => d.to_string(),
             Value::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r")),
             Value::Array(a) => format!("[{}]", a.borrow().data.iter().map(|x| go(x, depth)).collect::<Vec<_>>().join(",")),
@@ -694,7 +704,8 @@ pub fn v_array(bounds: Vec<(i64, i64)>, fill: Value) -> Result<Value, String> {
 impl Value {
     pub fn to_bool(&self) -> bool {
         match self {
-            Value::Integer(n) => *n != 0,
+            Value::Integer(n) | Value::Int64(n) => *n != 0,
+            Value::UInt64(n) => *n != 0,
             Value::Double(n) => *n != 0.0,
             Value::String(s) => !s.is_empty(),
             Value::Boolean(b) => *b,
@@ -703,9 +714,11 @@ impl Value {
         }
     }
 
+    /// The number as an `i64` (a UINT64's 64 bits).
     pub fn to_i64(&self) -> i64 {
         match self {
-            Value::Integer(n) => *n,
+            Value::Integer(n) | Value::Int64(n) => *n,
+            Value::UInt64(n) => *n as i64,
             Value::Double(n) => *n as i64,
             Value::String(s) => s.parse::<i64>().unwrap_or(0),
             Value::Boolean(b) => if *b { -1 } else { 0 },
@@ -715,7 +728,8 @@ impl Value {
 
     pub fn to_f64(&self) -> f64 {
         match self {
-            Value::Integer(n) => *n as f64,
+            Value::Integer(n) | Value::Int64(n) => *n as f64,
+            Value::UInt64(n) => *n as f64,
             Value::Double(n) => *n,
             Value::String(s) => s.parse::<f64>().unwrap_or(0.0),
             Value::Boolean(b) => if *b { -1.0 } else { 0.0 },
@@ -725,7 +739,8 @@ impl Value {
 
     pub fn to_string_val(&self) -> String {
         match self {
-            Value::Integer(n) => n.to_string(),
+            Value::Integer(n) | Value::Int64(n) => n.to_string(),
+            Value::UInt64(n) => n.to_string(),
             // As RapidQ shows numbers (RapidQ's FloatToStr, `format`): 15
             // significant digits, so PRINT 2 ^ 10 → 1024 and 0.1 + 0.2 → 0.3.
             Value::Double(n) => crate::format::float_to_str(*n),
@@ -744,6 +759,9 @@ impl Value {
     /// operand rounded as CINT rounds (`INT(x + 0.5)`), 32 bits, the
     /// quotient truncated; by zero, RapidQ's "Division by zero" error.
     pub fn checked_int_div(&self, rhs: &Value) -> Result<Value, &'static str> {
+        if wide::is_wide(self) || wide::is_wide(rhs) {
+            return wide::div_mod(self, rhs, false);
+        }
         let a = self.idiv_operand();
         let b = rhs.idiv_operand();
         numeric::checked_idiv(a, b).map(Value::Integer).ok_or(numeric::DIVISION_BY_ZERO)
@@ -758,6 +776,9 @@ impl Value {
     /// integers (`7.5 MOD 2` is 0), the remainder has the dividend's sign;
     /// by zero, "Division by zero".
     pub fn checked_mod(&self, rhs: &Value) -> Result<Value, &'static str> {
+        if wide::is_wide(self) || wide::is_wide(rhs) {
+            return wide::div_mod(self, rhs, true);
+        }
         numeric::checked_imod(self.bits(), rhs.bits()).map(Value::Integer).ok_or(numeric::DIVISION_BY_ZERO)
     }
 
@@ -799,7 +820,7 @@ impl Value {
     /// a number returns the right-hand operand, a quirk RapidR doesn't keep:
     /// `"n = " & 5` is `n = 5`.)
     pub fn concat(&self, rhs: &Value) -> Value {
-        let number = |v: &Value| matches!(v, Value::Integer(_) | Value::Double(_) | Value::Boolean(_));
+        let number = |v: &Value| matches!(v, Value::Integer(_) | Value::Double(_) | Value::Boolean(_) | Value::Int64(_) | Value::UInt64(_));
         if number(self) && number(rhs) {
             return self + rhs;
         }
@@ -866,21 +887,33 @@ impl Value {
 
     /// BASIC AND (bitwise)
     pub fn and(&self, rhs: &Value) -> Value {
+        if wide::is_wide(self) || wide::is_wide(rhs) {
+            return wide::bitwise(0, self, rhs);
+        }
         self.bitwise(rhs, |a, b| a & b)
     }
 
     /// BASIC OR (bitwise)
     pub fn or(&self, rhs: &Value) -> Value {
+        if wide::is_wide(self) || wide::is_wide(rhs) {
+            return wide::bitwise(1, self, rhs);
+        }
         self.bitwise(rhs, |a, b| a | b)
     }
 
     /// BASIC XOR (bitwise)
     pub fn xor(&self, rhs: &Value) -> Value {
+        if wide::is_wide(self) || wide::is_wide(rhs) {
+            return wide::bitwise(2, self, rhs);
+        }
         self.bitwise(rhs, |a, b| a ^ b)
     }
 
     /// BASIC NOT (bitwise complement: NOT 0 = -1, NOT -1 = 0, NOT 5 = -6)
     pub fn not(&self) -> Value {
+        if let Some(w) = wide::kind_of(self) {
+            return wide::not(w);
+        }
         match self {
             Value::Boolean(b) => Value::Boolean(!b),
             other => Value::Integer(!other.bits()),
@@ -935,6 +968,9 @@ impl Value {
             (Value::String(a), Value::String(b)) => a == b,
             (Value::String(a), _) => *a == rhs.to_string_val(),
             (_, Value::String(b)) => self.to_string_val() == *b,
+            (Value::Int64(_) | Value::UInt64(_), _) | (_, Value::Int64(_) | Value::UInt64(_)) => {
+                wide::compare(self, rhs).map_or_else(|| self.to_f64() == rhs.to_f64(), |o| o == std::cmp::Ordering::Equal)
+            }
             _ => self.to_f64() == rhs.to_f64(),
         }
     }
@@ -942,6 +978,9 @@ impl Value {
     fn cmp_ord(&self, rhs: &Value) -> std::cmp::Ordering {
         match (self, rhs) {
             (Value::String(a), Value::String(b)) => a.cmp(b),
+            (Value::Int64(_) | Value::UInt64(_), _) | (_, Value::Int64(_) | Value::UInt64(_)) => {
+                wide::compare(self, rhs).unwrap_or_else(|| self.to_f64().partial_cmp(&rhs.to_f64()).unwrap_or(std::cmp::Ordering::Equal))
+            }
             _ => self.to_f64().partial_cmp(&rhs.to_f64()).unwrap_or(std::cmp::Ordering::Equal),
         }
     }
@@ -1001,6 +1040,9 @@ impl Add for &Value {
             (Value::String(a), _) => joined(a, &rhs.to_string_val()),
             (_, Value::String(b)) => joined(&self.to_string_val(), b),
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_add(*b)),
+            (Value::Int64(_) | Value::UInt64(_), _) | (_, Value::Int64(_) | Value::UInt64(_)) => {
+                wide::arith(b'+', self, rhs).unwrap_or_else(|| Value::Double(self.to_f64() + rhs.to_f64()))
+            }
             _ => Value::Double(self.to_f64() + rhs.to_f64()),
         }
     }
@@ -1026,6 +1068,9 @@ impl Sub for &Value {
             (Value::String(a), Value::String(b)) if !b.is_empty() => Value::String(a.replace(b.as_str(), "").into()),
             (Value::String(a), Value::String(_)) => Value::String(a.clone()),
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_sub(*b)),
+            (Value::Int64(_) | Value::UInt64(_), _) | (_, Value::Int64(_) | Value::UInt64(_)) => {
+                wide::arith(b'-', self, rhs).unwrap_or_else(|| Value::Double(self.to_f64() - rhs.to_f64()))
+            }
             _ => Value::Double(self.to_f64() - rhs.to_f64()),
         }
     }
@@ -1036,6 +1081,9 @@ impl Mul for &Value {
     fn mul(self, rhs: Self) -> Value {
         match (self, rhs) {
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_mul(*b)),
+            (Value::Int64(_) | Value::UInt64(_), _) | (_, Value::Int64(_) | Value::UInt64(_)) => {
+                wide::arith(b'*', self, rhs).unwrap_or_else(|| Value::Double(self.to_f64() * rhs.to_f64()))
+            }
             _ => Value::Double(self.to_f64() * rhs.to_f64()),
         }
     }
@@ -1064,6 +1112,7 @@ impl Neg for &Value {
     fn neg(self) -> Value {
         match self {
             Value::Integer(n) => Value::Integer(n.wrapping_neg()),
+            Value::Int64(_) | Value::UInt64(_) => wide::neg(wide::kind_of(self).unwrap_or(wide::W::I(0))),
             _ => Value::Double(-self.to_f64()),
         }
     }
@@ -1198,7 +1247,21 @@ pub fn rp_append_assign(left: Value, right: Value, slot: &mut Value, plus: bool)
     *slot = if plus { &left + &right } else { left.concat(&right) };
 }
 
+/// A FOR loop's step in native builds: `var + step`, or `None` when a
+/// 64-bit counter would pass its type's limit (the loop ends there,
+/// `wide::for_step`) — what the VM's ForStep does.
+#[inline]
+pub fn rp_for_next(var: &Value, step: &Value) -> Option<Value> {
+    match var {
+        Value::Int64(_) | Value::UInt64(_) => wide::for_step(var, step),
+        _ => Some(var + step),
+    }
+}
+
 pub fn rp_shl(a: &Value, n: &Value) -> Value {
+    if let Some(w) = wide::kind_of(a) {
+        return wide::shift(w, n, false);
+    }
     let shift = (n.bits() & 31) as u32;
     let bits = a.bits() as u32;
     Value::Integer((bits << shift) as i32 as i64)
@@ -1207,6 +1270,9 @@ pub fn rp_shl(a: &Value, n: &Value) -> Value {
 /// `a SHR n` (RapidQ): logical shift right of the 32-bit value, as a LONG
 /// (`-1 SHR 28` is 15; the count's low 5 bits).
 pub fn rp_shr(a: &Value, n: &Value) -> Value {
+    if let Some(w) = wide::kind_of(a) {
+        return wide::shift(w, n, true);
+    }
     let shift = (n.bits() & 31) as u32;
     let bits = a.bits() as u32;
     Value::Integer((bits >> shift) as i32 as i64)
@@ -1331,6 +1397,11 @@ mod redim_tests {
 /// untyped name gets a number when the line is one, and text otherwise.
 pub fn input_value(line: &Value, current: &Value, suffix: &str) -> Value {
     let text = line.to_string_val();
+    // (an INT64 / UINT64 / UINT32 variable: the number read exactly, to its
+    // last digit — not through a DOUBLE)
+    if let Some(v) = wide::input(&text, current) {
+        return v;
+    }
     let number = || leading_number(&text);
     match (current, suffix) {
         (_, "$") | (Value::String(_), "") => v_str(&text),
@@ -1401,6 +1472,10 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         "__arg_round" => return Some(Ok(numeric::arg_round(&arg(0)))),
         // INT64 / UINT64 shown and operated on in 64 bits (rapidr_ast::numeric).
         "__str64" | "__hex64" | "__idiv64" | "__mod64" | "__cmp64" | "__bits64" => return wide::call(key, args),
+        // (RapidR's) the bit functions (Jango, groups.io #38944; wide).
+        "loword" | "hiword" | "lobyte" | "hibyte" => return Some(Ok(wide::word_or_byte(key, &arg(0)))),
+        "getbits" => return Some(wide::getbits(&arg(0), &arg(1), &arg(2))),
+        "setbits" => return Some(wide::setbits(&arg(0), &arg(1), &arg(2), &arg(3))),
         // An event handler's start (rapidr_ast::event_params): the Sender
         // only for an object parameter.
         "__sender_param" => return Some(Ok(events::sender_param(&arg(0), &arg(1), &arg(2)))),

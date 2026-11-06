@@ -127,7 +127,7 @@ impl ComponentKind for Label {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        if let v @ (Value::Integer(_) | Value::Double(_)) = cx.store.get(cx.id, "color") {
+        if let v @ (Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) = cx.store.get(cx.id, "color") {
             // (under all its text: where the theme's face runs on past the
             // label's edge too)
             p.fill(self.room(cx.store, cx.id, &cx.font, w, h), bgr_to_rgb(v.to_i64()));

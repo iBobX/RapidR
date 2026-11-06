@@ -326,6 +326,9 @@ impl MemStream {
             "__read" => match arg(0) {
                 Value::String(s) => Value::from(self.read_str(s.chars().count() as i64)),
                 Value::Double(_) => read_number(&self.read(8), 8),
+                // (a 64-bit variable: its 8 bytes)
+                Value::Int64(_) => read_number(&self.read(8), NUM_INT64),
+                Value::UInt64(_) => read_number(&self.read(8), NUM_UINT64),
                 _ => read_number(&self.read(4), 4),
             },
             // (the count is of characters: see `codec::fit_characters` —
@@ -365,6 +368,8 @@ impl MemStream {
             "write" => {
                 let bytes = match arg(0) {
                     Value::Double(_) => number_bytes(&arg(0), 8),
+                    Value::Int64(_) => number_bytes(&arg(0), NUM_INT64),
+                    Value::UInt64(_) => number_bytes(&arg(0), NUM_UINT64),
                     Value::String(s) => string_to_bytes(&s),
                     v => number_bytes(&v, 4),
                 };
@@ -417,13 +422,20 @@ impl MemStream {
     }
 }
 
+/// RapidR's `Num_INT64`, `Num_UINT64` (8 bytes, little-endian) and
+/// `Num_UINT32` (4 bytes, read back unsigned).
+pub const NUM_INT64: i64 = 9;
+pub const NUM_UINT64: i64 = 10;
+pub const NUM_UINT32: i64 = 11;
+
 /// Bytes each `Num_*` type takes (RAPIDQ.INC: Num_BYTE = 1, Num_SHORT = 2,
-/// Num_WORD = 3, Num_LONG = 4, Num_DWORD = 5, Num_SINGLE = 6, Num_DOUBLE = 8).
+/// Num_WORD = 3, Num_LONG = 4, Num_DWORD = 5, Num_SINGLE = 6, Num_DOUBLE = 8;
+/// RapidR's Num_INT64 9, Num_UINT64 10, Num_UINT32 11).
 pub(super) fn number_size(kind: i64) -> usize {
     match kind {
         1 => 1,
         2 | 3 => 2,
-        8 => 8,
+        8 | NUM_INT64 | NUM_UINT64 => 8,
         _ => 4,
     }
 }
@@ -434,6 +446,9 @@ pub(super) fn number_bytes(v: &Value, kind: i64) -> Vec<u8> {
         2 | 3 => (v.to_i64() as u16).to_le_bytes().to_vec(),
         6 => (v.to_f64() as f32).to_le_bytes().to_vec(),
         8 => v.to_f64().to_le_bytes().to_vec(),
+        // (the 64 bits of the whole number, never through a DOUBLE)
+        NUM_INT64 | NUM_UINT64 => crate::wide::of(v, kind == NUM_UINT64).to_le_bytes().to_vec(),
+        NUM_UINT32 => (crate::wide::of(v, false) as u32).to_le_bytes().to_vec(),
         _ => (v.to_i64() as u32).to_le_bytes().to_vec(),
     }
 }
@@ -448,6 +463,9 @@ pub(super) fn read_number(b: &[u8], kind: i64) -> Value {
         5 => v_int(u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as i64),
         6 => v_dbl(f32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as f64),
         8 => v_dbl(f64::from_le_bytes(buf)),
+        NUM_INT64 => Value::Int64(i64::from_le_bytes(buf)),
+        NUM_UINT64 => Value::UInt64(u64::from_le_bytes(buf)),
+        NUM_UINT32 => Value::Int64(u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as i64),
         _ => v_int(i32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as i64),
     }
 }

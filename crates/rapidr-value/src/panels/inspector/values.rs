@@ -281,7 +281,9 @@ pub fn normalize(kind: &Kind, v: &Value) -> Option<Value> {
         v => parse_int(&v.to_string_val()),
     };
     Some(match kind {
-        Kind::Int => Value::Integer(num(v)?),
+        // (an INT64 / UINT64 kept as the number it is)
+        Kind::Int if crate::wide::is_wide(v) => v.clone(),
+        Kind::Int => crate::wide::whole_number(num(v)?),
         Kind::Float => match v {
             Value::Integer(i) => Value::Double(*i as f64),
             Value::Double(d) => Value::Double(*d),

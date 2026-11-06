@@ -298,11 +298,14 @@ pub fn eof(file_num: &Value) -> Value {
 
 /// `LOF(n)`: the file's length in bytes.
 pub fn lof(file_num: &Value) -> Value {
-    v_int(with(file_num.to_i64(), |h| {
-        h.flush();
-        h.data.len() as i64
-    })
-    .unwrap_or(0))
+    // (a file past 2 GB: its size whole, as an INT64)
+    crate::wide::whole_number(
+        with(file_num.to_i64(), |h| {
+            h.flush();
+            h.data.len() as i64
+        })
+        .unwrap_or(0),
+    )
 }
 
 /// `SEEK #n, pos`: the next byte read or written (1-based).

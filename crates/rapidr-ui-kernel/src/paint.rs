@@ -543,7 +543,7 @@ pub fn caption(p: &mut Painter, rect: Rect, caption: &str, font: &Font, color: u
 /// QFONT's): text the theme colours.
 pub fn chosen_font_color(store: &dyn Store, id: &str, font: &Font) -> Option<i64> {
     match store.get(id, "font.color") {
-        v @ (Value::Integer(_) | Value::Double(_)) => Some(v.to_i64()).filter(|&c| !is_theme_text(c)),
+        v @ (Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_)) => Some(v.to_i64()).filter(|&c| !is_theme_text(c)),
         // (a store that answers only the font: its colour, black being none)
         _ => Some(font.color).filter(|c| c & 0xFFFFFF != 0 && !is_theme_text(*c)),
     }

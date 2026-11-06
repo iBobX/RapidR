@@ -502,7 +502,7 @@ impl ComPort {
         match prop {
             "port" => {
                 self.port = match val {
-                    Value::Integer(_) | Value::Double(_) => format!("COM{}", n()),
+                    Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => format!("COM{}", n()),
                     _ => val.to_string_val(),
                 }
             }

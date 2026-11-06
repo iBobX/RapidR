@@ -58,7 +58,8 @@ pub fn rp_seek(file_num: &Value, position: &Value) {
 
 pub fn rp_filelen(filename: &Value) -> Value {
     match fs::metadata(host(filename)) {
-        Ok(m) => v_int(m.len() as i64),
+        // (a file past 2 GB: its size whole, as an INT64)
+        Ok(m) => crate::value::wide::whole_number_u(m.len()),
         Err(_) => v_int(0),
     }
 }

@@ -774,6 +774,9 @@ impl ProgramEnd {
         match v {
             Value::Null => plain(String::new(), "Empty"),
             Value::Integer(_) => plain(rapidr_value::format::print_text(v), "Integer"),
+            // (RapidR's 64-bit numbers: every digit, a UINT64 unsigned)
+            Value::Int64(_) => plain(rapidr_value::format::print_text(v), "INT64"),
+            Value::UInt64(_) => plain(rapidr_value::format::print_text(v), "UINT64"),
             Value::Double(_) => plain(rapidr_value::format::print_text(v), "Double"),
             Value::Boolean(b) => plain((if *b { "True" } else { "False" }).into(), "Boolean"),
             Value::String(s) => {
@@ -887,13 +890,35 @@ fn fit_value(now: &Value, new: Value, target: &str, typed: &str) -> Result<Value
             let n = number(&new).ok_or_else(|| format!("{target} holds a whole number, and {typed} isn't one. Type a number such as 42."))?;
             convert(&n, NumKind::Long)
         }
+        // (an INT64 / UINT64: the number typed, to its last digit; one
+        // that doesn't fit is refused, never cut)
+        Value::Int64(_) | Value::UInt64(_) => {
+            let unsigned = matches!(now, Value::UInt64(_));
+            let (lo, hi, name) = if unsigned { (0i128, u64::MAX as i128, "UINT64") } else { (i64::MIN as i128, i64::MAX as i128, "INT64") };
+            let exact = match &new {
+                Value::String(s) => rapidr_value::wide::exact_text(s.as_str()).filter(|_| !s.contains(['.', 'e', 'E'])),
+                Value::Integer(n) | Value::Int64(n) => Some(*n as i128),
+                Value::UInt64(n) => Some(*n as i128),
+                Value::Double(f) if f.fract() == 0.0 && f.abs() < 1.9e19 => Some(*f as i128),
+                _ => None,
+            };
+            let n = exact.ok_or_else(|| format!("{target} holds a whole number ({name}), and {typed} isn't one. Type a whole number such as 42."))?;
+            if !(lo..=hi).contains(&n) {
+                return Err(format!("{target} is a {name} ({lo} to {hi}): {typed} doesn't fit."));
+            }
+            if unsigned {
+                Value::UInt64(n as u64)
+            } else {
+                Value::Int64(n as i64)
+            }
+        }
         Value::Double(_) => {
             let n = number(&new).ok_or_else(|| format!("{target} holds a number, and {typed} isn't one. Type a number such as 3.5."))?;
             convert(&n, NumKind::Double)
         }
         Value::String(_) => match new {
             Value::String(_) => new,
-            Value::Integer(_) | Value::Double(_) => Value::String(rapidr_value::format::print_text(&new).trim().to_string().into()),
+            Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => Value::String(rapidr_value::format::print_text(&new).trim().to_string().into()),
             Value::Boolean(b) => Value::String((if b { "True" } else { "False" }).into()),
             _ => return Err(format!("{target} holds text: type it in quotes, such as \"hello\".")),
         },

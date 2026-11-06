@@ -218,6 +218,8 @@ fn write_const(out: &mut Vec<u8>, c: &Const) {
         Const::Int(n)  => { out.push(2); write_i64(out, *n); }
         Const::Double(n) => { out.push(3); write_f64(out, *n); }
         Const::Str(s) => { out.push(4); write_str(out, s); }
+        Const::Int64(n) => { out.push(5); write_i64(out, *n); }
+        Const::UInt64(n) => { out.push(6); write_i64(out, *n as i64); }
     }
 }
 
@@ -296,6 +298,8 @@ fn read_const(r: &mut Reader) -> Result<Const, Error> {
         2 => Const::Int(r.read_i64()?),
         3 => Const::Double(r.read_f64()?),
         4 => Const::Str(read_str(r)?),
+        5 => Const::Int64(r.read_i64()?),
+        6 => Const::UInt64(r.read_i64()? as u64),
         t => return Err(Error::InvalidConstTag(t)),
     })
 }

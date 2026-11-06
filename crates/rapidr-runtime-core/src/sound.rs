@@ -13,7 +13,7 @@ pub fn rp_playwav(source: &Value, options: &Value) {
     let looped = options & 8 != 0 || options == 3;
     let wait = options & 1 == 0;
     let bytes = match source {
-        Value::Integer(_) | Value::Double(_) => crate::value::resources::bytes(source.to_i64()).map(|b| b.to_vec()),
+        Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => crate::value::resources::bytes(source.to_i64()).map(|b| b.to_vec()),
         _ => {
             let path = source.to_string_val();
             if path.is_empty() {

@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use crate::value::{v_bool, v_dbl, v_int, v_null, v_str, Value};
+use crate::value::{v_bool, v_int, v_null, v_str, Value};
 use rapidr_value::lower;
 
 // ---------------------------------------------------------------------------
@@ -2162,87 +2162,17 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
                 }
             }
         }
-        "stringify" => {
-            JSON_STORES.with(|s| {
-                if let Some(val) = s.borrow().get(&name_lower) {
-                    v_str(&val.to_string())
-                } else {
-                    v_str("{}")
-                }
-            })
-        }
-        "prettify" => {
-            JSON_STORES.with(|s| {
-                if let Some(val) = s.borrow().get(&name_lower) {
-                    v_str(&serde_json::to_string_pretty(val).unwrap_or_else(|_| "{}".into()))
-                } else {
-                    v_str("{}")
-                }
-            })
-        }
-        "get" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            JSON_STORES.with(|s| {
-                if let Some(root) = s.borrow().get(&name_lower) {
-                    json_get_path(root, &key)
-                } else {
-                    v_str("")
-                }
-            })
-        }
-        "set" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            let val = args.get(1).cloned().unwrap_or(v_null());
-            JSON_STORES.with(|s| {
-                let mut store = s.borrow_mut();
-                let root = store.entry(name_lower.clone()).or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-                json_set_path(root, &key, &val);
-            });
-            v_null()
-        }
-        "has" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            JSON_STORES.with(|s| {
-                if let Some(root) = s.borrow().get(&name_lower) {
-                    if let Some(obj) = root.as_object() {
-                        v_int(if obj.contains_key(&key) { 1 } else { 0 })
-                    } else { v_int(0) }
-                } else { v_int(0) }
-            })
-        }
-        "remove" => {
-            let key = args.first().map(|v| v.to_string_val()).unwrap_or_default();
-            JSON_STORES.with(|s| {
-                if let Some(root) = s.borrow_mut().get_mut(&name_lower) {
-                    if let Some(obj) = root.as_object_mut() {
-                        // (the other keys keep their order)
-                        obj.shift_remove(&key);
-                    }
-                }
-            });
-            v_null()
-        }
-        "count" => {
-            JSON_STORES.with(|s| {
-                if let Some(root) = s.borrow().get(&name_lower) {
-                    match root {
-                        serde_json::Value::Object(m) => v_int(m.len() as i64),
-                        serde_json::Value::Array(a) => v_int(a.len() as i64),
-                        _ => v_int(0),
-                    }
-                } else { v_int(0) }
-            })
-        }
-        "keys" => {
-            JSON_STORES.with(|s| {
-                if let Some(root) = s.borrow().get(&name_lower) {
-                    if let Some(obj) = root.as_object() {
-                        let keys: Vec<String> = obj.keys().cloned().collect();
-                        v_str(&keys.join(","))
-                    } else { v_str("") }
-                } else { v_str("") }
-            })
-        }
+        // (the document's own methods: one implementation for every
+        // runtime, exact 64-bit numbers — rapidr_value::json_doc)
+        "stringify" | "prettify" | "get" | "set" | "has" | "remove" | "count" | "keys" => JSON_STORES.with(|s| {
+            let mut store = s.borrow_mut();
+            let mut doc = store.remove(&name_lower);
+            let out = crate::value::json_doc::call(&mut doc, method, args).unwrap_or(v_null());
+            if let Some(d) = doc {
+                store.insert(name_lower.clone(), d);
+            }
+            out
+        }),
         "loadfile" => {
             let filename = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             match std::fs::read_to_string(crate::value::paths::host(&filename)) {
@@ -2302,73 +2232,6 @@ fn json_method(name: &str, method: &str, args: &[Value]) -> Value {
             eprintln!("[WARN] RJSON.{}() not implemented", method);
             v_null()
         }
-    }
-}
-
-fn json_get_path(root: &serde_json::Value, path: &str) -> Value {
-    let mut current = root;
-    for part in path.split('.') {
-        if part.is_empty() { continue; }
-        if let Ok(idx) = part.parse::<usize>() {
-            if let Some(arr) = current.as_array() {
-                if let Some(v) = arr.get(idx) { current = v; } else { return v_str(""); }
-            } else { return v_str(""); }
-        } else if let Some(obj) = current.as_object() {
-            if let Some(v) = obj.get(part) { current = v; } else { return v_str(""); }
-        } else { return v_str(""); }
-    }
-    match current {
-        serde_json::Value::Null => v_str(""),
-        serde_json::Value::Bool(b) => v_int(if *b { 1 } else { 0 }),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() { v_int(i) }
-            else if let Some(f) = n.as_f64() { v_dbl(f) }
-            else { v_str(&n.to_string()) }
-        }
-        serde_json::Value::String(s) => v_str(s),
-        other => v_str(&other.to_string()),
-    }
-}
-
-fn json_set_path(root: &mut serde_json::Value, path: &str, val: &Value) {
-    let parts: Vec<&str> = path.split('.').filter(|p| !p.is_empty()).collect();
-    if parts.is_empty() { return; }
-    let mut current = root;
-    for part in &parts[..parts.len()-1] {
-        if let Ok(_idx) = part.parse::<usize>() {
-            // array navigation not supported for set yet
-            return;
-        }
-        if !current.as_object().map_or(false, |o| o.contains_key(*part)) {
-            if let Some(obj) = current.as_object_mut() {
-                obj.insert(part.to_string(), serde_json::Value::Object(serde_json::Map::new()));
-            }
-        }
-        if let Some(obj) = current.as_object_mut() {
-            current = obj.get_mut(*part).unwrap();
-        } else { return; }
-    }
-    let last = parts.last().unwrap();
-    let json_val = value_to_json(val);
-    if let Some(obj) = current.as_object_mut() {
-        obj.insert(last.to_string(), json_val);
-    }
-}
-
-fn value_to_json(val: &Value) -> serde_json::Value {
-    let s = val.to_string_val();
-    if let Ok(i) = s.parse::<i64>() {
-        serde_json::Value::Number(serde_json::Number::from(i))
-    } else if let Ok(f) = s.parse::<f64>() {
-        serde_json::Number::from_f64(f)
-            .map(serde_json::Value::Number)
-            .unwrap_or(serde_json::Value::String(s))
-    } else if s == "true" || s == "1" {
-        serde_json::Value::Bool(true)
-    } else if s == "false" || s == "0" {
-        serde_json::Value::Bool(false)
-    } else {
-        serde_json::Value::String(s)
     }
 }
 

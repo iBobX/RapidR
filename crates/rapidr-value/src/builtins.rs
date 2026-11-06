@@ -87,9 +87,15 @@ pub fn rp_replace(s: &Value, replacement: &Value, index: &Value) -> Value {
     Value::String(out.into())
 }
 
+fn rapidr_wide(v: &Value) -> bool {
+    crate::wide::is_wide(v)
+}
+
 /// `STR$(n)`: RapidQ's 9 significant digits (`crate::format::str_number`).
 pub fn rp_str(val: &Value) -> Value {
     match val {
+        // (RapidR's 64-bit numbers: every digit)
+        Value::Int64(_) | Value::UInt64(_) => Value::String(val.to_string_val().into()),
         Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => Value::String(crate::format::str_number(val.to_f64()).into()),
         _ => Value::String(val.to_string_val().into()),
     }
@@ -121,10 +127,14 @@ pub fn rp_quicksort(array: &Value, descend: &Value, start_end: &[i64]) -> Value 
     if from > to {
         std::mem::swap(&mut from, &mut to);
     }
-    let numeric = |v: &Value| matches!(v, Value::Integer(_) | Value::Double(_));
+    let numeric = |v: &Value| matches!(v, Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_));
     let slice = &mut a.data[from..=to];
     slice.sort_by(|x, y| {
         if numeric(x) && numeric(y) {
+            // (an INT64 / UINT64 exactly: Value's comparison)
+            if rapidr_wide(x) || rapidr_wide(y) {
+                return x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal);
+            }
             x.to_f64().partial_cmp(&y.to_f64()).unwrap_or(std::cmp::Ordering::Equal)
         } else {
             x.to_string_val().cmp(&y.to_string_val())
@@ -272,6 +282,7 @@ fn whole(t: f64) -> Value {
 pub fn rp_int(val: &Value) -> Value {
     match val {
         Value::Integer(n) => v_int(*n),
+        Value::Int64(_) | Value::UInt64(_) => val.clone(),
         _ => whole(val.to_f64().trunc()),
     }
 }
@@ -288,17 +299,20 @@ fn int32_value(f: f64) -> Value {
 /// -3.99 → -3 (the manual's half-to-even claim isn't what it does).
 fn round_half_up(val: &Value) -> Value {
     match val {
-        Value::Integer(n) => v_int(crate::format::int32_of(*n)),
+        Value::Integer(n) | Value::Int64(n) => v_int(crate::format::int32_of(*n)),
+        Value::UInt64(n) => v_int(crate::format::int32_of(i64::try_from(*n).unwrap_or(i64::MAX))),
         _ => int32_value(val.to_f64() + 0.5),
     }
 }
 
 pub fn rp_abs(val: &Value) -> Value {
     match val {
-        // (the smallest INT64 stays itself, as a release build has always
-        // answered — wrapping, never a panic in a debug build; the big-numbers
-        // lane decides whether it should be an overflow error)
+        // (wrapping, never a panic in a debug build)
         Value::Integer(n) => v_int(n.wrapping_abs()),
+        // (the smallest INT64 stays itself, as RapidQ's LONG gives
+        // -2147483648 for ABS(-2147483648) stored back: RC.EXE 2026-11-05,
+        // docs/big-numbers-design.md)
+        Value::Int64(_) | Value::UInt64(_) => crate::wide::abs(crate::wide::kind_of(val).unwrap_or(crate::wide::W::I(0))),
         _ => v_dbl(val.to_f64().abs()),
     }
 }
@@ -316,7 +330,7 @@ pub fn rp_sin(val: &Value) -> Value {
     // (a number is never a list: its text has no comma — no text made for
     // it, the result bit for bit the same; SIN was ~600 ns a call,
     // docs/speed-audit-2026-11.md)
-    if let Value::Integer(_) | Value::Double(_) = val {
+    if let Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) = val {
         return v_dbl(val.to_f64().sin());
     }
     let s = val.to_string_val();
@@ -334,7 +348,7 @@ pub fn rp_sin(val: &Value) -> Value {
 
 pub fn rp_cos(val: &Value) -> Value {
     // (a number: as rp_sin)
-    if let Value::Integer(_) | Value::Double(_) = val {
+    if let Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) = val {
         return v_dbl(val.to_f64().cos());
     }
     let s = val.to_string_val();
@@ -374,18 +388,29 @@ pub fn rp_exp(val: &Value) -> Value {
     v_dbl(val.to_f64().exp())
 }
 
-/// `CEIL(x)`: a 32-bit integer in RapidQ (`int32_value`).
+/// `CEIL(x)`: a 32-bit integer in RapidQ (`int32_value`); a 64-bit whole
+/// number is its own.
 pub fn rp_ceil(val: &Value) -> Value {
+    if crate::wide::is_wide(val) {
+        return val.clone();
+    }
     int32_value(val.to_f64().ceil())
 }
 
-/// `FLOOR(x)`: a 32-bit integer in RapidQ (`int32_value`).
+/// `FLOOR(x)`: a 32-bit integer in RapidQ (`int32_value`); a 64-bit whole
+/// number is its own.
 pub fn rp_floor(val: &Value) -> Value {
+    if crate::wide::is_wide(val) {
+        return val.clone();
+    }
     int32_value(val.to_f64().floor())
 }
 
-/// `ROUND(x)`: see `round_half_up`.
+/// `ROUND(x)`: see `round_half_up`; a 64-bit whole number is its own.
 pub fn rp_round(val: &Value) -> Value {
+    if crate::wide::is_wide(val) {
+        return val.clone();
+    }
     round_half_up(val)
 }
 
@@ -407,16 +432,36 @@ fn low32(val: &Value) -> u32 {
 
 /// `HEX$(n)`: RapidQ for Windows pads to 8 digits (`HEX$(255)` is
 /// 000000FF — its manual says so, RC.EXE shows it).
+/// A 64-bit value (INT64 / UINT64 / UINT32): 8 digits, 16 when it needs
+/// more than 32 bits (`crate::wide::hex`).
 pub fn rp_hex(val: &Value) -> Value {
+    if let Some(w) = crate::wide::kind_of(val) {
+        return Value::String(crate::wide::hex(w, 0).into());
+    }
     Value::String(format!("{:08X}", low32(val)).into())
 }
 
+/// (RapidR's) `HEX$(n, digits)`: at least `digits` digits (1 to 16), more
+/// when the number needs them — never cut.
+pub fn rp_hex_digits(val: &Value, digits: &Value) -> Value {
+    let min = digits.to_i64().clamp(1, 16) as usize;
+    let w = crate::wide::kind_of(val).unwrap_or(crate::wide::W::U(low32(val) as u64));
+    Value::String(crate::wide::hex(w, min).into())
+}
+
 pub fn rp_oct(val: &Value) -> Value {
+    if let Some(w) = crate::wide::kind_of(val) {
+        return Value::String(crate::wide::radix(w, 8).into());
+    }
     Value::String(format!("{:o}", val.to_i64()).into())
 }
 
-/// `BIN$(n)`: the 32 bits, without leading zeros (`BIN$(-1)` is 32 ones).
+/// `BIN$(n)`: the 32 bits, without leading zeros (`BIN$(-1)` is 32 ones);
+/// a 64-bit value's 64.
 pub fn rp_bin(val: &Value) -> Value {
+    if let Some(w) = crate::wide::kind_of(val) {
+        return Value::String(crate::wide::radix(w, 2).into());
+    }
     Value::String(format!("{:b}", low32(val)).into())
 }
 
@@ -542,6 +587,9 @@ pub fn rp_ubound(arr: &[Value]) -> Value {
 pub fn rp_vartype(val: &Value) -> Value {
     v_int(match val {
         Value::Integer(_) => 2,
+        // (VT_I8 and VT_UI8, OLE's 64-bit integers)
+        Value::Int64(_) => 20,
+        Value::UInt64(_) => 21,
         Value::Double(_) => 5,
         Value::String(_) => 8,
         Value::Boolean(_) => 11,
@@ -553,7 +601,7 @@ pub fn rp_vartype(val: &Value) -> Value {
 
 pub fn rp_isnumeric(val: &Value) -> Value {
     match val {
-        Value::Integer(_) | Value::Double(_) => v_int(-1),
+        Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_) => v_int(-1),
         Value::String(s) => v_int(if s.parse::<f64>().is_ok() { -1 } else { 0 }),
         _ => v_int(0),
     }

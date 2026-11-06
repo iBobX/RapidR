@@ -16,12 +16,18 @@ pub fn is_webapi(type_name: &str) -> bool {
     ["RJAVASCRIPT", "RWEBSTORAGE", "RWEBNOTIFICATION", "RWEBGEOLOCATION", "RROUTER"].iter().any(|t| t.eq_ignore_ascii_case(type_name))
 }
 
-/// A BASIC value for JavaScript.
+/// A BASIC value for JavaScript. An INT64 / UINT64 a JavaScript number
+/// can't hold exactly (beyond 2^53) is a BigInt, never a rounded number.
 pub fn value_to_jsvalue(v: &Value) -> JsValue {
+    const EXACT: i64 = 1 << 53;
     match v {
         Value::Null => JsValue::NULL,
         Value::Boolean(b) => JsValue::from_bool(*b),
         Value::Integer(n) => JsValue::from_f64(*n as f64),
+        Value::Int64(n) if (-EXACT..=EXACT).contains(n) => JsValue::from_f64(*n as f64),
+        Value::Int64(n) => JsValue::from(*n),
+        Value::UInt64(n) if *n <= EXACT as u64 => JsValue::from_f64(*n as f64),
+        Value::UInt64(n) => JsValue::from(*n),
         Value::Double(d) => JsValue::from_f64(*d),
         Value::String(s) => JsValue::from_str(s),
         Value::Array(a) => a.borrow().data.iter().map(value_to_jsvalue).collect::<js_sys::Array>().into(),
@@ -39,7 +45,17 @@ pub fn jsvalue_to_value(v: &JsValue) -> Value {
         return Value::Boolean(b);
     }
     if let Some(n) = v.as_f64() {
-        return if n.fract() == 0.0 && n >= (i64::MIN as f64) && n <= (i64::MAX as f64) { Value::Integer(n as i64) } else { Value::Double(n) };
+        // (a whole number beyond 32 bits an INT64, so it shows in full)
+        return if n.fract() == 0.0 && n >= (i64::MIN as f64) && n < (i64::MAX as f64) { rapidr_value::wide::whole_number(n as i64) } else { Value::Double(n) };
+    }
+    // (a BigInt: exact in an INT64 / UINT64; beyond 64 bits, its text)
+    if v.is_bigint() {
+        if let Ok(n) = i64::try_from(v.clone()) {
+            return rapidr_value::wide::whole_number(n);
+        }
+        if let Ok(n) = u64::try_from(v.clone()) {
+            return rapidr_value::wide::whole_number_u(n);
+        }
     }
     if let Some(s) = v.as_string() {
         return v_str(&s);

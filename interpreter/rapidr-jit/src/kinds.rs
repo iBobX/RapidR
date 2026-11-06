@@ -17,7 +17,7 @@ pub enum K {
     /// An array (in a local or a global the code only indexes: compiled
     /// code reaches its elements through the helpers).
     Arr,
-    /// Text, an object: compiled code doesn't touch it.
+    /// Text, an object, an INT64 / UINT64: compiled code doesn't touch it.
     Other,
 }
 
@@ -29,7 +29,9 @@ impl K {
             Value::Integer(_) => K::Int,
             Value::Double(_) => K::Dbl,
             Value::Array(_) => K::Arr,
-            Value::String(_) | Value::Object(_) => K::Other,
+            // (RapidR's 64-bit kinds stay in the interpreter for now:
+            // docs/big-numbers-design.md §7)
+            Value::String(_) | Value::Object(_) | Value::Int64(_) | Value::UInt64(_) => K::Other,
         }
     }
 

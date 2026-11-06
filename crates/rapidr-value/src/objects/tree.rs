@@ -556,7 +556,7 @@ impl TreeView {
                 }
             }
             // QOUTLINE's AddChild(Index, S) and Insert(Index, S).
-            "addchild" if matches!(args.first(), Some(Value::Integer(_) | Value::Double(_))) => {
+            "addchild" if matches!(args.first(), Some(Value::Integer(_) | Value::Double(_) | Value::Int64(_) | Value::UInt64(_))) => {
                 return self.call("addchilditems", args);
             }
             "insert" => return self.call("insertitem", args),

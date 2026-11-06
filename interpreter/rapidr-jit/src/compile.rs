@@ -174,6 +174,8 @@ impl Env {
                     let kind = NumKind::from_code(insn.operands[1] as u8);
                     let k = match kind {
                         Some(NumKind::Double | NumKind::Single) => K::Dbl,
+                        // (an INT64 / UINT64 / UINT32 holds a 64-bit kind)
+                        Some(k) if k.is_wide() => K::Other,
                         Some(_) => K::Int,
                         None => K::Other,
                     };
@@ -780,7 +782,7 @@ impl Walk<'_, '_> {
             Const::Double(f) => (self.b.ins().f64const(*f), K::Dbl),
             Const::Bool(b) => (self.b.ins().iconst(types::I8, i64::from(*b)), K::Bool),
             Const::Null => (self.dummy(), K::Null),
-            Const::Str(_) => return None,
+            Const::Str(_) | Const::Int64(_) | Const::UInt64(_) => return None,
         })
     }
 
@@ -891,6 +893,11 @@ impl Walk<'_, '_> {
             });
         }
         let kind = NumKind::from_code(code)?;
+        // (a store into an INT64 / UINT64 / UINT32 makes a 64-bit kind: the
+        // interpreter's)
+        if kind.is_wide() {
+            return None;
+        }
         let out = if kind.is_integer() { K::Int } else { K::Dbl };
         match (kind, k) {
             (NumKind::Double, K::Dbl) => return Some((v, K::Dbl)),
