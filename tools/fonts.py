@@ -14,6 +14,12 @@
                                         (fonts.toml [subset]): the common
                                         characters in one file, for a page
                                         whose UI is Chinese
+  python3 tools/fonts.py symbols        the desktop's last-resort symbols
+                                        (fonts.toml [symbols]): a subset of the
+                                        committed Noto Sans Symbols 2, renamed
+                                        RapidR Symbols Subset, into
+                                        crates/rapidr-value/fonts (drawn only
+                                        where a computer has no system fonts)
   python3 tools/fonts.py check [<dir>]  the legal rules for what `build` makes
                                         (docs/legal/review-2026-11-06-zh.md
                                         B-1 .. B-8); with <dir>, of that
@@ -55,6 +61,35 @@ def subset_spec():
     """fonts.toml's [subset]: the Simplified Chinese subset."""
     with open(os.path.join(HERE, "fonts.toml"), "rb") as f:
         return tomllib.load(f)["subset"]
+
+
+def symbols_spec():
+    """fonts.toml's [symbols]: the desktop's last-resort symbols subset."""
+    with open(os.path.join(HERE, "fonts.toml"), "rb") as f:
+        return tomllib.load(f)["symbols"]
+
+
+def build_symbols():
+    """The desktop's last-resort symbols (fonts.toml [symbols]): the committed
+    source checked by its SHA-256, cut to the listed characters (those it has),
+    renamed, written where the desktop builds include it. Its OFL file is kept
+    by hand beside it (the copyright line, the credit, the whole OFL 1.1)."""
+    spec = symbols_spec()
+    src = next(f for f in manifest() if f["family"] == spec["from"])
+    path = os.path.join(HERE, src["file"])
+    with open(path, "rb") as f:
+        if sha256(f.read()) != spec["source_sha256"]:
+            sys.exit(f"error: {path} isn't the file [symbols] source_sha256 pins")
+    from fontTools.ttLib import TTFont
+
+    have = set(TTFont(path, lazy=True).getBestCmap())
+    want = sorted({ord(c) for c in spec["characters"]} & have)
+    f = cut(path, want, options([], True))
+    rename(f, spec["family"], "symbols")
+    out = os.path.join(ROOT, spec["file"])
+    f.save(out)
+    lacks = "".join(c for c in spec["characters"] if ord(c) not in have)
+    print(f"{spec['file']}: {len(want)} characters, {os.path.getsize(out)} bytes" + (f" (the source lacks {lacks})" if lacks else ""))
 
 
 def sha256(data):
@@ -326,6 +361,23 @@ def check(out_dir=None):
         for key in ("release", "url"):
             need(key not in f or f[key].startswith(("https://github.com/", "https://raw.githubusercontent.com/")), f"{f['family']}: {f.get(key)} isn't a pinned GitHub asset")
 
+    # the desktop's last-resort symbols ([symbols]): the same rules
+    sym = symbols_spec()
+    need("noto" not in sym["family"].lower(), f"the symbols subset's family name `{sym['family']}` has \"Noto\" in it")
+    need(any(f["family"] == sym["from"] and f.get("committed") for f in fonts), f"the symbols subset is cut from `{sym['from']}`, which fonts.toml doesn't list as committed")
+    src_sym = next((f for f in fonts if f["family"] == sym["from"]), None)
+    if src_sym:
+        with open(os.path.join(HERE, src_sym["file"]), "rb") as fh:
+            need(sha256(fh.read()) == sym.get("source_sha256"), f"{src_sym['file']} isn't the file [symbols] source_sha256 pins")
+    lic = text(sym["licence"]) if os.path.exists(os.path.join(ROOT, sym["licence"])) else ""
+    need("Copyright 2022 The Noto Project Authors" in lic, f"{sym['licence']} lacks the source's copyright line")
+    need("SIL OPEN FONT LICENSE Version 1.1" in lic and "PERMISSION & CONDITIONS" in lic, f"{sym['licence']} isn't the whole OFL 1.1")
+    need(sym["family"] in lic and "not endorsed" in lic, f"{sym['licence']} doesn't credit the subset `{sym['family']}` (and say it isn't endorsed)")
+    for rel in ("LICENSES.md", "THIRD_PARTY_NOTICES.md", "crates/rapidr-cli/src/notices.rs", "tools/third_party_notices.py", "crates/rapidr-value/fonts/README.md"):
+        need(sym["family"] in text(rel), f"{rel} doesn't name the symbols subset `{sym['family']}`")
+    kernel = text("crates/rapidr-ui-kernel/src/text/mod.rs")
+    need("fn symbols_last_resort" in kernel, "the kernel no longer decides when the symbols subset is drawn (symbols_last_resort)")
+
     skipped = None
     try:
         from fontTools.ttLib import TTFont
@@ -386,6 +438,31 @@ def check(out_dir=None):
             for enc in ("ascii", "utf-16-be", "mac-roman"):
                 raw = raw.replace(notice.encode(enc), b"")
             need(b"Noto" not in raw and "Noto".encode("utf-16-be") not in raw, f"{c['file']}: \"Noto\" is still in the file outside the trademark notice")
+    if TTFont:
+        # the symbols subset as built: its names neutral, the notices kept, a few KB,
+        # nothing but the listed characters (and what the source lacks of them)
+        out = os.path.join(ROOT, sym["file"])
+        need(os.path.exists(out), f"{sym['file']} is missing (python3 tools/fonts.py symbols)")
+        if os.path.exists(out):
+            ft = TTFont(out, lazy=True)
+            by = {}
+            for rec in ft["name"].names:
+                by.setdefault(rec.nameID, []).append(rec.toUnicode())
+            for i in (1, 3, 4, 6, 16):
+                need(all("noto" not in v.lower() for v in by.get(i, [])), f"{sym['file']}: name ID {i} has \"Noto\" in it")
+            need(all(sym["family"] in v for v in by.get(1, [])), f"{sym['file']}: family name ID 1 isn't `{sym['family']}`")
+            need(any("Noto Project Authors" in v for v in by.get(0, [])), f"{sym['file']}: the copyright (name ID 0) is gone")
+            need(any("trademark" in v.lower() for v in by.get(7, [])), f"{sym['file']}: the trademark notice (name ID 7) is gone")
+            need(any("SIL Open Font License" in v for v in by.get(13, [])), f"{sym['file']}: the licence (name ID 13) is gone")
+            need(set(ft.getBestCmap()) <= {ord(c) for c in sym["characters"]}, f"{sym['file']} has characters [symbols] doesn't list")
+            need(os.path.getsize(out) < 32 * 1024, f"{sym['file']} is over 32 KB (a few KB expected)")
+            with open(out, "rb") as fh:
+                raw = fh.read()
+            for enc in ("ascii", "utf-16-be", "mac-roman"):
+                # (the copyright as the name table and as the CFF table write it)
+                for keep in ("Noto is a trademark of Google Inc.", "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)", "Copyright 2022 The Noto Project Authors https:github.comnotofontssymbols"):
+                    raw = raw.replace(keep.encode(enc), b"")
+            need(b"Noto" not in raw and "Noto".encode("utf-16-be") not in raw, f"{sym['file']}: \"Noto\" is in the file outside the copyright and trademark notices")
     if tmp:
         shutil.rmtree(tmp, ignore_errors=True)
     for p in problems:
@@ -401,6 +478,8 @@ def main():
             if source(font) is None:
                 sys.exit(1)
         print("fallback fonts fetched into target/fonts-src")
+    elif sys.argv[1:] == ["symbols"]:
+        build_symbols()
     elif len(sys.argv) == 3 and sys.argv[1] == "build":
         build(os.path.abspath(sys.argv[2]))
     elif sys.argv[1:2] == ["check"] and len(sys.argv) <= 3:

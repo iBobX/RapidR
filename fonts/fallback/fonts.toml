@@ -98,3 +98,22 @@ catalogs = [
     "crates/rapidr-value/lang/zh-Hans.po",
     "crates/rapidr-diagnostics/lang/zh-Hans.po",
 ]
+
+# The desktop's last-resort symbols (lane WINXP-RECHECK, 2026-11-06): a subset of
+# the committed Noto Sans Symbols 2 (the file above, by its SHA-256 here), built
+# into every desktop RapidR (crates/rapidr-value/fonts) and drawn ONLY where the
+# computer offers no system fonts at all (plain Windows XP: no DirectWrite; a
+# Linux with no fonts), for the symbols RapidR's own faces lack (✓ ✗ ⚠ ...). A
+# computer with system fonts never has it in its font list
+# (rapidr_ui_kernel::text::symbols_last_resort), so it draws what it drew before;
+# the web neither (its chunks). Cut by `python3 tools/fonts.py symbols`, renamed
+# (no "Noto": Google's trademark), the copyright, trademark notice and licence
+# records kept, the OFL beside it (RapidRSymbolsSubset-OFL.txt); never sold or
+# offered by itself.
+[symbols]
+from = "Noto Sans Symbols 2"
+source_sha256 = "9b0f186fea27f311018800fb3a01d44d59331dbcccf518d2dadcae894eb017c0"
+family = "RapidR Symbols Subset"
+file = "crates/rapidr-value/fonts/RapidRSymbolsSubset-Regular.otf"
+licence = "crates/rapidr-value/fonts/RapidRSymbolsSubset-OFL.txt"
+characters = "✓✗✔✘✋★☆⚠☐☑☒✕✖♥♦♣♠❤➜➤⚡✉✎✏⌛⏳⏱⛔❗❓⬆⬇⬅➡⏸⏹⏺⏯⏭⏮▲▼◀▶●○■□◆◇•☀☁☂⌫⏎✚✱"

@@ -314,6 +314,8 @@ const RAPIDR_LICENSE: &str = include_str!("../../../LICENSE");
 const OFL: &str = include_str!("../../rapidr-value/fonts/OFL-1.1.txt");
 const INTER_OFL: &str = include_str!("../../rapidr-value/fonts/Inter-OFL.txt");
 const JBMONO_OFL: &str = include_str!("../../rapidr-value/fonts/JetBrainsMono-OFL.txt");
+/// The desktop's last-resort symbols' licence (Noto's copyright line, the credit, the OFL).
+const SYMBOLS_OFL: &str = include_str!("../../rapidr-value/fonts/RapidRSymbolsSubset-OFL.txt");
 /// The Noto fallback fonts' licence (their copyright lines first).
 const NOTO_OFL: &str = include_str!("../../../fonts/fallback/OFL.txt");
 /// mingw-w64's notices, from the LLVM-MinGW release the Windows SDK ships.
@@ -782,6 +784,11 @@ fn extras(kind: &Kind, crates: &BTreeSet<&str>, packages: &HashMap<(String, Stri
             blocks: vec![Block { title: "JetBrains Mono — OFL-1.1".into(), text: JBMONO_OFL.into() }],
         });
     }
+    // (the desktop's last-resort symbols: in the UI kernel, drawn only where a
+    // computer has no system fonts; the web has its chunks instead)
+    if crates.contains("rapidr-ui-kernel") && !matches!(kind, Kind::Web) {
+        out.push(symbols_component());
+    }
     // (the web runtime's fallback fonts: shipped beside it, fonts/)
     if matches!(kind, Kind::Web) {
         out.push(web_fonts_component());
@@ -970,6 +977,19 @@ const WAYLAND_PROTOCOL_CRATES: &[&str] = &["wayland-client", "wayland-protocols"
 /// must be MIT or HPND-sell-variant (MIT's older X11 kin: a notice, and the
 /// authors' names not used to promote the product); any other — KDE's
 /// LGPL-2.1-or-later files, say — is an error.
+/// RapidR Symbols Subset: built into the desktop UI kernel (fonts/fallback/fonts.toml [symbols]).
+fn symbols_component() -> Component {
+    Component {
+        name: "RapidR Symbols Subset (a Modified Version of Noto Sans Symbols 2)".into(),
+        version: "2.008".into(),
+        declared: "OFL-1.1".into(),
+        used: "OFL-1.1".into(),
+        url: "https://github.com/notofonts/symbols".into(),
+        note: "Built into the program: 58 symbols (check marks, crosses, warning signs, card suits, media controls) cut from Noto Sans Symbols 2 (Copyright 2022 The Noto Project Authors) and given a family name of its own, written into the file, because the OFL grants no right to Google's trademark \"Noto\"; its copyright, trademark notice and licence records are kept, and this OFL text travels with it. RapidR draws with it only on a computer that has no system fonts at all (plain Windows XP). No Reserved Font Name is declared. The OFL lets the font be bundled with any software, commercial included; the font itself may not be sold on its own, and RapidR offers it apart from no program.".into(),
+        blocks: vec![Block { title: "RapidR Symbols Subset — OFL-1.1".into(), text: SYMBOLS_OFL.into() }],
+    }
+}
+
 fn wayland_protocol_notices(crates: &BTreeSet<&str>, dir_of: &dyn Fn(&str) -> Option<PathBuf>) -> Result<Vec<(&'static str, Vec<String>, String)>, String> {
     let mut out: Vec<(&'static str, Vec<String>, String)> = Vec::new();
     for krate in WAYLAND_PROTOCOL_CRATES.iter().filter(|c| crates.contains(*c)) {
@@ -1146,6 +1166,19 @@ mod tests {
         let text = &c.blocks[0].text;
         assert!(text.contains("(c) 2014-2021 Adobe") && text.contains("SIL OPEN FONT LICENSE Version 1.1"));
         assert!(text.contains("RapidR Han Subset"), "OFL.txt credits the subset");
+    }
+
+    #[test]
+    fn the_desktop_notices_name_the_symbols_subset_with_its_licence() {
+        // (every desktop program with the UI kernel carries it: its own name,
+        // Noto's copyright, the whole OFL; no claim to the "Noto" name)
+        let c = symbols_component();
+        assert!(c.name.contains("RapidR Symbols Subset") && c.note.contains("Modified Version") || c.name.contains("Modified Version"), "{}", c.name);
+        assert!(c.note.contains("The Noto Project Authors") && c.note.contains("Reserved Font Name") && c.note.contains("no system fonts"));
+        assert_eq!(c.used, "OFL-1.1");
+        let text = &c.blocks[0].text;
+        assert!(text.contains("Copyright 2022 The Noto Project Authors") && text.contains("SIL OPEN FONT LICENSE Version 1.1") && text.contains("PERMISSION & CONDITIONS"));
+        assert!(text.contains("RapidR Symbols Subset") && text.contains("not endorsed"), "the OFL file credits the subset");
     }
 
     #[test]
