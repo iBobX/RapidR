@@ -408,6 +408,16 @@ A component with a `PopupMenu` and no `OnContextMenu` opens it as it always
 did, and in a RapidR program (`.rr`) from the keyboard too. All of it, with RapidR Studio's own
 menus: [Right-click menus](right-click-menus.md).
 
+## Notifications: RNotify and RNotifyBar
+
+`RNotify` says what happened in a small card in a corner of the form that
+goes by itself (`Show "Saved", "success"`); `RNotifyBar` asks one question
+on a slim line above what it is about (`Ask "…", "&Compare,&Keep Mine"`).
+Behind the cards a history keeps every message, so one that went by in a
+second is never lost. Both take the program's own look (light, dark, high
+contrast), speak to a screen reader once, and are in the AI tools like every
+component. All of it: [Notifications](notifications.md).
+
 ## RUpDown: arrows that step a number
 
 An `RUpDown` is two small arrow buttons that step `Position` between `Min` and

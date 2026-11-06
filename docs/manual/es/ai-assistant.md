@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 9b35c8686f3a5a3d -->
+<!-- translated-from: ai-assistant.md 7088e26aff9d7c37 -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -644,22 +644,27 @@ carpeta con su nombre: *Calculadora científica* se convierte en `CalculadoraCie
 (`CalculadoraCientifica2` si ese nombre ya está ocupado). Muévelo o cámbiale el nombre
 después si quieres.
 
-Una franja en la parte de arriba dice qué pasó, y el teclado ya está en su primer botón:
+Un mensaje abajo a la derecha del editor dice qué pasó, y el teclado ya está en su primer
+botón:
 
-![Un programa nuevo del asistente, abierto en Studio: la franja con Ejecutarlo, Deshacer y ¿Qué hizo?](../images/ai/banner.png)
+![Un programa nuevo del asistente, abierto en Studio: un mensaje con Ejecutarlo y Deshacer abajo a la derecha del diseñador](../images/ai/banner.png)
 
-- **▶ Ejecutarlo** (o **Enter**, o **F5**) ejecuta el programa. No se ejecuta nada hasta
+- **Ejecutarlo** (o **Enter**, o **F5**) ejecuta el programa. No se ejecuta nada hasta
   que lo presionas.
-- **↺ Deshacer** cierra el programa y quita exactamente los archivos que escribió el
+- **Deshacer** cierra el programa y quita exactamente los archivos que escribió el
   asistente, y nada más. Si cambiaste o añadiste archivos en su carpeta desde entonces,
   Studio pregunta primero, y los archivos que añadiste se quedan. Vuelve el proyecto que
   tenías abierto antes.
-- **¿Qué hizo?** muestra el panel Asistente en la tarjeta del programa.
-- **×** cierra la franja.
+- Mientras el teclado está en el mensaje, se queda; **Escape** lo cierra y el teclado
+  vuelve al editor. Si no, se va solo, y la campana de la barra de estado lo guarda, con
+  sus botones, mientras puedan funcionar ([Notificaciones](notifications.md)). Lo que hizo
+  el asistente está en el chat, en sus tarjetas: **Abrir** y **Deshacer** también son
+  enlaces ahí.
 
 Si el programa todavía tiene errores después de los intentos del asistente, se abre de
-todos modos y la franja lo dice: **▶ Ejecutar de todos modos**, **Pedir que lo corrija**
-(el asistente recibe otra oportunidad) o **↺ Deshacer**.
+todos modos y el mensaje lo dice, con **Ejecutar de todos modos** (Enter) y **Pedir que lo
+corrija** (el asistente recibe otra oportunidad); **Deshacer** está entonces en la tarjeta
+del chat.
 
 ![Lo mismo con el aspecto oscuro](../images/ai/banner-dark.png)
 

@@ -37,6 +37,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [For teachers: School Lock](for-teachers.md) | Turning Studio's AI (RAI and AI apps) off behind a password, what students see, unlocking for a lesson, the wrong-password wait; for a school's IT: the computer's policy file and `rapidr school-lock hash` |
 | [Let AI apps work in Studio](ai-apps.md) | Turning it on (off by default, this computer only, a token), giving an AI app the address and the header, the permission menu (Read only, Ask before changes, Allow edits, Allow everything), watching every call in the AI Apps pane, the tools, what AI apps can see, the activity log |
 | [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs, its code blocks coloured by language (SQL, BASIC, JSON …) |
+| [Notifications](notifications.md) | Toasts that say what happened and go by themselves, the question on one slim line, the bell and its history, and document tabs that keep their names, in RapidR Studio; `RNotify` and `RNotifyBar` in your own programs |
 | [Versions: never lose your work](versions.md) | Saving versions, the timeline, going back, experiments, shared folders, safety points and Undo, the secret check — in plain words with Git's names beside them (the Studio panel comes in Preview 4); `RDiffView`'s text, form and table views in your own programs |
 
 ## The language and its components

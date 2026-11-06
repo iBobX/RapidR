@@ -1,4 +1,4 @@
-<!-- translated-from: studio-projects.md 067ff38e095c9895 -->
+<!-- translated-from: studio-projects.md 1b92e0876ee88c8b -->
 # Proyectos en RapidR Studio
 
 Un programa de RapidR puede ser un archivo o muchos: un archivo principal que
@@ -203,18 +203,20 @@ otro agente de IA trabaja en ellos, editas uno en otro editor o un
 al frente, y cada dos segundos mientras está al frente) y nunca pierde ninguna de
 las dos versiones.
 
-- **Un archivo que no cambiaste en Studio se vuelve a cargar, en silencio.** La
-  barra de estado dice *main.rr se actualizó fuera de Studio* (un lector de
-  pantalla también lo dice). Lo que tenía el editor se conserva en el
-  **historial local** del archivo (*Antes de volver a cargar*: Archivo >
-  Versiones > Historial local de este archivo...), y un **Deshacer** (Ctrl+Z) lo
-  devuelve.
+- **Un archivo que no cambiaste en Studio se vuelve a cargar, en silencio.** Un
+  mensaje pequeño en la esquina del editor dice *main.rr se recargó*, con
+  **Mostrar**, y se va solo (un lector de pantalla lo dice una vez; la campana de
+  la barra de estado lo guarda: [Notificaciones](notifications.md)). Lo que tenía
+  el editor se conserva en el **historial local** del archivo (*Antes de volver a
+  cargar*: Archivo > Versiones > Historial local de este archivo...), y un
+  **Deshacer** (Ctrl+Z) lo devuelve.
 
-  ![main.rr cambió fuera de Studio: el editor muestra la nueva última línea, PRINT "Changed by an agent.", y la barra de estado dice que main.rr se actualizó fuera de Studio](../images/studio-projects/outside-reloaded.png)
+  ![main.rr cambió fuera de Studio: el editor muestra la nueva última línea, PRINT "Changed by an agent.", y un mensaje abajo a la derecha dice que main.rr se recargó](../images/studio-projects/outside-reloaded.png)
 - **Un archivo con cambios sin guardar en Studio nunca se reemplaza.** Una franja
-  sobre su editor (y sobre su formulario, en el diseñador) pregunta qué hacer:
+  de una sola línea, solo en ese editor (y sobre su formulario, en el diseñador),
+  pregunta qué hacer. Nada más en pantalla lo repite:
 
-  ![main.rr cambió fuera de Studio: la franja sobre el editor, con Comparar, Usar la versión del disco y Conservar la mía](../images/studio-projects/outside-question.png)
+  ![main.rr cambió en el disco mientras lo editabas: la franja sobre el editor, con Comparar, Usar la versión del disco y Conservar la mía en una línea](../images/studio-projects/outside-question.png)
 
   - **Comparar** muestra la versión del disco junto a la tuya, con la diferencia
     a la vista.
@@ -240,11 +242,11 @@ las dos versiones.
 
   ![greet.rr (eliminado del disco): su pestaña sigue abierta, con su texto](../images/studio-projects/outside-deleted.png)
 - **Muchos archivos a la vez** (una rama que se cambia, un agente que reescribe
-  una docena de archivos) generan una sola nota, nunca un cuadro de diálogo para
-  cada uno: *12 archivos se actualizaron fuera de Studio*. **Mostrar** los
-  enumera en la Salida.
+  una docena de archivos) generan un solo mensaje, nunca un cuadro de diálogo ni
+  un mensaje para cada uno: *Se recargaron 12 archivos: greet.rr, main.rr,
+  part1.rr +9*. **Mostrar** los enumera todos en una tarjeta con búsqueda.
 
-  ![12 archivos se actualizaron fuera de Studio, con Mostrar y Cerrar](../images/studio-projects/outside-many.png)
+  ![Se recargaron 12 archivos: greet.rr, main.rr, part1.rr +9, con Mostrar, abajo a la derecha del editor](../images/studio-projects/outside-many.png)
 - **El archivo de proyecto** (`.rrproj`) cambió fuera de Studio (un agente
   añadió o quitó archivos): el panel Proyecto lo sigue en silencio.
 - **Archivo > Reabrir proyecto** cierra el proyecto y lo abre de nuevo desde el

@@ -620,23 +620,26 @@ in a folder named after it: *Scientific Calculator* becomes
 `ScientificCalculator` (`ScientificCalculator2` if that name is taken). Move
 or rename it later if you like.
 
-A banner across the top says what happened, and the keyboard is already on
-its first button:
+A message at the bottom right of the editor says what happened, and the
+keyboard is already on its first button:
 
-![A new program from the assistant, open in Studio: the banner with Run It, Undo and What Did It Do?](images/ai/banner.png)
+![A new program from the assistant, open in Studio: a message with Run It and Undo at the bottom right of the designer](images/ai/banner.png)
 
-- **▶ Run It** (or **Enter**, or **F5**) runs the program. Nothing runs until
+- **Run It** (or **Enter**, or **F5**) runs the program. Nothing runs until
   you press it.
-- **↺ Undo** closes the program and removes exactly the files the assistant
+- **Undo** closes the program and removes exactly the files the assistant
   wrote — nothing else. If you changed or added files in its folder since,
   Studio asks first, and the files you added stay. The project you had open
   before comes back.
-- **What Did It Do?** shows the Assistant pane at the program's card.
-- **×** closes the banner.
+- While the keyboard is on the message it stays; **Escape** closes it and the
+  keyboard goes back to the editor. Otherwise it goes by itself, and the bell
+  in the status bar keeps it, with its buttons, for as long as they can still
+  work ([Notifications](notifications.md)). What the assistant did is in the
+  chat, in its cards: **Open** and **Undo** are links there too.
 
 If the program still has errors after the assistant's tries, it opens all the
-same and the banner says so: **▶ Run Anyway**, **Ask It to Fix** (the
-assistant gets another go), or **↺ Undo**.
+same and the message says so, with **Run Anyway** (Enter) and **Ask It to
+Fix** (the assistant gets another go); **Undo** is in the chat's card then.
 
 ![The same in the dark look](images/ai/banner-dark.png)
 

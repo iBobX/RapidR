@@ -189,17 +189,20 @@ switches branches. Studio notices — when its window comes to the front
 again, and every two seconds while it is in front — and never loses either
 version.
 
-- **A file you haven't changed in Studio is loaded again, quietly.** The
-  status bar says *main.rr was updated outside Studio* (a screen reader
-  says it too). What the editor had is kept in the file's **local history**
-  (*Before reloading*: File > Versions > Local History of This File...), and
-  one **Undo** (Ctrl+Z) brings it back.
+- **A file you haven't changed in Studio is loaded again, quietly.** A small
+  message in the corner of the editor says *main.rr was reloaded*, with
+  **Show**, and goes by itself (a screen reader says it once; the bell in the
+  status bar keeps it: [Notifications](notifications.md)). What the editor
+  had is kept in the file's **local history** (*Before reloading*: File >
+  Versions > Local History of This File...), and one **Undo** (Ctrl+Z)
+  brings it back.
 
-  ![main.rr changed outside Studio: the editor shows the new last line, PRINT "Changed by an agent.", and the status bar says main.rr was updated outside Studio](images/studio-projects/outside-reloaded.png)
+  ![main.rr changed outside Studio: the editor shows the new last line, PRINT "Changed by an agent.", and a message at the bottom right says main.rr was reloaded](images/studio-projects/outside-reloaded.png)
 - **A file with unsaved changes in Studio is never replaced.** A strip
-  above its editor (and above its form, in the designer) asks what to do:
+  one line tall, on that editor only (and above its form, in the designer),
+  asks what to do. Nothing else on the screen says it again:
 
-  ![main.rr changed outside Studio: the strip above the editor, with Compare, Use Disk Version and Keep Mine](images/studio-projects/outside-question.png)
+  ![main.rr changed on disk while you were editing it: the strip above the editor, with Compare, Use Disk Version and Keep Mine on one line](images/studio-projects/outside-question.png)
 
   - **Compare** shows the disk's version beside yours, the difference in
     view.
@@ -223,10 +226,11 @@ version.
 
   ![greet.rr (deleted on disk): its tab still open, with its text](images/studio-projects/outside-deleted.png)
 - **Many files at once** — a branch checked out, an agent rewriting a dozen
-  files — make one note, never a dialog for each: *12 files were updated
-  outside Studio*. **Show** lists them in the Output.
+  files — make one message, never a dialog or a message for each: *12 files
+  were reloaded: greet.rr, main.rr, part1.rr +9*. **Show** lists them all in
+  a searchable card.
 
-  ![12 files were updated outside Studio, with Show and Close](images/studio-projects/outside-many.png)
+  ![12 files were reloaded: greet.rr, main.rr, part1.rr +9, with Show, at the bottom right of the editor](images/studio-projects/outside-many.png)
 - **The project file** (`.rrproj`) changed outside — an agent added or
   removed files: the Project pane follows it quietly.
 - **File > Reopen Project** closes the project and opens it again from the
