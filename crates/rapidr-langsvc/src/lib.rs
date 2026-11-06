@@ -592,19 +592,41 @@ impl Analysis {
             .collect();
         roots.sort();
         for root in roots {
-            if let Some(s) = self.root_snapshot(&root) {
+            // (a program tried and not the one: not kept as that file's
+            // analysis — `ui.rr`, whose comment names `main.rr`, is tried as
+            // main.rr's program, and kept it answered for `ui.rr` itself as
+            // a program of its own, every name main.rr's other files declare
+            // "never declared": #16)
+            if let Some(s) = self.tried_root_snapshot(&root) {
                 if s.parsed.file_key(file).is_some() {
-                    return Some((root, s));
+                    return self.root_snapshot(&root).map(|s| (root, s));
                 }
             }
         }
         None
     }
 
+    /// The analysis of the program `root` is the main file of, made now
+    /// and not kept under its path ([`Analysis::root_snapshot`] keeps it):
+    /// what trying a file as the program of another asks, so a program
+    /// tried and found not to include it is not taken for that file's own
+    /// analysis afterwards. The same texts are one parse for both
+    /// ([`cache::snapshot`]).
+    fn tried_root_snapshot(&self, root: &Path) -> Option<Arc<Snapshot>> {
+        self.build_root_snapshot(root)
+    }
+
     fn root_snapshot(&mut self, root: &Path) -> Option<Arc<Snapshot>> {
         if let Some(s) = self.snapshots.get(root) {
             return Some(s.clone());
         }
+        let s = self.build_root_snapshot(root)?;
+        self.stale.remove(root);
+        self.snapshots.insert(root.to_path_buf(), s.clone());
+        Some(s)
+    }
+
+    fn build_root_snapshot(&self, root: &Path) -> Option<Arc<Snapshot>> {
         let text = self.text(root)?;
         let mut open: Vec<(PathBuf, String)> = self.docs.iter().map(|(p, t)| (p.clone(), t.clone())).collect();
         // (in the paths' order: the same texts are the same input, whatever
@@ -618,8 +640,6 @@ impl Analysis {
             let model = model::analyze(&parsed.program, Some(&parsed.source));
             Snapshot::new(parsed, model)
         });
-        self.stale.remove(root);
-        self.snapshots.insert(root.to_path_buf(), s.clone());
         Some(s)
     }
 

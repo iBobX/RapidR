@@ -462,3 +462,28 @@ Still waiting, and why:
   Versions submenu's S&how This Line's Change and Local &History): a small
   follow-up. The code editor's &Copy and Toggle Co&mment no longer share
   one, in the three languages too.
+
+## 11. The gesture that opens a menu never acts on it
+
+A menu RapidR draws (`SystemMenu = 0`) is opened by the program from the
+handler of what the person is doing: a button's `OnClick`, a label's
+`OnMouseDown` or `OnMouseUp`, `OnContextMenu`. The kernel keeps that opening
+gesture apart (`components/menubar.rs`: `MenuUi::held_press`,
+`opened_by_press`, `OPEN_SLOP`):
+
+- a menu opened while a mouse button is down belongs to that press: its
+  release, within a click's wobble (5 pixels) of where it was pressed, keeps
+  the menu open and picks nothing, even over its first item; pressed,
+  dragged to an item and let go, it picks, as a system menu does;
+- only a press made while the menu is open picks from it or closes it: a
+  release whose press began before the menu (a click whose `OnClick` opened
+  it, a host's second release) is nobody's, and nothing stays pressed or
+  captured by the press the menu took the release of;
+- a right click's `OnContextMenu` goes to the component pressed whenever the
+  button is let go where it was pressed (a handler for the press may have
+  put a highlight over it), so a right click by RAI or an AI app is the same
+  click a person makes.
+
+Tests: `popupmenu.rs` and `tests.rs` (kernel), `eyes_tests.rs` (the hands),
+the GUI case `popup_from_click` (desktop, native and interpreted, and web)
+and `tests/web_popup_gesture.mjs` (real pointer events and keys).

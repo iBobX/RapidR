@@ -35,6 +35,9 @@ impl FormUi {
         self.menus.panels.push(panel);
         self.menus.popup = Some(menu_id.to_lowercase());
         self.menus.swallow_up = false;
+        // (opened while a button is down — from OnMouseDown —: that press's
+        // release is not the menu's to act on; the keyboard's never is)
+        self.menus.opened_by_press = if self.menus.key_popup { None } else { self.menus.held_press };
         self.dirty = true;
         true
     }
@@ -88,5 +91,112 @@ mod tests {
         let r = f.menus.panels[0].rect;
         assert_eq!(r.0, 0);
         assert!(r.1 + r.3 <= 200);
+    }
+
+    /// A form with a label and a pop-up menu of two items.
+    fn world() -> (MemStore, FormUi, TextSystem) {
+        let mut s = MemStore::new();
+        s.add("pmform", "RFORM", None).set("pmform", "clientwidth", v_int(300)).set("pmform", "clientheight", v_int(200));
+        s.add("lbl", "RLABEL", Some("pmform")).set("lbl", "left", v_int(20)).set("lbl", "top", v_int(90)).set("lbl", "width", v_int(120)).set("lbl", "height", v_int(30)).set("lbl", "caption", v_str("Press me"));
+        s.add("pm", "RPOPUPMENU", Some("pmform"));
+        for (id, caption) in [("pm1", "One"), ("pm2", "Two")] {
+            s.add(id, "RMENUITEM", Some("pm")).set(id, "caption", v_str(caption)).set(id, "parent", v_str("pm"));
+        }
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "pmform", true);
+        f.paint(&s, &mut ts, 1.0);
+        (s, f, ts)
+    }
+
+    /// A pop-up an OnMouseDown opens (PopupAt at the press) lives through the
+    /// release of that press, even a click's wobble over its first item: a
+    /// press elsewhere closes it, a click on an item picks it.
+    #[test]
+    fn the_press_that_opened_a_popup_never_picks_or_closes_it() {
+        let (s, mut f, mut ts) = world();
+        // (4 px down: past the menu's border, so over its first item, and
+        // still a click's wobble)
+        const { assert!(super::super::menubar::BORDER < 4) };
+        // (pressed on the label, its OnMouseDown opens the menu at the press)
+        f.mouse_down(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
+        assert!(f.open_popup("pm", 60, 100));
+        f.take_events();
+        // (let go a few pixels off, over the first item: nothing picked, still open)
+        f.mouse_up(&s, &mut ts, 62.0, 104.0, Button::Left, Mods::NONE);
+        assert_eq!(f.popup_open(), Some("pm"), "the opening click's release keeps it open");
+        assert!(!f.take_events().iter().any(|e| matches!(e, KernelEvent::MenuPick(_))));
+        // (nothing stays pressed or captured by that press)
+        assert!(f.pressed.is_none() && f.capture.is_none());
+        // (a click on an item picks it, as ever)
+        let y = (100 + super::super::menubar::BORDER + super::super::menubar::ITEM_H + 5) as f64;
+        f.mouse_move(&s, &mut ts, 70.0, y, Mods::NONE);
+        f.mouse_down(&s, &mut ts, 70.0, y, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 70.0, y, Button::Left, Mods::NONE);
+        assert_eq!(f.take_events(), vec![KernelEvent::MenuPick("pm2".into())]);
+        assert_eq!(f.popup_open(), None);
+
+        // (the same again: a click outside closes it, and nothing else hears it)
+        f.mouse_down(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
+        assert!(f.open_popup("pm", 60, 100));
+        f.mouse_up(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
+        assert_eq!(f.popup_open(), Some("pm"));
+        f.take_events();
+        f.mouse_down(&s, &mut ts, 250.0, 20.0, Button::Left, Mods::NONE);
+        assert_eq!(f.popup_open(), None, "a click outside, after it opened, closes it");
+        f.mouse_up(&s, &mut ts, 250.0, 20.0, Button::Left, Mods::NONE);
+        assert!(f.take_events().is_empty(), "that click was the menu's: the form under it heard nothing");
+    }
+
+    /// Pressed, dragged to an item and let go: a pick, as a system menu does.
+    #[test]
+    fn a_press_dragged_to_an_item_picks_it() {
+        let (s, mut f, mut ts) = world();
+        f.mouse_down(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
+        assert!(f.open_popup("pm", 60, 100));
+        f.take_events();
+        let y = (100 + super::super::menubar::BORDER + super::super::menubar::ITEM_H + 5) as f64;
+        f.mouse_move(&s, &mut ts, 70.0, y, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 70.0, y, Button::Left, Mods::NONE);
+        assert_eq!(f.take_events(), vec![KernelEvent::MenuPick("pm2".into())]);
+        assert_eq!(f.popup_open(), None);
+    }
+
+    /// A pop-up OnClick opens — after the click's release — is nobody's
+    /// gesture: a release that comes after it (a press that began before the
+    /// menu) neither picks nor closes it; a click of its own does.
+    #[test]
+    fn a_popup_opened_by_a_click_is_not_closed_by_that_click() {
+        let (s, mut f, mut ts) = world();
+        f.mouse_down(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 60.0, 100.0, Button::Left, Mods::NONE);
+        // (OnClick: the menu opens under the button)
+        assert!(f.open_popup("pm", 20, 120));
+        f.take_events();
+        // (a second release of that click — a host's — over the first item)
+        f.mouse_up(&s, &mut ts, 24.0, (120 + super::super::menubar::BORDER + 4) as f64, Button::Left, Mods::NONE);
+        assert_eq!(f.popup_open(), Some("pm"));
+        assert!(f.take_events().is_empty());
+        // (a click on the first item picks it)
+        let y = (120 + super::super::menubar::BORDER + 4) as f64;
+        f.mouse_move(&s, &mut ts, 24.0, y, Mods::NONE);
+        f.mouse_down(&s, &mut ts, 24.0, y, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 24.0, y, Button::Left, Mods::NONE);
+        assert_eq!(f.take_events(), vec![KernelEvent::MenuPick("pm1".into())]);
+        // (opened again: a click outside closes it)
+        assert!(f.open_popup("pm", 20, 120));
+        f.mouse_down(&s, &mut ts, 250.0, 20.0, Button::Left, Mods::NONE);
+        assert_eq!(f.popup_open(), None);
+    }
+
+    /// Right button too: OnMouseDown(mbRight) opens the menu, the right
+    /// release keeps it open.
+    #[test]
+    fn a_right_press_that_opens_a_popup_keeps_it_through_its_release() {
+        let (s, mut f, mut ts) = world();
+        f.mouse_down(&s, &mut ts, 60.0, 100.0, Button::Right, Mods::NONE);
+        assert!(f.open_popup("pm", 60, 100));
+        f.mouse_up(&s, &mut ts, 63.0, 104.0, Button::Right, Mods::NONE);
+        assert_eq!(f.popup_open(), Some("pm"));
+        assert!(!f.take_events().iter().any(|e| matches!(e, KernelEvent::ContextMenu { .. } | KernelEvent::MenuPick(_))));
     }
 }

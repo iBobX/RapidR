@@ -25,6 +25,9 @@ thread_local! {
     static STORE: RefCell<Option<MemStore>> = const { RefCell::new(None) };
     static NOW: Cell<Option<Instant>> = const { Cell::new(None) };
     static HEARD: RefCell<Vec<KernelEvent>> = const { RefCell::new(Vec::new()) };
+    /// A press on this component makes the program show the component
+    /// `cover` over it (what an OnMouseDown that highlights a row does).
+    static COVER_ON_PRESS: RefCell<Option<(String, String)>> = const { RefCell::new(None) };
 }
 
 #[derive(Clone, Copy)]
@@ -90,6 +93,20 @@ impl Windows for K {
     fn flush(self) {}
     fn dispatch_pending(self) {
         let events = DESK.with(|d| std::mem::take(&mut d.borrow_mut().as_mut().expect("a desk").events));
+        // (the program's handler for a press: it shows a component over what was pressed)
+        let cover = COVER_ON_PRESS.with(|c| c.borrow().clone());
+        if let Some((pressed, cover)) = cover {
+            if events.iter().any(|e| matches!(e, HostEvent::Kernel(_, KernelEvent::Mouse { id, kind: rapidr_value::input::Mouse::Down, .. }) if *id == pressed)) {
+                store(|s| {
+                    s.set(&cover, "visible", v_int(-1));
+                });
+                desk(|d, s| {
+                    if let Some(f) = d.forms.get_mut("calc") {
+                        f.ui.sync(s);
+                    }
+                });
+            }
+        }
         HEARD.with(|h| {
             h.borrow_mut().extend(events.into_iter().filter_map(|e| match e {
                 HostEvent::Kernel(_, k) => Some(k),
@@ -174,6 +191,7 @@ fn world() {
     DESK.with(|d| *d.borrow_mut() = Some(desk));
     NOW.with(|n| n.set(Some(rapidr_ui_kernel::tick::now())));
     HEARD.with(|h| h.borrow_mut().clear());
+    COVER_ON_PRESS.with(|c| *c.borrow_mut() = None);
     hands::reset("a new test");
     hands::take_done();
     hands::set_speed(1.0);
@@ -376,4 +394,35 @@ fn reduced_motion_jumps_and_a_hidden_cursor_draws_nothing() {
     assert!(run_until_done().ok);
     assert!(rapidr_ui_kernel::virtual_cursor::get().is_none());
     hands::set_cursor_shown(true);
+}
+
+/// A right click by the hands reaches the program as a person's does: the
+/// press, the release on the same component, and its OnContextMenu there -
+/// also when the program's handler for the press put a highlight over the
+/// component before the release (a right click on a row of a painted list,
+/// whose OnMouseDown selects it).
+#[test]
+fn a_right_click_by_the_hands_is_a_real_right_click() {
+    world();
+    let right = || Act::Click { target: Target { name: Some("lblname".into()), ..Target::default() }, button: rapidr_value::input::Button::Right, double: false };
+    hands::submit(Owner::Link(1), right());
+    let d = run_until_done();
+    assert!(d.ok && d.text.starts_with("Right-clicked lblname"), "{}", d.text);
+    let events = heard();
+    assert!(events.iter().any(|e| matches!(e, KernelEvent::Mouse { id, kind: rapidr_value::input::Mouse::Down, button: rapidr_value::input::Button::Right, .. } if id == "lblname")), "{events:?}");
+    assert!(events.iter().any(|e| matches!(e, KernelEvent::Mouse { id, kind: rapidr_value::input::Mouse::Up, button: rapidr_value::input::Button::Right, .. } if id == "lblname")), "{events:?}");
+    assert!(events.iter().any(|e| matches!(e, KernelEvent::ContextMenu { id, key: 0, .. } if id == "lblname")), "{events:?}");
+
+    // (the same, the program's OnMouseDown showing a panel over the label)
+    store(|s| {
+        s.add("cover", "RPANEL", Some("calc")).set("cover", "left", v_int(0)).set("cover", "top", v_int(78)).set("cover", "width", v_int(200)).set("cover", "height", v_int(24)).set("cover", "visible", v_int(0));
+    });
+    desk(|d, s| d.forms.get_mut("calc").unwrap().ui.rebuild(s));
+    COVER_ON_PRESS.with(|c| *c.borrow_mut() = Some(("lblname".into(), "cover".into())));
+    hands::submit(Owner::Link(2), right());
+    let d = run_until_done();
+    assert!(d.ok, "{}", d.text);
+    let events = heard();
+    assert!(events.iter().any(|e| matches!(e, KernelEvent::Mouse { id, kind: rapidr_value::input::Mouse::Up, button: rapidr_value::input::Button::Right, .. } if id == "lblname")), "{events:?}");
+    assert!(events.iter().any(|e| matches!(e, KernelEvent::ContextMenu { id, key: 0, .. } if id == "lblname")), "a real right click has its OnContextMenu here too: {events:?}");
 }

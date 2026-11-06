@@ -171,6 +171,29 @@ Notes.OnContextMenu = NotesMenu
 
 ![The example: a note right-clicked](images/context-menus/notes-menu.png)
 
+### A menu from a button: the ••• pattern
+
+A menu that drops under a button needs no `OnContextMenu`: open it from the
+button's `OnClick` with `PopupAt`, at the button's bottom edge.
+
+```basic
+SUB MoreClick (Sender AS RButton)
+  NoteMenu.Alignment = 1                       ' its right edge at X
+  NoteMenu.PopupAt Sender, Sender.Width, Sender.Height
+END SUB
+```
+
+The menu is open when the click is over. The same goes for a menu a label's
+`OnMouseDown` or `OnMouseUp` opens, or any handler that runs on a mouse
+button: **the gesture that opened a menu never picks from it or closes it**.
+Press on a label whose `OnMouseDown` calls `PopupAt` and let go a few pixels
+off, over the first item: the menu stays open and nothing is picked, as a
+system menu does. Press, drag to an item and let go, and it is picked. After
+that a click on an item picks it, and a click anywhere else closes the menu
+(and does nothing else).
+
+![The example's ••• button: its menu under it, still open after the click](images/context-menus/notes-dots-menu.png)
+
 ### RowActions: small buttons on a list's rows
 
 ```basic
@@ -221,7 +244,8 @@ it back — unlike `KILL`. Studio's Delete File... uses it
 ([the language](language.md#to-the-trash-movetotrash),
 [trash.rr](../../examples/basics/trash.rr)).
 
-The whole example is [context_menus.rr](../../examples/gui/context_menus.rr):
+The whole example is [context_menus.rr](../../examples/gui/context_menus.rr),
+with a ••• button above the list that opens the same menu from its `OnClick`:
 `rapidr run examples/gui/context_menus.rr`.
 
 ### For AI tools

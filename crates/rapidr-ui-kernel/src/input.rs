@@ -238,6 +238,8 @@ impl FormUi {
         self.dirty = true;
         self.mouse_at = (x, y);
         self.menus.key_popup = false;
+        // (a pop-up opened while this press is down is this press's: menubar.rs)
+        self.menus.held_press = Some((x, y));
         // (a press takes the tooltip away: tooltip.rs)
         self.tip_hide();
         // (an open menu, the in-window menu bar: components/menubar.rs)
@@ -422,6 +424,8 @@ impl FormUi {
     pub fn mouse_up(&mut self, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64, button: Button, mods: Mods) {
         self.dirty = true;
         self.mouse_at = (x, y);
+        // (where the press this release ends went down: menubar.rs)
+        let pressed_at = self.menus.held_press.take();
         // (a drag's release is its end's: drag.rs)
         if self.drag_release() {
             return;
@@ -471,8 +475,12 @@ impl FormUi {
         }
         self.mouse_event(target, Mouse::Up, button, x, y, mods);
         // (CONTEXT-MENUS: a right click let go where it was pressed: its
-        // OnContextMenu — the form's on its open area)
-        if button == Button::Right && (hit == target || target.is_none()) {
+        // OnContextMenu — the form's on its open area. Where it was pressed,
+        // give or take a click's wobble, whatever lies there now: what ran
+        // on the press — OnMouseDown selecting a row, showing a highlight
+        // over it — may have put another component over the one pressed)
+        let clicked = pressed_at.is_some_and(|(px, py)| (x - px).abs() <= crate::components::menubar::OPEN_SLOP && (y - py).abs() <= crate::components::menubar::OPEN_SLOP);
+        if button == Button::Right && (hit == target || target.is_none() || clicked) {
             let (id, ox, oy) = match target.map(|i| self.context_owner(store, i)) {
                 Some(i) => (self.nodes[i].id.clone(), self.nodes[i].abs.0, self.nodes[i].abs.1),
                 None => (self.form.clone(), 0, self.menu_offset),
