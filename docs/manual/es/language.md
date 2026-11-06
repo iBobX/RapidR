@@ -409,7 +409,10 @@ PRINT Square(1.5)             ' 2.250000000
   la primera llamada de ese tipo con un error que nombra la función (y el
   equivalente portátil de RapidR cuando lo hay); una biblioteca propia del
   sistema (`LIB "libfoo.dylib"`, `"libfoo.so"`) se carga allí. Con
-  `RAPIDR_SANDBOX` definida no se carga ninguna biblioteca. docs/windows-dll-calls.md
+  `RAPIDR_SANDBOX` definida (lo que RapidR Studio define para una ejecución que
+  inicia RAI o una aplicación de IA) no se carga ninguna biblioteca, y `SHELL`,
+  `SHELLWAIT` y `RUN` no inician ningún programa (un error en tiempo de ejecución
+  lo dice). docs/windows-dll-calls.md
   tiene los detalles.
 - `PEEK` / `POKE` / `PCOPY` funcionan sobre las páginas de la consola (la página 0
   es la pantalla: las direcciones pares son el carácter de una celda, las impares

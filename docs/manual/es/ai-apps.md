@@ -1,4 +1,4 @@
-<!-- translated-from: ai-apps.md d4bcedb8d7fd806d -->
+<!-- translated-from: ai-apps.md eaf1d0fb9729e747 -->
 # Deja que las aplicaciones de IA trabajen en Studio
 
 <!-- legal -->
@@ -259,14 +259,22 @@ Studio:
 <!-- legal -->
 - enumerar y leer los archivos de tu proyecto abierto (tu código, tus formularios
   y tus archivos de datos), y nada fuera del proyecto ni oculto en él (un archivo
-  o una carpeta cuyo nombre empieza con un punto);
+  o una carpeta cuyo nombre empieza con un punto), sea cual sea la herramienta con
+  que lee: un archivo, el esquema, una comprobación, los formularios, una
+  comparación de versiones; un archivo de proyecto que lista `../otra-parte`, o
+  una carpeta que es un enlace hacia fuera del proyecto, no cambia eso;
 <!-- legal -->
 - obtener imágenes de la ventana de Studio y de las ventanas de tu programa en
   ejecución, y una lista escrita de lo que muestran, tal como tú las ves;
 <!-- legal -->
 - mirar y cambiar formularios y código, abrir otros proyectos, y compilar,
   ejecutar y depurar tu programa, según lo permita el menú de permisos: Studio te
-  pregunta antes con **Preguntar antes de cambiar**;
+  pregunta antes con **Preguntar antes de cambiar**. Una ejecución que inicia una
+  aplicación de IA está *aislada*: una llamada a una DLL (`DECLARE … LIB`),
+  `SENDMESSAGE` y `SHELL` / `RUN` detienen el programa con un error que lo dice (a
+  la aplicación de IA se le dice por qué), salvo que hayas activado **Herramientas
+  > Configuración > IA > Los programas que ejecuta la IA pueden usar DLL y
+  SHELL**; tu propio **Ejecutar** (F5) siempre los tiene;
 <!-- legal -->
 - mirar, hacer clic y escribir en tu programa en ejecución, cada cosa solo como lo
   permita el menú de permisos (el predeterminado te pregunta primero): mira

@@ -836,6 +836,13 @@ SUB StartProgram(WithDebugger AS INTEGER)
   Session.Program = ProjectMain
   Session.Debug = WithDebugger
   Session.BreakOnError = Flag(WithDebugger <> 0 AND BreakOnErrors <> 0)
+  ' (SEC-41: a run RAI or an AI app starts — an AI tool's call being
+  ' answered — is sandboxed: no DLL call, SENDMESSAGE, SHELL or RUN, unless
+  ' the user allowed full power for AI runs in Settings > AI; the user's own
+  ' Run never is)
+  RunSandboxed = Flag(ToolsCalling <> 0 AND AIRunFullPower = 0)
+  ToolsCalling = 0
+  Session.Sandboxed = RunSandboxed
   ' (a crash report RapidR may write while it runs: crash.inc)
   CrashRunStarts
   IF Session.Start THEN

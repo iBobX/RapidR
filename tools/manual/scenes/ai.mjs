@@ -80,6 +80,16 @@ export const scenes = [
     env: ENV,
   },
   {
+    // (SEC-41) Programs the AI runs may use DLLs and SHELL, ticked: the
+    // question before the programs RAI and AI apps run get full power
+    name: "settings-full-power",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    delay: 6,
+    window: 3,
+    env: { ...ENV, RAPIDR_TEST_EVENTS: [AI_TAB, idle(4), "aipowerbox.__mousedown_8_11,aipowerbox.__mouseup_8_11", idle(10)].join(",") },
+  },
+  {
     // The same in Studio on the web: the key for the tab, or remembered on
     // this device (with what that means)
     name: "settings-web",

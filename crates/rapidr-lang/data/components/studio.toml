@@ -171,6 +171,7 @@ properties = [
   { name = "BreakOnError", type = "bool", default = false, category = "Behavior", doc = "Stop at the statement of a run-time error (StopReason \"exception\", StopMessage the error)." },
   { name = "StopOnEntry", type = "bool", default = false, category = "Behavior", doc = "Stop at the program's first statement when it starts." },
   { name = "Theme", type = "string", doc = "The look the program is drawn in when it names none (any name `$THEME` takes; \"\" its default, RapidR's look): `classic` previews it in the classic look." },
+  { name = "Sandboxed", type = "bool", default = false, category = "Behavior", doc = "The next Start runs the program sandboxed (RAPIDR_SANDBOX): a DLL call (DECLARE … LIB), SENDMESSAGE / POSTMESSAGE and SHELL / SHELLWAIT / RUN stop it with a run-time error instead, and a program it starts in turn is sandboxed too — what RapidR Studio sets for a run RAI or an AI app starts. The web's frame has none of those for any run." },
   { name = "State", type = "string", access = "read", design = false, doc = "\"stopped\", \"running\" or \"paused\"." },
   { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file.", kind = "file:any" },
   { name = "CurrentLine", type = "int", access = "read", design = false, doc = "Where the program is paused: its line (from 1; 0 when not paused)." },

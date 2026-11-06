@@ -1194,7 +1194,7 @@ mod tests {
     struct Quiet;
     impl Host for Quiet {
         fn fire(self, _name: &str, _event: &str, _args: &[Value]) {}
-        fn launch(self, _p: &str, _a: &[String], _t: &str) -> Result<Box<dyn crate::Transport>, String> {
+        fn launch(self, _p: &str, _a: &[String], _t: &str, _s: bool) -> Result<Box<dyn crate::Transport>, String> {
             Err("no".into())
         }
         fn list_files(self, folder: &str) -> Vec<String> {
@@ -1207,7 +1207,7 @@ mod tests {
     struct Rapidr(&'static str);
     impl Host for Rapidr {
         fn fire(self, _name: &str, _event: &str, _args: &[Value]) {}
-        fn launch(self, _p: &str, _a: &[String], _t: &str) -> Result<Box<dyn crate::Transport>, String> {
+        fn launch(self, _p: &str, _a: &[String], _t: &str, _s: bool) -> Result<Box<dyn crate::Transport>, String> {
             Err("no".into())
         }
         fn list_files(self, _folder: &str) -> Vec<String> {

@@ -66,7 +66,10 @@ pub trait Host: Copy + 'static {
     /// arguments, drawn in `theme` when one is named (a program that names
     /// none takes it, as from `RAPIDR_THEME`; "": the default): the
     /// program's end of the session protocol, waiting for `start`.
-    fn launch(self, program: &str, args: &[String], theme: &str) -> Result<Box<dyn Transport>, String>;
+    /// `sandboxed`: a run RAI or an AI app started (SEC-41) — the program
+    /// gets `RAPIDR_SANDBOX`: no DLL call, SENDMESSAGE, SHELL or RUN (the
+    /// web's frame has none of those anyway).
+    fn launch(self, program: &str, args: &[String], theme: &str, sandboxed: bool) -> Result<Box<dyn Transport>, String>;
     /// The files directly in `folder` (their names; RPROJECT.OpenFolder):
     /// the disk's on the desktop, the page's store on the web.
     fn list_files(self, folder: &str) -> Vec<String>;

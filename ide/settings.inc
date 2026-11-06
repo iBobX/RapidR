@@ -18,6 +18,7 @@
 ' and Remove act on the keychain at once, as their names say.)
 
 DECLARE SUB AIPermPicked
+DECLARE SUB AIPowerClick
 DECLARE FUNCTION AIConfirmAuto AS INTEGER
 DECLARE SUB SettingsAddFolder
 DECLARE SUB SettingsRemoveFolder
@@ -304,6 +305,13 @@ CREATE SettingsDialog AS RForm
       Caption = TR$("Ask before the assistant &creates or changes files")
       AccessibleDescription = TR$("On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo.")
     END CREATE
+    ' (SEC-41: off — the default —, a run RAI or an AI app starts is
+    ' sandboxed; on, after a question, it has your own Run's power)
+    CREATE AIPowerBox AS RCheckBox
+      Caption = TR$("Programs the AI runs may use &DLLs and SHELL")
+      AccessibleDescription = TR$("Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer.")
+      OnClick = AIPowerClick
+    END CREATE
     CREATE AISetLinks AS RMarkdownView
       OpenLinks = 1
       AccessibleName = TR$("The provider's links")
@@ -486,6 +494,8 @@ SUB LayOutSettingsDialog
   AIReplyBox.Left = fx: AIReplyBox.Top = y: AIReplyBox.Width = fw
   y = y + row
   AIReviewBox.Left = fx: AIReviewBox.Top = y: AIReviewBox.Width = fw: AIReviewBox.Height = 22
+  y = y + 28
+  AIPowerBox.Left = fx: AIPowerBox.Top = y: AIPowerBox.Width = fw: AIPowerBox.Height = 22
   y = y + 28 + 4
   ' (the links and what Send shares: up to five lines and their margins (high contrast's face is wider))
   ph = y + 124
@@ -887,6 +897,7 @@ SUB AISettingsFill
   END IF
   IF AIReplyIn = "writer" THEN AIReplyBox.ItemIndex = 1 ELSE AIReplyBox.ItemIndex = 0
   AIReviewBox.Checked = AIReviewFirst
+  AIPowerBox.Checked = AIRunFullPower
   AIWsEdit.Text = AIWorkspace
   IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = ""
   AISettingsProvider
@@ -1137,6 +1148,7 @@ SUB AISettingsTake
   END IF
   IF AIReplyBox.ItemIndex = 1 THEN AIReplyIn = "writer" ELSE AIReplyIn = "studio"
   AIReviewFirst = Flag(AIReviewBox.Checked)
+  AIRunFullPower = Flag(AIPowerBox.Checked)
   AIPriceIn = VAL(AIPriceInEdit.Text)
   AIPriceOut = VAL(AIPriceOutEdit.Text)
   ' (on first: Send is enabled from the assistant's state as it now is)
@@ -1161,6 +1173,22 @@ FUNCTION AIConfirmAuto AS INTEGER
   ConsentNo.AccessibleDescription = TR$("The permission stays as it was")
   Result = ConsentAsk("", "", TR$("&Let RAI Work on Its Own"), TR$("Cancel"))
 END FUNCTION
+
+' (SEC-41: full power for the programs RAI and AI apps run — what it
+' means said in rows, Cancel the default; Cancel leaves the box off)
+FUNCTION AIConfirmFullPower AS INTEGER
+  ConsentBegin TR$("Let the programs the AI runs use DLLs and SHELL?"), TR$("Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run.")
+  ConsentRow "warning", TR$("Keep in mind"), TR$("Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch.")
+  ConsentRow "visible", TR$("Always"), TR$("Your own Run (F5) has this power whatever you choose here.")
+  ConsentYes.AccessibleDescription = TR$("The programs RAI and AI apps run may call DLLs and start other programs")
+  ConsentNo.AccessibleDescription = TR$("The programs RAI and AI apps run stay sandboxed")
+  Result = ConsentAsk("", "", TR$("&Allow Full Power"), TR$("Cancel"))
+END FUNCTION
+
+SUB AIPowerClick
+  IF AIPowerBox.Checked = 0 OR AIRunFullPower THEN EXIT SUB
+  IF AIConfirmFullPower = 0 THEN AIPowerBox.Checked = 0
+END SUB
 
 SUB AIPermPicked
   IF AIPermBox.ItemIndex = 2 AND AIPermission <> "auto" THEN

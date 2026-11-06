@@ -364,10 +364,10 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
     })
 }
 
-/// Whether this run is sandboxed (`RAPIDR_SANDBOX` set, to anything but
-/// empty or 0): no DLL is loaded or called.
+/// Whether this run is sandboxed (`RAPIDR_SANDBOX`): no DLL is loaded or
+/// called — the one test, [`dll::sandboxed`], SHELL's too.
 fn sandboxed() -> bool {
-    std::env::var("RAPIDR_SANDBOX").is_ok_and(|v| !v.is_empty() && v != "0")
+    dll::sandboxed()
 }
 
 /// 64-bit pointers DLLs returned for 32-bit results: by stand-in, and the

@@ -6861,6 +6861,47 @@ msgstr "RAI cambia y ejecuta el proyecto sin preguntar"
 msgid "&Let RAI Work on Its Own"
 msgstr "&Dejar que RAI trabaje por su cuenta"
 
+#: ide/settings.inc
+msgid "Programs the AI runs may use &DLLs and SHELL"
+msgstr "Los programas que ejecuta la IA pueden usar DLL y &SHELL"
+
+# legal
+#: ide/settings.inc
+msgid "Off, the safer choice: a program RAI or an AI app runs can't call DLLs, SENDMESSAGE or SHELL and RUN; your own Run (F5) always can. On: the programs they run can do anything your own runs can on this computer."
+msgstr "Desactivado, la opción más segura: un programa que ejecuta RAI o una aplicación de IA no puede llamar a DLL, SENDMESSAGE ni SHELL y RUN; tu propio Ejecutar (F5) siempre puede. Activado: los programas que ejecutan pueden hacer todo lo que pueden tus propias ejecuciones en esta computadora."
+
+# legal
+#: ide/settings.inc
+msgid "Let the programs the AI runs use DLLs and SHELL?"
+msgstr "¿Dejar que los programas que ejecuta la IA usen DLL y SHELL?"
+
+# legal
+#: ide/settings.inc
+msgid "Off, a program that RAI or an AI app runs is sandboxed: a DLL call (DECLARE ... LIB), SENDMESSAGE and SHELL or RUN stop it with an error that says so. On, the programs they run have the same power as your own Run."
+msgstr "Desactivado, un programa que ejecuta RAI o una aplicación de IA está aislado: una llamada a una DLL (DECLARE ... LIB), SENDMESSAGE y SHELL o RUN lo detienen con un error que lo dice. Activado, los programas que ejecutan tienen el mismo poder que tu propio Ejecutar."
+
+# legal
+#: ide/settings.inc
+msgid "Such a program can then start any other program and call the system's libraries: it can do anything you can on this computer. Choose this only for a project you trust, while you watch."
+msgstr "Un programa así puede entonces iniciar cualquier otro programa y llamar a las bibliotecas del sistema: puede hacer todo lo que tú puedes en esta computadora. Elige esto solo para un proyecto en el que confías, mientras miras."
+
+# legal
+#: ide/settings.inc
+msgid "Your own Run (F5) has this power whatever you choose here."
+msgstr "Tu propio Ejecutar (F5) tiene este poder, elijas lo que elijas aquí."
+
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run may call DLLs and start other programs"
+msgstr "Los programas que ejecutan RAI y las aplicaciones de IA pueden llamar a DLL e iniciar otros programas"
+
+#: ide/settings.inc
+msgid "The programs RAI and AI apps run stay sandboxed"
+msgstr "Los programas que ejecutan RAI y las aplicaciones de IA siguen aislados"
+
+#: ide/settings.inc
+msgid "&Allow Full Power"
+msgstr "&Permitir todo el poder"
+
 msgid "RAI saved the version “{message}” ({id})"
 msgstr "RAI guardó la versión «{message}» ({id})"
 

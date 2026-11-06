@@ -1,0 +1,28 @@
+' ai_sandbox.rr: a run RAI or an AI app starts is sandboxed — try it.
+'
+'   rapidr run ai_sandbox.rr
+'
+' Run it yourself (F5 in RapidR Studio, or the line above): it starts
+' another program with SHELLWAIT, as any program may, and says how that
+' went. Then ask RAI "run ai_sandbox.rr" (or let an AI app run it): Studio
+' runs the programs an AI starts sandboxed, so SHELL, SHELLWAIT, RUN, a DLL
+' call (DECLARE … LIB) and SENDMESSAGE stop it with an error that says
+' why — unless you turned on Tools > Settings > AI > "Programs the AI runs
+' may use DLLs and SHELL". Files, the network and the program's own
+' windows work as usual either way. Nothing here changes a file.
+' (docs/manual/ai-assistant.md, "Privacy and safety")
+
+DIM Sandbox AS STRING
+DIM Code AS INTEGER
+
+Sandbox = ENVIRON$("RAPIDR_SANDBOX")
+IF Sandbox <> "" AND Sandbox <> "0" THEN
+  PRINT "This run is sandboxed: an AI started it."
+  PRINT "The next line stops the program with an error that says why."
+ELSE
+  PRINT "This run has your own Run's power: it may start other programs."
+END IF
+
+PRINT "Starting another program with SHELLWAIT..."
+Code = SHELLWAIT("echo Hello from another program")
+PRINT "It ended with exit code "; Code

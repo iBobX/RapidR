@@ -54,7 +54,6 @@ fn app_call(component: &str, tool: &str, args: &str) -> String {
 /// version lists from the disk with `Project::text`, which checks nothing.
 #[cfg(unix)]
 #[test]
-#[ignore = "SEC-40: compare_versions reads a version's paths from disk without the project's path checks"]
 fn sec40_compare_versions_never_reads_through_a_link_out_of_the_project() {
     use std::os::unix::fs::symlink;
     let base = scratch("sec40-link");
@@ -85,7 +84,6 @@ fn sec40_compare_versions_never_reads_through_a_link_out_of_the_project() {
 /// argument only, so the whole-project comparison shows a hidden file a
 /// version holds.
 #[test]
-#[ignore = "SEC-40: AI apps reach hidden files through compare_versions"]
 fn sec40_ai_apps_never_see_a_hidden_file_through_compare_versions() {
     let dir = scratch("sec40-hidden");
     std::fs::write(dir.join("main.rr"), "PRINT 1\n").unwrap();
@@ -111,7 +109,6 @@ fn sec40_ai_apps_never_see_a_hidden_file_through_compare_versions() {
 /// tools that read every source (`project_outline`, `check_code`, the
 /// designer's) read it through `Project::text` and show what it holds.
 #[test]
-#[ignore = "SEC-40: the source-reading tools follow a project file list entry out of the project"]
 fn sec40_a_listed_file_outside_the_project_is_never_read() {
     let base = scratch("sec40-listed");
     let (project, outside) = (base.join("project"), base.join("outside"));
@@ -136,7 +133,6 @@ fn sec40_a_listed_file_outside_the_project_is_never_read() {
 /// typed properties (and for quoted ones): one value may carry more lines.
 /// A property's value must stay one value.
 #[test]
-#[ignore = "SEC-42: set_property writes its value into the source as it is"]
 fn sec42_set_property_takes_one_value_never_more_lines() {
     let dir = scratch("sec42");
     let main = "CREATE Form1 AS RForm\n  Caption = \"Hello\"\n  CREATE Button1 AS RButton\n    Caption = \"OK\"\n    Width = 80\n  END CREATE\nEND CREATE\nForm1.ShowModal\n";

@@ -18,6 +18,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **A message box's buttons** can be clicked by their short name (`b0`) as `app_layout` lists them, or their caption; **`app_screenshot`** says in words what the picture shows.
 - **`set_property`** is a change like the others: under Ask before changes the user sees it as a diff. Old tool names (`get_problems`, `layout`, `recipe`) keep working.
 
+### Security
+- **SEC-40: the AI tools read only the project's own files, whichever tool reads.** The outline, the checks, the forms' tools and the comparison of versions now follow the same rule as `read_file` (one function, `ai_tools::readable`): never a file outside the project's folder (a project file listing `../elsewhere`, a folder that is a link out), never a hidden one (`.env`, `.git`), for RAI and AI apps alike; their answers are key-redacted as `read_file`'s are. docs/security/audit-2026-11-05-ai-mcp.md.
+- **SEC-41: a run RAI or an AI app starts is sandboxed.** No DLL call, `SENDMESSAGE`, `SHELL`, `SHELLWAIT` or `RUN` (an error that says so; the AI is told why, and `ENVIRON` can't lift it), unless you turn on **Tools > Settings > AI > Programs the AI runs may use DLLs and SHELL** (it asks first). Your own Run (F5) is unchanged.
+- **SEC-42: `set_property` sets one value.** A value with a line break, a second statement, a `_` continuation or a comment is refused, said plainly.
+
 ## [2.122.1] — 2026-10-31 — Preview 5, fixed
 
 ### Added

@@ -434,6 +434,15 @@ DIM AIReplyIn AS STRING
 ' previewed before it is created; off — the default — it opens at once,
 ' with a Run it / Undo banner: docs/ai-ux-plan.md)
 DIM AIReviewFirst AS INTEGER
+' ("Programs the AI runs may use DLLs and SHELL": off — the default — a run
+' RAI or an AI app starts is sandboxed (RAPIDR_SANDBOX: no DLL call,
+' SENDMESSAGE, SHELL or RUN — SEC-41); the user's own Run never is)
+DIM AIRunFullPower AS INTEGER
+' (a run started now is an AI's: an AI tool's call — run_program, debug —
+' is being answered, tools.inc ToolsRun; and whether the last run was
+' sandboxed, for what the tools say)
+DIM ToolsCalling AS INTEGER
+DIM RunSandboxed AS INTEGER
 ' (applying RAI's changes by itself — "Work on its own" — now: not twice)
 DIM AIAutoApplying AS INTEGER
 ' ("Work on its own" is never an AI app's — ai.inc AIPermissionNow —: the

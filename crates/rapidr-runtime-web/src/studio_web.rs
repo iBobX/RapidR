@@ -68,7 +68,10 @@ impl Host for Web {
         rp_fire_event_args(name, event, args);
     }
 
-    fn launch(self, program: &str, args: &[String], theme: &str) -> Result<Box<dyn Transport>, String> {
+    fn launch(self, program: &str, args: &[String], theme: &str, sandboxed: bool) -> Result<Box<dyn Transport>, String> {
+        // (a run an AI started is sandboxed on the desktop, SEC-41; the
+        // page's frame calls no DLL and starts no program for any run)
+        let _ = sandboxed;
         if program.is_empty() {
             return Err("no program to run".into());
         }

@@ -388,7 +388,9 @@ PRINT Square(1.5)             ' 2.250000000
   compiles and stops at the first such call with an error that names the
   function (and RapidR's portable equivalent when there is one); a
   library of the system's own (`LIB "libfoo.dylib"`, `"libfoo.so"`) loads
-  there. With `RAPIDR_SANDBOX` set no library is loaded at all.
+  there. With `RAPIDR_SANDBOX` set — what RapidR Studio sets for a run RAI
+  or an AI app starts — no library is loaded at all, and `SHELL`,
+  `SHELLWAIT` and `RUN` start no program (a run-time error says so).
   docs/windows-dll-calls.md has the details.
 - `PEEK` / `POKE` / `PCOPY` work on the console's pages
   (page 0 is the screen: even addresses a cell's character, odd ones its

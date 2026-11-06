@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md f2008b2a52576dd5 -->
+<!-- translated-from: ai-assistant.md 9b35c8686f3a5a3d -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -136,6 +136,20 @@ desplaza bajo las pestañas, y Aceptar y Cancelar quedan abajo.
     idioma en que escribo*, que conserva el idioma de tu último mensaje (y el del
     anterior, cuando un mensaje es demasiado corto para saberlo). Mira *Tu idioma*,
     en Preguntar.
+11. **Preguntar antes de que el asistente cree o cambie archivos**: mira [Revisar
+    primero](#revisar-primero).
+12. **Los programas que ejecuta la IA pueden usar DLL y SHELL**: desactivado
+    salvo que lo actives. Desactivado, un programa que ejecuta RAI o una
+    aplicación de IA está *aislado*: una llamada a una DLL (`DECLARE … LIB`),
+    `SENDMESSAGE` / `POSTMESSAGE` y `SHELL` / `SHELLWAIT` / `RUN` lo detienen con
+    un error en tiempo de ejecución que lo dice, y a la IA se le dice por qué,
+    para que no lo vuelva a intentar. Los archivos, la red y las ventanas del
+    propio programa funcionan como siempre. Tu propio **Ejecutar** (F5) siempre
+    tiene ese poder, elijas lo que elijas aquí. Activarlo pregunta primero: un
+    programa que ejecuta la IA podría entonces hacer todo lo que tú puedes en
+    esta computadora.
+
+    ![La pregunta antes de que los programas que ejecuta la IA tengan todo el poder: “Allow Full Power”, o “Cancel” (el predeterminado)](../images/ai/settings-full-power.png)
 
 El panel del asistente y su botón de la barra de herramientas aparecen cuando está
 activado y tiene un proveedor, una clave (cuando el proveedor la necesita) y un
@@ -714,6 +728,19 @@ siguiente solicitud.
 <!-- legal -->
 - **Nada se ejecuta solo.** Un programa que hizo el asistente se ejecuta solo cuando
   presionas Ejecutar.
+<!-- legal -->
+- **Una ejecución que inicia la IA está aislada** (*Trabajar por su cuenta*, o una
+  ejecución que permitiste en su tarjeta): sin llamadas a DLL, sin `SENDMESSAGE`,
+  sin `SHELL` ni `RUN`, salvo que hayas activado **Los programas que ejecuta la IA
+  pueden usar DLL y SHELL**. Presiona **Ejecutar** tú mismo para un programa que
+  los necesite.
+<!-- legal -->
+- **Solo los archivos del propio proyecto.** El asistente lee los archivos de la
+  carpeta del proyecto: nunca uno fuera de ella (un archivo de proyecto que lista
+  `../otra-parte`, una carpeta que es un enlace hacia fuera del proyecto) y nunca
+  uno oculto (un nombre que empieza con un punto: `.env`, `.git`), sea cual sea la
+  herramienta con que lee: un archivo, el esquema, una comprobación, los
+  formularios, una comparación de versiones.
 <!-- legal -->
 - **Como máximo 25 usos de herramientas** por pregunta; Detener funciona en cualquier
   momento.

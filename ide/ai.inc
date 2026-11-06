@@ -1409,6 +1409,7 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIPermission") THEN AIPermission = Reg.ReadString("AIPermission")
   IF Reg.ValueExists("AIReplyIn") THEN AIReplyIn = Reg.ReadString("AIReplyIn")
   IF Reg.ValueExists("AIReviewFirst") THEN AIReviewFirst = VAL(Reg.ReadString("AIReviewFirst"))
+  IF Reg.ValueExists("AIRunFullPower") THEN AIRunFullPower = Flag(VAL(Reg.ReadString("AIRunFullPower")) <> 0)
   IF Reg.ValueExists("AIEffort") THEN AIEffort = Reg.ReadString("AIEffort")
   IF Reg.ValueExists("AIMode") THEN AIMode = Reg.ReadString("AIMode")
   IF Reg.ValueExists("AILocalPick") THEN AILocalPick = Reg.ReadString("AILocalPick")
@@ -1432,6 +1433,7 @@ SUB SaveAISettings
   Reg.WriteString("AIPermission", AIPermission)
   Reg.WriteString("AIReplyIn", AIReplyIn)
   Reg.WriteString("AIReviewFirst", LTRIM$(STR$(AIReviewFirst)))
+  Reg.WriteString("AIRunFullPower", LTRIM$(STR$(AIRunFullPower)))
   Reg.WriteString("AIEffort", AIEffort)
   Reg.WriteString("AIMode", AIMode)
   Reg.WriteString("AILocalPick", AILocalPick)
@@ -3289,6 +3291,10 @@ SUB AIStep(Stp AS STRING)
       ' changes files")
       AIReviewFirst = Flag(VAL(arg) <> 0)
       AIApplySettings
+    CASE "fullpower"
+      ' (Tools > Settings > AI's "Programs the AI runs may use DLLs and
+      ' SHELL", SEC-41 — tests only: no question asked)
+      AIRunFullPower = Flag(VAL(arg) <> 0)
     CASE "key"
       ' (tests and the manual's pictures only: a made-up key, never a real
       ' one — kept in memory, never in the keychain: under the tests' memory

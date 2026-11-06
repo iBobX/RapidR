@@ -62,6 +62,9 @@ SUB ToolsRun(Ticket AS STRING, Tool AS STRING, Arguments AS STRING)
   IF Arguments = "" THEN ToolsJ.Parse "{}" ELSE ToolsJ.Parse Arguments
   ' (a crash report's last calls: the tool's name only)
   Proj.CrashCall "tool: " + Tool
+  ' (a run this call starts — run_program, debug's steps — is an AI's:
+  ' StartProgram sandboxes it, SEC-41)
+  ToolsCalling = 1
   SELECT CASE Tool
     CASE "studio_status": ToolsAnswer Ticket, ToolsStatusText(Ticket), 0
     CASE "list_documents": ToolsAnswer Ticket, ToolsDocumentsText, 0
@@ -73,7 +76,18 @@ SUB ToolsRun(Ticket AS STRING, Tool AS STRING, Arguments AS STRING)
     CASE "start_versions": ToolsStartVersions Ticket
     CASE ELSE: ToolsAnswer Ticket, Tool + " isn't one of RapidR Studio's own tools.", 1
   END SELECT
+  ToolsCalling = 0
 END SUB
+
+' (SEC-41) What a run an AI starts may do, said with the run's answer so a
+' model doesn't try again and again what the sandbox refuses.
+FUNCTION ToolsSandboxWords AS STRING
+  IF RunSandboxed THEN
+    Result = "This run is sandboxed, because an AI started it: a DLL call (DECLARE ... LIB), SENDMESSAGE / POSTMESSAGE and SHELL / SHELLWAIT / RUN stop the program with a run-time error that says so (files, the network and the program's own windows work as usual). Don't try to get around it: if the program needs those, tell the user to run it themselves (F5), or to allow it in Tools > Settings > AI (Programs the AI runs may use DLLs and SHELL)."
+  ELSE
+    Result = "This run has full power: the user allowed programs the AI runs to use DLLs and SHELL (Tools > Settings > AI)."
+  END IF
+END FUNCTION
 
 ' A call answered: to the AI app that made it, or to RAI.
 SUB ToolsAnswer(Ticket AS STRING, Text AS STRING, Failed AS INTEGER)
@@ -118,6 +132,12 @@ FUNCTION ToolsStatusText(Ticket AS STRING) AS STRING
     CASE "error": t = t + "Program: not running (" + StateText + ")" + nl
     CASE ELSE: t = t + "Program: not running" + nl
   END SELECT
+  ' (SEC-41: what a run an AI starts may do, known before it tries)
+  IF AIRunFullPower THEN
+    t = t + "Runs you start: full power (the user allowed programs the AI runs to use DLLs and SHELL)" + nl
+  ELSE
+    t = t + "Runs you start: sandboxed (no DLL call, SENDMESSAGE, SHELL or RUN; the user's own Run, F5, has them)" + nl
+  END IF
   IF ProjectOpen THEN t = t + "Errors: " + Num(ProgramErrors) + " (check_code lists them; Problems must be 0 before you run)" + nl
   IF ProjectOpen THEN
     IF Repo.Versioned THEN t = t + "Versions: kept (list_versions, save_version)" + nl ELSE t = t + "Versions: not started (start_versions)" + nl
@@ -290,6 +310,8 @@ SUB ToolsRunProgram(Ticket AS STRING)
         ToolsAnswer Ticket, "Studio couldn't run it: " + StateText + CHR$(10) + McpTools.CallTool("check_code", "{}"), 1
         EXIT SUB
       END IF
+      ' (what this run may do, said first: SEC-41)
+      ToolsRunWarn = ToolsSandboxWords + CHR$(10) + ToolsRunWarn
       ToolsRunTicket = Ticket
       ToolsRunUntil = TIMER + w
       ToolsTimer.Enabled = 1

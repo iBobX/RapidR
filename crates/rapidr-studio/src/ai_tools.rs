@@ -78,6 +78,12 @@ fn err(content: impl Into<String>, note: String, target: &str) -> Outcome {
     Outcome { content: content.into(), is_error: true, note, read: None, risk: "read", target: target.to_string() }
 }
 
+/// An answer with every key-shaped word in it masked
+/// ([`rapidr_ai::keys::redact`]): what a tool read of the project.
+fn redacted(o: Outcome) -> Outcome {
+    Outcome { content: rapidr_ai::keys::redact(&o.content), ..o }
+}
+
 /// The largest text a tool hands a model at once (characters).
 pub const MAX_TEXT: usize = 120_000;
 /// The most files a new project may have.
@@ -326,6 +332,23 @@ pub fn project_path(folder: &str, path: &str) -> Result<String, String> {
     Ok(rel)
 }
 
+/// The one rule for every project file the AI tools read or change
+/// (SEC-23, SEC-40), RAI's and AI apps' alike, whichever tool and wherever
+/// the path came from — the model's `path`, the project's file list (its
+/// `.rrproj`), the editors' texts or a version in the project's history:
+/// inside the project's folder as the disk has it ([`project_path`]: never
+/// above it, never absolute, never through a link out of it) and never a
+/// hidden file or folder (a part of the path that starts with a dot:
+/// `.env`, `.git/config`, `.ssh/…`). [`Project::text`], [`resolve`] and the
+/// versions tools all go through it.
+pub fn readable(folder: &str, path: &str) -> Result<String, String> {
+    let rel = project_path(folder, path)?;
+    if rel.split('/').any(|part| part.starts_with('.')) {
+        return Err(format!("{path}: a hidden file or folder — the AI tools never read or change those"));
+    }
+    Ok(rel)
+}
+
 /// A path a model gave, as the project's relative path: [`project_path`]
 /// (the absolute path inside the project, `./main.rr`, `a/../main.rr`), and
 /// also with the project folder's own name before it (`MyApp/main.rr`) or
@@ -334,7 +357,7 @@ pub fn project_path(folder: &str, path: &str) -> Result<String, String> {
 /// outside the project: a path outside it says so and lists the project's
 /// files, so the next call can name one.
 pub fn resolve(p: &Project, path: &str) -> Result<String, String> {
-    let rel = match project_path(p.folder, path) {
+    let rel = match readable(p.folder, path) {
         Ok(rel) => rel,
         Err(e) => return Err(format!("{e}. {}", files_note(p))),
     };
@@ -344,17 +367,18 @@ pub fn resolve(p: &Project, path: &str) -> Result<String, String> {
         let named = first.eq_ignore_ascii_case("project") || (!base.is_empty() && first.eq_ignore_ascii_case(base));
         let real_folder = p.files.iter().chain(p.buffers.keys()).any(|f| f.split_once('/').is_some_and(|(d, _)| d.eq_ignore_ascii_case(first)));
         if named && !real_folder && !rest.is_empty() {
-            return project_path(p.folder, rest).map_err(|e| format!("{e}. {}", files_note(p)));
+            return readable(p.folder, rest).map_err(|e| format!("{e}. {}", files_note(p)));
         }
     }
     Ok(rel)
 }
 
-/// The project's files in a sentence, for an error about a path.
+/// The project's files in a sentence, for an error about a path (the ones
+/// the tools may read: [`readable`]).
 pub fn files_note(p: &Project) -> String {
     let mut names: Vec<&str> = Vec::new();
     for f in std::iter::once(p.main).chain(p.files.iter().map(String::as_str)).chain(p.buffers.keys().map(String::as_str)) {
-        if !f.is_empty() && !names.contains(&f) {
+        if !f.is_empty() && !names.contains(&f) && readable(p.folder, f).is_ok() {
             names.push(f);
         }
     }
@@ -399,15 +423,19 @@ impl Project<'_> {
         crate::join(self.folder, rel)
     }
 
-    /// A project file's text: the editor's, else the file's.
+    /// A project file's text: the editor's, else the file's — only a file
+    /// the one rule lets the tools read ([`readable`], SEC-40: a file list
+    /// entry that climbs out of the folder, a link out of it, a hidden
+    /// file are never read, whichever tool asks).
     pub fn text(&self, rel: &str) -> Result<String, String> {
-        if let Some(t) = self.buffers.get(rel) {
+        let real = readable(self.folder, rel)?;
+        if let Some(t) = self.buffers.get(rel).or_else(|| self.buffers.get(&real)) {
             return Ok(t.clone());
         }
         if self.folder.is_empty() {
             return Err(format!("{rel}: no project is open"));
         }
-        crate::read_text(&self.full(rel)).map_err(|e| format!("{rel}: {e}"))
+        crate::read_text(&self.full(&real)).map_err(|e| format!("{rel}: {e}"))
     }
 
     pub fn exists(&self, rel: &str) -> bool {
@@ -476,16 +504,19 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "list_files" => list_files(project),
         "read_file" => read_file(input, project),
         "rapidr_describe" => describe(input),
-        "rapidr_list" | "rapidr_get" => design(name, input, project),
-        "check_code" => check(input, project),
+        // (what the tools that read the project answer is key-redacted, as
+        // read_file's text is: a key a developer wrote into a file never
+        // reaches the model — SEC-40)
+        "rapidr_list" | "rapidr_get" => redacted(design(name, input, project)),
+        "check_code" => redacted(check(input, project)),
         "find_example" => find_example(input),
-        "project_outline" => project_outline(project),
+        "project_outline" => redacted(project_outline(project)),
         "search_manual" => search_manual(input),
         "button_grid" => layout(input),
-        "layout_report" => ok(layout_report(&project.sources()), "Read the forms' layout".into(), "read", ""),
+        "layout_report" => redacted(ok(layout_report(&project.sources()), "Read the forms' layout".into(), "read", "")),
         "how_do_i" => crate::tools_core::how_do_i(input),
         "list_versions" => crate::tools_core::list_versions(input, project),
-        "compare_versions" => crate::tools_core::compare_versions(input, project),
+        "compare_versions" => redacted(crate::tools_core::compare_versions(input, project)),
         "report_gap" if !may_propose => err("the user allowed reading only: tell them about the gap in words instead", "report_gap: not allowed (read-only)".into(), ""),
         "report_gap" => crate::tools_core::report_gap(input, project),
         "propose_edit" | "write_file" | "create_project" | "set_property" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
@@ -602,12 +633,14 @@ fn list_files(p: &Project) -> Outcome {
     if p.folder.is_empty() && p.buffers.is_empty() {
         return ok("No project is open. To make a new program, use create_project.".into(), "Looked at the project: none is open".into(), "read", "");
     }
+    // (the files the tools may read: one listed outside the folder, or
+    // hidden, isn't offered — readable)
     let mut names: Vec<String> = Vec::new();
-    if !p.main.is_empty() {
+    if !p.main.is_empty() && readable(p.folder, p.main).is_ok() {
         names.push(format!("{} (main)", p.main));
     }
     for f in p.files.iter().chain(p.buffers.keys()) {
-        if f != p.main && !names.iter().any(|n| n == f) {
+        if f != p.main && !names.iter().any(|n| n == f) && readable(p.folder, f).is_ok() {
             names.push(f.clone());
         }
     }
@@ -1862,6 +1895,15 @@ fn set_property(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
             let typed = matches!(pr.ty, rapidr_lang::Type::Int | rapidr_lang::Type::Float | rapidr_lang::Type::Bool | rapidr_lang::Type::Color | rapidr_lang::Type::Enum | rapidr_lang::Type::Set);
             let v = value.trim();
             let source = if typed || (v.len() >= 2 && v.starts_with('"') && v.ends_with('"')) { v.to_string() } else { rapidr_value::designer::value::write_str(value) };
+            // (one property, one value: never a second line, statement or
+            // comment carried in — SEC-42)
+            if let Err(why) = one_value(&source) {
+                return err(
+                    format!("{real_name}.{} can't be set to {}: {why}. Give the value alone, on one line (a number, a word such as clRed or True, or a text in quotes); set_property sets one property per call.", pr.name, value.escape_debug()),
+                    format!("set_property: {real_name}.{} refused (not one value)", pr.name),
+                    &rel,
+                );
+            }
             if let Err(e) = doc.apply(fi, rapidr_designer::Command::SetProp { node: id, name: pr.name.to_string(), value: Some(source) }) {
                 return err(format!("{real_name}.{} can't be set to {value}: {e:?}", pr.name), format!("set_property: {real_name}.{} refused", pr.name), &rel);
             }
@@ -1873,6 +1915,43 @@ fn set_property(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
         }
     }
     err(format!("No component named {component} in the project's forms: rapidr_list lists them."), format!("set_property: no {component}"), "")
+}
+
+/// Whether `source` — a property's value as set_property writes it after
+/// `Name =` — is one value and nothing more (SEC-42): no line break or
+/// other control character, and, read by RapidR's own lexer and parser as
+/// `v = <source>` with a line after it, exactly one assignment that ends
+/// where the value does, and the next line still its own — no `:` and a
+/// second statement, no `_` (or an operator left open) that would join
+/// the file's next line, no comment riding along.
+fn one_value(source: &str) -> Result<(), &'static str> {
+    const MORE: &str = "that is more than one value (a second statement, line or comment)";
+    if source.chars().any(|c| c.is_control() && c != '\t') {
+        return Err("a value has no line breaks");
+    }
+    if source.trim().is_empty() {
+        return Err("the value is empty");
+    }
+    const LEAD: &str = "v = ";
+    let text = format!("{LEAD}{source}\nw = 1\n");
+    let Ok(tokens) = rapidr_lexer::Lexer::new(&text, None).tokenize() else { return Err("it isn't a value RapidR reads") };
+    use rapidr_lexer::TokenType;
+    // (the value's own tokens: up to the first line end, no `:` among them,
+    // the last one where the value ends — nothing after it)
+    let end = LEAD.len() + source.trim_end().len();
+    let Some(eol) = tokens.iter().position(|t| t.kind == TokenType::Newline) else { return Err(MORE) };
+    if tokens[..eol].iter().any(|t| t.kind == TokenType::Colon) || tokens[..eol].last().map(|t| t.span.end) != Some(end) {
+        return Err(MORE);
+    }
+    let (program, diagnostics) = rapidr_parser::parse_tokens_recovering(&tokens);
+    if diagnostics.iter().any(|d| d.severity == rapidr_diagnostics::Severity::Error) {
+        return Err("it isn't a value RapidR reads");
+    }
+    // (two assignments: the value's, ending with it, and the next line's)
+    match program.statements.as_slice() {
+        [rapidr_ast::Statement::Assignment(a), rapidr_ast::Statement::Assignment(_)] if a.span.end == end => Ok(()),
+        _ => Err(MORE),
+    }
 }
 
 /// A proposal's first line: it waits for the user (a line of its own, so
@@ -2578,6 +2657,67 @@ mod tests {
         assert!(project_path("/p", "C:\\Windows\\x.ini").is_err());
         assert!(project_path("/p", "a/../../x").is_err());
         assert!(project_path("/p", "").is_err());
+    }
+
+    /// SEC-40: the one rule every read goes through — project_path's, and
+    /// never a hidden file or folder; the whole-project tools and the
+    /// listing follow it for every file the project lists, as read_file
+    /// does for the one it is given.
+    #[test]
+    fn every_read_follows_the_one_rule() {
+        assert_eq!(readable("/p", "forms/a.inc").unwrap(), "forms/a.inc");
+        assert_eq!(readable("/p", "./a/../b.rr").unwrap(), "b.rr");
+        for refused in ["../x.rr", "/etc/passwd", ".env", ".git/config", "a/.ssh/id", "notes/.hidden.rr"] {
+            assert!(readable("/p", refused).is_err(), "{refused}");
+        }
+        assert!(readable("/p", ".env").unwrap_err().contains("hidden"));
+        // (a project whose list names a file above it, and a hidden source)
+        let files: Vec<String> = ["main.rr", "../outside/lib.rr", ".secret.rr"].iter().map(|s| s.to_string()).collect();
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "PRINT 1\n".to_string());
+        buffers.insert(".secret.rr".to_string(), "SUB HiddenMarker\nEND SUB\n".to_string());
+        let p = project(&files, &buffers);
+        assert_eq!(p.sources().iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["main.rr"]);
+        assert!(p.text("../outside/lib.rr").is_err() && p.text(".secret.rr").is_err());
+        let outline = run("project_outline", &json!({}), &p, &mut Vec::new(), true);
+        assert!(!outline.content.contains("HiddenMarker"), "{}", outline.content);
+        let listed = run("list_files", &json!({}), &p, &mut Vec::new(), true);
+        assert_eq!(listed.content, "main.rr (main)");
+        // (RAI too: a hidden file is never read or changed, by name)
+        assert!(run("read_file", &json!({"path": ".secret.rr"}), &p, &mut Vec::new(), true).content.contains("hidden"));
+        assert!(run("write_file", &json!({"path": ".env", "text": "X\n"}), &p, &mut Vec::new(), true).is_error);
+        // (a key a file holds is masked in what the reading tools answer)
+        let key = format!("sk-ant-{}", "a".repeat(30));
+        buffers.insert("main.rr".to_string(), format!("CREATE Form AS RForm\n    Caption = \"{key}\"\nEND CREATE\nForm.ShowModal\n"));
+        let p = project(&files, &buffers);
+        let got = run("rapidr_get", &json!({"id": "Form", "props": ["Caption"]}), &p, &mut Vec::new(), true);
+        assert!(!got.content.contains(&key) && got.content.contains("(an API key, not shown)"), "{}", got.content);
+    }
+
+    /// SEC-42: set_property's value is one value — what the designer writes
+    /// itself passes, a second line, statement, continuation or comment
+    /// never.
+    #[test]
+    fn a_property_value_is_one_value() {
+        for good in ["120", "-1.5", "True", "clRed", "&HFF0000", "akLeft + akTop", "\"OK\"", "\"a \"\"quoted\"\" word\"", "\"a\" + CHR$(10) + \"b\"", "(3 * 4)", "\"x: y ' z\""] {
+            assert!(one_value(good).is_ok(), "{good}: {:?}", one_value(good));
+        }
+        for bad in ["120\n    Caption = \"X\"", "120\r\nCaption = 1", "120 : Caption = \"X\"", "120 ' a comment", "120 _", "120 REM x", "", "  "] {
+            assert!(one_value(bad).is_err(), "{bad:?} passed");
+        }
+        // (and through the tool: refused, said, nothing proposed)
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "CREATE Form AS RForm\n    CREATE B1 AS RButton\n        Width = 80\n    END CREATE\nEND CREATE\nForm.ShowModal\n".to_string());
+        let p = project(&files, &buffers);
+        let mut props = Vec::new();
+        let r = run("set_property", &json!({"component": "B1", "property": "Width", "value": "120 : Caption = \"X\""}), &p, &mut props, true);
+        assert!(r.is_error && r.content.contains("more than one value") && props.is_empty(), "{}", r.content);
+        let r = run("set_property", &json!({"component": "B1", "property": "Width", "value": "120"}), &p, &mut props, true);
+        assert!(!r.is_error && props.len() == 1 && props[0].new.contains("Width = 120"), "{}", r.content);
+        // (a text property: whatever the text, it is written as one quoted value)
+        let r = run("set_property", &json!({"component": "B1", "property": "Caption", "value": "Save : PRINT \"x\""}), &p, &mut props, true);
+        assert!(!r.is_error && props[0].new.contains("Caption = \"Save : PRINT \"\"x\"\"\""), "{}\n{}", r.content, props[0].new);
     }
 
     #[test]
