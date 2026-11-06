@@ -12,12 +12,14 @@
 # only when every cell that can be checked here is green: wire it in front of "publish"
 # (tools/release/README.md, docs/build-matrix.md says how to read it).
 #
-#   tools/release/build-matrix.sh <ver> [--quick] [--only mac,linux,windows,win7,win7real] [--shots] [--serial] [--table-only]
+#   tools/release/build-matrix.sh <ver> [--quick] [--only mac,linux,windows,win7,win7real,winxp-real] [--shots] [--serial] [--table-only]
 #
 #   --quick     no native builds (the interpreted side only, minutes instead of an hour)
 #   --only      some lanes: mac (the two dmgs, here), linux (the Ubuntu VM), windows (the Windows 11 VM:
 #               x64 and arm64 installers), win7 (the alpha zip, in the Windows 11 VM: emulation), win7real (the
-#               alpha zip on a REAL Windows 7, the UTM VM "Windows 7 x86": tools/release/win7-vm.sh)
+#               alpha zip on a REAL Windows 7, the UTM VM "Windows 7 x86": tools/release/win7-vm.sh), winxp-real
+#               (the Windows XP test zip on a REAL plain Windows XP, the UTM VM "Windows XP", through RapidR's XP
+#               test helper: tools/release/winxp-vm.sh; unofficial)
 #   --shots     also keep the pictures the test programs captured (Windows lanes), as PNGs under
 #               dist/<ver>/build-matrix/shots/
 #   --serial    one lane after the other (default: the three machines work at the same time)
@@ -39,7 +41,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 die() { echo "error: $*" >&2; exit 1; }
 step() { echo "== $*"; }
 
-ALL_LANES="mac,linux,windows,win7,win7real"
+ALL_LANES="mac,linux,windows,win7,win7real,winxp-real"
 VER=""; QUICK=0; ONLY="$ALL_LANES"; SHOTS=0; SERIAL=0; TABLE_ONLY=0
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -54,7 +56,7 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-[ -n "$VER" ] || die "usage: $0 <ver> [--quick] [--only mac,linux,windows,win7,win7real] [--shots] [--serial] [--table-only]"
+[ -n "$VER" ] || die "usage: $0 <ver> [--quick] [--only mac,linux,windows,win7,win7real,winxp-real] [--shots] [--serial] [--table-only]"
 
 # Where the release's files are: dist/<ver> of this checkout, else of the main checkout (a worktree
 # has none: dist/ is not in git).
@@ -345,6 +347,30 @@ lane_win7real() {
     echo "[win7real] $name done in ${secs}s"
 }
 
+# --- lane winxp-real: the Windows XP test zip on a REAL plain Windows XP (UTM) ---------------------
+# Unofficial, but in the gate: the XP flavour's programs (tools/winxp/zip.sh puts them in the Windows 7 zip)
+# start on XP's own loader, run a console and a window program, Build (interpreted) makes programs that run
+# there, and RapidR Studio starts. XP has no QEMU guest agent: RapidR's XP test helper, started by Robert in
+# the VM, does the work (tools/winxp/README.md). No test-mode token: processes and windows are what is checked.
+lane_winxp-real() {
+    local zip="${MATRIX_WINXP_ZIP:-}" log t0 secs name sys="Windows XP SP3 (real, UTM VM; unofficial)"
+    if [ -z "$zip" ]; then zip="$(ls "$OUT"/RapidR-"$VER"-winxp-x86-*.zip 2>/dev/null | tail -1)"; fi
+    if [ -z "$zip" ] || [ ! -f "$zip" ]; then record "$sys" "(no winxp zip in $OUT)" zip "no:" 0 "" "no Windows XP test zip for this release (tools/winxp/zip.sh, or MATRIX_WINXP_ZIP)" winxp-real; return; fi
+    name="$(basename "$zip")"; log="$LOGS/winxp-real-$name.log"
+    if ! bash "$HERE/winxp-vm.sh" ready; then
+        NOT_RUN="the XP test helper is not asking for work (the UTM VM \"Windows XP\" up, C:\\xp\\START-HERE.vbs running: ask Robert)"
+        echo "[winxp-real] not run: $NOT_RUN"
+        record "$sys" "$name" zip "no:Windows XP has no Rust to build for it" 0 "" "not run: $NOT_RUN" winxp-real
+        return
+    fi
+    echo "[winxp-real] $name: on the real Windows XP ..."
+    t0=$(now)
+    bash "$HERE/winxp-vm.sh" smoke "$zip" "$([ $SHOTS = 1 ] && echo "$REPORT/shots")" > "$log" 2>&1
+    secs=$(( $(now) - t0 ))
+    record "$sys" "$name" zip "no:Windows XP has no Rust to build for it" "$secs" "$log" "" winxp-real
+    echo "[winxp-real] $name done in ${secs}s"
+}
+
 # --- run the lanes ------------------------------------------------------------------------------
 run_lane() {   # <lane>
     local l="$1"
@@ -363,6 +389,7 @@ if want windows || want win7; then
     fi
 fi
 want win7real && run_lane win7real
+want winxp-real && run_lane winxp-real
 for p in $LANE_PIDS; do wait "$p" || true; done
 fi
 
@@ -425,7 +452,7 @@ printrow() {
     [ -n "$why" ] && echo "- $package: Build Native: $why" >> "$DETAILS.notes"
 }
 : > "$DETAILS.notes"
-for lane in mac linux windows win7 win7real; do
+for lane in mac linux windows win7 win7real winxp-real; do
     want "$lane" || continue
     [ -f "$RES/$lane.tsv" ] || continue
     while IFS=$'\t' read -r system package kind native secs logf note; do

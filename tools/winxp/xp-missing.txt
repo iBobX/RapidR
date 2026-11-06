@@ -1,0 +1,221 @@
+# What plain Windows XP SP3 (32-bit, no updates) does not have, for tools/winxp/imports.sh.
+# Lane WINXP, 2026-11-05. Source: Microsoft Learn, each function's "Requirements: Minimum supported
+# client" (a later client than "Windows XP" = listed here; "Windows XP Professional x64 Edition" alone
+# does not count: that is not the 32-bit XP) and which system DLLs XP ships. Written from that public
+# documentation, not from any DLL. "dll x" = XP has no such DLL; "fn X" = XP's DLLs do not export X.
+# msvcrt.dll's exports are not documented per Windows version by Microsoft: the XP run itself checks them.
+
+# --- whole DLLs XP does not have
+dll propsys.dll
+dll uiautomationcore.dll
+dll dwrite.dll
+dll dxgi.dll
+dll d2d1.dll
+dll d3d10.dll
+dll d3d10_1.dll
+dll d3d11.dll
+dll d3d12.dll
+dll dcomp.dll
+dll dwmapi.dll
+dll ktmw32.dll
+dll ncrypt.dll
+dll bcrypt.dll
+dll bcryptprimitives.dll
+dll combase.dll
+dll kernelbase.dll
+dll synchronization.dll
+dll wevtapi.dll
+dll mfplat.dll
+dll mfreadwrite.dll
+dll windowscodecs.dll
+dll api-ms-win-core-synch-l1-2-0.dll
+dll api-ms-win-core-winrt-l1-1-0.dll
+dll api-ms-win-core-winrt-error-l1-1-0.dll
+dll api-ms-win-core-path-l1-1-0.dll
+
+# --- kernel32: Windows Vista or later
+fn AcquireSRWLockExclusive
+fn AcquireSRWLockShared
+fn ReleaseSRWLockExclusive
+fn ReleaseSRWLockShared
+fn InitializeSRWLock
+fn TryAcquireSRWLockExclusive
+fn TryAcquireSRWLockShared
+fn InitializeConditionVariable
+fn SleepConditionVariableSRW
+fn SleepConditionVariableCS
+fn WakeConditionVariable
+fn WakeAllConditionVariable
+fn InitOnceBeginInitialize
+fn InitOnceComplete
+fn InitOnceExecuteOnce
+fn InitOnceInitialize
+fn FlsAlloc
+fn FlsFree
+fn FlsGetValue
+fn FlsSetValue
+fn IsThreadAFiber
+fn ConvertThreadToFiberEx
+fn CancelIoEx
+fn CancelSynchronousIo
+fn CompareStringOrdinal
+fn CompareStringEx
+fn LCMapStringEx
+fn CreateSymbolicLinkW
+fn CreateSymbolicLinkA
+fn CreateWaitableTimerExW
+fn CreateEventExW
+fn CreateMutexExW
+fn CreateSemaphoreExW
+fn InitializeCriticalSectionEx
+fn InitializeProcThreadAttributeList
+fn UpdateProcThreadAttribute
+fn DeleteProcThreadAttributeList
+fn GetDynamicTimeZoneInformation
+fn GetTimeZoneInformationForYear
+fn GetFileInformationByHandleEx
+fn SetFileInformationByHandle
+fn OpenFileById
+fn GetFinalPathNameByHandleW
+fn GetFinalPathNameByHandleA
+fn GetUserDefaultLocaleName
+fn GetSystemDefaultLocaleName
+fn LocaleNameToLCID
+fn LCIDToLocaleName
+fn GetLocaleInfoEx
+fn ReOpenFile
+fn SetThreadStackGuarantee
+fn GetTickCount64
+fn GetThreadId
+fn GetProcessIdOfThread
+fn QueryFullProcessImageNameW
+fn GetQueuedCompletionStatusEx
+fn SetFileCompletionNotificationModes
+fn GetNamedPipeClientProcessId
+fn GetCurrentProcessorNumber
+fn CreateFileTransactedW
+fn FindFirstFileNameW
+fn GetErrorMode
+fn RegisterApplicationRestart
+fn WerRegisterRuntimeExceptionModule
+fn Wow64GetThreadContext
+# --- kernel32: Windows 7 or later
+fn SetThreadErrorMode
+fn GetThreadErrorMode
+fn K32EnumProcessModules
+fn K32GetModuleFileNameExW
+fn K32GetModuleBaseNameW
+fn K32GetProcessMemoryInfo
+fn GetLogicalProcessorInformationEx
+fn GetActiveProcessorCount
+fn PowerCreateRequest
+# --- kernel32 / kernelbase: Windows 8 or later
+fn GetSystemTimePreciseAsFileTime
+fn WaitOnAddress
+fn WakeByAddressSingle
+fn WakeByAddressAll
+fn AddDllDirectory
+fn SetDefaultDllDirectories
+fn PathCchStripPrefix
+fn CreateFile2
+fn GetOverlappedResultEx
+fn ProcessPrng
+fn SetThreadDescription
+fn GetThreadDescription
+
+# --- user32: Windows Vista or later
+fn IsProcessDPIAware
+fn SetProcessDPIAware
+fn ChangeWindowMessageFilter
+fn AddClipboardFormatListener
+fn RemoveClipboardFormatListener
+fn ShutdownBlockReasonCreate
+fn ShutdownBlockReasonDestroy
+fn UpdateLayeredWindowIndirect
+fn RegisterPowerSettingNotification
+fn UnregisterPowerSettingNotification
+fn GetWindowRgnBox
+# --- user32: Windows 7 or later
+fn CloseTouchInputHandle
+fn GetTouchInputInfo
+fn RegisterTouchWindow
+fn UnregisterTouchWindow
+fn IsTouchWindow
+fn DisplayConfigGetDeviceInfo
+fn DisplayConfigSetDeviceInfo
+fn GetDisplayConfigBufferSizes
+fn QueryDisplayConfig
+fn SetDisplayConfig
+fn SetWindowDisplayAffinity
+fn GetWindowDisplayAffinity
+fn ChangeWindowMessageFilterEx
+fn CalculatePopupWindowPosition
+fn RegisterTouchHitTestingWindow
+# --- user32: Windows 8 / 10 or later
+fn GetPointerInfo
+fn GetPointerType
+fn EnableMouseInPointer
+fn GetDpiForWindow
+fn GetDpiForSystem
+fn SetProcessDpiAwarenessContext
+fn SetThreadDpiAwarenessContext
+fn AdjustWindowRectExForDpi
+fn GetSystemMetricsForDpi
+fn EnableNonClientDpiScaling
+fn SystemParametersInfoForDpi
+
+# --- advapi32: Windows Vista or later
+fn RegGetValueW
+fn RegGetValueA
+fn RegDeleteTreeW
+fn RegDeleteTreeA
+fn RegCopyTreeW
+fn RegSetKeyValueW
+fn RegDeleteKeyValueW
+fn RegLoadMUIStringW
+fn RegCreateKeyTransactedW
+fn RegOpenKeyTransactedW
+fn RegDeleteKeyTransactedW
+fn RegDeleteKeyExW
+fn EventRegister
+fn EventUnregister
+fn EventWrite
+fn EventWriteTransfer
+fn EventSetInformation
+fn EventActivityIdControl
+fn EventEnabled
+
+# --- shell32: Windows Vista or later
+fn SHCreateItemFromParsingName
+fn SHCreateItemFromIDList
+fn SHGetIDListFromObject
+fn SHGetStockIconInfo
+fn SHGetKnownFolderPath
+fn SHGetKnownFolderIDList
+fn SHGetPropertyStoreForWindow
+
+# --- ws2_32: Windows Vista or later
+fn WSAPoll
+fn WSASendMsg
+fn inet_ntop
+fn inet_pton
+fn InetNtopW
+fn InetPtonW
+fn GetAddrInfoExW
+fn FreeAddrInfoExW
+fn WSAConnectByNameW
+
+# --- ole32 / oleaut32 / comctl32
+fn CoIncrementMTAUsage
+fn CoDecrementMTAUsage
+fn TaskDialog
+fn TaskDialogIndirect
+fn LoadIconMetric
+fn LoadIconWithScaleDown
+# comctl32's SetWindowSubclass, RemoveWindowSubclass, DefSubclassProc: XP has them in Common Controls
+# version 6 only (a manifest asks for it); the comctl32.dll an exe gets without one (5.82) does not
+# export them by name.
+fn SetWindowSubclass
+fn RemoveWindowSubclass
+fn DefSubclassProc
+fn GetWindowSubclass

@@ -70,9 +70,12 @@ Preview 5's headless Studio checks more time on a busy Mac.
 | `win7` | `smoke-win7.ps1` on the Windows 7 alpha zip | the same VM (x86 emulation) | the zip in `dist/<ver>/out/` or `MATRIX_WIN7_ZIP=<zip under your home>` |
 | `win7real` | `smoke-win7-real.ps1` on the same zip, through `tools/release/win7-vm.sh smoke` | Robert's UTM VM "Windows 7 x86": a **real Windows 7** (build 7600), run as the user at its desktop by a scheduled task; everything it makes is in `C:\rapidr-matrix` and removed at the end | the VM started by Robert with somebody logged in at its desktop; the guest agent (`tools/win7/vm.sh exec ver`); the zip as for `win7`; the test-mode token (copied into `C:\rapidr-matrix` only). About 6 minutes: most of it is sending the 84 MB zip |
 
-The four machines (this Mac, the Ubuntu VM, the Windows 11 VM, the Windows 7 VM) work at the same time (`--serial`
-for one after the other). The script never starts, stops or reboots a VM (it resumes a paused Parallels one); a stopped
-VM is a red lane with the reason. The default run includes `win7real`, so a release gate needs Robert's Windows 7 VM up too.
+| `winxp-real` | `tools/release/winxp-vm.sh smoke` on the Windows XP **test** zip (`tools/winxp/zip.sh`: the Windows 7 zip with the plain-XP programs; unofficial): `rapidr version`, a console program, a window program up with its window, `rapidr build --interp` of both, the two built programs (the console one's output, the window one's window), RapidR Studio starting with a program open; pictures `winxp-gui.png`, `winxp-built-gui.png`, `winxp-studio.png` with `--shots` | Robert's UTM VM "Windows XP": a **real, plain Windows XP SP3** (no One-Core-API), as the user at its desktop, through RapidR's XP test helper (XP has no guest agent: `tools/winxp/README.md`); everything in `C:\rapidr-matrix-xp`, removed at the end | the VM started by Robert and the helper running in it (`C:\xp\START-HERE.vbs`, version 3+; `tools/release/winxp-vm.sh ready`); the zip `RapidR-<ver>-winxp-x86-*.zip` in `dist/<ver>/out/` or `MATRIX_WINXP_ZIP=<zip>`. No test-mode token: it checks processes and windows as a person sees them. About 15 minutes on the emulated CPU |
+
+The five machines (this Mac, the Ubuntu VM, the Windows 11 VM, the Windows 7 VM, the Windows XP VM) work at the same
+time (`--serial` for one after the other). The script never starts, stops or reboots a VM (it resumes a paused Parallels
+one); a stopped VM is a red lane with the reason. The default run includes `win7real` and `winxp-real`, so a release gate
+needs Robert's Windows 7 and Windows XP VMs up too (and the XP helper started in the XP VM).
 Everything a program writes goes to a temporary registry file, printer folder and settings folder, and
 `RAPIDR_AI_KEYSTORE=memory`: nothing touches the user's keychain or settings. `windows-vm.sh clean` and
 `linux-vm.sh clean` remove what the runs leave (`--dry-run` first).
