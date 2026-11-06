@@ -305,6 +305,8 @@ struct Mirror {
 struct Block {
     reserved: usize,
     target: Target,
+    /// What it was made for (taken off `Space::by_key` when it's reused).
+    key: Key,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -326,7 +328,20 @@ struct Space {
     /// Every address handed to the program (VARPTR, Pointer, a UDT's or an
     /// element's address): what a native DLL call marshals (`is_issued`).
     issued: std::collections::HashSet<i64>,
+    /// The blocks of arrays and TYPEs, which can stop existing (a SUB's
+    /// local after the SUB): looked through when a block is made.
+    mortal: Vec<i64>,
+    /// Blocks whose array or TYPE no longer exists, oldest first: reused for
+    /// new ones once [`QUARANTINE`] more have died after them.
+    dead: std::collections::VecDeque<i64>,
 }
+
+/// How many dead blocks stay unused before the oldest is given to a new
+/// array or TYPE: a DLL told about a SUB's local TYPE that is still at work
+/// when the SUB ends writes into memory nothing uses for a while
+/// (docs/windows-dll-calls.md §7). Without reuse every call of such a SUB
+/// took 8 KB of addresses (and a page of real memory) for good.
+const QUARANTINE: usize = 32;
 
 fn issue(addr: i64) -> i64 {
     SPACE.with(|s| s.borrow_mut().issued.insert(addr));
@@ -372,14 +387,48 @@ fn block_for(key: Key, len: usize, target: impl FnOnce() -> Target) -> Result<i6
                 return Ok(base);
             }
         }
+        // (the arrays' and TYPEs' blocks that died since: to the dead list)
+        let Space { blocks, mortal, dead, .. } = &mut *s;
+        mortal.retain(|base| {
+            let gone = blocks.get(base).is_none_or(|b| !alive(&b.target));
+            if gone {
+                dead.push_back(*base);
+            }
+            !gone
+        });
+        let mortal_key = matches!(key, Key::Array(_) | Key::Object(_));
+        // A dead block past the quarantine, big enough: its address and
+        // its real memory again (nothing of the old view kept).
+        let reuse = s.dead.iter().take(s.dead.len().saturating_sub(QUARANTINE)).position(|b| s.blocks.get(b).is_some_and(|blk| blk.reserved >= len));
+        if let Some(i) = reuse {
+            let base = s.dead.remove(i).unwrap_or_default();
+            if let Some(old) = s.blocks.get(&base).map(|b| b.key.clone()) {
+                if s.by_key.get(&old) == Some(&base) {
+                    s.by_key.remove(&old);
+                }
+            }
+            if let Some(b) = s.blocks.get_mut(&base) {
+                b.target = target();
+                b.key = key.clone();
+            }
+            s.by_key.insert(key, base);
+            if mortal_key {
+                s.mortal.push(base);
+            }
+            renew_backing(base);
+            return Ok(base);
+        }
         let reserved = reserve_for(len);
         let base = s.next;
         if base + reserved as i64 >= LIMIT {
             return Err("out of memory for addresses (VARPTR)".into());
         }
         s.next = base + reserved as i64 + 4096;
-        s.blocks.insert(base, Block { reserved, target: target() });
+        s.blocks.insert(base, Block { reserved, target: target(), key: key.clone() });
         s.by_key.insert(key, base);
+        if mortal_key {
+            s.mortal.push(base);
+        }
         Ok(base)
     })
 }
@@ -854,6 +903,28 @@ fn backing_of(base: i64, reserved: usize) -> (*mut u8, usize) {
         b.insert(base, Backing { ptr, len: reserved, seen: Vec::new(), real: Vec::new(), fresh: true, retired: false });
         (ptr, reserved)
     })
+}
+
+/// A dead block given to a new array or TYPE (`block_for`): its real memory
+/// zeroed, and the new one's view goes in whole at the next sync.
+fn renew_backing(base: i64) {
+    BACKINGS.with(|b| {
+        if let Some(k) = b.borrow_mut().get_mut(&base) {
+            // SAFETY: the backing's own `len` bytes (a multiple of 8, the
+            // start aligned), ours for the process's life; the block's old
+            // array or TYPE no longer exists. Volatile, as every write there.
+            unsafe {
+                let w = k.ptr as *mut u64;
+                for i in 0..k.len / 8 {
+                    std::ptr::write_volatile(w.add(i), 0);
+                }
+            }
+            k.seen.clear();
+            k.real.clear();
+            k.fresh = true;
+            k.retired = false;
+        }
+    });
 }
 
 /// Whether the `was.len()` real bytes at `ptr` differ from `was`. Another
@@ -1543,5 +1614,33 @@ mod tests {
         catch_up();
         assert!(BACKINGS.with(|b| b.borrow().get(&base).is_some_and(|k| k.retired)));
         catch_up();
+    }
+
+    /// A SUB whose local TYPE is handed to a DLL, called 100,000 times: the
+    /// blocks of the TYPEs gone are given to the new ones (after the
+    /// quarantine), so the addresses and the real memory stop growing —
+    /// before, each call took 8 KB of addresses and a page for good.
+    #[test]
+    fn a_subs_local_type_handed_to_a_dll_reuses_memory() {
+        register_layout("TPT", "x:LONG,y:LONG");
+        let first = SPACE.with(|s| s.borrow().next);
+        let backings = BACKINGS.with(|b| b.borrow().len());
+        let mut addresses = std::collections::HashSet::new();
+        for i in 0..100_000i64 {
+            // (the SUB: its local, the call, the local gone at its end)
+            let pt = Instance::new("pt", "TPT", "x:LONG,y:LONG");
+            pt.set(0, v_int(i));
+            let a = address_of(&Value::Object(pt.clone())).unwrap();
+            let blocks = materialize();
+            let real = real_pointer(a, &blocks).unwrap();
+            // SAFETY: the TYPE's real memory, 8 bytes.
+            assert_eq!(unsafe { std::ptr::read_unaligned(real as *const i32) }, i as i32, "the new TYPE's bytes, not the old one's");
+            read_back(blocks);
+            addresses.insert(a);
+        }
+        let grown = SPACE.with(|s| s.borrow().next) - first;
+        assert!(addresses.len() <= QUARANTINE + 2, "{} addresses", addresses.len());
+        assert!(grown <= ((QUARANTINE + 2) * 8192) as i64, "{grown} bytes of addresses");
+        assert!(BACKINGS.with(|b| b.borrow().len()) - backings <= QUARANTINE + 2);
     }
 }

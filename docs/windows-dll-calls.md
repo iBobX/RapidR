@@ -572,6 +572,20 @@ the copy-back is per statement.
 Only memory RapidR owns is read or written: each block's pages (Windows,
 at the block's address) or buffer (other systems), kept for the process's
 life, so a driver writing late writes memory that is still the program's.
+
+**A TYPE or an array that no longer exists** (a SUB's local, once the SUB
+has returned) leaves its block dead: the looks stop comparing it, and
+once 32 more have died after it (a quarantine, `memory::QUARANTINE`) its
+address and its real memory, zeroed, go to the next array or TYPE that
+needs a block that size. Before, every call of a SUB that handed its
+local TYPE to a DLL took 8 KB of addresses and a page of real memory for
+good — 100,000 calls took 16 s, and after about 260,000 the program
+stopped ("out of memory for addresses"); now they take 1.3 s and the same
+33 blocks. The rule, as in RapidQ, where a SUB's local memory goes back
+when it returns: a driver given a SUB's local TYPE must be done with it
+before the SUB returns (winmm's `midiInAddBuffer` wants a header that
+lives as long as the device is open — a global, as in the examples); the
+quarantine only keeps a late write from landing in the very next one.
 Pointers a DLL returned (the stand-ins, §1) are never followed. The real
 bytes are copied out with volatile reads before they are compared or
 decoded, and only the bytes the program changed are written back.
@@ -614,8 +628,13 @@ from compiling its loops.
   SLEEP, kept through an unrelated call), `dll_async_writes_handler_macos` /
   `_windows` (read in a timer's handler before it calls anything),
   `dll_byref_assigned_macos` / `_windows` (RC.EXE's order),
-  `dll_condition_copyback_macos`. The interpreter, the JIT and native
-  builds.
+  `dll_condition_copyback_macos`, `dll_local_type_reuse_macos` (100,000
+  calls of a SUB handing its local TYPE to a DLL: the addresses stay
+  within 1 MB). The interpreter, the JIT and native builds; the web skips
+  them (`' skip-on: …, web`).
+- `rapidr_value::memory`: `a_subs_local_type_handed_to_a_dll_reuses_memory`
+  (100,000 such calls: at most 34 addresses and backings, each call's
+  real memory holding its own TYPE's bytes).
 - `tests/fixtures/fake_winmm`: a stand-in for winmm's MIDI input (its
   driver writes the program's MIDIHDR and buffer after midiInAddBuffer
   returned, keeps its own data in the reserved fields and refuses a header
