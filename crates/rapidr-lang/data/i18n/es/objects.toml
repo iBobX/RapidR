@@ -356,7 +356,7 @@
 "RSYSTEMINFO.HASBATTERY" = "True cuando la computadora tiene batería (una computadora portátil). False en la web, donde no se sabe."
 "RSYSTEMINFO.ONBATTERY" = "True cuando funciona con su batería ahora (desenchufada): un programa puede hacer menos para ahorrarla."
 "RSYSTEMINFO.OS" = "El sistema operativo: \"macOS\", \"Windows\", \"Linux\" (en una página web: el sistema en el que el navegador dice que se ejecuta)."
-"RSYSTEMINFO.OSVERSION" = "La versión del sistema, tal como el propio sistema la indica: \"27.2\", \"11 24H2 (26100)\", \"Ubuntu 24.04 LTS\"; \"\" en la web."
+"RSYSTEMINFO.OSVERSION" = "La versión del sistema, tal como el propio sistema la indica: \"27.2\", \"11 24H2 (26100)\", \"Ubuntu 24.04 LTS\"; Windows anterior a 10 por número: \"6.1 (7601)\" (7), \"5.1 (2600)\" (XP); \"\" en la web."
 "RSYSTEMINFO.REFRESH" = "Vuelve a leer todo (la batería, un disco que se llenó). FreeMemory siempre se lee en el momento; el resto se lee una vez, la primera vez que se pide."
 "RSYSTEMINFO.SUMMARY" = "Una frase para personas: \"macOS 27.2 on Apple M4 Max (16 cores), 48 GB of memory (31 GB free), 410 GB free on the disk, plugged in.\""
 "RSYSTEMINFO.TOTALMEMORY" = "Toda la memoria, en megabytes (`\\ 1024` da gigabytes). En la web, donde el navegador la indica, redondeada y de 8 GB como máximo; en los demás casos, 0."

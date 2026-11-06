@@ -3581,7 +3581,7 @@ What this computer has — its system, processor, memory, graphics, disk and bat
 | Property | Type | Default | |
 |---|---|---|---|
 | `OS` (read-only) | string |  | The operating system: "macOS", "Windows", "Linux" (a web page: the system the browser says it runs on). |
-| `OSVersion` (read-only) | string |  | The system's version, as it says it: "27.2", "11 24H2 (26100)", "Ubuntu 24.04 LTS"; "" on the web. |
+| `OSVersion` (read-only) | string |  | The system's version, as it says it: "27.2", "11 24H2 (26100)", "Ubuntu 24.04 LTS"; Windows before 10 by number: "6.1 (7601)" (7), "5.1 (2600)" (XP); "" on the web. |
 | `Architecture` (read-only) | string |  | The processor's kind: "arm64", "x86_64" or "x86"; "" on the web. |
 | `CPU` (read-only) | string |  | The processor's name ("Apple M4 Max", "Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz"); "" when the system doesn't say, and on the web. |
 | `Cores` (read-only) | int |  | How many things the processor does at once (logical cores). |

@@ -259,7 +259,7 @@ IF Info.Unknown <> "" THEN PRINT "Not known here: "; Info.Unknown
 """
 properties = [
   { name = "OS", type = "string", access = "read", design = false, doc = "The operating system: \"macOS\", \"Windows\", \"Linux\" (a web page: the system the browser says it runs on)." },
-  { name = "OSVersion", type = "string", access = "read", design = false, doc = "The system's version, as it says it: \"27.2\", \"11 24H2 (26100)\", \"Ubuntu 24.04 LTS\"; \"\" on the web." },
+  { name = "OSVersion", type = "string", access = "read", design = false, doc = "The system's version, as it says it: \"27.2\", \"11 24H2 (26100)\", \"Ubuntu 24.04 LTS\"; Windows before 10 by number: \"6.1 (7601)\" (7), \"5.1 (2600)\" (XP); \"\" on the web." },
   { name = "Architecture", type = "string", access = "read", design = false, doc = "The processor's kind: \"arm64\", \"x86_64\" or \"x86\"; \"\" on the web." },
   { name = "CPU", type = "string", access = "read", design = false, doc = "The processor's name (\"Apple M4 Max\", \"Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz\"); \"\" when the system doesn't say, and on the web." },
   { name = "Cores", type = "int", access = "read", design = false, unit = "count", doc = "How many things the processor does at once (logical cores)." },
