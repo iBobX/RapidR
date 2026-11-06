@@ -24,6 +24,13 @@ All of `tools/winxp/shim/` and `tools/winxp/probe/`, by this lane's agent, in C:
 - `xp_misc.c` — the rest (file information, final path, string compare, locale, registry, time zone,
   `K32EnumProcessModules`, and the graphical functions a console program never calls): real first,
   else emulated the documented way or answered "not available".
+- `xp_misc.c`, added in lane WINXP-RECHECK (2026-11-06): `FindFirstFileExW` (Windows' own call first;
+  on XP's refusal of `FindExInfoBasic` / `FIND_FIRST_EX_LARGE_FETCH`, the same call with the standard
+  level and no flag) and `MapVirtualKeyExW` / `MapVirtualKeyW` (Windows' own first; where kind 4,
+  `MAPVK_VK_TO_VSC_EX`, answers 0, kind 0's scan code with 0xE0 for the keys of the extended block),
+  from Microsoft Learn's pages for FindFirstFileExW, FINDEX_INFO_LEVELS, MapVirtualKeyExW and its
+  map types, and the keyboard scan code tables of "Keyboard Input" (which keys are extended); which
+  calls winit 0.30 and Rust's `std` make, read in their source (Apache-2.0/MIT).
 - `xp_dwrite.c` — `DWriteCreateFactory`: Windows' own first, else an empty DirectWrite factory (two
   static COM objects: the factory and a font collection with no families). The method order and the
   interface IDs are those the `windows` crate declares (windows-0.62.2, MIT/Apache-2.0, the crate
@@ -47,7 +54,10 @@ All of `tools/winxp/shim/` and `tools/winxp/probe/`, by this lane's agent, in C:
 - `helper/START-HERE.vbs`, `helper/unzip.js`, `xphost.py`, `vm.sh` — the XP VM's test helper (VBScript /
   JScript of Windows XP's own Script Host, from Microsoft's documentation of WshShell, FileSystemObject,
   MSXML2.ServerXMLHTTP, ADODB.Stream, Shell.Application and WMI's Win32_Process).
-- `probe/pipeprobe.c`, `probe/xpshot.c`, `probe/xpclick.c`, `shim/tests/test_sync.c`,
+- `probe/pipeprobe.c`, `probe/xpshot.c`, `probe/xpclick.c` (a right click too, WINXP-RECHECK),
+  `probe/xpkeys.c` (key chords sent as a keyboard sends them: SendInput with the virtual-key code and
+  the scan code, from Microsoft Learn's SendInput, INPUT, KEYBDINPUT and MapVirtualKeyW),
+  `shim/tests/test_sync.c`,
   `shim/tests/test_misc.c`, `shim/tests/test_dwrite.c`, `shim/tests/test_filedlg.c` — the checks run on the Windows 7 VM and on
   Windows XP; `tools/release/winxp-vm.sh` — the build matrix's XP row.
 

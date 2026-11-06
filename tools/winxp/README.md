@@ -17,9 +17,9 @@ any other build.
 | `shim/xp_sync.c` | SRW locks, condition variables, `InitOnce`, FLS, `IsThreadAFiber` (real first, else emulated) |
 | `shim/xp_dwrite.c` | `DWriteCreateFactory`: real first, else an empty factory (no system fonts: RapidR's bundled fonts draw) |
 | `shim/xp_filedlg.c` | `CoCreateInstance` / `SHCreateItemFromParsingName`: Windows' own first; where Windows has no Vista Open / Save dialog (plain XP), one of ours over XP's `GetOpenFileNameW` / `GetSaveFileNameW` / `SHBrowseForFolderW` (Studio's and programs' file and folder dialogs) |
-| `shim/xp_misc.c` | file information, final path, string compare, locale, registry, time zone, `K32EnumProcessModules`, and the graphical functions a console program never calls |
+| `shim/xp_misc.c` | file information, final path, string compare, locale, registry, time zone, `K32EnumProcessModules`, folder listing (`FindFirstFileExW`'s Windows 7 level: Rust's `read_dir`), the keyboard's extended scan codes (`MapVirtualKeyExW` kind 4: winit's Ctrl shortcuts), and the graphical functions a console program never calls |
 | `shim/tests/` | `test_sync`, `test_misc`, `test_dwrite`, `test_filedlg` (+ their `build*.sh`): run on the Windows 7 VM against Windows' own functions and forced down the emulation (`ours`), and on Windows XP |
-| `probe/` | `pipeprobe` (std's child pipes vs ours), `xpshot` (a screenshot: XP has none), `xpclick` (a mouse click), `build.sh` |
+| `probe/` | `pipeprobe` (std's child pipes vs ours), `xpshot` (a screenshot: XP has none), `xpclick` (a mouse click, double or right), `xpkeys` (key chords as a keyboard sends them: Ctrl+S, Shift+F10, the Menu key), `build.sh` |
 | `imports.sh`, `xp-missing.txt` | an executable's imports, and what plain XP SP3 lacks (Microsoft Learn's "minimum supported client") |
 | `vm.sh`, `xphost.py`, `helper/` | drive Robert's XP VM in UTM (below) |
 

@@ -4,6 +4,7 @@
 #   pipeprobe.exe  (probe/pipeprobe.c + shim/xp_pipes.c)   do std's child pipes work here; do ours
 #   xpshot.exe     (probe/xpshot.c)                        a BMP of the screen
 #   xpclick.exe    (probe/xpclick.c)                       a click (or double click) at a screen point
+#   xpkeys.exe     (probe/xpkeys.c)                        key chords as a keyboard sends them (ctrl+s, shift+f10, apps)
 #
 #   tools/winxp/probe/build.sh [OUTDIR]      (default $SHARE/files, SHARE=/Volumes/RapidRBuild/winxp-share)
 set -euo pipefail
@@ -20,7 +21,9 @@ FLAGS=(-O2 -Wall -Wextra -Wno-unused-parameter -fno-builtin -fno-stack-protector
     "$HERE/xpshot.c" -lkernel32 -luser32 -lgdi32
 "$CC" "${FLAGS[@]}" "${XP[@]}" -Wl,-e,_click_main -Wl,--subsystem,windows -o "$OUT/xpclick.exe" \
     "$HERE/xpclick.c" -lkernel32 -luser32
-for f in pipeprobe xpshot xpclick; do
+"$CC" "${FLAGS[@]}" "${XP[@]}" -Wl,-e,_keys_main -Wl,--subsystem,windows -o "$OUT/xpkeys.exe" \
+    "$HERE/xpkeys.c" -lkernel32 -luser32
+for f in pipeprobe xpshot xpclick xpkeys; do
     echo "== $f.exe: $("$LLVM_MINGW/bin/llvm-readobj" --file-headers "$OUT/$f.exe" | awk '/MajorSubsystemVersion/{a=$2} /MinorSubsystemVersion/{b=$2} END{print "subsystem " a "." b}')"
     "$LLVM_MINGW/bin/llvm-readobj" --coff-imports "$OUT/$f.exe" | awk '/^  Name: /{d=$2} /Symbol: /{printf "%s!%s ", d, $2} END{print ""}'
 done

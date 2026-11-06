@@ -25,6 +25,12 @@ LONG WINAPI RegDeleteTreeW(void *, const wchar16 *);
 HANDLE WINAPI CreateTransaction(void *, void *, ULONG, ULONG, ULONG, ULONG, wchar16 *);
 BOOL WINAPI CommitTransaction(HANDLE);
 extern int xp_misc_force_ours;
+unsigned WINAPI MapVirtualKeyExW(unsigned, unsigned, HANDLE);
+unsigned WINAPI MapVirtualKeyW(unsigned, unsigned);
+__declspec(dllimport) HANDLE WINAPI GetKeyboardLayout(ULONG);
+__declspec(dllimport) void *WINAPI LoadLibraryW(const wchar16 *);
+HANDLE WINAPI FindFirstFileExW(const wchar16 *, int, void *, int, void *, ULONG);
+__declspec(dllimport) BOOL WINAPI FindClose(HANDLE);
 
 __declspec(dllimport) HANDLE WINAPI GetStdHandle(ULONG);
 __declspec(dllimport) BOOL WINAPI WriteFile(HANDLE, const void *, ULONG, ULONG *, void *);
@@ -202,6 +208,42 @@ void test_main(void) {
             say("      (rc="); num(rc); say(" set="); num(set_ok); say(" get="); num(get_ok); say(" del="); num(del_ok); say(" disp2="); num((long)disp); say(" r2="); num(r2); say(" txn="); num((long)(unsigned long)txn); say(")\r\n");
             res("registry round-trip (transacted create, set, read, delete-tree)", rc == 0 && set_ok && get_ok && del_ok && gone);
         }
+    }
+
+    /* listing a folder as Rust's read_dir does: FindFirstFileExW(<folder>\\*, FindExInfoBasic, ...) */
+    {
+        static const wchar16 STAR[] = {'C', ':', '\\', '*', 0};
+        static const wchar16 K32B[] = {'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', 0};
+        typedef HANDLE(WINAPI * FindFn)(const wchar16 *, int, void *, int, void *, ULONG);
+        FindFn own = (FindFn)GetProcAddress(LoadLibraryW(K32B), "FindFirstFileExW");
+        unsigned char wfd[600];
+        HANDLE h = FindFirstFileExW(STAR, 1 /* FindExInfoBasic */, wfd, 0 /* FindExSearchNameMatch */, 0, 0);
+        HANDLE o = own ? own(STAR, 1, wfd, 0, 0, 0) : (HANDLE)(long)-1;
+        say("      (Windows' own FindFirstFileExW with FindExInfoBasic: "); say(o == (HANDLE)(long)-1 ? "refused, error " : "a handle"); if (o == (HANDLE)(long)-1) num((long)GetLastError()); say(")\r\n");
+        res("FindFirstFileExW with FindExInfoBasic lists C:\\ (Rust's read_dir)", h != (HANDLE)(long)-1);
+        if (h != (HANDLE)(long)-1) FindClose(h);
+        if (o != (HANDLE)(long)-1) FindClose(o);
+    }
+
+    /* the keyboard: a virtual key's scan code with the extended block's 0xE0 (MAPVK_VK_TO_VSC_EX), the
+     * table winit builds of the layout (Ctrl shortcuts) */
+    {
+        unsigned a = MapVirtualKeyExW(0x41 /* A */, 4, GetKeyboardLayout(0));
+        unsigned f5 = MapVirtualKeyExW(0x74 /* F5 */, 4, GetKeyboardLayout(0));
+        unsigned left = MapVirtualKeyExW(0x25 /* Left */, 4, GetKeyboardLayout(0));
+        unsigned rctrl = MapVirtualKeyExW(0xA3 /* right Ctrl */, 4, GetKeyboardLayout(0));
+        unsigned apps = MapVirtualKeyW(0x5D /* Menu */, 4);
+        unsigned plain = MapVirtualKeyExW(0x25, 0, GetKeyboardLayout(0));
+        /* (Windows' own answer for kind 4, for the record: 0 on plain XP) */
+        {
+            static const wchar16 U32[] = {'u', 's', 'e', 'r', '3', '2', '.', 'd', 'l', 'l', 0};
+            typedef unsigned(WINAPI * MapFn)(unsigned, unsigned, HANDLE);
+            MapFn own = (MapFn)GetProcAddress(LoadLibraryW(U32), "MapVirtualKeyExW");
+            say("      (Windows' own MAPVK_VK_TO_VSC_EX for Left: "); num(own ? (long)own(0x25, 4, GetKeyboardLayout(0)) : -1); say(")\r\n");
+        }
+        say("      (A="); num((long)a); say(" F5="); num((long)f5); say(" Left="); num((long)left); say(" RCtrl="); num((long)rctrl); say(" Menu="); num((long)apps); say(")\r\n");
+        res("MapVirtualKeyEx MAPVK_VK_TO_VSC_EX (A 0x1E, F5 0x3F, Left 0xE04B, right Ctrl 0xE01D, Menu 0xE05D)", a == 0x1E && f5 == 0x3F && left == 0xE04B && rctrl == 0xE01D && apps == 0xE05D);
+        res("MapVirtualKeyEx MAPVK_VK_TO_VSC unchanged (Left 0x4B)", plain == 0x4B);
     }
 
     say("\r\n"); say(failures ? "RESULT: FAILED " : "RESULT: all passed "); num(failures); say("\r\n");

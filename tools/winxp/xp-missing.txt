@@ -219,3 +219,13 @@ fn SetWindowSubclass
 fn RemoveWindowSubclass
 fn DefSubclassProc
 fn GetWindowSubclass
+
+# --- what XP's functions do not do (lane WINXP-RECHECK, 2026-11-06): the function is there, so the
+# import table is fine, but an argument came with a later Windows and XP refuses it at run time.
+# Not checked by imports.sh; answered in tools/winxp/shim (Windows' own call first, then XP's way):
+#   FindFirstFileExW   FindExInfoBasic (1) and FIND_FIRST_EX_LARGE_FETCH (2): Windows 7. XP: error 87,
+#                      so Rust's std::fs::read_dir failed for every folder (xp_misc.c).
+#   MapVirtualKeyExW / MapVirtualKeyW   MAPVK_VK_TO_VSC_EX (4): Windows Vista. XP: 0 for every key, so
+#                      winit's layout table stayed empty and Ctrl shortcuts had no key (xp_misc.c).
+#   CoCreateInstance   CLSID_FileOpenDialog / CLSID_FileSaveDialog: Windows Vista. XP: no such class, so
+#                      every file dialog answered "cancelled" (xp_filedlg.c).
