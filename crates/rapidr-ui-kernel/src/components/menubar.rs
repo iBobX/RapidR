@@ -80,7 +80,23 @@ pub struct MenuUi {
     /// (CONTEXT-MENUS) The keyboard (or a screen reader) asked for a
     /// context menu: the pop-up that opens next has its first item chosen.
     pub key_popup: bool,
+    /// A mouse button is down, and where it went down: set by every press,
+    /// gone at its release. A pop-up the program opens meanwhile (from
+    /// OnMouseDown) belongs to that press: [`MenuUi::opened_by_press`].
+    pub held_press: Option<(f64, f64)>,
+    /// The pop-up open now opened while a button was down, at that point:
+    /// the release that ends the press keeps it open — as a system menu
+    /// stays open when its opening click is let go — unless the mouse was
+    /// dragged ([`OPEN_SLOP`]) to let go somewhere else, which picks (or
+    /// not) as any release does. A later press closes or picks as ever.
+    pub opened_by_press: Option<(f64, f64)>,
 }
+
+/// How far (logical pixels) the mouse may move between the press that
+/// opened a pop-up menu and its release for the release still to be that
+/// click's end (the kernel's drag threshold): a click's own wobble never
+/// picks the menu's first item.
+pub const OPEN_SLOP: f64 = 5.0;
 
 /// One item as a panel shows it.
 #[derive(Clone, Debug, PartialEq)]
@@ -297,6 +313,7 @@ impl FormUi {
         m.open_top = None;
         m.pressed_top = None;
         m.popup = None;
+        m.opened_by_press = None;
         // (the input lane's: and the bar's keyboard selection)
         if std::mem::take(&mut m.keyboard) {
             m.hot_top = None;
@@ -456,6 +473,8 @@ impl FormUi {
         }
         if self.menu_open() {
             self.menus.swallow_up = true;
+            // (a press of its own: the opening one is over)
+            self.menus.opened_by_press = None;
             self.dirty = true;
             if let Some((pi, k)) = self.panel_at(x, y) {
                 if let Some(k) = k {
@@ -551,7 +570,26 @@ impl FormUi {
     /// A release: whether it was the menus' (an item let go on is picked).
     pub(crate) fn menu_mouse_up(&mut self, store: &dyn Store, x: f64, y: f64) -> bool {
         if self.menu_open() {
-            self.menus.swallow_up = false;
+            // (a press that went to a component — one whose OnMouseDown
+            // opened this pop-up — ends here, as a system menu's loop
+            // takes the release: nothing stays pressed or captured)
+            self.capture = None;
+            self.pressed = None;
+            // (only a press made while the menu is open can pick from it or
+            // close it, and the one that opened it never does: whichever
+            // press began before the menu — a click whose OnClick opened
+            // it, an OnMouseDown's — its release is not the menu's)
+            let own_press = std::mem::take(&mut self.menus.swallow_up);
+            match self.menus.opened_by_press.take() {
+                // (the press whose OnMouseDown ran PopupAt, let go where it
+                // was pressed, give or take a click's wobble: the menu stays
+                // open and picks nothing; dragged elsewhere and let go, a
+                // pick as always)
+                Some((px, py)) if (x - px).abs() <= OPEN_SLOP && (y - py).abs() <= OPEN_SLOP => return true,
+                Some(_) => {}
+                None if !own_press => return true,
+                None => {}
+            }
             if let Some((pi, Some(k))) = self.panel_at(x, y) {
                 let item = items(&self.menus.panels[pi].parent).swap_remove(k);
                 if !item.separator && !item.submenu && item.enabled {

@@ -1194,3 +1194,33 @@ fn bold_text_with_characters_the_bold_face_lacks_measures_the_same() {
         }
     }
 }
+
+/// A right click opens the context menu of what was pressed, even when the
+/// press's own handler (OnMouseDown selecting a row, showing a highlight
+/// over it) put another component over it before the release: the click
+/// was let go where it was pressed. A release dragged far away is no click.
+#[test]
+fn a_right_click_reaches_the_component_pressed_whatever_a_handler_put_over_it() {
+    let mut s = MemStore::new();
+    s.add("rf", "RFORM", None).set("rf", "clientwidth", v_int(300)).set("rf", "clientheight", v_int(200));
+    s.add("row", "RLABEL", Some("rf")).set("row", "left", v_int(20)).set("row", "top", v_int(40)).set("row", "width", v_int(200)).set("row", "height", v_int(24)).set("row", "caption", v_str("a row"));
+    s.add("cover", "RPANEL", Some("rf")).set("cover", "left", v_int(0)).set("cover", "top", v_int(36)).set("cover", "width", v_int(300)).set("cover", "height", v_int(32)).set("cover", "visible", v_int(0));
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "rf", false);
+    f.paint(&s, &mut ts, 1.0);
+    f.take_events();
+    // (pressed on the row; its handler shows the highlight over it)
+    f.mouse_down(&s, &mut ts, 60.5, 50.5, Button::Right, NONE);
+    s.set("cover", "visible", v_int(-1));
+    f.sync(&s);
+    assert_eq!(f.hit(60.5, 50.5).map(|i| f.nodes[i].id.as_str()), Some("cover"), "the highlight is over the row now");
+    f.mouse_up(&s, &mut ts, 60.5, 50.5, Button::Right, NONE);
+    let ev = f.take_events();
+    assert!(ev.iter().any(|e| matches!(e, KernelEvent::Mouse { id, kind: Mouse::Up, button: Button::Right, .. } if id == "row")), "{ev:?}");
+    assert!(ev.contains(&KernelEvent::ContextMenu { id: "row".into(), x: 40, y: 10, key: 0 }), "{ev:?}");
+    // (let go far from where it was pressed: a drag, not a click — no menu)
+    f.mouse_down(&s, &mut ts, 60.5, 50.5, Button::Right, NONE);
+    f.mouse_up(&s, &mut ts, 200.5, 120.5, Button::Right, NONE);
+    let ev = f.take_events();
+    assert!(!ev.iter().any(|e| matches!(e, KernelEvent::ContextMenu { .. })), "{ev:?}");
+}

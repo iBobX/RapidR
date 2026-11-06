@@ -404,6 +404,16 @@ export const cases = [
   // and Chrome's, compared by tests/web_a11y.mjs)
   { name: "menus_open", events: "form.__key_70_1,form.__key_40,form.__key_40,form.__key_40,form.__key_40,form.__key_39", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
   { name: "menus", events: "expert.onclick,newitem.onclick", dump: "lbl.caption,beg.checked,expert.checked", expect: ["lbl.caption=new0154Ctrl+N", "beg.checked=0", "expert.checked=1"] },
+  // (a pop-up RapidR draws, opened with PopupAt from the gesture's own handler:
+  // the "..." button's OnClick, a label's OnMouseDown (the button still down:
+  // let go 4 px off, over the menu's first item, nothing is picked and the
+  // menu stays), its OnMouseUp, a right click's OnContextMenu — each time the
+  // menu is still open, so its letter picks (A, B, A, A); Shift+F10 and the
+  // Menu key on the focused label ask for the same menu with its first item
+  // chosen, Enter picks it (A, A); a click on its second item picks (B), and
+  // the last click leaves it open under the button: 0,26)
+  { name: "popup_from_click", events: "dots.__mousedown_20_10,dots.__mouseup_20_10,form.__key_65,downlbl.__mousedown_10_10,downlbl.__mouseup_14_14,form.__key_66,uplbl.__mousedown_10_10,uplbl.__mouseup_10_10,form.__key_65,ctxlbl.__rightclick_10_10,form.__key_65,ctxlbl.__mousedown_10_10,ctxlbl.__mouseup_10_10,ctxlbl.__key_121_256,form.__key_13,ctxlbl.__key_93,form.__key_13,dots.__mousedown_20_10,dots.__mouseup_20_10,form.__mousedown_20_66,form.__mouseup_20_66,dots.__mousedown_20_10,dots.__mouseup_20_10",
+    dump: "said.caption,dots.__popupat", expect: ["said.caption= A B A A A A B", "dots.__popupat=0,26"] },
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },
   { name: "inherit_event", events: "c.onclick,plain.onclick,btn.onclick", dump: "lbl.caption", expect: ["lbl.caption=own mine1 own | 1"] },

@@ -12,12 +12,18 @@
 ' asked for (Key: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 the
 ' row's More button); ContextIndex says which row it is for.
 '
+' The ••• button above the list opens the same menu from its OnClick: the
+' menu drops under the button, right-aligned. A menu opened by a click or
+' a press stays open (the click that opened it never picks or closes it);
+' the next click on an item picks it, a click anywhere else closes it.
+'
 ' SystemMenu = False: RapidR draws the menu itself on every system, in
 ' the program's look, so it shows in screenshots and AI tools can see it.
 
 $THEME rapidr
 
 DECLARE SUB NotesMenu (X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RListBox)
+DECLARE SUB MoreClick (Sender AS RButton)
 DECLARE SUB NotesAction (Index AS INTEGER, Action AS STRING, Sender AS RListBox)
 DECLARE SUB OpenPicked
 DECLARE SUB RenamePicked
@@ -58,8 +64,15 @@ CREATE Form AS RForm
   Caption = "Notes"
   Width = 380: Height = 300
   Center
+  CREATE MoreBtn AS RButton
+    Left = 292: Top = 10: Width = 60: Height = 26
+    Caption = "•••"
+    AccessibleName = "More actions"
+    AccessibleDescription = "Opens the menu for the selected note"
+    OnClick = MoreClick
+  END CREATE
   CREATE Notes AS RListBox
-    Left = 12: Top = 12: Width = 340: Height = 196
+    Left = 12: Top = 44: Width = 340: Height = 164
     ItemHeight = 26
     AccessibleName = "Notes"
     AccessibleDescription = "Right-click a note, or press Shift+F10, for its menu"
@@ -92,6 +105,13 @@ SUB NotesMenu (X AS INTEGER, Y AS INTEGER, Key AS INTEGER, Sender AS RListBox)
   ' (a row's More button: the menu right-aligned under it)
   IF Key = 4 THEN NoteMenu.Alignment = 1 ELSE NoteMenu.Alignment = 0
   NoteMenu.PopupAt Sender, X, Y
+END SUB
+
+' The ••• button's menu: the selected note's, under the button and
+' right-aligned (X = the button's width puts the menu's right edge there).
+SUB MoreClick (Sender AS RButton)
+  NoteMenu.Alignment = 1
+  NoteMenu.PopupAt Sender, Sender.Width, Sender.Height
 END SUB
 
 SUB NotesAction (Index AS INTEGER, Action AS STRING, Sender AS RListBox)

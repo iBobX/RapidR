@@ -3225,7 +3225,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `Popup(X AS INTEGER, Y AS INTEGER)` | Shows the popup menu at screen point (`X`, `Y`). |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
-| `PopupAt(Control, X AS INTEGER, Y AS INTEGER)` | Shows the menu at (X, Y) inside Control (any component on a form), its top-left corner the origin, wherever Control sits in its window (docked, in a panel): a menu under a list's item or beside a button, where Popup takes the screen's coordinates. As with Popup, OnPopup comes first and the item picked fires its OnClick. |
+| `PopupAt(Control, X AS INTEGER, Y AS INTEGER)` | Shows the menu at (X, Y) inside Control (any component on a form), its top-left corner the origin, wherever Control sits in its window (docked, in a panel): a menu under a list's item or beside a button, where Popup takes the screen's coordinates. As with Popup, OnPopup comes first and the item picked fires its OnClick. Call it from the handler of the gesture the person is making — a button's OnClick (under it: X = 0, Y = its Height), a label's OnMouseDown or OnMouseUp, OnContextMenu: the menu stays open when that click is over (the click that opened it never picks or closes it), the next click on an item picks it, a click elsewhere closes it. |
 
 | Event | |
 |---|---|

@@ -194,9 +194,12 @@ export const cases = [
   // rows" off)
   // (CONTEXT-MENUS: a note right-clicked — OnContextMenu selects it and
   // opens its menu —, Open picked with the keys; then Del, the row's delete
-  // action)
-  { file: "gui/context_menus.rr", runtimes: ["run", "interp", "native", "web"], events: "notes.__rightclick_60_45,notes.__key_40,notes.__key_13,notes.__key_46", dump: "said.caption,notes.itemcount,notes.contextindex,notemenu.systemmenu",
-    expect: ["said.caption=Deleted: Call Ada about the shop", "notes.itemcount=3", "notes.contextindex=1", "notemenu.systemmenu=0"] },
+  // action; the first note picked and the ••• button clicked: its OnClick
+  // opens the same menu under it, which is still open when the click is
+  // over, so Open's letter picks it; clicked again it stays open, right-
+  // aligned under the button)
+  { file: "gui/context_menus.rr", runtimes: ["run", "interp", "native", "web"], events: "notes.__rightclick_60_45,notes.__key_40,notes.__key_13,notes.__key_46,notes.__item_0,morebtn.__mousedown_30_13,morebtn.__mouseup_30_13,form.__key_79,morebtn.__mousedown_30_13,morebtn.__mouseup_30_13", dump: "said.caption,notes.itemcount,notes.contextindex,notemenu.systemmenu,morebtn.__popupat",
+    expect: ["said.caption=Opened: Buy milk", "notes.itemcount=3", "notes.contextindex=1", "notemenu.systemmenu=0", "morebtn.__popupat=-113,26"] },
   { file: "gui/wheel_list.rr", runtimes: ["run", "interp", "native", "web"], events: "card.__wheel_50_40_2,bar.__wheel_8_60_1,pick.__item_2,pick.__key_40", dump: "said.caption,bar.position,five.checked,rows(1).caption",
     expect: ["said.caption=Picked: Mars", "bar.position=4", "five.checked=0", "rows(1).caption=5. Jupiter"] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
