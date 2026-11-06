@@ -642,3 +642,19 @@ from compiling its loops.
   `programs/sysex_in` — `tools/release/windows-vm.sh dllmem` builds it in
   the Windows VM and runs the program (and copies of the reported one) against
   it with this build and the one before.
+
+**Windows 11 (ARM64), 2026-11-06** (`windows-vm.sh dllmem`): the memory and
+DLL unit tests pass on real pages at the blocks' addresses; the DLL and
+memory conformance cases pass interpreted, with the JIT and native. The
+build before prints 0 where the timer queue's thread wrote 104, and
+`n = GetComputerName(s, n)` gives it 15 (RC.EXE: 1). Through the stand-in,
+`sysex_in` receives all three SysEx messages (6, 14 and 11 bytes) and gives
+the buffer back each time. The build before receives none: its
+midiInAddBuffer is refused (11), because the call before had zeroed the
+driver's reserved fields. The reported program, its form a QFORM, logs
+the three SysEx messages; the build before logs only the notes. As written,
+with Rapidq2.inc's QFORMEX, the program stops at startup with either build:
+QFORMEX subclasses the window by MEMCPYing 32-bit x86 code into memory
+HeapAlloc returned, which RapidR refuses (§2). The winmm examples pass,
+interpreted, as interpreted builds and natively. RapidQ's 175 DLL examples
+give the same outcomes with both builds (`dllmem CorpusOnly`).
