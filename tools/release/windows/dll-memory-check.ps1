@@ -35,7 +35,9 @@ $src = "$W\src"
 $out = "$env:USERPROFILE\rapidr-release\out"
 cmd /c "rmdir /s /q `"$src`" 2>nul" | Out-Null
 New-Item -ItemType Directory -Force $src, "$W\prints", "$W\config", $out | Out-Null
-& tar.exe -m -xf "$Prep\src.tar" -C $src
+# (copied in one read first: tar reading the share block by block can crawl)
+Copy-Item -Force "$Prep\src.tar" "$W\src.tar"
+& tar.exe -m -xf "$W\src.tar" -C $src
 if ($LASTEXITCODE -ne 0) { Write-Host "extracting the sources failed"; exit 1 }
 if (-not (Test-Path "$W\target") -and (Test-Path "$env:USERPROFILE\rapidr-jit\host\target")) {
     Write-Host "== seeding the build cache from rapidr-jit\host"
