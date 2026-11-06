@@ -1,0 +1,206 @@
+# RapidR on Windows XP (the map, the plan, the numbers)
+
+Lane WINXP, 2026-11-05. Background: memory `old-pcs-plan.md` (Evgeny's XP reports), the Windows 7
+build in `tools/win7/` and `docs/old-pcs-spike.md`. **Windows XP is unofficial.** This is the honest
+feasibility study the brief asked for, plus what has been built and seen running so far.
+
+RapidR's mission reaches people on old PCs. Evgeny Volotsky runs RapidR Studio on Windows XP SP3 with
+One-Core-API; F5 fails there with "os error 123". Robert gave this lane a day to (A) fix F5 on
+XP + One-Core-API, and (B) find out, honestly, whether a RapidR console program can run on **plain**
+Windows XP SP3 with no One-Core-API, and if the cost is about a day, do it — console, then GUI, then
+Build (interpreted).
+
+## 0. The rule that governs everything here
+
+Every Windows-XP-specific line lives **only** in the XP build flavour (`tools/winxp/build.sh`) and is
+compiled into nothing else. The Windows 7/8, Windows 10/11, macOS, Linux and web binaries are
+byte-for-byte what they would be without this lane. No source file, `Cargo.toml`, `RUSTFLAGS` or build
+script of the normal build is touched; no toolchain change outside the XP and Windows 7 flavours. The
+evidence is in [§7](#7-what-this-lane-cannot-affect-the-isolation-evidence). A shared-code fix (the
+os error 123 path) would have to be correct on every Windows version — but it turned out the cause is
+not shared code at all ([§2](#2-step-a-the-os-error-123-on-f5)).
+
+## 1. Why plain XP refuses `rapidr.exe`
+
+Two reasons, both at load time, before any code of ours runs:
+
+1. **The PE header.** The Windows 7 build's header says operating-system and subsystem version 6.0;
+   plain XP refuses an image above 5.1 ("not a valid Win32 application"). The XP flavour writes 5.1
+   (`XP_HEADER=5.1`), which is a linker flag only — it changes nothing about the code.
+2. **The import table.** XP's loader resolves every imported function by name before the program
+   starts; one function XP's DLLs do not export, or one DLL XP does not have, and it refuses the whole
+   `.exe`. The Windows 7 `rapidr.exe` imports **637 functions from 27 DLLs**; **85** of them are
+   missing on plain Windows XP SP3 (the map below). So the XP flavour must answer for all 85 in its
+   own object, or XP will not load the program — there is no "load the console part only".
+
+## 2. Step A: the os error 123 on F5
+
+Evgeny's F5 on XP + One-Core-API: *"c:\R\rapidr.exe: The filename, directory name, or volume label
+syntax is incorrect. (os error 123)"*. The brief guessed a forward-slash or a `\\?\` verbatim path in
+Studio's spawn. It is **not** a path bug.
+
+RapidR Studio runs a program as a child process with its output captured
+(`crates/rapidr-session/src/process.rs`: `rapidr run --session <program>`, stdin/stdout/stderr piped).
+Rust's standard library makes those pipes with two NT calls
+(`library/std/src/sys/process/windows/child_pipe.rs`): `NtCreateNamedPipeFile` with an **empty** name
+under the pipe file system's root (an unnamed pipe), then `NtOpenFile` with an empty name under that
+pipe (its other end). Windows Vista, 7 and later accept an empty name there; **Windows XP's pipe file
+system does not**, and answers `STATUS_OBJECT_NAME_INVALID`, which the standard library reports as
+os error 123. So **every** program Studio launches with captured output fails on XP: F5, Build's
+compile step, `SHELL` with output. The path strings are fine.
+
+Nothing in Studio's own code is wrong, and changing Studio's spawn would not help (the failure is one
+layer down, in `std`). The fix is an XP-flavour stand-in for those two `ntdll` functions
+(`tools/winxp/shim/xp_pipes.c`): the real functions first (so XP + One-Core-API and every newer Windows
+are unchanged); only when Windows refuses the unnamed pipe does it make the **same** pipe with a random
+name under the same root and a security descriptor that lets only this user open it, remember
+`(handle, name)`, and have the matching empty-name `NtOpenFile` open it by that name. On Windows 7 in
+the VM, forced down the named path, a real child process's output comes back correctly
+([§6](#6-what-has-been-seen-running)).
+
+## 3. The map: what plain Windows XP SP3 lacks (85 imports)
+
+`tools/winxp/imports.sh <exe>` lists an executable's imports and flags the ones missing on plain XP,
+from `tools/winxp/xp-missing.txt` (built from Microsoft Learn's "minimum supported client" for each
+function, and the DLLs XP ships — public documentation, never a DLL's own export table). Who pulls each
+one in (`tools/winxp/` analysis, `llvm-nm` on the built libraries):
+
+| Group | Count | Functions (how the XP flavour answers) |
+|---|---|---|
+| **Rust `std`** | 24 | SRW locks + condition variables (`Mutex`/`Condvar`), `InitOnce` (thread-local keys), FLS + `IsThreadAFiber` (thread-local destructors), `GetFileInformationByHandleEx` / `SetFileInformationByHandle` (metadata, `read_dir`, truncate, rename), `GetFinalPathNameByHandleW` (`canonicalize`), `CompareStringOrdinal`, the ProcThreadAttributeList trio, `CreateWaitableTimerExW`, `SetThreadStackGuarantee`, `CreateSymbolicLinkW`. Plus the pipe behaviour of §2. |
+| **Toolchain (LLVM libunwind)** | 3 | `AcquireSRWLockShared`/`ReleaseSRWLockShared`, `K32EnumProcessModules` (backtrace). |
+| **RapidR's own crates** | 6 | `rapidr-i18n`: `GetUserDefaultLocaleName`; `rapidr-ui-host-winit`: `RegGetValueW`, comctl32 window subclassing; `rapidr-value` (QREGISTRY through `windows-registry`): `RegCreateKeyTransactedW`, `RegOpenKeyTransactedW`, `RegDeleteTreeW`. |
+| **Dependencies** | ~52 | `winit` (touch, DWM, display config, DPI, waitable timer), `wgpu-hal` (DXGI, display config), `accesskit` (UI Automation, `LocaleNameToLCID`), `windows-core` (19 PROPVARIANT/VARIANT conversions in `propsys`), `fontique` (DirectWrite), `rfd` (the Vista file dialog), `muda` (stock icon, subclass, DPI), `socket2` (`WSAPoll`, `WSASendMsg`), `windows-registry` (KTM: `CreateTransaction`, `CommitTransaction`), `schannel` (`NCryptFreeObject`), `tempfile` (`ReOpenFile`), `libloading` (`SetThreadErrorMode`), `chrono`/`jiff` (time zone), `dua`/`gix` (file info), `named_pipe` (`CancelIoEx`), `arboard` (final path). |
+
+Whole DLLs XP does not have: `propsys`, `uiautomationcore`, `dwrite`, `dxgi`, `dwmapi`, `ktmw32`,
+`ncrypt`.
+
+## 4. How the XP flavour answers (and how it stays isolated)
+
+The same mechanism as the Windows 7 build's C stand-ins (`tools/win7/clean-room.md`), extended to XP.
+An object of our own C, in `tools/winxp/shim/`, is handed to the linker of the XP flavour's three
+programs (`rapidr.exe` and the two runner stubs) and **nothing else**
+(`cargo rustc ... -- -C link-arg=xp_*.o` over the unchanged Windows 7 libraries). For each of the 85
+functions the object defines the three import names a caller can use — the import thunk `_Func@n` that
+`std` calls, the slot `__imp__Func@n` that C's `dllimport` loads, and the undecorated `__imp_Func` of
+the crates built with `--cfg windows_raw_dylib` (`tools/winxp/shim/xp_answer.h`). The linker takes an
+object's own definitions before any import library's, so the DLL never enters the import table.
+
+Each stand-in **first looks for Windows' own function** (`GetModuleHandleW` + `GetProcAddress`, loading
+from Windows' own folder by full path if need be — `tools/winxp/shim/xp_common.h`). On Windows Vista, 7,
+10, 11, and on XP with One-Core-API, the real one is found and called: behaviour is unchanged there.
+Only where Windows does not have it does the stand-in take over:
+
+- **Emulated** (`xp_sync.c`): the SRW locks, condition variables, `InitOnce` and FLS, written over XP's
+  events and critical sections (a hashed parking lot; FLS destructors run from a TLS callback the
+  object installs). These are the pieces that could silently corrupt, so they are stress-tested
+  ([§6](#6-what-has-been-seen-running)).
+- **Emulated** (`xp_misc.c`): `GetFileInformationByHandleEx`/`SetFileInformationByHandle` and the
+  directory enumeration through XP's `NtQueryInformationFile` / `NtQueryDirectoryFile` /
+  `NtSetInformationFile`; `GetFinalPathNameByHandleW` through the file's name and the drive whose
+  volume serial matches; `CompareStringOrdinal`; `K32EnumProcessModules` = XP's `psapi` one;
+  the locale from `GetLocaleInfoW`; `SetThreadErrorMode` = `SetErrorMode`; `CreateWaitableTimerExW` =
+  `CreateWaitableTimerW`; the time zone from `GetTimeZoneInformation`; `RegGetValueW` and the
+  transacted registry opens (the transaction ignored — XP has no Kernel Transaction Manager, and a
+  single key's write needs none) and `RegDeleteTreeW` (recursive delete).
+- **Answered "not available"** the way each function reports failure: `CreateSymbolicLinkW` (XP has no
+  symlinks), `ReOpenFile`, the ProcThreadAttributeList trio (`std` uses them only for a caller's raw
+  attributes, which RapidR never sets), `WSAPoll`/`WSASendMsg`. `SetThreadStackGuarantee` answers TRUE
+  (reserving extra stack is not essential; `std` only debug-asserts it).
+- **Graphical, answered "not available" on plain XP** (`xp_misc.c`): UI Automation, DirectWrite, DXGI,
+  DWM, touch, display config, DPI, window subclassing, the shell item/stock-icon calls, the
+  PROPVARIANT/VARIANT conversions, `NCryptFreeObject`. A console program never calls these; a GUI
+  program on plain XP stops with a clear failure instead of the loader refusing the whole `.exe`. On XP
+  with One-Core-API many of these are the real ones.
+
+XP-only code paths are compiled only into the XP flavour; nothing here weakens security or correctness
+on any other Windows version.
+
+## 5. The go/no-go and the numbers
+
+**GO for "console program runs on plain XP"** (the brief's threshold: about a day). The map is
+bounded (85 functions, all understood), the mechanism is the proven Windows 7 one, and the dangerous
+emulations pass a stress test against Windows' own semantics. No third-party code, no crate, no
+toolchain fork (so no lawyer item): the stand-ins are RapidR's own, clean-room from Microsoft Learn.
+
+Order, as the brief sets it:
+
+1. **Console** (built; VM pending): `rapidr.exe` loads on plain XP (header 5.1, zero XP-missing
+   imports — [§7](#7-what-this-lane-cannot-affect-the-isolation-evidence)); a console program prints.
+2. **GUI** (next, 1–2 days): the forms draw with the CPU renderer. Known limits on plain XP, each an
+   honest "not available", not a crash: no DirectWrite (RapidR's bundled Liberation fonts draw
+   instead; `fontique`'s system-font path must not panic — a stand-in DirectWrite factory is needed),
+   no Vista file dialogs (`rfd`: Open/Save fail), no UI Automation (no screen reader), CPU drawing
+   only, and an SSE2 CPU is required (Pentium 4 / Athlon 64 or newer, as the Rust target is built).
+3. **Build (interpreted)**: the runner stubs carry the same stand-ins, so a built program loads and
+   runs on plain XP.
+
+Not blocking, but true on plain XP: TLS 1.0 and no SNI (AI providers and most downloads will not
+connect), so the network features are off there.
+
+## 6. What has been seen running
+
+On Robert's Windows 7 VM in UTM (i686, the real Windows loader), through the test helper
+(`tools/win7/vm.sh`). Each test runs twice: with Windows' own functions (which validates the test
+against the real semantics) and with the XP emulation forced on (`ours`), so the emulation is checked
+where the real functions also exist.
+
+- **`tools/winxp/probe/pipeprobe.exe`** (the os error 123 fix): `std`'s pipe pair works; the XP named
+  fallback works; a real `cmd /c echo` child's output comes back through the fallback pipe. Normal and
+  forced-named runs both pass.
+- **`tools/winxp/shim/tests/test_sync.exe`** (the dangerous emulations — SRW locks, condition
+  variables, `InitOnce`, FLS): 13 tests — 800,000 exclusive increments across 8 threads with no lost
+  update; try-lock; readers/writers with no torn read; a bounded queue (100,000 items, sums equal, 1 ms
+  timed waits); a timeout at 200 ms reporting error 1460; wake-all waking 12 threads; shared-mode
+  condition waits; `InitOnce` (one initializer, all 16 threads see the value; a failed init begun
+  again); FLS destructors (7 of 8 threads, right values, right count); the last-error value kept; no
+  recursion; a 6-thread random mix; and 8 seconds of timed waits racing wakes (3.0 M waits, 27 M
+  wakes). **All pass with Windows' own functions and all pass with the emulation forced on**, including
+  four concurrent instances (3 emulated + 1 native) under CPU contention.
+- **`tools/winxp/shim/tests/test_misc.exe`** (the file, string, locale and registry emulations):
+  `CompareStringOrdinal`; `GetFileInformationByHandleEx` (standard, basic, directory enumeration finds
+  the temp file); `SetFileInformationByHandle` (truncate); `GetFinalPathNameByHandleW` (a drive-letter
+  path); `GetUserDefaultLocaleName` ("en-US"); a registry round-trip through the transacted create, a
+  value set and read, and `RegDeleteTreeW`. **All pass, Windows' own and emulation, the same results.**
+
+Plain Windows XP itself: pending Robert's XP VM. The two small test programs
+(`pipeprobe.exe`, `xpshot.exe`) and the two shim tests are PE subsystem 5.1 and import only XP-era
+functions, ready to run there.
+
+## 7. What this lane cannot affect (the isolation evidence)
+
+The XP flavour builds the Windows 7 libraries with the Windows 7 build's own flags and relinks only the
+three programs with the XP object. To prove the normal builds are untouched, `tools/winxp/build.sh`
+builds the Windows 7 `rapidr.exe` before and after and the hashes match:
+
+```
+baseline Windows 7 rapidr.exe            bbb752c4af6fa923e2edc529d1fb191ac61af436cf198881325c980fd07d5153
+after the XP 5.1 build (and restore)     bbb752c4af6fa923e2edc529d1fb191ac61af436cf198881325c980fd07d5153   (identical)
+after the XP 6.0 build (and restore)     bbb752c4af6fa923e2edc529d1fb191ac61af436cf198881325c980fd07d5153   (identical)
+```
+
+The XP flavour's own `rapidr.exe` differs, as intended (it carries the XP object). Its import table,
+compared with the Windows 7 one (`tools/winxp/imports.sh <win7.exe> <xp.exe>`):
+
+- **gone**: all 85 functions plain XP lacks — and with them seven whole DLLs XP does not have
+  (`propsys`, `uiautomationcore`, `dwrite`, `dxgi`, `dwmapi`, `ktmw32`, `ncrypt`); the object answers
+  for them now. 637 imports from 27 DLLs became **555 imports from 19 DLLs**;
+- **added**: five `advapi32` functions the pipe stand-in's owner-only security descriptor uses
+  (`InitializeSecurityDescriptor`, `SetSecurityDescriptorDacl`, `InitializeAcl`, `AddAccessAllowedAce`,
+  `GetLengthSid`), all present on XP;
+- **result** (`tools/winxp/imports.sh`): **0 functions missing on plain Windows XP SP3**, for both the
+  5.1 (plain XP) and the 6.0 (XP + One-Core-API) header.
+
+The source tree, the `Cargo.toml`s, the `RUSTFLAGS` and the build scripts of the normal build are
+unchanged — `git status` shows only new files under `tools/winxp/` and this document. The macOS, Linux,
+web and Windows 10/11 builds do not read `tools/winxp/` at all, so their inputs, and therefore their
+outputs, are untouched. The build matrix's Windows and Windows 7 rows are to be re-run green before this
+lane is reported done.
+
+## 8. Legal
+
+No One-Core-API code, no Microsoft DLLs or headers, no Wine/ReactOS/mingw-w64 code: every stand-in is
+RapidR's own, written from Microsoft Learn's public documentation of each function and from the PE/COFF
+import naming (`tools/winxp/clean-room.md`). No new crate, no toolchain fork (rust9x was considered and
+rejected: a lawyer check, it lags Rust versions, and it is MSVC-only). So there is nothing new to
+license. One-Core-API stays the user's own install; RapidR never ships or copies it.
