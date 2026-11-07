@@ -95,6 +95,11 @@ SITES = {
     ("crates/rapidr-value/src/input.rs", "vk_of_key"): "-",
     ("crates/rapidr-value/src/lib.rs", "shared_builtin"): "-",
     ("crates/rapidr-value/src/memory.rs", "shared"): "-",
+    # (big numbers: LOWORD/HIWORD/LOBYTE/HIBYTE, GETBITS/SETBITS - builtins)
+    ("crates/rapidr-value/src/wide.rs", "word_or_byte"): "-",
+    ("crates/rapidr-value/src/wide.rs", "rp_bits"): "-",
+    # (RJSON's document methods, shared by every runtime)
+    ("crates/rapidr-value/src/json_doc.rs", "call"): "RJSON",
     ("crates/rapidr-value/src/font_dialog.rs", "alias"): "RFONTDIALOG",
     ("crates/rapidr-value/src/font_dialog.rs", "call"): "RFONTDIALOG",
     ("crates/rapidr-value/src/globals.rs", "file_rec"): "FILEREC",
