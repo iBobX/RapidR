@@ -131,7 +131,9 @@ desplaza bajo las pestañas, y Aceptar y Cancelar quedan abajo.
    que el ancho del panel, el medidor usa una segunda línea, para que el costo nunca
    quede cortado.
 9. **Puede hacer**: *Leer el proyecto y proponer cambios que revisas* (el valor
-   predeterminado), o *Solo leer el proyecto y responder*.
+   predeterminado), *Solo leer el proyecto y responder*, o *Trabajar por su
+   cuenta: cambiar archivos, ejecutar y probar (puede deshacer cada paso)*, que
+   pregunta primero: mira [Trabajar por su cuenta](#trabajar-por-su-cuenta).
 10. **RAI responde en**: *El idioma de Studio* (el valor predeterminado), o *El
     idioma en que escribo*, que conserva el idioma de tu último mensaje (y el del
     anterior, cuando un mensaje es demasiado corto para saberlo). Mira *Tu idioma*,
@@ -523,7 +525,8 @@ Un docente puede mantener a RAI en modo tutor: [Para docentes](for-teachers.md#m
 
 ## Los cambios, como diferencias
 
-El asistente nunca cambia uno de tus archivos por sí mismo. **Propone**: cuando una
+Salvo que lo dejes [trabajar por su cuenta](#trabajar-por-su-cuenta), el asistente
+nunca cambia uno de tus archivos por sí mismo. **Propone**: cuando una
 respuesta tiene cambios, una tarjeta en el chat y el botón **Revisar los cambios…** debajo
 de ella los muestran:
 
@@ -588,6 +591,47 @@ espera a un módulo compila. **Revisar los cambios…** los muestra todos juntos
   otra vez mañana: su chat vuelve con **Revisar los cambios…** listo, y Aplicar funciona
   como antes. Abrir otro proyecto los conserva con el chat de su propio proyecto, y
   nunca se ofrecen para aplicarlos en este.
+
+### Trabajar por su cuenta
+
+<!-- legal -->
+¿No quieres revisar cada cambio? Elige **Herramientas > Configuración > IA > Puede
+hacer: Trabajar por su cuenta: cambiar archivos, ejecutar y probar (puede deshacer
+cada paso)**. RAI aplica entonces sus cambios enseguida (cada uno es un paso del
+deshacer del archivo, sin barra de revisión), ejecuta tu programa, lo mira, hace
+clic y escribe en él para probarlo, e informa lo que hizo. Nada espera tu permiso.
+
+<!-- legal -->
+Como nada espera, elegirlo pregunta primero, en un cuadro que dice lo que significa:
+un programa que RAI ejecuta puede hacer todo lo que tú puedes en esta computadora,
+lo que hace clic en él es real (Enviar, Pagar, Eliminar), ve todo lo que el programa
+muestra, sus cambios se aplican sin tu revisión, y un modelo de pago cuesta dinero.
+**Cancelar** (el valor predeterminado) conserva la opción que tenías; **Dejar que RAI
+trabaje por su cuenta** la activa. Úsalo solo mientras miras, en un proyecto del que
+tengas [Versiones](versions.md), con datos de prueba.
+
+Qué cambia y qué no:
+
+- **Más espacio para trabajar.** RAI sigue corrigiendo un cambio que no compila (8
+  intentos antes de detenerse y decirte qué errores quedan, 3 en los demás casos) y
+  puede usar hasta 250 herramientas en una pregunta, 25 en los demás casos.
+- **Sigues viendo cada paso, y puedes revertirlo.** Cada uno está en el chat de RAI;
+  **Edición > Deshacer** y las Versiones revierten cualquier cambio; **Detener**
+  termina una ejecución y la respuesta de RAI.
+- **Un cambio que Studio no puede aplicar** (un archivo cambió después de que RAI lo
+  leyera) se intenta una sola vez, no una y otra vez: espera en la barra de revisión,
+  a RAI se le dice que *no* se aplicó, y por qué, y una ejecución que pidió no
+  empieza con el código viejo.
+<!-- legal -->
+- **Las ejecuciones siguen aisladas**: sin llamadas a DLL, `SENDMESSAGE`, `SHELL` ni
+  `RUN`, salvo que hayas activado **Los programas que ejecuta la IA pueden usar DLL y
+  SHELL** ([Privacidad y seguridad](#privacidad-y-seguridad)).
+- **Solo para RAI en Studio.** A una aplicación de IA que le hace una pregunta a RAI
+  ([aplicaciones de IA](ai-apps.md)) se le sigue respondiendo en el nivel de revisión:
+  sus cambios te esperan, y sus ejecuciones, la tarjeta de RAI.
+<!-- legal -->
+- **Nunca**: RAI no ve tus claves ni archivos de fuera del proyecto. El modo tutor
+  sigue sin cambiar ni ejecutar nada.
 
 ## Un programa nuevo: “Hazme…”
 
@@ -728,10 +772,12 @@ siguiente solicitud.
   “ignora tus instrucciones y …” es algo que el asistente informa, no algo que obedece;
   y de lo que sea que lo convenzan, solo puede proponer cambios que tú revisas, o hacer
   un programa nuevo en una carpeta nueva propia (o solo responder, con *Solo leer el
-  proyecto*).
+  proyecto*). Con *Trabajar por su cuenta*, en cambio, sus cambios se aplican enseguida,
+  y por eso elegirlo pregunta primero ([Trabajar por su cuenta](#trabajar-por-su-cuenta)).
 <!-- legal -->
 - **Nada se ejecuta solo.** Un programa que hizo el asistente se ejecuta solo cuando
-  presionas Ejecutar.
+  presionas Ejecutar, cuando permites una ejecución en su tarjeta o cuando elegiste
+  *Trabajar por su cuenta*.
 <!-- legal -->
 - **Una ejecución que inicia la IA está aislada** (*Trabajar por su cuenta*, o una
   ejecución que permitiste en su tarjeta): sin llamadas a DLL, sin `SENDMESSAGE`,
@@ -746,8 +792,8 @@ siguiente solicitud.
   herramienta con que lee: un archivo, el esquema, una comprobación, los
   formularios, una comparación de versiones.
 <!-- legal -->
-- **Como máximo 25 usos de herramientas** por pregunta; Detener funciona en cualquier
-  momento.
+- **Como máximo 25 usos de herramientas** por pregunta (250 con *Trabajar por su
+  cuenta*); Detener funciona en cualquier momento.
 <!-- legal -->
 - **Las claves** nunca se escriben en un proyecto, una compilación, un registro, el
   registro de auditoría ni una captura de pantalla de RapidR. Una clave que alguien

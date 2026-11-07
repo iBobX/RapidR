@@ -83,8 +83,8 @@ error, presiona **Restablecer token** en Configuración.
 
 Studio habla la revisión actual del protocolo (2026-07-28, sin intercambio
 inicial: cada solicitud dice su versión) y las anteriores, que empiezan con
-`initialize` (2025-11-25, 2025-06-18, 2025-03-26), así que las aplicaciones de IA
-más antiguas también se conectan.
+`initialize` (2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05), así que las
+aplicaciones de IA más antiguas también se conectan.
 
 ## Qué pueden hacer las aplicaciones de IA: el menú de permisos
 

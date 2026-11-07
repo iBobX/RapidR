@@ -360,7 +360,8 @@ computadoras que pueden llegar a él); `Start` se niega a ejecutarse sin un `Tok
 (`NewToken` crea uno: 64 dígitos hexadecimales aleatorios; guárdalo con
 [RSecrets](secrets.md)); una solicitud sin el token, desde una página web o para
 otro nombre de host se rechaza antes de que tu programa la vea. Habla la revisión
-actual (2026-07-28) y las anteriores que empiezan con `initialize`.
+actual (2026-07-28) y las anteriores que empiezan con `initialize` (2025-11-25,
+2025-06-18, 2025-03-26, 2024-11-05).
 
 <!-- legal -->
 Lo que ofrece tu programa, y la privacidad de los datos de sus usuarios, los

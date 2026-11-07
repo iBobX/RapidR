@@ -2057,12 +2057,16 @@ msgid "Ln {line}, Col {col}"
 msgstr "Lín {line}, Col {col}"
 
 #: ide/chrome.inc
+msgid "Chinese text can't be shown on Windows XP yet: RapidR doesn't use the fonts installed there. It works on Windows 7 and newer."
+msgstr "Todavía no se puede mostrar texto en chino en Windows XP: RapidR no usa las fuentes instaladas allí. Funciona en Windows 7 y en versiones más recientes."
+
+#: ide/chrome.inc
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
 msgstr "No se encontró ninguna fuente para chino en esta computadora, así que el texto en chino se ve como cuadros vacíos. Instala el paquete gratuito fonts-noto-cjk (por ejemplo: sudo apt install fonts-noto-cjk) y vuelve a abrir Studio."
 
 #: ide/chrome.inc
-msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
-msgstr "No se encontró ninguna fuente para chino en esta computadora, así que el texto en chino se ve como cuadros vacíos. En Windows XP: Panel de control > Configuración regional y de idioma > Idiomas > Instalar archivos para los idiomas de Asia oriental (necesita el CD de Windows). En un Windows más reciente: Configuración > Hora e idioma > Idioma > agregar Chino (simplificado); sus fuentes vienen con él. Luego vuelve a abrir Studio."
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+msgstr "No se encontró ninguna fuente para chino en esta computadora, así que el texto en chino se ve como cuadros vacíos. En un Windows más reciente: Configuración > Hora e idioma > Idioma > agregar Chino (simplificado); sus fuentes vienen con él. Luego vuelve a abrir Studio."
 
 #: ide/chrome.inc
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."

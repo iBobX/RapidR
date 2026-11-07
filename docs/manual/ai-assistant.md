@@ -122,7 +122,9 @@ Cancel stay at the bottom.
    than the pane is wide, the meter takes a second line, so the cost is
    never cut off.
 9. **It may**: *Read the project, propose changes you review* (the
-   default), or *Only read the project and answer*.
+   default), *Only read the project and answer*, or *Work on its own: change
+   files, run and test (you can undo every step)*, which asks first: see
+   [Work on its own](#work-on-its-own).
 10. **RAI answers in**: *Studio's language* (the default), or *The language
     I write in*, which keeps the language of your latest message (and the
     one before it, when a message is too short to tell). See *Your
@@ -503,8 +505,8 @@ A teacher can keep RAI in Coach mode: [For teachers](for-teachers.md#keep-rai-in
 
 ## Changes, as diffs
 
-The assistant never changes one of your files itself. It **proposes**: when
-an answer has changes, a card in the chat and the **Review the Changes…**
+Unless you let it [work on its own](#work-on-its-own), the assistant never
+changes one of your files itself. It **proposes**: when an answer has changes, a card in the chat and the **Review the Changes…**
 button under it show them:
 
 ![Reviewing a proposed change: the file as it is on the left, as proposed on the right, Accept or Reject on each change](images/ai/review.png)
@@ -570,6 +572,42 @@ Changes…** shows them all together.
   project again tomorrow: its chat comes back with **Review the Changes…**
   ready, and Apply works as before. Opening another project keeps them with
   their own project's chat, never offered to apply in this one.
+
+### Work on its own
+
+Don't want to review every change? Choose **Tools > Settings > AI > It may:
+Work on its own: change files, run and test (you can undo every step)**. RAI
+then applies its changes at once — each one a step in the file's undo, with
+no Review bar —, runs your program, looks at it, clicks and types in it to
+test it, and reports what it did. Nothing waits for you.
+
+Because nothing waits, choosing it asks first, in a dialog that says what it
+means: a program RAI runs can do anything you can on this computer, what it
+clicks in it is real (Send, Pay, Delete), it sees whatever the program shows,
+its changes are applied without your review, and a paid model costs money.
+**Cancel** (the default) keeps the choice you had; **Let RAI Work on Its Own**
+turns it on. Use it only while you watch, on a project you have
+[Versions](versions.md) of, with test data.
+
+What it changes, and what it doesn't:
+
+- **More room to work.** RAI keeps fixing a change that doesn't compile — 8
+  tries before it stops and tells you which errors are left, 3 otherwise —,
+  and may use up to 250 tool uses for one question, 25 otherwise.
+- **You still see every step, and can take it back.** Each one is in RAI's
+  chat; **Edit > Undo** and Versions take any change back; **Stop** ends a run
+  and RAI's answer.
+- **A change Studio can't apply** (a file changed since RAI read it) is tried
+  once, not again and again: it waits in the Review bar, RAI is told it was
+  *not* applied, and why, and a run it asked for doesn't start on the old code.
+- **The runs are still sandboxed**: no DLL calls, `SENDMESSAGE`, `SHELL` or
+  `RUN`, unless you turned on **Programs the AI runs may use DLLs and SHELL**
+  ([Privacy and safety](#privacy-and-safety)).
+- **Only for RAI in Studio.** An AI app that asks RAI a question ([AI
+  apps](ai-apps.md)) is still answered at the review level: its changes wait
+  for you, and its runs for RAI's card.
+- **Never**: RAI doesn't see your keys, or files outside the project. Coach
+  mode still changes and runs nothing.
 
 ## A new program: "Build me…"
 
@@ -708,9 +746,12 @@ RapidR starts a new one with the next request.
   "ignore your instructions and …" is something the assistant reports, not
   something it obeys; and whatever it is persuaded of, it can only propose
   changes you review, or make a new program in a new folder of its own
-  (or only answer, with *Only read the project*).
+  (or only answer, with *Only read the project*). With *Work on its own* its
+  changes are applied at once instead, which is why choosing it asks first
+  ([Work on its own](#work-on-its-own)).
 - **Nothing runs by itself.** A program the assistant made runs only when
-  you press Run.
+  you press Run, when you allow a run on its card, or when you chose *Work on
+  its own*.
 - **A run the AI starts is sandboxed** (*Work on its own*, or a run you
   allowed on its card): no DLL calls, no `SENDMESSAGE`, no `SHELL` or `RUN`
   — unless you turned on **Programs the AI runs may use DLLs and SHELL**.
@@ -721,7 +762,8 @@ RapidR starts a new one with the next request.
   hidden one (a name that starts with a dot: `.env`, `.git`), whichever of
   its tools reads: a file, the outline, a check, the forms, a comparison of
   versions.
-- **At most 25 tool uses** for one question; Stop works at any time.
+- **At most 25 tool uses** for one question (250 with *Work on its own*);
+  Stop works at any time.
 - **Keys** are never written into a project, a build, a log, the audit log
   or a screenshot of RapidR's. A key someone wrote into a file of the
   project is replaced by *(an API key, not shown)* before the assistant

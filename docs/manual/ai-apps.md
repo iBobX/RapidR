@@ -73,8 +73,8 @@ Token** in Settings.
 
 Studio speaks the current revision of the protocol (2026-07-28, no
 handshake: each request says its version) and the earlier ones that start
-with `initialize` (2025-11-25, 2025-06-18, 2025-03-26), so older AI apps
-connect too.
+with `initialize` (2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05), so
+older AI apps connect too.
 
 ## What AI apps may do: the permission menu
 
