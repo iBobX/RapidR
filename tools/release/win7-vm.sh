@@ -7,7 +7,8 @@
 #       the user logged in at the VM's desktop (a scheduled task: the guest agent itself runs as SYSTEM in
 #       session 0, where a window has no desktop), prints the script's log, fetches the pictures it took
 #       (win7-desktop.png, win7-gui-hello.png), then removes C:\rapidr-matrix and the task. Exit 0 only when
-#       the log ends "== smoke test passed".
+#       the log ends "== smoke test passed". The script is told how many files the zip holds (-Expect, counted
+#       here) so it can say the zip was unpacked whole.
 #   tools/release/win7-vm.sh clean
 #       removes C:\rapidr-matrix and the task (what a stopped smoke test may have left)
 #
@@ -15,9 +16,12 @@
 # Robert), the guest agent working (tools/win7/README.md, "Automating the Windows 7 VM"), and the test-mode
 # token (~/.rapidr/test-mode.token, README "The test-mode token": the GUI checks fail without it; it is copied
 # into C:\rapidr-matrix only, never into the user's profile, and goes away with the folder).
-# Environment: WIN7_WAIT (seconds to wait for the smoke test, default 2400), RAPIDR_TEST_MODE_FILE.
-# Everything made in the VM is under C:\rapidr-matrix (and a task called rapidr-matrix); the zip stays the
-# same size on a second run: a copy with the same size is not sent again (the script checks its SHA-256).
+# Environment: MATRIX_TIMEOUT_MIN (minutes to wait for the smoke test to report, default 90: a real Windows 7 in
+# emulation needs about 45; after that the run fails with a clear message instead of waiting for ever),
+# WIN7_WAIT (the same in seconds, wins when set), WIN7_PUSH_CAP (seconds allowed for sending the zip, default
+# size / 30 KB/s + 5 minutes: the guest agent moves 60 to 150 KB/s), RAPIDR_TEST_MODE_FILE.
+# Everything made in the VM is under C:\rapidr-matrix (and a task called rapidr-matrix); the zip there is called
+# z-<its checksum>.zip: a copy with the same size is not sent again (the script checks its SHA-256).
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -43,7 +47,7 @@ case "${1:-}" in
         echo "removed $W and the task"
         exit 0 ;;
     smoke) ;;
-    *) sed -n '2,19p' "$0" >&2; exit 2 ;;
+    *) sed -n '2,25p' "$0" >&2; exit 2 ;;
 esac
 
 ZIP="${2:-}"; SHOTS="${3:-}"
@@ -52,6 +56,8 @@ st="$(state)"
 [ "$st" = started ] || die "the Windows 7 VM is '${st:-not found}' (this script never starts or stops a VM: ask Robert)"
 SUM="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
 SIZE="$(stat -f %z "$ZIP")"
+# (the files in the zip, not its folders: the script checks that all of them were unpacked)
+EXPECT="$(unzip -Z1 "$ZIP" | grep -vc '/$')"
 TOKEN="${RAPIDR_TEST_MODE_FILE:-$HOME/.rapidr/test-mode.token}"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/win7-vm.XXXXXX")"
 trap 'rm -rf "$TMP"; clean_guest > /dev/null 2>&1' EXIT
@@ -63,13 +69,21 @@ USER_AT_DESK="$(guest 'query user' | awk 'NR==2 { sub(/^>/, "", $1); print $1 }'
 echo "== Windows 7 VM: $(guest ver | tr -d '\r' | grep -i version), user at the desktop: $USER_AT_DESK"
 
 guest "if not exist $W mkdir $W" > /dev/null
-# the zip: sent unless the VM has a file of this size (the script checks the SHA-256)
-have="$(guest "dir /-c $W\\z.zip" 2>/dev/null | tr -d '\r' | awk '$NF == "z.zip" { print $(NF-1); exit }')"
+# the zip: sent unless the VM has a file of this size (the script checks the SHA-256). Its name has the zip's own
+# checksum in it: a push that is cut off leaves its file held open by the guest agent (until the agent restarts), and
+# that name can never be written again, so a name shared by all zips would stay blocked.
+ZNAME="z-${SUM:0:12}.zip"
+zip_size_in_vm() { guest "dir /-c $W\\$ZNAME" 2>/dev/null | tr -d '\r' | awk -v n="$ZNAME" '$NF == n { print $(NF-1); exit }'; }
+have="$(zip_size_in_vm)"
 if [ "$have" = "$SIZE" ]; then
     echo "== the zip is in the VM already ($SIZE bytes)"
 else
     echo "== sending $(basename "$ZIP") ($SIZE bytes) to the VM"
-    CAP=1200 vm push "$ZIP" "$W\\z.zip" || die "could not send the zip"
+    # (the guest agent moves 60 KB/s on a busy Mac and 150 KB/s on an idle one: 84 MB took 24 minutes busy and 9 idle; the cap grows with the file)
+    CAP="${WIN7_PUSH_CAP:-$(( SIZE / 30000 + 300 ))}" vm push "$ZIP" "$W\\$ZNAME" || die "could not send the zip (WIN7_PUSH_CAP=<seconds> allows longer)"
+    # (utmctl answers 0 even when the agent could not write the file: look at what arrived)
+    got="$(zip_size_in_vm)"
+    [ "$got" = "$SIZE" ] || die "the zip did not arrive whole (${got:-nothing} of $SIZE bytes in the VM): a cut-off push leaves the file held open by the guest agent, so that name stays blocked until the agent restarts (a reboot of the VM: ask Robert)"
 fi
 CAP=120 vm push "$HERE/windows/smoke-win7-real.ps1" "$W\\smoke.ps1" || die "could not send the script"
 tokenarg=""
@@ -79,19 +93,21 @@ else
     echo "(no test-mode token at $TOKEN: the GUI checks will say so)"
 fi
 # the task's program: the script with its output in a log, then the marker the Mac waits for
-printf '@echo off\r\npowershell -NoProfile -ExecutionPolicy Bypass -File %s\\smoke.ps1 -Zip %s\\z.zip -Sha256 %s %s -Work %s > %s\\log.txt 2>&1\r\necho %%errorlevel%%> %s\\exit.txt\r\necho done> %s\\done.txt\r\n' "$W" "$W" "$SUM" "$tokenarg" "$W" "$W" "$W" "$W" > "$TMP/run.cmd"
+printf '@echo off\r\npowershell -NoProfile -ExecutionPolicy Bypass -File %s\\smoke.ps1 -Zip %s\\%s -Sha256 %s -Expect %s %s -Work %s > %s\\log.txt 2>&1\r\necho %%errorlevel%%> %s\\exit.txt\r\necho done> %s\\done.txt\r\n' "$W" "$W" "$ZNAME" "$SUM" "$EXPECT" "$tokenarg" "$W" "$W" "$W" "$W" > "$TMP/run.cmd"
 CAP=60 vm push "$TMP/run.cmd" "$W\\run.cmd" || die "could not send run.cmd"
 
 guest "schtasks /create /tn $TASK /tr $W\\run.cmd /sc once /st 23:59 /ru $USER_AT_DESK /it /f" | tr -d '\r' | grep -v '^$'
 guest "schtasks /run /tn $TASK" | tr -d '\r' | grep -v '^$'
 t0=$(date +%s)
-WAIT="${WIN7_WAIT:-2400}"
+# (a smoke test that never reports must not hold the build matrix for ever)
+TIMEOUT_MIN="${MATRIX_TIMEOUT_MIN:-90}"
+WAIT="${WIN7_WAIT:-$(( TIMEOUT_MIN * 60 ))}"
 while :; do
     sleep 20
     if guest "if exist $W\\done.txt echo FINISHED" 2>/dev/null | grep -q FINISHED; then break; fi
     now=$(( $(date +%s) - t0 ))
     if [ "$now" -gt "$WAIT" ]; then
-        echo "== no end after ${WAIT}s: the log so far" >&2
+        echo "== TIMEOUT: the Windows 7 smoke test sent no end marker within ${WAIT} s ($(( WAIT / 60 )) minutes; MATRIX_TIMEOUT_MIN=<minutes> waits longer). The log so far:" >&2
         CAP=120 vm pull "$W\\log.txt" "$TMP/log.txt" 2>/dev/null && cat "$TMP/log.txt"
         echo "== smoke test FAILED (timeout; C:\\rapidr-matrix is removed, any program still running there is not)"
         exit 1
