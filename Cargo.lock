@@ -5285,7 +5285,7 @@ checksum = "ca45419789ae5a7899559e9512e58ca889e41f04f1f2445e9f4b290ceccd1d08"
 
 [[package]]
 name = "rapidr-ai"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "apple-native-keyring-store",
  "js-sys",
@@ -5304,7 +5304,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-archive"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "flate2",
  "lzma-rust2",
@@ -5316,7 +5316,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ast"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-diagnostics",
  "rapidr-lang",
@@ -5325,7 +5325,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-bcgen"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bytecode",
@@ -5339,7 +5339,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-buildserver"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "axum",
  "serde",
@@ -5354,14 +5354,14 @@ dependencies = [
 
 [[package]]
 name = "rapidr-bytecode"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-value",
 ]
 
 [[package]]
 name = "rapidr-cli"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "base64 0.22.1",
  "libc",
@@ -5396,7 +5396,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-codegen-rust"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -5407,7 +5407,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-compiler-wasm"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
@@ -5419,7 +5419,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-crash"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "js-sys",
  "libc",
@@ -5428,7 +5428,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-d3d-gpu"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "pollster",
  "rapidr-value",
@@ -5439,7 +5439,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-dap"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-preprocessor",
  "rapidr-session",
@@ -5449,7 +5449,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-db"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "mysql",
  "rapidr-value",
@@ -5459,7 +5459,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-designer"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "proptest",
  "rapidr-ast",
@@ -5477,18 +5477,18 @@ dependencies = [
 
 [[package]]
 name = "rapidr-diagnostics"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-i18n",
 ]
 
 [[package]]
 name = "rapidr-diff"
-version = "2.122.1"
+version = "2.123.0"
 
 [[package]]
 name = "rapidr-editor"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "proptest",
  "rapidr-ast",
@@ -5504,11 +5504,11 @@ dependencies = [
 
 [[package]]
 name = "rapidr-i18n"
-version = "2.122.1"
+version = "2.123.0"
 
 [[package]]
 name = "rapidr-icons"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "miniz_oxide",
  "rapidr-ast",
@@ -5517,7 +5517,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-import"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bcgen",
@@ -5531,7 +5531,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-introspect"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-designer",
  "rapidr-lang",
@@ -5542,7 +5542,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-jit"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "cranelift-codegen",
  "cranelift-frontend",
@@ -5562,7 +5562,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-lang"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bcgen",
@@ -5576,7 +5576,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-langsvc"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-bcgen",
@@ -5592,7 +5592,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-launcher"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
@@ -5601,7 +5601,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-lexer"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-diagnostics",
  "rapidr-preprocessor",
@@ -5609,7 +5609,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-lsp"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "lsp-server",
  "lsp-types",
@@ -5622,7 +5622,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-package"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "editpe",
  "resvg",
@@ -5630,7 +5630,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-parser"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-ast",
  "rapidr-diagnostics",
@@ -5641,14 +5641,14 @@ dependencies = [
 
 [[package]]
 name = "rapidr-preprocessor"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-diagnostics",
 ]
 
 [[package]]
 name = "rapidr-project"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-preprocessor",
  "serde",
@@ -5658,7 +5658,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-runner-stub"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-testmode",
  "rapidr-vm-host-native",
@@ -5666,7 +5666,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-runtime-core"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "arboard",
  "chrono",
@@ -5698,7 +5698,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-runtime-web"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "js-sys",
  "rapidr-ai",
@@ -5721,7 +5721,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-session"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
@@ -5737,7 +5737,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-studio"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "getrandom 0.4.2",
  "libc",
@@ -5774,7 +5774,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-testmode"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "ed25519-compact",
  "getrandom 0.4.2",
@@ -5783,7 +5783,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-app"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-lang",
  "rapidr-testmode",
@@ -5795,7 +5795,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-host-web"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "js-sys",
  "parley",
@@ -5811,7 +5811,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-host-winit"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -5839,7 +5839,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-kernel"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "parley",
  "rapidr-editor",
@@ -5851,7 +5851,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-ui-render"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "fearless_simd",
  "glifo",
@@ -5866,7 +5866,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-value"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "jpeg-decoder",
  "libc",
@@ -5889,7 +5889,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vcs"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "gix",
  "rapidr-diff",
@@ -5900,7 +5900,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "rapidr-bytecode",
  "rapidr-crash",
@@ -5909,7 +5909,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm-host-native"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "libc",
  "rapidr-bcgen",
@@ -5927,7 +5927,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-vm-host-web"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "js-sys",
  "rapidr-bcgen",
@@ -5946,7 +5946,7 @@ dependencies = [
 
 [[package]]
 name = "rapidr-webbundle"
-version = "2.122.1"
+version = "2.123.0"
 dependencies = [
  "zip",
 ]

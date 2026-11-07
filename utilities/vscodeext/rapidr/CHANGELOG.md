@@ -2,6 +2,10 @@
 
 The extension's version is the version of RapidR it ships with.
 
+## 2.123.0 (2026-11-07)
+
+- Same as 2.122.1 (the changes are in RapidR itself: Preview 6).
+
 ## 2.122.1 (2026-10-31)
 
 - Same as 2.122.0 (the fixes are in RapidR itself).
