@@ -347,7 +347,7 @@ END CREATE
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
   DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER, lw AS INTEGER
-  DIM lk AS INTEGER, top AS INTEGER, sh AS INTEGER, pw AS INTEGER
+  DIM lk AS INTEGER, top AS INTEGER, sh AS INTEGER, pw AS INTEGER, gl AS INTEGER, cw AS INTEGER
   IF ThemeName = "classic" THEN
     pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 28: row = 30: fh = 21
   ELSE
@@ -361,11 +361,21 @@ SUB LayOutSettingsDialog
   SettingsTabs.Left = pad: SettingsTabs.Top = pad - 8: SettingsTabs.Width = w: SettingsTabs.Height = th
 
   ' ---- General ----
+  ' (the labels' column: as wide as its longest label in the dialog's language,
+  ' bold — a tenth wider —, never so wide the choices lose their room; the
+  ' choices start where it ends: nothing cut, nothing overlapped)
+  gl = side
+  gl = AILabelWide(gl, LanguageLabel.Caption) * 11 \ 10
+  IF AILabelWide(0, HelpersLabel.Caption) * 11 \ 10 + 8 > gl THEN gl = AILabelWide(0, HelpersLabel.Caption) * 11 \ 10 + 8
+  IF AILabelWide(0, DebugPanesLabel.Caption) * 11 \ 10 + 8 > gl THEN gl = AILabelWide(0, DebugPanesLabel.Caption) * 11 \ 10 + 8
+  IF AILabelWide(0, NotifyStayLabel.Caption) * 11 \ 10 + 8 > gl THEN gl = AILabelWide(0, NotifyStayLabel.Caption) * 11 \ 10 + 8
+  IF gl < side THEN gl = side
+  IF gl > w - 260 THEN gl = w - 260
   y = pad
   ' (the language first: a label and its choice on a row, as the helpers')
-  LanguageLabel.Left = pad: LanguageLabel.Top = y + (bh - 18) \ 2: LanguageLabel.Width = side - 4
+  LanguageLabel.Left = pad: LanguageLabel.Top = y + (bh - 18) \ 2: LanguageLabel.Width = gl - 4
   LanguageLabel.Font.Bold = 1
-  LanguageBox.Left = pad + side: LanguageBox.Top = y: LanguageBox.Width = w - side
+  LanguageBox.Left = pad + gl: LanguageBox.Top = y: LanguageBox.Width = w - gl
   y = y + bh + pad
   IncFoldersLabel.Left = pad: IncFoldersLabel.Top = y
   IncFoldersLabel.Font.Bold = 1
@@ -383,9 +393,9 @@ SUB LayOutSettingsDialog
   ReopenBox.Left = pad: ReopenBox.Top = y: ReopenBox.Width = w: ReopenBox.Height = 22
   y = y + 22 + pad
   ' (the code's helpers: the label and its choice on a row, the note under)
-  HelpersLabel.Left = pad: HelpersLabel.Top = y + (bh - 18) \ 2
+  HelpersLabel.Left = pad: HelpersLabel.Top = y + (bh - 18) \ 2: HelpersLabel.Width = gl - 4
   HelpersLabel.Font.Bold = 1
-  HelpersBox.Left = pad + side: HelpersBox.Top = y: HelpersBox.Width = w - side
+  HelpersBox.Left = pad + gl: HelpersBox.Top = y: HelpersBox.Width = w - gl
   y = y + bh + 6
   nh = AISetLinesHigh(HelpersNote.Caption, w)
   HelpersNote.Left = pad: HelpersNote.Top = y: HelpersNote.Width = w: HelpersNote.Height = nh
@@ -408,17 +418,29 @@ SUB LayOutSettingsDialog
     y = y + PathList.Height + pad
   END IF
   ' (lined up with the code's helpers above: a label, its choice from the same column)
-  DebugPanesLabel.Left = pad: DebugPanesLabel.Top = y + (bh - 18) \ 2: DebugPanesLabel.Width = side - 4
+  DebugPanesLabel.Left = pad: DebugPanesLabel.Top = y + (bh - 18) \ 2: DebugPanesLabel.Width = gl - 4
   DebugPanesLabel.Font.Bold = 1
-  DebugPanesBox.Left = pad + side: DebugPanesBox.Top = y: DebugPanesBox.Width = 160
+  ' (as wide as its longest choice and the arrow, 160 at least)
+  cw = 160
+  cw = AILabelWide(cw - 44, TR$("Automatic")) + 44
+  IF AILabelWide(0, TR$("Always")) + 44 > cw THEN cw = AILabelWide(0, TR$("Always")) + 44
+  IF AILabelWide(0, TR$("Never")) + 44 > cw THEN cw = AILabelWide(0, TR$("Never")) + 44
+  IF cw > w - gl THEN cw = w - gl
+  DebugPanesBox.Left = pad + gl: DebugPanesBox.Top = y: DebugPanesBox.Width = cw
   y = y + row
   DebugPanesNote.Left = pad: DebugPanesNote.Top = y: DebugPanesNote.Width = w: DebugPanesNote.Height = 36
   DebugPanesNote.Font.Color = TC("page.dim")
   y = y + 36 + pad
   ' (how long notifications stay: a label and its choice on a row)
-  NotifyStayLabel.Left = pad: NotifyStayLabel.Top = y + (bh - 18) \ 2: NotifyStayLabel.Width = side - 4
+  NotifyStayLabel.Left = pad: NotifyStayLabel.Top = y + (bh - 18) \ 2: NotifyStayLabel.Width = gl - 4
   NotifyStayLabel.Font.Bold = 1
-  NotifyStayBox.Left = pad + side: NotifyStayBox.Top = y: NotifyStayBox.Width = 240
+  ' (as wide as its longest choice and the arrow, 240 at least)
+  cw = 240
+  cw = AILabelWide(cw - 44, TR$("As long as their words need")) + 44
+  IF AILabelWide(0, TR$("Longer")) + 44 > cw THEN cw = AILabelWide(0, TR$("Longer")) + 44
+  IF AILabelWide(0, TR$("Until I close them")) + 44 > cw THEN cw = AILabelWide(0, TR$("Until I close them")) + 44
+  IF cw > w - gl THEN cw = w - gl
+  NotifyStayBox.Left = pad + gl: NotifyStayBox.Top = y: NotifyStayBox.Width = cw
   y = y + bh + pad
   ' (the General page as tall as what's on it)
   gh = y
