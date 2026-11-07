@@ -53,6 +53,10 @@ pub enum Role {
     Grid,
     Row,
     Cell,
+    /// A grid's column heading (a cell of its headings' row: "Name").
+    ColumnHeader,
+    /// A grid's row heading (a cell of a fixed column: "Mon").
+    RowHeader,
     MenuBar,
     /// A menu's panel when it's open (a drop-down, a submenu, a pop-up):
     /// its items inside.
@@ -106,6 +110,8 @@ impl Role {
             Role::Grid => "grid",
             Role::Row => "row",
             Role::Cell => "gridcell",
+            Role::ColumnHeader => "columnheader",
+            Role::RowHeader => "rowheader",
             Role::MenuBar => "menubar",
             Role::Menu => "menu",
             Role::MenuItem => "menuitem",
@@ -215,6 +221,9 @@ pub struct AccessNode {
     pub labelled_by: Option<u64>,
     /// A tree item's depth (1: a top-level node).
     pub level: Option<usize>,
+    /// (a grid, its rows and cells) Where it is in its table:
+    /// [`TablePlace`].
+    pub table: Option<Box<TablePlace>>,
     pub states: States,
     pub actions: Vec<Action>,
     /// Logical pixels (the form's client area once the kernel places it).
@@ -224,6 +233,54 @@ pub struct AccessNode {
     /// selection. Not in the JSON dump.
     pub text: Option<Box<TextInfo>>,
     pub children: Vec<AccessNode>,
+}
+
+/// Where a grid, a row or a cell is in its table, for screen readers
+/// (AccessKit's and ARIA's table properties). Indexes count from 0 over
+/// every row and column, the headings' included, as AccessKit and ARIA
+/// count them; `rows` / `columns` are a grid's, all of them — a grid that
+/// describes only the rows on screen (RDBGRID's million) still says how
+/// many it has.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TablePlace {
+    /// A row's, a cell's.
+    pub row: Option<usize>,
+    /// A cell's, a column heading's.
+    pub column: Option<usize>,
+    /// A grid's.
+    pub rows: Option<usize>,
+    pub columns: Option<usize>,
+    /// A cell's column heading ("Name"; empty: its column has none).
+    pub heading: String,
+    /// A data cell's place in words, its data's rows and columns counted
+    /// from 1 and the headings left out ("row 2 of 10, column 1 of 3"):
+    /// what a screen reader that isn't told a table's rows and columns
+    /// says after the cell ([`spoken_cell`]).
+    pub place: String,
+}
+
+/// What a screen reader that isn't told a table's rows and columns hears
+/// for a grid's cell (or reads in RAI's tree): its column's heading, its
+/// text, then where it is — "Name, Ada, row 2 of 10, column 1 of 3"; an
+/// empty cell says "blank". The desktop's accessibility adapters don't pass
+/// AccessKit's row and column indexes on yet, so its host names a cell so;
+/// the web's mirror gives ARIA's indexes and headings instead, which the
+/// browser's readers say themselves.
+pub fn spoken_cell(cell: &AccessNode) -> String {
+    let text = if cell.name.trim().is_empty() { crate::i18n::tr_ui("blank") } else { cell.name.clone() };
+    let Some(t) = &cell.table else { return text };
+    [t.heading.trim(), text.as_str(), t.place.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(", ")
+}
+
+/// A data cell's place in words: data row `row` of `rows`, column `column`
+/// of `columns`, all counted from 1 ("row 2 of 10, column 1 of 3").
+pub fn place_words(row: usize, rows: usize, column: usize, columns: usize) -> String {
+    crate::i18n::tr_ui_fill("row {row} of {rows}, column {column} of {columns}", &[("row", &row.to_string()), ("rows", &rows.to_string()), ("column", &column.to_string()), ("columns", &columns.to_string())])
+}
+
+/// A data row's name: "Row 2 of 10" (counted from 1).
+pub fn row_words(row: usize, rows: usize) -> String {
+    crate::i18n::tr_ui_fill("Row {row} of {total}", &[("row", &row.to_string()), ("total", &rows.to_string())])
 }
 
 /// A text field's text for reading by character, word and line: its runs
@@ -336,6 +393,7 @@ impl AccessNode {
             accelerator: None,
             labelled_by: None,
             level: None,
+            table: None,
             states: States::default(),
             actions: Vec::new(),
             bounds: (0, 0, 0, 0),
@@ -415,6 +473,20 @@ impl AccessNode {
         }
         if let Some(l) = self.level {
             s.push_str(&format!(",\"level\":{l}"));
+        }
+        if let Some(t) = &self.table {
+            let mut parts = Vec::new();
+            for (k, v) in [("row", t.row), ("column", t.column), ("rows", t.rows), ("columns", t.columns)] {
+                if let Some(v) = v {
+                    parts.push(format!("\"{k}\":{v}"));
+                }
+            }
+            for (k, v) in [("heading", &t.heading), ("place", &t.place)] {
+                if !v.is_empty() {
+                    parts.push(format!("\"{k}\":{}", json_str(v)));
+                }
+            }
+            s.push_str(&format!(",\"table\":{{{}}}", parts.join(",")));
         }
         let st = &self.states;
         let mut states = Vec::new();
@@ -898,7 +970,25 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         }
         "RLISTVIEW" => {
             n.actions = vec![Action::Focus];
-            let (items, index) = super::with_listview(id, |lv| (lv.items.iter().take(MOST_ITEMS).map(|it| it.caption.clone()).collect::<Vec<_>>(), lv.item_index)).unwrap_or_default();
+            // (the report view, vsReport: a row says its other columns too,
+            // each with its heading — "main.rr, Change: edited" — as the eye
+            // reads the row, not its first cell alone)
+            let (items, index) = super::with_listview(id, |lv| {
+                let report = lv.view_style == 3 && lv.columns.len() > 1;
+                let row = |it: &super::listview::Item| {
+                    if !report {
+                        return it.caption.clone();
+                    }
+                    let mut s = it.caption.clone();
+                    for (k, v) in it.sub_items.iter().enumerate().filter(|(_, v)| !v.trim().is_empty()) {
+                        let heading = lv.columns.get(k + 1).map_or("", |c| c.caption.trim());
+                        s.push_str(&if heading.is_empty() { format!(", {v}") } else { format!(", {heading}: {v}") });
+                    }
+                    s
+                };
+                (lv.items.iter().take(MOST_ITEMS).map(row).collect::<Vec<_>>(), lv.item_index)
+            })
+            .unwrap_or_default();
             n.children = items.into_iter().enumerate().map(|(i, s)| option(id, i, s, index == i as i64)).collect();
         }
         "RTREEVIEW" => {
@@ -929,20 +1019,9 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         }
         "RSTRINGGRID" => {
             n.actions = vec![Action::Focus];
-            let rows = super::with_grid(id, |g| {
-                let cols = g.col_count().max(1);
-                (0..g.row_count().min(MOST_CELLS / cols)).map(|r| (0..g.col_count()).map(|c| (g.cell(c, r).to_string(), g.is_selected(c, r))).collect::<Vec<_>>()).collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-            for (r, cells) in rows.into_iter().enumerate() {
-                let mut row = AccessNode::new(part_id(id, PART_ROW, r), Role::Row);
-                for (c, (name, selected)) in cells.into_iter().enumerate() {
-                    let mut cell = AccessNode::new(grid_cell_id(id, c, r), Role::Cell);
-                    cell.name = name;
-                    cell.states.selected = Some(selected);
-                    row.children.push(cell);
-                }
-                n.children.push(row);
+            if let Some(grid) = super::with_grid(id, |g| string_grid(id, g)) {
+                n.table = grid.table;
+                n.children = grid.children;
             }
         }
         "RHEADER" => {
@@ -967,6 +1046,58 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
     n
 }
 
+/// An RSTRINGGRID's rows and cells for a screen reader: the fixed rows as
+/// column headings, the fixed columns' cells as row headings, every data
+/// cell named by its text with its column's heading and its place
+/// ([`TablePlace`]), the current cell (Col, Row) focused — the kernel
+/// keeps that only while the grid has the focus. The headings and the rows
+/// around the current one, at most [`MOST_CELLS`] cells: a grid of a
+/// million rows reads where the person is.
+fn string_grid(id: &str, g: &super::grid::StringGrid) -> AccessNode {
+    let (rows, cols) = (g.row_count(), g.col_count());
+    let (fr, fc) = (g.fixed_rows().min(rows), g.fixed_cols().min(cols));
+    let (data_rows, data_cols) = (rows - fr, cols - fc);
+    let mut n = AccessNode::new(node_id(id), Role::Grid);
+    n.table = Some(Box::new(TablePlace { rows: Some(rows), columns: Some(cols), ..TablePlace::default() }));
+    let heading = |c: usize| if fr > 0 { g.cell(c, fr - 1).trim().to_string() } else { String::new() };
+    // (the data rows shown to the reader: all that fit, else a window
+    // around the current row)
+    let fit = (MOST_CELLS / cols.max(1)).saturating_sub(fr).max(1);
+    let current = usize::try_from(g.row).unwrap_or(0).clamp(fr, rows.max(1) - 1);
+    let start = if data_rows <= fit { fr } else { current.saturating_sub(fit / 2).clamp(fr, rows - fit) };
+    let end = (start + fit).min(rows);
+    for r in (0..fr).chain(start..end) {
+        let mut row = AccessNode::new(part_id(id, PART_ROW, r), Role::Row);
+        row.table = Some(Box::new(TablePlace { row: Some(r), ..TablePlace::default() }));
+        if r >= fr {
+            row.name = row_words(r - fr + 1, data_rows);
+        }
+        for c in 0..cols {
+            let role = if r < fr {
+                Role::ColumnHeader
+            } else if c < fc {
+                Role::RowHeader
+            } else {
+                Role::Cell
+            };
+            let mut cell = AccessNode::new(grid_cell_id(id, c, r), role);
+            cell.name = g.cell(c, r).to_string();
+            let mut place = TablePlace { row: Some(r), column: Some(c), ..TablePlace::default() };
+            if role == Role::Cell {
+                cell.states.selected = Some(g.is_selected(c, r));
+                cell.states.focused = (g.col, g.row) == (c as i64, r as i64);
+                cell.actions = vec![Action::Focus];
+                place.heading = heading(c);
+                place.place = place_words(r - fr + 1, data_rows, c - fc + 1, data_cols);
+            }
+            cell.table = Some(Box::new(place));
+            row.children.push(cell);
+        }
+        n.children.push(row);
+    }
+    n
+}
+
 /// A list's row `i` (a list box's, a combo box's, a list view's item).
 fn option(component: &str, i: usize, name: String, selected: bool) -> AccessNode {
     let mut o = AccessNode::new(part_id(component, PART_ITEM, i), Role::ListBoxOption);
@@ -976,9 +1107,10 @@ fn option(component: &str, i: usize, name: String, selected: bool) -> AccessNode
     o
 }
 
-/// A grid's cell (c, r)'s node id.
+/// A grid's cell (c, r)'s node id (its index row × 10000 + column, worked
+/// out in 64 bits: a big grid's rows on a 32-bit system too).
 pub fn grid_cell_id(component: &str, c: usize, r: usize) -> u64 {
-    part_id(component, PART_CELL, r * 10_000 + c)
+    node_id(component) ^ (PART_CELL << 56 | ((r as u64) * 10_000 + c as u64) & 0x00FF_FFFF_FFFF_FFFF)
 }
 
 /// A QPROGRESSBAR's (a QUPDOWN's) Min, Max and Position (clamped).
@@ -1293,6 +1425,80 @@ mod tests {
         assert_eq!((n.children[2].role, n.children[2].children[1].role, n.children[2].children[1].id), (Role::Row, Role::Cell, grid_cell_id("a11ygrid", 1, 2)));
         crate::objects::remove("a11ytree");
         crate::objects::remove("a11ygrid");
+    }
+
+    /// A string grid reads as a table: its fixed row's cells are the column
+    /// headings, every data cell is said with its heading and its place
+    /// (counted from 1 among the data's rows and columns), the current cell
+    /// (Col, Row) holds the focus, and a grid too big to describe whole
+    /// describes the headings and the rows around the current one.
+    #[test]
+    fn a_grid_reads_as_a_table() {
+        let font = Font::default();
+        let get = props(&[]);
+        crate::objects::create("a11ytable", "RSTRINGGRID");
+        crate::objects::set("a11ytable", "colcount", &v_int(3));
+        crate::objects::set("a11ytable", "rowcount", &v_int(11));
+        crate::objects::set("a11ytable", "fixedcols", &v_int(0));
+        crate::objects::with_grid_mut("a11ytable", |g| {
+            for (c, h) in ["Name", "Age", "City"].iter().enumerate() {
+                g.set_cell(c, 0, h.to_string());
+            }
+            g.set_cell(0, 2, "Ada".into());
+            g.set_cell(1, 2, "36".into());
+        });
+        crate::objects::set("a11ytable", "row", &v_int(2));
+        crate::objects::set("a11ytable", "col", &v_int(0));
+        let n = describe("a11ytable", "RSTRINGGRID", &get, (300, 200), &font);
+        let t = n.table.as_deref().unwrap();
+        assert_eq!((t.rows, t.columns), (Some(11), Some(3)));
+        let heads: Vec<_> = n.children[0].children.iter().map(|c| (c.role, c.name.as_str())).collect();
+        assert_eq!(heads, vec![(Role::ColumnHeader, "Name"), (Role::ColumnHeader, "Age"), (Role::ColumnHeader, "City")]);
+        let row = &n.children[2];
+        assert_eq!((row.role, row.name.as_str()), (Role::Row, "Row 2 of 10"));
+        let ada = &row.children[0];
+        assert_eq!(spoken_cell(ada), "Name, Ada, row 2 of 10, column 1 of 3");
+        assert_eq!(spoken_cell(&row.children[2]), "City, blank, row 2 of 10, column 3 of 3");
+        assert!(ada.states.focused, "the current cell holds the focus");
+        let focused: Vec<u64> = {
+            let mut v = Vec::new();
+            n.walk(&mut |c| if c.states.focused { v.push(c.id) });
+            v
+        };
+        assert_eq!(focused, vec![grid_cell_id("a11ytable", 0, 2)], "one focused part: the current cell");
+        assert!(n.to_json().contains("\"table\":{\"row\":2,\"column\":0,\"heading\":\"Name\",\"place\":\"row 2 of 10, column 1 of 3\"}"), "{}", n.to_json());
+        // (Right: the next cell has it)
+        crate::objects::set("a11ytable", "col", &v_int(1));
+        let n = describe("a11ytable", "RSTRINGGRID", &get, (300, 200), &font);
+        let mut on = Vec::new();
+        n.walk(&mut |c| if c.states.focused { on.push(spoken_cell(c)) });
+        assert_eq!(on, vec!["Age, 36, row 2 of 10, column 2 of 3".to_string()]);
+        // (a hundred thousand rows: the headings and the rows around the
+        // current one, which is there and focused)
+        crate::objects::set("a11ytable", "rowcount", &v_int(100_001));
+        crate::objects::set("a11ytable", "row", &v_int(50_000));
+        let n = describe("a11ytable", "RSTRINGGRID", &get, (300, 200), &font);
+        assert!(n.children.len() * 3 <= MOST_CELLS + 3, "{} rows described", n.children.len());
+        assert_eq!(n.children[0].children[0].role, Role::ColumnHeader);
+        let mut on = Vec::new();
+        n.walk(&mut |c| if c.states.focused { on.push(spoken_cell(c)) });
+        assert_eq!(on, vec!["Age, blank, row 50000 of 100000, column 2 of 3".to_string()]);
+        crate::objects::remove("a11ytable");
+        // (a list view's report view: each row says its other columns with
+        // their headings; another view, its caption alone)
+        crate::objects::create("a11yreport", "RLISTVIEW");
+        let call = |m: &str, args: &[Value]| crate::objects::call("a11yreport", m, args, &|_, _| Value::Null);
+        crate::objects::set("a11yreport", "viewstyle", &v_int(3));
+        call("addcolumns", &[v_str("File"), v_str("Change"), v_str("Lines")]);
+        call("additems", &[v_str("main.rr")]);
+        call("addsubitem", &[v_int(0), v_str("edited")]);
+        call("addsubitem", &[v_int(0), v_str("")]);
+        let n = describe("a11yreport", "RLISTVIEW", &get, (300, 200), &font);
+        assert_eq!(n.children[0].name, "main.rr, Change: edited");
+        crate::objects::set("a11yreport", "viewstyle", &v_int(2));
+        let n = describe("a11yreport", "RLISTVIEW", &get, (300, 200), &font);
+        assert_eq!(n.children[0].name, "main.rr");
+        crate::objects::remove("a11yreport");
     }
 
     #[test]

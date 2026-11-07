@@ -5231,6 +5231,14 @@ msgid "Labels as links: Tab, a focus ring, Enter or Space"
 msgstr "Etiquetas como enlaces: Tab, un anillo de foco, Enter o Space"
 
 #: ide/panes.inc
+msgid "A drawer over the list: BringToFront, SendToBack"
+msgstr "Un cajón sobre la lista: BringToFront, SendToBack"
+
+#: ide/panes.inc
+msgid "A grid's current cell: Row, Col, the arrow keys"
+msgstr "La celda actual de una cuadrícula: Row, Col, las flechas"
+
+#: ide/panes.inc
 msgid "A tone made sample by sample, with an oscilloscope"
 msgstr "Un tono hecho muestra por muestra, con un osciloscopio"
 

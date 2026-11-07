@@ -68,6 +68,8 @@ mod notify_tests;
 mod pointer_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod zorder_tests;
 
 pub use a11y::AccessValue;
 pub use components::{kind_of, ComponentKind, Cx};

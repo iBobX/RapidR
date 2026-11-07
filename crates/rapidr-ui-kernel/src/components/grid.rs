@@ -649,16 +649,35 @@ impl ComponentKind for Grid {
         show_selection(cx.id, w, h);
         let Some(g) = with_grid(cx.id, |g| g.clone()) else { return n };
         let l = layout(cx.id, &g, w, h);
-        for (r, row) in n.children.iter_mut().enumerate() {
-            for (c, cell) in row.children.iter_mut().enumerate() {
+        // (each row and cell where it is drawn: their places say which —
+        // the rows described are the headings and those around the current)
+        for row in n.children.iter_mut() {
+            let r = row.table.as_ref().and_then(|t| t.row).unwrap_or(0);
+            let mut span: Option<(i64, i64, i64, i64)> = None;
+            for cell in row.children.iter_mut() {
+                let c = cell.table.as_ref().and_then(|t| t.column).unwrap_or(0);
                 if let Some((x, y, cw, ch)) = cell_rect(&l, c, r) {
                     cell.bounds = (cx.rect.0 + x, cx.rect.1 + y, cw, ch);
+                    span = Some(span.map_or(cell.bounds, |(sx, sy, sw, sh)| {
+                        let right = (sx + sw).max(cell.bounds.0 + cw);
+                        (sx.min(cell.bounds.0), sy, right - sx.min(cell.bounds.0), sh.max(ch))
+                    }));
                 }
+            }
+            if let Some(b) = span {
+                row.bounds = b;
             }
         }
         use rapidr_value::objects::a11y::{part_id, Role, PART_EDITOR, PART_POPUP};
+        // (the current cell is the screen reader's focus only while the grid
+        // has the keyboard)
+        if !cx.state.focused {
+            n.walk_mut(&mut |c| c.states.focused = false);
+        }
         // (the in-place editor: a text field over its cell, the focus in it)
         if let (Some(ed), Some((x, y, ew, eh))) = (editing(cx.id), Self::edit_rect(cx)) {
+            // (the editor has it, not the cell under it)
+            n.walk_mut(&mut |c| c.states.focused = false);
             let mut e = AccessNode::new(part_id(cx.id, PART_EDITOR, 0), Role::TextInput);
             e.value = Some(ed.text.clone());
             e.bounds = (cx.rect.0 + x, cx.rect.1 + y, ew, eh);
@@ -683,8 +702,16 @@ impl ComponentKind for Grid {
         n
     }
 
-    fn access(&self, _cx: &mut Cx, _action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {
-        false
+    /// A screen reader's click or focus on a data cell: the current cell
+    /// (`grid_cell_id`'s index: row × 10000 + column), as the arrows would.
+    fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {
+        let (Action::Click | Action::Focus, Some(p)) = (action, part) else { return false };
+        let (c, r) = ((p % 10_000) as i64, (p / 10_000) as i64);
+        let ok = with_grid(cx.id, |g| r >= g.fixed_rows() as i64 && c >= g.fixed_cols() as i64 && r < g.row_count() as i64 && c < g.col_count() as i64).unwrap_or(false);
+        if ok {
+            act(cx, ListAction::GridSelect(c, r, false));
+        }
+        ok
     }
 
     /// (the input lane's) A held bar's repeat.

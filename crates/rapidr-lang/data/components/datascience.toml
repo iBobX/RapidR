@@ -275,12 +275,13 @@ display = "DBGrid"
 visual = true
 size = [320, 160]
 default_event = "OnCellClick"
-sets = ["layout", "a11y"]
-doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); Ctrl+C copies it. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own."
+sets = ["layout", "a11y", "zorder"]
+doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click on a cell, or the arrows, move the current row (bound edits follow) and the current column (Col: Left and Right); Ctrl+C copies the row. A screen reader hears each row with its cells and the current cell as the keys move. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own."
 properties = [
   { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON", "RSQLITE", "RMYSQL"], category = "Data", doc = "What it shows: an RDataSource (it follows that current row), a data set straight, or a database component's last query (its rows as a background query brings them)." },
   { name = "ReadOnly", type = "bool", default = true, category = "Behavior", doc = "True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits)." },
   { name = "Row", type = "int", default = 0, design = false, doc = "The current row (a row of the data, from 0); set it to move there." },
+  { name = "Col", type = "int", default = 0, design = false, range = "0..", doc = "The current column (from 0, in the data's order): the cell with the focus box, together with Row. Left and Right move it, a click on a cell sets it (OnCellClick says the same column), and a screen reader is on that cell. Set it to move there; it stays inside the data's columns." },
   { name = "TopRow", type = "int", default = 0, design = false, doc = "The first row shown (in the grid's order)." },
   { name = "RowCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the data has." },
   { name = "ColCount", type = "int", default = 0, access = "read", design = false, doc = "How many columns the data has." },
@@ -323,7 +324,7 @@ name = "RPLOT"
 display = "Plot"
 visual = true
 size = [640, 480]
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots with labels, legends and notes, on a form (drawn crisp at any screen scale, the same on the desktop and the web) or saved as a picture. RapidR's own."
 properties = [
   { name = "Title", type = "string" },

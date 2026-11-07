@@ -81,7 +81,10 @@ impl FormUi {
         });
         let id = self.nodes[i].id.clone();
         // (a part the kind says holds the focus — a grid's in-place editor —
-        // has it while the component has it)
+        // has it while the component has it; a part deeper in — a link in a
+        // paragraph, a grid's current cell in its row — is focused with its
+        // component, which its kind says only while the component has the
+        // keyboard, and the hosts give the deepest the screen reader's focus)
         let focused = self.focus == Some(i);
         match n.children.iter_mut().find(|c| c.states.focused) {
             Some(part) => {
@@ -128,7 +131,8 @@ impl FormUi {
         if let Some(i) = (0..self.nodes.len()).find(|&i| node_id(&self.nodes[i].id) == target) {
             return Some((i, None));
         }
-        let index = |id: &str| ((target & 0x00FF_FFFF_FFFF_FFFF) ^ node_id(id)) as usize;
+        // (worked out in 64 bits: a 32-bit system's usize would cut it)
+        let index = |id: &str| (target & 0x00FF_FFFF_FFFF_FFFF) ^ node_id(id);
         // (the component whose description has the part)
         let has = |n: &AccessNode| {
             let mut found = false;
@@ -136,11 +140,13 @@ impl FormUi {
             found
         };
         (0..self.nodes.len()).find_map(|i| {
-            if !self.nodes[i].shown || index(&self.nodes[i].id) >= 100_000_000 {
+            // (a part's index fits in 32 bits — a data grid's cells' reach
+            // 2^32: components/dbgrid.rs —; another component's mix is ~2^56)
+            if !self.nodes[i].shown || index(&self.nodes[i].id) >= 1 << 32 {
                 return None;
             }
             let n = self.with_cx(store, ts, i, |k, cx| k.describe(cx))?;
-            has(&n).then(|| (i, Some(index(&self.nodes[i].id))))
+            has(&n).then(|| (i, Some(index(&self.nodes[i].id) as usize)))
         })
     }
 

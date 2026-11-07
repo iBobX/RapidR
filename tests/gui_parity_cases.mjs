@@ -649,6 +649,21 @@ export const cases = [
     expect: ["steps.caption= oops fine outer changed oops fine"] },
   // (DEBUG-2) The events a program's own sets fire on a shown form (RC.EXE's)
   { name: "set_events", events: "go.onclick", dump: "trace.caption", expect: ["trace.caption=log e r r c b s"] },
+  // (GAPS-A) BringToFront / SendToBack (rapidr_value::zorder): a click at
+  // the "Under" button's place is the button's (U), then — the drawer
+  // brought to the front — the drawer's (D) and its own button's (I), then,
+  // sent back, the button's again; the capture shows the drawer over it
+  { name: "zorder_drawer", clientWidth: 320,
+    events: "under.__mousedown_10_10,under.__mouseup_10_10,front.onclick,under.__mousedown_10_10,under.__mouseup_10_10,inside.__mousedown_10_10,inside.__mouseup_10_10,back.onclick,under.__mousedown_10_10,under.__mouseup_10_10,front.onclick",
+    dump: "said.caption", expect: ["said.caption=U+DI-U+"], pixels: [[30, 35, "336699"], [130, 35, "336699"]] },
+  // (GAPS-A) RDBGRID.Col: a click on a cell, Right twice (kept in the
+  // columns), Left, Down, then the program reads and sets it; the
+  // accessibility tree's focused node is the current cell, said with its
+  // column's heading and its place
+  { name: "dbgrid_col", events: "grid.__cell_1_2,grid.__key_39,grid.__key_39,grid.__key_37,grid.__key_40,show.onclick",
+    dump: "info.caption,grid.row,grid.col",
+    expect: ["info.caption=c2,1/1 =3,1 set0 far2", "grid.row=3", "grid.col=0"],
+    a11yFocus: "name, Di, row 4 of 4, column 1 of 3" },
   { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
     dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
     expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },

@@ -8,7 +8,7 @@ display = "PropertyInspector"
 visual = true
 size = [280, 400]
 default_event = "OnPropertyChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset. Every property is in the category of what it is for (Layout, Appearance, Font, Behavior, Help, Accessibility …), the same for every component. An Events page lists the component's events and the SUB each one runs."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -72,7 +72,7 @@ display = "Toolbox"
 visual = true
 size = [220, 400]
 default_event = "OnPick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "The palette of components a form designer places, under RapidR's names (RButton), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -116,7 +116,7 @@ display = "ProjectTree"
 visual = true
 size = [240, 360]
 default_event = "OnOpen"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A project's files as a tree (an .rrproj project, or a .bas / .rr file and the files it includes), grouped by kind — forms with the components their CREATE blocks make, modules, includes, resources, assets, data — each with its icon. The user opens a file (double click or Enter), renames it in place (F2), drags it to reorder or into a folder, and deletes it after confirming; the program hears each change and does the work on the disk."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -178,7 +178,7 @@ display = "OutputConsole"
 visual = true
 size = [480, 180]
 default_event = "OnLinkClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI sequences — with pages for the build log and the problems found. `file:line` places in the text and every problem are links; the user searches the text, and the oldest lines go past MaxLines."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -279,7 +279,7 @@ display = "MarkdownView"
 visual = true
 size = [400, 300]
 default_event = "OnLinkClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out — but `<br>`, and `<ins>` / `<del>` for a diff\u0027s counts (the text between them shown as added or removed, in the theme\u0027s green or red and the code font; a `title` says it in words for a screen reader) — and a picture shows its description. RapidR Studio shows `.md` files with it."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

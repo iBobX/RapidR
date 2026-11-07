@@ -5172,6 +5172,14 @@ msgid "Labels as links: Tab, a focus ring, Enter or Space"
 msgstr "用作链接的标签：Tab 键、焦点环、Enter 或空格键"
 
 #: ide/panes.inc
+msgid "A drawer over the list: BringToFront, SendToBack"
+msgstr "列表上方的抽屉：BringToFront、SendToBack"
+
+#: ide/panes.inc
+msgid "A grid's current cell: Row, Col, the arrow keys"
+msgstr "表格的当前单元格：Row、Col、方向键"
+
+#: ide/panes.inc
 msgid "A tone made sample by sample, with an oscilloscope"
 msgstr "逐个采样生成的音调，配有示波器"
 

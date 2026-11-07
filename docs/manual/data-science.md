@@ -311,14 +311,21 @@ END CREATE
   `Field(name)`, `SetField name, value`, `Refresh`; `OnDataChange` (the row
   moved or the data changed).
 - **RDBGrid** — `DataSource` (an RDataSource, or a data set straight: its
-  own current row), `Row`, `TopRow`, `RowCount`, `ColCount`, `Columns`,
-  `SortColumn` (-1: none), `SortDescending`, `ReadOnly`; `OnCellClick(Row,
-  Col)`, `OnTitleClick(Col)`. It draws only the rows on screen (a million
-  rows scroll smoothly); a click or the arrow keys move the current row; a
-  heading's click sorts its view (again: the other way, a third time: the
-  data's order) without changing the data. Numbers are right-aligned, a
-  missing value is a dimmed `null`; Ctrl+C (Cmd+C) copies the current row;
-  screen readers hear a grid. Its `DataSource` can also be an `RSQLite` or
+  own current row), `Row`, `Col`, `TopRow`, `RowCount`, `ColCount`,
+  `Columns`, `SortColumn` (-1: none), `SortDescending`, `ReadOnly`;
+  `OnCellClick(Row, Col)`, `OnTitleClick(Col)`. It draws only the rows on
+  screen (a million rows scroll smoothly); a click on a cell makes its row
+  the current row and its column the current column (`Col`, from 0, as
+  `OnCellClick` says it); Up, Down, Page Up, Page Down, Home and End move
+  the row, Left and Right the column (scrolled into view, kept inside the
+  data's columns); setting `Row` or `Col` moves there. The current cell has
+  the focus box while the grid has the keyboard. A heading's click sorts its
+  view (again: the other way, a third time: the data's order) without
+  changing the data. Numbers are right-aligned, a missing value is a dimmed
+  `null`; Ctrl+C (Cmd+C) copies the current row. Screen readers hear a
+  table: each row with its cells, and the current cell as the keys move
+  ("name, Ada, row 2 of 400, column 1 of 3";
+  [Accessibility](components.md#accessibility)). Its `DataSource` can also be an `RSQLite` or
   an `RMySQL`: their last query's rows, a background query's as they
   arrive — the program sorts those by asking again with `ORDER BY`
   ([Databases](databases.md#a-querys-rows-in-a-grid)).

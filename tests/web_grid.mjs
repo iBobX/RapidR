@@ -101,7 +101,7 @@ const cells = (name) => frame.evaluate((n) => {
   const grid = document.getElementById("rr-" + n);
   if (!grid) return null;
   const g = grid.getBoundingClientRect();
-  return [...grid.querySelectorAll('[role="row"]')].map((row) => [...row.querySelectorAll('[role="gridcell"]')].map((c) => {
+  return [...grid.querySelectorAll('[role="row"]')].map((row) => [...row.querySelectorAll('[role="gridcell"],[role="columnheader"],[role="rowheader"]')].map((c) => {
     const r = c.getBoundingClientRect();
     return { text: c.getAttribute("aria-label") ?? "", selected: c.getAttribute("aria-selected") === "true", x: r.left - g.left, y: r.top - g.top, w: r.width, h: r.height };
   }));
@@ -180,9 +180,14 @@ await clickCell(g0, 1, 0);
 await page.waitForTimeout(300);
 lbl = await label();
 ok(lbl === "sel2,4|2,4", `a fixed cell isn't selected (${lbl})`);
-// (the arrow key to the focused grid: the DOM focus is the kernel's)
-const focused = await frame.evaluate(() => document.activeElement?.id);
-ok(focused === "rr-grid", `the clicked grid has the focus (${focused})`);
+// (the arrow key to the focused grid: the DOM focus is the kernel's — on
+// the grid's current cell, ARIA's grid pattern, so a screen reader says the
+// cell; the keys still reach the grid)
+const focused = await frame.evaluate(() => {
+  const e = document.activeElement;
+  return e ? `${e.closest("#rr-grid") ? "in rr-grid" : e.id} ${e.getAttribute("role")} ${e.getAttribute("aria-colindex")}` : "none";
+});
+ok(focused === "in rr-grid gridcell 3", `the clicked grid has the focus, on its current cell (${focused})`);
 await page.keyboard.press("ArrowUp");
 await page.waitForTimeout(300);
 lbl = await label();

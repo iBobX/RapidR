@@ -65,6 +65,8 @@ SITES = {
     ("crates/rapidr-value/src/sysinfo.rs", "get_with"): "RSYSTEMINFO",
     ("crates/rapidr-value/src/sysinfo.rs", "call"): "RSYSTEMINFO",
     ("crates/rapidr-runtime-core/src/layout.rs", "after_set"): "*",
+    # (GAPS-A: BringToFront / SendToBack, every placed component's — both runtimes route them here)
+    ("crates/rapidr-value/src/zorder.rs", "method"): "*",
     ("crates/rapidr-runtime-core/src/network.rs", "socket_method"): "RSOCKET",
     ("crates/rapidr-runtime-core/src/network.rs", "method"): "RSOCKET RSERVERSOCKET",
     ("crates/rapidr-runtime-core/src/network.rs", "server_socket_method"): "RSERVERSOCKET",

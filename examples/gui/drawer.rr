@@ -1,0 +1,150 @@
+' drawer.rr: a drawer that opens over the workspace (RapidR's BringToFront
+' and SendToBack). Press Filters: the drawer comes to the front, over the
+' orders, and takes the clicks where it covers them. Its close button (or
+' Filters again) sends it to the back, under the orders.
+'
+'   rapidr run drawer.rr
+'
+' The drawer is made before the list, so it starts under it: components
+' stack in the order they are made, the last one on top. BringToFront puts
+' a component over its siblings and SendToBack under them; its own
+' components come with it. Tab reaches the drawer's controls after the
+' list's while it is in front.
+$THEME rapidr
+
+DECLARE SUB ToggleDrawer
+DECLARE SUB CloseDrawer
+DECLARE SUB FilterChanged
+DECLARE SUB TakeColors
+
+DIM UiFont AS RFont
+DIM FilterIcon AS RBitmap
+DIM CloseIcon AS RBitmap
+DIM DrawerShown AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Orders"
+    Width = 560: Height = 380
+    Center
+    ' (the pane's header: the title and a line under it at the left, the
+    ' compact Filters button at the right — 24 tall, 12 from the edge)
+    CREATE Header AS RPanel
+        Left = 0: Top = 0: Width = 544: Height = 52
+        BevelOuter = 0
+        Anchors = akLeft + akTop + akRight
+        CREATE Title AS RLabel
+            Caption = "Orders": Left = 12: Top = 9: Width = 300
+        END CREATE
+        CREATE Subtitle AS RLabel
+            Caption = "6 orders this week": Left = 12: Top = 27: Width = 300
+        END CREATE
+        CREATE FiltersBtn AS RButton
+            Caption = "&Filters": Left = 436: Top = 14: Width = 96: Height = 24
+            Anchors = akTop + akRight
+            AccessibleDescription = "Opens the filters over the orders"
+            OnClick = ToggleDrawer
+        END CREATE
+    END CREATE
+    ' (made first: under the list until it is brought to the front)
+    CREATE Drawer AS RPanel
+        Left = 0: Top = 52: Width = 232: Height = 268
+        BevelOuter = 0
+        Anchors = akLeft + akTop + akBottom
+        AccessibleName = "Filters"
+        CREATE DrawerTitle AS RLabel
+            Caption = "Filters": Left = 12: Top = 14: Width = 150
+        END CREATE
+        CREATE CloseBtn AS RButton
+            Caption = "": Left = 196: Top = 10: Width = 24: Height = 24
+            AccessibleName = "Close the filters"
+            OnClick = CloseDrawer
+        END CREATE
+        CREATE OpenOnly AS RCheckBox
+            Caption = "&Only orders not sent": Left = 12: Top = 48: Width = 208
+            OnClick = FilterChanged
+        END CREATE
+        CREATE BigOnly AS RCheckBox
+            Caption = "Over &100": Left = 12: Top = 74: Width = 208
+            OnClick = FilterChanged
+        END CREATE
+        CREATE Edge AS RPanel
+            Left = 231: Top = 0: Width = 1: Height = 268
+            BevelOuter = 0
+            Anchors = akLeft + akTop + akBottom
+            AccessibleHidden = 1
+        END CREATE
+    END CREATE
+    CREATE Orders AS RListBox
+        Left = 0: Top = 52: Width = 544: Height = 268
+        Anchors = akLeft + akTop + akRight + akBottom
+        AccessibleName = "Orders"
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Press Filters to open the drawer over the orders.": Left = 12: Top = 326: Width = 520
+        Anchors = akLeft + akRight + akBottom
+    END CREATE
+END CREATE
+
+' The orders the filters choose from: (number, customer, amount, sent).
+DIM num(5) AS INTEGER, who(5) AS STRING, amount(5) AS INTEGER, sent(5) AS INTEGER
+num(0) = 1041: who(0) = "Ada": amount(0) = 120: sent(0) = 1
+num(1) = 1042: who(1) = "Bruno": amount(1) = 35: sent(1) = 0
+num(2) = 1043: who(2) = "Chen": amount(2) = 260: sent(2) = 0
+num(3) = 1044: who(3) = "Dana": amount(3) = 80: sent(3) = 1
+num(4) = 1045: who(4) = "Emil": amount(4) = 145: sent(4) = 0
+num(5) = 1046: who(5) = "Fatima": amount(5) = 60: sent(5) = 1
+
+SUB FilterChanged
+    DIM i AS INTEGER, shown AS INTEGER
+    Orders.Clear
+    FOR i = 0 TO 5
+        IF (OpenOnly.Checked = 0 OR sent(i) = 0) AND (BigOnly.Checked = 0 OR amount(i) > 100) THEN
+            Orders.AddItems "#" + STR$(num(i)) + "  " + who(i) + "  " + STR$(amount(i)) + IIF(sent(i), "  sent", "  not sent")
+            shown = shown + 1
+        END IF
+    NEXT
+    Subtitle.Caption = STR$(shown) + " of 6 orders"
+END SUB
+
+SUB ToggleDrawer
+    IF DrawerShown THEN
+        CloseDrawer
+        EXIT SUB
+    END IF
+    DrawerShown = 1
+    Drawer.BringToFront
+    OpenOnly.SetFocus
+    Status.Caption = "The drawer is in front: it covers the orders and takes their clicks."
+END SUB
+
+SUB CloseDrawer
+    DrawerShown = 0
+    Drawer.SendToBack
+    FiltersBtn.SetFocus
+    Status.Caption = "The drawer is at the back, under the orders."
+END SUB
+
+' The theme's colours and icons, again after each change of look.
+SUB TakeColors
+    Header.Color = Application.ThemeColor("face")
+    Title.Font.Color = Application.ThemeColor("page.text")
+    Subtitle.Font.Color = Application.ThemeColor("page.dim")
+    Drawer.Color = Application.ThemeColor("card")
+    Edge.Color = Application.ThemeColor("border")
+    Status.Font.Color = Application.ThemeColor("page.dim")
+    FilterIcon.LoadIcon "filter", 16
+    FiltersBtn.BMPHandle = FilterIcon
+    CloseIcon.LoadIcon "close", 16
+    CloseBtn.BMPHandle = CloseIcon
+END SUB
+
+' (the chrome's font, Inter 10 pt; the title bold, the line under it 9 pt)
+UiFont.Name = "Inter": UiFont.Size = 10
+Form.Font = UiFont
+Title.Font.Bold = 1
+DrawerTitle.Font.Bold = 1
+Subtitle.Font.Size = 9
+FilterChanged
+TakeColors
+Application.OnThemeChange = TakeColors
+Form.ShowModal

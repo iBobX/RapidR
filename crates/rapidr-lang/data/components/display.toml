@@ -8,7 +8,7 @@ rapidq = "QLABEL"
 visual = true
 size = [65, 17]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -70,7 +70,7 @@ rapidq = "QIMAGE"
 visual = true
 size = [105, 105]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -149,7 +149,7 @@ rapidq = "QCANVAS"
 visual = true
 size = [105, 105]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -231,7 +231,7 @@ rapidq = "QHEADER"
 visual = true
 size = [320, 17]
 default_event = "OnSectionClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A row of headings (sections) the user can click and resize, as above a list's columns."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alTop" },
@@ -310,7 +310,7 @@ name = "RPROGRESS"
 display = "Progress"
 visual = true
 size = [200, 25]
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RProgressBar is the gauge that shows a bar, a pie, a needle or the percentage."
 properties = [
   { name = "Left", type = "int", default = 0 },
@@ -337,7 +337,7 @@ display = "ProgressBar"
 rapidq = "QGAUGE"
 visual = true
 size = [100, 100]
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "The gauge: shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -375,7 +375,7 @@ display = "DesignSurface"
 visual = true
 size = [640, 480]
 default_event = "OnSelect"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "RapidR's form designer: places components on a grid, lets the user select, move and resize them, and keeps their properties. The IDE is built on it."
 properties = [
   { name = "Width", type = "int" },
@@ -475,7 +475,7 @@ from = "QDigDisplay.inc"
 visual = true
 size = [12, 24]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

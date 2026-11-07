@@ -288,4 +288,6 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Xticks(names, [positions])` | ✓ | ✓ | Names the X axis' ticks ("Jan,Feb,Mar"), at positions, or at the first series' x values when there are as many, else at 0, 1, 2 … |
 | `Xscale(type)` | ✓ | ✓ | "linear" or "log" (kept with the chart; drawn linear). |
 | `Yscale(type)` | ✓ | ✓ | "linear" or "log" (kept with the chart; drawn linear). |
+| `BringToFront` | ✓ | ✓ | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | ✓ | ✓ | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 

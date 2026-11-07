@@ -68,7 +68,8 @@ pub struct FormUi {
     /// The form's id, lowercase.
     pub form: String,
     /// Its components, parents before children, siblings in creation
-    /// order (the last created drawn on top).
+    /// order (the last created drawn on top) — or as the program stacked
+    /// them (BringToFront / SendToBack: rapidr_value::zorder).
     pub nodes: Vec<Node>,
     pub focus: Option<usize>,
     /// Under the mouse.
@@ -227,7 +228,10 @@ impl FormUi {
         // (and a dock manager's slid-out pane over its groups)
         // (and a shown command palette, a toolbox dragging, over their neighbours)
         // (and a full-screen QDXSCREEN over everything on its form)
-        let children = components::dock::stacked(parent_id, components::mdi::stacked(parent_id, store.children(parent_id)));
+        // (first the program's own stacking: BringToFront / SendToBack —
+        // rapidr_value::zorder —, under the overlays above)
+        let children = rapidr_value::zorder::stacked(store.children(parent_id), |id| store::int(store, id, rapidr_value::zorder::KEY, 0));
+        let children = components::dock::stacked(parent_id, components::mdi::stacked(parent_id, children));
         let children = components::panels::palette::stacked(parent_id, components::panels::toolbox::stacked(parent_id, children));
         // (and a notification overlay over every neighbour, a palette too)
         let children = components::panels::notify::stacked(parent_id, children);

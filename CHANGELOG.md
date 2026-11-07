@@ -7,6 +7,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **`BringToFront` and `SendToBack` on every component on a form** (RapidR's, [the manual](docs/manual/components.md#stacking-bringtofront-and-sendtoback)): a component over or under its siblings — drawn on top **and** taking their clicks where it covers them (a drawer panel opened over the workspace), its own components with it; the layout doesn't move. One rule in the UI kernel for the desktop, native builds, the interpreter and the web. Example: `examples/gui/drawer.rr`.
+- **`RDBGrid.Col`, the current column** (RapidR's): a click on a cell sets it (`OnCellClick` says the same column), Left and Right move it (scrolled into view, kept in the data's columns), the program reads and sets it; the current cell has the focus box while the grid has the keyboard. Example: `examples/data/grid_cells.rr`.
+
+### Fixed
+- **Grids reach screen readers as tables**: an `RDBGrid`'s and an `RStringGrid`'s rows hold their cells (each named with its column's heading and its place: "Name, Ada, row 2 of 10, column 1 of 3", counted from 1), the fixed row's cells are column headings, and the current cell has the screen reader's focus, so each arrow key says the new cell — before, a data grid's rows were only "Row 0 of 400" with nothing under them. A string grid too big to describe whole describes the rows around the current one. An `RListView`'s report view says each row's other columns with their headings. In a browser the cells carry ARIA's row and column numbers and headings.
+
 ## [2.123.0] - 2026-11-07 (Preview 6)
 
 ### Added

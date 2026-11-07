@@ -144,6 +144,9 @@ struct Bound {
 struct Grid {
     source: String,
     top: usize,
+    /// (RapidR's) The current column, from 0 (Col): the cell the arrows
+    /// move, OnCellClick's, the one a screen reader is on.
+    col: usize,
     read_only: bool,
     /// The column its view is sorted by, descending.
     sort: Option<(usize, bool)>,
@@ -437,6 +440,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
                 "readonly" => flag(g.read_only),
                 "toprow" => v_int(g.top as i64),
                 "row" => v_int(grid(&id).map_or(0, |d| d.row) as i64),
+                "col" => v_int(grid(&id).map_or(0, |d| d.col) as i64),
                 "rowcount" => v_int(grid(&id).map_or(0, |d| d.rows) as i64),
                 "colcount" => v_int(grid(&id).map_or(0, |d| frame::with_frame(&d.dataset, Frame::width)) as i64),
                 "columns" => v_str(&grid(&id).map(|d| frame::with_frame(&d.dataset, |f| f.columns.join(","))).unwrap_or_default()),
@@ -578,6 +582,18 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             if let Some(d) = grid(&id) {
                 move_to(&d.owner, Move::To(val.to_i64()));
             }
+            Some(Ok(()))
+        }
+        // (RapidR's: the current column, kept inside the data's columns as
+        // they come — a query of fewer columns moves it to their last)
+        ("RDBGRID", "col") => {
+            let col = usize::try_from(val.to_i64()).unwrap_or(0);
+            with(|s| {
+                if let Some(g) = s.grids.get_mut(&id) {
+                    g.col = col;
+                }
+            });
+            mark();
             Some(Ok(()))
         }
         ("RDBGRID", "toprow") => {
@@ -1260,6 +1276,9 @@ pub struct GridData {
     pub rows: usize,
     /// The current row (a data row).
     pub row: usize,
+    /// The current column (Col), inside the data's columns (0 when it has
+    /// none).
+    pub col: usize,
     pub version: u64,
     pub top: usize,
     pub sort: Option<(usize, bool)>,
@@ -1275,8 +1294,10 @@ pub fn grid(id: &str) -> Option<GridData> {
     ensure(&dataset);
     let rows = frame::with_frame(&dataset, Frame::height);
     clamp(&owner, rows);
-    let sort = g.sort.filter(|(c, _)| *c < frame::with_frame(&dataset, Frame::width));
-    Some(GridData { version: frame::version(&dataset), row: cursor(&owner).row, top: g.top.min(rows.saturating_sub(1)), rows, dataset, owner, sort, read_only: g.read_only })
+    let width = frame::with_frame(&dataset, Frame::width);
+    let sort = g.sort.filter(|(c, _)| *c < width);
+    let col = g.col.min(width.saturating_sub(1));
+    Some(GridData { version: frame::version(&dataset), row: cursor(&owner).row, col, top: g.top.min(rows.saturating_sub(1)), rows, dataset, owner, sort, read_only: g.read_only })
 }
 
 /// RDBGrid `id`'s view order while it is sorted: the data rows in view
@@ -1308,6 +1329,16 @@ pub fn grid_order(id: &str, d: &GridData) -> Option<(Rc<Vec<usize>>, Rc<Vec<usiz
         }
     });
     Some((rows, places))
+}
+
+/// RDBGrid `id`'s current column (Col): the arrows', a click's.
+pub fn set_grid_col(id: &str, col: usize) {
+    let id = key(id);
+    with(|s| {
+        if let Some(g) = s.grids.get_mut(&id) {
+            g.col = col;
+        }
+    });
 }
 
 /// RDBGrid `id`'s first row shown (in view order).

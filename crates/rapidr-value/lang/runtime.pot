@@ -2337,7 +2337,11 @@ msgid "Headings"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
-msgid "Row {row} of {total}"
+msgid "sorted descending"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted ascending"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/design.rs
@@ -3538,6 +3542,18 @@ msgstr ""
 
 #: crates/rapidr-value/src/dock/look.rs
 msgid "Auto-hide bottom"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "blank"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "row {row} of {rows}, column {column} of {columns}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "Row {row} of {total}"
 msgstr ""
 
 #: crates/rapidr-value/src/objects/codehelp.rs
