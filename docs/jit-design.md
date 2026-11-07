@@ -432,6 +432,22 @@ pause, then going on compiled to the right answer.
 - `tools/bench/vm_budgets.json`: `<name>_jit` beside the interpreter's
   (measured with `RAPIDR_JIT=off`).
 - `tools/check_jit_features.py`: §7's pins and features, §9's tree.
+- `interpreter/rapidr-jit/tests/fuzz_mutate.rs` (`#[ignore]`; `cargo test -p
+  rapidr-jit --test fuzz_mutate -- --ignored --nocapture`, knobs
+  `RAPIDR_FUZZ_ITERS` and `RAPIDR_FUZZ_SEED`): the bytecode of the seed
+  programs (hot loops, doubles and maths builtins, one-index arrays, a
+  recursive FUNCTION, a BYREF SUB, bitwise logic, nested loops, and the
+  three constructs of §12.8) is mutated in ways the verifier still accepts
+  (a jump retargeted, an operand swapped for another in range, byte flips);
+  every mutated module that verifies runs under the interpreter
+  (`RAPIDR_JIT=off`) and under the JIT (`RAPIDR_JIT=always`) and its output
+  and run-time error are compared. A mutation that makes a loop endless is
+  killed and skipped by the harness. **Result, 2026-11-06 (the merged
+  `merge-batch8` tree, 7 h 38 min): 29,617 verified mutated
+  programs run both ways with 0 differences; 9,106 endless-loop mutations
+  skipped** (log: `/Volumes/RapidRBuild/merge-batch8-fuzz.log`, outside git).
+  Before it, the core security audit's run of 2026-11-05 (6,066 modules,
+  0 differences, 0 crashes: `docs/security/audit-2026-11-05-core.md` §2).
 
 ### 12.5 Numbers (`rapidr run`, CPU ms, the fastest of 5; M4 Max busy with other lanes)
 
