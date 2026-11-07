@@ -115,7 +115,10 @@ SUB ExtShowBar
     EXIT SUB
   END IF
   t = TR$("{file} changed on disk while you were editing it.", "file", FileTitle(DocFile(d)))
-  b = TR$("&Compare") + "," + TR$("&Use Disk Version") + "," + TR$("&Keep Mine")
+  ' (a decision between three answers: all three shown, quiet, each with its
+  ' icon; none is the main one)
+  b = "compare|" + TR$("&Compare") + ",refresh|" + TR$("&Use Disk Version") + ",check|" + TR$("&Keep Mine")
+  ExtBar.Primary = 0
   IF ExtAskNew = d THEN
     ' (new: said to a screen reader at once, once)
     ExtAskNew = -1

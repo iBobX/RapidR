@@ -968,14 +968,17 @@ Small messages that pop up, say what happened and get out of the way: toasts, dr
 <a id="rnotifybar"></a>
 ## RNotifyBar
 
-A question the person must answer before work goes on, as one slim line across the top of what it is about: a mark in the warning colour, an icon, the question in bold and compact buttons at the right end (under the question when there is no room for both). It is not a dialog and not a toast: it stays on the thing it asks about until a button is pressed, and covers nothing, because Align = alTop pushes what is under it down. Ask shows it and has a screen reader say it once, at once; OnChoose hears the button. Keyboard: Tab and the arrows move between the buttons, Enter presses one, a button's underlined letter presses it, Escape leaves it with the question still asked (OnEscape).
+A question the person must answer before work goes on, as one slim line across the top of what it is about: a mark in the warning colour, an icon, the question in regular weight and compact quiet buttons at the right end: 24 px tall in the small font, each an icon of RapidR's with its words (the main one soft-filled, the others plain), icon only when the room is tight, then a More button (the three dots) for the rest and a close X. The question is cut with an ellipsis before anything wraps; under it only when even that is not enough. It is not a dialog and not a toast: it stays on the thing it asks about until a button is pressed, and covers nothing, because Align = alTop pushes what is under it down. Ask shows it and has a screen reader say it once, at once; OnChoose hears the button. Keyboard: Tab and the arrows move between the buttons, More and the close X, Enter presses one, a button's underlined letter presses it, Escape leaves it with the question still asked (OnEscape).
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alTop` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Text` | string | `""` | The question. It is cut with an ellipsis when it doesn't fit beside the buttons (its tooltip and a screen reader have it whole). |
 | `Kind` | string | `"warning"` | "warning" (the default), "info", "success" or "error": the colour of its mark and its icon. |
-| `Buttons` | string | `""` | The buttons' captions, separated by commas, up to six; an & before a letter underlines it and makes it press the button ("&Compare,&Use Disk Version,&Keep Mine"). |
+| `Buttons` | string | `""` | The buttons, separated by commas, up to six: each an optional icon of RapidR's, a bar and its caption ("compare\|&Compare,refresh\|&Use Disk Version,check\|&Keep Mine"); an & before a letter underlines it and makes it press the button. Two are the most a strip shows, the main one and one more; a decision between three answers may show three. The rest go behind More. |
+| `More` | bool | False | Shows a More button (the three dots) after the buttons: OnMore says where its menu goes, and the program opens one (a pop-up menu drawn by RapidR) with the choices that did not fit. |
+| `Closable` | bool | False | Shows a close X at the strip's right end, named "Dismiss" for a screen reader: the strip goes and OnChoose hears index 0. |
+| `Primary` | int | 1 | The main button (from 1; 0 none): it is soft-filled and keeps its words when the room is tight, the others are plain. |
 | `ButtonCount` (read-only) | int |  | How many buttons it has. |
 | `Choice` (read-only) | int |  | The button pressed last (from 1; 0 until one was). |
 | `Height` | int |  | Its height: one line (36 pixels in RapidR's look), two when the width has no room for the question beside the buttons. The component sets it as the width changes. |
@@ -1000,12 +1003,13 @@ A question the person must answer before work goes on, as one slim line across t
 |---|---|
 | `Ask(Text AS STRING, Buttons AS STRING, [Kind AS STRING])` | Shows the strip with this question and these buttons (a comma-separated list, & marking each one's letter), and has a screen reader say it once, at once. Kind is "warning" by default. |
 | `Hide` | Takes the strip away without an answer. |
-| `Press(Index AS INTEGER) AS INTEGER` | Does what a click on button Index (from 1) does: the strip goes and OnChoose hears it. True when it was shown and had that button. How a program, RAI or an AI app answers it. |
+| `Press(Index AS INTEGER) AS INTEGER` | Does what a click on button Index (from 1; 0 the close X) does: the strip goes and OnChoose hears it. True when it was shown and had that button. How a program, RAI or an AI app answers it. |
 | `SetFocus` | Gives the keyboard to the strip's buttons. |
 
 | Event | |
 |---|---|
-| `OnChoose(Index AS INTEGER, Caption AS STRING)` | A button was pressed (by the mouse, the keyboard, its letter or Press): its number from 1 and its caption without the & mark. The strip has already gone. |
+| `OnChoose(Index AS INTEGER, Caption AS STRING)` | A button was pressed (by the mouse, the keyboard, its letter or Press): its number from 1 (0 for the close X, caption "Dismiss") and its caption without the & mark. The strip has already gone. |
+| `OnMore(Right AS INTEGER, Bottom AS INTEGER)` | The user pressed More: Right and Bottom are the button's right edge and bottom in the form, where a pop-up menu goes (set its Alignment to paRightAlign and call Popup). |
 | `OnEscape` | The user pressed Escape in the strip: give the keyboard back to what they were doing; the question stays. |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |

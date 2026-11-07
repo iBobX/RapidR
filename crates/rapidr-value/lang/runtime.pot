@@ -2733,6 +2733,18 @@ msgid "Nothing yet."
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "More"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs crates/rapidr-value/src/panels/notifybar.rs
+msgid "Dismiss"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "Opens a menu with more choices"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
 msgid "A question: choose one answer."
 msgstr ""
 

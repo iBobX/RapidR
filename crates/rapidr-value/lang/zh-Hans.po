@@ -2763,6 +2763,18 @@ msgid "Nothing yet."
 msgstr "暂时没有内容。"
 
 #: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "More"
+msgstr "更多"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs crates/rapidr-value/src/panels/notifybar.rs
+msgid "Dismiss"
+msgstr "忽略"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "Opens a menu with more choices"
+msgstr "打开包含更多选项的菜单"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
 msgid "A question: choose one answer."
 msgstr "一个问题：请选择一个答案。"
 

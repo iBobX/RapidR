@@ -3330,6 +3330,14 @@ msgid "{file} taken off Recent"
 msgstr ""
 
 #: ide/crash.inc
+msgid "Cop&y Report"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr ""
+
+#: ide/crash.inc
 msgid "RapidR Studio isn't responding"
 msgstr ""
 
@@ -3358,23 +3366,11 @@ msgid "A report stays on this computer; nothing was sent."
 msgstr ""
 
 #: ide/crash.inc
-msgid "&View Report"
-msgstr ""
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr ""
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr ""
-
-#: ide/crash.inc
 msgid "Report on &GitHub..."
 msgstr ""
 
 #: ide/crash.inc
-msgid "&Dismiss"
+msgid "&View Report"
 msgstr ""
 
 #: ide/crash.inc

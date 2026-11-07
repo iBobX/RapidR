@@ -3371,6 +3371,14 @@ msgid "{file} taken off Recent"
 msgstr "已从最近记录中移除 {file}"
 
 #: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "复制报告(&Y)"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "保存报告(&S)..."
+
+#: ide/crash.inc
 msgid "RapidR Studio isn't responding"
 msgstr "RapidR Studio 没有响应"
 
@@ -3400,24 +3408,12 @@ msgid "A report stays on this computer; nothing was sent."
 msgstr "报告保存在这台电脑上，没有发送任何内容。"
 
 #: ide/crash.inc
-msgid "&View Report"
-msgstr "查看报告(&V)"
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr "复制报告(&Y)"
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr "保存报告(&S)..."
-
-#: ide/crash.inc
 msgid "Report on &GitHub..."
 msgstr "在 GitHub 上报告(&G)..."
 
 #: ide/crash.inc
-msgid "&Dismiss"
-msgstr "忽略(&D)"
+msgid "&View Report"
+msgstr "查看报告(&V)"
 
 #: ide/crash.inc
 msgid "The report isn't there any more."

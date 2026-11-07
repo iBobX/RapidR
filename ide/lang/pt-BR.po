@@ -3367,6 +3367,14 @@ msgid "{file} taken off Recent"
 msgstr "{file} removido dos recentes"
 
 #: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "&Copiar relatório"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "&Salvar relatório..."
+
+#: ide/crash.inc
 msgid "RapidR Studio isn't responding"
 msgstr "O RapidR Studio não está respondendo"
 
@@ -3396,24 +3404,12 @@ msgid "A report stays on this computer; nothing was sent."
 msgstr "Um relatório fica neste computador; nada foi enviado."
 
 #: ide/crash.inc
-msgid "&View Report"
-msgstr "&Ver relatório"
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr "&Copiar relatório"
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr "&Salvar relatório..."
-
-#: ide/crash.inc
 msgid "Report on &GitHub..."
 msgstr "Relatar no &GitHub..."
 
 #: ide/crash.inc
-msgid "&Dismiss"
-msgstr "&Dispensar"
+msgid "&View Report"
+msgstr "&Ver relatório"
 
 #: ide/crash.inc
 msgid "The report isn't there any more."

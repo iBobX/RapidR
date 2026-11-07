@@ -3,7 +3,7 @@
 //! "Notifications").
 
 use super::notify::*;
-use super::notifybar::{self, by_letter, compact_h, parse_buttons, Bar, BUTTON_GAP, EDGE, TEXT_X};
+use super::notifybar::{self, by_letter, compact_h, parse_buttons, Bar, Part, BUTTON_GAP, EDGE, TEXT_X};
 use crate::objects::font::Font;
 use crate::objects::text::text_size;
 
@@ -302,4 +302,116 @@ fn a_strip_button_is_pressed_by_its_letter() {
     assert_eq!(by_letter(&b, 'U'), Some(1));
     assert_eq!(by_letter(&b, 'z'), None);
     assert_eq!(notifybar::spoken(&bar()), "main.rr changed on disk while you were editing it. Compare, Use Disk Version, Keep Mine");
+}
+
+fn crash_bar() -> Bar {
+    Bar {
+        text: "RapidR Studio closed unexpectedly last time. A report stays on this computer; nothing was sent.".into(),
+        buttons: parse_buttons("external|Report on &GitHub...,visible|&View Report"),
+        more: true,
+        closable: true,
+        primary: 1,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn a_strip_is_compact_two_actions_more_and_a_close_x_in_one_line() {
+    let (_, f) = bar_fonts();
+    let small = notifybar::small(&f);
+    let g = crash_bar().layout(1200, &f, &small);
+    assert!(!g.two_lines);
+    assert_eq!(g.height, compact_h() + 12, "one slim line");
+    // (every control 24 tall, the close X a 24 square at the right end, More before it)
+    assert!(g.buttons.iter().all(|r| r.3 == compact_h()));
+    let (more, close) = (g.more.unwrap(), g.close.unwrap());
+    assert_eq!((close.2, close.3), (compact_h(), compact_h()));
+    assert_eq!(close.0 + close.2, 1200 - notifybar::EDGE);
+    assert_eq!((more.2, more.3), (compact_h(), compact_h()));
+    assert!(g.buttons.last().unwrap().0 + g.buttons.last().unwrap().2 < more.0 && more.0 + more.2 < close.0);
+    // (with room both keep their words)
+    assert_eq!(g.icon_only, vec![false, false]);
+    // (the parts the keyboard walks: the buttons, More, the close X)
+    assert_eq!(crash_bar().parts(), vec![Part::Button(0), Part::Button(1), Part::More, Part::Close]);
+}
+
+#[test]
+fn a_tight_strip_cuts_the_question_and_keeps_the_main_buttons_words_before_anything_wraps() {
+    let (_, f) = bar_fonts();
+    let small = notifybar::small(&f);
+    let bar = crash_bar();
+    // (no room for everything: the secondary button goes icon only, the question stays whole or is cut)
+    let mut one_line = None;
+    for w in (300..1200).rev().step_by(8) {
+        let g = bar.layout(w, &f, &small);
+        if g.two_lines {
+            break;
+        }
+        one_line = Some((w, g));
+    }
+    let (w, g) = one_line.expect("one line down to some width");
+    // (before it wraps, the question was cut with an ellipsis, the main button kept its words)
+    assert!(g.shown.ends_with('\u{2026}'), "{w}: {}", g.shown);
+    assert!(g.icon_only[1] && !g.icon_only[0], "{w}: the secondary button is icon only, the main one keeps its words: {:?}", g.icon_only);
+    assert!(g.shown.chars().count() >= notifybar::KEEP_CHARS - 2, "{w}: {}", g.shown);
+    // (everything inside the strip)
+    assert!(g.rects().iter().all(|r| r.0 >= 0 && r.0 + r.2 <= w));
+}
+
+#[test]
+fn a_decision_strip_shows_all_three_quiet_buttons_with_icons_and_no_main_one() {
+    let (_, f) = bar_fonts();
+    let small = notifybar::small(&f);
+    let bar = Bar { text: "main.rr changed on disk while you were editing it.".into(), buttons: parse_buttons("compare|&Compare,refresh|&Use Disk Version,check|&Keep Mine"), primary: 0, ..Default::default() };
+    let g = bar.layout(1000, &f, &small);
+    assert!(!g.two_lines && g.icon_only == vec![false, false, false]);
+    assert!(g.more.is_none() && g.close.is_none());
+    assert_eq!(notifybar::spoken(&bar), "main.rr changed on disk while you were editing it. Compare, Use Disk Version, Keep Mine");
+    // (the question is in regular weight: the same font for it and its measure)
+    assert!(g.text.2 > 0);
+    // (very tight: icon only, never a wrapped row before the question is cut)
+    let t = bar.layout(560, &f, &small);
+    assert!(!t.two_lines && t.icon_only.iter().all(|o| *o), "{t:?}");
+}
+
+#[test]
+fn with_a_main_action_the_others_lose_their_words_before_the_question_is_cut() {
+    let (_, f) = bar_fonts();
+    let small = notifybar::small(&f);
+    let bar = crash_bar();
+    // (narrowing from a wide strip: the first step is the secondary button icon only
+    // with the question still whole; only a narrower strip cuts the question)
+    let mut steps = Vec::new();
+    for w in (300..1400).rev() {
+        let g = bar.layout(w, &f, &small);
+        if g.two_lines {
+            break;
+        }
+        let step = (g.icon_only[1], g.shown == bar.text);
+        if steps.last() != Some(&step) {
+            steps.push(step);
+        }
+    }
+    assert_eq!(steps, vec![(false, true), (true, true), (true, false)], "words and whole question, then icon only, then the question cut");
+}
+
+#[test]
+fn equal_choices_keep_their_words_while_the_question_is_cut_first() {
+    let (_, f) = bar_fonts();
+    let small = notifybar::small(&f);
+    let bar = Bar { text: "main.rr changed on disk while you were editing it.".into(), buttons: parse_buttons("compare|&Compare,refresh|&Use Disk Version,check|&Keep Mine"), primary: 0, ..Default::default() };
+    // (no main action: the words are the decision, so the question is cut first; only then the
+    // buttons go icon only, which gives the room back to the question before it is cut again)
+    let mut steps = Vec::new();
+    for w in (300..1400).rev() {
+        let g = bar.layout(w, &f, &small);
+        if g.two_lines {
+            break;
+        }
+        let step = (g.icon_only.iter().all(|o| *o), g.shown == bar.text);
+        if steps.last() != Some(&step) {
+            steps.push(step);
+        }
+    }
+    assert_eq!(steps, vec![(false, true), (false, false), (true, true), (true, false)]);
 }

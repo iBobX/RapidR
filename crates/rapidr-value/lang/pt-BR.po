@@ -2761,6 +2761,18 @@ msgid "Nothing yet."
 msgstr "Ainda não há nada."
 
 #: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "More"
+msgstr "Mais"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs crates/rapidr-value/src/panels/notifybar.rs
+msgid "Dismiss"
+msgstr "Dispensar"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "Opens a menu with more choices"
+msgstr "Abre um menu com mais opções"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
 msgid "A question: choose one answer."
 msgstr "Uma pergunta: escolha uma resposta."
 

@@ -4142,3 +4142,15 @@ msgstr "Una pregunta: elige una respuesta."
 #: crates/rapidr-ui-kernel/src/components/panels/notify.rs
 msgid "This can no longer be done."
 msgstr "Esto ya no se puede hacer."
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "Dismiss"
+msgstr "Descartar"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "More"
+msgstr "Más"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "Opens a menu with more choices"
+msgstr "Abre un menú con más opciones"

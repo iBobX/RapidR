@@ -1,4 +1,4 @@
-<!-- translated-from: notifications.md 4adf3555f8cbb673 -->
+<!-- translated-from: notifications.md a1f06408e529eb33 -->
 # Notificaciones: mensajes que aparecen y preguntas que esperan
 
 Un programa tiene tres maneras de decirle algo a quien lo usa, y cada una tiene su propio tamaño.
@@ -86,7 +86,9 @@ SUB Chose (Index AS INTEGER, Caption AS STRING)
 END SUB
 ```
 
-`Ask(Text, Buttons, [Kind])` muestra la franja y hace que un lector de pantalla la diga una vez. Los botones son una lista separada por comas; un `&` subraya una letra que pulsa el botón. Cuando el ancho no da sitio a la pregunta y a los botones en una línea, los botones pasan debajo de la pregunta. `OnEscape` oye Escape (devuelve el teclado; la pregunta sigue en pie), `Press(Index)` la responde como lo haría un clic.
+`Ask(Text, Buttons, [Kind])` muestra la franja y hace que un lector de pantalla la diga una vez. Los botones son una lista separada por comas; cada uno puede empezar con un icono de RapidR y una barra (`"compare|&Comparar"`), y un `&` subraya una letra que pulsa el botón.
+
+La franja es compacta y discreta: botones de 24 píxeles de alto en la letra pequeña, el principal (`Primary`, el primero por omisión) con un relleno suave de acento, los demás sin marco. Muestra como máximo dos acciones. Para el resto pon `More = 1`: un botón de tres puntos cuyo `OnMore (Right, Bottom)` dice dónde abrir un menú emergente (`Alignment = paRightAlign`, luego `Popup Right, Bottom`). `Closable = 1` añade una X para cerrar (llamada *Descartar*; `OnChoose` oye el índice 0). Cuando el ancho es justo, los demás botones muestran solo su icono, luego la pregunta se corta con «…» (entera en la sugerencia); una franja sin botón principal (`Primary = 0`: opciones iguales, donde las palabras son la decisión) corta primero la pregunta y pasa a solo icono después. Solo por debajo de eso los botones pasan bajo la pregunta. `OnEscape` oye Escape (devuelve el teclado; la pregunta sigue en pie), `Press(Index)` la responde como lo haría un clic (`Press(0)` la X de cerrar).
 
 ## Pruébalo
 

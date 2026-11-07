@@ -8169,7 +8169,7 @@ const CASES = [
     contrast: true,
     a11y: [[/^main\.rr changed on disk while you were editing it\. Compare, Use Disk Version, Keep Mine$/, null], ["Compare", "button"], ["Use Disk Version", "button"], ["Keep Mine", "button"]],
     dump: {
-      "extbar.visible": /^1$/, "extbar.text": /^main\.rr changed on disk while you were editing it\.$/, "extbar.buttons": /^&Compare,&Use Disk Version,&Keep Mine$/, "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES,
+      "extbar.visible": /^1$/, "extbar.text": /^main\.rr changed on disk while you were editing it\.$/, "extbar.buttons": /^compare\|&Compare,refresh\|&Use Disk Version,check\|&Keep Mine$/, "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES,
       "outputbox.text": /bar=ask \| main\.rr:main\.rr:dirty=1:ask=1:gone=0/,
     },
   },
@@ -8217,7 +8217,7 @@ const CASES = [
     capture: true,
     contrast: true,
     a11y: [[/^main\.rr cambió en el disco mientras lo editabas\. Comparar, Usar la versión del disco, Conservar la mía$/, null], ["Comparar", "button"], ["Usar la versión del disco", "button"], ["Conservar la mía", "button"]],
-    dump: { "extbar.visible": /^1$/, "extbar.text": /^main\.rr cambió en el disco mientras lo editabas\.$/, "extbar.buttons": /^&Comparar,&Usar la versión del disco,Conservar la &mía$/ },
+    dump: { "extbar.visible": /^1$/, "extbar.text": /^main\.rr cambió en el disco mientras lo editabas\.$/, "extbar.buttons": /^compare\|&Comparar,refresh\|&Usar la versión del disco,check\|Conservar la &mía$/ },
   },
   {
     name: "ext-many-es",
@@ -8903,7 +8903,7 @@ const CASES = [
     restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
     dump: {
       "crashbar.visible": /^1$/,
-      "crashbar.buttons": /Report on &GitHub\.\.\./,
+      "crashbar.buttons": /external\|Report on &GitHub\.\.\./,
       "outputbox.text": /\[crash\] bar=1 /,
     },
   },
@@ -9198,12 +9198,27 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    a11y: [[/^RapidR Studio closed unexpectedly last time\. A report stays on this computer; nothing was sent\. View Report, Copy Report, Save Report\.\.\., Report on GitHub\.\.\., Dismiss$/, null], ["View Report", "button"], ["Copy Report", "button"], ["Save Report...", "button"], ["Report on GitHub...", "button"], ["Dismiss", "button"]],
+    a11y: [[/^RapidR Studio closed unexpectedly last time\. A report stays on this computer; nothing was sent\. Report on GitHub\.\.\., View Report$/, null], ["Report on GitHub...", "button"], ["View Report", "button"], ["More", "button"], ["Dismiss", "button"]],
     dump: {
       "crashbar.visible": /^1$/, "crashbar.text": /^RapidR Studio closed unexpectedly last time\. A report stays on this computer; nothing was sent\.$/,
-      "crashbar.buttons": /^&View Report,Cop&y Report,Sa&ve Report\.\.\.,Report on &GitHub\.\.\.,&Dismiss$/,
+      "crashbar.buttons": /^external\|Report on &GitHub\.\.\.,visible\|&View Report$/, "crashbar.more": /^(-1|1|True)$/i, "crashbar.closable": /^(-1|1|True)$/i,
       "outputbox.text": /\[crash\] bar=1 report=\d{8}-\d{6}-studio-\d+-crash\.txt kind=crash pending=\d{8}-\d{6}-studio-\d+-crash\.txt /,
     },
+  },
+  {
+    // (a narrow Studio: the question is cut, the secondary button icon only —
+    // nothing wraps before that — and More and the close X stay at the right)
+    name: "crash-banner-narrow",
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_RESIZE: "560,700" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Report on GitHub...", "button"], ["View Report", "button"], ["More", "button"], ["Dismiss", "button"]],
+    dump: { "crashbar.visible": /^1$/, "crashbar.height": /^(36|33)$/ },
   },
   {
     // (in Spanish: the strip, its buttons)
@@ -9217,8 +9232,8 @@ const CASES = [
     themes: ["rapidr-light", "rapidr-dark"],
     capture: true,
     contrast: true,
-    a11y: [[/^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe queda en esta computadora; no se envió nada\. Ver informe, /, null], ["Ver informe", "button"], ["Copiar informe", "button"], ["Guardar informe...", "button"], ["Informar en GitHub...", "button"], ["Ocultar", "button"]],
-    dump: { "crashbar.visible": /^1$/, "crashbar.text": /^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe queda en esta computadora; no se envió nada\.$/, "crashbar.buttons": /^&Ver informe,/ },
+    a11y: [[/^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe queda en esta computadora; no se envió nada\. Informar en GitHub\.\.\., Ver informe$/, null], ["Informar en GitHub...", "button"], ["Ver informe", "button"], ["Más", "button"], ["Descartar", "button"]],
+    dump: { "crashbar.visible": /^1$/, "crashbar.text": /^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe queda en esta computadora; no se envió nada\.$/, "crashbar.buttons": /^external\|Informar en Git&Hub\.\.\.,visible\|&Ver informe$/ },
   },
   {
     // (Copy Report: the report's text on the clipboard; seen — not offered

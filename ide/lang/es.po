@@ -3418,6 +3418,14 @@ msgid "{file} taken off Recent"
 msgstr "{file} se quitó de recientes"
 
 #: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "Cop&iar informe"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "&Guardar informe..."
+
+#: ide/crash.inc
 msgid "RapidR Studio isn't responding"
 msgstr "RapidR Studio no responde"
 
@@ -3446,26 +3454,14 @@ msgstr "La última vez, RapidR Studio se cerró de forma inesperada."
 msgid "A report stays on this computer; nothing was sent."
 msgstr "Un informe queda en esta computadora; no se envió nada."
 
-# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
-#: ide/crash.inc
-msgid "&View Report"
-msgstr "&Ver informe"
-
-#: ide/crash.inc
-msgid "Cop&y Report"
-msgstr "Cop&iar informe"
-
-#: ide/crash.inc
-msgid "Sa&ve Report..."
-msgstr "&Guardar informe..."
-
 #: ide/crash.inc
 msgid "Report on &GitHub..."
 msgstr "Informar en Git&Hub..."
 
+# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
 #: ide/crash.inc
-msgid "&Dismiss"
-msgstr "&Ocultar"
+msgid "&View Report"
+msgstr "&Ver informe"
 
 #: ide/crash.inc
 msgid "The report isn't there any more."

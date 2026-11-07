@@ -85,7 +85,9 @@ SUB Chose (Index AS INTEGER, Caption AS STRING)
 END SUB
 ```
 
-`Ask(Text, Buttons, [Kind])` shows the strip and has a screen reader say it once. The buttons are a comma-separated list; an `&` underlines a letter that presses the button. When the width has no room for the question and the buttons on one line, the buttons go under the question. `OnEscape` hears Escape (give the keyboard back; the question stays), `Press(Index)` answers it as a click would.
+`Ask(Text, Buttons, [Kind])` shows the strip and has a screen reader say it once. The buttons are a comma-separated list; each can start with an icon of RapidR's and a bar (`"compare|&Compare"`), and an `&` underlines a letter that presses the button.
+
+The strip is compact and quiet: buttons 24 pixels tall in the small font, the main one (`Primary`, the first by default) with a soft accent fill, the others plain. Show at most two actions. For the rest set `More = 1`: a three-dots button whose `OnMore (Right, Bottom)` tells you where to open a pop-up menu (`Alignment = paRightAlign`, then `Popup Right, Bottom`). `Closable = 1` adds a close X (named *Dismiss*; `OnChoose` hears index 0). When the width is tight the other buttons show their icon only, then the question is cut with "…" (its whole is in the tooltip); a strip with no main button (`Primary = 0`: equal choices, where the words are the decision) cuts the question first and goes icon only after it. Only below that do the buttons go under the question. `OnEscape` hears Escape (give the keyboard back; the question stays), `Press(Index)` answers it as a click would (`Press(0)` the close X).
 
 ## Try it
 

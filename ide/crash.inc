@@ -30,6 +30,9 @@ DECLARE SUB CrashCheck
 DECLARE SUB CrashShowBar
 DECLARE SUB CrashHideBar
 DECLARE SUB CrashChoose(Index AS INTEGER, Caption AS STRING)
+DECLARE SUB CrashMoreOpen(Right AS INTEGER, Bottom AS INTEGER)
+DECLARE SUB CrashMenuPicked(Sender AS RMenuItem)
+DECLARE SUB CrashMenuWords
 DECLARE SUB CrashAct(Tag AS INTEGER)
 DECLARE SUB CrashView(Name AS STRING)
 DECLARE SUB CrashCopy(Name AS STRING)
@@ -50,8 +53,8 @@ DIM CrashAnswer AS INTEGER
 ' (what Report on GitHub opened last, and what Copy copied: crash:report)
 DIM CrashLastURL AS STRING
 DIM CrashCopied AS INTEGER
-' (the strip's buttons, in order: "1,2,3,4,5" — View, Copy, Save, GitHub,
-' Dismiss —, without 4 under School Lock)
+' (the strip's buttons, in order: "4,1" — GitHub, View —, without 4 under
+' School Lock; Copy (2), Save (3) are behind More, Dismiss (5) is the X)
 DIM CrashTags AS STRING
 
 CREATE CrashOfferTimer AS RTimer
@@ -68,9 +71,24 @@ END CREATE
 CREATE CrashBar AS RNotifyBar
   Align = 1
   OnChoose = CrashChoose
+  OnMore = CrashMoreOpen
 END CREATE
 
+' The strip's More: Copy Report and Save Report... (RapidR draws the menu).
+DIM CrashMenu AS RPopupMenu
+DIM CrashMenuItem(1) AS RMenuItem
+
 SUB SetUpCrash
+  DIM k AS INTEGER
+  CrashMenu.SystemMenu = 0
+  CrashMenu.Alignment = 1
+  CrashMenuItem(0).Tag = 2
+  CrashMenuItem(1).Tag = 3
+  FOR k = 0 TO 1
+    CrashMenuItem(k).OnClick = CrashMenuPicked
+    CrashMenu.AddItems CrashMenuItem(k)
+  NEXT
+  CrashMenuWords
   CrashBar.Parent = Studio
   CrashBar.Align = 1
   CrashBar.Top = ToolBar.Top + ToolBar.Height
@@ -80,8 +98,14 @@ SUB SetUpCrash
 END SUB
 
 ' The look and the words again (ApplyChrome: the theme, the language).
+SUB CrashMenuWords
+  CrashMenuItem(0).Caption = TR$("Cop&y Report")
+  CrashMenuItem(1).Caption = TR$("Sa&ve Report...")
+END SUB
+
 SUB ApplyCrashChrome
   CrashBar.Font = UIFont
+  CrashMenuWords
   IF CrashBar.Visible THEN CrashShowBar
   CrashWatchStart
 END SUB
@@ -122,14 +146,19 @@ SUB CrashShowBar
     t = TR$("RapidR Studio closed unexpectedly last time.")
   END IF
   t = t + " " + TR$("A report stays on this computer; nothing was sent.")
-  b = TR$("&View Report") + "," + TR$("Cop&y Report") + "," + TR$("Sa&ve Report...") + ","
-  CrashTags = "1,2,3,"
+  ' (two actions: the main one, Report on GitHub..., and View Report; Copy
+  ' Report and Save Report... behind More; Dismiss is the close X)
+  b = ""
+  CrashTags = ""
   IF CrashLocked = 0 THEN
-    b = b + TR$("Report on &GitHub...") + ","
-    CrashTags = CrashTags + "4,"
+    b = "external|" + TR$("Report on &GitHub...") + ","
+    CrashTags = "4,"
   END IF
-  b = b + TR$("&Dismiss")
-  CrashTags = CrashTags + "5"
+  b = b + "visible|" + TR$("&View Report")
+  CrashTags = CrashTags + "1"
+  CrashBar.Primary = 1
+  CrashBar.More = 1
+  CrashBar.Closable = 1
   CrashBar.Hint = Proj.CrashPath(CrashName)
   ' (asked once, aloud: the strip itself says it to a screen reader)
   CrashBar.Ask t, b, "warning"
@@ -141,7 +170,21 @@ END SUB
 
 ' The strip's button (its number from 1): which action it is, by CrashTags.
 SUB CrashChoose(Index AS INTEGER, Caption AS STRING)
-  CrashAct VAL(FIELD$(CrashTags, ",", Index))
+  ' (0: the close X, Dismiss)
+  IF Index = 0 THEN
+    CrashAct 5
+  ELSE
+    CrashAct VAL(FIELD$(CrashTags, ",", Index))
+  END IF
+END SUB
+
+' More: the menu under the button, its right edge at the button's.
+SUB CrashMoreOpen(Right AS INTEGER, Bottom AS INTEGER)
+  CrashMenu.Popup Right, Bottom
+END SUB
+
+SUB CrashMenuPicked(Sender AS RMenuItem)
+  CrashAct Sender.Tag
 END SUB
 
 SUB CrashAct(Tag AS INTEGER)
