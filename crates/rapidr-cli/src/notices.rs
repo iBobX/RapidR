@@ -96,6 +96,8 @@ impl Kind {
             "macos-x86_64" => vec!["x86_64-apple-darwin"],
             "windows-x86_64" => vec!["x86_64-pc-windows-gnullvm", "x86_64-pc-windows-msvc"],
             "windows-aarch64" => vec!["aarch64-pc-windows-gnullvm", "aarch64-pc-windows-msvc"],
+            // (32-bit Windows, 7 and later: the runner of the fast interpreter, no JIT)
+            "windows-x86" => vec!["i686-pc-windows-gnullvm", "i686-pc-windows-msvc"],
             "linux-x86_64" => vec!["x86_64-unknown-linux-gnu"],
             "linux-aarch64" => vec!["aarch64-unknown-linux-gnu"],
             _ => return Err(format!("unknown target '{t}': macos (universal), <os>-<arch> (macos-arm64, windows-x86_64, linux-x86_64, …), web, or tools-<os>")),

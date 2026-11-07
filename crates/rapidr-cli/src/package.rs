@@ -8,9 +8,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rapidr_package::{AppInfo, Icon, System};
-
-use crate::notices;
+use rapidr_package::{AppInfo, Icon, System, Target};
 
 /// What the command line asked for.
 #[derive(Debug, Default, Clone)]
@@ -27,6 +25,22 @@ pub struct Options {
     pub version: Option<String>,
     /// `--company <name>`
     pub company: Option<String>,
+    /// `--copyright <line>`
+    pub copyright: Option<String>,
+    /// `--description <one line>`
+    pub description: Option<String>,
+    /// `--website <https://…>`
+    pub website: Option<String>,
+    /// `--category <games|education|…>`
+    pub category: Option<String>,
+    /// `--kind <window|console>` (else the program's own)
+    pub kind: Option<String>,
+    /// `--theme-color <#RRGGBB>` (the web app's)
+    pub theme_color: Option<String>,
+    /// `--language <en|es>`: the README's in an archive
+    pub language: Option<String>,
+    /// `--include-source`: the program's source in the archives (`source/`)
+    pub include_source: bool,
     /// `--bundle` (a console program as an app too) / `--no-bundle` (a
     /// plain executable, no icon)
     pub bundle: Option<bool>,
@@ -59,6 +73,14 @@ impl Options {
             "--bundle-id" => self.bundle_id = Some(value("--bundle-id")?),
             "--app-version" => self.version = Some(value("--app-version")?),
             "--company" => self.company = Some(value("--company")?),
+            "--copyright" => self.copyright = Some(value("--copyright")?),
+            "--description" => self.description = Some(value("--description")?),
+            "--website" => self.website = Some(value("--website")?),
+            "--category" => self.category = Some(value("--category")?),
+            "--kind" => self.kind = Some(value("--kind")?),
+            "--theme-color" | "--theme-colour" => self.theme_color = Some(value(flag)?),
+            "--language" => self.language = Some(value("--language")?),
+            "--include-source" => self.include_source = true,
             "--project" => self.project = Some(value("--project")?),
             "--output" | "-o" => self.output = Some(value(flag)?),
             "--keep-rust" => self.keep_rust = Some(true),
@@ -149,12 +171,16 @@ pub fn project_for(source: &Path, explicit: Option<&str>) -> Result<Option<(Path
 
 /// What the build will make.
 pub struct Plan {
+    /// The system and processor it is for.
+    pub target: Target,
     pub system: System,
     pub info: AppInfo,
     pub icon: Icon,
     /// An app (macOS' .app, Linux' AppDir; Windows' resources) rather than a
     /// plain executable.
     pub bundle: bool,
+    /// `--bundle` / `--no-bundle` as asked (`None`: the system's way).
+    pub bundle_asked: Option<bool>,
     /// The data files the program names (`rapidr_project::program_files`:
     /// "staff.csv" beside it, "art/logo.svg" below it) and its translations
     /// (`lang/es.po`), put with what the build makes so the app finds them
@@ -162,12 +188,28 @@ pub struct Plan {
     /// AppDir's usr/bin, beside an executable — each as (its path there,
     /// `/`-separated; the file).
     pub data: Vec<(String, PathBuf)>,
+    /// The README's language in an archive.
+    pub language: String,
+    /// The program's source in the archives (`--include-source`).
+    pub include_source: bool,
+}
+
+/// An icon file read (`.icns`, `.ico`, `.png` or `.svg`).
+pub fn load_icon(path: &Path) -> Result<Icon, String> {
+    let shown = path.display();
+    let bytes = fs::read(path).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => format!("{shown}: the icon file isn't there"),
+        _ => format!("{shown}: can't read the icon ({e})"),
+    })?;
+    Icon::from_bytes(&bytes, &shown.to_string())
 }
 
 /// Decides the app's name, details and icon. `stem` is the executable's
 /// name; `option_icon` the last `$OPTION ICON`'s file (found already: the
-/// compiler checked it).
-pub fn plan(stem: &str, system: System, console: bool, opts: &Options, project: Option<&(PathBuf, rapidr_project::Project)>, option_icon: Option<&Path>) -> Result<Plan, String> {
+/// compiler checked it); `console` what the program is (a project's or the
+/// command line's `kind` decides over it).
+pub fn plan(stem: &str, target: Target, console: bool, opts: &Options, project: Option<&(PathBuf, rapidr_project::Project)>, option_icon: Option<&Path>) -> Result<Plan, String> {
+    let system = target.system().ok_or_else(|| format!("{}: a desktop system's app (the web's is a web build)", target.name()))?;
     let build = project.map(|(_, p)| &p.build);
     let pick = |cli: &Option<String>, proj: Option<&String>| cli.clone().filter(|s| !s.trim().is_empty()).or_else(|| proj.filter(|s| !s.trim().is_empty()).cloned());
     let name = pick(&opts.name, build.map(|b| &b.app_name))
@@ -189,8 +231,29 @@ pub fn plan(stem: &str, system: System, console: bool, opts: &Options, project: 
     if let Some(c) = pick(&opts.company, build.map(|b| &b.company)) {
         info.company = c.trim().to_string();
     }
-    info.console = console;
+    if let Some(c) = pick(&opts.copyright, build.map(|b| &b.copyright)) {
+        info.copyright = c.trim().to_string();
+    }
+    if let Some(d) = pick(&opts.description, build.map(|b| &b.description)) {
+        info.description = d.trim().to_string();
+    }
+    if let Some(w) = pick(&opts.website, build.map(|b| &b.website)) {
+        info.website = w.trim().to_string();
+    }
+    if let Some(c) = pick(&opts.category, build.map(|b| &b.category)) {
+        info.category = rapidr_package::Category::parse(&c)?;
+    }
+    if let Some(c) = pick(&opts.theme_color, build.map(|b| &b.theme_color)) {
+        info.theme_color = c.trim().to_string();
+    }
+    info.console = match pick(&opts.kind, build.map(|b| &b.kind)).map(|k| k.trim().to_ascii_lowercase()) {
+        None => console,
+        Some(k) if k == "console" => true,
+        Some(k) if k == "window" || k == "windowed" || k == "gui" => false,
+        Some(k) => return Err(format!("kind \"{k}\": window (an app with windows) or console")),
+    };
     info.check()?;
+    let language = pick(&opts.language, build.map(|b| &b.language)).unwrap_or_else(|| "en".into());
 
     // RC.EXE's -g is checked even when $OPTION ICON wins over it
     let rc_icon = match &opts.rc_icon {
@@ -211,32 +274,187 @@ pub fn plan(stem: &str, system: System, console: bool, opts: &Options, project: 
         option_icon.map(Path::to_path_buf).or(rc_icon)
     };
     let icon = match icon_path {
-        Some(p) => Icon::load(&p)?,
+        Some(p) => load_icon(&p)?,
         None => Icon::rapidr_default(),
     };
     let bundle = opts.bundle.unwrap_or(match system {
         System::Windows => true,
-        System::MacOs | System::Linux => !console,
+        System::MacOs | System::Linux => !info.console,
     });
-    Ok(Plan { system, info, icon, bundle, data: Vec::new() })
+    Ok(Plan { target, system, info, icon, bundle, bundle_asked: opts.bundle, data: Vec::new(), language, include_source: opts.include_source })
 }
 
-/// Appends a program's bytecode to a runner: `[rrbc][RRBCEXE1][u32 length]`
-/// (the runner reads it from its own end).
-pub fn with_payload(stub: &[u8], rrbc: &[u8]) -> Result<Vec<u8>, String> {
-    let len = u32::try_from(rrbc.len()).map_err(|_| "bytecode payload exceeds 4 GiB".to_string())?;
-    let mut out = Vec::with_capacity(stub.len() + rrbc.len() + 12);
-    out.extend_from_slice(stub);
-    out.extend_from_slice(rrbc);
-    out.extend_from_slice(b"RRBCEXE1");
-    out.extend_from_slice(&len.to_le_bytes());
-    Ok(out)
+/// The plan's data files read, as (path in the app, bytes): a link is
+/// refused (it could point anywhere: the build never follows one).
+pub fn read_data(plan: &Plan) -> Result<Vec<(String, Vec<u8>)>, String> {
+    plan.data
+        .iter()
+        .map(|(rel, f)| {
+            let meta = fs::symlink_metadata(f).map_err(|e| format!("{}: {e}", f.display()))?;
+            if meta.file_type().is_symlink() {
+                return Err(format!("{}: a link, not a file: the build never packs links (copy the file there instead)", f.display()));
+            }
+            Ok((rel.clone(), fs::read(f).map_err(|e| format!("{}: {e}", f.display()))?))
+        })
+        .collect()
+}
+
+/// The packer's input for `plan`.
+pub fn app<'a>(plan: &'a Plan, bytecode: Option<&'a [u8]>, data: &'a [(String, Vec<u8>)], source: &'a [(String, Vec<u8>)], mtime: i64) -> rapidr_package::App<'a> {
+    rapidr_package::App {
+        info: &plan.info,
+        icon: &plan.icon,
+        bytecode,
+        data,
+        bundle: Some(plan.bundle),
+        web_needs: None,
+        source,
+        mtime,
+        language: &plan.language,
+    }
+}
+
+/// The time an archive's entries get: `SOURCE_DATE_EPOCH` when set (a
+/// reproducible build), else now.
+pub fn build_time() -> i64 {
+    std::env::var("SOURCE_DATE_EPOCH")
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or_else(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64))
+}
+
+/// Signs a macOS app in `files` that the packer couldn't sign yet, with
+/// `codesign` (macOS' own): the `.app` written to a temporary folder,
+/// signed ad hoc and checked, read back. Used by folder builds and
+/// archives alike; elsewhere the app stays unsigned (said).
+///
+/// THE BRIDGE until RapidR's own Mach-O signer is in rapidr-package
+/// (rapidr_package::macos::sign_ad_hoc, the MACHO-SIGN lane): then this is
+/// deleted (docs/build-core-design.md §6).
+pub fn codesign_bridge(packed: &mut rapidr_package::Packed) -> Result<bool, String> {
+    if packed.signature != Some(rapidr_package::macos::Signature::NotYet) {
+        return Ok(packed.signature.is_some());
+    }
+    if !cfg!(target_os = "macos") {
+        return Ok(false);
+    }
+    static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let tmp = std::env::temp_dir().join(format!("rapidr-sign-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+    let _ = fs::remove_dir_all(&tmp);
+    let root = packed.main.clone();
+    let signed = (|| -> Result<Vec<(String, Vec<u8>, bool)>, String> {
+        for (rest, f) in packed.files.below(&root) {
+            write_file(&tmp.join(&root).join(rest), &f.bytes, f.executable)?;
+        }
+        // (an absolute path: `codesign --verify` takes a relative one
+        // starting with a digit for a process id, `3dcube.app`)
+        let app = tmp.join(&root);
+        let run = |args: &[&str]| -> Result<(), String> {
+            let out = std::process::Command::new("codesign").args(args).arg(&app).output().map_err(|e| format!("codesign: {e}"))?;
+            if out.status.success() {
+                Ok(())
+            } else {
+                Err(format!("codesign {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim()))
+            }
+        };
+        run(&["--force", "--sign", "-"])?;
+        run(&["--verify", "--strict"])?;
+        let mut back = Vec::new();
+        read_tree(&app, &app, &mut back)?;
+        Ok(back)
+    })();
+    let _ = fs::remove_dir_all(&tmp);
+    let signed = signed?;
+    let old: Vec<String> = packed.files.below(&root).map(|(rest, _)| format!("{root}/{rest}")).collect();
+    for p in old {
+        packed.files.remove(&p);
+    }
+    for (rest, bytes, executable) in signed {
+        let at = format!("{root}/{rest}");
+        if executable {
+            packed.files.add_executable(&at, bytes)?;
+        } else {
+            packed.files.add(&at, bytes)?;
+        }
+    }
+    packed.signature = Some(rapidr_package::macos::Signature::AdHoc);
+    Ok(true)
+}
+
+/// Every file below `dir`, by its path from `base` (`/`-separated), with
+/// whether it is executable.
+fn read_tree(base: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>, bool)>) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    for e in entries.flatten() {
+        let p = e.path();
+        let ft = e.file_type().map_err(|err| format!("{}: {err}", p.display()))?;
+        if ft.is_dir() {
+            read_tree(base, &p, out)?;
+        } else if ft.is_file() {
+            let rel = p.strip_prefix(base).map_err(|_| format!("{}: outside {}", p.display(), base.display()))?.to_string_lossy().replace('\\', "/");
+            let executable = is_executable(&e.metadata().map_err(|err| format!("{}: {err}", p.display()))?);
+            out.push((rel, fs::read(&p).map_err(|err| format!("{}: {err}", p.display()))?, executable));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn is_executable(m: &fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    m.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(not(unix))]
+fn is_executable(_m: &fs::Metadata) -> bool {
+    false
+}
+
+/// Writes one file (its folders first), executable when asked.
+fn write_file(path: &Path, bytes: &[u8], executable: bool) -> Result<(), String> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    }
+    fs::write(path, bytes).map_err(|e| format!("write {}: {e}", path.display()))?;
+    if executable {
+        make_executable(path);
+    }
+    Ok(())
+}
+
+/// Writes an app's files into `dest_dir`: an app folder already there
+/// (`Name.app`, `Name.AppDir`) is replaced — when it is one, never
+/// something else of that name —; a loose file that already holds the same
+/// bytes is left as it is (a data file built beside its own program, RC.EXE's
+/// way, is itself).
+pub fn write_tree(dest_dir: &Path, packed: &rapidr_package::Packed) -> Result<(), String> {
+    fs::create_dir_all(dest_dir).map_err(|e| format!("{}: {e}", dest_dir.display()))?;
+    let main = dest_dir.join(&packed.main);
+    let marker = if packed.main.ends_with(".app") {
+        Some("Contents/Info.plist")
+    } else if packed.main.ends_with(".AppDir") {
+        Some("AppRun")
+    } else {
+        None
+    };
+    if let Some(marker) = marker.filter(|_| main.exists()) {
+        if !main.join(marker).is_file() {
+            return Err(format!("{} is there and isn't an app: move it away first", main.display()));
+        }
+        fs::remove_dir_all(&main).map_err(|e| format!("{}: {e}", main.display()))?;
+    }
+    for f in packed.files.iter() {
+        let to = dest_dir.join(&f.path);
+        if fs::read(&to).is_ok_and(|old| old == f.bytes) {
+            continue;
+        }
+        write_file(&to, &f.bytes, f.executable)?;
+    }
+    Ok(())
 }
 
 /// What was made.
 pub struct Made {
-    /// The app or executable.
-    pub path: PathBuf,
     /// The file that runs (inside the app).
     pub executable: PathBuf,
 }
@@ -250,84 +468,36 @@ fn make_executable(p: &Path) {
 #[cfg(not(unix))]
 fn make_executable(_p: &Path) {}
 
-/// Makes the program into its app in `dest_dir`: `binary` is the executable
-/// (a native build's, or a runner), `rrbc` an interpreted program's
-/// bytecode; `notices` the notices it carries. Prints what it did.
-pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, notices: &notices::Kind) -> Result<Made, String> {
-    fs::create_dir_all(dest_dir).map_err(|e| format!("{}: {e}", dest_dir.display()))?;
-    let exe_suffix = if plan.system == System::Windows { ".exe" } else { "" };
-    let whole = |b: &[u8]| -> Result<Vec<u8>, String> {
-        match rrbc {
-            Some(code) => with_payload(b, code),
-            None => Ok(b.to_vec()),
-        }
-    };
-    for note in plan.icon.notes() {
+/// Makes the program into its app in `dest_dir` (rapidr_package::pack, the
+/// one packer): `binary` is the executable (a native build's, or a runner),
+/// `rrbc` an interpreted program's bytecode, `notices` the
+/// THIRD-PARTY-NOTICES.txt it carries. Prints what it did.
+pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, notices: &str) -> Result<Made, String> {
+    let data = read_data(plan)?;
+    let app = app(plan, rrbc, &data, &[], build_time());
+    let mut packed = rapidr_package::pack(plan.target, &app, &rapidr_package::Runner { bytes: binary, notices })?;
+    for note in &packed.notes {
         eprintln!("note: {note}");
     }
-    let made = match (plan.system, plan.bundle) {
-        (System::MacOs, true) => {
-            // (the bytecode in Resources: data after the Mach-O would break its signature)
-            let mut resources = Vec::new();
-            if let Some(code) = rrbc {
-                resources.push((format!("{}.rrbc", plan.info.exe), code.to_vec()));
-            }
-            resources.extend(data_files(plan)?);
-            let app = rapidr_package::macos::write(
-                dest_dir,
-                &rapidr_package::macos::MacApp { info: &plan.info, icon: &plan.icon, executable: binary, resources, minimum_system: crate::macos::DEPLOYMENT_TARGET },
-            )?;
-            let notices_at = app.join("Contents/Resources");
-            notices::write(&notices_at, notices).map_err(|e| notices::missing(&e))?;
-            match rapidr_package::macos::sign(&app)? {
-                true => println!("Signed (ad hoc): {}", app.display()),
-                false => println!("note: {} is not signed: codesign is macOS' (sign it there, or Apple silicon Macs won't open it)", app.display()),
-            }
-            let executable = app.join("Contents/MacOS").join(&plan.info.exe);
-            Made { path: app, executable }
+    if packed.signature.is_some() {
+        match codesign_bridge(&mut packed)? {
+            true => println!("Signed (ad hoc): {}", dest_dir.join(&packed.main).display()),
+            false => println!("note: {} is not signed: on Apple silicon Macs it opens once it is (codesign is macOS'; RapidR's own signer comes next)", packed.main),
         }
-        (System::Linux, true) => {
-            let dir = rapidr_package::linux::write(
-                dest_dir,
-                &rapidr_package::linux::AppDir { info: &plan.info, icon: &plan.icon, executable: &whole(binary)?, files: data_files(plan)? },
-            )?;
-            notices::write(&dir, notices).map_err(|e| notices::missing(&e))?;
-            let executable = dir.join("usr/bin").join(&plan.info.exe);
-            Made { path: dir, executable }
-        }
-        (system, bundle) => {
-            let mut bytes = binary.to_vec();
-            if system == System::Windows && bundle {
-                bytes = rapidr_package::windows::stamp(&bytes, &plan.info, &plan.icon)?;
-            }
-            let path = dest_dir.join(format!("{}{exe_suffix}", plan.info.exe));
-            fs::write(&path, whole(&bytes)?).map_err(|e| format!("write {}: {e}", path.display()))?;
-            make_executable(&path);
-            notices::write(dest_dir, notices).map_err(|e| notices::missing(&e))?;
-            // (beside the executable, in their folders below it — not over
-            // themselves when it's built beside its program, RC.EXE's way)
-            for (rel, f) in &plan.data {
-                let to = dest_dir.join(rel);
-                if !rapidr_project::program_files::same_path(f, &to) {
-                    if let Some(dir) = to.parent() {
-                        fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-                    }
-                    fs::copy(f, &to).map_err(|e| format!("{} to {}: {e}", f.display(), to.display()))?;
-                }
-            }
-            Made { executable: path.clone(), path }
-        }
-    };
-    let what = match (plan.system, plan.bundle) {
+    }
+    write_tree(dest_dir, &packed)?;
+    let path = dest_dir.join(&packed.main);
+    let executable = packed.executable.as_ref().map(|e| dest_dir.join(e)).unwrap_or_else(|| path.clone());
+    let what = match (plan.system, packed.bundle) {
         (System::MacOs, true) => "App",
         (System::Linux, true) => "AppDir",
         _ => "Executable",
     };
-    println!("{what}: {}", made.path.display());
+    println!("{what}: {}", path.display());
     if plan.bundle {
         println!("  {} {} ({}), icon: {}", plan.info.name, plan.info.version, plan.info.bundle_id, plan.icon.origin);
     }
-    if !plan.data.is_empty() {
+    if !data.is_empty() {
         let names: Vec<&str> = plan.data.iter().map(|(rel, _)| rel.as_str()).collect();
         let place = match (plan.system, plan.bundle) {
             (System::MacOs, true) => "in the app's Contents/Resources",
@@ -337,12 +507,7 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
         };
         println!("  data files {place}: {} (started from Finder, a launcher or Explorer, it finds them)", names.join(", "));
     }
-    Ok(made)
-}
-
-/// The plan's data files as (path, contents), for an app's insides.
-fn data_files(plan: &Plan) -> Result<Vec<(String, Vec<u8>)>, String> {
-    plan.data.iter().map(|(rel, f)| Ok((rel.clone(), fs::read(f).map_err(|e| format!("{}: {e}", f.display()))?))).collect()
+    Ok(Made { executable })
 }
 
 /// `rapidr install-app <Name.AppDir>` (Linux): the app in the user's
@@ -357,7 +522,7 @@ pub fn install_app(appdir: &Path) -> std::process::ExitCode {
         eprintln!("install-app: no home folder (HOME)");
         return std::process::ExitCode::from(1);
     };
-    match rapidr_package::linux::install(appdir, &data_home) {
+    match install_appdir(appdir, &data_home) {
         Ok(written) => {
             for p in &written {
                 println!("{}", p.display());
@@ -373,6 +538,58 @@ pub fn install_app(appdir: &Path) -> std::process::ExitCode {
             std::process::ExitCode::from(1)
         }
     }
+}
+
+/// A path quoted for a desktop entry's Exec line.
+fn exec_quoted(path: &Path) -> String {
+    let s = path.to_string_lossy();
+    if s.chars().any(|c| c.is_whitespace() || "\"'\\$`".contains(c)) {
+        format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('$', "\\$").replace('`', "\\`"))
+    } else {
+        s.into_owned()
+    }
+}
+
+/// Puts an AppDir in the user's applications menu: its desktop entry in
+/// `<data_home>/applications` (Exec its AppRun, where the AppDir is) and
+/// its icons in `<data_home>/icons/hicolor`. The paths written.
+pub fn install_appdir(appdir: &Path, data_home: &Path) -> Result<Vec<PathBuf>, String> {
+    let appdir = appdir.canonicalize().map_err(|e| format!("{}: {e}", appdir.display()))?;
+    let entry = fs::read_dir(&appdir)
+        .map_err(|e| format!("{}: {e}", appdir.display()))?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|x| x == "desktop"))
+        .ok_or_else(|| format!("{}: no desktop entry: not an AppDir `rapidr build` made", appdir.display()))?;
+    let id = entry.file_stem().unwrap_or_default().to_string_lossy().into_owned();
+    let text = fs::read_to_string(&entry).map_err(|e| format!("{}: {e}", entry.display()))?;
+    let exec = exec_quoted(&appdir.join("AppRun"));
+    let text: String = text
+        .lines()
+        .map(|l| if l.starts_with("Exec=") { format!("Exec={exec} %F") } else { l.to_string() })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let mut written = Vec::new();
+    let put = |to: PathBuf, bytes: &[u8], written: &mut Vec<PathBuf>| -> Result<(), String> {
+        if let Some(dir) = to.parent() {
+            fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        }
+        fs::write(&to, bytes).map_err(|e| format!("{}: {e}", to.display()))?;
+        written.push(to);
+        Ok(())
+    };
+    let icons = appdir.join("usr/share/icons/hicolor");
+    for size in fs::read_dir(&icons).map_err(|e| format!("{}: {e}", icons.display()))?.flatten() {
+        for ext in ["png", "svg"] {
+            let from = size.path().join("apps").join(format!("{id}.{ext}"));
+            if let Ok(bytes) = fs::read(&from) {
+                put(data_home.join("icons/hicolor").join(size.file_name()).join("apps").join(format!("{id}.{ext}")), &bytes, &mut written)?;
+            }
+        }
+    }
+    put(data_home.join("applications").join(format!("{id}.desktop")), text.as_bytes(), &mut written)?;
+    Ok(written)
 }
 
 #[cfg(test)]
@@ -391,7 +608,7 @@ mod tests {
     fn the_executable_is_named_after_the_project() {
         let project = (PathBuf::from("."), rapidr_project::Project::new("Database Studio", "src/main.rr"));
         let o = Options::default();
-        for system in [System::MacOs, System::Windows, System::Linux] {
+        for system in [Target::MacosUniversal, Target::WindowsX64, Target::LinuxX64] {
             // (a project: its name, the spaces a dash; `main` is the main file's)
             let p = plan("main", system, false, &o, Some(&project), None).unwrap();
             assert_eq!((p.info.name.as_str(), p.info.exe.as_str()), ("Database Studio", "Database-Studio"), "{system:?}");
@@ -399,18 +616,18 @@ mod tests {
             let p = plan("main", system, false, &o, None, None).unwrap();
             assert_eq!((p.info.name.as_str(), p.info.exe.as_str()), ("main", "main"), "{system:?}");
         }
-        let p = plan("main", System::MacOs, false, &o, Some(&project), None).unwrap();
+        let p = plan("main", Target::MacosUniversal, false, &o, Some(&project), None).unwrap();
         let plist = rapidr_package::macos::info_plist(&p.info, "10.13").unwrap();
         assert!(plist.contains("<key>CFBundleExecutable</key>\n\t<string>Database-Studio</string>"), "{plist}");
         assert!(plist.contains("<key>CFBundleName</key>\n\t<string>Database Studio</string>"), "{plist}");
-        let p = plan("main", System::Linux, false, &o, Some(&project), None).unwrap();
+        let p = plan("main", Target::LinuxX64, false, &o, Some(&project), None).unwrap();
         assert!(rapidr_package::linux::desktop_entry(&p.info, &p.info.exe, &p.info.bundle_id).contains("Exec=Database-Studio %F"));
         // (a project whose name leaves nothing usable: the main file's)
         let blank = (PathBuf::from("."), rapidr_project::Project::new("***", "src/main.rr"));
-        assert_eq!(plan("main", System::Linux, false, &o, Some(&blank), None).unwrap().info.exe, "main");
+        assert_eq!(plan("main", Target::LinuxX64, false, &o, Some(&blank), None).unwrap().info.exe, "main");
         // (--name changes the name people see, not the executable)
         let named = Options { name: Some("Shown As".into()), ..Options::default() };
-        let p = plan("main", System::MacOs, false, &named, Some(&project), None).unwrap();
+        let p = plan("main", Target::MacosUniversal, false, &named, Some(&project), None).unwrap();
         assert_eq!((p.info.name.as_str(), p.info.exe.as_str()), ("Shown As", "Database-Studio"));
     }
 
@@ -474,28 +691,28 @@ mod tests {
         let project = (dir.clone(), project);
         let mut o = Options { rc_icon: Some(rc.to_string_lossy().into()), ..Options::default() };
 
-        let p = plan("demo", System::MacOs, false, &o, Some(&project), Some(&src)).unwrap();
+        let p = plan("demo", Target::MacosUniversal, false, &o, Some(&project), Some(&src)).unwrap();
         assert!(p.icon.origin.ends_with("proj.png") && p.bundle && p.info.name == "Demo" && p.info.version == "3.1");
         o.icon = Some(cli.to_string_lossy().into());
         o.name = Some("Cli".into());
-        let p = plan("demo", System::MacOs, false, &o, Some(&project), Some(&src)).unwrap();
+        let p = plan("demo", Target::MacosUniversal, false, &o, Some(&project), Some(&src)).unwrap();
         assert!(p.icon.origin.ends_with("cli.png") && p.info.name == "Cli" && p.info.bundle_id == "dev.rapidr.app.cli");
         o.icon = None;
         o.name = None;
         // without a project: $OPTION ICON over -g, then -g, then RapidR's
-        let p = plan("demo", System::Linux, false, &o, None, Some(&src)).unwrap();
+        let p = plan("demo", Target::LinuxX64, false, &o, None, Some(&src)).unwrap();
         assert!(p.icon.origin.ends_with("src.png") && p.info.name == "demo");
-        assert!(plan("demo", System::Linux, false, &o, None, None).unwrap().icon.origin.ends_with("rc.png"));
+        assert!(plan("demo", Target::LinuxX64, false, &o, None, None).unwrap().icon.origin.ends_with("rc.png"));
         o.rc_icon = None;
-        let p = plan("demo", System::Linux, true, &o, None, None).unwrap();
+        let p = plan("demo", Target::LinuxX64, true, &o, None, None).unwrap();
         assert!(p.icon.is_default() && !p.bundle, "a console program stays an executable");
-        assert!(plan("demo", System::Windows, true, &o, None, None).unwrap().bundle, "a Windows .exe always gets its icon");
+        assert!(plan("demo", Target::WindowsX64, true, &o, None, None).unwrap().bundle, "a Windows .exe always gets its icon");
         // RC.EXE's -g message
         o.rc_icon = Some("nowhere.ico".into());
-        assert_eq!(plan("demo", System::MacOs, false, &o, None, None).err().unwrap(), "ERROR: Can't find icon nowhere.ico");
+        assert_eq!(plan("demo", Target::MacosUniversal, false, &o, None, None).err().unwrap(), "ERROR: Can't find icon nowhere.ico");
         o.rc_icon = None;
         o.version = Some("x".into());
-        assert!(plan("demo", System::MacOs, false, &o, None, None).err().unwrap().contains("version"));
+        assert!(plan("demo", Target::MacosUniversal, false, &o, None, None).err().unwrap().contains("version"));
 
         // the project beside a source names it as its main file
         project.1.save(&dir.join("demo.rrproj")).unwrap();

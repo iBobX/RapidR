@@ -24,6 +24,7 @@ mod launch;
 mod locked;
 mod notices;
 mod package;
+mod runners;
 mod school_lock;
 mod serve;
 mod setup;
@@ -256,6 +257,8 @@ fn main() -> ExitCode {
             let mut web = false;
             let mut interp = false;
             let mut target = None;
+            // (`--targets a,b,c` / `--all`: an archive per system)
+            let mut targets: Option<String> = None;
             let mut csp = None;
             let mut app = package::Options::default();
             // (the app's options: --icon, --name, --bundle-id, --app-version,
@@ -292,6 +295,15 @@ fn main() -> ExitCode {
             while let Some(arg) = iter.next() {
                 match arg.as_str() {
                     "--target" => target = iter.next().cloned(),
+                    "--targets" => match iter.next() {
+                        Some(list) => targets = Some(list.clone()),
+                        None => {
+                            eprintln!("--targets needs a list: windows-x64,windows-arm64,windows-x86,macos,linux-x64,linux-arm64,web (or all)");
+                            return ExitCode::from(2);
+                        }
+                    },
+                    _ if arg.starts_with("--targets=") => targets = Some(arg["--targets=".len()..].to_string()),
+                    "--all" => targets = Some("all".into()),
                     "--csp" => csp = iter.next().cloned(),
                     "--release" | "-r" => release = Some(true),
                     "--debug" | "-d" => release = Some(false),
@@ -317,6 +329,24 @@ fn main() -> ExitCode {
             // A build is a release build: optimized, what is shipped (the
             // interpreted ones on the stripped runner). `--debug` builds for
             // debugging: quicker to compile, slower to run.
+            if let Some(list) = targets {
+                // (every system's app is the runner and the program: interpreted)
+                if target.is_some() || web {
+                    eprintln!("--targets names every system to build for: no --target or --web with it (web is one of the targets)");
+                    return ExitCode::from(2);
+                }
+                let list = match rapidr_package::Target::parse_list(&list) {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("--targets: {e}");
+                        return ExitCode::from(2);
+                    }
+                };
+                if !interp {
+                    println!("(--targets builds interpreted apps: the runner of each system and your program's bytecode)");
+                }
+                return build_targets(&path, output_dir.or(app.output.clone()), &list, csp.as_deref(), &app);
+            }
             if target.is_some() && !interp {
                 eprintln!("--target: only interpreted builds (--interp) pick a target; native builds are for this machine");
                 return ExitCode::from(2);
@@ -399,8 +429,14 @@ fn main() -> ExitCode {
             eprintln!("        [--keep-rust|--no-keep-rust]  a native build's generated Rust also in <output>/<program>-rust-source");
             eprintln!("        [--csp \"connect-src https://api.example.com; …\"]  (web) sources the page's Content-Security-Policy adds");
             eprintln!("        [--icon <.icns|.ico|.png|.svg>] [--name <app name>] [--bundle-id <id>] [--app-version <1.0>] [--company <name>]");
+            eprintln!("        [--copyright <line>] [--description <one line>] [--website <https://…>] [--category <games|education|…>]");
+            eprintln!("        [--kind <window|console>] [--theme-color <#RRGGBB>] [--language <en|es>] [--include-source]");
             eprintln!("        [--bundle|--no-bundle] [--project <app.rrproj>] [-g<icon.ico>]   A GUI program becomes Name.app (macOS),");
             eprintln!("        an .exe with its icon and version (Windows), Name.AppDir (Linux)");
+            eprintln!("  rapidr build <file.rr|app.rrproj> --targets windows-x64,macos,linux-x64,web | --all  [output folder]");
+            eprintln!("        Your app for every system, from this computer: Name-1.0.0-<target>.zip (.tar.gz for Linux) each, with a");
+            eprintln!("        README.txt (how to open it there) and the notices, and SHA256SUMS. Targets: windows-x64, windows-arm64,");
+            eprintln!("        windows-x86, macos (universal), linux-x64, linux-arm64, web (and macos-arm64, macos-x64); --all: the first seven");
             eprintln!("  rapidr install-app <Name.AppDir>                 Linux: the app in your applications menu, with its icon");
             eprintln!("  rapidr build-bc <file.rr> [-o out.rrbc]          Compile to bytecode");
             eprintln!("  rapidr run-bc <file.rrbc> [args]                 Run bytecode (stub host)");
@@ -718,7 +754,7 @@ fn build_source_file(
         return if is_web {
             build_interp_web(path, &out.dir, csp.as_deref(), app.project.as_deref())
         } else {
-            build_interp_desktop(path, &out.dir, release, target, plan.as_ref().expect("a desktop build's app"))
+            build_interp_desktop(path, &out.dir, plan.as_ref().expect("a desktop build's app"))
         };
     }
 
@@ -742,7 +778,7 @@ fn build_source_file(
     let result = if is_web {
         build_web(path, &project_dir, &cache, stem, release, csp.as_deref(), &out.dir)
     } else {
-        build_desktop(&project_dir, &cache, stem, release, plan.as_ref().expect("a desktop build's app"), &out.dir)
+        build_desktop(&project_dir, &cache, release, plan.as_ref().expect("a desktop build's app"), &out.dir)
     };
 
     // The generated Rust: beside the app when asked for, else gone
@@ -782,14 +818,17 @@ fn keep_rust_source(path: &str, project_dir: &Path, to: &Path) -> std::io::Resul
 
 /// The app a desktop build of `path` for `target` makes (package.rs).
 fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package::Plan, String> {
-    let system = rapidr_package::System::of_target(target).ok_or_else(|| format!("--target {target}: not a desktop system (macos, windows or linux)"))?;
+    let target = rapidr_package::Target::parse(target).map_err(|e| format!("--target {e}"))?;
+    if target == rapidr_package::Target::Web {
+        return Err("--target web: a web build is `--web` (or --targets web)".into());
+    }
     let project = package::project_for(Path::new(path), opts.project.as_deref())?;
     // (the program's own errors come from the build itself)
     let pre = preprocess_file(path, PreprocessOptions::default()).ok();
     let option_icon = pre.as_ref().and_then(|p| rapidr_preprocessor::Resource::option_icon(&p.resources)).and_then(|r| r.path.clone());
     let console = compile_to_bytecode(path).map(|c| c.module.app_type.wants_console()).unwrap_or(false);
     let stem = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("program");
-    let mut plan = package::plan(stem, system, console, opts, project.as_ref(), option_icon.as_deref())?;
+    let mut plan = package::plan(stem, target, console, opts, project.as_ref(), option_icon.as_deref())?;
     // (the data files it names, with the app — not the `$RESOURCE`s: those
     // are built into it): beside it, below it (`art/logo.svg`), its
     // translations (`lang/es.po`)
@@ -935,7 +974,7 @@ fn cargo_build(project_dir: &Path, cache: &cache::Cache, args: &[&str], envs: &[
     }
 }
 
-fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: bool, plan: &package::Plan, dest_dir: &Path) -> ExitCode {
+fn build_desktop(project_dir: &Path, cache: &cache::Cache, release: bool, plan: &package::Plan, dest_dir: &Path) -> ExitCode {
     let profile = if release { "release" } else { "debug" };
     // Windows: the program is linked with its version information and manifest (winres.rs;
     // `cargo rustc` hands the object to the linker for the program's own executable only)
@@ -972,21 +1011,15 @@ fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: 
 
     let finished = (|| -> Result<(), String> {
         let binary = if universal {
-            // (the two slices made one: lipo, which macOS' command line tools
-            // have — the linker Rust uses comes with them)
+            // (the two slices made one universal executable: the packer's
+            // own fat Mach-O writer, as the runners are)
             let slices: Vec<&PathBuf> = macos::TRIPLES.iter().filter_map(|t| made.executables.iter().find(|e| e.components().any(|c| c.as_os_str() == *t))).collect();
             if slices.len() != macos::TRIPLES.len() {
                 return Err(format!("cargo didn't say where it put both slices ({:?})", made.executables));
             }
-            // (made in the target folder, beside the slices: gone with them)
-            let fat = cache.target.join(format!("{}-universal-{}", rapidr_codegen_rust::crate_name(stem), process::id()));
-            let lipo = process::Command::new("lipo").arg("-create").args(&slices).arg("-output").arg(&fat).status();
-            let bytes = fs::read(&fat).map_err(|e| format!("{}: {e}", fat.display()));
-            let _ = fs::remove_file(&fat);
-            if !lipo.is_ok_and(|s| s.success()) {
-                return Err("lipo -create failed: macOS' command line tools make universal executables".into());
-            }
-            bytes?
+            let bytes: Vec<Vec<u8>> = slices.iter().map(|p| fs::read(p).map_err(|e| format!("{}: {e}", p.display()))).collect::<Result<_, _>>()?;
+            let refs: Vec<&[u8]> = bytes.iter().map(Vec::as_slice).collect();
+            rapidr_package::macho::universal(&refs)?
         } else {
             let exe = made.executables.first().ok_or("cargo didn't say where it put the executable")?;
             // (Windows: the antivirus may hold the new program for a moment — waited for — or
@@ -996,7 +1029,8 @@ fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: 
         // The program made into its app, with the open-source notices it
         // ships with (package.rs, notices.rs)
         println!("Making the app...");
-        package::finish(plan, &binary, None, dest_dir, &notices::Kind::Desktop(home::host_target()))?;
+        let notices = notices::text(&notices::Kind::Desktop(home::host_target())).map_err(|e| notices::missing(&e))?;
+        package::finish(plan, &binary, None, dest_dir, &notices)?;
         Ok(())
     })();
     // (the program's own files in the shared target folder: gone; the
@@ -1421,6 +1455,7 @@ impl WebBundle {
             fonts: &self.fonts,
             notices: &self.notices,
             needs: &self.needs,
+            meta: None,
         }
     }
 }
@@ -1554,16 +1589,11 @@ fn locate_rapidrintr_artifacts() -> Option<(PathBuf, PathBuf)> {
 // Phase 8: interpreted-mode build helpers
 // ---------------------------------------------------------------------------
 
-/// `rapidr build <file.rr> --interp` — compile to bytecode, then
-/// produce a single self-contained native executable by appending the
-/// bytecode + 12-byte footer to a copy of `rapidrintr-runner`.
-fn build_interp_desktop(
-    path: &str,
-    dest_dir: &Path,
-    release: bool,
-    target: Option<String>,
-    plan: &package::Plan,
-) -> ExitCode {
+/// `rapidr build <file.rr> --interp` — compile to bytecode, then make the
+/// app from the target's runner (runners.rs: `runner_bytes`) with the one
+/// packer (package.rs, rapidr-package): the bytecode after the runner, or
+/// in a macOS app's resources, with the runner's open-source notices.
+fn build_interp_desktop(path: &str, dest_dir: &Path, plan: &package::Plan) -> ExitCode {
     // 1. Compile source → bytecode.
     let compiled = match compile_to_bytecode(path) {
         Ok(c) => c,
@@ -1572,28 +1602,12 @@ fn build_interp_desktop(
     for w in &compiled.warnings { eprintln!("warning: {w}"); }
     let rrbc = compiled.module.to_bytes();
 
-    // 2. Locate (or build) the runner stub: this machine's, or the
-    //    `--target` an install ships. A windowed program for Windows starts
-    //    from the windowed runner (no console window opens with it).
-    let target = target.unwrap_or_else(home::host_target);
-    let windowed = target.starts_with("windows-") && !compiled.module.app_type.wants_console();
-    let stub = match locate_or_build_stub(release, &target, windowed).and_then(|path| {
-        let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        // (`--target macos-arm64` / `macos-x86_64`: that slice of the universal runner)
-        match macos::slice_of(&target) {
-            Some(cpu) if bytes.starts_with(&[0xCA, 0xFE, 0xBA]) => macos::thin(&bytes, cpu).map_err(|e| format!("{}: {e}", path.display())),
-            _ => Ok(bytes),
-        }
-    }) {
-        Ok(p) => p,
-        Err(e) => { eprintln!("{e}"); return ExitCode::from(1); }
-    };
-
-    // 4. The runner and the program made into its app (package.rs): the
-    //    bytecode after the runner, or in a macOS app's resources; with the
-    //    open-source notices it ships with (the same as a native build's
-    //    for this target: notices.rs).
-    match package::finish(plan, &stub, Some(&rrbc), dest_dir, &notices::Kind::Desktop(target)) {
+    // 2. The target's runner and its notices; 3. the app (package.rs).
+    let target = plan.target.runner_dir();
+    let made = runners::runner_bytes(target, !plan.info.console)
+        .and_then(|runner| Ok((runner, runners::runner_notices(target)?)))
+        .and_then(|(runner, notices)| package::finish(plan, &runner, Some(&rrbc), dest_dir, &notices));
+    match made {
         Ok(made) => {
             println!("Built interpreted program: {} ({} bytes of bytecode)", made.executable.display(), rrbc.len());
             println!("Build succeeded!");
@@ -1604,6 +1618,161 @@ fn build_interp_desktop(
             ExitCode::from(1)
         }
     }
+}
+
+/// `rapidr build <file> --targets windows-x64,macos,linux-x64,web` (or
+/// `--all`): the program compiled once, then for each system its runner
+/// (runners.rs), the app (the one packer) and the archive that is shipped —
+/// `<Name>-<version>-<target>.zip` (`.tar.gz` for Linux) in the output
+/// folder — and `SHA256SUMS` beside them. A system whose runner isn't here
+/// is said and skipped; the others are built (exit code 1 when one failed).
+fn build_targets(path: &str, output_dir: Option<String>, targets: &[rapidr_package::Target], csp: Option<&str>, opts: &package::Options) -> ExitCode {
+    use rapidr_package::Target;
+    let started = std::time::Instant::now();
+    let out = match output_of(path, output_dir.as_deref(), opts) {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    let file = Path::new(path).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
+    let names: Vec<&str> = targets.iter().map(|t| t.name()).collect();
+    println!("Building {file} for {}", names.join(", "));
+    println!("Output folder: {}", out.dir.display());
+    // 1. The program, once: its bytecode, its app's details and data files.
+    let compiled = match compile_to_bytecode(path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    for w in &compiled.warnings {
+        eprintln!("warning: {w}");
+    }
+    let rrbc = compiled.module.to_bytes();
+    let first_desktop = targets.iter().find(|t| t.system().is_some()).copied().unwrap_or(Target::LinuxX64);
+    let mut plan = match app_plan(path, first_desktop.name(), opts) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    let data = match package::read_data(&plan) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("{e}");
+            return ExitCode::from(1);
+        }
+    };
+    let source = if plan.include_source { program_sources(path) } else { Vec::new() };
+    let needs = if targets.contains(&Target::Web) {
+        if let Ok(pre) = preprocess_file(path, PreprocessOptions::default()) {
+            key_warnings(&pre.source, true);
+        }
+        match web_needs(path, csp) {
+            Ok(n) => Some(n),
+            Err(e) => {
+                eprintln!("{e}");
+                return ExitCode::from(2);
+            }
+        }
+    } else {
+        None
+    };
+    if let Err(e) = fs::create_dir_all(&out.dir) {
+        eprintln!("{}: {e}", out.dir.display());
+        return ExitCode::from(1);
+    }
+    println!("  {} {} ({}), icon: {}", plan.info.name, plan.info.version, plan.info.bundle_id, plan.icon.origin);
+    let mtime = package::build_time();
+    let mut sums: Vec<(String, String)> = Vec::new();
+    let mut failed: Vec<String> = Vec::new();
+    let mut said: Vec<String> = Vec::new();
+    // 2. Each system: its runner, its app, its archive.
+    for &t in targets {
+        let t0 = std::time::Instant::now();
+        if let Some(system) = t.system() {
+            plan.target = t;
+            plan.system = system;
+            plan.bundle = plan.bundle_asked.unwrap_or(match system {
+                rapidr_package::System::Windows => true,
+                _ => !plan.info.console,
+            });
+        }
+        let made = (|| -> Result<rapidr_package::Archive, String> {
+            let runner = runners::runner_bytes(t.runner_dir(), !plan.info.console)?;
+            let notices = runners::runner_notices(t.runner_dir())?;
+            let mut app = package::app(&plan, Some(&rrbc), &data, &source, mtime);
+            app.web_needs = needs.as_ref();
+            if t == Target::Web {
+                app.bundle = None;
+            }
+            let mut packed = rapidr_package::pack(t, &app, &rapidr_package::Runner { bytes: &runner, notices: &notices })?;
+            for note in &packed.notes {
+                if !said.contains(note) {
+                    eprintln!("note: {note}");
+                    said.push(note.clone());
+                }
+            }
+            if packed.signature.is_some() && !package::codesign_bridge(&mut packed)? {
+                eprintln!("note: {}: the app is not signed: Apple silicon Macs open it once it is (codesign is macOS'; RapidR's own signer comes next)", t.name());
+            }
+            let archive = rapidr_package::archive(&packed, &app)?;
+            let to = out.dir.join(&archive.name);
+            fs::write(&to, &archive.bytes).map_err(|e| format!("write {}: {e}", to.display()))?;
+            Ok(archive)
+        })();
+        match made {
+            Ok(a) => {
+                println!("  {}: {} ({:.1} MB, {:.1} s)", t.label(), a.name, a.bytes.len() as f64 / 1_048_576.0, t0.elapsed().as_secs_f64());
+                sums.push((a.name.clone(), rapidr_package::sha256_hex(&a.bytes)));
+            }
+            Err(e) => {
+                eprintln!("  {}: not built: {e}", t.label());
+                failed.push(t.name().to_string());
+            }
+        }
+    }
+    // 3. SHA256SUMS beside them (the lines of archives built before kept).
+    if !sums.is_empty() {
+        let at = out.dir.join("SHA256SUMS");
+        let existing = fs::read_to_string(&at).unwrap_or_default();
+        if let Err(e) = fs::write(&at, rapidr_package::sha256sums(&existing, &sums)) {
+            eprintln!("write {}: {e}", at.display());
+            return ExitCode::from(1);
+        }
+        println!("Checksums: {}", at.display());
+    }
+    println!("{} of {} built in {:.1} s", sums.len(), targets.len(), started.elapsed().as_secs_f64());
+    if failed.is_empty() {
+        println!("Build succeeded!");
+        ExitCode::SUCCESS
+    } else {
+        eprintln!("Not built: {}", failed.join(", "));
+        ExitCode::from(1)
+    }
+}
+
+/// The program's source files (its main file and what it `$INCLUDE`s), by
+/// their paths from its folder, for `--include-source`.
+fn program_sources(path: &str) -> Vec<(String, Vec<u8>)> {
+    let Ok(pre) = preprocess_file(path, PreprocessOptions::default()) else { return Vec::new() };
+    let base = Path::new(path).parent().map(|p| fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())).unwrap_or_default();
+    let mut out: Vec<(String, Vec<u8>)> = Vec::new();
+    for f in &pre.origins.files {
+        let Some(p) = f.path.as_ref() else { continue };
+        let full = fs::canonicalize(p).unwrap_or_else(|_| p.clone());
+        let rel = full.strip_prefix(&base).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| full.file_name().unwrap_or_default().to_string_lossy().into_owned());
+        if !out.iter().any(|(r, _)| *r == rel) {
+            if let Ok(bytes) = fs::read(&full) {
+                out.push((rel, bytes));
+            }
+        }
+    }
+    out
 }
 
 /// `rapidr build --web --interp <file.rr>` — compile to bytecode and
@@ -1626,65 +1795,6 @@ fn build_interp_web(path: &str, out_dir: &Path, csp: Option<&str>, project: Opti
         println!("Web: {}", out_path.display());
     }
     code
-}
-
-/// The runner stub `--interp` executables start from: `rapidrintr-runner`,
-/// or `rapidrintr-runnerw` (Windows' windowed one, `windowed`).
-///
-/// An install ships one per target (home.rs: `runners/<os>-<arch>/`). A
-/// checkout builds this machine's with `cargo build -p rapidr-runner-stub`
-/// every time (a quick no-op when it's up to date), so the runner never lags
-/// behind the CLI; an existing runner in `target/runner`, `target/release`
-/// or `target/debug` is used only if cargo can't run.
-fn locate_or_build_stub(release: bool, target: &str, windowed: bool) -> Result<PathBuf, String> {
-    let name = if windowed { "rapidrintr-runnerw" } else { "rapidrintr-runner" };
-    let exe_name = format!("{name}{}", home::exe_suffix(target));
-    let home = Home::find();
-    if let Some(home) = home.as_ref().filter(|h| h.release.is_some()) {
-        // (one universal runner for macOS: a thin --target is a slice of it)
-        let shipped_as = if macos::slice_of(target).is_some() { "macos" } else { target };
-        let path = home.runner(shipped_as, name);
-        if path.is_file() {
-            return Ok(path);
-        }
-        let shipped = home.runner_targets();
-        return Err(if shipped.is_empty() {
-            "This is the RapidR Runtime: it runs programs (`rapidr run`) and builds none. Executables need the RapidR SDK.".to_string()
-        } else {
-            format!("no runner for {target} in this install ({}); it has: {}", home.root.display(), shipped.join(", "))
-        });
-    }
-    if target != home::host_target() && target != home::host_arch_target() {
-        return Err(format!("--target {target}: a source checkout builds this machine's runner only ({}); an installed RapidR ships the others", home::host_arch_target()));
-    }
-    // Release: the stripped `runner` profile (Cargo.toml).
-    let preferred = if release { "runner" } else { "debug" };
-
-    let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub", "--bin", name];
-    if release { args.extend(["--profile", "runner"]); }
-    // (a development `rapidr` builds a development runner: its test hooks
-    // act without a token, SEC-24)
-    if rapidr_testmode::DEV_BUILD { args.extend(["--features", "dev-hooks"]); }
-    // Built in the RapidR workspace, wherever the program being built is.
-    let root = home.map(|h| h.root).unwrap_or_else(|| PathBuf::from("."));
-    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    // Where cargo puts it: CARGO_TARGET_DIR when set (relative to where
-    // rapidr was run), else the workspace's target/.
-    let target_dir = std::env::var_os("CARGO_TARGET_DIR").map(|t| cwd.join(t)).unwrap_or_else(|| root.join("target"));
-    let built = process::Command::new(home::rust_tool("cargo")).args(&args).current_dir(&root).env("CARGO_TARGET_DIR", &target_dir).status();
-    let path = target_dir.join(preferred).join(&exe_name);
-    match built {
-        Ok(status) if status.success() && path.exists() => return Ok(path),
-        Ok(status) => eprintln!("warning: cargo build rapidr-runner-stub failed ({status}); using an existing runner if there is one"),
-        Err(e) => eprintln!("warning: can't run cargo ({e}); using an existing runner if there is one"),
-    }
-    for profile in [preferred, if release { "release" } else { "runner" }] {
-        let candidate = target_dir.join(profile).join(&exe_name);
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-    }
-    Err(format!("could not build or find {exe_name} (cargo build -p rapidr-runner-stub)"))
 }
 
 /// A file of the page's as a data URL (`rapidr-assets.js`), its type by its name.

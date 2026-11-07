@@ -5625,7 +5625,10 @@ name = "rapidr-package"
 version = "2.123.0"
 dependencies = [
  "editpe",
+ "rapidr-archive",
+ "rapidr-webbundle",
  "resvg",
+ "sha2 0.10.9",
 ]
 
 [[package]]

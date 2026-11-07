@@ -68,7 +68,7 @@ pub(crate) fn list(bytes: &[u8], limits: &Limits) -> Result<Vec<Entry>, String> 
         total = total.saturating_add(f.size);
         let modified = f.has_last_modified_date.then(|| Modified::Unix((u64::from(f.last_modified_date) / 10_000_000) as i64 - FILETIME_TO_UNIX));
         let compressed = if f.compressed_size > 0 { f.compressed_size } else { f.size };
-        out.push(Entry { name: f.name.clone(), size: f.size, compressed_size: compressed, kind, encrypted, modified });
+        out.push(Entry { name: f.name.clone(), size: f.size, compressed_size: compressed, kind, encrypted, modified, executable: false });
     }
     if total > limits.max_size {
         return Err(limit::too_big("the 7z archive", limits.max_size));

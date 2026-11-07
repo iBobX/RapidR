@@ -179,7 +179,8 @@ pub(crate) fn read(data: &[u8]) -> Result<Vec<(Entry, Span)>, String> {
                     _ => Kind::Special,
                 };
                 let len = if kind == Kind::File { body.len() } else { 0 };
-                let entry = Entry { name, size: len as u64, compressed_size: len as u64, kind, encrypted: false, modified: mtime.map(Modified::Unix) };
+                let executable = kind == Kind::File && octal(&h[100..108]).is_some_and(|m| m & 0o111 != 0);
+                let entry = Entry { name, size: len as u64, compressed_size: len as u64, kind, encrypted: false, modified: mtime.map(Modified::Unix), executable };
                 out.push((entry, (start, len)));
                 pending = Pending::default();
             }
@@ -205,11 +206,16 @@ fn fits(n: u64, width: usize) -> bool {
 /// A ustar header for `name` (≤ 100 bytes; the caller sends longer ones
 /// in a pax header first).
 fn header(name: &str, size: u64, mtime: i64, kind: u8) -> [u8; BLOCK] {
+    header_mode(name, size, mtime, kind, false)
+}
+
+/// [`header`], its mode 0755 for an `executable` file.
+fn header_mode(name: &str, size: u64, mtime: i64, kind: u8, executable: bool) -> [u8; BLOCK] {
     let mut h = [0u8; BLOCK];
     let n = name.as_bytes();
     let take = n.len().min(100);
     h[..take].copy_from_slice(&n[..take]);
-    put_octal(&mut h[100..108], if kind == b'5' { 0o755 } else { 0o644 });
+    put_octal(&mut h[100..108], if kind == b'5' || executable { 0o755 } else { 0o644 });
     put_octal(&mut h[108..116], 0);
     put_octal(&mut h[116..124], 0);
     put_octal(&mut h[124..136], if fits(size, 12) { size } else { 0 });
@@ -268,7 +274,7 @@ pub(crate) fn write(entries: &[NewEntry]) -> Vec<u8> {
             pad(&mut out);
         }
         let short: String = if e.name.is_ascii() { e.name.chars().take(100).collect() } else { e.name.chars().filter(char::is_ascii).take(100).collect() };
-        out.extend_from_slice(&header(&short, size, e.mtime, if e.folder { b'5' } else { b'0' }));
+        out.extend_from_slice(&header_mode(&short, size, e.mtime, if e.folder { b'5' } else { b'0' }, e.executable));
         if !e.folder {
             out.extend_from_slice(&e.data);
             pad(&mut out);
@@ -289,7 +295,7 @@ mod tests {
     use super::*;
 
     fn entry(name: &str, data: &[u8]) -> NewEntry {
-        NewEntry { name: name.into(), data: data.to_vec(), folder: false, mtime: 1_700_000_000 }
+        NewEntry { name: name.into(), data: data.to_vec(), folder: false, mtime: 1_700_000_000, executable: false }
     }
 
     #[test]

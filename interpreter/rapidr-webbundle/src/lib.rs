@@ -71,6 +71,53 @@ pub struct BundleInputs<'a> {
     /// What the program uses, for its page's policy ([`WebNeeds::scan`] of
     /// its source, plus the author's `--csp`).
     pub needs: &'a WebNeeds,
+    /// What the page says of the app in its head (description, theme
+    /// colour, web manifest, icons: rapidr-package's web build); `None`:
+    /// nothing more.
+    pub meta: Option<&'a PageMeta>,
+}
+
+/// An installable web app's lines in its page's head: each value escaped
+/// where it lands ([`escape::html`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PageMeta {
+    /// `<meta name="description">` (empty: none).
+    pub description: String,
+    /// `<meta name="theme-color">`, `#RRGGBB` (empty: none).
+    pub theme_color: String,
+    /// The web manifest's file (`manifest.webmanifest`; empty: none).
+    pub manifest: String,
+    /// The tab's icon (`icons/icon-32.png`; empty: none).
+    pub icon: String,
+    /// The icon a phone's home screen uses (`icons/icon-180.png`).
+    pub touch_icon: String,
+}
+
+impl PageMeta {
+    fn head(&self) -> String {
+        let mut out = String::new();
+        let mut line = |tag: String| {
+            out.push_str("  ");
+            out.push_str(&tag);
+            out.push('\n');
+        };
+        if !self.description.trim().is_empty() {
+            line(format!(r#"<meta name="description" content="{}">"#, escape::html(self.description.trim())));
+        }
+        if !self.theme_color.is_empty() {
+            line(format!(r#"<meta name="theme-color" content="{}">"#, escape::html(&self.theme_color)));
+        }
+        if !self.manifest.is_empty() {
+            line(format!(r#"<link rel="manifest" href="{}">"#, escape::html(&self.manifest)));
+        }
+        if !self.icon.is_empty() {
+            line(format!(r#"<link rel="icon" type="image/png" href="{}">"#, escape::html(&self.icon)));
+        }
+        if !self.touch_icon.is_empty() {
+            line(format!(r#"<link rel="apple-touch-icon" href="{}">"#, escape::html(&self.touch_icon)));
+        }
+        out
+    }
 }
 
 /// The page around a program (a bundle's, a `rapidr build --web` site's):
@@ -169,6 +216,15 @@ pub fn page_files(project_name: &str, rrbc: &[u8], title: Option<&str>, assets: 
 /// serves them from memory).
 pub fn bundle_files(inputs: &BundleInputs<'_>) -> Result<Vec<(String, Vec<u8>)>, String> {
     let mut out = page_files(inputs.project_name, inputs.rrbc, inputs.title, inputs.assets, inputs.catalogs, inputs.needs);
+    if let Some(meta) = inputs.meta {
+        // (the page with the app's lines in its head)
+        let rrbc_name = format!("{}.rrbc", escape::file_name(inputs.project_name));
+        let has_assets = inputs.assets.is_some_and(|a| !a.is_empty());
+        let html = render_page(inputs.title.unwrap_or(inputs.project_name), &rrbc_name, has_assets, inputs.needs, meta);
+        if let Some(page) = out.iter_mut().find(|(n, _)| n == "index.html") {
+            page.1 = html.into_bytes();
+        }
+    }
     let mut add = |name: &str, data: &[u8]| out.push((name.to_string(), data.to_vec()));
     add("rapidrintr.js", inputs.rapidrintr_js.as_bytes());
     // wasm-bindgen's generated `rapidrintr.js` expects to fetch
@@ -262,11 +318,17 @@ pub fn render_assets_js(assets: &HashMap<String, String>) -> String {
 /// The bundle's `index.html`: `title` as text, the program's file name as
 /// an attribute (read by loader.js), its policy as a meta tag.
 pub fn render_index_html(title: &str, rrbc_name: &str, has_assets: bool, needs: &WebNeeds) -> String {
+    render_page(title, rrbc_name, has_assets, needs, &PageMeta::default())
+}
+
+/// [`render_index_html`] with the app's lines in its head ([`PageMeta`]).
+fn render_page(title: &str, rrbc_name: &str, has_assets: bool, needs: &WebNeeds, meta: &PageMeta) -> String {
     let css = PAGE_CSS;
     let title = escape::html(title);
     let program = escape::html(rrbc_name);
     let csp = csp_meta(needs);
     let assets = if has_assets { format!("  <script src=\"./{ASSETS_FILE}\"></script>\n") } else { String::new() };
+    let app_head = meta.head();
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -277,7 +339,7 @@ pub fn render_index_html(title: &str, rrbc_name: &str, has_assets: bool, needs: 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="rapidr-program" content="{program}">
   <title>{title}</title>
-  <!-- Built with RapidR (MIT). Third-party software notices and licences: {NOTICES_FILE} -->
+{app_head}  <!-- Built with RapidR (MIT). Third-party software notices and licences: {NOTICES_FILE} -->
   <link rel="license" href="{NOTICES_FILE}">
   <style>{css}
 #rapidr-status {{ position: fixed; top: 8px; right: 12px; font-size: 12px; color: #888; pointer-events: none; }}
@@ -407,7 +469,40 @@ mod tests {
             fonts: &[],
             notices: "THIRD-PARTY SOFTWARE NOTICES AND LICENCES",
             needs,
+            meta: None,
         }
+    }
+
+    /// An installable app's page: its description, colour, manifest and
+    /// icons in the head, every value escaped.
+    #[test]
+    fn the_app_lines_in_the_head_are_escaped() {
+        let needs = WebNeeds::default();
+        let meta = PageMeta {
+            description: "Tips <b>& more</b>\" onload=\"x".into(),
+            theme_color: "#1E88E5".into(),
+            manifest: "manifest.webmanifest".into(),
+            icon: "icons/icon-32.png".into(),
+            touch_icon: "icons/icon-180.png".into(),
+        };
+        let mut i = inputs("demo", None, &needs);
+        i.meta = Some(&meta);
+        let files = bundle_files(&i).unwrap();
+        let html = String::from_utf8(files.iter().find(|(n, _)| n == "index.html").unwrap().1.clone()).unwrap();
+        for want in [
+            r#"<meta name="description" content="Tips &lt;b&gt;&amp; more&lt;/b&gt;&quot; onload=&quot;x">"#,
+            r##"<meta name="theme-color" content="#1E88E5">"##,
+            r#"<link rel="manifest" href="manifest.webmanifest">"#,
+            r#"<link rel="icon" type="image/png" href="icons/icon-32.png">"#,
+            r#"<link rel="apple-touch-icon" href="icons/icon-180.png">"#,
+        ] {
+            assert!(html.contains(want), "{want}\n{html}");
+        }
+        assert!(!html.contains("<b>"));
+        // (no meta: the page as it always was)
+        let plain = bundle_files(&inputs("demo", None, &needs)).unwrap();
+        let plain = String::from_utf8(plain.iter().find(|(n, _)| n == "index.html").unwrap().1.clone()).unwrap();
+        assert_eq!(plain, render_index_html("demo", "demo.rrbc", false, &needs));
     }
 
     #[test]

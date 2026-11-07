@@ -97,6 +97,31 @@ pub struct Build {
     /// Who makes it (Windows' CompanyName, the copyright line).
     #[serde(skip_serializing_if = "String::is_empty")]
     pub company: String,
+    /// The copyright line (macOS' Get Info, Windows' LegalCopyright);
+    /// empty = "© <company>".
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub copyright: String,
+    /// One line about the app (Windows' file description, the Linux
+    /// desktop entry's comment, the web page's description).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub description: String,
+    /// The app's web site (`https://…`): the README beside the app.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub website: String,
+    /// What kind of app: utilities, productivity, education, games,
+    /// developer-tools, graphics, music, video, business, finance,
+    /// science; empty = utilities.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub category: String,
+    /// `window` or `console`; empty = what the program is (`$APPTYPE`, its forms).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub kind: String,
+    /// The web app's colour, `#RRGGBB`; empty = the page's.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub theme_color: String,
+    /// The language of the README beside the app (`en`, `es`); empty = en.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub language: String,
     /// The UI theme the program starts with.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub theme: String,

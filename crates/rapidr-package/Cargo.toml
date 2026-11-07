@@ -4,10 +4,12 @@ edition.workspace = true
 version.workspace = true
 publish = false
 license.workspace = true
-description = "What `rapidr build` makes a program into: a macOS .app, a Windows .exe with its icon and version, a Linux AppDir; program icons from .icns, .ico, .png or .svg"
+description = "The packer: a program and a runner made into an app for every system (a macOS .app, a Windows .exe with its icon and version, a Linux AppDir, a web app) and into the zip / tar.gz that is shipped; pure (bytes in, bytes out), so the web Studio builds with it too"
 
-# Pure Rust, for every host: a Mac builds a Windows .exe's resources and a
-# Linux AppDir as well as its own .app (only code signing needs macOS).
+# Pure Rust and pure functions, for every host and the browser (wasm32): a
+# Mac builds a Windows .exe's resources and a Linux AppDir as well as its own
+# .app. No file system, no processes, no clock here: the callers read and
+# write (docs/build-core-design.md).
 [dependencies]
 # Draws SVG icons and decodes / encodes PNG (MIT OR Apache-2.0; already in
 # the tree: rapidr-value draws pictures with it).
@@ -15,3 +17,10 @@ resvg = { version = "0.48.1", default-features = false }
 # A Windows executable's resources: its icon group and version information
 # (BSD-2-Clause; without its `image` feature: RapidR writes the .ico itself).
 editpe = { version = "0.2.4", default-features = false, features = ["std"] }
+# The archives (RapidR's own RArchive engine: zip through the zip crate,
+# tar and gzip; only the formats written here).
+rapidr-archive = { workspace = true, features = ["zip", "gzip"] }
+# The web app's page and files (no zip feature: the archive is made here).
+rapidr-webbundle = { workspace = true }
+# SHA256SUMS (MIT OR Apache-2.0; already in the tree: the CLI's downloads).
+sha2 = { version = "0.10", default-features = false }
