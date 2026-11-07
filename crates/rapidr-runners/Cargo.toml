@@ -1,0 +1,49 @@
+[package]
+name = "rapidr-runners"
+description = "Where an app's runner comes from: the install's own, the cache, or a download checked against a minisign-signed list (docs/build-for-every-platform-plan.md). The checking is pure (bytes in) and wasm-safe; the download and the cache are native only"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# Building for another system needs that system's runner, and each install
+# ships only its own. This crate gets the others: 1) the install's, 2) the
+# cache, 3) a download, and a downloaded runner is used only after
+#   - the list's (runners-manifest.json) minisign signature is checked
+#     against the public key built into RapidR (RapidR's release key),
+#   - the list says it is for THIS version of RapidR, and
+#   - the file's size and SHA-256 are the list's.
+#
+# Everything that decides "is this runner good" is bytes in, bytes out
+# (verify.rs, minisign.rs, manifest.rs, bundle.rs, blake2b.rs): it compiles
+# to wasm32, where the web Studio fetches with the browser's fetch into
+# Cache Storage and calls the same functions. The download (ureq), the cache
+# folder and the install's files are the `native` feature, on by default.
+#
+# No new dependency: every crate here is already in the tree — ed25519-compact
+# (MIT/Apache-2.0; rapidr-testmode's), sha2 (MIT/Apache-2.0), base64,
+# serde_json, ureq (the other crates' HTTPS, the system's TLS) and RArchive's
+# engine for the .zst (ruzstd, MIT). BLAKE2b, which minisign hashes a file
+# with before signing it, is RapidR's own code from RFC 7693 (blake2b.rs),
+# tested against the RFC's vectors and against minisign's own output.
+[features]
+default = ["native"]
+native = ["dep:ureq"]
+# Signing with a made-up key, for the tests of whatever checks a signature
+# (never a release key). Off in every build but the tests'.
+testing = ["dep:ruzstd"]
+
+[dependencies]
+rapidr-archive = { workspace = true, features = ["zstd"] }
+ed25519-compact = { version = "2.2", default-features = false }
+sha2 = "0.10"
+base64 = "0.22"
+serde_json = "1"
+ureq = { version = "2", optional = true, default-features = false, features = ["native-tls"] }
+# (only the `testing` feature: the tests make their own runners' .zst with it;
+# the same crate and features RArchive reads with)
+ruzstd = { version = "0.9", optional = true, default-features = false, features = ["std"] }
+
+[dev-dependencies]
+# (the integration tests sign their own lists with `testing`)
+rapidr-runners = { path = ".", features = ["testing"] }

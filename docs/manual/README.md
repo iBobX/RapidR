@@ -74,7 +74,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 
 | Chapter | What's in it |
 |---|---|
-| [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build; Build Web App |
+| [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build; Build Web App; where the runners for other systems come from |
 | [Importing older programs](importing-rapidq.md) | A copy of an older program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, checked to compile to the same bytecode: in RapidR Studio and with `rapidr import-rapidq`; include files |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components, windows bigger than the page |
 | [RapidR in other editors](other-editors.md) | The Visual Studio Code extension (which `rapidr` it uses, completion, Help beside the code, colours, projects, debugging), and what `rapidr lsp` and `rapidr dap` give any editor that speaks the protocols |

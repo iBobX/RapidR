@@ -18,6 +18,7 @@ SBOM and the release notes:
 | Web | `rapidr-web-<ver>.zip` | |
 | VS Code | `rapidr-<ver>.vsix` (the extension: a client of `rapidr lsp` / `rapidr dap`; [VSCODE_EXTENSION.md](../VSCODE_EXTENSION.md)) | |
 | All | `SHA256SUMS`, `rapidr-<ver>.cdx.json` (CycloneDX SBOM), `RELEASE_NOTES.md` | |
+| Runners for other systems | `runners-manifest.json` + `runners-manifest.json.minisig` (with the release); `runners/<target>.zst` for each of windows-x86_64, windows-aarch64, windows-x86, macos, linux-x86_64, linux-aarch64, web (to the runners host, not the release: `https://studio.rapidr.dev/runners/<ver>/`) | |
 
 ## What an installed RapidR is
 
@@ -329,6 +330,17 @@ Unsigned is the default; every script works without a certificate.
   writes `SHA256SUMS.minisig`, which people check with the public key printed
   in the release notes (docs/manual/getting-started.md, "Check your download").
   No key is created by any script.
+- **Runners for other systems** (`runners.sh`, then `finish.sh`): the runner of every
+  target as `runners/<target>.zst` (a zstd-compressed tar of the runner program(s) and
+  their `THIRD-PARTY-NOTICES.txt`; the web's, the interpreter and its fonts) and
+  `runners-manifest.json` (version, target, size, SHA-256, contents of each). With
+  `RAPIDR_MINISIGN_KEY`, `finish.sh` signs the list on its own
+  (`runners-manifest.json.minisig`, the release key) before it makes `SHA256SUMS`:
+  Studio and `rapidr` download a runner only after checking that signature, that the list
+  is for their own version, and the file's SHA-256 (docs/manual/building-apps.md, "Where
+  runners come from"; `rapidr runners check dist/<ver>/out` is the same check, offline).
+  Windows' x64 and ARM64 runners come from the Windows VM as `windows-<arch>.tar`
+  (windows.ps1), because the installers can't be opened on a Mac.
 - **Known limit**: a standalone `--interp` executable is the runner with the
   program appended, which a signature can't cover (macOS refuses to sign
   such a file; on Windows the program must stay the file's last bytes). Users
@@ -440,9 +452,14 @@ about 1.2 GB for the whole release.
    `-Associations` (the .bas box ticked); the file types are checked, and
    checked gone after the uninstaller. Then `tools/release/windows-vm.sh
    fetch <installer> dist/<ver>/out/<installer>` for each.
-6. **Finish** (Mac): `tools/release/finish.sh` — every package has the
-   licence files; `SHA256SUMS`.
-7. **Publish** — by hand, after looking at `dist/<ver>/out/` (the scripts
+6. **Runners** (Mac): `tools/release/runners.sh` — after the steps above and
+   `tools/win7/alpha.sh`; fetch Windows' two first (`tools/release/windows-vm.sh fetch
+   windows-<x86_64|aarch64>.tar dist/<ver>/prep/runners/windows-<arch>.tar`). It makes
+   `out/runners/*.zst` and `out/runners-manifest.json` from the packages in `out/`.
+7. **Finish** (Mac): `tools/release/finish.sh` — every package has the
+   licence files; the runners' list signed (with the key); `SHA256SUMS`. Then
+   `target/release/rapidr runners check dist/<ver>/out`.
+8. **Publish** — by hand, after looking at `dist/<ver>/out/` (the scripts
    never do this):
 
    ```bash
@@ -450,14 +467,15 @@ about 1.2 GB for the whole release.
    gh release create v<ver> --repo iBobX/RapidR --target <commit> \
        --title "RapidR <ver>" --notes-file RELEASE_NOTES.md \
        *.dmg *.exe *.tar.gz *.deb rapidr-web-<ver>.zip rapidr-<ver>.vsix \
-       rapidr-<ver>.cdx.json SHA256SUMS
+       rapidr-<ver>.cdx.json runners-manifest.json runners-manifest.json.minisig SHA256SUMS
    ```
 
    (`--draft` first to look at it on GitHub before it's public; `--prerelease`
-   for a preview.) Then, when the user has publisher accounts, the same
+   for a preview.) `out/runners/` is not part of the release: it is uploaded to the
+   runners host next to the signed list, at `https://studio.rapidr.dev/runners/<ver>/` (by hand with Robert's own access: no script uploads anything). Then, when the user has publisher accounts, the same
    `.vsix` to the VS Code Marketplace and Open VSX, by hand with the user's
    own tokens: [docs/vscode-publishing.md](vscode-publishing.md).
-8. **Clean up** — do not skip it: a release leaves about 10 GB in each VM (the
+9. **Clean up** — do not skip it: a release leaves about 10 GB in each VM (the
    cargo target folders), and the Windows VM's disk once filled up with
    leftovers. `rm -rf dist/<ver>/work dist/<ver>/prep`;
    `tools/release/linux-vm.sh clean`; `tools/release/windows-vm.sh clean`
