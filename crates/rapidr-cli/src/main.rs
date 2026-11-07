@@ -1710,15 +1710,13 @@ fn build_targets(path: &str, output_dir: Option<String>, targets: &[rapidr_packa
             if t == Target::Web {
                 app.bundle = None;
             }
-            let mut packed = rapidr_package::pack(t, &app, &rapidr_package::Runner { bytes: &runner, notices: &notices })?;
+            // (a Mac app comes signed ad hoc: RapidR's own signer, in pack)
+            let packed = rapidr_package::pack(t, &app, &rapidr_package::Runner { bytes: &runner, notices: &notices })?;
             for note in &packed.notes {
                 if !said.contains(note) {
                     eprintln!("note: {note}");
                     said.push(note.clone());
                 }
-            }
-            if packed.signature.is_some() && !package::codesign_bridge(&mut packed)? {
-                eprintln!("note: {}: the app is not signed: Apple silicon Macs open it once it is (codesign is macOS'; RapidR's own signer comes next)", t.name());
             }
             let archive = rapidr_package::archive(&packed, &app)?;
             let to = out.dir.join(&archive.name);

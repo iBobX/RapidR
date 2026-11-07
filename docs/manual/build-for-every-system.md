@@ -118,11 +118,11 @@ Apps you build are not signed with a certificate, so each system asks once:
 - **Windows:** "Windows protected your PC". Click **More info**, then
   **Run anyway**.
 - **macOS:** the app is signed ad hoc, which Apple silicon needs, but not
-  with an Apple Developer ID. macOS says it can't check the app. Click
-  **Done**, then in **System Settings > Privacy & Security** click
-  **Open Anyway**. (For now the ad hoc signature is made when you build on a
-  Mac; built elsewhere, the Mac app is unsigned and the build says so.
-  RapidR's own signer, which signs it on any system, comes next.)
+  with an Apple Developer ID. RapidR makes that signature itself, on
+  whichever system builds the app: Windows, Linux or a Mac. macOS says
+  “Name” Not Opened (*Apple could not verify “Name” is free of malware…*).
+  Click **Done**, then in **System Settings > Privacy & Security** click
+  **Open Anyway** and confirm with your password or Touch ID.
 - **Linux:** nothing to confirm. If the files lost their "executable" mark,
   `chmod +x AppRun install.sh`.
 

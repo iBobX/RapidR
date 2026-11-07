@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- **RapidR signs a Mac app itself, on any system** (MACHO-SIGN, [the manual](docs/manual/building-apps.md#macos), [docs/macho-signer-design.md](docs/macho-signer-design.md)): `rapidr build` signs each `.app` ad hoc with RapidR's own signer instead of running Apple's `codesign`, in the app folder it writes and in the zips of `--targets` / `--all` alike, so signing no longer needs a Mac — the same code runs on Windows and Linux and compiles for the browser. It is written in Rust from Apple's published format descriptions (no other signer's code), adds no crate, and writes byte for byte what `codesign --sign -` writes (golden tests: the runner, a Rust program, a copy of a universal system program, an app with resources and odd file names). Thin arm64, thin x86_64 and universal programs; the app's `Contents/_CodeSignature/CodeResources` seals every file in `Contents/Resources`; a cut-short or corrupted program, a link in the app or a file where only code could be is refused with what is wrong, and nothing is changed.
+
 ## [2.123.0] - 2026-11-07 (Preview 6)
 
 ### Added

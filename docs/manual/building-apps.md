@@ -17,7 +17,8 @@ A program "has windows" when it says `$APPTYPE GUI`, or says no `$APPTYPE`
 and creates forms or other components. Native builds and
 interpreted builds (`--interp`) make the same apps. Cross builds do too:
 `rapidr build prog.bas --interp --target windows-x86_64` on a Mac writes the
-`.exe`'s icon and version information; only signing a macOS app needs a Mac.
+`.exe`'s icon and version information. Signing a macOS app needs no Mac
+either: RapidR signs it itself, the same way on macOS, Windows and Linux.
 
 ```sh
 rapidr build notepad.bas --interp          # macOS: notepad.app
@@ -184,8 +185,8 @@ rapidr build 3dcube.bas --interp --name "3D Cube"    # "3D Cube.app"
   write `./3dcube.app` (or the full path) for a name that starts with a
   digit: `codesign` takes `3dcube.app` for a process number and answers
   "No such process". Older versions of `rapidr build` stopped with that
-  message for such a name; now `rapidr build` hands `codesign` the full path
-  and signs and checks the app.
+  message for such a name; now `rapidr build` signs and checks the app
+  itself, without `codesign`.
 
 ### The executable's name
 
@@ -248,11 +249,17 @@ RapidR takes any of the formats above.
 
 ## macOS
 
-- The app is signed ad hoc (`codesign --sign -`): it opens on the Mac that
-  built it, and Apple silicon Macs run it. To give it to others, sign it with
-  your Developer ID and notarize it (`codesign`, `xcrun notarytool`); a
-  downloaded unsigned app is allowed once in System Settings > Privacy &
-  Security > Open Anyway (see [Install on macOS](getting-started.md#install-on-macos)).
+- The app is signed ad hoc, by RapidR itself: a signature with no
+  certificate (the same one `codesign --sign -` makes), made on whatever
+  system built the app, so a Mac app built on Windows or Linux is signed too.
+  Apple silicon Macs run it, and it opens on the Mac that built it. Its seal,
+  `Contents/_CodeSignature/CodeResources`, covers every file in
+  `Contents/Resources`.
+- To give it to others, sign it with your Developer ID and notarize it, on a
+  Mac (`codesign`, `xcrun notarytool`). Without that, a downloaded app is
+  allowed once: macOS says “Name” Not Opened (*Apple could not verify “Name”
+  is free of malware…*; click **Done**), then System Settings > Privacy &
+  Security > **Open Anyway** opens it (see [Install on macOS](getting-started.md#install-on-macos)).
 - A built app opens like any other Mac app:
 
   ![hello_form built by rapidr build and opened as an app on macOS: its window with a name box and a Greet button](images/install/macos-built-app.png)

@@ -141,16 +141,10 @@ pub fn universal(slices: &[&[u8]]) -> Result<Vec<u8>, String> {
 pub(crate) mod tests {
     use super::*;
 
-    /// A thin Mach-O header's first bytes for `cpu`, then `body`.
+    /// A thin Mach-O program for `cpu` whose code is `body`: linked-looking
+    /// (segments, __LINKEDIT last), so the signer signs it.
     pub(crate) fn thin_macho(cpu: u32, body: &[u8]) -> Vec<u8> {
-        let mut b = Vec::new();
-        b.extend_from_slice(&MH_MAGIC_64.to_le_bytes());
-        b.extend_from_slice(&cpu.to_le_bytes());
-        b.extend_from_slice(&0u32.to_le_bytes());
-        b.extend_from_slice(&2u32.to_le_bytes()); // MH_EXECUTE
-        b.extend_from_slice(&[0; 16]);
-        b.extend_from_slice(body);
-        b
+        crate::macho_sign::synth::program(cpu, body)
     }
 
     #[test]

@@ -129,12 +129,11 @@ Determinism: the same inputs make the same bytes (entries sorted, the caller's
 ## 6. macOS signing: the call site
 
 An Apple-silicon Mac runs no unsigned arm64 code, so every macOS app is signed
-ad hoc. The MACHO-SIGN lane writes the signer (`macho_sign.rs`, pure); its one
-call site is `macos::sign_ad_hoc(files, app_root, info)` inside `pack`. Until
-it lands, that returns "not signed" and the CLI signs on a Mac with `codesign`
-in one bridge function (`package::codesign_bridge`: the `.app` written to a
-temporary folder, signed, read back into the tree), used by folder builds and
-archives alike; it is deleted when the signer lands.
+ad hoc. The MACHO-SIGN lane wrote the signer (`macho_sign.rs`, pure,
+[docs/macho-signer-design.md](macho-signer-design.md)); its one call site is
+`macos::sign_ad_hoc(files, app_root, info)` inside `pack`, so folder builds
+and archives, on every system and in the browser, come out signed. The
+`codesign` bridge the CLI had until then is deleted (one implementation).
 
 ## 7. Security
 

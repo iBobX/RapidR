@@ -22,5 +22,8 @@ editpe = { version = "0.2.4", default-features = false, features = ["std"] }
 rapidr-archive = { workspace = true, features = ["zip", "gzip"] }
 # The web app's page and files (no zip feature: the archive is made here).
 rapidr-webbundle = { workspace = true }
-# SHA256SUMS (MIT OR Apache-2.0; already in the tree: the CLI's downloads).
-sha2 = { version = "0.10", default-features = false }
+# SHA256SUMS and the page hashes of a Mac app's ad-hoc signature
+# (macho_sign.rs) (MIT OR Apache-2.0; already in the tree: rapidr-studio
+# uses 0.11, which uses the processor's SHA-256 instructions on Apple
+# silicon and x86 by itself: a 82 MB universal runner signed in 42 ms).
+sha2 = { version = "0.11", default-features = false }
