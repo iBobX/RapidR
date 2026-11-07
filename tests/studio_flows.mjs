@@ -8113,6 +8113,23 @@ const CASES = [
     },
   },
   {
+    // (the bell on the status bar's colour of the moment: the bar is the
+    // state's colour while the program is paused, and the bell's box and
+    // pill are that colour, never the resting bar's patch)
+    name: "notify-bell-state-bar",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,notify:bell",
+    delay: 6,
+    reducedMotion: true,
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "outputbox.text": /\[bell\] state=paused box=bar pill=bar/,
+    },
+  },
+  {
     // (the keyboard: F6 from the editor goes on to the toast, a real key;
     // its action has the focus, Enter presses it — Show opens the file)
     name: "notify-f6",

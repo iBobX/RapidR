@@ -199,6 +199,8 @@ SUB ApplyState
       Status.Color = TC("statusbar")
       Status.Font.Color = TC("statusbar.text")
   END SELECT
+  ' (the bell on the bar's colour of the moment: notify.inc)
+  BellColour
   ' (the state takes the room it needs: LayOutStatus)
   LayOutStatus
 END SUB

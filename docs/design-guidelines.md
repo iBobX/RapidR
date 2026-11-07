@@ -185,7 +185,7 @@ A toast is never used for something that needs an answer (it can vanish), a fail
 
 ### The history
 
-- **The bell** is the status bar's right-hand chip: the `notifications` icon and a count of **unseen** messages (nothing when there are none; "9+" over nine), the icon 12 px in the bar's font size, `AccessibleName` "Notifications" with the count. Clicking it, Enter or Space on it, or Ctrl+Shift+N opens the list.
+- **The bell** is the status bar's right-hand chip: the `notifications` icon and a count of **unseen** messages (nothing when there are none; "9+" over nine), the icon 12 px in the bar's font size, `AccessibleName` "Notifications" with the count. Clicking it, Enter or Space on it, or Ctrl+Shift+N opens the list. **It lives on the bar's colour of the moment**: while a program runs, is paused or stopped on an error the bar is that state's colour, and the bell has no box of its own on it (never a light patch on an orange bar) and draws its icon light, like the bar's words (at least 3:1 against the bar).
 - **The list** is a card above the bell, 360 wide, at most eight rows tall and then it scrolls: each row the kind's icon, the time ("14:32"), the text (wrapped, whole) and its action link again; **Clear** at the foot. The last 50 messages are kept for the session. Opening the list marks everything seen and takes the toasts on screen away (they are in it), so the card never covers one.
 - Nothing is lost: a toast that went before it was read is in the list, with its action still working (an action whose file or thing is gone says so; it never fails silently).
 

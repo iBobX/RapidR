@@ -26,6 +26,7 @@ DECLARE SUB ListPicked(Id AS STRING)
 DECLARE SUB LayOutNotify
 DECLARE SUB BellShow
 DECLARE SUB BellPlace
+DECLARE SUB BellColour
 DECLARE SUB OpenNotifications
 DECLARE FUNCTION Toast(Text AS STRING, Kind AS STRING, Action AS STRING, Key AS STRING) AS INTEGER
 
@@ -101,8 +102,7 @@ SUB ApplyNotifyChrome
   Notify.AccessibleName = TR$("Notifications")
   ListPicker.Font = UIFont
   ListPicker.Placeholder = TR$("Search")
-  BellBox.Color = TC("statusbar")
-  BellChip.Color = TC("statusbar")
+  BellColour
   BellCount.Font = StatusFont
   BellCount.Font.Color = TC("status.info.text")
   ApplyNotifyStay
@@ -198,11 +198,26 @@ FUNCTION BellRoom AS INTEGER
   Result = 44
 END FUNCTION
 
+' The bell on the bar's colour of the moment: while a program runs, is paused or
+' stopped on an error the bar is that state's colour (ApplyState), so the bell's box
+' takes it and its icon is the light one, as the bar's words are, never a light patch
+' on a coloured bar. (The classic and high contrast looks keep their bar.)
+SUB BellColour
+  BellBox.Color = Status.Color
+  BellChip.Color = Status.Color
+  IF Status.Color <> TC("statusbar") THEN
+    BellBmp.LoadIcon "notifications", 12, "rapidr high contrast"
+  ELSE
+    BellBmp.LoadIcon "notifications", 12
+  END IF
+  BellIcon.BMPHandle = BellBmp
+  BellChip.Repaint
+END SUB
+
 SUB BellShow
   DIM n AS INTEGER, s AS STRING, w AS INTEGER
   n = Notify.UnseenCount
-  BellIcon.BMPHandle = BellBmp
-  BellBmp.LoadIcon "notifications", 12
+  BellColour
   IF n > 0 THEN
     IF n > 9 THEN s = "9+" ELSE s = LTRIM$(STR$(n))
     BellCount.Caption = s
@@ -308,6 +323,7 @@ END FUNCTION
 '   notify:history                the bell clicked
 '   notify:tabs                   the list button of the document tabs clicked
 '   notify:report                 what Studio shows, in the Output: [notify] …
+'   notify:bell                   the bell's colours against the status bar's: [bell] …
 SUB NotifyStep(S AS STRING)
   DIM k AS INTEGER, what AS STRING, v AS STRING, t AS STRING, i AS INTEGER
   k = INSTR(S, "=")
@@ -355,6 +371,13 @@ SUB NotifyStep(S AS STRING)
       FOR i = 0 TO Notify.Count - 1
         t = t + " | " + Notify.Kind(i) + ":" + Notify.Text(i)
       NEXT
+      OutputLine t
+    CASE "bell"
+      ' (the bell's box and pill are the bar's colour of the moment, a state's too)
+      t = "[bell] state=" + RunState + " box="
+      IF BellBox.Color = Status.Color THEN t = t + "bar" ELSE t = t + "other"
+      t = t + " pill="
+      IF BellChip.Color = Status.Color THEN t = t + "bar" ELSE t = t + "other"
       OutputLine t
   END SELECT
 END SUB
