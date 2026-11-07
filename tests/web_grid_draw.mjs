@@ -24,7 +24,7 @@ const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!
 const cells = (where) => where.evaluate(() => {
   const g = document.getElementById("rr-grid").getBoundingClientRect();
   return [...document.querySelectorAll('#rr-grid [role="row"]')]
-    .map((row) => [...row.querySelectorAll('[role="gridcell"]')].map((e) => {
+    .map((row) => [...row.querySelectorAll('[role="gridcell"],[role="columnheader"],[role="rowheader"]')].map((e) => {
       const r = e.getBoundingClientRect();
       return { x: r.left - g.left, y: r.top - g.top, width: r.width, height: r.height, selected: e.getAttribute("aria-selected") === "true" };
     }).sort((a, b) => a.x - b.x))

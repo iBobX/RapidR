@@ -1612,6 +1612,16 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if let Some(v) = crate::globals_web::call(name, &lmethod, args) {
         return v;
     }
+    // (RapidR's BringToFront / SendToBack: over or under its siblings —
+    // rapidr_value::zorder, as the desktop's; the kernel builds the
+    // windows' trees again)
+    if let Some(front) = rapidr_value::zorder::method(&lmethod) {
+        if rapidr_value::zorder::stacks(&rp_comp_type(&uname)) {
+            store_prop(name, rapidr_value::zorder::KEY, v_int(rapidr_value::zorder::next(front)));
+            crate::kernel_web::rebuild();
+            return v_null();
+        }
+    }
     // (an RFormEx's own methods, and its TRAYICO's — rapidr_ui_app::formex)
     if rapidr_value::formex::is(name) {
         if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(name, &lmethod) {

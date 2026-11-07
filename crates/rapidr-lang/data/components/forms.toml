@@ -228,7 +228,7 @@ visual = true
 container = true
 size = [185, 41]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -286,7 +286,7 @@ visual = true
 container = true
 size = [289, 193]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -352,7 +352,7 @@ visual = true
 container = true
 size = [0, 32]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's icons or the program's pictures) with tooltips, separators, toggles, and a menu for the buttons that don't fit. With Customizable the user picks which buttons show. RapidR's own; components placed on it sit after its buttons, as on any container."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -402,7 +402,7 @@ visual = true
 container = true
 size = [320, 19]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "The bar at the bottom of a window that shows status text, as one simple text or as several panels."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alBottom" },
@@ -448,7 +448,7 @@ rapidq = "QSPLITTER"
 visual = true
 size = [3, 200]
 default_event = "OnMoved"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A bar the user drags to resize the aligned component beside it, between the panes of a window."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alLeft" },
@@ -483,7 +483,7 @@ visual = true
 container = true
 size = [185, 41]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A container that scrolls: components beyond its edges are reached with its scroll bars."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -540,7 +540,7 @@ visual = true
 container = true
 size = [185, 105]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A captioned frame around related components; the radio buttons in it form one choice."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -586,7 +586,7 @@ visual = true
 container = true
 size = [185, 41]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A box with raised or lowered 3D edges (QBevel.inc), to frame or group components."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -671,7 +671,7 @@ visual = true
 container = true
 size = [400, 300]
 default_event = "OnPaneChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "RapidR's docking area (RapidR Studio is built on it): panes docked at its edges, tabbed together, auto-hidden or floating, around a documents area of MDI windows or tabs. Tabbed documents can be split into groups by dragging a tab to a side, reordered by dragging along the strip, and given views (a Design | Code switch). The user drags panes with a docking compass or moves them from the keyboard; the layout saves to text and loads back."
 properties = [
   { name = "ContextDocument", type = "string", access = "read", design = false, origin = "rapidr", doc = "The document whose tab the last right click was on (its name), for the dock manager's OnContextMenu; \"\" when it was on the tab strip's empty part." },
@@ -746,7 +746,7 @@ display = "Notify"
 visual = true
 size = [440, 200]
 default_event = "OnAction"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "Small messages that pop up, say what happened and get out of the way: toasts, drawn in the program's own look. Show puts one at a corner of the component (the bottom right by default): a line or two of text, an icon for its kind, up to two action links (\"Show\", \"Undo\") and a close button. Several stack, three at most (the oldest goes into the history); a message with the same Key replaces the one on screen, so a burst of the same thing is one toast. Each stays as long as its words need to be read (3 seconds and 80 milliseconds a character, 2 seconds more with an action, 5 to 20 seconds; a warning half as long again; an error until it is closed), and the time stands still while the mouse is on it or the keyboard is. A toast never takes the keyboard, and a screen reader says it once, politely. Everything said is kept in a history (ShowHistory) with its time and its action again, so nothing is lost when a toast was missed. Drop it on a form and leave Align as alClient: it covers the form but takes the mouse only where a toast is."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alClient" },
@@ -809,7 +809,7 @@ display = "NotifyBar"
 visual = true
 size = [400, 36]
 default_event = "OnChoose"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A question the person must answer before work goes on, as one slim line across the top of what it is about: a mark in the warning colour, an icon, the question in regular weight and compact quiet buttons at the right end: 24 px tall in the small font, each an icon of RapidR's with its words (the main one soft-filled, the others plain), icon only when the room is tight, then a More button (the three dots) for the rest and a close X. The question is cut with an ellipsis before anything wraps; under it only when even that is not enough. It is not a dialog and not a toast: it stays on the thing it asks about until a button is pressed, and covers nothing, because Align = alTop pushes what is under it down. Ask shows it and has a screen reader say it once, at once; OnChoose hears the button. Keyboard: Tab and the arrows move between the buttons, More and the close X, Enter presses one, a button's underlined letter presses it, Escape leaves it with the question still asked (OnEscape)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alTop" },

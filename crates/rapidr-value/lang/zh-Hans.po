@@ -4115,3 +4115,19 @@ msgstr "断点的条件 `{cond}` 失败了：{error}"
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "(at {file} line {n})"
 msgstr "（位于 {file} 第 {n} 行）"
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "blank"
+msgstr "空白"
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "row {row} of {rows}, column {column} of {columns}"
+msgstr "第 {row} 行（共 {rows} 行），第 {column} 列（共 {columns} 列）"
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted descending"
+msgstr "降序"
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted ascending"
+msgstr "升序"

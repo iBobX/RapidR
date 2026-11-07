@@ -497,6 +497,47 @@ A few things to know:
 The example [`examples/gui/tab_icons.rr`](../../examples/gui/tab_icons.rr)
 has four tabs with icons and a Narrower button that shows them alone.
 
+## Stacking: BringToFront and SendToBack
+
+Components on the same parent stack in the order they are made: the last
+one made is on top where they overlap. `BringToFront` (RapidR's) puts a
+component over all its siblings, and `SendToBack` under them:
+
+```basic
+SUB OpenFilters
+    Drawer.BringToFront     ' over the list: drawn on top, takes the clicks
+END SUB
+
+SUB CloseFilters
+    Drawer.SendToBack       ' under the list again
+END SUB
+```
+
+- A component brought to the front is drawn over its siblings **and takes
+  the mouse** where it covers them: a click there is its own, or one of its
+  components'; the controls under it hear nothing. Where it doesn't cover
+  them, they take the mouse as before.
+- Its own components come with it: a panel brought to the front brings its
+  buttons and boxes too.
+- The last one brought to the front is on top; the last one sent back is at
+  the bottom.
+- The layout doesn't move: `Align`, `Anchors` and the sizes stay as they
+  were. Only what is over what changes.
+- Tab, for components without a `TabOrder`, and screen readers follow the
+  stacking: a drawer in front is reached after the controls under it. Set
+  `TabOrder` to choose another order, or `SetFocus` to put the keyboard in
+  the drawer when it opens.
+- Every component that sits on a form has them (not a form itself: it is a
+  window of its own). They work the same on the desktop, in native builds,
+  in the interpreter and on the web.
+- A program that doesn't call them stacks its components exactly as
+  before.
+
+The example [`examples/gui/drawer.rr`](../../examples/gui/drawer.rr) opens a
+filters drawer over a list of orders and closes it behind them again.
+
+![A drawer brought to the front, over the list of orders](images/components/drawer-front.png)
+
 ## The global objects
 
 | Object | What it has |
@@ -525,6 +566,7 @@ compiler doesn't know it).
 |---|---|
 | `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (the classic components have `Align` only) |
 | `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` (also `Constraints.MinWidth`, …) | bound every size the component takes, from the program, the layout or the user |
+| `BringToFront`, `SendToBack` | put a component over or under its siblings: drawn on top and taking their clicks, or under them ([Stacking](#stacking-bringtofront-and-sendtoback)) |
 | `AccessibleName`, `AccessibleDescription` | what a screen reader says, when the caption isn't enough |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
 | `Application.Theme`, `$THEME`, `Application.OnThemeChange` | the look, and when it changes (below) |
@@ -745,6 +787,14 @@ the author doing anything:
   reader can also press an item, open or close a submenu and move to an
   item, as the keyboard and the mouse do. An item's `Hint` is its
   description.
+- Grids are read as tables: an `RStringGrid`'s and an `RDBGrid`'s rows hold
+  their cells, the fixed row's cells (an `RDBGrid`'s headings) are the
+  column headings, and the current cell has the screen reader's focus, so
+  each arrow key says the new cell with its column and its place: "Name,
+  Ada, row 2 of 10, column 1 of 3" (rows and columns counted from 1, the
+  headings left out). A grid of a million rows says the headings and the
+  rows around the current one. In a browser the cells carry ARIA's row and
+  column numbers and headings, which its screen readers say themselves.
 - (RapidR's) A panel with `TabStop = 1` takes the focus like a button:
   Tab reaches it, the theme's focus ring shows around it, Enter or Space
   clicks it (`OnClick`), and a screen reader announces a button named by

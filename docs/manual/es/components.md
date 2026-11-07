@@ -1,4 +1,4 @@
-<!-- translated-from: components.md b54f69cb7dda9c64 -->
+<!-- translated-from: components.md 8cb78b74f396a4f2 -->
 # Componentes y objetos
 
 Un programa de RapidR construye sus ventanas con **componentes** —
@@ -521,6 +521,47 @@ Algunas cosas que conviene saber:
 El ejemplo [`examples/gui/tab_icons.rr`](../../../examples/gui/tab_icons.rr)
 tiene cuatro pestañas con íconos y un botón Narrower que las muestra solas.
 
+## Apilar: BringToFront y SendToBack
+
+Los componentes de un mismo contenedor se apilan en el orden en que se crean:
+el último creado queda arriba donde se superponen. `BringToFront` (de RapidR)
+pone un componente por encima de todos sus hermanos, y `SendToBack` por debajo:
+
+```basic
+SUB OpenFilters
+    Drawer.BringToFront     ' sobre la lista: se dibuja encima, recibe los clics
+END SUB
+
+SUB CloseFilters
+    Drawer.SendToBack       ' otra vez debajo de la lista
+END SUB
+```
+
+- Un componente traído al frente se dibuja sobre sus hermanos **y recibe el
+  mouse** donde los cubre: un clic allí es suyo, o de uno de sus componentes;
+  los controles que quedan debajo no se enteran. Donde no los cubre, ellos
+  reciben el mouse como antes.
+- Sus propios componentes vienen con él: un panel traído al frente trae
+  también sus botones y sus cuadros.
+- El último traído al frente queda arriba; el último enviado atrás queda
+  abajo de todo.
+- La disposición no se mueve: `Align`, `Anchors` y los tamaños quedan como
+  estaban. Solo cambia qué está sobre qué.
+- Tab, para los componentes sin `TabOrder`, y los lectores de pantalla siguen
+  el apilado: un cajón al frente se alcanza después de los controles que
+  tiene debajo. Usa `TabOrder` para elegir otro orden, o `SetFocus` para
+  poner el teclado en el cajón cuando se abre.
+- Los tienen todos los componentes que van sobre un formulario (no el
+  formulario mismo: es una ventana propia). Funcionan igual en el escritorio,
+  en las compilaciones nativas, en el intérprete y en la web.
+- Un programa que no los llama apila sus componentes exactamente como antes.
+
+El ejemplo [`examples/gui/drawer.rr`](../../../examples/gui/drawer.rr) abre un
+cajón de filtros sobre una lista de pedidos y lo vuelve a cerrar detrás de
+ella.
+
+![Un cajón traído al frente, sobre la lista de pedidos](../images/components/drawer-front.png)
+
 ## Los objetos globales
 
 | Objeto | Qué tiene |
@@ -549,6 +590,7 @@ compilador anterior no la conoce).
 |---|---|
 | `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | mantiene las distancias del componente a los bordes de su padre cuando se cambia el tamaño del padre (los componentes clásicos solo tienen `Align`) |
 | `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` (también `Constraints.MinWidth`, …) | limitan todos los tamaños que toma el componente, desde el programa, la disposición o el usuario |
+| `BringToFront`, `SendToBack` | ponen un componente sobre o bajo sus hermanos: se dibuja encima y recibe sus clics, o queda debajo ([Apilar](#apilar-bringtofront-y-sendtoback)) |
 | `AccessibleName`, `AccessibleDescription` | lo que dice un lector de pantalla, cuando el texto no basta |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | qué tan fina es la pantalla (2 en una pantalla Retina, 1.5 al 150 %) |
 | `Application.Theme`, `$THEME`, `Application.OnThemeChange` | el aspecto, y cuándo cambia (más abajo) |
@@ -782,6 +824,15 @@ autor haga nada:
   que las teclas se mueven. Un lector de pantalla también puede presionar un
   elemento, abrir o cerrar un submenú y pasar a un elemento, como lo hacen el
   teclado y el mouse. El `Hint` de un elemento es su descripción.
+- Las cuadrículas se leen como tablas: las filas de un `RStringGrid` y de un
+  `RDBGrid` contienen sus celdas, las celdas de la fila fija (los encabezados
+  de un `RDBGrid`) son los encabezados de columna, y la celda actual tiene el
+  foco del lector de pantalla, así que cada tecla de flecha dice la celda
+  nueva con su columna y su lugar: "Nombre, Ada, fila 2 de 10, columna 1 de 3"
+  (filas y columnas contadas desde 1, sin los encabezados). Una cuadrícula de
+  un millón de filas dice los encabezados y las filas alrededor de la actual.
+  En un navegador, las celdas llevan los números de fila y columna y los
+  encabezados de ARIA, que sus lectores de pantalla dicen por sí mismos.
 - (De RapidR) Un panel con `TabStop = 1` toma el foco como un botón: Tab llega a
   él, el anillo de foco del tema se muestra a su alrededor, Enter o Space hace
   clic en él (`OnClick`), y un lector de pantalla anuncia un botón con el nombre

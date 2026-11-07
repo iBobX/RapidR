@@ -55,6 +55,8 @@ pub fn aria_role(role: Role) -> Option<&'static str> {
         Role::Grid => "grid",
         Role::Row => "row",
         Role::Cell => "gridcell",
+        Role::ColumnHeader => "columnheader",
+        Role::RowHeader => "rowheader",
         Role::MenuBar => "menubar",
         Role::Menu => "menu",
         Role::MenuItem => "menuitem",
@@ -80,7 +82,7 @@ fn focusable(n: &AccessNode) -> bool {
     if n.role == Role::Group && n.actions.contains(&Action::Focus) {
         return true;
     }
-    !matches!(n.role, Role::Window | Role::Dialog | Role::Pane | Role::Group | Role::Label | Role::Canvas | Role::Image | Role::Status | Role::Heading | Role::List | Role::ListItem | Role::Table | Role::Unknown)
+    !matches!(n.role, Role::Window | Role::Dialog | Role::Pane | Role::Group | Role::Label | Role::Canvas | Role::Image | Role::Status | Role::Heading | Role::List | Role::ListItem | Role::Table | Role::ColumnHeader | Role::RowHeader | Role::Unknown)
 }
 
 fn tag(n: &AccessNode) -> &'static str {
@@ -138,9 +140,29 @@ pub fn attributes(n: &AccessNode) -> Vec<(&'static str, String)> {
     }
     let st = &n.states;
     let cells = value_row(n).is_some();
+    // (a grid's row in its table: ARIA's row index says where it is and its
+    // cells say what — no label of its own, which a reader would say over
+    // them)
+    let table_row = n.role == Role::Row && n.table.is_some();
     // (a row with its cells is named by them: "Caption Button1")
-    if !text_role(n.role) && !n.name.is_empty() && !cells {
+    if !text_role(n.role) && !n.name.is_empty() && !cells && !table_row {
         a.push(("aria-label", n.name.clone()));
+    }
+    // (a grid's place in its table: ARIA counts rows and columns from 1, the
+    // headings' included — the browser's readers say "row 3 of 11" and the
+    // column's heading themselves)
+    if let Some(t) = &n.table {
+        for (key, v) in [("aria-rowcount", t.rows), ("aria-colcount", t.columns)] {
+            if let Some(v) = v {
+                a.push((key, v.to_string()));
+            }
+        }
+        if let Some(r) = t.row.filter(|_| n.role == Role::Row) {
+            a.push(("aria-rowindex", (r + 1).to_string()));
+        }
+        if let Some(c) = t.column.filter(|_| matches!(n.role, Role::Cell | Role::ColumnHeader | Role::RowHeader)) {
+            a.push(("aria-colindex", (c + 1).to_string()));
+        }
     }
     // (a read-only property's row says so: ARIA has no read-only row)
     let description = if cells && st.read_only {

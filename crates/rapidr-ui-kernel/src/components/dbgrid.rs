@@ -10,14 +10,19 @@
 //! 0, as `Row` counts), the cells — numbers right-aligned, a missing value
 //! dimmed as `null` —, the current row highlighted, the scroll bars.
 //!
-//! What the user does: a click on a row makes it the current row (bound
-//! edits follow; OnCellClick(Row, Col)); a click on a heading sorts the
-//! grid's view by that column, again descending, a third time back to the
-//! data's order (OnTitleClick(Col)) — the data stays as it is; the arrows,
-//! Page Up / Down, Home / End move the current row; Ctrl+C (Cmd+C, also
-//! Ctrl+Insert) copies it, its cells tab-separated; the wheel and the bars
-//! scroll. A screen reader hears a grid: the headings, then the rows on
-//! screen, each named "Row 12 of 1000000", the current one selected.
+//! What the user does: a click on a cell makes its row the current row
+//! (bound edits follow) and its column the current column (Col;
+//! OnCellClick(Row, Col)); a click on a heading sorts the grid's view by
+//! that column, again descending, a third time back to the data's order
+//! (OnTitleClick(Col)) — the data stays as it is; Up / Down, Page Up /
+//! Down, Home / End move the current row, Left / Right the current column
+//! (scrolled into view); Ctrl+C (Cmd+C, also Ctrl+Insert) copies the row,
+//! its cells tab-separated; the wheel and the bars scroll. The current
+//! cell has the focus box while the grid has the keyboard. A screen reader
+//! hears a table: the headings, then the rows on screen, each named "Row 12
+//! of 1000000" (counted from 1 down the view) and holding its cells, each
+//! said with its column ("name, Ada, row 12 of 1000000, column 2 of 3"),
+//! the current cell focused — so each arrow says the new cell.
 //!
 //! Bound to a database component (RSQLITE, RMYSQL) it draws that
 //! component's last query — a background query's rows as they arrive, the
@@ -35,7 +40,7 @@ use std::rc::Rc;
 
 use rapidr_value::datascience::{frame, link};
 use rapidr_value::i18n::{tr_ui, tr_ui_fill};
-use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_CELL, PART_ROW};
+use rapidr_value::objects::a11y::{part_id, place_words, row_words, AccessNode, Action, Role, TablePlace, PART_CELL, PART_ROW};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place};
 use rapidr_value::scrollbars::{Child, Scroller};
@@ -179,6 +184,26 @@ fn row_text(dataset: &str, r: usize) -> String {
     frame::with_frame(dataset, |f| (0..f.width()).map(|c| f.cell(r, c).map(|s| s.replace(['\t', '\n', '\r'], " ")).unwrap_or_default()).collect::<Vec<_>>().join("\t"))
 }
 
+/// Data cells' part ids: past the headings' (`PART_CELL`, the column) and
+/// the rows' indexes, the data row and the column inside (so each cell's
+/// id stays as it scrolls, and a screen reader's click names its cell). In
+/// 32 bits, as every system's part index: the row's low 23 bits (the rows
+/// on screen are always told apart by them) and the column's low 8.
+const CELL_PARTS: usize = 1 << 31;
+const CELL_ROW_BITS: usize = 0x7F_FFFF;
+
+/// Data row `r`'s cell in column `c`: its part index.
+fn cell_part(r: usize, c: usize) -> usize {
+    CELL_PARTS | ((r & CELL_ROW_BITS) << 8) | (c & 0xFF)
+}
+
+/// Where column `c` starts in the cells' content (before the scroll, after
+/// the gutter) and how wide it is.
+fn column_span(l: &Layout, c: usize) -> Option<(i64, i64)> {
+    let w = *l.cols.get(c)?;
+    Some((l.cols[..c].iter().map(|w| w + 1).sum(), w))
+}
+
 /// The column at x of the cells' area (after the gutter, scrolled).
 fn column_at(l: &Layout, x: i64) -> Option<usize> {
     let mut at = l.gutter - l.left;
@@ -207,6 +232,35 @@ impl DbGrid {
         let r = data_row(order, v);
         link::set_row(cx.id, r);
         cx.events.push(KernelEvent::Set { id: cx.id.to_string(), prop: "row".into(), value: r as i64 });
+    }
+
+    /// The current column moved to `c` (kept in the data's columns):
+    /// scrolled across so it shows whole (as much as fits), and the program
+    /// told (Col).
+    fn go_to_col(cx: &mut Cx, l: &Layout, c: i64) {
+        if l.cols.is_empty() {
+            return;
+        }
+        let c = c.clamp(0, l.cols.len() as i64 - 1) as usize;
+        if let Some((at, w)) = column_span(l, c) {
+            let room = (l.inner.0 - l.gutter).max(1);
+            let left = if at < l.left {
+                at
+            } else if at + w > l.left + room {
+                (at + w - room).min(at)
+            } else {
+                l.left
+            };
+            if left != l.left {
+                SCROLLERS.with(|s| {
+                    if let Some(sc) = s.borrow_mut().get_mut(cx.id) {
+                        sc.horz.position = left.max(0);
+                    }
+                });
+            }
+        }
+        link::set_grid_col(cx.id, c);
+        cx.events.push(KernelEvent::Set { id: cx.id.to_string(), prop: "col".into(), value: c as i64 });
     }
 }
 
@@ -283,13 +337,30 @@ impl ComponentKind for DbGrid {
                         for (c, colw) in l.cols.iter().enumerate() {
                             if x + colw >= l.gutter && x < cw {
                                 let cell = f.cell(r, c);
+                                // (the current cell of a focused grid: on the grid's own
+                                // ground, not the row's selection, with the focus box —
+                                // as RStringGrid's, and as the classic grids draw it —
+                                // so the box reads in every look, high contrast's too)
+                                let here = current && c == d.col && cx.state.focused;
                                 let (text, color) = match &cell {
+                                    Some(_) if here => (cell.as_deref().unwrap_or(""), text_color),
                                     Some(s) => (s.as_ref(), ink_row),
-                                    None => ("null", if current { sel_ink } else { t.secondary_text() }),
+                                    None => ("null", if current && !here { sel_ink } else { t.secondary_text() }),
                                 };
                                 let rect = (x + 5, y + (rh - line_h) / 2, colw - 10, line_h);
                                 p.clipped((x.max(l.gutter), y, (x + colw).min(cw) - x.max(l.gutter), rh), |p| {
+                                    if here {
+                                        p.fill((x, y, *colw, rh - 1), background);
+                                    }
                                     p.text(rect, text, &font, color, if numeric.get(c).copied().unwrap_or(false) && cell.is_some() { Place::TopRight } else { Place::TopLeft });
+                                    // (the arrows move the box, Col says where)
+                                    if here {
+                                        if t.fluent() {
+                                            p.ring((x, y, *colw, rh - 1), 2.0, t.focus, 2.0);
+                                        } else {
+                                            p.focus((x, y, *colw, rh - 1));
+                                        }
+                                    }
                                 });
                             }
                             x += colw + 1;
@@ -406,6 +477,9 @@ impl ComponentKind for DbGrid {
         let v = l.top + ((y - l.row_h - 1) / l.row_h) as usize;
         if v < d.rows {
             let order = link::grid_order(cx.id, &d);
+            if let Some(c) = col {
+                Self::go_to_col(cx, &l, c as i64);
+            }
             Self::go_to_view(cx, &d, &l, &order, v as i64);
             let r = data_row(&order, v);
             cx.events.push(KernelEvent::Fire { id: cx.id.to_string(), event: "oncellclick".into(), args: vec![v_int(r as i64), v_int(col.map_or(-1, |c| c as i64))] });
@@ -427,6 +501,11 @@ impl ComponentKind for DbGrid {
         let order = link::grid_order(cx.id, &d);
         let now = view_row(&order, d.row) as i64;
         let page = l.page as i64;
+        // (Left / Right: the current column)
+        if matches!(k.vk, 37 | 39) && !command {
+            Self::go_to_col(cx, &l, d.col as i64 + if k.vk == 37 { -1 } else { 1 });
+            return true;
+        }
         let to = match k.vk {
             38 => now - 1,
             40 => now + 1,
@@ -483,48 +562,103 @@ impl ComponentKind for DbGrid {
         let Some(d) = link::grid(cx.id) else { return n };
         let l = layout(cx, &d);
         let order = link::grid_order(cx.id, &d);
-        let (names, rows): (Vec<String>, Vec<(usize, Vec<String>)>) = frame::with_frame(&d.dataset, |f| {
+        // (each row on screen: its place in the view, its data row, its cells)
+        type Shown = Vec<(usize, usize, Vec<String>)>;
+        let (names, rows): (Vec<String>, Shown) = frame::with_frame(&d.dataset, |f| {
             let last = (l.top + l.page + 1).min(d.rows);
             let rows = (l.top..last).map(|v| {
                 let r = data_row(&order, v);
-                (r, (0..f.width()).map(|c| f.cell(r, c).map_or_else(|| "null".to_string(), |s| s.into_owned())).collect())
+                (v, r, (0..f.width()).map(|c| f.cell(r, c).map_or_else(|| "null".to_string(), |s| s.into_owned())).collect())
             });
             (f.columns.clone(), rows.collect())
         });
-        n.description = tr_ui_fill("{rows} rows, {columns} columns", &[("rows", &d.rows.to_string()), ("columns", &names.len().to_string())]);
+        let ncols = names.len();
+        n.description = tr_ui_fill("{rows} rows, {columns} columns", &[("rows", &d.rows.to_string()), ("columns", &ncols.to_string())]);
+        // (a table: its headings' row and every data row, all its columns)
+        n.table = Some(Box::new(TablePlace { rows: Some(d.rows + 1), columns: Some(ncols), ..TablePlace::default() }));
         let (x0, y0) = (cx.rect.0 + 2, cx.rect.1 + 2);
+        // (a column's place on screen, scrolled, cut to the cells' area)
+        let span = |c: usize| {
+            column_span(&l, c).map(|(at, w)| {
+                let x = (l.gutter - l.left + at).max(l.gutter);
+                let right = (l.gutter - l.left + at + w).min(l.inner.0);
+                (x0 + x, (right - x).max(0))
+            })
+        };
         let mut head = AccessNode::new(part_id(cx.id, PART_ROW, 0), Role::Row);
         head.name = tr_ui("Headings");
         head.bounds = (x0, y0, l.inner.0, l.row_h);
+        head.table = Some(Box::new(TablePlace { row: Some(0), ..TablePlace::default() }));
         for (c, name) in names.iter().enumerate() {
-            let mut cell = AccessNode::new(part_id(cx.id, PART_CELL, c), Role::Cell);
+            let mut cell = AccessNode::new(part_id(cx.id, PART_CELL, c), Role::ColumnHeader);
             cell.name = name.clone();
+            if let Some((x, w)) = span(c) {
+                cell.bounds = (x, y0, w, l.row_h);
+            }
+            // (sorted by it: a screen reader hears it with the heading)
+            if let Some((_, desc)) = d.sort.filter(|(s, _)| *s == c) {
+                cell.description = if desc { tr_ui("sorted descending") } else { tr_ui("sorted ascending") };
+            }
+            cell.table = Some(Box::new(TablePlace { row: Some(0), column: Some(c), ..TablePlace::default() }));
             head.children.push(cell);
         }
         n.children.push(head);
-        for (i, (r, cells)) in rows.into_iter().enumerate() {
+        for (i, (v, r, cells)) in rows.into_iter().enumerate() {
+            let y = y0 + l.row_h + 1 + i as i64 * l.row_h;
             let mut row = AccessNode::new(part_id(cx.id, PART_ROW, r + 1), Role::Row);
-            row.name = tr_ui_fill("Row {row} of {total}", &[("row", &r.to_string()), ("total", &d.rows.to_string())]);
-            row.value = Some(names.iter().zip(&cells).map(|(n, v)| format!("{n} {v}")).collect::<Vec<_>>().join(", "));
+            row.name = row_words(v + 1, d.rows);
             row.states.selected = Some(r == d.row);
-            row.bounds = (x0, y0 + l.row_h + 1 + i as i64 * l.row_h, l.inner.0, l.row_h);
+            row.bounds = (x0, y, l.inner.0, l.row_h);
             row.actions.push(Action::Click);
+            row.table = Some(Box::new(TablePlace { row: Some(v + 1), ..TablePlace::default() }));
+            for (c, value) in cells.into_iter().enumerate() {
+                let mut cell = AccessNode::new(part_id(cx.id, PART_CELL, cell_part(r, c)), Role::Cell);
+                cell.name = value;
+                cell.states.selected = Some(r == d.row);
+                // (the current cell, while the grid has the keyboard: the
+                // screen reader's focus, said as the arrows move it)
+                cell.states.focused = cx.state.focused && r == d.row && c == d.col;
+                cell.actions = vec![Action::Click, Action::Focus];
+                if let Some((x, w)) = span(c) {
+                    cell.bounds = (x, y, w, l.row_h);
+                }
+                cell.table = Some(Box::new(TablePlace {
+                    row: Some(v + 1),
+                    column: Some(c),
+                    heading: names.get(c).cloned().unwrap_or_default(),
+                    place: place_words(v + 1, d.rows, c + 1, ncols),
+                    ..TablePlace::default()
+                }));
+                row.children.push(cell);
+            }
             n.children.push(row);
         }
         n
     }
 
     fn access(&self, cx: &mut Cx, action: Action, part: Option<usize>, _value: Option<&AccessValue>) -> bool {
-        // (a row clicked by a screen reader: the current row)
-        let (Action::Click, Some(p)) = (action, part) else { return false };
+        // (a row or a cell clicked — or focused — by a screen reader: the
+        // current row, and a cell's column the current column)
+        let (Action::Click | Action::Focus, Some(p)) = (action, part) else { return false };
         let Some(d) = link::grid(cx.id) else { return false };
-        let r = p;
-        if r == 0 || r > d.rows {
-            return false;
-        }
         let l = layout(cx, &d);
         let order = link::grid_order(cx.id, &d);
-        Self::go_to_view(cx, &d, &l, &order, view_row(&order, r - 1) as i64);
+        let (r, c) = if p >= CELL_PARTS {
+            // (the row on screen whose low bits the id has)
+            let low = (p >> 8) & CELL_ROW_BITS;
+            let last = (l.top + l.page + 1).min(d.rows);
+            let Some(r) = (l.top..last).map(|v| data_row(&order, v)).find(|r| r & CELL_ROW_BITS == low) else { return false };
+            (r, Some(p & 0xFF))
+        } else {
+            (p.wrapping_sub(1), None)
+        };
+        if p == 0 || r >= d.rows {
+            return false;
+        }
+        if let Some(c) = c {
+            Self::go_to_col(cx, &l, c as i64);
+        }
+        Self::go_to_view(cx, &d, &l, &order, view_row(&order, r) as i64);
         true
     }
 
@@ -545,6 +679,7 @@ impl ComponentKind for DbGrid {
         }
         let l = layout(cx, &d);
         let order = link::grid_order(cx.id, &d);
+        Self::go_to_col(cx, &l, c);
         Self::go_to_view(cx, &d, &l, &order, r);
         let row = data_row(&order, (r.max(0) as usize).min(d.rows.saturating_sub(1)));
         cx.events.push(KernelEvent::Fire { id: cx.id.to_string(), event: "oncellclick".into(), args: vec![v_int(row as i64), v_int(c)] });
@@ -559,9 +694,10 @@ impl ComponentKind for DbGrid {
 #[cfg(test)]
 mod tests {
     use rapidr_value::datascience::{frame, link};
+    use rapidr_value::objects::a11y::Action;
     use rapidr_value::{v_int, v_str};
 
-    use crate::{FormUi, Item, MemStore, Op, TextSystem};
+    use crate::{FormUi, Item, KernelEvent, MemStore, Op, TextSystem};
 
     fn texts(list: &crate::DisplayList) -> Vec<String> {
         list.items.iter().filter_map(|i| if let Item::Op { op: Op::Text { text, .. }, .. } = i { Some(text.clone()) } else { None }).collect()
@@ -661,6 +797,81 @@ mod tests {
         let mut clip = crate::MemClipboard::default();
         f.key_down(&s, &mut ts, 67, "", crate::input::Mods { ctrl: true, ..crate::input::Mods::NONE }, &mut clip);
         assert_eq!(clip.0.as_deref(), Some("100063\tn100063"));
+    }
+
+    /// The current column (Col): a click on a cell sets it, Left and Right
+    /// move it (kept in the columns), the program sets it; the current cell
+    /// is the accessibility tree's focus, said with its heading and place,
+    /// and each row holds its cells.
+    #[test]
+    fn the_current_cell_moves_with_the_arrows_and_holds_the_focus() {
+        use rapidr_value::objects::a11y::{spoken_cell, Role};
+        frame::set_frame("kg_cells", frame::parse_csv("name,age,city\nAda,36,London\nBob,41,Paris\nCy,29,Rome\n"));
+        link::create("kg_cells", "RDATAFRAME");
+        let s = form("kg_cellgrid");
+        link::set("kg_cellgrid", "datasource", &v_str("kg_cells"));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "f", true);
+        f.paint(&s, &mut ts, 1.0);
+        assert_eq!(f.focus.map(|i| f.nodes[i].id.as_str()), Some("kg_cellgrid"), "the grid has the keyboard");
+        // (a click on the cell in column 2 of view row 1: OnCellClick(1, 2), Col 2)
+        assert!(f.test_action(&s, &mut ts, "kg_cellgrid", "__cell_2_1"));
+        let d = link::grid("kg_cellgrid").unwrap();
+        assert_eq!((d.row, d.col), (1, 2));
+        let events = f.take_events();
+        assert!(events.contains(&KernelEvent::Fire { id: "kg_cellgrid".into(), event: "oncellclick".into(), args: vec![v_int(1), v_int(2)] }), "{events:?}");
+        assert!(events.contains(&KernelEvent::Set { id: "kg_cellgrid".into(), prop: "col".into(), value: 2 }));
+        let mut clip = crate::MemClipboard::default();
+        // (Right at the last column: it stays; Left twice: column 0)
+        f.key_down(&s, &mut ts, 39, "", crate::input::Mods::NONE, &mut clip);
+        assert_eq!(link::grid("kg_cellgrid").unwrap().col, 2);
+        f.key_down(&s, &mut ts, 37, "", crate::input::Mods::NONE, &mut clip);
+        f.key_down(&s, &mut ts, 37, "", crate::input::Mods::NONE, &mut clip);
+        f.key_down(&s, &mut ts, 40, "", crate::input::Mods::NONE, &mut clip);
+        let d = link::grid("kg_cellgrid").unwrap();
+        assert_eq!((d.row, d.col), (2, 0));
+        // (the focus box: a ring drawn around the current cell)
+        let list = f.paint(&s, &mut ts, 1.0);
+        // (a cell's ring: smaller than the grid's own focus ring)
+        assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: Op::Round { rect, stroke: Some(_), fill: None, .. }, .. } if rect.2 < 300 && rect.3 < 40)), "the current cell is ringed");
+        // (the accessibility tree: the grid and, inside it, the current cell
+        // — the deepest focused node, which the hosts give the screen
+        // reader's focus)
+        let tree = f.access_tree(&s, &mut ts);
+        let mut focused = Vec::new();
+        tree.walk(&mut |n| {
+            if n.states.focused {
+                focused.push((n.role, spoken_cell(n)));
+            }
+        });
+        assert_eq!(focused.iter().map(|f| f.0).collect::<Vec<_>>(), vec![Role::Grid, Role::Cell], "{focused:?}");
+        assert_eq!(focused[1].1, "name, Cy, row 3 of 3, column 1 of 3");
+        fn grid_of(n: &rapidr_value::objects::a11y::AccessNode) -> Option<&rapidr_value::objects::a11y::AccessNode> {
+            if n.role == Role::Grid {
+                return Some(n);
+            }
+            n.children.iter().find_map(grid_of)
+        }
+        let grid = grid_of(&tree).expect("the grid");
+        let heads: Vec<_> = grid.children[0].children.iter().map(|c| (c.role, c.name.as_str())).collect();
+        assert_eq!(heads, vec![(Role::ColumnHeader, "name"), (Role::ColumnHeader, "age"), (Role::ColumnHeader, "city")]);
+        let row = &grid.children[2];
+        assert_eq!((row.role, row.name.as_str(), row.children.len()), (Role::Row, "Row 2 of 3", 3));
+        assert_eq!(spoken_cell(&row.children[2]), "city, Paris, row 2 of 3, column 3 of 3");
+        // (a screen reader's click on a cell: that cell is current)
+        let target = row.children[1].id;
+        assert!(f.access_action(&s, &mut ts, target, Action::Click, None));
+        let d = link::grid("kg_cellgrid").unwrap();
+        assert_eq!((d.row, d.col), (1, 1));
+        // (the program sets Col: kept in the columns)
+        link::set("kg_cellgrid", "col", &v_int(9));
+        assert_eq!(link::get("kg_cellgrid", "col"), Some(v_int(2)));
+        // (without the keyboard no cell is focused: the reader's focus is elsewhere)
+        f.set_focus(None);
+        let tree = f.access_tree(&s, &mut ts);
+        let mut any = false;
+        tree.walk(&mut |n| any |= n.states.focused && n.role == Role::Cell);
+        assert!(!any, "no cell focused without the keyboard");
     }
 
     /// Rows streaming in (an empty result, then its columns, then chunks

@@ -8,7 +8,7 @@ rapidq = "QDXSCREEN"
 visual = true
 size = [100, 100]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

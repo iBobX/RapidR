@@ -53,6 +53,8 @@ pub mod toggle_group;
 pub mod objects;
 // Each parent's children, indexed: both runtimes' registries.
 pub mod children;
+// (RapidR's) BringToFront / SendToBack: a component's place among its siblings.
+pub mod zorder;
 pub mod layout;
 pub mod autosize;
 // (I4) RapidR Studio's visual designer model, GUI-free.

@@ -373,6 +373,8 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `SetFocus` | Gives the panel the keyboard focus when it takes it (TabStop = True: a clickable card): its focus ring shows, and Enter or Space clicks it. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -452,6 +454,8 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `DelTab` | Removes the tab at the index given. |
 | `RemoveTab` | Removes the tab at the index given. |
 | `Tabs` | Returns the caption of the tab at an index, or sets it when a second value follows. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -510,6 +514,8 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `ButtonDown(Name AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a toggle is down; with On, sets it. |
 | `ButtonVisible(Name AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a button shows; with On, sets it. |
 | `ButtonHint(Name AS STRING, [Hint AS STRING]) AS STRING` | A button's tooltip; with Hint, sets it. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -563,6 +569,8 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `Clear` | Removes every panel: panels added after it start again at `Panel(0)`. |
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -603,6 +611,11 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 | `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+
+| Method | |
+|---|---|
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -660,6 +673,8 @@ A container that scrolls: components beyond its edges are reached with its scrol
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -712,6 +727,8 @@ A captioned frame around related components; the radio buttons in it form one ch
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -765,6 +782,8 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | Method | |
 |---|---|
 | `Repaint` | Redraws the component. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -883,6 +902,8 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `TileHorizontal` | Tiles the documents' windows one above the other. |
 | `TileVertical` | Tiles the documents' windows side by side. |
 | `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -955,6 +976,8 @@ Small messages that pop up, say what happened and get out of the way: toasts, dr
 | `HistoryId(Index AS INTEGER) AS STRING` | Its number, for Press. |
 | `HistoryAction(Index AS INTEGER, [Action AS INTEGER]) AS STRING` | The caption of its action 1 or 2; when Retire took it away, the caption and the reason in brackets. |
 | `SetFocus` | Gives the keyboard to the toasts (or the open history) while there is one: Tab and the arrows move between them, Enter presses, Escape closes. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1005,6 +1028,8 @@ A question the person must answer before work goes on, as one slim line across t
 | `Hide` | Takes the strip away without an answer. |
 | `Press(Index AS INTEGER) AS INTEGER` | Does what a click on button Index (from 1; 0 the close X) does: the strip goes and OnChoose hears it. True when it was shown and had that button. How a program, RAI or an AI app answers it. |
 | `SetFocus` | Gives the keyboard to the strip's buttons. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1067,6 +1092,8 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1149,6 +1176,8 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `ClearSelection` | Deletes the selected text. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1206,6 +1235,8 @@ A box with a caption that the user ticks on or off (Checked).
 | `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1257,6 +1288,8 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1348,6 +1381,8 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `DeleteItems` | Removes the items at the indexes given. |
 | `RemoveItem` | Removes the item at the index given. |
 | `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1439,6 +1474,8 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1508,6 +1545,8 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `Add` | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `AddItems` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `ClearSelection` | Deletes the selected text. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1563,6 +1602,8 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1605,6 +1646,8 @@ Two arrow buttons that step Position up or down between Min and Max, often besid
 | `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1697,6 +1740,8 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `ClearTicks` | Removes every tick mark put with `SetTick`. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1884,6 +1929,8 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `CopyText AS STRING` | What Copy would put on the clipboard (the selections, or the caret's line). |
 | `BeginUpdate` | Many changes to come: the view waits for EndUpdate. |
 | `EndUpdate` | The changes are done: the view shows them. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -1965,6 +2012,8 @@ Two texts compared, the way a code review shows them: line by line, side by side
 | `PreviousHunk AS INTEGER` | Makes the previous hunk the current one (before the first, the last) and scrolls it into view, as Shift+F7 does; gives its index. |
 | `SetFocus` | Gives the view the keyboard: F7 / Shift+F7 (or Alt+Down / Alt+Up) go from hunk to hunk, Enter or Ctrl+Y accepts the current one, Backspace or Ctrl+N rejects it, the arrows, Page Up / Page Down, Home and End scroll. |
 | `Repaint` | Draws the view again. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2026,6 +2075,8 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2089,6 +2140,8 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2154,6 +2207,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `SetFocus` | Gives the label the keyboard focus when it takes it (TabStop = True: a link): its focus ring shows, and Enter or Space clicks it. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2243,6 +2298,8 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
 | `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
 | `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2331,6 +2388,8 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `SetPixels(Pixels AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Puts a whole block of colours into the picture in one call, from an array: the `Width` x `Height` colours of `Pixels`, row by row from its first element (a one-dimensional array's element `y * Width + x` is pixel (x, y); a two-dimensional `(Height - 1, Width - 1)` array is `Pixels(y, x)`), with the block's top-left corner at (`X`, `Y`) - 0, 0 if left out. Colours are the numbers `Pset` takes (`RGB(r, g, b)`, red in the low byte). It is the fast way to draw an image from data - an emulator's video memory, an image filter, a heat map, a game of life: one call does the work of `Width * Height` calls of `Pset` (a 256 x 192 screen in well under a millisecond, not 70). The block must lie inside the picture and `Pixels` must hold enough values, or the program stops with a message that says which. |
 | `SetPixels8(Indexes AS VARIANT, Palette AS VARIANT, Width AS INTEGER, Height AS INTEGER, [X AS INTEGER], [Y AS INTEGER])` | Like `SetPixels`, but the array holds palette numbers: each of the `Width` x `Height` elements of `Indexes` (0 to 255, a BYTE array) picks a colour of `Palette` (an array of colours, `RGB(r, g, b)`; its first element is colour 0) - one lookup a pixel, in Rust, as a retro machine's screen memory and palette work. The block's top-left corner is at (`X`, `Y`), 0, 0 if left out. An index the palette does not have stops the program with a message that names the pixel. |
 | `GetPixels(Pixels AS VARIANT, X AS INTEGER, Y AS INTEGER, Width AS INTEGER, Height AS INTEGER)` | Reads a block of the picture into an array in one call: the `Width` x `Height` pixels with the top-left corner at (`X`, `Y`), row by row, into the first `Width * Height` elements of `Pixels` (an INTEGER or LONG array - colours need 24 bits). With `SetPixels` it makes an image filter: read, change the numbers, put back. The block must lie inside the picture. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2418,6 +2477,8 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `SetFont` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
 | `AddSection` | Appends a section with the caption given. Same as `AddSections` with one. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2460,6 +2521,11 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
 | `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+
+| Method | |
+|---|---|
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2507,6 +2573,8 @@ The gauge: shows progress from Min to Max at Position as a bar, a pie, a needle 
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2605,6 +2673,8 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `SelectAdd(Index AS INTEGER)` | Adds component Index to the selection (as Shift+click). |
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `Hide` | Makes the component or form invisible; it stays loaded. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2668,6 +2738,8 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `Cls` | Clears the drawing area to its background color. |
 | `DrawText` | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
 | `SetFont` | Sets the font: a font dialog starts from font `F`; a drawing area takes a font name and size. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2773,6 +2845,8 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `DeleteItems` | Removes the items at the indexes given. |
 | `RemoveItem` | Removes the item at the index given. |
 | `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2852,6 +2926,8 @@ A list of the files in a folder that match Mask, for picking a file.
 | `RemoveItem` | Removes the item at the index given. |
 | `Find` | Searches the items for a string and returns the index of the match (-1 when there is none). |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -2912,6 +2988,8 @@ A tree of drives and folders for picking a folder (Directory).
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Repaint` | Redraws the component. |
 | `DelDriveTypes` | Removes kinds of drives from those the tree lists. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -3034,6 +3112,8 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `MoveRow` | Moves a row to another position; those between shift over. |
 | `SetSuggestions` | Sets the suggestions offered while a cell is edited, one per line. |
 | `DeleteColumn(Column AS INTEGER)` | Removes column `Column`, as DeleteCol does (both names work). |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -3154,6 +3234,8 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `SetFocus` | Gives the tree the keyboard focus: its keys move the selection, F2 edits, Enter and the arrows open and close. |
 | `EditItem(Index AS INTEGER, [Text AS STRING])` | Opens node Index's editor in place, holding Text (the node's own text when left out), as F2 does but without asking OnEditing: the program wants it — a debugger's value fetched whole first. On a value node (SetItemValue) the editor sits over the value, its name still showing. Enter keeps what was typed (OnEdited, as F2's), Esc leaves it. |
 | `SetItemValue(Index AS INTEGER, Name AS STRING, Kind AS STRING, Value AS STRING, [Count AS INTEGER], [Hint AS STRING])` | Shows node Index as a value, as a debugger's Variables and Watch do: its kind's icon, then `Name = Value` with the value styled by kind (numbers, text, True/False, constants), an empty text as a quiet `""`, a colour as a swatch and its name, an array with its count. Kind is the debugger's word for it (`Integer`, `Double`, `String`, `Boolean`, `Array`, `Empty`, a TYPE's or a component's name, `Include`, `Components`, `More`) or a heading's (`Locals`, `Globals`, `Components` with no Value, `Watch`, `CallStack`, `Frame`, `CurrentFrame`: drawn as a title with its icon; `Breakpoint`, its state in Hint — `on`, `off`, `unverified`, `conditional`, `hitcount`, `log` — drawn with the gutter's icon for it). Count is how many children it has (an array's elements); Hint says what more is known, comma-separated: `color`, `handle`, `bool` (a True / False property kept as a number: "on" or "off" after it), `const:alClient`, `choices:alNone\|alTop\|…`, `result`, `readonly`. The node's Text becomes `Name = Value`; screen readers hear a sentence ("FontColor, colour clWindowText"). An empty Kind and Value make it a plain node again, with Name as its text. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -3259,6 +3341,8 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -4742,6 +4826,8 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
 | `CreateAnimation(Ani AS RD3DANIMATION)` | Takes a Direct3D animation object. Such an object has nothing to do yet (no keys, nothing that plays it), so this does nothing. |
 | `CreateAnimationSet(AniSet AS RD3DANIMATIONSET)` | Takes a Direct3D animation set. Such an object has nothing to do yet (no animations to add, nothing that plays it), so this does nothing. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5294,13 +5380,14 @@ The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the 
 <a id="rdbgrid"></a>
 ## RDBGrid
 
-A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); Ctrl+C copies it. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own.
+A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click on a cell, or the arrows, move the current row (bound edits follow) and the current column (Col: Left and Right); Ctrl+C copies the row. A screen reader hears each row with its cells and the current cell as the keys move. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `DataSource` | component |  | What it shows: an RDataSource (it follows that current row), a data set straight, or a database component's last query (its rows as a background query brings them). |
 | `ReadOnly` | bool | True | True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits). |
 | `Row` | int | 0 | The current row (a row of the data, from 0); set it to move there. |
+| `Col` | int | 0 | The current column (from 0, in the data's order): the cell with the focus box, together with Row. Left and Right move it, a click on a cell sets it (OnCellClick says the same column), and a screen reader is on that cell. Set it to move there; it stays inside the data's columns. |
 | `TopRow` | int | 0 | The first row shown (in the grid's order). |
 | `RowCount` (read-only) | int | 0 | How many rows the data has. |
 | `ColCount` (read-only) | int | 0 | How many columns the data has. |
@@ -5334,6 +5421,8 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 |---|---|
 | `SetFocus` | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5418,6 +5507,8 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `Xticks(names, [positions])` | Names the X axis' ticks ("Jan,Feb,Mar"), at positions, or at the first series' x values when there are as many, else at 0, 1, 2 … |
 | `Xscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
 | `Yscale(type)` | "linear" or "log" (kept with the chart; drawn linear). |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5455,6 +5546,8 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 |---|---|
 | `SetHTML(Html AS STRING)` | Shows the HTML given in the web view. |
 | `Navigate(Url AS STRING)` | Goes to an address: a web view loads a URL; a router changes the page's `#` route. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5506,6 +5599,8 @@ An HTML element of the program's own: its HTML, CSS classes, style and attribute
 | `ToggleClass` | Adds a CSS class to the element, or removes it when it has it. |
 | `Remove` | Removes something: a list's string by index, the element from the page, or a stored value by key. |
 | `QuerySelector` | Returns the id of the first page element matching a CSS selector, or null. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5588,6 +5683,8 @@ An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.
 | `Pause` | Pauses playback; `Play` goes on from there. |
 | `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
 | `Seek(Seconds AS DOUBLE)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5639,6 +5736,8 @@ An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. W
 | `Stop` | Stops what is running: playback (back to the start), recording, or the server. |
 | `Seek(Seconds AS DOUBLE)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `FullScreen` | Shows the video full screen. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5763,6 +5862,8 @@ An object inspector: the properties of a component (or of every component a desi
 | `SetChoices(Prop AS STRING, Choices AS STRING)` | Offers a text property's values from a dropped list (a line each; any text can still be typed): RapidR Studio gives an RAI's Model the provider's models. A choice starting with "↻ " is an action: picking it fires OnEditorRequest(Prop) instead of setting the value. Choices "" goes back to the registry's. |
 | `SetNote(Prop AS STRING, Note AS STRING)` | A line shown above a property's description while its row is selected ("Loading the models…", why a key was refused); "" removes it. |
 | `Row(Index AS INTEGER) AS STRING` | What row Index (from 0) shows, as "Name=Value" (a category heading as "[Name]"). |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5815,6 +5916,8 @@ The palette of components a form designer places, under RapidR's names (RButton)
 | `AddTemplate(Name AS STRING, Source AS STRING, [Icon AS STRING])` | Adds a template to the Templates group: Source is the CREATE block it places (a component with its properties set), Icon a built-in icon or component name. |
 | `RemoveTemplate(Name AS STRING)` | Takes a template out of the Templates group. |
 | `Template(Name AS STRING) AS STRING` | A template's CREATE block. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5883,6 +5986,8 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `ProjectText AS STRING` | The project file's text as Save writes it. |
 | `ExpandAll` | Opens every group and folder. |
 | `CollapseAll` | Closes every group and folder. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -5953,6 +6058,8 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `PlaceLine(Index AS INTEGER) AS INTEGER` | The line number the shown page's line Index names (see PlaceFile); 0 when none (a file's heading on the Problems page). |
 | `Find(Text AS STRING) AS INTEGER` | Searches the shown page (as the search box does): how many matches; the first is shown. |
 | `FindNext AS INTEGER` | Shows the next match: its line, -1 when there is none. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|
@@ -6053,6 +6160,8 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `OpenLink(Url AS STRING) AS INTEGER` | Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link. |
 | `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text — or the paragraph with a link to that target, as written: True when there is one. |
 | `SetFocus` | Gives the view the keyboard focus: its keys scroll it, Tab steps through its links. |
+| `BringToFront` | Puts the component over every other component of the same parent: it is drawn on top of them and takes the mouse's clicks where it covers them (a drawer panel opened over the workspace). Its own components come with it. Tab, when no TabOrder says otherwise, and screen readers reach it after its siblings. The last one brought to the front is on top. |
+| `SendToBack` | Puts the component under every other component of the same parent: they are drawn over it and take the mouse where they cover it (a drawer closed behind the workspace). Its own components go with it. Tab, when no TabOrder says otherwise, and screen readers reach it before its siblings. The last one sent back is at the bottom. |
 
 | Event | |
 |---|---|

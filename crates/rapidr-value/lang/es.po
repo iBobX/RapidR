@@ -4154,3 +4154,19 @@ msgstr "Más"
 #: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
 msgid "Opens a menu with more choices"
 msgstr "Abre un menú con más opciones"
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "blank"
+msgstr "en blanco"
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "row {row} of {rows}, column {column} of {columns}"
+msgstr "fila {row} de {rows}, columna {column} de {columns}"
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted descending"
+msgstr "en orden descendente"
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted ascending"
+msgstr "en orden ascendente"

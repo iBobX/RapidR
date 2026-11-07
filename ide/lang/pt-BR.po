@@ -5168,6 +5168,14 @@ msgid "Labels as links: Tab, a focus ring, Enter or Space"
 msgstr "Rótulos como links: Tab, um anel de foco, Enter ou Espaço"
 
 #: ide/panes.inc
+msgid "A drawer over the list: BringToFront, SendToBack"
+msgstr "Uma gaveta sobre a lista: BringToFront, SendToBack"
+
+#: ide/panes.inc
+msgid "A grid's current cell: Row, Col, the arrow keys"
+msgstr "A célula atual de uma grade: Row, Col, as setas"
+
+#: ide/panes.inc
 msgid "A tone made sample by sample, with an oscilloscope"
 msgstr "Um tom feito amostra por amostra, com um osciloscópio"
 

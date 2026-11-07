@@ -4111,3 +4111,19 @@ msgstr "A condição `{cond}` do ponto de interrupção falhou: {error}"
 #: crates/rapidr-value/src/runtime_text.rs
 msgid "(at {file} line {n})"
 msgstr "(em {file} linha {n})"
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "blank"
+msgstr "em branco"
+
+#: crates/rapidr-value/src/objects/a11y.rs
+msgid "row {row} of {rows}, column {column} of {columns}"
+msgstr "linha {row} de {rows}, coluna {column} de {columns}"
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted descending"
+msgstr "em ordem decrescente"
+
+#: crates/rapidr-ui-kernel/src/components/dbgrid.rs
+msgid "sorted ascending"
+msgstr "em ordem crescente"

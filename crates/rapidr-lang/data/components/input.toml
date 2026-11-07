@@ -8,7 +8,7 @@ rapidq = "QBUTTON"
 visual = true
 size = [75, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button."
 example = """
 SUB SaveClick
@@ -86,7 +86,7 @@ rapidq = "QEDIT"
 visual = true
 size = [121, 21]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A one-line text box to type and edit text in, with an optional input mask, password character and length limit."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -158,7 +158,7 @@ rapidq = "QCHECKBOX"
 visual = true
 size = [97, 17]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A box with a caption that the user ticks on or off (Checked)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -203,7 +203,7 @@ rapidq = "QRADIOBUTTON"
 visual = true
 size = [113, 17]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "One choice of several: checking it unchecks the other radio buttons in the same container."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -247,7 +247,7 @@ rapidq = "QCOMBOBOX"
 visual = true
 size = [145, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A drop-down list, with or without a box to type in; the user picks one item (ItemIndex, Text)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -335,7 +335,7 @@ rapidq = "QRICHEDIT"
 visual = true
 size = [185, 89]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A multi-line text editor whose text is formatted: font, size, colour, bold, italic, underline and strike-out per character (SelAttributes), alignment, indents and bullets per paragraph; it loads and saves rich text (RTF), or plain text with PlainText. What the user types takes the format of the text around it, and Ctrl+Z gives back the text and its formats."
 example = """
 SUB Changed
@@ -448,7 +448,7 @@ display = "Memo"
 visual = true
 size = [185, 89]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A multi-line plain-text editor with word wrap and scroll bars. RapidR's own."
 properties = [
   { name = "Text", type = "string", default = "" },
@@ -507,7 +507,7 @@ rapidq = "QSCROLLBAR"
 visual = true
 size = [121, 17]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max: its arrows, its track, its thumb, the keys, and, in a RapidR program (a .rr file), the mouse wheel over it (three SmallChanges a notch; a classic program's doesn't move for the wheel, as it always was)."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -552,6 +552,7 @@ name = "RUPDOWN"
 display = "UpDown"
 visual = true
 default_event = "OnChange"
+sets = ["zorder"]
 doc = "Two arrow buttons that step Position up or down between Min and Max, often beside an edit. Set Associate to that edit (or a label) and it shows the number and follows it; OnChange fires when an arrow changes Position. RapidR's own."
 example = """
 SUB DoseChanged
@@ -649,7 +650,7 @@ rapidq = "QTRACKBAR"
 visual = true
 size = [150, 45]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A slider: the user drags its thumb to pick a Position between Min and Max, along tick marks."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -698,7 +699,7 @@ display = "CodeEditor"
 visual = true
 size = [400, 300]
 default_event = "OnChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "RapidR Studio's code editor: syntax colours from a language definition (BASIC by default; SQL, JSON, HTML … or your own), line numbers, folding, several carets, find and replace, word wrap, a minimap, markers, problems and language help (completion, hovers, signatures) from RapidR's language service where the runtime carries it, or from the program through its request events. What it always answered counts lines from 0 (Line, GotoLine, WhereX, WhereY); what's new counts lines and columns from 1."
 properties = [
   { name = "Text", type = "string", default = "" },
@@ -896,7 +897,7 @@ display = "DiffView"
 visual = true
 size = [500, 300]
 default_event = "OnHunkChange"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "Two texts compared, the way a code review shows them: line by line, side by side or in one column, the removed lines tinted on one side and the added lines on the other, the changed words marked, in the language's syntax colours; each run of changes (a hunk) has Accept and Reject buttons, and ResultText is the text the decisions give. Kind = \"form\" compares two versions of a program's forms instead (the form before and after, the changed components outlined, the changed properties listed), Kind = \"table\" two CSV files (rows, columns and cells). RapidR's own diff (Myers' algorithm); RapidR Studio's assistant, \"compare with saved\" and Versions use it."
 properties = [
   { name = "Kind", type = "string", default = "text", category = "Behavior", origin = "rapidr", doc = "What the texts are compared as: \"text\" (lines, with hunks to accept or reject), \"form\" (a program's CREATE blocks: components and their properties, the form drawn before and after as the designer draws it; it needs RapidR Studio's form designer, which `rapidr run`, RapidR Studio and web programs have — an executable built on its own says so instead) or \"table\" (CSV: columns by name, rows by their first column when its values are unique, else by content; changed cells marked). Only \"text\" has hunks." },
@@ -955,7 +956,7 @@ rapidq = "QCOOLBTN"
 visual = true
 size = [25, 25]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A flat toolbar button with a caption and a picture; with GroupIndex it stays down, as a toggle or one of a group."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
@@ -1006,7 +1007,7 @@ rapidq = "QOVALBTN"
 visual = true
 size = [100, 50]
 default_event = "OnClick"
-sets = ["layout", "a11y"]
+sets = ["layout", "a11y", "zorder"]
 doc = "A round button with its own colours, highlight and shadow; like a cool button, it can stay down as a toggle."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },

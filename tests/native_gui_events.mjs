@@ -240,6 +240,18 @@ for (const c of cases.filter((c) => !only.length || only.some((f) => c.name.incl
     let trees = null;
     try { trees = JSON.parse(readFileSync(a11y, "utf8")); } catch {}
     ok(Array.isArray(trees) && trees.length > 0 && trees.every((t) => typeof t.role === "string"), `${c.name} (${kind}): accessibility trees written`);
+    // (`a11yFocus`: what a screen reader says of the focused node — the
+    // deepest one marked focused, as both hosts take it: a grid's cell with
+    // its column's heading and its place, as the desktop's host names it,
+    // rapidr_value::objects::a11y::spoken_cell)
+    if (c.a11yFocus) {
+      const focused = [];
+      const walk = (n) => { if ((n.states || []).includes("focused")) focused.push(n); (n.children || []).forEach(walk); };
+      (trees || []).forEach(walk);
+      const spoken = (n) => n.table && n.role === "gridcell" ? [n.table.heading, n.name.trim() ? n.name : "blank", n.table.place].filter(Boolean).join(", ") : n.name;
+      const said = focused.length ? spoken(focused[focused.length - 1]) : null;
+      ok(said === c.a11yFocus, `${c.name} (${kind}): the focus is said "${c.a11yFocus}"` + (said === c.a11yFocus ? "" : `   [got: ${JSON.stringify(focused.map(spoken))}]`));
+    }
     // (kernel themes: the form under each theme a program can name, its
     // captures kept as <case>-<theme>-<kind>-<n>.bmp)
     for (const theme of c.themes ?? []) {

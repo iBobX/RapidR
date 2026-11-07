@@ -1,0 +1,72 @@
+' grid_cells.rr: an RDBGrid's current cell. Click a cell, or move with the
+' arrow keys: Up and Down move the row (Row), Left and Right the column
+' (Col, RapidR's), and the line under the grid says the cell. "Go to City"
+' sets Col from the program. The current cell has the focus box; a screen
+' reader hears each cell with its column and its place ("city, Paris, row 2
+' of 5, column 3 of 3").
+'
+'   rapidr run grid_cells.rr
+$THEME rapidr
+
+DECLARE SUB Clicked (Row AS INTEGER, Col AS INTEGER)
+DECLARE SUB KeyUp (Key AS WORD, Shift AS INTEGER)
+DECLARE SUB GoToCity
+DECLARE SUB SayCell
+
+DIM UiFont AS RFont
+DIM NL AS STRING
+NL = CHR$(10)
+
+CREATE Form AS RForm
+    Caption = "Current cell"
+    Width = 460: Height = 300
+    Center
+    CREATE People AS RDataFrame
+    END CREATE
+    CREATE Grid AS RDBGrid
+        Left = 12: Top = 12: Width = 420: Height = 180
+        Anchors = akLeft + akTop + akRight + akBottom
+        DataSource = People
+        AccessibleName = "People"
+        OnCellClick = Clicked
+        OnKeyUp = KeyUp
+    END CREATE
+    CREATE Said AS RLabel
+        Left = 12: Top = 204: Width = 420
+        Anchors = akLeft + akRight + akBottom
+    END CREATE
+    CREATE CityBtn AS RButton
+        Caption = "Go to &City": Left = 12: Top = 232: Width = 112: Height = 24
+        Anchors = akLeft + akBottom
+        OnClick = GoToCity
+    END CREATE
+END CREATE
+
+' What the current cell holds, with its column's name.
+SUB SayCell
+    DIM names AS STRING, col AS STRING
+    names = Grid.Columns + ","
+    col = FIELD$(names, ",", Grid.Col + 1)
+    Said.Caption = col + ": " + People.Cell(Grid.Row, Grid.Col) + "   (row " + STR$(Grid.Row + 1) + ", column " + STR$(Grid.Col + 1) + ")"
+END SUB
+
+SUB Clicked (Row AS INTEGER, Col AS INTEGER)
+    SayCell
+END SUB
+
+SUB KeyUp (Key AS WORD, Shift AS INTEGER)
+    SayCell
+END SUB
+
+SUB GoToCity
+    Grid.Col = 2
+    Grid.SetFocus
+    SayCell
+END SUB
+
+' (the rows: CSV text, the first line the columns' names)
+People.LoadFromCsv("name,age,city" + NL + "Ada,36,London" + NL + "Bruno,41,Paris" + NL + "Chen,29,Rome" + NL + "Dana,52,Oslo" + NL + "Emil,33,Lima" + NL)
+UiFont.Name = "Inter": UiFont.Size = 10
+Form.Font = UiFont
+SayCell
+Form.ShowModal

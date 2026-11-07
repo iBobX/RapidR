@@ -69,6 +69,8 @@ const ROLES = {
   // (a grid whose rows have levels — the property inspector's — is ARIA's
   // tree grid)
   grid: ["grid", "treegrid"], row: ["row"], gridcell: ["gridcell"],
+  // (a grid's headings: its fixed row's cells, its fixed column's)
+  columnheader: ["columnheader"], rowheader: ["rowheader"],
   // (an open menu: its panel, its items — a check mark, a radio dot)
   menubar: ["menubar"], menu: ["menu"], menuitem: ["menuitem"], menuitemcheckbox: ["menuitemcheckbox"], menuitemradio: ["menuitemradio"],
   img: ["image", "img"],
@@ -295,7 +297,7 @@ function compareTree(tree, k) {
           const ok = header.length === 1 && cells.length === 1 && squash(header[0].name?.value) === squash(p.name) && squash(cells[0].name?.value) === squash(p.value) && !!prop(cells[0], "readonly") === ro;
           if (!ok) diffs.push(`${where} row ${i}: cells ${JSON.stringify(header.map((n) => n.name?.value))} ${JSON.stringify(cells.map((n) => [n.name?.value, !!prop(n, "readonly")]))} ≠ "${p.name}" / "${p.value}"${ro ? " (read-only)" : ""}`);
         } else if (role === "row") {
-          const cells = nodesOf(tree, comp, ROLES.gridcell, wparts[i]);
+          const cells = nodesOf(tree, comp, [...ROLES.gridcell, ...ROLES.columnheader, ...ROLES.rowheader], wparts[i]);
           if ((p.children || []).length !== cells.length) diffs.push(`${where} row ${i}: ${(p.children || []).length} cells ≠ ${cells.length}`);
           else (p.children || []).forEach((cell, j) => say(`${where} cell ${j},${i}`, compare(cell, cells[j])));
         }

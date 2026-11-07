@@ -1,4 +1,4 @@
-<!-- translated-from: data-science.md c4e980a65085b4f7 -->
+<!-- translated-from: data-science.md cd9300c7a4568faa -->
 # Ciencia de datos
 
 Los componentes propios de RapidR para números, tablas, gráficos y JSON, que se
@@ -322,15 +322,22 @@ END CREATE
   `SetField name, value`, `Refresh`; `OnDataChange` (la fila se movió o los datos
   cambiaron).
 - **RDBGrid** — `DataSource` (un RDataSource, o un conjunto de datos
-  directamente: su propia fila actual), `Row`, `TopRow`, `RowCount`, `ColCount`,
-  `Columns`, `SortColumn` (-1: ninguna), `SortDescending`, `ReadOnly`;
-  `OnCellClick(Row, Col)`, `OnTitleClick(Col)`. Dibuja solo las filas que están
-  en pantalla (un millón de filas se desplazan con fluidez); un clic o las teclas
-  de flecha mueven la fila actual; el clic en un encabezado ordena su vista (de
+  directamente: su propia fila actual), `Row`, `Col`, `TopRow`, `RowCount`,
+  `ColCount`, `Columns`, `SortColumn` (-1: ninguna), `SortDescending`,
+  `ReadOnly`; `OnCellClick(Row, Col)`, `OnTitleClick(Col)`. Dibuja solo las
+  filas que están en pantalla (un millón de filas se desplazan con fluidez); un
+  clic en una celda hace de su fila la fila actual y de su columna la columna
+  actual (`Col`, desde 0, como la dice `OnCellClick`); Arriba, Abajo, Re Pág,
+  Av Pág, Inicio y Fin mueven la fila, Izquierda y Derecha la columna (que se
+  desplaza a la vista y no sale de las columnas de los datos); asignar `Row` o
+  `Col` lleva allí. La celda actual tiene el recuadro de foco mientras la
+  cuadrícula tiene el teclado. El clic en un encabezado ordena su vista (de
   nuevo: el otro sentido, una tercera vez: el orden de los datos) sin cambiar los
   datos. Los números se alinean a la derecha, un valor ausente es un `null`
-  atenuado; Ctrl+C (Cmd+C) copia la fila actual; los lectores de pantalla oyen
-  una cuadrícula. Su `DataSource` también puede ser un `RSQLite` o un `RMySQL`:
+  atenuado; Ctrl+C (Cmd+C) copia la fila actual. Los lectores de pantalla oyen
+  una tabla: cada fila con sus celdas, y la celda actual a medida que se mueven
+  las teclas ("name, Ada, fila 2 de 400, columna 1 de 3";
+  [Accesibilidad](components.md#accesibilidad)). Su `DataSource` también puede ser un `RSQLite` o un `RMySQL`:
   las filas de su última consulta, y las de una consulta en segundo plano a
   medida que llegan — el programa las ordena volviendo a preguntar con
   `ORDER BY` ([Bases de datos](databases.md#las-filas-de-una-consulta-en-una-cuadrícula)).

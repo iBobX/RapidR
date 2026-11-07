@@ -207,6 +207,8 @@ SUB FillExamples
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
+  AddMoreExample "gui/drawer.rr", "A drawer over the list: BringToFront, SendToBack"
+  AddMoreExample "data/grid_cells.rr", "A grid's current cell: Row, Col, the arrow keys"
   AddMoreExample "media/tone_generator.rr", "A tone made sample by sample, with an oscilloscope"
   AddMoreExample "media/beeper.rr", "A one-bit speaker played the way an emulator plays it"
   AddMoreExample "media/chiptune.rr", "A three-voice square-wave music player"

@@ -33,6 +33,8 @@ fn role(r: Role) -> ARole {
         Role::Grid => ARole::Grid,
         Role::Row => ARole::Row,
         Role::Cell => ARole::Cell,
+        Role::ColumnHeader => ARole::ColumnHeader,
+        Role::RowHeader => ARole::RowHeader,
         Role::MenuBar => ARole::MenuBar,
         Role::Menu => ARole::Menu,
         Role::MenuItem => ARole::MenuItem,
@@ -74,7 +76,13 @@ fn bounds((x, y, w, h): (i64, i64, i64, i64)) -> ARect {
 fn node(n: &AccessNode) -> Node {
     // (a multi-line text box is its own role in AccessKit)
     let mut a = Node::new(if n.role == Role::TextInput && n.states.multiline { ARole::MultilineTextInput } else { role(n.role) });
-    if !n.name.is_empty() {
+    if n.role == Role::Cell && n.table.is_some() {
+        // (a grid's cell: its column's heading, its text and where it is —
+        // "Name, Ada, row 2 of 10, column 1 of 3": AccessKit's adapters
+        // don't pass a table's row and column indexes on to VoiceOver and
+        // UI Automation yet, so its name says them)
+        a.set_label(rapidr_value::objects::a11y::spoken_cell(n));
+    } else if !n.name.is_empty() {
         // (AccessKit reads a label's text from its value: UIA's Name,
         // AXValue)
         if a.role() == ARole::Label && n.value.is_none() {
@@ -115,6 +123,21 @@ fn node(n: &AccessNode) -> Node {
     }
     if let Some(l) = n.level {
         a.set_level(l);
+    }
+    // (a grid's, a row's, a cell's place in its table: AccessKit's)
+    if let Some(t) = &n.table {
+        if let Some(r) = t.row {
+            a.set_row_index(r);
+        }
+        if let Some(c) = t.column {
+            a.set_column_index(c);
+        }
+        if let Some(r) = t.rows {
+            a.set_row_count(r);
+        }
+        if let Some(c) = t.columns {
+            a.set_column_count(c);
+        }
     }
     let s = &n.states;
     if s.disabled {

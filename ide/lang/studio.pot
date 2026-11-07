@@ -5095,6 +5095,14 @@ msgid "Labels as links: Tab, a focus ring, Enter or Space"
 msgstr ""
 
 #: ide/panes.inc
+msgid "A drawer over the list: BringToFront, SendToBack"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A grid's current cell: Row, Col, the arrow keys"
+msgstr ""
+
+#: ide/panes.inc
 msgid "A tone made sample by sample, with an oscilloscope"
 msgstr ""
 
@@ -6287,6 +6295,14 @@ msgid "The provider's links"
 msgstr ""
 
 #: ide/settings.inc
+msgid "Automatic"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Always"
+msgstr ""
+
+#: ide/settings.inc
 msgid "As long as their words need"
 msgstr ""
 
@@ -6312,14 +6328,6 @@ msgstr ""
 
 #: ide/settings.inc
 msgid "Everything: every argument's name, choices marked too"
-msgstr ""
-
-#: ide/settings.inc
-msgid "Automatic"
-msgstr ""
-
-#: ide/settings.inc
-msgid "Always"
 msgstr ""
 
 #: ide/settings.inc
