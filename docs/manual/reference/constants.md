@@ -586,3 +586,9 @@ RapidR's types for a stream's ReadNum and WriteNum beside Num_LONG and the other
 
 `Num_INT64` = 9, `Num_UINT64` = 10, `Num_UINT32` = 11
 
+## Audio errors
+
+What went wrong, as an RAudioOut's OnError(Code, Message) says it: aeNoDevice (no sound device, or it refused the stream), aeDeviceLost (the device stopped taking sound), aeBadSetting (a property set out of its range), aeUnderrun (the queue ran dry: the program did not write in time), aeNeedsClick (a browser plays sound only after a click or a key). Built into a RapidR program (`.rr`) only: a `.bas` program reads the names as variables that are 0. (`RapidR`)
+
+`aeNoDevice` = 1, `aeDeviceLost` = 2, `aeBadSetting` = 3, `aeUnderrun` = 4, `aeNeedsClick` = 5
+

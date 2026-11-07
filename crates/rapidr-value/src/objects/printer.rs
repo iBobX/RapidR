@@ -191,6 +191,14 @@ impl Printer {
             "rectangle" => self.draw(PageOp::Rect(n(0), n(1), n(2), n(3), c(4))),
             "fillrect" => self.draw(PageOp::Fill(n(0), n(1), n(2), n(3), c(4))),
             "circle" => self.draw(PageOp::Ellipse(n(0), n(1), n(2), n(3), c(4), optional(5))),
+            // (a page's boxes have square corners: RoundRect with a Fill
+            // fills it, then outlines it in Color)
+            "roundrect" if args.len() > 7 => {
+                if let Some(fill) = optional(7) {
+                    self.draw(PageOp::Fill(n(0), n(1), n(2), n(3), fill));
+                }
+                self.draw(PageOp::Rect(n(0), n(1), n(2), n(3), c(6)));
+            }
             "roundrect" => self.draw(PageOp::Fill(n(0), n(1), n(2), n(3), c(6))),
             "pset" => self.draw(PageOp::Pixel(n(0), n(1), c(2))),
             // TextOut(x, y, text, color, background (-1: transparent)).

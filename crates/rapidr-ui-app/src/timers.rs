@@ -29,6 +29,10 @@ struct Timers {
     gen: u64,
     /// The timers due wait for handlers queued ahead of them ([`hold_back`]).
     held_back: bool,
+    /// When the tick each timer waits for belongs on the clock's beat (its
+    /// first, then one period on each): the next one is counted from it, not
+    /// from when the handler ended ([`Rhythm`]).
+    grid: std::collections::HashMap<String, Instant>,
 }
 
 thread_local! {
@@ -78,7 +82,77 @@ fn interval<P: Program>(p: P, name: &str) -> Option<Duration> {
     if let Some(d) = p.timer_period(name) {
         return Some(d);
     }
-    timer_period(p.get(name, "interval").to_i64())
+    let ms = p.get(name, "interval").to_i64();
+    // (FixedRate: the Interval as it is, not Windows' ticks)
+    if rhythm(p, name) == Rhythm::Fixed {
+        return (ms > 0).then(|| Duration::from_millis(ms.min(0x7FFF_FFFF) as u64));
+    }
+    timer_period(ms)
+}
+
+/// How a timer's ticks follow one another.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Rhythm {
+    /// A RapidR program's RTimer (what it has always done): the next tick
+    /// comes one period after the handler has *ended*.
+    AfterHandler,
+    /// A classic program's QTIMER, as RC.EXE's (Windows' own timers, probed
+    /// with handlers of 0, 24, 50 and 130 ms, tests/conformance/cases/
+    /// rapidq_timer_rhythm.bas): ticks keep their beat, one period apart
+    /// *from where the last was due*; a tick that fell due while the
+    /// handler ran waits for it (at most one waits) and runs the moment it
+    /// ends, the ones missed besides it are dropped.
+    Windows,
+    /// An RTimer with `FixedRate`: every Interval milliseconds exactly, by
+    /// the clock. A tick that fell due while the handler ran runs the moment
+    /// it ends, and so do the ones missed besides it, one after another —
+    /// handlers never overlap — unless the program is [`FIXED_CATCH_UP`]
+    /// behind: then the count starts again from now.
+    Fixed,
+}
+
+/// How far behind a `FixedRate` timer catches up one tick after another;
+/// further behind (a window dragged, a dialog, a stalled machine) it starts
+/// counting again, not to replay seconds of ticks.
+pub const FIXED_CATCH_UP: Duration = Duration::from_millis(250);
+
+/// The rhythm of timer `name`: `FixedRate` asks for [`Rhythm::Fixed`]; an
+/// RTimer of a classic program ticks as RC.EXE's ([`Rhythm::Windows`]); every
+/// other timer (a RapidR program's, the DirectX ones) as it always has.
+fn rhythm<P: Program>(p: P, name: &str) -> Rhythm {
+    if p.type_of(name).eq_ignore_ascii_case("RTIMER") {
+        if p.get(name, "fixedrate").to_i64() != 0 {
+            return Rhythm::Fixed;
+        }
+        if !rapidr_value::rapidr_program() {
+            return Rhythm::Windows;
+        }
+    }
+    Rhythm::AfterHandler
+}
+
+/// When the tick after the one on the beat at `grid` is due, the handler
+/// of that one having ended at `now`; with the beat it belongs to.
+fn follow(rhythm: Rhythm, grid: Instant, period: Duration, now: Instant) -> (Instant, Instant) {
+    let next = grid + period;
+    match rhythm {
+        Rhythm::AfterHandler => (now + period, now + period),
+        _ if next > now => (next, next),
+        // (fell due while the handler ran: it runs at once)
+        Rhythm::Windows => {
+            // the beat goes on from the last point passed
+            let passed = now.saturating_duration_since(grid).as_nanos() / period.as_nanos().max(1);
+            let last = grid + Duration::from_nanos((period.as_nanos() * passed).min(u128::from(u64::MAX)) as u64);
+            (now, last)
+        }
+        Rhythm::Fixed => {
+            if now.saturating_duration_since(next) <= FIXED_CATCH_UP {
+                (now, next)
+            } else {
+                (now, now)
+            }
+        }
+    }
 }
 
 /// Starts timer `name` ticking if it's enabled and isn't already (it
@@ -93,6 +167,7 @@ pub fn schedule<P: Program>(p: P, name: &str) {
     tm(|s| {
         s.gen += 1;
         let g = s.gen;
+        s.grid.insert(name.clone(), at);
         s.heap.push(Reverse((at, g, name)));
     });
 }
@@ -154,6 +229,7 @@ pub fn fire_due<P: Program>(p: P) -> bool {
 /// never queued behind another that then waits for a dialog (silent all
 /// through it).
 pub fn fire_due_then<P: Program>(p: P, then: impl Fn()) -> bool {
+    let mut round: HashSet<String> = HashSet::new();
     loop {
         let now = p.now();
         let due = tm(|s| match s.heap.peek() {
@@ -161,6 +237,18 @@ pub fn fire_due_then<P: Program>(p: P, then: impl Fn()) -> bool {
             _ => None,
         });
         let Some(name) = due else { return false };
+        // (a timer that is behind is due again the moment its handler ends:
+        // its next tick waits for the next turn, so the window's events
+        // between are not starved — as WM_TIMER comes after the others)
+        if !round.insert(name.clone()) {
+            let at = p.now();
+            tm(|s| {
+                s.gen += 1;
+                let g = s.gen;
+                s.heap.push(Reverse((at, g, name)));
+            });
+            return false;
+        }
         if p.get(&name, "enabled").to_i64() == 0 {
             tm(|s| s.scheduled.remove(&name));
             continue;
@@ -197,10 +285,13 @@ fn rearm<P: Program>(p: P, name: String) {
         tm(|s| s.scheduled.remove(&name));
         return;
     };
-    let at = p.now() + period;
+    let now = p.now();
+    let grid = tm(|s| s.grid.get(&name).copied()).unwrap_or(now);
+    let (at, grid) = follow(rhythm(p, &name), grid, period, now);
     tm(|s| {
         s.gen += 1;
         let g = s.gen;
+        s.grid.insert(name.clone(), grid);
         s.heap.push(Reverse((at, g, name)));
     });
 }

@@ -52,6 +52,7 @@ pub mod pixels;
 pub mod printer;
 pub mod record;
 pub mod richtext;
+pub mod rop;
 pub mod rtf;
 pub mod stream_ops;
 pub mod rqlib;
@@ -2045,7 +2046,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Ok(src) => src,
                 Err(e) => return Some(Err(e)),
             };
-            with(id, |o| if let Object::Bitmap(b) = o { b.draw(arg(0).to_i64(), arg(1).to_i64(), &src) });
+            // (CopyMode: how the picture combines with what is there)
+            let table = rop::table_of(&props(id, "copymode"));
+            with(id, |o| if let Object::Bitmap(b) = o { b.draw_rop(arg(0).to_i64(), arg(1).to_i64(), &src, table) });
             Some(Ok(Value::Null))
         }
         // RapidR's `StretchDraw x, y, w, h, Bitmap`: the Rect's four numbers
@@ -2058,7 +2061,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Err(e) => return Some(Err(e)),
             };
             let whole = (0, 0, src.img.width as i64, src.img.height as i64);
-            with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect((x, y, x.saturating_add(w), y.saturating_add(h)), &src, whole) });
+            let table = rop::table_of(&props(id, "copymode"));
+            with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect_rop((x, y, x.saturating_add(w), y.saturating_add(h)), &src, whole, table) });
             Some(Ok(Value::Null))
         }
         ("bitmap", "copyrect" | "stretchdraw") => {
@@ -2070,7 +2074,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Err(e) => return Some(Err(e)),
             };
             let src_rect = src_rect.unwrap_or((0, 0, src.img.width as i64, src.img.height as i64));
-            with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect(dest, &src, src_rect) });
+            let table = rop::table_of(&props(id, "copymode"));
+            with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect_rop(dest, &src, src_rect, table) });
             Some(Ok(Value::Null))
         }
         // AddSVGFile(FileName [, Theme]) (RapidR's): an SVG — a file or a

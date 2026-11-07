@@ -171,11 +171,11 @@ son iguales o mejores.
   cada píxel que está encendido) cuesta de 1 a 3 µs en el Runtime; `SetPixels8` pasa
   los 49 152 por una paleta en una sola llamada
   ([Dibujar muchos píxeles rápido](graphics.md#dibujar-muchos-píxeles-rápido)).
-- **Un cuadro cada 20 ms.** Un `RTimer` avanza en pasos de 15.6 ms, como los propios
-  temporizadores de Windows: el `Interval = 20` de las recetas se dispara unas 32
-  veces por segundo, y un tic llega 15.6 ms después de que terminó el controlador de
-  eventos anterior. Para exactamente 50 por segundo, haz tics con frecuencia y dibuja
-  cuando un cuadro *toca*
+- **Un cuadro cada 20 ms.** Un `RTimer` cuenta su `Interval` en pasos de 15.6 ms de
+  Windows: `Interval = 20` llega cada 31.25 ms, unas 32 veces por segundo, y el
+  temporizador de un programa de RapidR marca un Interval después de que su
+  controlador *terminó*. Para exactamente 50 por segundo pon `FixedRate = 1`: una
+  marca cada 20 ms según el reloj, y una tardía se recupera de inmediato
   ([Una imagen cada 20 milisegundos](graphics.md#una-imagen-cada-20-milisegundos)).
 - **Lo único lento que se encontró: escribir un archivo un byte a la vez.** Cada
   escritura es una llamada al sistema (la computadora pasa 0.8 s de ese segundo en el

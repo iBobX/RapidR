@@ -1,0 +1,25 @@
+default CopyMode=00CC0020
+cmBlackness copyrect=00000000 draw=00000000 stretchdraw=00000000
+cmDstInvert copyrect=00F0C33A draw=00F0C33A stretchdraw=00F0C33A
+cmMergeCopy copyrect=00052801 draw=00052801 stretchdraw=00052801
+cmMergePaint copyrect=00AF7DCD draw=00AF7DCD stretchdraw=00AF7DCD
+cmNotSrcCopy copyrect=00AA55CC draw=00AA55CC stretchdraw=00AA55CC
+cmNotSrcErase copyrect=00A04108 draw=00A04108 stretchdraw=00A04108
+cmPatCopy copyrect=000F3CC5 draw=000F3CC5 stretchdraw=000F3CC5
+cmPatInvert copyrect=00000000 draw=00000000 stretchdraw=00000000
+cmPatPaint copyrect=00AF7DCD draw=00AF7DCD stretchdraw=00AF7DCD
+cmSrcAnd copyrect=00052801 draw=00052801 stretchdraw=00052801
+cmSrcCopy copyrect=0055AA33 draw=0055AA33 stretchdraw=0055AA33
+cmSrcErase copyrect=00508232 draw=00508232 stretchdraw=00508232
+cmSrcInvert copyrect=005A96F6 draw=005A96F6 stretchdraw=005A96F6
+cmSrcPaint copyrect=005FBEF7 draw=005FBEF7 stretchdraw=005FBEF7
+cmWhiteness copyrect=00FFFFFF draw=00FFFFFF stretchdraw=00FFFFFF
+fresh brush=00FFFFFF
+after FillRect 0F3CC5 brush=000F3CC5
+after Circle c=112233 fill=445566 brush=00445566
+after Rectangle 112233 brush=00112233
+after Line 112233 brush=000F3CC5
+after Pset 112233 brush=000F3CC5
+after RoundRect 112233 brush=00112233
+after Paint 112233 brush=000F3CC5
+after TextOut fc=112233 bc=445566 brush=00445566

@@ -1,0 +1,103 @@
+' copy_modes.rr: CopyMode — how a picture you Draw or CopyRect combines with
+' what is already there. cmSrcCopy (the usual) replaces it; the others work
+' on the colours' bits: cmSrcInvert and cmSrcAnd and cmSrcPaint (XOR, AND,
+' OR) of the picture and the canvas, cmNotSrcCopy the picture as a negative,
+' cmPatInvert the canvas turned over by BrushColor — the same colour twice
+' is the picture back, which is how a selection box is drawn and erased.
+' Draw, StretchDraw and CopyRect all follow it, on every runtime.
+'
+' Six tiles, one picture. The fifth is the classic scanlines: a one-pixel
+' strip of grey CopyRect'ed with cmSrcAnd over every third row darkens that
+' row of the picture to 63 % and leaves the rest.
+'
+'   rapidr run copy_modes.rr
+
+DECLARE SUB Paint (Sender AS RCanvas)
+DECLARE SUB LookChanged
+
+DIM Photo AS RBitmap
+DIM Strip AS RBitmap
+
+CREATE Form AS RForm
+    Caption = "CopyMode"
+    ClientWidth = 480: ClientHeight = 300
+    Center
+    CREATE Board AS RCanvas
+        Align = alClient
+        OnPaint = Paint
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 270: Width = 456
+        Transparent = 1
+    END CREATE
+END CREATE
+
+' The picture: bands of colour and a disc, 120 x 80.
+Photo.Width = 120: Photo.Height = 80
+Photo.FillRect 0, 0, 120, 40, RGB(70, 130, 230)
+Photo.FillRect 0, 40, 120, 80, RGB(60, 170, 110)
+Photo.FillRect 0, 60, 120, 80, RGB(230, 190, 70)
+Photo.Circle 70, 16, 98, 44, RGB(255, 240, 200), RGB(255, 240, 200)
+' The strip for the scanlines: one row, 63 % grey.
+Strip.Width = 120: Strip.Height = 1
+Strip.FillRect 0, 0, 120, 1, RGB(160, 160, 160)
+Application.OnThemeChange = LookChanged
+
+SUB LookChanged
+    Board.Repaint
+END SUB
+
+' One tile: the backdrop, then the picture in a mode.
+SUB Tile (Sender AS RCanvas, x AS INTEGER, y AS INTEGER, Mode AS INTEGER, Name AS STRING, Says AS STRING)
+    DIM k AS INTEGER
+    Sender.FillRect x, y, x + 120, y + 80, RGB(96, 96, 112)
+    FOR k = 0 TO 79 STEP 8
+        Sender.FillRect x, y + k, x + 120, y + k + 4, RGB(150, 150, 170)
+    NEXT
+    Sender.CopyMode = Mode
+    Sender.Draw x, y, Photo.BMP
+    Sender.CopyMode = cmSrcCopy
+    Sender.TextOut x, y + 88, Name, Application.ThemeColor("page.text"), -1
+    Sender.TextOut x, y + 104, Says, Application.ThemeColor("page.dim"), -1
+END SUB
+
+SUB Paint (Sender AS RCanvas)
+    DIM r AS RRect, s AS RRect, k AS INTEGER
+    Sender.Font.Name = "Inter"
+    Sender.Font.Size = 9
+    Sender.FillRect 0, 0, Sender.Width, Sender.Height, Application.ThemeColor("face")
+    Tile Sender, 12, 12, cmSrcCopy, "cmSrcCopy", "replaces what is there"
+    Tile Sender, 180, 12, cmSrcInvert, "cmSrcInvert", "XOR with it"
+    Tile Sender, 348, 12, cmNotSrcCopy, "cmNotSrcCopy", "a negative"
+    Tile Sender, 12, 140, cmSrcPaint, "cmSrcPaint", "OR with it"
+
+    ' Scanlines: the picture as it is, then a grey strip ANDed over every
+    ' third row (r is where it lands, s the whole strip).
+    Sender.Draw 180, 140, Photo.BMP
+    s.Left = 0: s.Top = 0: s.Right = 120: s.Bottom = 1
+    Sender.CopyMode = cmSrcAnd
+    FOR k = 0 TO 79 STEP 3
+        r.Left = 180: r.Top = 140 + k: r.Right = 300: r.Bottom = 141 + k
+        Sender.CopyRect r, Strip.BMP, s
+    NEXT
+    Sender.CopyMode = cmSrcCopy
+    Sender.TextOut 180, 228, "cmSrcAnd", Application.ThemeColor("page.text"), -1
+    Sender.TextOut 180, 244, "scanlines", Application.ThemeColor("page.dim"), -1
+
+    ' A selection box: the pattern (BrushColor) turned over the picture; do
+    ' it twice and the picture is back.
+    Sender.Draw 348, 140, Photo.BMP
+    Sender.BrushColor = RGB(255, 255, 255)
+    Sender.CopyMode = cmPatInvert
+    r.Left = 360: r.Top = 152: r.Right = 420: r.Bottom = 192          ' where, on the canvas
+    s.Left = 12: s.Top = 12: s.Right = 72: s.Bottom = 52              ' a part of the picture (only its size matters)
+    Sender.CopyRect r, Photo.BMP, s
+    Sender.CopyMode = cmSrcCopy
+    Sender.TextOut 348, 228, "cmPatInvert", Application.ThemeColor("page.text"), -1
+    Sender.TextOut 348, 244, "BrushColor, XOR", Application.ThemeColor("page.dim"), -1
+
+    Info.Font.Color = Application.ThemeColor("page.dim")
+    Info.Caption = "Read back: a darkened row " + HEX$(Sender.Pixel(190, 140)) + ", the row after it " + HEX$(Sender.Pixel(190, 141))
+END SUB
+
+Form.ShowModal

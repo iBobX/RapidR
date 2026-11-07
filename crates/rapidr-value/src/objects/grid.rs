@@ -63,6 +63,9 @@ pub enum CellDraw {
     Image(i64, i64, Bitmap),
     /// RoundRect(x1, y1, x2, y2, corner width, corner height, colour).
     RoundRect(i64, i64, i64, i64, i64, i64, u32),
+    /// RoundRect(x1, y1, x2, y2, corner width, corner height, border colour,
+    /// fill colour): outlined, and filled unless the fill is -1.
+    RoundRectOutlined(i64, i64, i64, i64, i64, i64, u32, Option<u32>),
     /// TextRect: the clipping rectangle, x, y, text, colour, background.
     TextRect((i64, i64, i64, i64), i64, i64, String, u32, Option<u32>),
     /// `Paint(x, y, c, borderc)`: a flood fill from (x, y) with c up to the
@@ -84,6 +87,7 @@ impl CellDraw {
             CellDraw::Image(x, y, b) => CellDraw::Image(x + dx, y + dy, b),
             CellDraw::Flood(x, y, c, border) => CellDraw::Flood(x + dx, y + dy, c, border),
             CellDraw::RoundRect(x1, y1, x2, y2, w, h, c) => CellDraw::RoundRect(x1 + dx, y1 + dy, x2 + dx, y2 + dy, w, h, c),
+            CellDraw::RoundRectOutlined(x1, y1, x2, y2, w, h, c, fill) => CellDraw::RoundRectOutlined(x1 + dx, y1 + dy, x2 + dx, y2 + dy, w, h, c, fill),
             CellDraw::TextRect(r, x, y, text, c, bg) => CellDraw::TextRect((r.0 + dx, r.1 + dy, r.2 + dx, r.3 + dy), x + dx, y + dy, text, c, bg),
         }
     }
@@ -105,6 +109,7 @@ impl CellDraw {
             CellDraw::Text(x, y, text, c, bg) => super::text::text_out(bmp, *x, *y, text, font, *c, *bg),
             CellDraw::Image(x, y, src) => bmp.draw(*x, *y, src),
             CellDraw::RoundRect(x1, y1, x2, y2, w, h, c) => bmp.round_rect(*x1, *y1, *x2, *y2, *w, *h, *c),
+            CellDraw::RoundRectOutlined(x1, y1, x2, y2, w, h, c, fill) => bmp.round_rect_outlined(*x1, *y1, *x2, *y2, *w, *h, *c, *fill),
             CellDraw::TextRect(rect, x, y, text, c, bg) => super::text::text_rect(bmp, *rect, *x, *y, text, font, *c, *bg),
             CellDraw::Flood(x, y, c, border) => bmp.flood_fill(*x, *y, *c, *border),
         }
@@ -128,6 +133,7 @@ pub fn owner_draw_op(method: &str, args: &[Value]) -> Option<((i64, i64), CellDr
         "fillrect" => (at, CellDraw::Fill(n(0), n(1), n(2), n(3), c(4))),
         "circle" => (at, CellDraw::Ellipse(n(0), n(1), n(2), n(3), c(4), optional(5))),
         "pset" => (at, CellDraw::Pixel(n(0), n(1), c(2))),
+        "roundrect" if args.len() > 7 => (at, CellDraw::RoundRectOutlined(n(0), n(1), n(2), n(3), n(4), n(5), c(6), optional(7))),
         "roundrect" => (at, CellDraw::RoundRect(n(0), n(1), n(2), n(3), n(4), n(5), c(6))),
         // TextOut(x, y, text, color, background (-1: transparent)).
         "textout" => (at, CellDraw::Text(n(0), n(1), args.get(2).map(Value::to_string_val).unwrap_or_default(), c(3), optional(4))),

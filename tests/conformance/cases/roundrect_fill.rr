@@ -1,0 +1,86 @@
+' RoundRect's second colour — RapidR's own (the classic seven-argument form
+' stays exactly as it was: tests/conformance/cases/rapidq_roundrect_state):
+'   RoundRect x1, y1, x2, y2, rx, ry, Color, Fill
+' outlines the box in Color (one pixel, inside its edge) and fills it with
+' Fill (-1: not filled), as Circle takes its two colours; on an RCanvas
+'   RoundRect x1, y1, x2, y2, rx, ry
+' outlines it in PenColor and fills it with BrushColor. The border and the
+' inside cover exactly the box the seven-argument form fills. b is the
+' border, f the inside, . the ground, o the classic form's single colour.
+$APPTYPE CONSOLE
+CONST Ground = &HFFFFFF
+CONST Edge = &H0000FF
+CONST Inside = &H00FF00
+
+DIM B AS RBitmap
+CREATE Form AS RForm
+    ClientWidth = 100: ClientHeight = 60
+    CREATE C AS RCanvas
+        Left = 0: Top = 0: Width = 24: Height = 14
+    END CREATE
+END CREATE
+B.Width = 24: B.Height = 14
+
+FUNCTION Letter$ (c AS LONG)
+    IF c = Edge THEN
+        Letter$ = "b"
+    ELSEIF c = Inside THEN
+        Letter$ = "f"
+    ELSEIF c = Ground THEN
+        Letter$ = "."
+    ELSE
+        Letter$ = "o"
+    END IF
+END FUNCTION
+
+SUB DumpBitmap (Title AS STRING)
+    DIM x AS INTEGER, y AS INTEGER, s AS STRING
+    PRINT Title
+    FOR y = 0 TO 13
+        s = ""
+        FOR x = 0 TO 23
+            s = s + Letter$(B.Pixel(x, y))
+        NEXT
+        PRINT s
+    NEXT
+END SUB
+
+SUB DumpCanvas (Title AS STRING)
+    DIM x AS INTEGER, y AS INTEGER, s AS STRING
+    PRINT Title
+    FOR y = 0 TO 13
+        s = ""
+        FOR x = 0 TO 23
+            s = s + Letter$(C.Pixel(x, y))
+        NEXT
+        PRINT s
+    NEXT
+END SUB
+
+B.FillRect 0, 0, 24, 14, Ground
+B.RoundRect 1, 1, 21, 12, 8, 8, Edge, Inside
+DumpBitmap "bitmap, Color and Fill"
+
+B.FillRect 0, 0, 24, 14, Ground
+B.RoundRect 1, 1, 21, 12, 8, 8, Edge, -1
+DumpBitmap "bitmap, Fill -1: only the border"
+
+B.FillRect 0, 0, 24, 14, Ground
+B.RoundRect 1, 1, 21, 12, 8, 8, Edge
+DumpBitmap "bitmap, the classic form: one colour"
+
+C.FillRect 0, 0, 24, 14, Ground
+C.PenColor = Edge
+C.BrushColor = Inside
+C.RoundRect 1, 1, 21, 12, 8, 8
+DumpCanvas "canvas, six arguments: PenColor and BrushColor"
+
+C.FillRect 0, 0, 24, 14, Ground
+C.BrushColor = &H000000
+C.RoundRect 1, 1, 21, 12, 8, 8, Edge, Inside
+DumpCanvas "canvas, Color and Fill: BrushColor is not used"
+
+' a box too small to have an inside: all border
+B.FillRect 0, 0, 24, 14, Ground
+B.RoundRect 1, 1, 3, 3, 2, 2, Edge, Inside
+PRINT "2x2: " + Letter$(B.Pixel(1, 1)) + Letter$(B.Pixel(2, 1)) + Letter$(B.Pixel(1, 2)) + Letter$(B.Pixel(2, 2)) + Letter$(B.Pixel(3, 3))

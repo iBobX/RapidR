@@ -1,0 +1,87 @@
+' round_rect.rr: a rounded box with a border and an inside in ONE call.
+'
+'     Canvas.RoundRect x1, y1, x2, y2, rx, ry, Color, Fill
+'
+' Color is the one-pixel border (just inside the edge) and Fill the inside
+' (-1: none), the way Circle takes its two colours. With six arguments the
+' border is PenColor and the inside BrushColor; with seven, as ever, Color
+' fills the whole box. Here: a card, three status chips and the three forms,
+' in the look's own colours (Application.ThemeColor) and the sizes the design
+' guide gives (docs/design-guidelines.md): a card's corners 8 pixels round, a
+' chip a pill 24 tall with a soft fill and a 1-pixel border.
+'
+'   rapidr run round_rect.rr
+'
+' Change the look (Application.Theme, or the system's) and everything is
+' drawn again in the new colours, light, dark or high contrast.
+
+DECLARE SUB Paint (Sender AS RCanvas)
+DECLARE SUB LookChanged
+
+DIM Words(2) AS STRING
+DIM Kinds(2) AS STRING
+
+CREATE Form AS RForm
+    Caption = "RoundRect"
+    ClientWidth = 480: ClientHeight = 300
+    Center
+    CREATE Board AS RCanvas
+        Align = alClient
+        OnPaint = Paint
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 270: Width = 456
+        Transparent = 1
+    END CREATE
+END CREATE
+
+Words(0) = "3 new files": Words(1) = "Up to date": Words(2) = "Disk almost full"
+Kinds(0) = "info": Kinds(1) = "success": Kinds(2) = "warning"
+Application.OnThemeChange = LookChanged
+
+SUB LookChanged
+    Board.Repaint
+END SUB
+
+SUB Paint (Sender AS RCanvas)
+    DIM i AS INTEGER, x AS INTEGER, w AS INTEGER, k AS STRING
+    Sender.Font.Name = "Inter"
+    Sender.Font.Size = 10
+    Sender.FillRect 0, 0, Sender.Width, Sender.Height, Application.ThemeColor("face")
+
+    ' A card: radius 8 (the ellipse of the corners is 16 across), a hairline
+    ' border, the card's own surface inside.
+    Sender.RoundRect 12, 12, 468, 92, 16, 16, Application.ThemeColor("border"), Application.ThemeColor("card")
+    Sender.Font.Bold = 1
+    Sender.TextOut 28, 26, "Backups", Application.ThemeColor("page.text"), -1
+    Sender.Font.Bold = 0
+    Sender.TextOut 28, 50, "The last copy: today at 10:42", Application.ThemeColor("page.dim"), -1
+
+    ' Chips: a pill, 24 tall, the status's soft fill, its border, its words.
+    x = 12
+    FOR i = 0 TO 2
+        k = "status." + Kinds(i)
+        w = Sender.TextWidth(Words(i)) + 24
+        Sender.RoundRect x, 108, x + w, 132, 24, 24, Application.ThemeColor(k + ".border"), Application.ThemeColor(k)
+        Sender.TextOut x + 12, 108 + (24 - Sender.TextHeight(Words(i))) \ 2, Words(i), Application.ThemeColor(k + ".text"), -1
+        x = x + w + 8
+    NEXT
+
+    ' The three forms, side by side.
+    Sender.TextOut 12, 148, "The three forms:", Application.ThemeColor("page.text"), -1
+    Sender.Font.Size = 9
+    Sender.RoundRect 12, 172, 152, 228, 16, 16, Application.ThemeColor("border")
+    Sender.TextOut 12, 236, "Color: fills it", Application.ThemeColor("page.dim"), -1
+    Sender.RoundRect 172, 172, 312, 228, 16, 16, Application.ThemeColor("border"), Application.ThemeColor("card")
+    Sender.TextOut 172, 236, "Color and Fill", Application.ThemeColor("page.dim"), -1
+    Sender.PenColor = Application.ThemeColor("accent")
+    Sender.BrushColor = Application.ThemeColor("status.info")
+    Sender.RoundRect 332, 172, 468, 228, 16, 16
+    Sender.TextOut 332, 236, "PenColor, BrushColor", Application.ThemeColor("page.dim"), -1
+
+    ' What the canvas reads back: the card's border, then its inside.
+    Info.Font.Color = Application.ThemeColor("page.dim")
+    Info.Caption = "Read back: border " + HEX$(Sender.Pixel(200, 12)) + ", inside " + HEX$(Sender.Pixel(200, 40))
+END SUB
+
+Form.ShowModal

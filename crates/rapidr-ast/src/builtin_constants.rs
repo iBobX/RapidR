@@ -69,7 +69,20 @@ fn table() -> &'static HashMap<String, i64> {
 /// stream's 64-bit number types, `Num_INT64`, `Num_UINT64`, `Num_UINT32`
 /// (`rapidr_value::objects::memstream::NUM_INT64` …). In the language
 /// registry as RapidR's (`constants.toml`).
-pub const RAPIDR_ONLY: &[(&str, i64)] = &[("ctText", 0), ("ctImage", 1), ("ctState", 2), ("Num_INT64", 9), ("Num_UINT64", 10), ("Num_UINT32", 11)];
+pub const RAPIDR_ONLY: &[(&str, i64)] = &[
+    ("ctText", 0),
+    ("ctImage", 1),
+    ("ctState", 2),
+    ("Num_INT64", 9),
+    ("Num_UINT64", 10),
+    ("Num_UINT32", 11),
+    // an RAudioOut's OnError Code (`rapidr_value::objects::audioout::ERR_NO_DEVICE` …)
+    ("aeNoDevice", 1),
+    ("aeDeviceLost", 2),
+    ("aeBadSetting", 3),
+    ("aeUnderrun", 4),
+    ("aeNeedsClick", 5),
+];
 
 /// Whether `name` is one of [`RAPIDR_ONLY`] (any case).
 pub fn is_rapidr_only(name: &str) -> bool {

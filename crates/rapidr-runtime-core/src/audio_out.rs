@@ -17,7 +17,9 @@
 //!   (`__Heard`) — never the sound card.
 //! - **OnNeedData** is raised on the program's thread: the window loop
 //!   asks every 5 ms while a stream with a handler plays (ui/kernel.rs),
-//!   and so does DOEVENTS.
+//!   and so does DOEVENTS. **OnError** (Code, Message) is raised the same
+//!   way: what the model noted (a setting refused, no device, a gap in the
+//!   sound, a device that stopped taking it).
 
 use std::time::{Duration, Instant};
 
@@ -191,17 +193,21 @@ thread_local! {
 /// Whether a stream with an OnNeedData plays (the window loop then asks
 /// every [`POLL_EVERY`]).
 pub fn busy() -> bool {
-    audioout::active() && audioout::playing_ids().iter().any(|id| crate::object::rp_has_handler(id, "onneeddata"))
+    audioout::has_pending() || (audioout::active() && audioout::playing_ids().iter().any(|id| crate::object::rp_has_handler(id, "onneeddata") || crate::object::rp_has_handler(id, "onerror")))
 }
 
 /// OnNeedData for each stream that wants more, on the program's thread.
 pub fn poll() {
-    if !audioout::active() {
+    if !audioout::active() && !audioout::has_pending() {
         return;
     }
     let now = EPOCH.with(|e| e.elapsed().as_secs_f64() * 1000.0);
     for (id, count) in audioout::due(now, &|id| crate::object::rp_has_handler(id, "onneeddata")) {
         crate::object::rp_fire_event_args(&id, "onneeddata", &[Value::Integer(count)]);
+    }
+    // OnError(Code, Message): a setting refused, no device, a gap, a device that went away
+    for (id, code, message) in audioout::errors(now, &|id| crate::object::rp_has_handler(id, "onerror")) {
+        crate::object::rp_fire_event_args(&id, "onerror", &[Value::Integer(code), rapidr_value::v_str(&message)]);
     }
 }
 

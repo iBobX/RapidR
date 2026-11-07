@@ -113,7 +113,7 @@ ContentType = { category = "Network", doc = "The type of the request's body (`CO
 Controls = { category = "Media", doc = "Shows the browser's play, pause and volume controls on the audio or video." }
 Cookie = { category = "Network", doc = "The cookies sent with the request (`HTTP_COOKIE`); read-only." }
 Copies = { category = "Behavior", doc = "How many copies to print." }
-CopyMode = { category = "Drawing", doc = "How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies)." }
+CopyMode = { category = "Drawing", doc = "How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`)." }
 Count = { category = "Data", doc = "How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components." }
 CssClass = { category = "Appearance", doc = "The element's CSS class names (its `class` attribute)." }
 CssStyle = { category = "Appearance", doc = "The element's inline CSS (its `style` attribute); its place and size stay the runtime's." }

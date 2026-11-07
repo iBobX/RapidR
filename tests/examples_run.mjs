@@ -137,6 +137,9 @@ export const cases = [
     expect: ["themelabel.caption=Now: rapidr dark", "view.linkcount=0"] },
   { file: "gui/hello_form.rr", runtimes: ["run", "interp", "native", "web"], events: "greetbutton.onclick,greetbutton.onclick", dump: "answer.caption",
     expect: ["answer.caption=Hello, World! (2)"] },
+  // (steady_timer: two timers and the second that reads them; the counts depend on the clock, the words do not)
+  { file: "gui/steady_timer.rr", runtimes: ["run", "interp", "native", "web"], dump: "heading.caption,plainwords.caption",
+    expect: ["heading.caption=Two timers, Interval = 20", "plainwords.caption=The default: a tick one Interval after the handler ended"] },
   // (Tab out of each box: its OnExit checks it, the next one's OnEnter
   // shows its help)
   // snapshot.rr: RWindowCapture — a picture of its own window saved beside it
@@ -437,6 +440,11 @@ export const cases = [
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "clearbtn.onclick", dump: "info.caption",
     expect: ["info.caption=No dots; bar 4 is &H00B48246"] },
+  // (round_rect, copy_modes: the canvas read back after OnPaint drew it)
+  { file: "graphics/round_rect.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption",
+    expect: ["info.caption=Read back: border "] },
+  { file: "graphics/copy_modes.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption",
+    expect: ["info.caption=Read back: a darkened row "] },
   // pixels_fast: the plasma for a couple of seconds (the readout appears once a second: frames a second
   // and the time of each step), Life with the slow Pset method, a click on the picture, Pause
   { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: wait("hint", 50), dump: "info.caption,effectbtn.caption,methodbtn.caption",
@@ -475,6 +483,9 @@ export const cases = [
     expect: ["info.caption=440.0 Hz sine, playing: ", " 0 160 320 479 635 789 940 1088 1231 1369 1502 1629 1749 1863 1969 2068 2158 2240"] },
   { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,freqbar.__key_34,startbtn.onclick,${wait("info", 6)},startbtn.onclick`, dump: "info.caption,speaker.playing",
     expect: ["info.caption=880.0 Hz square, stopped", "speaker.playing=0"] },
+  // (audio_errors: a rate out of range is refused, and OnError says it)
+  { file: "media/audio_errors.rr", runtimes: ["run", "interp", "native", "web"], events: `ratebtn.onclick,${wait("heading", 20)}`, dump: "log.itemcount,speaker.error",
+    expect: ["log.itemcount=1"] },
   // (the timing test: the interpreter makes 50 frames a second from an
   // RTimer, 882 samples each, and the sound never gaps; the first frame's
   // samples exact)

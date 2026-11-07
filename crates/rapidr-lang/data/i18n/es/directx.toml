@@ -94,7 +94,7 @@
 "RDXSCREEN.RELEASE" = "Libera las superficies DirectX; RapidR no tiene nada que liberar."
 "RDXSCREEN.RENDER" = "Dibuja la escena: una pantalla DirectX dibuja su vista 3D; en la web se dibuja un gráfico (como `SaveFig`)."
 "RDXSCREEN.ROTATE" = "Gira la imagen `Angle` grados alrededor de (`xOrigin`, `yOrigin`)."
-"RDXSCREEN.ROUNDRECT" = "Dibuja un rectángulo (`x1`, `y1`)–(`x2`, `y2`) con las esquinas redondeadas por una elipse de `x3` de ancho y `y3` de alto, con el color `c`."
+"RDXSCREEN.ROUNDRECT" = "Dibuja un rectángulo (`x1`, `y1`)–(`x2`, `y2`) con las esquinas redondeadas por una elipse de `x3` de ancho y `y3` de alto, con el color `c`. Forma propia de RapidR, con un `fill` además: `c` dibuja el contorno y `fill` rellena (-1: sin relleno)."
 "RDXSCREEN.SETBACKGROUNDIMAGE" = "Usa una textura como fondo de la escena 3D."
 "RDXSCREEN.SETCAMERAORIENTATION" = "Apunta la cámara a lo largo de (`DX`, `DY`, `DZ`) con (`UX`, `UY`, `UZ`) como su dirección hacia arriba."
 "RDXSCREEN.SETCAMERAPOSITION" = "Mueve la cámara a (`X`, `Y`, `Z`)."

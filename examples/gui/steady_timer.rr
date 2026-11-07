@@ -1,0 +1,101 @@
+' steady_timer.rr: the same Interval, two rhythms.
+'
+' Both timers have Interval = 20 and do the same 4 ms of work in each tick,
+' the way a frame of an emulator or an animation does. The first is a
+' timer as it has always been in a RapidR program: its next tick comes one
+' Interval (counted in Windows' timer steps of 15.6 ms: 31.25 ms) after its
+' handler has *ended*, so it ticks about 25 to 28 times a second. The second has
+' FixedRate = 1: a tick every 20 ms by the clock, 50 a second, and a tick that
+' comes late is made up at once without two handlers ever running together.
+'
+'   rapidr run steady_timer.rr
+'
+' Each second the counts are read and written under the rows.
+
+DECLARE SUB Plain
+DECLARE SUB Steady
+DECLARE SUB EachSecond
+DECLARE SUB LookChanged
+
+DIM PlainTicks AS INTEGER, SteadyTicks AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "A steady timer"
+    ClientWidth = 460: ClientHeight = 210
+    Center
+    CREATE Heading AS RLabel
+        Caption = "Two timers, Interval = 20": Left = 16: Top = 16
+    END CREATE
+    CREATE PlainWords AS RLabel
+        Caption = "The default: a tick one Interval after the handler ended": Left = 16: Top = 56
+    END CREATE
+    CREATE PlainCount AS RLabel
+        Caption = "counting...": Left = 16: Top = 76
+    END CREATE
+    CREATE SteadyWords AS RLabel
+        Caption = "FixedRate = 1: a tick every 20 ms by the clock": Left = 16: Top = 112
+    END CREATE
+    CREATE SteadyCount AS RLabel
+        Caption = "counting...": Left = 16: Top = 132
+    END CREATE
+    CREATE Note AS RLabel
+        Caption = "Each tick does 4 ms of work. A frame every 20 ms wants the second one.": Left = 16: Top = 172
+    END CREATE
+END CREATE
+
+CREATE PlainTimer AS RTimer
+    Interval = 20
+    OnTimer = Plain
+END CREATE
+CREATE SteadyTimer AS RTimer
+    Interval = 20
+    FixedRate = 1
+    OnTimer = Steady
+END CREATE
+CREATE Seconds AS RTimer
+    Interval = 1000
+    FixedRate = 1
+    OnTimer = EachSecond
+END CREATE
+
+' 4 ms of work in each tick
+SUB Work
+    DIM began AS DOUBLE
+    began = TIMER
+    WHILE TIMER - began < 0.004
+    WEND
+END SUB
+
+SUB Plain
+    PlainTicks = PlainTicks + 1
+    Work
+END SUB
+
+SUB Steady
+    SteadyTicks = SteadyTicks + 1
+    Work
+END SUB
+
+SUB EachSecond
+    PlainCount.Caption = STR$(PlainTicks) + " ticks in the last second"
+    SteadyCount.Caption = STR$(SteadyTicks) + " ticks in the last second"
+    PlainTicks = 0
+    SteadyTicks = 0
+END SUB
+
+' (the look's own colours, again when it changes)
+SUB LookChanged
+    Heading.Font.Color = Application.ThemeColor("page.text")
+    PlainWords.Font.Color = Application.ThemeColor("page.dim")
+    SteadyWords.Font.Color = Application.ThemeColor("page.dim")
+    Note.Font.Color = Application.ThemeColor("page.dim")
+    PlainCount.Font.Color = Application.ThemeColor("page.text")
+    SteadyCount.Font.Color = Application.ThemeColor("status.success.text")
+END SUB
+
+Heading.Font.Bold = 1
+PlainCount.Font.Bold = 1
+SteadyCount.Font.Bold = 1
+Application.OnThemeChange = LookChanged
+LookChanged
+Form.ShowModal

@@ -52,7 +52,7 @@ methods = [
   { name = "Rectangle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", arg_kinds = { c = "color" } },
   { name = "Release" },
   { name = "Rotate", params = "xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER" },
-  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER", arg_kinds = { c = "color" } },
+  { name = "RoundRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER]", arg_kinds = { c = "color", fill = "color" } },
   { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },

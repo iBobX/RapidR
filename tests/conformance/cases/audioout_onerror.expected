@@ -1,0 +1,9 @@
+codes 3 4 2 1 5
+OnError 3 SampleRate is from 800
+SampleRate=8000
+Error=SampleRate is from 800
+in range: nothing said
+OnError 4 The sound ran dry: the
+Underruns=1
+OnError 2 The sound device stopp
+done

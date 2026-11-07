@@ -34,6 +34,9 @@ struct World {
     /// continuations wait in `queued` until the test runs them).
     queue: bool,
     queued: Vec<(Vec<Value>, crate::program::Then)>,
+    /// How long a handler takes, in a build that runs it as it is fired
+    /// (the clock moves on before its continuation runs).
+    slow: Duration,
     /// The dialogs' windows the host made (id, title) and closed.
     dialogs: Vec<(String, String)>,
     closed: Vec<String>,
@@ -120,6 +123,10 @@ impl Program for Mem {
         if world(|w| w.queue) {
             world(|w| w.queued.push((answer, then)));
         } else {
+            let slow = world(|w| w.slow);
+            if !slow.is_zero() {
+                advance(slow);
+            }
             then(&answer);
         }
     }
@@ -318,6 +325,8 @@ fn set_and_container_events() {
 
 #[test]
 fn timers_fire_when_due_and_rearm_from_their_handler() {
+    // (a RapidR program's RTimer: the next tick an Interval after the handler)
+    rapidr_value::set_rapidr_program(true);
     NOW.with(|n| n.set(Some(Instant::now())));
     make("t", "RTIMER", None);
     Mem.store("t", "interval", v_int(125));
@@ -349,6 +358,108 @@ fn timers_fire_when_due_and_rearm_from_their_handler() {
     advance(Duration::from_millis(250));
     timers::fire_due(Mem);
     assert_eq!(fired().len(), 3);
+}
+
+/// A classic program's QTIMER ticks as RC.EXE's did (probe w_timer, Windows
+/// 11: Interval 20 and a 24 ms handler gave gaps of 31 ms, not 55; a 50 ms
+/// handler gave 50, the ticks following at once): the next tick is one
+/// period from where the last was *due*; one that fell due while the handler
+/// ran runs the moment it ends, the beat going on from the last point passed.
+#[test]
+fn a_classic_timer_keeps_its_beat_whatever_its_handler_takes() {
+    rapidr_value::set_rapidr_program(false);
+    let t0 = Instant::now();
+    NOW.with(|n| n.set(Some(t0)));
+    make("t", "RTIMER", None);
+    Mem.store("t", "interval", v_int(20));
+    Mem.store("t", "enabled", v_int(-1));
+    timers::register("t");
+    timers::start_all(Mem);
+    world(|w| w.queue = true);
+    let at = |ms: f64| t0 + Duration::from_micros((ms * 1000.0) as u64);
+    // (Interval 20 is 31.25 ms: two of Windows' 15.625 ms ticks)
+    assert_eq!(timers::next_due(), Some(at(31.25)));
+    advance(Duration::from_micros(31_250));
+    assert!(timers::fire_due(Mem));
+    // a handler of 24 ms: the next tick is still due at 62.5, not 55.25 + 31.25
+    advance(Duration::from_millis(24));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(62.5)));
+    advance(Duration::from_micros(7_250));
+    assert!(timers::fire_due(Mem));
+    // a handler of 50 ms (62.5 to 112.5): the tick due at 93.75 waits and runs
+    // at once; the beat goes on from 93.75
+    advance(Duration::from_millis(50));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(112.5)));
+    assert!(timers::fire_due(Mem));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(125.0)), "back on the beat: 93.75 + 31.25");
+    assert_eq!(fired().len(), 3);
+}
+
+/// A timer that is behind runs one handler a turn: the window's other events
+/// get theirs in between (a loop over the timers due, run to its end, would
+/// starve them).
+#[test]
+fn a_timer_that_is_behind_runs_once_a_turn() {
+    rapidr_value::set_rapidr_program(false);
+    NOW.with(|n| n.set(Some(Instant::now())));
+    make("t", "RTIMER", None);
+    Mem.store("t", "interval", v_int(20));
+    Mem.store("t", "enabled", v_int(-1));
+    timers::register("t");
+    timers::start_all(Mem);
+    world(|w| {
+        w.queue = false;
+        w.slow = Duration::from_millis(50);
+    });
+    advance(Duration::from_micros(31_250));
+    assert!(!timers::fire_due(Mem));
+    assert_eq!(fired().len(), 1, "its next tick fell due during the handler: it waits for the next turn");
+    assert_eq!(timers::next_due().map(|d| d <= NOW.with(|n| n.get()).unwrap()), Some(true));
+    assert!(!timers::fire_due(Mem));
+    assert_eq!(fired().len(), 2);
+}
+
+/// FixedRate: every Interval by the clock; a tick missed is made up, one
+/// after another, unless the program is far behind.
+#[test]
+fn a_fixed_rate_timer_ticks_every_interval_and_catches_up() {
+    rapidr_value::set_rapidr_program(true);
+    let t0 = Instant::now();
+    NOW.with(|n| n.set(Some(t0)));
+    make("t", "RTIMER", None);
+    Mem.store("t", "interval", v_int(20));
+    Mem.store("t", "fixedrate", v_int(-1));
+    Mem.store("t", "enabled", v_int(-1));
+    timers::register("t");
+    timers::start_all(Mem);
+    world(|w| w.queue = true);
+    let at = |ms: u64| t0 + Duration::from_millis(ms);
+    // (exactly 20 ms: not Windows' 31.25)
+    assert_eq!(timers::next_due(), Some(at(20)));
+    advance(Duration::from_millis(20));
+    assert!(timers::fire_due(Mem));
+    // a handler of 35 ms (20 to 55): the tick of 40 is made up at once, the
+    // beat goes on from it
+    advance(Duration::from_millis(35));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(55)));
+    assert!(timers::fire_due(Mem));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(60)));
+    advance(Duration::from_millis(5));
+    assert!(timers::fire_due(Mem));
+    // a handler of 600 ms (a dialog): too far behind to replay, it counts again from then
+    advance(Duration::from_millis(600));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(660)));
+    assert!(timers::fire_due(Mem));
+    run_queued();
+    assert_eq!(timers::next_due(), Some(at(680)));
+    assert_eq!(fired().len(), 4);
+    rapidr_value::set_rapidr_program(false);
 }
 
 #[test]
@@ -427,6 +538,7 @@ fn a_dialog_is_a_wait_the_vm_serves_and_ends_with_its_answer() {
 
 #[test]
 fn a_timer_fires_once_the_handler_before_it_has_run() {
+    rapidr_value::set_rapidr_program(true);
     NOW.with(|n| n.set(Some(Instant::now())));
     for t in ["t1", "t2"] {
         make(t, "RTIMER", None);

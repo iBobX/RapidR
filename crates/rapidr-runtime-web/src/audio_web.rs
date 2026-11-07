@@ -30,7 +30,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 /// What Error says until the page may play sound.
-pub const WAITING_FOR_CLICK: &str = "The browser plays sound only after a click or a key on the page: call Start from a button's OnClick (it plays as soon as the page may)";
+pub use audioout::WAITING_FOR_CLICK;
 
 /// How often the page asks for OnNeedData and feeds the sinks, in ms.
 const TICK_MS: i32 = 10;
@@ -173,6 +173,12 @@ fn stop(id: &str) {
     SINKS.with(|s| s.borrow_mut().remove(&key));
 }
 
+/// Something waits to be said (a setting refused on a stream that does not
+/// play): the page's interval runs to say it.
+pub fn wake() {
+    ensure_tick();
+}
+
 /// The page's interval, while anything plays.
 fn ensure_tick() {
     if TICK.with(Cell::get).is_some() {
@@ -228,9 +234,13 @@ fn tick() {
         for (id, count) in audioout::due(now, &|id| crate::object_web::rp_has_handler(id, "onneeddata")) {
             crate::object_web::rp_fire_event_args(&id, "onneeddata", &[Value::Integer(count)]);
         }
+        // OnError(Code, Message), as the desktop raises it
+        for (id, code, message) in audioout::errors(now, &|id| crate::object_web::rp_has_handler(id, "onerror")) {
+            crate::object_web::rp_fire_event_args(&id, "onerror", &[Value::Integer(code), rapidr_value::v_str(&message)]);
+        }
     }
-    // (nothing plays: the interval stops)
-    let idle = !audioout::active() && SINKS.with(|s| s.borrow().is_empty()) && PLAYERS.with(|p| p.borrow().is_empty());
+    // (nothing plays and nothing waits to be said: the interval stops)
+    let idle = !audioout::active() && !audioout::has_pending() && SINKS.with(|s| s.borrow().is_empty()) && PLAYERS.with(|p| p.borrow().is_empty());
     if idle {
         if let (Some(handle), Some(w)) = (TICK.with(|t| t.take()), web_sys::window()) {
             w.clear_interval_with_handle(handle);
