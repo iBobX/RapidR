@@ -229,6 +229,8 @@ impl FormUi {
         // (and a full-screen QDXSCREEN over everything on its form)
         let children = components::dock::stacked(parent_id, components::mdi::stacked(parent_id, store.children(parent_id)));
         let children = components::panels::palette::stacked(parent_id, components::panels::toolbox::stacked(parent_id, children));
+        // (and a notification overlay over every neighbour, a palette too)
+        let children = components::panels::notify::stacked(parent_id, children);
         let children = if parent.is_none() { components::dxscreen::stacked(store, children) } else { children };
         for (id, type_name) in children {
             let type_name = type_name.to_ascii_uppercase();
@@ -319,7 +321,13 @@ impl FormUi {
             return Some(i);
         }
         let inside = |r: Rect| x >= r.0 as f64 && y >= r.1 as f64 && x < (r.0 + r.2) as f64 && y < (r.1 + r.3) as f64;
-        (0..self.nodes.len()).rev().find(|&i| self.nodes[i].shown && self.ancestry(i).iter().all(|&a| inside(self.nodes[a].abs)))
+        (0..self.nodes.len()).rev().find(|&i| {
+            let n = &self.nodes[i];
+            n.shown
+                && self.ancestry(i).iter().all(|&a| inside(self.nodes[a].abs))
+                // (an overlay that takes the mouse only where it draws: RNOTIFY)
+                && n.kind.is_none_or(|k| k.claims(&n.id, n.abs.2, n.abs.3, x.floor() as i64 - n.abs.0, y.floor() as i64 - n.abs.1))
+        })
     }
 
     /// The events queued since the last call (for runtime-core to

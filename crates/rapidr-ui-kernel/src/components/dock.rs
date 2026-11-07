@@ -601,6 +601,9 @@ impl ComponentKind for DockDocs {
             DocHit::Tab(g, i) => Some(titles(&d.groups[g].tabs[i].pane)),
             DocHit::Close(g, i) => Some(tr_ui_fill("Close {name}", &[("name", &titles(&d.groups[g].tabs[i].pane))])),
             DocHit::View(g, k) => d.groups[g].switch.get(k).map(|(_, c, _)| c.clone()),
+            DocHit::ScrollLeft(_) => Some(tr_ui("Scroll Tabs Left")),
+            DocHit::ScrollRight(_) => Some(tr_ui("Scroll Tabs Right")),
+            DocHit::List(_) => Some(tr_ui("Open Tabs")),
             _ => None,
         }
     }
@@ -611,7 +614,7 @@ impl ComponentKind for DockDocs {
         let dock = docs_dock(store, id)?;
         let d = manager::with_mut(&dock, |m| m.geometry().documents.clone())?;
         let g = match d.hit(x.floor() as i64, y.floor() as i64)? {
-            DocHit::Tab(g, _) | DocHit::Close(g, _) | DocHit::View(g, _) => g,
+            DocHit::Tab(g, _) | DocHit::Close(g, _) | DocHit::View(g, _) | DocHit::ScrollLeft(g) | DocHit::ScrollRight(g) | DocHit::List(g) => g,
             _ => return None,
         };
         let dg = d.groups.get(g)?;
@@ -638,6 +641,24 @@ impl ComponentKind for DockDocs {
         let theme = p.theme();
         let ops = manager::with(&dock, |m| look::documents_overlay_ops(m, theme)).unwrap_or_default();
         p.ops(ops);
+    }
+
+    /// The wheel (or a two-finger swipe) over a document strip scrolls its
+    /// tabs.
+    fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
+        let Some(dock) = docs_dock(cx.store, cx.id) else { return false };
+        let over = manager::with(&dock, |m| match &m.ui.hover {
+            Some(Part::Doc(DocHit::Tab(g, _) | DocHit::Close(g, _) | DocHit::Strip(g) | DocHit::ScrollLeft(g) | DocHit::ScrollRight(g) | DocHit::List(g))) => Some(*g),
+            _ => None,
+        })
+        .flatten();
+        let Some(group) = over else { return false };
+        let pixels = ((dx + dy) * 48.0).round() as i64;
+        if pixels == 0 {
+            return true;
+        }
+        send(cx, &dock, User::DocScroll { group, tabs: 0, pixels });
+        true
     }
 
     /// The splitters between the document groups and between a document's
@@ -734,6 +755,11 @@ impl ComponentKind for DockDocs {
                     let c = d.groups[g].content;
                     manager::with_mut(&dock, |mm| mm.ui.doc_split = Some(DocSplitDrag { splitter: 0, views_of: Some(g), start: vec![c.0, c.2], from: x }));
                 }
+                // (the strip's arrows scroll the tabs by one, the list button asks
+                // the program for the list of open tabs)
+                Some(DocHit::ScrollLeft(g)) => send(cx, &dock, User::DocScroll { group: g, tabs: -1, pixels: 0 }),
+                Some(DocHit::ScrollRight(g)) => send(cx, &dock, User::DocScroll { group: g, tabs: 1, pixels: 0 }),
+                Some(DocHit::List(g)) => send(cx, &dock, User::DocList(g)),
                 Some(DocHit::Strip(_)) | None => {}
             },
             // (a double click on a strip's empty part: nothing; on a tab: the
@@ -808,6 +834,11 @@ impl ComponentKind for DockDocs {
         match (part.and_then(access::decode), action) {
             (Some(AccessPart::Tab(i)), Action::Click) if i < tabs.len() => send(cx, &dock, User::Select(tabs[i].clone())),
             (Some(AccessPart::Close(i)), Action::Click) if i < tabs.len() => send(cx, &dock, User::CloseDocument(tabs[i].clone())),
+            (Some(AccessPart::DocButton(g, k)), Action::Click) => match k {
+                0 => send(cx, &dock, User::DocScroll { group: g, tabs: -1, pixels: 0 }),
+                1 => send(cx, &dock, User::DocScroll { group: g, tabs: 1, pixels: 0 }),
+                _ => send(cx, &dock, User::DocList(g)),
+            },
             (Some(AccessPart::View(g, k)), Action::Click) => {
                 let Some(gr) = d.groups.get(g) else { return false };
                 let (Some(doc), Some((v, _, _))) = (gr.shown().cloned(), gr.switch.get(k)) else { return false };
@@ -965,17 +996,31 @@ pub fn key(f: &mut FormUi, store: &dyn Store, _ts: &mut TextSystem, vk: i64, mod
         // F6 / Shift+F6: the next / previous area
         117 if !ctrl && !mods.alt => {
             let areas = manager::with_mut(&dock, |m| m.areas_for_keys());
-            if areas.is_empty() {
+            // (a question's strip and the toasts are areas too while they show,
+            // after the panes': the keyboard starts at their first button)
+            let extras: Vec<usize> = (0..f.nodes.len()).filter(|&i| matches!(f.nodes[i].type_name.as_str(), "RNOTIFYBAR" | "RNOTIFY") && f.can_focus(store, i)).collect();
+            if areas.is_empty() && extras.is_empty() {
                 return false;
             }
-            let n = areas.len();
-            let now = pane.as_ref().and_then(|p| areas.iter().position(|a| a == p));
+            let n = areas.len() + extras.len();
+            let now = match f.focus.and_then(|c| extras.iter().position(|&e| e == c)) {
+                Some(k) => Some(areas.len() + k),
+                None => pane.as_ref().and_then(|p| areas.iter().position(|a| a == p)),
+            };
             let next = match now {
                 Some(k) if mods.shift => (k + n - 1) % n,
                 Some(k) => (k + 1) % n,
                 None if mods.shift => n - 1,
                 None => 0,
             };
+            if next >= areas.len() {
+                let i = extras[next - areas.len()];
+                f.set_focus(Some(i));
+                super::panels::notify::entered(f, i, mods.shift);
+                super::panels::notifybar::entered(f, i, mods.shift);
+                f.dirty = true;
+                return true;
+            }
             let target = areas[next].clone();
             if let Some(i) = f.first_focus_in(store, &target) {
                 f.set_focus(Some(i));

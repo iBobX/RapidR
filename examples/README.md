@@ -83,6 +83,7 @@ claims, headless).
 | [value_tree.rr](gui/value_tree.rr) | A tree that shows values as RapidR Studio's debugger does (`SetItemValue`, `Item(i).Changed`): each with its kind's icon, numbers, text and True/False in their colours, a colour as a swatch and its name, an array with its count, a changed value marked ([the manual](../docs/manual/debugging.md#how-values-look)) | run · interp · native · web | `rapidr run gui/value_tree.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 | [form_ex.rr](gui/form_ex.rr) | `RFormEx`, a form with more: files dropped on a box (`OnDrag`, `DragZone`, `DropPoint`), to the tray and back (`AddTrayIcon`, `OnTrayDblClick`, `OnMinimise`), see-through (`Transparent`), a hole for the desktop (`TransparentClient`), on top (`fsStayOnTop`), `OnGetFocus` / `OnLostFocus` ([the manual](../docs/manual/forms-ex.md)) | run · interp · native · web | `rapidr run gui/form_ex.rr` |
+| [notify.rr](gui/notify.rr) | `RNotify` and `RNotifyBar`: toasts that say what happened and go by themselves (`Show`, kinds, up to two actions, `OnAction`), the same `Key` replacing the toast instead of piling up, three at most, the history and its bell (`ShowHistory`, `UnseenCount`, `OnUnseenChange`), and a question on one slim line (`Ask`, `OnChoose`) ([the manual](../docs/manual/notifications.md)) | run · interp · native · web | `rapidr run gui/notify.rr` |
 
 ### translations/ — one program in every language
 

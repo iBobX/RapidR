@@ -4942,7 +4942,7 @@ const CASES = [
     dump: {
       "aireviewbtn.caption": /^Preview the New Program\.\.\.$/,
       "aireviewbar.__shown": /^1$/,
-      "aibanner.__shown": /^0$/,
+      "notify.historycount": /^0$/,
       "aistatus.simpletext": /^Waiting for you — The assistant made a new program: preview it, then create it\.$/,
       "aitools.createdfolder": /^$/,
       "proj.folder": /^$/,
@@ -5323,7 +5323,7 @@ const CASES = [
     delay: 8,
     dump: {
       "aistatus.simpletext": /^2 files changed: Edit > Undo in each takes it back\.$/,
-      "aibanner.__shown": /^0$/,
+      "notify.historycount": /^0$/,
     },
   },
   {
@@ -5466,11 +5466,13 @@ const CASES = [
     // (CONTEXT-MENUS: Down to the older chat — the keys don't open it —, Del)
     events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(4)].join(","),
     delay: 5,
+    // (the toast says it, with its Undo; the Assistant's status line doesn't repeat it)
+    capture: true,
+    reducedMotion: true,
     dump: {
       "aichatlist.itemcount": /^2$/,
-      "aichatundobar.__shown": /^1$/,
-      "aichatundotext.caption": /^Deleted "hello one"\.$/,
-      "aistatus.simpletext": /^Deleted "hello one"\. Undo puts it back\.$/,
+      "notify.count": /^1$/,
+      "notify.historycount": /^1$/,
       "ai.transcript": /hello two/,
     },
   },
@@ -5479,12 +5481,15 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     copy: true,
     webFiles: ["examples/gui/hello_form.rr"],
-    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
-    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(2), CLICK("aichatundobtn", 20, 12), idle(4)].join(","),
-    delay: 5,
+    // (Undo is the toast's action: pressed as soon as the toast is there)
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant,notify:press=when,wait,wait`,
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__key_40", "aichatlist.__key_46", idle(6)].join(","),
+    delay: 6,
+    reducedMotion: true,
     dump: {
       "aichatlist.itemcount": /^3$/,
-      "aichatundobar.__shown": /^0$/,
+      "notify.count": /^0$/,
+      "notify.historycount": /^1$/,
       "aistatus.simpletext": /^Put back: "hello one"\.$/,
     },
   },
@@ -6243,7 +6248,7 @@ const CASES = [
     // Robert's chat (2026-10-18), a model naming the program "Scientific
     // Calculator": no question, no dialog — the project ScientificCalculator
     // made in Documents/RapidR/Projects (an install's), opened with its form
-    // in the designer, the banner's Run it has the keys; Enter (a real key)
+    // in the designer, the toast's Run It has the keys; Enter (a real key)
     // runs it. The chat: the cards, then the short reply.
     name: "ai-new-direct",
     readOnlyHome: true,
@@ -6251,17 +6256,15 @@ const CASES = [
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait",
     delay: 8,
-    a11y: [["Run it", "button", "focused"], ["Undo", "button"], ["What did it do?", "button"], ["The assistant made this program for you.", "label"]],
+    reducedMotion: true,
+    a11y: [["Run It", "button", "focused"], ["Undo", "button"], [/^The assistant made this program for you \(Run It, Undo\)$/, null]],
     dump: {
       "proj.folder": /\/docs\/RapidR\/Projects\/ScientificCalculator$/,
       "proj.name": /^Scientific Calculator$/,
       "proj.mainfile": /^main\.rr$/,
       "designdoc(0).__shown": /^1$/,
-      "aibanner.__shown": /^1$/,
-      "aibannertext.caption": /^The assistant made this program for you\.$/,
-      "aibannerrun.caption": /^▶  Run It$/,
-      "aibannerfix.__shown": /^0$/,
-      "aistatus.simpletext": /^Made Scientific Calculator: Run It is at the top\.$/,
+      "notify.count": /^1$/,
+      "notify.historycount": /^1$/,
       "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n(?:\[✓ \d+ steps? · show\]\(rai:steps\/\d+\)\n\n)?##### ✓ Started from the recipe \*Calculator \(basic and scientific\)\*\n\n##### ✓ Created \*Scientific Calculator\*  main\.rr · compiles  \[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)\n\nPress \*\*Run\*\*/,
       "aireviewbar.__shown": /^0$/,
     },
@@ -6269,13 +6272,12 @@ const CASES = [
     webDump: {
       "proj.folder": /ScientificCalculator$/,
       "proj.name": /^Scientific Calculator$/,
-      "aibanner.__shown": /^1$/,
-      "aibannerrun.caption": /^▶  Run It$/,
+      "notify.historycount": /^1$/,
       "ai.transcript": /##### ✓ Created \*Scientific Calculator\*  main\.rr · compiles/,
     },
   },
   {
-    // ... Enter on the banner (Run it has the keys): the program runs
+    // ... Enter on the toast (Run It has the keys): the program runs
     name: "ai-new-direct-run",
     readOnlyHome: true,
     installedWritable: true,
@@ -6284,12 +6286,12 @@ const CASES = [
     delay: 10,
     // (the desktop: the program's own process, which under the capture
     // test ends itself — exit code 0 — before Studio is read)
-    dump: { "session.program": /ScientificCalculator\/main\.rr$/, "outputbox.text": /^(?![\s\S]*Can't run)/, "aibanner.__shown": /^1$/ },
-    webDump: { "session.state": /^running$/, "aibanner.__shown": /^1$/ },
+    dump: { "session.program": /ScientificCalculator\/main\.rr$/, "outputbox.text": /^(?![\s\S]*Can't run)/ },
+    webDump: { "session.state": /^running$/ },
   },
   {
     // ... but Enter elsewhere — the designer clicked — never runs it: Run
-    // It is the default button only while it has the keys
+    // It has the keys only until the mouse goes elsewhere
     name: "ai-new-direct-enter-elsewhere",
     readOnlyHome: true,
     installedWritable: true,
@@ -6297,25 +6299,24 @@ const CASES = [
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait",
     // (the mouse in the designer, beside the form; then Enter)
-    events: "designdoc(0).__mousedown_560_420,designdoc(0).__mouseup_560_420,designdoc(0).__key_13," + Array(20).fill("aibannertext.onclick").join(","),
+    events: "designdoc(0).__mousedown_560_420,designdoc(0).__mouseup_560_420,designdoc(0).__key_13," + idle(6),
     delay: 9,
-    dump: { "session.program": /^$/, "aibannerrun.default": /^(0|False)$/i, "aibanner.__shown": /^1$/ },
+    dump: { "session.program": /^$/ },
   },
   {
-    // ... the mouse on Run it: the same
+    // ... Run It pressed as a click on it does: the same
     name: "ai-new-direct-click",
     readOnlyHome: true,
     installedWritable: true,
     open: "",
-    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait",
-    events: "aibannerrun.__mousedown_30_15,aibannerrun.__mouseup_30_15,aibannertext.onclick,aibannertext.onclick",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,notify:press=last,wait,wait",
     delay: 8,
     // (the run started: its process running, the Output cleared for it)
     dump: { "session.program": /ScientificCalculator\/main\.rr$/, "outputbox.text": /^(?![\s\S]*Can't run)/ },
     desktopOnly: true,
   },
   {
-    // ... Undo (the banner's, by the mouse): the program closed, the files
+    // ... Undo (the toast's, by the keys): the program closed, the files
     // Studio wrote removed and its folder with them; Recent forgets it;
     // the chat says it was undone
     name: "ai-new-direct-undo",
@@ -6327,7 +6328,7 @@ const CASES = [
     a11y: [[/^Welcome$/]],
     dump: {
       "proj.folder": /^$/,
-      "aibanner.__shown": /^0$/,
+      "notify.count": /^0$/,
       "aitools.createdfolder": /^$/,
       "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/,
       "ai.transcript": /\*Undone: the new program \*Scientific Calculator\* was removed\.\*/,
@@ -6338,7 +6339,7 @@ const CASES = [
     // (the folder gone; the projects folder it was in stays: not Studio's to remove)
     desktopGone: ["docs/RapidR/Projects/ScientificCalculator"],
     desktopFiles: ["docs/RapidR/Projects"],
-    webDump: { "proj.folder": /^$/, "aibanner.__shown": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
+    webDump: { "proj.folder": /^$/, "notify.count": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
   },
   // ---- the chat's cards by the keyboard: Open and Undo are links in the
   // conversation (a markdown view), each a Tab stop in it — after the text,
@@ -6357,10 +6358,11 @@ const CASES = [
     // (the ring round the link in each look, the text round it still AA)
     themes: LOOKS,
     capture: true,
+    reducedMotion: true,
     contrast: true,
     a11y: [["Undo", "link", "focused"], ["Open", "link"]],
-    dump: { "aibanner.__shown": /^1$/, "ai.transcript": /\[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)/ },
-    webDump: { "aibanner.__shown": /^1$/ },
+    dump: { "notify.historycount": /^1$/, "ai.transcript": /\[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)/ },
+    webDump: { "notify.historycount": /^1$/ },
   },
   {
     // ... Tab once more leaves the chat for the box: its text box has the keys
@@ -6370,9 +6372,10 @@ const CASES = [
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Tab,key:Tab",
     delay: 9,
+    reducedMotion: true,
     a11y: [["Ask the assistant", "", "focused"], ["Undo", "link"]],
-    dump: { "aibanner.__shown": /^1$/ },
-    webDump: { "aibanner.__shown": /^1$/ },
+    dump: { "notify.historycount": /^1$/ },
+    webDump: { "notify.historycount": /^1$/ },
   },
   {
     // ... Enter on Open opens the program again (its project was closed)
@@ -6393,30 +6396,15 @@ const CASES = [
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Enter,wait,wait",
     delay: 9,
+    reducedMotion: true,
     dump: {
       "proj.folder": /^$/,
-      "aibanner.__shown": /^0$/,
+      "notify.count": /^0$/,
       "aitools.createdfolder": /^$/,
       "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/,
     },
     desktopGone: ["docs/RapidR/Projects/ScientificCalculator"],
-    webDump: { "proj.folder": /^$/, "aibanner.__shown": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
-  },
-  {
-    // The banner's "What Did It Do?": the Assistant pane, the chat scrolled
-    // to the turn's first card (the chat was scrolled back to its top
-    // first, the card out of sight) and the keyboard on the chat. (Robert's
-    // walk, 2026-10-18: it did nothing.)
-    name: "ai-banner-what",
-    readOnlyHome: true,
-    installedWritable: true,
-    open: "",
-    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please. " + LONG_ASK + ",wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Home,wait",
-    events: "aibannerwhat.onclick",
-    delay: 9,
-    a11y: [["Conversation with the assistant", "document", "focused"], [/^Started from the recipe/, "heading", "", SHOWN_IN_CHAT]],
-    dump: { "aibanner.__shown": /^1$/ },
-    webDump: { "aibanner.__shown": /^1$/ },
+    webDump: { "proj.folder": /^$/, "notify.count": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
   },
   {
     // An edit applied that leaves the program with an error (a property the
@@ -6434,7 +6422,7 @@ const CASES = [
     },
   },
   {
-    // ... and under the banner of a program the assistant made: the banner
+    // ... and under the banner of a program the assistant made: the toast
     // goes from "made this program for you" to the errors variant (Run
     // Anyway, Ask It to Fix) — Robert's walk, 2026-10-18
     name: "ai-banner-edit-errors",
@@ -6443,15 +6431,13 @@ const CASES = [
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.newChat,ai:ask=break the window,wait,wait,wait,wait,ai:apply,wait",
     delay: 12,
-    a11y: [["Ask the assistant to fix the errors", "button"], ["Run anyway", "button"]],
+    reducedMotion: true,
+    a11y: [["Ask It to Fix", "button"], [/^The assistant made this program — it still has 1 error \(Run Anyway, Ask It to Fix\)$/, null]],
     dump: {
-      "aibanner.__shown": /^1$/,
-      "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/,
-      "aibannerrun.caption": /^▶  Run Anyway$/,
-      "aibannerfix.__shown": /^1$/,
+      "notify.count": /^1$/,
       "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\. The program has 1 error: Problems lists them\.$/,
     },
-    webDump: { "aibannertext.caption": /still has 1 error/, "aibannerfix.__shown": /^1$/ },
+    webDump: { "notify.count": /^1$/ },
   },
   {
     // ... a file the user added to its folder since: Undo asks first;
@@ -6494,23 +6480,21 @@ const CASES = [
   },
   {
     // A program that still doesn't compile after the assistant's tries:
-    // opened all the same, the banner says so — Run anyway, Ask it to fix
+    // opened all the same, the toast says so — Run Anyway, Ask It to Fix
     name: "ai-new-direct-errors",
     readOnlyHome: true,
     installedWritable: true,
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=build me a broken tool,wait,ai:wait,wait,wait,wait",
     delay: 8,
-    a11y: [["Run anyway", "button", "focused"], ["Ask the assistant to fix the errors", "button"]],
+    reducedMotion: true,
+    a11y: [["Run Anyway", "button", "focused"], ["Ask It to Fix", "button"], [/^The assistant made this program — it still has 1 error \(Run Anyway, Ask It to Fix\)$/, null]],
     dump: {
       "proj.folder": /BrokenTool$/,
-      "aibanner.__shown": /^1$/,
-      "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/,
-      "aibannerrun.caption": /^▶  Run Anyway$/,
-      "aibannerfix.__shown": /^1$/,
+      "notify.count": /^1$/,
       "ai.transcript": /##### ✓ Created \*Broken Tool\*  main\.rr · 1 error left  \[Open\]/,
     },
-    webDump: { "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/, "aibannerfix.__shown": /^1$/ },
+    webDump: { "notify.count": /^1$/ },
   },
   {
     // The model made the program, then the server failed on its last words
@@ -6524,7 +6508,7 @@ const CASES = [
     delay: 10,
     dump: {
       "proj.folder": /ScientificCalculator$/,
-      "aibanner.__shown": /^1$/,
+      "notify.historycount": /^1$/,
       "ai.transcript": /##### ✓ Created \*Scientific Calculator\*[\s\S]*> \*Error: /,
     },
   },
@@ -6536,8 +6520,7 @@ const CASES = [
     installedWritable: true,
     desktopOnly: true,
     open: "",
-    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=build me a broken tool,wait,ai:wait,wait,wait,wait",
-    events: "aibannerfix.__mousedown_30_15,aibannerfix.__mouseup_30_15," + Array(30).fill("aibannertext.onclick").join(","),
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=build me a broken tool,wait,ai:wait,wait,wait,wait,notify:press=last:2,wait,wait,wait,wait",
     delay: 8,
     dump: {
       "ai.transcript": /\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nPlease fix the errors that are left\./,
@@ -6557,7 +6540,7 @@ const CASES = [
     dump: {
       "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n(?:\[✓ \d+ steps? · show\]\(rai:steps\/\d+\)\n\n)?> \*An earlier draft said this was done before it was — Studio asked it to actually do it\.\*\n\n##### ✓ Created \*hello-form\*  main\.rr · compiles[^\n]*\n\nType a name, then press \*\*Greet\*\*\.$/,
       "aichat.plaintext": /^(?![\s\S]*I have created)/,
-      "aibanner.__shown": /^1$/,
+      "notify.historycount": /^1$/,
     },
     webDump: { "ai.transcript": /> \*An earlier draft said this was done before it was[\s\S]*##### ✓ Created \*hello-form\*/, "aichat.plaintext": /^(?![\s\S]*I have created)/ },
   },
@@ -6577,22 +6560,24 @@ const CASES = [
       "ai.steps": /^Wrote the program$/,
       "aistatus.simpletext": /^Thinking… · ✓ Wrote the program$/,
       "ai.transcript": /##### ✓ New program \*Scientific Calculator\*  main\.rr · compiles/,
-      "aibanner.__shown": /^0$/,
+      "notify.historycount": /^0$/,
     },
   },
   {
-    // The banner, the chat's cards and the one status in each look: every
+    // The toast, the chat's cards and the one status in each look: every
     // text against its ground (WCAG AA), captured for the manual
     name: "ai-banner",
     themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
     readOnlyHome: true,
     installedWritable: true,
     capture: true,
+    reducedMotion: true,
     contrast: true,
     open: "",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait",
     delay: 8,
-    dump: { "aibanner.__shown": /^1$/, "aibanner.top": /^4\d$/ },
+    a11y: [[/^The assistant made this program for you \(Run It, Undo\)$/, null]],
+    dump: { "notify.count": /^1$/ },
   },
   {
     // Read only: the proposing tools aren't offered, a call to one is
@@ -8112,16 +8097,59 @@ const CASES = [
     name: "ext-reload",
     ...X_OPEN,
     desktopOnly: true,
-    do: `${X_CHANGE},ext:check,wait,ext:report`,
+    do: `${X_CHANGE},ext:check,wait,notify:report,ext:report`,
     external: [{ write: { "main.rr": X_AGENT } }],
     delay: 6,
     themes: LOOKS,
     capture: true,
+    reducedMotion: true,
     contrast: true,
+    // (a toast says it once — "main.rr was reloaded", with Show; the status
+    // bar stays as it was and the question's strip is not asked)
+    a11y: [[/^main\.rr was reloaded \(Show\)$/, null], ["Show", "button"], ["Close", "button"]],
     dump: {
       "codedoc(0).text": /PRINT "Changed by an agent\."$/, "codedoc(0).modified": NO, "extbar.visible": /^0$/,
-      "outputbox.text": /\[ext\] status=main\.rr was updated outside Studio bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0[\s\S]*history=\d+\s+\d+\s+before-reload\s+\d+/,
+      "outputbox.text": /\[notify\] count=1 unseen=1 history=1 \| info:main\.rr was reloaded[\s\S]*\[ext\] status=Ready bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0[\s\S]*history=\d+\s+\d+\s+before-reload\s+\d+/,
     },
+  },
+  {
+    // (the bell on the status bar's colour of the moment: the bar is the
+    // state's colour while the program is paused, and the bell's box and
+    // pill are that colour, never the resting bar's patch)
+    name: "notify-bell-state-bar",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,notify:bell",
+    delay: 6,
+    reducedMotion: true,
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "outputbox.text": /\[bell\] state=paused box=bar pill=bar/,
+    },
+  },
+  {
+    // (the keyboard: F6 from the editor goes on to the toast, a real key;
+    // its action has the focus, Enter presses it — Show opens the file)
+    name: "notify-f6",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: "notify:say=main.rr was reloaded~info~Show~k,focus:codedoc(0),key:F6,wait,wait",
+    delay: 6,
+    reducedMotion: true,
+    a11y: [["Show", "button", "focused"]],
+    dump: { "notify.count": /^1$/ },
+  },
+  {
+    // …Escape closes the toast the keyboard is on
+    name: "notify-f6-escape",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: "notify:say=main.rr was reloaded~info~Show~k,focus:codedoc(0),key:F6,wait,key:Escape,wait,wait",
+    delay: 6,
+    reducedMotion: true,
+    dump: { "notify.count": /^0$/, "notify.historycount": /^1$/ },
   },
   {
     // (Ctrl+Z: the text before the reload, one step — marked changed, as it
@@ -8156,11 +8184,42 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    a11y: [[/^main\.rr changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine\.$/, null], ["Compare", "button"], ["Use Disk Version", "button"], ["Keep Mine", "button"]],
+    a11y: [[/^main\.rr changed on disk while you were editing it\. Compare, Use Disk Version, Keep Mine$/, null], ["Compare", "button"], ["Use Disk Version", "button"], ["Keep Mine", "button"]],
     dump: {
-      "extbar.visible": /^1$/, "extbartext.caption": /^main\.rr changed outside Studio\.$/, "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES,
+      "extbar.visible": /^1$/, "extbar.text": /^main\.rr changed on disk while you were editing it\.$/, "extbar.buttons": /^compare\|&Compare,refresh\|&Use Disk Version,check\|&Keep Mine$/, "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES,
       "outputbox.text": /bar=ask \| main\.rr:main\.rr:dirty=1:ask=1:gone=0/,
     },
+  },
+  {
+    // (1280 x 720: the strip on one line above the editor, nothing else says it)
+    name: "ext-ask-720",
+    ...X_OPEN,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_RESIZE: "1280,720" },
+    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "extbar.visible": /^1$/, "extbar.height": /^3[3-9]$/ },
+  },
+  {
+    // (a narrow Studio: the editor's area has no room for the question and
+    // its three buttons on one line — the buttons go under it, nothing cut
+    // off or on top of another)
+    name: "ext-ask-narrow",
+    ...X_OPEN,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_RESIZE: "800,700" },
+    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Compare", "button"], ["Use Disk Version", "button"], ["Keep Mine", "button"]],
+    dump: { "extbar.visible": /^1$/, "extbar.height": /^(70|102|134)$/ },
   },
   {
     // (in Spanish: the strip, its buttons, the status bar)
@@ -8174,20 +8233,21 @@ const CASES = [
     themes: ["rapidr-light", "rapidr-dark"],
     capture: true,
     contrast: true,
-    a11y: [[/^main\.rr cambió fuera de Studio, y tienes cambios sin guardar en él: Comparar, Usar la versión del disco o Conservar la mía\.$/, null], ["Comparar", "button"], ["Usar la versión del disco", "button"], ["Conservar la mía", "button"]],
-    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^main\.rr cambió fuera de Studio\.$/, "extdisk.caption": /^&Usar la versión del disco$/ },
+    a11y: [[/^main\.rr cambió en el disco mientras lo editabas\. Comparar, Usar la versión del disco, Conservar la mía$/, null], ["Comparar", "button"], ["Usar la versión del disco", "button"], ["Conservar la mía", "button"]],
+    dump: { "extbar.visible": /^1$/, "extbar.text": /^main\.rr cambió en el disco mientras lo editabas\.$/, "extbar.buttons": /^compare\|&Comparar,refresh\|&Usar la versión del disco,check\|Conservar la &mía$/ },
   },
   {
     name: "ext-many-es",
     ...X_OPEN,
     desktopOnly: true,
     desktopArgs: ["--lang", "es"],
-    do: `ext:openall,wait,${X_CHANGE},ext:check,wait`,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,notify:report`,
     external: [{ write: X_TWELVE }],
     delay: 9,
     themes: ["rapidr-light"],
     capture: true,
-    dump: { "extbartext.caption": /^12 archivos se actualizaron fuera de Studio\.$/, "extshow.caption": /^&Mostrar$/ },
+    reducedMotion: true,
+    dump: { "outputbox.text": /\[notify\] count=1 unseen=1 history=1 \| info:12 archivos se recargaron: \S+, \S+, \S+ \+9/ },
   },
   {
     name: "ext-keep-mine-asks-es",
@@ -8221,9 +8281,8 @@ const CASES = [
     name: "ext-use-disk",
     ...X_OPEN,
     desktopOnly: true,
-    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,ext:choose=2,wait,wait`,
     external: [{ write: { "main.rr": X_AGENT } }],
-    events: `extbar.__until_visible_1,${CLICK("extdisk", 40, 12)},codedoc(0).__wait_1000`,
     delay: 6,
     dump: { "codedoc(0).text": /PRINT "Changed by an agent\."$/, "codedoc(0).modified": NO, "extbar.visible": /^0$/, "outputbox.text": /main\.rr changed outside Studio, and you have unsaved changes in it/ },
   },
@@ -8335,32 +8394,53 @@ const CASES = [
     themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
     capture: true,
     contrast: true,
-    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^window\.rr changed outside Studio\.$/, "codedoc(1).text": /Caption = "Mine"/, "outputbox.text": /window\.rr:window\.rr:dirty=1:ask=1:gone=0/ },
+    dump: { "extbar.visible": /^1$/, "extbar.text": /^window\.rr changed on disk while you were editing it\.$/, "codedoc(1).text": /Caption = "Mine"/, "outputbox.text": /window\.rr:window\.rr:dirty=1:ask=1:gone=0/ },
   },
   {
-    // (twelve open files rewritten at once — git checkout, an agent: one
-    // note, Show lists them in the Output)
+    // (twelve open files rewritten at once — git checkout, an agent: ONE
+    // toast naming three and "+9", Show lists them all in a searchable card;
+    // the status bar and the strip stay quiet)
     name: "ext-many",
     ...X_OPEN,
     desktopOnly: true,
-    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,notify:report,ext:report`,
     external: [{ write: X_TWELVE }],
     delay: 9,
     themes: LOOKS,
     capture: true,
+    reducedMotion: true,
     contrast: true,
-    a11y: [[/^12 files were updated outside Studio\.$/, null], ["Show", "button"]],
-    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^12 files were updated outside Studio\.$/, "outputbox.text": /\[ext\] status=12 files were updated outside Studio bar=note/ },
+    a11y: [[/^12 files were reloaded: \S+, \S+, \S+ \+9 \(Show\)$/, null], ["Show", "button"]],
+    dump: { "extbar.visible": /^0$/, "outputbox.text": /\[notify\] count=1 unseen=1 history=1 \| info:12 files were reloaded: \S+, \S+, \S+ \+9[\s\S]*\[ext\] status=Ready bar= \|/ },
+  },
+  {
+    // (a narrow Studio: the toast is never wider than its area less its
+    // margins, its words cut in the middle, the editor's scroll bar clear)
+    name: "ext-many-narrow",
+    ...X_OPEN,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_RESIZE: "800,700" },
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,notify:report`,
+    external: [{ write: X_TWELVE }],
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    reducedMotion: true,
+    contrast: true,
+    a11y: [["Show", "button"]],
+    dump: { "extbar.visible": /^0$/, "outputbox.text": /\[notify\] count=1 unseen=1 history=1 \| info:12 files were reloaded/ },
   },
   {
     name: "ext-many-show",
     ...X_OPEN,
     desktopOnly: true,
-    do: `ext:openall,wait,${X_CHANGE},ext:check,wait`,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,notify:press=1,wait,wait`,
     external: [{ write: X_TWELVE }],
-    events: `extbar.__until_visible_1,${CLICK("extshow", 30, 12)},outputbox.__wait_800`,
+    reducedMotion: true,
     delay: 9,
-    dump: { "extbar.visible": /^0$/, "outputbox.text": /12 files were updated outside Studio:\n {2}greet\.rr\n {2}main\.rr\n {2}part1\.rr[\s\S]* {2}window\.rr/ },
+    capture: true,
+    // (Show: the twelve files in the card, searchable; the toast goes with it)
+    dump: { "listpicker.commandcount": /^12$/, "listpicker.count": /^12$/, "notify.count": /^0$/ },
   },
   {
     // (Studio's own writes: Save, then a look — nothing said)
@@ -8414,7 +8494,72 @@ const CASES = [
     delay: 4,
     dump: {},
     webDump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
-  },  // ---- SCHOOL-LOCK (Preview 5): a teacher turns Studio's AI off behind a
+  },
+  // ---- NOTIFY: document tabs keep their names. Seventeen files open (two
+  // of them named main.rr, one name long, three cut in the middle): every
+  // tab reads, none narrower than its least, the strip scrolls with arrows, the
+  // shown tab is in view, the list of every open tab is one click away and
+  // searchable; the two main.rr say their folders ----
+  {
+    name: "tabs-many",
+    open: "tests/fixtures/studio_tabs/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "ext:openall,wait,wait",
+    delay: 8,
+    themes: LOOKS,
+    capture: true,
+    reducedMotion: true,
+    contrast: true,
+    dump: { "dock.documentcount": /^1[78]$/ },
+  },
+  {
+    // (the 1280 x 720 window the brief names: the same tabs, the strip's
+    // arrows and the list button in view)
+    name: "tabs-many-720",
+    open: "tests/fixtures/studio_tabs/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_RESIZE: "1280,720" },
+    do: "ext:openall,wait,wait",
+    delay: 8,
+    themes: LOOKS,
+    capture: true,
+    reducedMotion: true,
+    contrast: true,
+    dump: { "dock.documentcount": /^1[78]$/ },
+  },
+  {
+    // (narrow: the tabs still keep their names, the arrows scroll)
+    name: "tabs-many-narrow",
+    open: "tests/fixtures/studio_tabs/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_RESIZE: "800,700" },
+    do: "ext:openall,wait,wait",
+    delay: 8,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    reducedMotion: true,
+    contrast: true,
+    dump: { "dock.documentcount": /^1[78]$/ },
+  },
+  {
+    // (the list: every open file, the ones with changes marked; typing
+    // narrows it — here, the whole list)
+    name: "tabs-list",
+    open: "tests/fixtures/studio_tabs/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "ext:openall,wait,wait,notify:tabs,wait,wait",
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    reducedMotion: true,
+    contrast: true,
+    dump: { "listpicker.commandcount": /^17$/, "listpicker.count": /^17$/ },
+  },
+  // ---- SCHOOL-LOCK (Preview 5): a teacher turns Studio's AI off behind a
   // password — ide/schoollock.inc, rapidr-studio's school_lock.rs, the
   // manual's "For teachers". The password "maestra1" (a test's); the
   // computer's policy is tests/fixtures/school_lock (RAPIDR_SCHOOL_POLICY:
@@ -8760,7 +8905,6 @@ const CASES = [
     restart: { noOpen: true, do: "wait,wait,wait,crash:check,crash:report,lock:state", delay: 9 },
     dump: {
       "crashbar.visible": /^0$/,
-      "crashgitb.__shown": /^0$/,
       "lockchiptext.caption": /^School Lock$/,
       "outputbox.text": /\[crash\] bar=0 [\s\S]*School Lock state: on=1 unlocked=0/,
     },
@@ -8776,7 +8920,7 @@ const CASES = [
     restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
     dump: {
       "crashbar.visible": /^1$/,
-      "crashgitb.__shown": /^1$/,
+      "crashbar.buttons": /external\|Report on &GitHub\.\.\./,
       "outputbox.text": /\[crash\] bar=1 /,
     },
   },
@@ -8929,7 +9073,7 @@ const CASES = [
     dump: {
       "outputbox.text": /Coach state: mode=coach chosen=coach locked=0 rung=1 error=0 bar=1 next=1 insert=0 proposals=0 review=0/,
       "aireviewbar.visible": /^0$/,
-      "aibanner.visible": /^0$/,
+      "notify.historycount": /^0$/,
       "codedoc(0).text": /CREATE Form AS RForm\n/,
       "ai.steps": /not in Coach mode/,
     },
@@ -9071,11 +9215,27 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    a11y: [[/^RapidR Studio closed unexpectedly last time\. A report of what happened stays on this computer; nothing was sent\./, null], ["View Report", "button"], ["Copy Report", "button"], ["Save Report...", "button"], ["Report on GitHub...", "button"], ["Dismiss", "button"]],
+    a11y: [[/^RapidR Studio closed unexpectedly last time\. A report stays on this computer; nothing was sent\. Report on GitHub\.\.\., View Report$/, null], ["Report on GitHub...", "button"], ["View Report", "button"], ["More", "button"], ["Dismiss", "button"]],
     dump: {
-      "crashbar.visible": /^1$/, "crashbartext.caption": /^RapidR Studio closed unexpectedly last time\.$/,
+      "crashbar.visible": /^1$/, "crashbar.text": /^RapidR Studio closed unexpectedly last time\. A report stays on this computer; nothing was sent\.$/,
+      "crashbar.buttons": /^external\|Report on &GitHub\.\.\.,visible\|&View Report$/, "crashbar.more": /^(-1|1|True)$/i, "crashbar.closable": /^(-1|1|True)$/i,
       "outputbox.text": /\[crash\] bar=1 report=\d{8}-\d{6}-studio-\d+-crash\.txt kind=crash pending=\d{8}-\d{6}-studio-\d+-crash\.txt /,
     },
+  },
+  {
+    // (a narrow Studio: the question is cut, the secondary button icon only —
+    // nothing wraps before that — and More and the close X stay at the right)
+    name: "crash-banner-narrow",
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_RESIZE: "560,700" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Report on GitHub...", "button"], ["View Report", "button"], ["More", "button"], ["Dismiss", "button"]],
+    dump: { "crashbar.visible": /^1$/, "crashbar.height": /^(36|33)$/ },
   },
   {
     // (in Spanish: the strip, its buttons)
@@ -9089,8 +9249,8 @@ const CASES = [
     themes: ["rapidr-light", "rapidr-dark"],
     capture: true,
     contrast: true,
-    a11y: [[/^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe de lo que pasó queda en esta computadora; no se envió nada\./, null], ["Ver informe", "button"], ["Copiar informe", "button"], ["Guardar informe...", "button"], ["Informar en GitHub...", "button"], ["Ocultar", "button"]],
-    dump: { "crashbar.visible": /^1$/, "crashbartext.caption": /^La última vez, RapidR Studio se cerró de forma inesperada\.$/, "crashviewb.caption": /^&Ver informe$/ },
+    a11y: [[/^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe queda en esta computadora; no se envió nada\. Informar en GitHub\.\.\., Ver informe$/, null], ["Informar en GitHub...", "button"], ["Ver informe", "button"], ["Más", "button"], ["Descartar", "button"]],
+    dump: { "crashbar.visible": /^1$/, "crashbar.text": /^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe queda en esta computadora; no se envió nada\.$/, "crashbar.buttons": /^external\|Informar en Git&Hub\.\.\.,visible\|&Ver informe$/ },
   },
   {
     // (Copy Report: the report's text on the clipboard; seen — not offered
@@ -9470,6 +9630,8 @@ function runDesktop(c, scale = 1) {
   // (DEMO-MODE: the case's script, {dir} its own folder)
   if (c.demo) writeFileSync(join(dir, "demo.json"), JSON.stringify(c.demo).replaceAll("{dir}", dir));
   let r = run(args, c.delay);
+  // (STUDIO_FLOWS_STDERR=1: what Studio itself printed, for a case that ends early)
+  if (process.env.STUDIO_FLOWS_STDERR) console.error(`[${c.name}] status=${r.status} signal=${r.signal}\n${(r.stderr || "").slice(-1500)}${(r.stdout || "").slice(-800)}`);
   if (writer && writer.exitCode === null) writer.kill();
   if (c.restart) {
     // (started again on the settings the first run left: not --fresh)

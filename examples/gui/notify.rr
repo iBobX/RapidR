@@ -1,0 +1,137 @@
+' notify.rr: RNotify and RNotifyBar. Small messages that pop up, say what
+' happened and get out of the way (toasts), a history that keeps every one,
+' and a question that waits for an answer, on one slim line.
+'
+'   rapidr run notify.rr
+'
+' - "Saved" says something that needs no answer: a toast at the bottom right,
+'   with an icon, one or two lines and a close button. It goes by itself
+'   after the time its words need, and stays while the mouse is on it.
+' - "5 files" is a toast with two actions (Show, Undo). Press it again: a
+'   message with the same Key replaces the one on screen ("7 files"), so a
+'   burst is one toast, never a pile. OnAction hears the action.
+' - "Warning" stays half as long again; "Error" stays until you close it.
+' - "Ask" puts the question at the top of the window, one slim line with its
+'   buttons (RNotifyBar): it stays until one is pressed. OnChoose hears it.
+' - The bell button counts the messages not looked at (OnUnseenChange);
+'   press it for the history: every message with its time and its action.
+' Three messages at most show at once; the oldest goes into the history.
+' Light, dark and high contrast, a screen reader and the keyboard (F6
+' reaches the toasts, Escape closes one) all work without extra code.
+'
+' Windows, macOS, Linux and a web page.
+
+DECLARE SUB SaidSaved
+DECLARE SUB SaidFiles
+DECLARE SUB SaidWarning
+DECLARE SUB SaidError
+DECLARE SUB Asked
+DECLARE SUB BellClicked
+DECLARE SUB Acted (Id AS INTEGER, Index AS INTEGER, Key AS STRING)
+DECLARE SUB Chose (Index AS INTEGER, Caption AS STRING)
+DECLARE SUB UnseenChanged (Count AS INTEGER)
+
+DIM Reloaded AS INTEGER
+
+CREATE Main AS RForm
+    Caption = "Notifications"
+    Width = 560
+    Height = 380
+    Center
+    ' (the question: one slim line across the top, hidden until it is asked)
+    CREATE Bar AS RNotifyBar
+        OnChoose = Chose
+        ' (a decision between three answers: all three shown, none the main one; a
+        ' close X; for more choices, More = 1 and OnMore opens a menu)
+        Primary = 0
+        Closable = 1
+    END CREATE
+    CREATE SavedBtn AS RButton
+        Left = 16: Top = 60: Width = 160
+        Caption = "Say &saved"
+        OnClick = SaidSaved
+    END CREATE
+    CREATE FilesBtn AS RButton
+        Left = 186: Top = 60: Width = 160
+        Caption = "&5 files, again"
+        OnClick = SaidFiles
+    END CREATE
+    CREATE WarnBtn AS RButton
+        Left = 356: Top = 60: Width = 160
+        Caption = "&Warning"
+        OnClick = SaidWarning
+    END CREATE
+    CREATE ErrBtn AS RButton
+        Left = 16: Top = 100: Width = 160
+        Caption = "&Error"
+        OnClick = SaidError
+    END CREATE
+    CREATE AskBtn AS RButton
+        Left = 186: Top = 100: Width = 160
+        Caption = "&Ask a question"
+        OnClick = Asked
+    END CREATE
+    CREATE BellBtn AS RButton
+        Left = 356: Top = 100: Width = 160
+        Caption = "&Notifications"
+        OnClick = BellClicked
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 16: Top = 150: Width = 500
+        Caption = "Press a button."
+    END CREATE
+    ' (the toasts: it covers the form and takes the mouse only where a toast is)
+    CREATE Notify AS RNotify
+        OnAction = Acted
+        OnUnseenChange = UnseenChanged
+    END CREATE
+END CREATE
+
+SUB SaidSaved
+    Notify.Show "Saved", "success"
+END SUB
+
+' (one toast whose count goes up: the same Key replaces its words)
+SUB SaidFiles
+    Reloaded = Reloaded + 2
+    Notify.Show STR$(Reloaded + 3) + " files were reloaded: main.rr, form1.rr, utils.inc +" + STR$(Reloaded), "info", "&Show|&Undo", -1, "reload"
+END SUB
+
+SUB SaidWarning
+    Notify.Show "The disk is nearly full", "warning"
+END SUB
+
+SUB SaidError
+    Notify.Show "Could not save report.csv", "error", "&Retry", 0, "save-failed"
+END SUB
+
+SUB Asked
+    Bar.Ask "main.rr changed on disk while you were editing it.", "compare|&Compare,refresh|&Use Disk Version,check|&Keep Mine"
+END SUB
+
+SUB BellClicked
+    IF Notify.HistoryOpen THEN
+        Notify.HideHistory
+    ELSE
+        Notify.ShowHistory Main.ClientWidth - 16, Main.ClientHeight - 16
+    END IF
+END SUB
+
+SUB Acted (Id AS INTEGER, Index AS INTEGER, Key AS STRING)
+    Status.Caption = "Action " + STR$(Index) + " of message " + STR$(Id) + " (" + Key + ")"
+END SUB
+
+SUB Chose (Index AS INTEGER, Caption AS STRING)
+    Status.Caption = "You chose " + Caption
+END SUB
+
+' (the bell's number: what has been said and not looked at)
+SUB UnseenChanged (Count AS INTEGER)
+    IF Count > 0 THEN
+        BellBtn.Caption = "&Notifications (" + STR$(Count) + ")"
+    ELSE
+        BellBtn.Caption = "&Notifications"
+    END IF
+END SUB
+
+Main.ShowModal

@@ -56,25 +56,13 @@ SUB SetUpAIChats
   AIChatSearch.OnChange = AIChatsSearchChanged
   AIChatSearch.OnKeyDown = AIChatsSearchKey
   ' (where chats are kept, at the bottom — Back is the Chats button's, at
-  ' the top —; Undo after a delete; the new name while renaming. Open,
-  ' Rename and Delete are on the rows themselves and in their right-click
-  ' menu: docs/context-menus-design.md §3)
+  ' the top —. Open, Rename and Delete are on the rows themselves and in
+  ' their right-click menu: docs/context-menus-design.md §3. Undo after a
+  ' delete is a toast: notify.inc)
   AIChatsFoot.Parent = AIChatsPanel
   AIChatsFoot.Align = 2
   AIChatsFoot.Height = 52
   AIChatsFoot.BevelOuter = 0
-  AIChatUndoBar.Parent = AIChatsPanel
-  AIChatUndoBar.Align = 2
-  AIChatUndoBar.Height = 36
-  AIChatUndoBar.BevelOuter = 0
-  AIChatUndoBar.Visible = 0
-  AIChatUndoBar.AccessibleName = TR$("Chat deleted")
-  AIChatUndoText.Parent = AIChatUndoBar
-  AIChatUndoText.AutoSize = 0: AIChatUndoText.WordWrap = 0
-  AIChatUndoBtn.Parent = AIChatUndoBar
-  AIChatUndoBtn.Caption = TR$("Undo")
-  AIChatUndoBtn.AccessibleName = TR$("Undo: put the chat back")
-  AIChatUndoBtn.OnClick = AIChatsUndoClick
   ' (where they are kept, said under the list: personal data, plainly)
   AIChatsNote.Parent = AIChatsFoot
   AIChatsNote.AutoSize = 0: AIChatsNote.WordWrap = 1
@@ -118,8 +106,6 @@ SUB LayOutAIChats
   IF bw < 120 THEN bw = 120
   AIChatsStartBtn.Width = bw: AIChatsStartBtn.Height = UiButtonH
   AIChatsStartBtn.Left = (w - bw) \ 2: AIChatsStartBtn.Top = 112
-  AIChatUndoBtn.Left = w - 6 - 72: AIChatUndoBtn.Top = (36 - bh) \ 2: AIChatUndoBtn.Width = 72: AIChatUndoBtn.Height = bh
-  AIChatUndoText.Left = 8: AIChatUndoText.Top = 9: AIChatUndoText.Width = w - 16 - 76: AIChatUndoText.Height = 18
 END SUB
 
 SUB AIChatsFonts
@@ -130,9 +116,6 @@ SUB AIChatsFonts
   AIChatsEmpty.Font = UIFont
   AIChatsEmpty.Font.Color = TC("page.dim")
   AIChatsStartBtn.Font = UIFont
-  AIChatUndoText.Font = UIFont
-  AIChatUndoText.Font.Color = TC("page.text")
-  AIChatUndoBtn.Font = UIFont
   AIChatsNote.Font = DimFont
   AIChatsNote.Font.Color = TC("page.dim")
 END SUB
@@ -494,7 +477,6 @@ SUB AIChatsRenameClick
   id = AIChatPicked
   IF id = "" THEN EXIT SUB
   AIRenaming = id
-  AIChatUndoBar.Visible = 0
   AIChatList.SetFocus
   AIChatList.EditItem AIChatList.ItemIndex, FIELD$(AIChatTitles, CHR$(10), AIChatList.ItemIndex + 1)
 END SUB
@@ -557,10 +539,11 @@ SUB AISelectChat(Id AS STRING)
   NEXT
 END SUB
 
-' Delete: the chat removed from this computer at once; Undo (beside the
-' list, until another is deleted or Studio closes) puts it back.
+' Delete: the chat removed from this computer at once; Undo (a toast's
+' action, and in the bell's history, until another is deleted or Studio
+' closes) puts it back.
 SUB AIChatsDeleteClick
-  DIM id AS STRING, title AS STRING, kept AS STRING
+  DIM id AS STRING, title AS STRING, kept AS STRING, k AS INTEGER
   id = AIChatPicked
   IF id = "" THEN EXIT SUB
   title = FIELD$(AIChatTitles, CHR$(10), AIChatList.ItemIndex + 1)
@@ -581,23 +564,33 @@ SUB AIChatsDeleteClick
     AIChat.Text = AI.Transcript
     AIShowChatTitle
   END IF
-  AIChatUndoText.Caption = TR$("Deleted {q}{title}{q}.", "q", CHR$(34), "title", title)
-  AIChatUndoBar.Visible = 1
-  AIStatus.SimpleText = TR$("Deleted {q}{title}{q}. Undo puts it back.", "q", CHR$(34), "title", title)
+  ' (the earlier delete's Undo can no longer work: only the last chat is kept)
+  IF AIChatUndoKey <> "" THEN Notify.Retire AIChatUndoKey, TR$("Another chat was deleted since, and only the last one is kept.")
+  AIChatUndoSeq = AIChatUndoSeq + 1
+  AIChatUndoKey = "chat-undo-" + LTRIM$(STR$(AIChatUndoSeq))
+  k = Toast(TR$("Deleted {q}{title}{q}.", "q", CHR$(34), "title", title), "info", TR$("Undo"), AIChatUndoKey)
   AIFillChats
-  IF AIChatList.ItemCount > 0 THEN AIChatList.SetFocus ELSE AIChatUndoBtn.SetFocus
+  AIChatList.SetFocus
 END SUB
+
+' A toast's Undo (notify.inc): the chat put back. 1 when the key was ours.
+FUNCTION AIChatToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
+  IF LEFT$(Key, 10) <> "chat-undo-" THEN EXIT FUNCTION
+  Result = 1
+  IF Key = AIChatUndoKey THEN AIChatsUndoClick
+END FUNCTION
 
 SUB AIChatsUndoClick
   DIM id AS STRING
   IF AIChatDeleted = "" THEN EXIT SUB
   id = AITools.RestoreChat(AIChatDeletedProject, AIChatDeleted)
-  AIChatUndoBar.Visible = 0
   IF id = "" THEN
     AIStatus.SimpleText = TR$("The chat couldn't be put back.")
     EXIT SUB
   END IF
   AIChatDeleted = ""
+  Notify.Retire AIChatUndoKey, TR$("The chat was put back.")
+  AIChatUndoKey = ""
   AIStatus.SimpleText = TR$("Put back: {q}{title}{q}.", "q", CHR$(34), "title", AIChatDeletedTitle)
   ' (nothing said in the chat shown: the one put back is opened)
   IF AI.QuestionCount = 0 AND AIChatDeletedProject = AIChatProject THEN AIOpenChat id, AIChatDeletedTitle
@@ -780,6 +773,5 @@ SUB AiChatsLanguageChanged
     AIFillChats
     IF id <> "" THEN AISelectChat id
   END IF
-  IF AIChatUndoBar.Visible THEN AIChatUndoText.Caption = TR$("Deleted {q}{title}{q}.", "q", CHR$(34), "title", AIChatDeletedTitle)
   IF AIEditing > 0 THEN AIShowEditText
 END SUB

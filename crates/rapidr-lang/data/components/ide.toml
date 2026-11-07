@@ -262,6 +262,7 @@ methods = [
   { name = "CommandEnabled", params = "Id AS STRING, [On AS INTEGER]", returns = "INTEGER", doc = "Whether a command can be picked; with On, sets it (a disabled one is shown dimmed)." },
   { name = "Command", params = "Index AS INTEGER", returns = "STRING", doc = "The id of the command shown at Index (from 0) for what was typed." },
   { name = "Show", value = true, doc = "Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first." },
+  { name = "ShowAt", params = "Right AS INTEGER, Top AS INTEGER", origin = "rapidr", effects = ["ui"], doc = "Show, but under a button instead of at the top of the form: the palette's right edge at Right and its top at Top (in the form's pixels), kept inside the form. A list opened from a button (the open tabs, the files a message names) hangs from it." },
   { name = "Hide", value = true, doc = "Closes it." },
   { name = "AddPrefix", params = "Prefix AS STRING, Title AS STRING", doc = "Typing Prefix first (\":\", \"#\" …) shows one command made from what follows it in place of the list: its title is Title with {} replaced by that text (\"Go to line {}\"), its id Prefix and the text (\":42\"), which OnCommand gives. An empty Title removes the prefix." },
 ]

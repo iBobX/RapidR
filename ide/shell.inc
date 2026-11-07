@@ -232,6 +232,8 @@ SUB RunCommand(Id AS STRING)
   IF VersionsCommand(Id) THEN EXIT SUB
   ' (files changed outside Studio, Reopen Project: external.inc)
   IF ExternalCommand(Id) THEN EXIT SUB
+  ' (the notification history: notify.inc)
+  IF NotifyCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -337,6 +339,9 @@ SUB RunCommand(Id AS STRING)
         ' (a test step: layout:problems — what the layout report finds
         ' wrong in every window shown, a line each in the Output)
         LayoutStep MID$(Id, 8)
+      ELSEIF LEFT$(Id, 7) = "notify:" THEN
+        ' (a test step: notify:<what>=<value> — notify.inc's NotifyStep)
+        NotifyStep MID$(Id, 8)
       ELSEIF LEFT$(Id, 4) = "ext:" THEN
         ' (a test step: ext:<what>=<value> — external.inc's ExternalStep)
         ExternalStep MID$(Id, 5)
@@ -360,6 +365,7 @@ END SUB
 SUB StudioResize
   LayOutStatus
   LayOutWelcome
+  LayOutNotify
 END SUB
 
 ' (the keyboard starts in the Project pane, as it always has: the Welcome
@@ -566,6 +572,7 @@ SUB StartStudio
   SetUpSearch
   SetUpContextMenus
   SetUpVersions
+  SetUpNotify
   SetUpExternal
   SetUpMcp
   SetUpTools

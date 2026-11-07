@@ -239,6 +239,10 @@ export const cases = [
   // the tray and back with a double click on its icon
   { file: "gui/form_ex.rr", runtimes: ["run", "interp", "native", "web"], drop: "a.txt;b.txt", events: "main.__drop_60_40,main.__drop_60_200,traybtn.onclick,main.__tray_515", dump: "files.itemcount,status.caption,main.__shown,main.trayiconshown",
     expect: ["files.itemcount=2", "status.caption=Back from the tray.", "main.__shown=1", "main.trayiconshown=0"] },
+  // RNotify and RNotifyBar: a toast, "5 files" twice (one toast, its count
+  // up), the question on its slim line; the history keeps both messages
+  { file: "gui/notify.rr", runtimes: ["run", "interp", "native", "web"], events: "savedbtn.onclick,filesbtn.onclick,filesbtn.onclick,askbtn.onclick", dump: "notify.count,notify.unseencount,notify.historycount,bar.visible,bar.text,bellbtn.caption",
+    expect: ["notify.count=2", "notify.unseencount=2", "notify.historycount=2", "bar.visible=1", "bar.text=main.rr changed on disk while you were editing it.", "bellbtn.caption=&Notifications (2)"] },
   // translations/ (TR$ / TRN$ with lang/*.po beside it — `includes`: the
   // folder copied whole; on the web its lang/ files are the page's): it
   // starts in the language given, the list switches it, OnLanguageChange

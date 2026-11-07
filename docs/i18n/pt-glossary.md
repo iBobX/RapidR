@@ -89,6 +89,7 @@ The test for every word: would a 12-year-old in São Paulo, Recife or Porto Aleg
 
 - **`&` stays in the string; the translator chooses the letter.** Unique on its menu or surface; every button and field label has one except OK and Cancelar. Prefer the first letter of the main word if it is free, otherwise a clear consonant; avoid letters with descenders (g, j, p, q, y) and accented letters. `&&` shows a literal ampersand. The menu-clash test (`cargo test -p rapidr-i18n`) finds two items with one letter.
 - **Shortcuts are physical keys and never move.** Ctrl+F finds, Ctrl+G goes to a line, Ctrl+H replaces, F5 runs. Key names stay as the English shows them (`Ctrl`, `Shift`, `Alt`, `Enter`, `Esc`, `Tab`, `Del`, F1–F12).
+- **Notifications.** The bell, the history and the settings say *notificações*. The View menu's item says **A&visos**: every letter of *Notificações* is already some other View item's mnemonic in Portuguese (the menu-clash check refuses each of them), and an item with no mnemonic is refused too.
 - The ten menu-bar mnemonics, all different: `&Arquivo`, `&Editar`, `E&xibir`, `&Projeto`, `Exe&cutar`, `&Depurar`, `For&matar`, `Fe&rramentas`, `&Janela`, `Aj&uda`.
 
 ### 1.8 Code inside sentences

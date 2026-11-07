@@ -179,12 +179,12 @@ A test keeps the review's wording from coming back (`portuguese_keeps_the_legal_
 - EN: {model} runs on a service elsewhere, not on this computer: choose a model that runs here, or set that service up as a cloud service.
 - PT-BR: {model} é executado em um serviço em outro lugar, não neste computador: escolha um modelo que rode aqui, ou configure esse serviço como um serviço na nuvem.
 
-**30.** `ide/crash.inc`
+**30.** `ide/crash.inc` (retired by NOTIFY: see the note at 33)
 
 - EN: Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself.
 - PT-BR: Abre uma nova issue no GitHub no seu navegador, já preenchida com o relatório. Nada é enviado até você mesmo enviar lá.
 
-**31.** `ide/crash.inc`
+**31.** `ide/crash.inc` (retired by NOTIFY: see the note at 33)
 
 - EN: Closes this note. The report stays on this computer for 30 days.
 - PT-BR: Fecha este aviso. O relatório fica neste computador por 30 dias.
@@ -194,10 +194,12 @@ A test keeps the review's wording from coming back (`portuguese_keeps_the_legal_
 - EN: Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer.
 - PT-BR: A janela dele não responde há alguns segundos. Aguardar dá mais tempo. Salvar cópias e sair o fecha: as cópias do seu trabalho não salvo, que ele guarda enquanto você digita (a cada 20 segundos), são oferecidas quando ele iniciar de novo. Um relatório foi escrito neste computador.
 
-**33.** `ide/crash.inc`
+**33.** `ide/crash.inc` (replaced by NOTIFY)
 
-- EN: A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it.
-- PT-BR: Um relatório do que aconteceu fica neste computador; nada foi enviado. Veja, copie, salve ou relate o problema no GitHub para ajudar a corrigi-lo.
+NOTIFY (2026-11-06): the crash strip is now one line (RNotifyBar): its buttons have no descriptions of their own, and its one sentence replaces entries 30, 31 and 33 below; the promise "nothing is sent until you send it there yourself" is still in the consent window that Report on GitHub... opens (entries 34 to 38).
+
+- EN: A report stays on this computer; nothing was sent.
+- PT-BR: Um relatório fica neste computador; nada foi enviado.
 
 **34.** `ide/crash.inc`
 

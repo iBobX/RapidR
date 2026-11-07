@@ -128,6 +128,9 @@ pub static KINDS: &[(&str, &dyn ComponentKind)] = &[
     ("RTOOLBAR", &panels::toolbar::ToolBar),
     ("RCOMMANDPALETTE", &panels::palette::Palette),
     ("RMARKDOWNVIEW", &panels::markdown::MarkdownView),
+    // (NOTIFY: toasts and their history; a question's strip)
+    ("RNOTIFY", &panels::notify::Notify),
+    ("RNOTIFYBAR", &panels::notifybar::NotifyBar),
     // (the data-science lane's: a chart on a form — rapidr_value::datascience)
     ("RPLOT", &plot::Plot),
     // (I7: a data grid straight from a frame — rapidr_value::datascience::link)
@@ -319,6 +322,14 @@ pub trait ComponentKind: Sync {
 
     fn mouse(&self, _cx: &mut Cx, _m: &MouseIn) -> MouseOut {
         MouseOut::default()
+    }
+
+    /// Whether the point (x, y) of it (its own pixels) is its: `false` lets
+    /// the mouse through to what is under it — an overlay that draws and
+    /// takes input only where its toasts are (RNOTIFY). Every other
+    /// component is all of its rectangle.
+    fn claims(&self, _id: &str, _w: i64, _h: i64, _x: i64, _y: i64) -> bool {
+        true
     }
 
     /// The mouse pointer over it at (`x`, `y`) of itself (also while it

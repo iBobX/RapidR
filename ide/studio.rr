@@ -45,6 +45,8 @@
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
 '   versions.inc   Versions: the pane, Save a Version, What Changed, Go
 '                  Back, Undo, the local history, the change marks, badges
+'   notify.inc     notifications: the toasts, the bell and its history, the
+'                  searchable list of files
 '   external.inc   files changed outside Studio: loaded again, or asked
 '                  about; Save never overwrites newer content silently
 '   workspace.inc  documents as tabs: Design | Code, split groups, the
@@ -79,6 +81,7 @@ $INCLUDE "schoollock.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "versions.inc"
+$INCLUDE "notify.inc"
 $INCLUDE "external.inc"
 $INCLUDE "workspace.inc"
 $INCLUDE "markdown.inc"

@@ -70,6 +70,22 @@ impl Runtime for Desktop {
     fn set_clipboard(self, text: &str) {
         crate::globals::set_clipboard_text(text);
     }
+    /// The local time of day, "14:32" (the tests' `RAPIDR_TEST_CLOCK`: a
+    /// fixed one, so a capture holds no clock).
+    fn clock(self) -> String {
+        if let Some(t) = rapidr_testmode::var("RAPIDR_TEST_CLOCK") {
+            return t;
+        }
+        chrono::Local::now().format("%H:%M").to_string()
+    }
+    /// `Application.Announce` for a toast or a question: said by the
+    /// focused window's live regions.
+    fn announce(self, text: &str, assertive: bool) {
+        if rapidr_value::objects::a11y::announce(text, assertive).is_some() {
+            #[cfg(feature = "gui")]
+            crate::ui::kernel::announced();
+        }
+    }
 }
 
 /// A web link the user clicked (an RMARKDOWNVIEW's: http, https or mailto,

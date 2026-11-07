@@ -208,6 +208,13 @@ pub struct Ui {
     /// (CONTEXT-MENUS) The pane whose tab or title was right-clicked last
     /// (`ContextPane`).
     pub context_pane: Option<String>,
+    /// (NOTIFY) How far each document strip is scrolled (by its group's
+    /// path), in pixels: the tabs keep a minimum width and the strip scrolls.
+    pub doc_scroll: Vec<(Vec<usize>, i64)>,
+    /// The document whose tab was last scrolled into view: another
+    /// document made active is revealed once, and the arrows then scroll
+    /// freely.
+    pub doc_revealed: Option<String>,
 }
 
 /// An event for the program (OnPaneChange (Name), OnDocumentActivate
@@ -257,6 +264,13 @@ pub enum User {
     /// The splitter between a document's two views dragged: the first's
     /// share per mille; `done` when let go.
     ViewRatio(String, i64, bool),
+    /// A document strip scrolled: group `group`'s tabs by one tab (`tabs`: 1
+    /// towards the end, -1 towards the start: the arrows) or by `pixels`
+    /// (the wheel).
+    DocScroll { group: usize, tabs: i64, pixels: i64 },
+    /// The list of open tabs asked for (the strip's list button): the
+    /// program hears OnDocumentList (Right, Bottom) of the button.
+    DocList(usize),
 }
 
 /// What a method, a property or the user's action did, for the runtime:
@@ -338,9 +352,30 @@ pub fn is_docs_area(name: &str) -> Option<String> {
     exists(&dock).then_some(dock)
 }
 
-struct T<'a>(&'a [PaneInfo]);
+struct T<'a>(&'a [PaneInfo], &'a [(Vec<usize>, i64)]);
+
+/// Where document `doc`'s strip must scroll to show its tab whole: the
+/// group's path and the scroll; `None` when it shows already (or isn't in a
+/// strip).
+fn reveal(d: &geometry::Documents, doc: &str) -> Option<(Vec<usize>, i64)> {
+    let g = d.groups.iter().find(|g| g.docs.iter().any(|x| x == doc))?;
+    let i = g.docs.iter().position(|x| x == doc)?;
+    let (left, width) = *g.offsets.get(i)?;
+    let vw = g.viewport.2;
+    let to = if left < g.scroll {
+        left
+    } else if left + width > g.scroll + vw {
+        left + width - vw
+    } else {
+        return None;
+    };
+    Some((g.path.clone(), to.clamp(0, g.max_scroll)))
+}
 
 impl Titles for T<'_> {
+    fn doc_scroll(&self, path: &[usize]) -> i64 {
+        self.1.iter().find(|(p, _)| p == path).map_or(0, |(_, s)| *s)
+    }
     fn title(&self, pane: &str) -> String {
         self.0.iter().find(|p| p.name == pane).map_or_else(|| pane.to_string(), |p| p.title.clone())
     }
@@ -384,7 +419,16 @@ pub fn parse_where(s: &str) -> Option<Target> {
 
 impl Manager {
     pub fn titles(&self) -> impl Titles + '_ {
-        T(&self.panes)
+        T(&self.panes, &self.ui.doc_scroll)
+    }
+
+    /// Scrolls the document strip of the group at `path` to `to` pixels.
+    pub fn set_doc_scroll(&mut self, path: &[usize], to: i64) {
+        match self.ui.doc_scroll.iter_mut().find(|(p, _)| p == path) {
+            Some((_, s)) => *s = to,
+            None => self.ui.doc_scroll.push((path.to_vec(), to)),
+        }
+        self.touch();
     }
 
     pub fn pane(&self, name: &str) -> Option<&PaneInfo> {
@@ -399,7 +443,21 @@ impl Manager {
     pub fn geometry(&mut self) -> &Geometry {
         if self.geometry.is_none() {
             let flyout = self.flyout.as_ref().map(|p| (p.as_str(), self.pane(p).map_or(super::DEFAULT_SIDE, |i| i.extent)));
-            let g = geometry::compute(&self.layout, self.size, &T(&self.panes), &self.font, flyout);
+            let mut g = geometry::compute(&self.layout, self.size, &T(&self.panes, &self.ui.doc_scroll), &self.font, flyout);
+            // (another document made active: its tab scrolled into view, once)
+            if let Some(active) = self.active_document() {
+                if self.ui.doc_revealed.as_deref() != Some(active.as_str()) {
+                    self.ui.doc_revealed = Some(active.clone());
+                    let wanted = g.documents.as_ref().and_then(|d| reveal(d, &active));
+                    if let Some((path, to)) = wanted {
+                        match self.ui.doc_scroll.iter_mut().find(|(p, _)| *p == path) {
+                            Some((_, s)) => *s = to,
+                            None => self.ui.doc_scroll.push((path, to)),
+                        }
+                        g = geometry::compute(&self.layout, self.size, &T(&self.panes, &self.ui.doc_scroll), &self.font, flyout);
+                    }
+                }
+            }
             self.geometry = Some(g);
         }
         self.geometry.as_ref().unwrap()
@@ -411,7 +469,7 @@ impl Manager {
             Some(g) => g.clone(),
             None => {
                 let flyout = self.flyout.as_ref().map(|p| (p.as_str(), self.pane(p).map_or(super::DEFAULT_SIDE, |i| i.extent)));
-                geometry::compute(&self.layout, self.size, &T(&self.panes), &self.font, flyout)
+                geometry::compute(&self.layout, self.size, &T(&self.panes, &self.ui.doc_scroll), &self.font, flyout)
             }
         }
     }
@@ -1039,6 +1097,27 @@ impl Manager {
                 Outcome { changed: done, ..Default::default() }
             }
             User::View(p, v) => self.set_view(&p, v),
+            User::DocScroll { group, tabs, pixels } => {
+                let Some(gr) = self.geometry().documents.as_ref().and_then(|d| d.groups.get(group)).cloned() else { return Outcome::default() };
+                let vw = gr.viewport.2;
+                let to = if pixels != 0 {
+                    gr.scroll + pixels
+                } else if tabs > 0 {
+                    // (the first tab cut off at the right: its right edge flush with the strip's)
+                    gr.offsets.iter().find(|(l, w)| l + w > gr.scroll + vw).map_or(gr.max_scroll, |(l, w)| l + w - vw)
+                } else {
+                    // (the last tab cut off at the left, or hidden: its left edge flush)
+                    gr.offsets.iter().rev().find(|(l, _)| *l < gr.scroll).map_or(0, |(l, _)| *l)
+                };
+                self.set_doc_scroll(&gr.path, to.clamp(0, gr.max_scroll));
+                Outcome::default()
+            }
+            User::DocList(group) => {
+                let Some(d) = self.geometry().documents.clone() else { return Outcome::default() };
+                let Some(list) = d.groups.get(group).and_then(|g| g.list) else { return Outcome::default() };
+                let (ox, oy) = (d.rect.0, d.rect.1);
+                Outcome { events: vec![Event { name: "ondocumentlist", args: vec![Value::Integer(ox + list.0 + list.2), Value::Integer(oy + list.1 + list.3)] }], ..Default::default() }
+            }
             User::ViewRatio(p, r, done) => {
                 if let Some(i) = self.pane_mut(&p) {
                     i.view_ratio = r.clamp(100, 900);

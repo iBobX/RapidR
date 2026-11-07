@@ -258,11 +258,11 @@ telemetry. You decide whether anyone sees a report.
 
 **The next time Studio starts**, a strip under the tool bar says so:
 
-![RapidR Studio closed unexpectedly last time: View Report, Copy Report, Save Report..., Report on GitHub..., Dismiss](images/crash/crash-banner-light.png)
+![RapidR Studio closed unexpectedly last time: Report on GitHub..., View Report, the More button and a close X](images/crash/crash-banner-light.png)
 
 - **View Report** opens it in a tab; **Copy Report** copies its text (to
-  paste where you ask for help); **Save Report...** saves a copy where you
-  choose.
+  paste where you ask for help) and **Save Report...** saves a copy where you
+  choose: both are behind the **More** button (the three dots).
 - **Report on GitHub...** first says what happens: your browser opens
   RapidR's page for a new issue on GitHub, filled in with the report.
   Nothing is sent until you send it there yourself. You need a GitHub
@@ -270,7 +270,7 @@ telemetry. You decide whether anyone sees a report.
   ask a teacher or a parent); issues are public, so read the report first.
   A report too long for the page's address is copied, to paste into the
   issue.
-- **Dismiss** closes the note. Any answer and Studio doesn't ask again.
+- The **X** (Dismiss) closes the note. Any answer and Studio doesn't ask again.
 - Your unsaved work is offered too ("Restore your unsaved work?"), as after
   any unexpected end.
 - With School Lock on, the strip isn't shown.

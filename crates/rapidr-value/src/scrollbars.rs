@@ -834,7 +834,8 @@ pub mod engine {
     fn children<S: ScrollStore + ?Sized>(s: &S, name: &str) -> Vec<(String, Child)> {
         s.children(name)
             .into_iter()
-            .filter(|(c, t)| !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM") && rapidr_lang::component(t).is_none_or(|k| k.visual) && !matches!(s.get(c, "width"), Value::Null))
+            // (an RNOTIFY is an overlay: where it reaches never makes a form scroll)
+            .filter(|(c, t)| !matches!(t.as_str(), "RMAINMENU" | "RPOPUPMENU" | "RMENUITEM" | "RNOTIFY") && rapidr_lang::component(t).is_none_or(|k| k.visual) && !matches!(s.get(c, "width"), Value::Null))
             .map(|(c, _)| {
                 let n = |p: &str| s.get(&c, p).to_i64();
                 let visible = match s.get(&c, "visible") {

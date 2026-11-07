@@ -1,0 +1,73 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Shop"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "module"
+
+[[files]]
+path = "tests/main.rr"
+kind = "module"
+
+[[files]]
+path = "form_invoices_and_orders_2026.rr"
+kind = "module"
+
+[[files]]
+path = "customer_statements_report.rr"
+kind = "module"
+
+[[files]]
+path = "utils.inc"
+kind = "module"
+
+[[files]]
+path = "database.rr"
+kind = "module"
+
+[[files]]
+path = "invoice_totals.rr"
+kind = "module"
+
+[[files]]
+path = "orders.rr"
+kind = "module"
+
+[[files]]
+path = "shipping_labels.rr"
+kind = "module"
+
+[[files]]
+path = "prices.rr"
+kind = "module"
+
+[[files]]
+path = "report.rr"
+kind = "module"
+
+[[files]]
+path = "settings.rr"
+kind = "module"
+
+[[files]]
+path = "stock_levels_by_warehouse.rr"
+kind = "module"
+
+[[files]]
+path = "login.rr"
+kind = "module"
+
+[[files]]
+path = "help.rr"
+kind = "module"
+
+[[files]]
+path = "about.rr"
+kind = "module"
+
+[[files]]
+path = "notes.txt"
+kind = "module"

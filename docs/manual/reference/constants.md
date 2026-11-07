@@ -568,6 +568,12 @@ RapidR's Anchors flags, combined: the sides of its parent a control keeps its di
 
 `akleft` = 1, `aktop` = 2, `akright` = 4, `akbottom` = 8
 
+## Notification positions
+
+Where an RNotify puts its toasts: the corner of its area they stack from (npBottomRight, the default, npBottomLeft, npTopRight, npTopLeft). Built into a RapidR program (`.rr`) only: a `.bas` program reads the names as variables that are 0. (`RapidR`)
+
+`npBottomRight` = 0, `npBottomLeft` = 1, `npTopRight` = 2, `npTopLeft` = 3
+
 ## List view change kinds
 
 What changed in an item, the `Change` an RListView's OnChange hears: its caption edited (ctText), an image (ctImage), its check box or state image (ctState). Built into a RapidR program (`.rr`) only: a `.bas` program reads the names as variables that are 0. (`RapidR`)

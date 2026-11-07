@@ -314,7 +314,7 @@ fn views_switch_and_sit_side_by_side() {
     // (Design | Code | side by side at the strip's right)
     assert_eq!(gr.switch.iter().map(|s| s.1.as_str()).collect::<Vec<_>>(), ["Design", "Code", "Side by Side"]);
     assert!(gr.switch.last().unwrap().2 .0 + gr.switch.last().unwrap().2 .2 <= gr.rect.0 + gr.rect.2);
-    assert!(gr.tabs.iter().all(|t| t.rect.0 + t.rect.2 < gr.switch[0].2 .0));
+    assert!(gr.viewport.0 + gr.viewport.2 < gr.switch[0].2 .0, "the tabs show before the switch");
     assert_eq!(m.pane("form1").unwrap().shown_components(), ["form1design"]);
     assert_eq!(d.hit(gr.switch[1].2 .0 + 4, gr.switch[1].2 .1 + 4), Some(geometry::DocHit::View(0, 1)));
     // (Code: OnDocumentView, the editor shown)
@@ -1084,20 +1084,34 @@ fn painted(ops: &[crate::objects::ops::Op], (w, h): (i64, i64), panes: &[Rect]) 
     // (not a colour: a pane's own pixels)
     const PANE: u32 = 0x0100_0000;
     let mut px = vec![0u32; (w * h) as usize];
-    let mut put = |r: Rect, c: u32| {
-        for y in r.1.max(0)..(r.1 + r.3).min(h) {
-            for x in r.0.max(0)..(r.0 + r.2).min(w) {
+    let mut put = |r: Rect, c: u32, clip: Rect| {
+        for y in r.1.max(clip.1).max(0)..(r.1 + r.3).min(clip.1 + clip.3).min(h) {
+            for x in r.0.max(clip.0).max(0)..(r.0 + r.2).min(clip.0 + clip.2).min(w) {
                 px[(y * w + x) as usize] = c;
             }
         }
     };
+    // (clips honoured: a document strip's tabs are clipped to their viewport)
+    let mut clips: Vec<Rect> = vec![(0, 0, w, h)];
     for o in ops {
-        if let crate::objects::ops::Op::Fill { rect, color } = o {
-            put(*rect, *color);
+        match o {
+            crate::objects::ops::Op::Fill { rect, color } => put(*rect, *color, *clips.last().unwrap()),
+            crate::objects::ops::Op::ClipPush { rect } => {
+                let c = *clips.last().unwrap();
+                let (x0, y0) = (rect.0.max(c.0), rect.1.max(c.1));
+                let (x1, y1) = ((rect.0 + rect.2).min(c.0 + c.2), (rect.1 + rect.3).min(c.1 + c.3));
+                clips.push((x0, y0, (x1 - x0).max(0), (y1 - y0).max(0)));
+            }
+            crate::objects::ops::Op::ClipPop => {
+                if clips.len() > 1 {
+                    clips.pop();
+                }
+            }
+            _ => {}
         }
     }
     for r in panes {
-        put(*r, PANE);
+        put(*r, PANE, (0, 0, w, h));
     }
     px
 }

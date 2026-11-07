@@ -66,6 +66,10 @@ thread_local! {
     /// The panes' components given a new size while placing (S8): laid out
     /// at it once the placing is done ([`Runtime::relayout`]).
     static RESIZED: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// The documents' bars placed (name, the height they had): a bar laid
+    /// out at its new width (its OnResize) may ask for another height, and
+    /// the views under it follow ([`apply`]).
+    static BARS: std::cell::RefCell<Vec<(String, i64)>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// The component of a group slot.
@@ -376,6 +380,18 @@ pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
             "documentcount" => Value::Integer(m.layout.documents.len() as i64),
             "documentgroupcount" => Value::Integer(if m.layout.documents.is_empty() { 0 } else { m.layout.group_count() as i64 }),
             "layout" => Value::String(m.save().into()),
+            // (NOTIFY: where the documents area is, in the dock manager's
+            // pixels — what RapidR Studio's toasts sit in the corner of; 0
+            // without documents)
+            "documentleft" | "documenttop" | "documentwidth" | "documentheight" => {
+                let r = m.geometry_now().documents.map(|d| d.rect).unwrap_or((0, 0, 0, 0));
+                Value::Integer(match p.as_str() {
+                    "documentleft" => r.0,
+                    "documenttop" => r.1,
+                    "documentwidth" => r.2,
+                    _ => r.3,
+                })
+            }
             _ => return None,
         })
     };
@@ -575,7 +591,17 @@ fn place<R: Runtime>(rt: R, name: &str, parent: &str, r: Rect) {
     if !rt.get(name, "parent").to_string_val().eq_ignore_ascii_case(parent) {
         rt.set(name, "parent", Value::String(parent.to_string().into()));
     }
-    for (p, v) in [("left", r.0), ("top", r.1), ("width", r.2), ("height", r.3)] {
+    // (an RNotifyBar's height follows its width — one line or two —: its width
+    // is set last, so what the new width asked for stays, and the caller asks
+    // for the height again)
+    let order = if rt.type_of(name).eq_ignore_ascii_case("RNOTIFYBAR") { ["left", "top", "height", "width"] } else { ["left", "top", "width", "height"] };
+    for p in order {
+        let v = match p {
+            "left" => r.0,
+            "top" => r.1,
+            "width" => r.2,
+            _ => r.3,
+        };
         if rt.get(name, p).to_i64() != v {
             rt.set(name, p, int(v));
         }
@@ -634,6 +660,19 @@ pub fn apply<R: Runtime>(rt: R, dock: &str) {
     // (each pane given a new size: its contents at that size)
     for name in RESIZED.with(|v| std::mem::take(&mut *v.borrow_mut())) {
         rt.relayout(&name);
+    }
+    // (a bar that laid itself out at its new width asked for another
+    // height — a question's strip that no longer fits one line: the views
+    // go under it, once)
+    let taller = BARS.with(|v| std::mem::take(&mut *v.borrow_mut())).into_iter().any(|(n, h)| rt.exists(&n) && rt.get(&n, "height").to_i64() != h);
+    if taller && !APPLYING.with(|a| a.replace(true)) {
+        apply_now(rt, dock);
+        APPLYING.with(|a| a.set(false));
+        rt.restructure();
+        for name in RESIZED.with(|v| std::mem::take(&mut *v.borrow_mut())) {
+            rt.relayout(&name);
+        }
+        BARS.with(|v| v.borrow_mut().clear());
     }
 }
 
@@ -733,8 +772,22 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
                         let y0 = g.places.iter().map(|r| r.1).min().unwrap_or(0);
                         let x1 = g.places.iter().map(|r| r.0 + r.2).max().unwrap_or(0);
                         let h_min = g.places.iter().map(|r| r.3).min().unwrap_or(0);
-                        bar_h = rt.get(&bar, "height").to_i64().clamp(0, (h_min - 24).max(0));
-                        place(rt, &bar, &docs, (x0, y0, x1 - x0, bar_h));
+                        // (the dock places it: an Align of its own — an RNotifyBar's
+                        // alTop — would dock it to the top of the documents area)
+                        if rt.get(&bar, "align").to_i64() != 0 {
+                            rt.set(&bar, "align", int(0));
+                        }
+                        let room = (h_min - 24).max(0);
+                        bar_h = rt.get(&bar, "height").to_i64().clamp(0, room);
+                        place_pane(rt, &bar, &docs, (x0, y0, x1 - x0, bar_h));
+                        // (a bar whose height follows its width — an RNotifyBar's one
+                        // line or two — says what it wants at the width it has now)
+                        let now = rt.get(&bar, "height").to_i64().clamp(0, room);
+                        if now != bar_h {
+                            bar_h = now;
+                            place_pane(rt, &bar, &docs, (x0, y0, x1 - x0, bar_h));
+                        }
+                        BARS.with(|v| v.borrow_mut().push((bar.clone(), rt.get(&bar, "height").to_i64())));
                     }
                     None => hide(rt, &bar),
                 }

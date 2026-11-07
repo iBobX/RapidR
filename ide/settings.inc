@@ -172,6 +172,15 @@ CREATE SettingsDialog AS RForm
       WordWrap = 1: AutoSize = 0
       Caption = TR$("Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them.")
     END CREATE
+    ' (NOTIFY: how long a toast stays — notify.inc; the guide's WCAG 2.2.1)
+    CREATE NotifyStayLabel AS RLabel
+      Caption = TR$("Notifications &stay")
+    END CREATE
+    CREATE NotifyStayBox AS RComboBox
+      Style = 2
+      AccessibleName = TR$("How long notifications stay")
+      AccessibleDescription = TR$("Notifications are the small messages in the corner of the editor. Every one is kept in the bell's history whatever you choose here.")
+    END CREATE
   END CREATE
   ' ---- AI ----
   CREATE AIPage AS RPanel
@@ -406,6 +415,11 @@ SUB LayOutSettingsDialog
   DebugPanesNote.Left = pad: DebugPanesNote.Top = y: DebugPanesNote.Width = w: DebugPanesNote.Height = 36
   DebugPanesNote.Font.Color = TC("page.dim")
   y = y + 36 + pad
+  ' (how long notifications stay: a label and its choice on a row)
+  NotifyStayLabel.Left = pad: NotifyStayLabel.Top = y + (bh - 18) \ 2: NotifyStayLabel.Width = side - 4
+  NotifyStayLabel.Font.Bold = 1
+  NotifyStayBox.Left = pad + side: NotifyStayBox.Top = y: NotifyStayBox.Width = 240
+  y = y + bh + pad
   ' (the General page as tall as what's on it)
   gh = y
 
@@ -540,10 +554,17 @@ SUB ShowSettings
   ShowSettingsPage 0
 END SUB
 
+' (the choices of how long notifications stay)
+SUB NotifyStayFill
+  NotifyStayBox.AddItems TR$("As long as their words need"), TR$("Longer"), TR$("Until I close them")
+END SUB
+
 ' Tools > Settings, on page k (0 General, 1 AI, 2 AI Apps).
 SUB ShowSettingsPage(k AS INTEGER)
   DIM n AS INTEGER, i AS INTEGER, f AS STRING, all AS STRING
   ReopenBox.Checked = ReopenLast
+  IF NotifyStayBox.ItemCount = 0 THEN NotifyStayFill
+  NotifyStayBox.ItemIndex = NotifyStay
   ' (the language as chosen when the dialog opens: Cancel goes back to it)
   SettingsLanguageWas = LanguageChoice
   SettingsFillLanguages
@@ -635,6 +656,9 @@ SUB SettingsOk
   NEXT
   SetIncludeFolders all
   ReopenLast = Flag(ReopenBox.Checked)
+  ' (NOTIFY: how long notifications stay)
+  IF NotifyStayBox.ItemIndex >= 0 THEN NotifyStay = NotifyStayBox.ItemIndex
+  ApplyNotifyStay
   ' (S9: Debug panes)
   SELECT CASE DebugPanesBox.ItemIndex
     CASE 1: SetDebugPanesMode "always"
@@ -759,6 +783,12 @@ SUB SettingsLanguageChanged
     HelpersBox.AddItems TR$("Helpful: marks, the line's help, argument names")
     HelpersBox.AddItems TR$("Everything: every argument's name, choices marked too")
     HelpersBox.ItemIndex = h
+  END IF
+  IF NotifyStayBox.ItemCount > 0 THEN
+    p = NotifyStayBox.ItemIndex
+    NotifyStayBox.Clear
+    NotifyStayFill
+    NotifyStayBox.ItemIndex = p
   END IF
   d = DebugPanesBox.ItemIndex
   IF DebugPanesBox.ItemCount > 0 THEN

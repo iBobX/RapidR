@@ -7,13 +7,15 @@
 '     again, and every two seconds while it is;
 '   - a file with no unsaved changes here is loaded again quietly: what the
 '     editor had is kept in the local history first ("before reload"), and
-'     stays in the editor's Undo (one Ctrl+Z brings it back); the status
-'     bar says "main.rr was updated outside Studio" (a screen reader too);
-'   - a file with unsaved changes here gets a question strip above its
-'     editor and designer (the design guide's: a card, its 4-pixel mark in
-'     the warning colour): Compare (the disk's version beside yours), Use
-'     Disk Version (yours kept in the local history first; Undo still
-'     brings it back), Keep Mine;
+'     stays in the editor's Undo (one Ctrl+Z brings it back); a toast says
+'     so — "main.rr was reloaded" —, with Show (notify.inc); the status bar
+'     does not say it again, the history keeps it;
+'   - a file with unsaved changes here gets a question as one slim line on
+'     THAT editor only (the design guide's decision strip: RNotifyBar, in
+'     RDockManager's DocumentBar above the editor and the designer, its
+'     4-pixel mark in the warning colour): Compare (the disk's version
+'     beside yours), Use Disk Version (yours kept in the local history
+'     first; Undo still brings it back), Keep Mine;
 '   - Save never overwrites newer content on disk silently: it asks first
 '     ("main.rr changed outside Studio since you opened it. Save anyway?",
 '     Cancel the default);
@@ -22,8 +24,8 @@
 '   - the project file changed (an agent added or removed files): the
 '     Project pane follows quietly;
 '   - many files at once (git checkout, an agent rewriting 20 files): one
-'     note, "12 files were updated outside Studio", with Show (the list, in
-'     the Output);
+'     toast naming them — "5 files were reloaded: main.rr, form1.rr,
+'     utils.inc +2" —, with Show (the list, in a searchable card);
 '   - Studio's own writes (Save, RAI's Apply, an AI app's changes, Build,
 '     Versions' Go Back) never count: Studio watches what it wrote.
 ' Studio on the web: files live in the page's store and change only
@@ -31,16 +33,14 @@
 ' File > Reopen Project closes the project and opens it fresh.
 
 DECLARE SUB ExtTick
-DECLARE SUB ExtLayOut
-DECLARE SUB ExtCompareClick
-DECLARE SUB ExtDiskClick
-DECLARE SUB ExtMineClick
-DECLARE SUB ExtShowClick
-DECLARE SUB ExtCloseClick
+DECLARE SUB ExtChoose(Index AS INTEGER, Caption AS STRING)
+DECLARE SUB ExtEscape
+DECLARE SUB ExtBarEntered
+DECLARE SUB ExtBarLeft
 DECLARE SUB ExtShowBar
 DECLARE SUB ExtReload(d AS INTEGER, Asked AS INTEGER)
 DECLARE SUB ExtProjectFile(What AS STRING)
-DECLARE FUNCTION ExtButtonW(B AS RButton) AS INTEGER
+DECLARE FUNCTION ExtToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
 
 ' (Studio was in the background at the last tick: a look once it is back)
 DIM ExtAway AS INTEGER
@@ -48,16 +48,17 @@ DIM ExtTicks AS INTEGER
 ' (a look, a question, a reload going on: the timer waits)
 DIM ExtBusy AS INTEGER
 ' (DocExtAsk, DocGone: decl.inc)
-' (the strip: on which document, saying what — "ask" a question, "note"
-' many files updated)
+' (the strip: on which document, and the document just asked about — its
+' question is said to a screen reader once, as it appears, not each time
+' the tab comes to the front)
 DIM ExtBarDoc AS INTEGER
 DIM ExtBarMode AS STRING
-' (the last batch of files updated quietly: their paths, a line each; the
-' note waiting to be shown on the next document shown)
+DIM ExtAskNew AS INTEGER
+' (the keyboard is in the strip: Next Area reaches it, then goes on)
+DIM ExtBarFocused AS INTEGER
+' (the last batch of files updated quietly: their paths, a line each — what
+' the toast's Show lists)
 DIM ExtNoteFiles AS STRING
-DIM ExtNoteCount AS INTEGER
-DIM ExtNoteOn AS INTEGER
-DIM ExtBmp(2) AS RBitmap
 ' (tests: the folder an outside writer and Studio meet in — RAPIDR_TEST_EXT)
 DIM ExtMarker AS RFileStream
 
@@ -67,131 +68,39 @@ CREATE ExtTimer AS RTimer
   OnTimer = ExtTick
 END CREATE
 
-' The strip above a document (RDOCKMANAGER's DocumentBar).
-CREATE ExtBar AS RPanel
-  BevelOuter = 0
-  Visible = 0
-  Height = 70
-  CREATE ExtBarMark AS RPanel
-    Left = 0: Top = 0: Width = 4: Height = 70
-    BevelOuter = 0
-  END CREATE
-  CREATE ExtBarIcon AS RImage
-    Left = 16: Top = 11: Width = 16: Height = 16
-    AccessibleHidden = 1
-  END CREATE
-  CREATE ExtBarText AS RLabel
-    Left = 40: Top = 10: Height = 18
-    AutoSize = 0
-  END CREATE
-  CREATE ExtCompare AS RButton
-    Caption = TR$("&Compare")
-    AccessibleDescription = TR$("Shows the disk's version beside yours")
-    OnClick = ExtCompareClick
-  END CREATE
-  CREATE ExtDisk AS RButton
-    Caption = TR$("&Use Disk Version")
-    AccessibleDescription = TR$("Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back.")
-    OnClick = ExtDiskClick
-  END CREATE
-  CREATE ExtMine AS RButton
-    Caption = TR$("&Keep Mine")
-    AccessibleDescription = TR$("Keeps your version here. Saving it will ask before it replaces the disk's version.")
-    OnClick = ExtMineClick
-  END CREATE
-  CREATE ExtShow AS RButton
-    Caption = TR$("&Show")
-    AccessibleDescription = TR$("Lists the files in the Output")
-    OnClick = ExtShowClick
-  END CREATE
-  CREATE ExtClose AS RButton
-    Caption = TR$("C&lose")
-    AccessibleName = TR$("Close the note")
-    OnClick = ExtCloseClick
-  END CREATE
+' The question on a document: one slim line above its views (RDOCKMANAGER's
+' DocumentBar), RNotifyBar's.
+CREATE ExtBar AS RNotifyBar
+  Align = 0
+  OnChoose = ExtChoose
+  OnEscape = ExtEscape
+  OnEnter = ExtBarEntered
+  OnExit = ExtBarLeft
 END CREATE
 
 SUB SetUpExternal
   ExtBarDoc = -1
-  ExtBar.OnResize = ExtLayOut
+  ExtAskNew = -1
   ExtTimer.Enabled = 1
 END SUB
 
 SUB ApplyExternalChrome
   DIM d AS INTEGER
-  ExtBar.Color = TC("card")
-  ExtBarText.Font = UIFont
-  ExtBarText.Font.Bold = 1
-  ExtBarText.Font.Color = TC("page.text")
-  ExtBarText.Transparent = 1
-  ExtCompare.Font = UIFont
-  ExtDisk.Font = UIFont
-  ExtMine.Font = UIFont
-  ExtShow.Font = UIFont
-  ExtClose.Font = UIFont
-  ExtBmp(0).LoadIcon "warning", 16
-  ExtBmp(1).LoadIcon "info", 16
-  ' (the strip again: its words in the language now, its colours; a
-  ' deleted file's tab says so in it too)
+  ExtBar.Font = UIFont
+  ' (a deleted file's tab says so: its words in the language now)
   FOR d = 0 TO DocCount - 1
     IF DocOpen(d) AND DocGone(d) THEN DocTitles d
   NEXT
   ExtShowBar
 END SUB
 
-' (a compact button as wide as its words: 12 each side, 72 at least)
-FUNCTION ExtButtonW(B AS RButton) AS INTEGER
-  Result = UITextWidth(B.Caption) + 24
-  IF Result < 72 THEN Result = 72
-END FUNCTION
-
-' The strip: the icon and the words on one line, the buttons under them,
-' compact, 8 apart, from where the words start.
-SUB ExtLayOut
-  DIM w AS INTEGER, ch AS INTEGER, x AS INTEGER, y AS INTEGER, h AS INTEGER
-  ch = UiCompactH
-  w = ExtBar.ClientWidth
-  IF w < 200 THEN w = 600
-  ExtBarIcon.Left = 16: ExtBarIcon.Top = 11
-  ExtBarText.Left = 40: ExtBarText.Top = 10: ExtBarText.Width = w - 52: ExtBarText.Height = 18
-  y = 10 + 18 + 8
-  x = 16
-  IF ExtCompare.Visible THEN
-    ExtCompare.Left = x: ExtCompare.Top = y: ExtCompare.Width = ExtButtonW(ExtCompare): ExtCompare.Height = ch
-    x = x + ExtCompare.Width + 8
-  END IF
-  IF ExtDisk.Visible THEN
-    ExtDisk.Left = x: ExtDisk.Top = y: ExtDisk.Width = ExtButtonW(ExtDisk): ExtDisk.Height = ch
-    x = x + ExtDisk.Width + 8
-  END IF
-  IF ExtMine.Visible THEN
-    ExtMine.Left = x: ExtMine.Top = y: ExtMine.Width = ExtButtonW(ExtMine): ExtMine.Height = ch
-    x = x + ExtMine.Width + 8
-  END IF
-  IF ExtShow.Visible THEN
-    ExtShow.Left = x: ExtShow.Top = y: ExtShow.Width = ExtButtonW(ExtShow): ExtShow.Height = ch
-    x = x + ExtShow.Width + 8
-  END IF
-  IF ExtClose.Visible THEN
-    ExtClose.Left = x: ExtClose.Top = y: ExtClose.Width = ExtButtonW(ExtClose): ExtClose.Height = ch
-  END IF
-  h = y + ch + 10
-  IF ExtBar.Height <> h THEN ExtBar.Height = h
-  ExtBarMark.Left = 0: ExtBarMark.Top = 0: ExtBarMark.Height = h
-END SUB
-
 ' The strip shows what the document in front needs: its question when its
-' file changed on disk under unsaved changes, else the note of many files
-' updated, else nothing.
+' file changed on disk under unsaved changes, else nothing.
 SUB ExtShowBar
-  DIM d AS INTEGER, mode AS STRING, t AS STRING
+  DIM d AS INTEGER, mode AS STRING, t AS STRING, b AS STRING
   d = ActiveCode
   IF d >= 0 THEN
-    IF DocExtAsk(d) THEN
-      mode = "ask"
-    ELSEIF ExtNoteOn THEN
-      mode = "note"
-    END IF
+    IF DocExtAsk(d) THEN mode = "ask"
   END IF
   ' (off the document it was on)
   IF ExtBarDoc >= 0 AND (ExtBarDoc <> d OR mode = "") THEN
@@ -202,30 +111,25 @@ SUB ExtShowBar
   END IF
   ExtBarMode = mode
   IF mode = "" THEN
-    ExtBar.Visible = 0
+    ExtBar.Hide
     EXIT SUB
   END IF
-  IF mode = "ask" THEN
-    t = TR$("{file} changed outside Studio.", "file", FileTitle(DocFile(d)))
-    ExtBarText.Caption = t
-    ExtBar.AccessibleName = TR$("{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine.", "file", FileTitle(DocFile(d)))
-    ExtBarMark.Color = TC("status.warning.border")
-    ExtBarIcon.BMPHandle = ExtBmp(0)
+  t = TR$("{file} changed on disk while you were editing it.", "file", FileTitle(DocFile(d)))
+  ' (a decision between three answers: all three shown, quiet, each with its
+  ' icon; none is the main one)
+  b = "compare|" + TR$("&Compare") + ",refresh|" + TR$("&Use Disk Version") + ",check|" + TR$("&Keep Mine")
+  ExtBar.Primary = 0
+  IF ExtAskNew = d THEN
+    ' (new: said to a screen reader at once, once)
+    ExtAskNew = -1
+    ExtBar.Ask t, b, "warning"
   ELSE
-    t = TRN$("{n} file was updated outside Studio.", "{n} files were updated outside Studio.", ExtNoteCount)
-    ExtBarText.Caption = t
-    ExtBar.AccessibleName = t
-    ExtBarMark.Color = TC("status.info.border")
-    ExtBarIcon.BMPHandle = ExtBmp(1)
+    ExtBar.Text = t
+    ExtBar.Buttons = b
+    ExtBar.Kind = "warning"
+    ExtBar.Visible = 1
   END IF
-  ExtBarText.AccessibleHidden = 1
-  ExtCompare.Visible = Flag(mode = "ask")
-  ExtDisk.Visible = Flag(mode = "ask")
-  ExtMine.Visible = Flag(mode = "ask")
-  ExtShow.Visible = Flag(mode = "note")
-  ExtClose.Visible = Flag(mode = "note")
-  ExtLayOut
-  ExtBar.Visible = 1
+  ExtBar.AccessibleDescription = TR$("Compare shows the disk's version beside yours. Use Disk Version loads it: yours is kept in the local history, and Undo brings it back. Keep Mine keeps yours: saving it asks before it replaces the disk's version.")
   ExtBarDoc = d
   Dock.DocumentBar(DocPane(d), "extbar")
 END SUB
@@ -259,7 +163,7 @@ END SUB
 ' followed.
 SUB ExtCheck
   DIM t AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, what AS STRING, path AS STRING, d AS INTEGER
-  DIM done AS STRING, doneN AS INTEGER, asked AS INTEGER, gone AS INTEGER, said AS STRING
+  DIM done AS STRING, doneN AS INTEGER, asked AS INTEGER, gone AS INTEGER, said AS STRING, k AS INTEGER
   IF ExtBusy THEN EXIT SUB
   t = Proj.ExternalChanges()
   IF t = "" THEN EXIT SUB
@@ -289,6 +193,7 @@ SUB ExtCheck
         gone = gone + 1
         said = TR$("{file} was deleted outside Studio: its text is kept here", "file", FileTitle(path))
         OutputLine said
+        k = Toast(said, "warning", "", "gone")
       ELSE
         IF DocGone(d) THEN
           ' (there again: changed here only if typed in)
@@ -302,11 +207,12 @@ SUB ExtCheck
           Proj.Watch path
           DirtyFollows d
         ELSEIF DocDirty(d) THEN
-          ' (unsaved changes here: asked, never overwritten)
+          ' (unsaved changes here: asked, never overwritten — the strip on
+          ' this editor says it, once to a screen reader)
+          IF DocExtAsk(d) = 0 THEN ExtAskNew = d
           DocExtAsk(d) = 1
           asked = asked + 1
-          said = TR$("{file} changed outside Studio, and you have unsaved changes in it", "file", FileTitle(path))
-          OutputLine said
+          OutputLine TR$("{file} changed outside Studio, and you have unsaved changes in it", "file", FileTitle(path))
         ELSE
           ExtReload d, 0
           done = done + path + CHR$(10)
@@ -315,21 +221,17 @@ SUB ExtCheck
       END IF
     END IF
   NEXT
+  ' (a toast, once, naming them: the status bar doesn't say it again; the
+  ' Output keeps the log; the bell's history keeps the toast)
   IF doneN = 1 THEN
-    said = TR$("{file} was updated outside Studio", "file", FileTitle(FIELD$(done, CHR$(10), 1)))
-    OutputLine said
-    SetState RunState, said
-  ELSEIF doneN > 1 THEN
-    said = TRN$("{n} file was updated outside Studio", "{n} files were updated outside Studio", doneN)
-    OutputLine said
-    SetState RunState, said
+    OutputLine TR$("{file} was updated outside Studio", "file", FileTitle(FIELD$(done, CHR$(10), 1)))
     ExtNoteFiles = done
-    ExtNoteCount = doneN
-    ExtNoteOn = 1
-  ELSEIF asked + gone > 0 THEN
-    SetState RunState, said
+    k = Toast(TR$("{file} was reloaded", "file", FileTitle(FIELD$(done, CHR$(10), 1))), "info", TR$("Show"), "reload")
+  ELSEIF doneN > 1 THEN
+    OutputLine TRN$("{n} file was updated outside Studio", "{n} files were updated outside Studio", doneN)
+    ExtNoteFiles = done
+    k = Toast(TRN$("{n} file was reloaded: {names}", "{n} files were reloaded: {names}", doneN, "names", NotifyNames(done)), "info", TR$("Show"), "reload")
   END IF
-  IF said <> "" THEN Application.Announce said
   AnalyzeActive
   UpdateCommands
   ExtShowBar
@@ -393,11 +295,35 @@ END SUB
 
 ' ---- the question's answers ------------------------------------------------------------------
 
-' Compare: the disk's version beside the editor's, in the What Changed
-' document (versions.inc).
-SUB ExtCompareClick
-  IF ExtBarDoc < 0 THEN EXIT SUB
-  ExtCompareDoc ExtBarDoc
+' The strip's buttons, 1 Compare, 2 Use Disk Version, 3 Keep Mine (the
+' strip has gone as the answer was given; Compare leaves the question asked).
+SUB ExtChoose(Index AS INTEGER, Caption AS STRING)
+  DIM d AS INTEGER
+  d = ExtBarDoc
+  IF d < 0 THEN EXIT SUB
+  SELECT CASE Index
+    CASE 1
+      ' (Compare: the disk's version beside the editor's, in the What
+      ' Changed document — versions.inc; the question stays)
+      ExtCompareDoc d
+      ExtShowBar
+    CASE 2: ExtUseDisk d
+    CASE 3: ExtKeepMine d
+  END SELECT
+END SUB
+
+' Escape in the strip: the keyboard goes back to the editor; the question
+' stays asked.
+SUB ExtEscape
+  IF ActiveCode >= 0 THEN FocusCodeSoon ActiveCode
+END SUB
+
+SUB ExtBarEntered
+  ExtBarFocused = 1
+END SUB
+
+SUB ExtBarLeft
+  ExtBarFocused = 0
 END SUB
 
 SUB ExtCompareDoc(d AS INTEGER)
@@ -407,13 +333,6 @@ END SUB
 
 ' Use Disk Version: the editor's text kept in the local history, then the
 ' disk's loaded (Undo still brings it back).
-SUB ExtDiskClick
-  DIM d AS INTEGER
-  d = ExtBarDoc
-  IF d < 0 THEN EXIT SUB
-  ExtUseDisk d
-END SUB
-
 SUB ExtUseDisk(d AS INTEGER)
   ExtBusy = 1
   ExtReload d, 1
@@ -427,13 +346,6 @@ END SUB
 
 ' Keep Mine: the question goes; the next Save asks before it replaces the
 ' disk's version.
-SUB ExtMineClick
-  DIM d AS INTEGER
-  d = ExtBarDoc
-  IF d < 0 THEN EXIT SUB
-  ExtKeepMine d
-END SUB
-
 SUB ExtKeepMine(d AS INTEGER)
   DocExtAsk(d) = 0
   SetState RunState, TR$("Keeping your version of {file}: saving it asks first", "file", FileTitle(DocFile(d)))
@@ -442,25 +354,17 @@ SUB ExtKeepMine(d AS INTEGER)
   FocusCodeSoon d
 END SUB
 
-' Show: the files of the last batch, in the Output.
-SUB ExtShowClick
-  DIM i AS INTEGER, n AS INTEGER
-  n = TALLY(ExtNoteFiles, CHR$(10))
-  OutputLine TRN$("{n} file was updated outside Studio:", "{n} files were updated outside Studio:", n)
-  FOR i = 1 TO n
-    OutputLine "  " + ProjectRel(FIELD$(ExtNoteFiles, CHR$(10), i))
-  NEXT
-  OutputBox.Page = "output"
-  Dock.FocusPane("outputbox")
-  ExtNoteOn = 0
-  ExtShowBar
-END SUB
-
-SUB ExtCloseClick
-  ExtNoteOn = 0
-  ExtShowBar
-  IF ActiveCode >= 0 THEN FocusCodeSoon ActiveCode
-END SUB
+' A toast's action (notify.inc): Show — the file reloaded, or the list of
+' the files of the last batch in a searchable card. 1 when it was ours.
+FUNCTION ExtToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
+  IF Key <> "reload" THEN EXIT FUNCTION
+  Result = 1
+  IF TALLY(ExtNoteFiles, CHR$(10)) <= 1 THEN
+    IF ExtNoteFiles <> "" THEN OpenDocument FIELD$(ExtNoteFiles, CHR$(10), 1)
+  ELSE
+    ShowFileList ExtNoteFiles
+  END IF
+END FUNCTION
 
 ' ---- Studio's hooks ------------------------------------------------------------------------------
 
@@ -480,7 +384,7 @@ SUB ExtClosed(d AS INTEGER)
   IF ExtBarDoc = d THEN
     Dock.DocumentBar(DocPane(d), "")
     ExtBarDoc = -1
-    ExtBar.Visible = 0
+    ExtBar.Hide
   END IF
 END SUB
 
@@ -532,14 +436,12 @@ END SUB
 SUB ExtProjectOpened
   Proj.UnwatchAll
   IF ProjectFile <> "" AND FILEEXISTS(ProjectFile) THEN Proj.Watch ProjectFile
-  ExtNoteOn = 0
 END SUB
 
 SUB ExtProjectClosed
   Proj.UnwatchAll
-  ExtNoteOn = 0
   ExtBarDoc = -1
-  ExtBar.Visible = 0
+  ExtBar.Hide
 END SUB
 
 ' File > Reopen Project: the project closed (changes asked about first, as
@@ -599,6 +501,9 @@ SUB ExternalStep(S AS STRING)
         ExtTicks = 0
         IF INSTR(DoList, "ext:await=" + v) = 0 THEN DoList = "ext:await=" + v + "," + DoList
       END IF
+    CASE "choose"
+      ' (ext:choose=<n>: the strip's button n, as a click on it would)
+      ExtBar.Press(VAL(v))
     CASE "open"
       ' (ext:open=<a file of the project>: opened, in front)
       OpenDocument Proj.Folder + "/" + v

@@ -130,12 +130,13 @@ export const scenes = [
   },
   {
     // (AI-UX) "Build a scientific calculator": the program opens in Studio
-    // at once, its form in the designer, the banner with Run It on top
+    // at once, its form in the designer, a toast with Run It and Undo at the
+    // bottom right of the editor (it stands still: reduced motion)
     name: "banner",
     studio: { do: `${READY},ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait`, delay: 9 },
     setup: (work, root) => installed(work, root),
-    env: ENV,
-    crop: [0, 0, 1280, 400],
+    env: { ...ENV, RAPIDR_REDUCED_MOTION: "1" },
+    crop: [240, 68, 770, 502],
   },
   {
     // ... in the dark look
@@ -143,8 +144,8 @@ export const scenes = [
     theme: "rapidr-dark",
     studio: { do: `${READY},ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait`, delay: 9 },
     setup: (work, root) => installed(work, root),
-    env: ENV,
-    crop: [0, 0, 1280, 400],
+    env: { ...ENV, RAPIDR_REDUCED_MOTION: "1" },
+    crop: [240, 68, 770, 502],
   },
   {
     // ... the chat: the cards Studio writes (the recipe it started from,

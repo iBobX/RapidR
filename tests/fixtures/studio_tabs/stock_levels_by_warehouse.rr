@@ -1,0 +1,2 @@
+' stock_levels_by_warehouse.rr: a file of the tabs walk (tests/studio_flows.mjs, tabs-*).
+PRINT "stock_levels_by_warehouse.rr"

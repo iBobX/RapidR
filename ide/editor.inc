@@ -127,7 +127,7 @@ SUB EditorFocusTick
   ' (the second time a few frames on: the tree's focus comes back in the
   ' host's next frame)
   IF FocusTurns <= 0 THEN EditorFocus.Enabled = 0 ELSE EditorFocus.Interval = 80
-  ' (a new program from the assistant: its banner's Run it has the keys —
+  ' (a new program from the assistant: its toast's Run It has the keys —
   ' ai.inc)
   IF AIBannerTakesFocus THEN EXIT SUB
   IF FocusDoc >= 0 AND FocusDoc < DocCount THEN

@@ -1,4 +1,4 @@
-<!-- translated-from: components.md 62ed24921e32c921 -->
+<!-- translated-from: components.md b54f69cb7dda9c64 -->
 # Componentes y objetos
 
 Un programa de RapidR construye sus ventanas con **componentes** —
@@ -428,6 +428,17 @@ hace que RapidR dibuje el menú en todos los sistemas. Un componente con un
 `PopupMenu` y sin `OnContextMenu` lo abre como siempre, y en un programa de
 RapidR (`.rr`) también desde el teclado. Todo, con los propios menús de RapidR Studio: [Menús del
 clic derecho](right-click-menus.md).
+
+## Notificaciones: RNotify y RNotifyBar
+
+`RNotify` dice qué pasó en una tarjeta pequeña en una esquina del formulario
+que se va sola (`Show "Guardado", "success"`); `RNotifyBar` hace una pregunta
+en una línea fina sobre aquello de lo que trata (`Ask "…", "&Comparar,&Conservar la mía"`).
+Detrás de las tarjetas un historial guarda cada mensaje, así que uno que pasó
+en un segundo nunca se pierde. Los dos toman el aspecto del propio programa
+(claro, oscuro, alto contraste), hablan una vez a un lector de pantalla y están
+en las herramientas de IA como todo componente. Todo:
+[Notificaciones](notifications.md).
 
 ## RUpDown: flechas que cambian un número
 

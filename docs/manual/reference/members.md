@@ -827,6 +827,10 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `PaneCount` (read-only) | int |  | How many panes the manager has (documents included). |
 | `DocumentCount` (read-only) | int |  | How many documents are open. |
 | `DocumentGroupCount` (read-only) | int |  | Tabbed documents: how many groups of tabs the documents area is split into (0 with no documents). |
+| `DocumentLeft` (read-only) | int |  | Where the documents area is, in the dock manager's own pixels: its left edge (0 when there are no documents). With DocumentTop, DocumentWidth and DocumentHeight it is what a program lays something over the documents with (RapidR Studio's toasts sit in its corner). |
+| `DocumentTop` (read-only) | int |  | The documents area's top edge (see DocumentLeft). |
+| `DocumentWidth` (read-only) | int |  | The documents area's width (see DocumentLeft). |
+| `DocumentHeight` (read-only) | int |  | The documents area's height (see DocumentLeft). |
 | `Layout` | string |  | The whole layout as text: reading it is SaveLayout, setting it LoadLayout. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string | `""` | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -887,6 +891,128 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `OnDocumentClose(Name AS STRING, BYREF Cancel AS INTEGER)` | A document is about to close; set Cancel to keep it open. |
 | `OnLayoutChange` | The layout changed (the user or the program moved, docked, floated or hid a pane). |
 | `OnDocumentView(Name AS STRING, View AS STRING)` | Tabbed documents: a document now shows another view (its caption, or "Split" for side by side). |
+| `OnDocumentList(Right AS INTEGER, Bottom AS INTEGER)` | Tabbed documents: the user pressed the list of open tabs at the right end of a tab strip (the strip scrolls when its tabs, each at least 112 pixels wide, don't all fit). Right and Bottom are the button's right edge and bottom, in the dock manager's pixels: show the program's list of documents there (RapidR Studio opens a searchable card). |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
+
+<a id="rnotify"></a>
+## RNotify
+
+Small messages that pop up, say what happened and get out of the way: toasts, drawn in the program's own look. Show puts one at a corner of the component (the bottom right by default): a line or two of text, an icon for its kind, up to two action links ("Show", "Undo") and a close button. Several stack, three at most (the oldest goes into the history); a message with the same Key replaces the one on screen, so a burst of the same thing is one toast. Each stays as long as its words need to be read (3 seconds and 80 milliseconds a character, 2 seconds more with an action, 5 to 20 seconds; a warning half as long again; an error until it is closed), and the time stands still while the mouse is on it or the keyboard is. A toast never takes the keyboard, and a screen reader says it once, politely. Everything said is kept in a history (ShowHistory) with its time and its action again, so nothing is lost when a toast was missed. Drop it on a form and leave Align as alClient: it covers the form but takes the mouse only where a toast is.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alClient` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Position` | enum | `npBottomRight` | The corner of the component the toasts sit in; the newest is nearest the corner and the others stack away from it. |
+| `MaxVisible` | int | 3 | How many toasts show at once (1 to 8, three by default). A newer one pushes the oldest out; it stays in the history. |
+| `Timeout` | int | -1 | How long a toast stays, in milliseconds, when Show says none: -1 (the default) fits it to its length (3 seconds and 80 milliseconds a character, 2 seconds more with an action, 5 to 20 seconds; a warning one and a half times as long, an error until it is closed), 0 until it is closed. |
+| `TimeScale` | int | 100 | How long toasts stay as a percentage of what they would (100 as is, 200 twice as long, 0 until they are closed): for a setting like "Notifications stay longer". |
+| `HistorySize` | int | 50 | How many messages the history keeps (1 to 500). |
+| `Margin` | int | 12 | The space between the toasts and the edges of the component (or of the area SetArea gave). |
+| `Count` (read-only) | int |  | How many toasts are on screen. |
+| `HistoryCount` (read-only) | int |  | How many messages the history holds. |
+| `UnseenCount` (read-only) | int |  | How many messages in the history have not been looked at (opening the history, or MarkSeen, marks them): the number for a bell. |
+| `HistoryOpen` | bool | False | Whether the history card is open. |
+| `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Font` | font |  | The toasts' font; RapidR's own when the program sets none. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+
+| Method | |
+|---|---|
+| `Show(Text AS STRING, [Kind AS STRING], [Action AS STRING], [Timeout AS INTEGER], [Key AS STRING]) AS INTEGER` | Says Text in a toast and in the history; returns the toast's number (0 when Text is empty). Kind is "info" (the default), "success", "warning" or "error". Action is one or two captions separated by \| ("Show", "Run It\|Undo"; & marks a letter): the links in the toast, which OnAction hears. Timeout is milliseconds (-1: fit the text, 0: until closed). A Key that a toast on screen already has makes this message replace that toast's words and start its time again, so a count that goes up is one toast. It is announced to a screen reader once, politely (an error at once). |
+| `Update(Id AS INTEGER, Text AS STRING) AS INTEGER` | Changes the words of a toast still on screen and starts its time again: True when it was there. |
+| `Close(Id AS INTEGER)` | Takes a toast away (OnClosed hears "program"). It stays in the history. |
+| `CloseAll` | Takes every toast away. |
+| `Press(Id AS INTEGER, [Index AS INTEGER]) AS INTEGER` | Does what a click on a toast's action does (Index 1 or 2, 1 by default): OnAction hears it. A toast number, or a history message's (HistoryId): True when there was such an action and it can still be done. How a program, RAI or an AI app presses what it reads. |
+| `Retire(Key AS STRING, [Reason AS STRING]) AS INTEGER` | Says that the actions of every message with that Key can no longer be done ("Undo" after the thing was deleted for good): they go from a toast on screen, and in the history they are greyed with Reason as their tooltip. Returns how many messages it touched. |
+| `SetArea(Left AS INTEGER, Top AS INTEGER, Width AS INTEGER, Height AS INTEGER)` | Makes the toasts sit in this part of the component (its own pixels) instead of all of it: RapidR Studio's editor area, less the editor's scroll bar. A Width or Height of 0 goes back to all of it. |
+| `ShowHistory([Right AS INTEGER], [Bottom AS INTEGER])` | Opens the history: a card of the last messages, newest first, each with its time, its whole text and its action again (greyed, with the reason, when it can't be done any more), and Clear at the top. Right and Bottom say where its bottom right corner hangs (a bell's corner), in the component's pixels; without them it sits at the corner of the toasts' area. Opening it marks everything seen. A click outside it, or Escape, closes it. |
+| `HideHistory` | Closes the history. |
+| `ClearHistory` | Forgets every message in the history. |
+| `MarkSeen` | Marks every message in the history as looked at: UnseenCount goes to 0. |
+| `Text(Index AS INTEGER) AS STRING` | The words of the toast on screen at Index (from 0, the oldest first); "" when there is none. |
+| `Kind(Index AS INTEGER) AS STRING` | Its kind: "info", "success", "warning" or "error". |
+| `Key(Index AS INTEGER) AS STRING` | Its Key ("" when it had none). |
+| `Id(Index AS INTEGER) AS STRING` | Its number, as Show returned it, for Close, Update and Press. |
+| `ActionText(Index AS INTEGER, [Action AS INTEGER]) AS STRING` | The caption of its action 1 or 2 (1 by default), without its & mark; "" when it has none. |
+| `HistoryText(Index AS INTEGER) AS STRING` | The words of the history's message at Index (from 0, the newest first). |
+| `HistoryKind(Index AS INTEGER) AS STRING` | Its kind. |
+| `HistoryTime(Index AS INTEGER) AS STRING` | The time of day it was said, as "14:32". |
+| `HistoryKey(Index AS INTEGER) AS STRING` | Its Key. |
+| `HistoryId(Index AS INTEGER) AS STRING` | Its number, for Press. |
+| `HistoryAction(Index AS INTEGER, [Action AS INTEGER]) AS STRING` | The caption of its action 1 or 2; when Retire took it away, the caption and the reason in brackets. |
+| `SetFocus` | Gives the keyboard to the toasts (or the open history) while there is one: Tab and the arrows move between them, Enter presses, Escape closes. |
+
+| Event | |
+|---|---|
+| `OnAction(Id AS INTEGER, Index AS INTEGER, Key AS STRING)` | The user pressed a toast's action, or one in the history (Press does it too): the message's number, which action (1 or 2) and its Key. A toast closes when its action was pressed. |
+| `OnClosed(Id AS INTEGER, Reason AS STRING, Key AS STRING)` | A toast went: Reason is "timeout", "user" (its close button or Escape), "action", "program" (Close, CloseAll) or "pushed" (a newer one needed its place). |
+| `OnUnseenChange(Count AS INTEGER)` | The number of unseen messages in the history changed: draw it on a bell. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
+| `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
+
+<a id="rnotifybar"></a>
+## RNotifyBar
+
+A question the person must answer before work goes on, as one slim line across the top of what it is about: a mark in the warning colour, an icon, the question in regular weight and compact quiet buttons at the right end: 24 px tall in the small font, each an icon of RapidR's with its words (the main one soft-filled, the others plain), icon only when the room is tight, then a More button (the three dots) for the rest and a close X. The question is cut with an ellipsis before anything wraps; under it only when even that is not enough. It is not a dialog and not a toast: it stays on the thing it asks about until a button is pressed, and covers nothing, because Align = alTop pushes what is under it down. Ask shows it and has a screen reader say it once, at once; OnChoose hears the button. Keyboard: Tab and the arrows move between the buttons, More and the close X, Enter presses one, a button's underlined letter presses it, Escape leaves it with the question still asked (OnEscape).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Align` | enum | `alTop` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
+| `Text` | string | `""` | The question. It is cut with an ellipsis when it doesn't fit beside the buttons (its tooltip and a screen reader have it whole). |
+| `Kind` | string | `"warning"` | "warning" (the default), "info", "success" or "error": the colour of its mark and its icon. |
+| `Buttons` | string | `""` | The buttons, separated by commas, up to six: each an optional icon of RapidR's, a bar and its caption ("compare\|&Compare,refresh\|&Use Disk Version,check\|&Keep Mine"); an & before a letter underlines it and makes it press the button. Two are the most a strip shows, the main one and one more; a decision between three answers may show three. The rest go behind More. |
+| `More` | bool | False | Shows a More button (the three dots) after the buttons: OnMore says where its menu goes, and the program opens one (a pop-up menu drawn by RapidR) with the choices that did not fit. |
+| `Closable` | bool | False | Shows a close X at the strip's right end, named "Dismiss" for a screen reader: the strip goes and OnChoose hears index 0. |
+| `Primary` | int | 1 | The main button (from 1; 0 none): it is soft-filled and keeps its words when the room is tight, the others are plain. |
+| `ButtonCount` (read-only) | int |  | How many buttons it has. |
+| `Choice` (read-only) | int |  | The button pressed last (from 1; 0 until one was). |
+| `Height` | int |  | Its height: one line (36 pixels in RapidR's look), two when the width has no room for the question beside the buttons. The component sets it as the width changes. |
+| `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
+| `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
+| `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
+| `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
+| `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | False | Whether the control or form is shown. |
+| `Font` | font |  | The question's and the buttons' font; RapidR's own when the program sets none. |
+| `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
+| `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
+| `MinHeight` | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
+| `MaxWidth` | int | 0 | The widest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxWidth`. |
+| `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
+| `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
+| `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
+
+| Method | |
+|---|---|
+| `Ask(Text AS STRING, Buttons AS STRING, [Kind AS STRING])` | Shows the strip with this question and these buttons (a comma-separated list, & marking each one's letter), and has a screen reader say it once, at once. Kind is "warning" by default. |
+| `Hide` | Takes the strip away without an answer. |
+| `Press(Index AS INTEGER) AS INTEGER` | Does what a click on button Index (from 1; 0 the close X) does: the strip goes and OnChoose hears it. True when it was shown and had that button. How a program, RAI or an AI app answers it. |
+| `SetFocus` | Gives the keyboard to the strip's buttons. |
+
+| Event | |
+|---|---|
+| `OnChoose(Index AS INTEGER, Caption AS STRING)` | A button was pressed (by the mouse, the keyboard, its letter or Press): its number from 1 (0 for the close X, caption "Dismiss") and its caption without the & mark. The strip has already gone. |
+| `OnMore(Right AS INTEGER, Bottom AS INTEGER)` | The user pressed More: Right and Bottom are the button's right edge and bottom in the form, where a pop-up menu goes (set its Alignment to paRightAlign and call Popup). |
+| `OnEscape` | The user pressed Escape in the strip: give the keyboard back to what they were doing; the question stays. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 | `OnContextMenu(X AS INTEGER, Y AS INTEGER, Key AS INTEGER)` | RapidR's: the person asked for this component's context menu - a right click let go on it, Shift+F10 or the Menu key while it has the keyboard, a screen reader's "show menu", or a row's More button. X, Y are where the menu goes, in its own pixels (under its focused item when the keyboard asked); Key says how: 0 the mouse, 1 the keyboard, 3 a screen reader, 4 a row's More button (X, Y its bottom right corner: a menu right-aligned there). Show a menu with `Menu.PopupAt Sender, X, Y`. A list, tree or inspector says first which item it was (ContextIndex, the selected row). Without this event a component's PopupMenu opens by itself, in a RapidR program from the keyboard too. |
 
 <a id="rbutton"></a>
@@ -5870,6 +5996,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `CommandEnabled(Id AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a command can be picked; with On, sets it (a disabled one is shown dimmed). |
 | `Command(Index AS INTEGER) AS STRING` | The id of the command shown at Index (from 0) for what was typed. |
 | `Show` | Opens the palette at the top of its form, centred (as wide as Width, at most the form's width less 32 pixels), over every other component, empty, with the keyboard in it; the commands used last come first. |
+| `ShowAt(Right AS INTEGER, Top AS INTEGER)` | Show, but under a button instead of at the top of the form: the palette's right edge at Right and its top at Top (in the form's pixels), kept inside the form. A list opened from a button (the open tabs, the files a message names) hangs from it. |
 | `Hide` | Closes it. |
 | `AddPrefix(Prefix AS STRING, Title AS STRING)` | Typing Prefix first (":", "#" …) shows one command made from what follows it in place of the list: its title is Title with {} replaced by that text ("Go to line {}"), its id Prefix and the text (":42"), which OnCommand gives. An empty Title removes the prefix. |
 

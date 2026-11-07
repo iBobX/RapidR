@@ -509,6 +509,7 @@ DECLARE SUB AIStep(Stp AS STRING)
 DECLARE SUB InspectorRowSelected(Prop AS STRING)
 ' (the new program's banner: its focus after the editor's, gone when
 ' another project opens)
+DECLARE FUNCTION AIMadeToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
 DECLARE FUNCTION AIBannerTakesFocus AS INTEGER
 DECLARE SUB AIProjectChanged
 
@@ -533,6 +534,26 @@ DECLARE SUB VersionsStep(S AS STRING)
 ' the question waits; its file was deleted on disk — its tab marked)
 DIM DocExtAsk(MAXDOCS) AS INTEGER
 DIM DocGone(MAXDOCS) AS INTEGER
+' (notifications — the toasts, the bell, the files' list: notify.inc)
+DECLARE FUNCTION TabTitle(d AS INTEGER) AS STRING
+DECLARE FUNCTION TabTitleNow(d AS INTEGER) AS STRING
+DECLARE SUB RetitleDocs
+DECLARE SUB OpenTabsList(Right AS INTEGER, Bottom AS INTEGER)
+DECLARE SUB ApplyNotifyStay
+DIM NotifyStay AS INTEGER
+DECLARE SUB SetUpNotify
+DECLARE SUB ApplyNotifyChrome
+DECLARE SUB LayOutNotify
+DECLARE SUB BellPlace
+DECLARE SUB BellColour
+DECLARE FUNCTION BellRoom AS INTEGER
+DECLARE FUNCTION Toast(Text AS STRING, Kind AS STRING, Action AS STRING, Key AS STRING) AS INTEGER
+DECLARE FUNCTION NotifyNames(Paths AS STRING) AS STRING
+DECLARE SUB ShowFileList(Paths AS STRING)
+DECLARE FUNCTION NotifyCommand(Id AS STRING) AS INTEGER
+DECLARE SUB NotifyStep(S AS STRING)
+DECLARE FUNCTION ExtToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
+DECLARE FUNCTION AIChatToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
 DECLARE SUB SetUpExternal
 DECLARE SUB ApplyExternalChrome
 DECLARE SUB ExtCheck

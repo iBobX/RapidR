@@ -1,0 +1,2 @@
+' customer_statements_report.rr: a file of the tabs walk (tests/studio_flows.mjs, tabs-*).
+PRINT "customer_statements_report.rr"

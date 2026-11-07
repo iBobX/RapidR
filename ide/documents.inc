@@ -328,16 +328,53 @@ FUNCTION DocOf(Path AS STRING) AS INTEGER
   NEXT
 END FUNCTION
 
+' A document's tab name: its file's, and — when another open file has the
+' same name — its folder after it ("main.rr · tests"), so two tabs never read
+' alike (docs/design-guidelines.md, "Tabs").
+FUNCTION TabTitle(d AS INTEGER) AS STRING
+  DIM k AS INTEGER, same AS INTEGER, p AS STRING, i AS INTEGER, folder AS STRING
+  Result = FileTitle(DocFile(d))
+  FOR k = 0 TO DocCount - 1
+    IF k <> d THEN
+      IF DocOpen(k) THEN
+        IF LCASE$(FileTitle(DocFile(k))) = LCASE$(Result) THEN same = 1
+      END IF
+    END IF
+  NEXT
+  IF same THEN
+    p = REPLACESUBSTR$(DocFile(d), "\", "/")
+    i = RINSTR(p, "/")
+    IF i > 1 THEN
+      folder = FileTitle(LEFT$(p, i - 1))
+      IF folder <> "" THEN Result = Result + " · " + folder
+    END IF
+  END IF
+END FUNCTION
+
+' Every open document's tab named again: a file opened or closed may have
+' made two names alike, or told them apart.
+SUB RetitleDocs
+  DIM k AS INTEGER
+  FOR k = 0 TO DocCount - 1
+    IF DocOpen(k) THEN Dock.PaneTitle(DocPane(k), TabTitleNow(k))
+  NEXT
+END SUB
+
+' (a tab's name as DocTitles gives it: the file's, a deleted one marked)
+FUNCTION TabTitleNow(d AS INTEGER) AS STRING
+  IF DocGone(d) THEN
+    Result = TR$("{file} (deleted on disk)", "file", TabTitle(d))
+  ELSE
+    Result = TabTitle(d)
+  END IF
+END FUNCTION
+
 SUB DocTitles(d AS INTEGER)
   ' (S-PANELS: the project tree marks a file with changes not saved; its
   ' tab shows a dot)
   ProjectTree.FileModified DocFile(d), DocDirty(d)
   ' (deleted outside Studio: the tab says so — external.inc)
-  IF DocGone(d) THEN
-    Dock.PaneTitle(DocPane(d), TR$("{file} (deleted on disk)", "file", FileTitle(DocFile(d))))
-  ELSE
-    Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
-  END IF
+  Dock.PaneTitle(DocPane(d), TabTitleNow(d))
   Dock.DocumentModified(DocPane(d), DocDirty(d))
   ' (Studio's window: the dot in macOS' close button, the browser's
   ' question before the page is left)
@@ -412,6 +449,8 @@ SUB OpenDocument(Path AS STRING)
   ' (a preview from the project tree: the keys stay there)
   IF OpenQuietly = 0 THEN FocusCodeSoon d
   OutputLine TR$("Opened {file}", "file", Path)
+  ' (a second file of the same name: the tabs say which folder)
+  RetitleDocs
   UpdateCommands
 END SUB
 
@@ -493,6 +532,7 @@ SUB CloseDocument(d AS INTEGER)
   Dock.ClosePane(DocPane(d))
   Lang.Close DocFile(d)
   IF ActiveDoc = d THEN ActiveDoc = -1
+  RetitleDocs
   AnalyzeActive
   UpdateCommands
 END SUB

@@ -182,6 +182,7 @@ SUB DefineCommands
   AddCmd "view.properties", "P&roperties", "View", "F4", "", "", "symbols/property"
   AddCmd "view.outline", "O&utline", "View", "", "", "", "symbols/module"
   AddCmd "versions.pane", TR$("Versio&ns"), "View", "", "", "", ""
+  AddCmd "view.notifications", "&Notifications", "View", "Ctrl+Shift+N", "", "", "notifications"
   AddCmd "view.output", "&Output", "View", "", "", "", ""
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
   ' (long lines of the Output, Build and Problems pages: wrapped, or cut at the edge)

@@ -13,6 +13,8 @@
 //! | RTOOLBAR | [`toolbar`] | icon buttons, separators, toggles, an overflow menu, customizable |
 //! | RCOMMANDPALETTE | [`palette`] | commands found by fuzzy search |
 //! | RMARKDOWNVIEW | [`markdown`] | a Markdown text shown formatted (headings, lists, tables, code, links) |
+//! | RNOTIFY | [`notify`] | toasts and their history: small messages that pop, stack, hide by themselves and are kept (docs/design-guidelines.md, "Notifications") |
+//! | RNOTIFYBAR | [`notifybar`] | a question across the top of what it is about: one slim line, compact buttons |
 //!
 //! Each model lives in a per-thread table by the component's (lowercase)
 //! name ([`panel_models!`](crate::panel_models)); the kernel reads it to paint and turns what the user
@@ -28,6 +30,8 @@ pub mod console;
 pub mod fuzzy;
 pub mod inspector;
 pub mod markdown;
+pub mod notify;
+pub mod notifybar;
 pub mod palette;
 pub mod project_tree;
 pub mod rows;
@@ -37,7 +41,7 @@ pub mod toolbar;
 pub mod toolbox;
 
 /// The panels' type names (RapidR's).
-pub const TYPES: [&str; 7] = ["RPROPERTYINSPECTOR", "RTOOLBOX", "RPROJECTTREE", "ROUTPUTCONSOLE", "RTOOLBAR", "RCOMMANDPALETTE", "RMARKDOWNVIEW"];
+pub const TYPES: [&str; 9] = ["RPROPERTYINSPECTOR", "RTOOLBOX", "RPROJECTTREE", "ROUTPUTCONSOLE", "RTOOLBAR", "RCOMMANDPALETTE", "RMARKDOWNVIEW", "RNOTIFY", "RNOTIFYBAR"];
 
 /// Whether `type_name` (any case) is one of the panels.
 pub fn is_panel(type_name: &str) -> bool {
@@ -55,6 +59,8 @@ pub enum User {
     ToolBar(toolbar::User),
     Palette(palette::User),
     Markdown(markdown::User),
+    Notify(notify::User),
+    NotifyBar(notifybar::User),
     /// An item picked from a list the runtime dropped for the panel
     /// ([`runtime::Runtime::drop_list`]): an inspector's enum, a toolbar's
     /// overflow menu.
@@ -91,5 +97,7 @@ macro_rules! panel_models {
     };
 }
 
+#[cfg(test)]
+mod notify_tests;
 #[cfg(test)]
 mod tests;

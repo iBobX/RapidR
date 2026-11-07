@@ -275,11 +275,11 @@ parte: RapidR no tiene telemetría. Tú decides si alguien ve un informe.
 **La próxima vez que se inicie Studio**, una franja bajo la barra de herramientas
 lo dice:
 
-![La última vez, RapidR Studio se cerró de forma inesperada: Ver informe, Copiar informe, Guardar informe..., Informar en GitHub..., Ocultar](../images/crash/crash-banner-light.png)
+![La última vez, RapidR Studio se cerró de forma inesperada: Informar en GitHub..., Ver informe, el botón Más y una X para cerrar](../images/crash/crash-banner-light.png)
 
 - **Ver informe** lo abre en una pestaña; **Copiar informe** copia su texto (para
-  pegarlo donde pidas ayuda); **Guardar informe...** guarda una copia donde
-  elijas.
+  pegarlo donde pidas ayuda) y **Guardar informe...** guarda una copia donde
+  elijas: los dos están tras el botón **Más** (los tres puntos).
 <!-- legal -->
 - **Informar en GitHub...** dice primero qué pasa: tu navegador abre la página de
   RapidR para un problema nuevo en GitHub, con el informe ya escrito. No se envía
@@ -289,7 +289,7 @@ lo dice:
   problemas informados son públicos, así que lee primero el informe. Un informe
   demasiado largo para la dirección de la página se copia, para pegarlo en el
   problema.
-- **Ocultar** cierra la nota. Con cualquier respuesta, Studio no vuelve a
+- La **X** (Descartar) cierra la nota. Con cualquier respuesta, Studio no vuelve a
   preguntar.
 - También se ofrece tu trabajo sin guardar (“¿Restaurar tu trabajo sin
   guardar?”), como después de cualquier final inesperado.

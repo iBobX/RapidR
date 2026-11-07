@@ -65,14 +65,7 @@ DECLARE SUB AINewCancel
 DECLARE SUB AISentClose
 DECLARE SUB AIKeyNeeded
 DECLARE SUB AIChatLink(Url AS STRING)
-DECLARE SUB AIBannerRunClick
-DECLARE SUB AIBannerRunIn
-DECLARE SUB AIBannerRunOut
-DECLARE SUB AIBannerFixClick
-DECLARE SUB AIBannerUndoClick
-DECLARE SUB AIBannerWhatClick
-DECLARE SUB AIBannerCloseClick
-DECLARE SUB LayOutAIBanner
+DECLARE FUNCTION AIMadeToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
 DECLARE SUB AIProgressShow
 DECLARE SUB AIHideBanner
 DECLARE SUB AICreateNow
@@ -304,31 +297,30 @@ DIM AIChatList AS RListBox
 DIM AIChatsNote AS RLabel
 ' (a chat renamed in the list itself — EditItem: its id)
 DIM AIRenaming AS STRING
-DIM AIChatUndoBar AS RPanel
-DIM AIChatUndoText AS RLabel
-DIM AIChatUndoBtn AS RButton
+' (the toast that offers Undo after a delete: its key, "chat-undo-<n>"; a
+' later delete retires the earlier one's Undo)
+DIM AIChatUndoKey AS STRING
+DIM AIChatUndoSeq AS INTEGER
 
 
 ' ---- a new program, straight into the IDE (docs/ai-ux-plan.md §1) ---------------------
-' The banner across the top, under the tool bar: what the assistant made,
-' Run it (the keys go there), Undo, What did it do?; with errors left, Ask
-' it to fix too. Studio's own panel, in the look's colours.
-DIM AIBanner AS RPanel
-DIM AIBannerMark AS RPanel
-DIM AIBannerText AS RLabel
-DIM AIBannerRun AS RButton
-DIM AIBannerFix AS RButton
-DIM AIBannerUndo AS RButton
-DIM AIBannerWhat AS RButton
-DIM AIBannerClose AS RButton
-DIM AIBannerFont AS RFont
+' The toast about the program the assistant made (docs/design-guidelines.md,
+' "Notifications"): what it made and the two things to do with it — Run It
+' (with errors left, Ask It to Fix) and Undo. Key "ai-made": a newer word
+' about the same program takes its place. What the assistant did is in the
+' chat, in its cards.
 ' (the program the banner is about: its folder, its project file, its
 ' errors; the project open before it, opened again by Undo)
 DIM AIBannerFolder AS STRING
 DIM AICreatedFile AS STRING
 DIM AIBannerErrors AS INTEGER
 DIM AIPrevProject AS STRING
-' (the banner's Run it takes the keys once the editor's opening is over)
+' (the toast's number on screen, 0 none)
+DIM AIMadeToast AS INTEGER
+' (the toast is offered: 1 from the program made until it is undone or
+' another project is open)
+DIM AIBannerOn AS INTEGER
+' (the toast's Run It takes the keys once the editor's opening is over)
 DIM AIBannerFocusTurns AS INTEGER
 ' (tests: a file of the user's added to the new program's folder)
 DIM AITouch AS RFileStream
@@ -726,47 +718,6 @@ SUB SetUpAI
   AIChat.CodeLanguage = "rapidr"
   AIChat.OnCodeClick = AICodeClick
 
-  ' (the new program's banner, across Studio under the tool bar: hidden
-  ' until the assistant makes one)
-  AIBanner.Parent = Studio
-  AIBanner.Top = 60
-  AIBanner.Align = 1
-  AIBanner.Height = 56
-  AIBanner.BevelOuter = 0
-  AIBanner.Visible = 0
-  AIBanner.AccessibleName = TR$("The assistant's new program")
-  AIBannerMark.Parent = AIBanner
-  AIBannerMark.BevelOuter = 0
-  AIBannerMark.Left = 0: AIBannerMark.Top = 0: AIBannerMark.Width = 6
-  AIBannerText.Parent = AIBanner
-  AIBannerText.WordWrap = 1: AIBannerText.AutoSize = 0
-  AIBannerRun.Parent = AIBanner
-  AIBannerRun.AccessibleName = TR$("Run it")
-  AIBannerRun.AccessibleDescription = TR$("Runs the new program (F5). Nothing runs until you press it.")
-  AIBannerRun.OnClick = AIBannerRunClick
-  ' (the accent, and Enter, only while it has the keys: Enter in the
-  ' designer or a list never runs the program)
-  AIBannerRun.OnEnter = AIBannerRunIn
-  AIBannerRun.OnExit = AIBannerRunOut
-  AIBannerFix.Parent = AIBanner
-  AIBannerFix.Caption = TR$("Ask It to Fix")
-  AIBannerFix.AccessibleName = TR$("Ask the assistant to fix the errors")
-  AIBannerFix.OnClick = AIBannerFixClick
-  AIBannerUndo.Parent = AIBanner
-  AIBannerUndo.AccessibleName = TR$("Undo")
-  AIBannerUndo.AccessibleDescription = TR$("Closes the new program and removes the files the assistant wrote")
-  AIBannerUndo.OnClick = AIBannerUndoClick
-  AIBannerWhat.Parent = AIBanner
-  AIBannerWhat.Caption = TR$("What Did It Do?")
-  AIBannerWhat.AccessibleName = TR$("What did it do?")
-  AIBannerWhat.AccessibleDescription = TR$("Shows what the assistant did, in the Assistant pane")
-  AIBannerWhat.OnClick = AIBannerWhatClick
-  AIBannerClose.Parent = AIBanner
-  AIBannerClose.Caption = "×"
-  AIBannerClose.AccessibleName = TR$("Close the banner")
-  AIBannerClose.OnClick = AIBannerCloseClick
-  AIBanner.OnResize = LayOutAIBanner
-
   ' (R1: the chats list, in the conversation's place while shown;
   ' Set up RAI's window)
   SetUpAIChats
@@ -813,8 +764,6 @@ SUB AiLanguageChanged
   ' (the / commands listed again when they show)
   AISlashShown = ""
   AIShowSlash
-  ' (the banner's words)
-  IF AIBanner.Visible THEN AISetBanner AIBannerErrors
   ' (the chats list, its title, the bars)
   AiChatsLanguageChanged
   ' (the dial's spoken names, the hint strip's words)
@@ -967,23 +916,6 @@ SUB LayOutAIPanel
   AIChat.EmptyText = AIEmptyText
 END SUB
 
-SUB AIBannerFonts
-  AIBannerFont.Name = UIFont.Name
-  AIBannerFont.Size = UIFont.Size + 3
-  AIBannerFont.Bold = 1
-  AIBanner.Color = TC("card")
-  AIBannerMark.Color = TC("accent")
-  AIBannerText.Font = AIBannerFont
-  AIBannerText.Font.Color = TC("page.text")
-  AIBannerRun.Font = UIFont
-  AIBannerRun.Font.Bold = 1
-  AIBannerFix.Font = UIFont
-  AIBannerUndo.Font = UIFont
-  AIBannerWhat.Font = UIFont
-  AIBannerClose.Font = UIFont
-  LayOutAIBanner
-END SUB
-
 SUB AIPanelFonts
   AIChat.Font = UIFont
   AIInput.Font = UIFont
@@ -1027,7 +959,6 @@ SUB AIPanelFonts
   AIEditText.Font.Color = TC("page.text")
   AIEditCancel.Font = UIFont
   AIChatsFonts
-  AIBannerFonts
   AIRevHead.Font = UIFont
   AINewTitle.Font = SubFont
   AINewWhat.Font = UIFont
@@ -1832,11 +1763,11 @@ FUNCTION AIRunSlash(T AS STRING) AS INTEGER
 END FUNCTION
 
 ' /undo: what the assistant changed last taken back — a new program it
-' made (as the banner's Undo), else the files the last review changed, each
+' made (as the toast's Undo), else the files the last review changed, each
 ' as one undo step, when its editor still has what the review left.
 SUB AIUndoLast
   DIM i AS INTEGER, d AS INTEGER, done AS INTEGER, stale AS STRING, patch AS STRING
-  IF AIBanner.Visible AND AITools.CreatedFolder <> "" THEN
+  IF AIBannerOn AND AITools.CreatedFolder <> "" THEN
     AIUndoProject
     EXIT SUB
   END IF
@@ -2633,47 +2564,37 @@ SUB AIOpenMade(Made AS STRING, Errs AS INTEGER)
   AIShowBanner Errs
 END SUB
 
-' The banner: what the assistant made and what to do with it, Run it
-' first (the keys go there, Enter runs); with errors left, Run anyway and
-' Ask it to fix.
+' The toast: what the assistant made and what to do with it. Run It; with
+' errors left, Ask It to Fix instead; and Undo. It is in the bell's history
+' too, with its actions, until the program is undone or another project is
+' open.
 SUB AIShowBanner(Errs AS INTEGER)
-  DIM title AS STRING
-  title = AITools.CreatedTitle
   AIBannerFolder = AITools.CreatedFolder
-  IF Errs = 0 THEN
-    AIStatus.SimpleText = TR$("Made {title}: Run It is at the top.", "title", title)
-  ELSE
-    AIStatus.SimpleText = TRN$("Made {title}, {n} error left: see the top.", "Made {title}, {n} errors left: see the top.", Errs, "title", title)
-  END IF
+  AIBannerOn = 1
   AISetBanner Errs
-  ' (the keys to Run it, after the editor's own focus on opening)
+  ' (the keys to Run It — Enter — after the editor's own focus on opening:
+  ' the one toast Studio gives the keyboard to, as it is what the person
+  ' came for; Escape gives it back)
   AIBannerFocusTurns = 2
-  AIBannerRun.SetFocus
+  Notify.SetFocus
 END SUB
 
-' The banner's words for a program with Errs errors: made for you, or still
-' with errors (Run anyway, Ask it to fix). Nothing else moves: not the keys,
-' not the status.
+' The words for a program with Errs errors: made for you, or still with
+' errors (Run Anyway, Ask It to Fix). A toast still on screen takes the new words (its
+' key). Nothing else moves: not the keys, not the status.
 SUB AISetBanner(Errs AS INTEGER)
-  DIM title AS STRING
-  title = AITools.CreatedTitle
+  DIM t AS STRING, a AS STRING, kind AS STRING
   AIBannerErrors = Errs
   IF Errs = 0 THEN
-    AIBannerText.Caption = TR$("The assistant made this program for you.")
-    AIBannerRun.Caption = TR$("▶  Run It")
-    AIBannerRun.AccessibleName = TR$("Run it")
+    t = TR$("The assistant made this program for you.")
+    a = TR$("Run It") + "|" + TR$("Undo")
+    kind = "success"
   ELSE
-    AIBannerText.Caption = TRN$("The assistant made this program — it still has {n} error.", "The assistant made this program — it still has {n} errors.", Errs)
-    AIBannerRun.Caption = TR$("▶  Run Anyway")
-    AIBannerRun.AccessibleName = TR$("Run anyway")
+    t = TRN$("The assistant made this program — it still has {n} error.", "The assistant made this program — it still has {n} errors.", Errs)
+    a = TR$("Run Anyway") + "|" + TR$("Ask It to Fix")
+    kind = "warning"
   END IF
-  AIBannerText.AccessibleName = AIBannerText.Caption
-  AIBannerUndo.Caption = TR$("↺  Undo")
-  AIBannerFix.Visible = Flag(Errs > 0)
-  AIBanner.AccessibleDescription = title + ": " + AIBannerText.Caption
-  AIBanner.Visible = 1
-  AIBannerRun.Default = 1
-  AIBannerFonts
+  AIMadeToast = Toast(t, kind, a, "ai-made")
 END SUB
 
 ' After a turn that made or changed files: the program's errors as Run
@@ -2685,7 +2606,7 @@ SUB AIRecheck
   DIM errs AS INTEGER, said AS STRING
   IF ProjectOpen = 0 THEN EXIT SUB
   errs = ProgramErrors
-  IF AIBanner.Visible AND LCASE$(Proj.Folder) = LCASE$(AIBannerFolder) THEN
+  IF AIBannerOn AND LCASE$(Proj.Folder) = LCASE$(AIBannerFolder) THEN
     IF errs <> AIBannerErrors THEN AISetBanner errs
   END IF
   said = AIStatus.SimpleText
@@ -2695,21 +2616,15 @@ SUB AIRecheck
   END IF
 END SUB
 
+' (the program is undone, or another project is open: the toast's actions
+' can no longer work — greyed in the history, with the reason)
 SUB AIHideBanner
-  AIBanner.Visible = 0
-  AIBannerRun.Default = 0
+  IF AIBannerOn THEN Notify.Retire "ai-made", TR$("That program isn't open any more.")
+  AIBannerOn = 0
   AIBannerFocusTurns = 0
+  IF AIMadeToast > 0 THEN Notify.Close AIMadeToast
+  AIMadeToast = 0
 END SUB
-
-' (editor.inc's focus timer: the banner's Run it takes the keys while a
-' new program opens — True when it did)
-FUNCTION AIBannerTakesFocus AS INTEGER
-  Result = 0
-  IF AIBannerFocusTurns <= 0 OR AIBanner.Visible = 0 THEN EXIT FUNCTION
-  AIBannerFocusTurns = AIBannerFocusTurns - 1
-  AIBannerRun.SetFocus
-  Result = 1
-END FUNCTION
 
 ' (another project opened, or none: the banner was about the new program;
 ' the changes proposed to the project before wait no more — never applied
@@ -2724,97 +2639,41 @@ SUB AIProjectChanged
     AITools.ClearProposals
     AIReviewBar.Visible = 0
   END IF
-  IF AIBanner.Visible = 0 THEN EXIT SUB
+  IF AIBannerOn = 0 THEN EXIT SUB
   IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AIBannerFolder) THEN AIHideBanner
 END SUB
 
-SUB LayOutAIBanner
-  DIM w AS INTEGER, h AS INTEGER, bh AS INTEGER, x AS INTEGER, y0 AS INTEGER, pad AS INTEGER
-  IF ThemeName = "classic" THEN
-    bh = 25: h = 44
+' (editor.inc's focus timer: the toast's Run It takes the keys while a new
+' program opens — True when it did)
+FUNCTION AIBannerTakesFocus AS INTEGER
+  Result = 0
+  IF AIBannerFocusTurns <= 0 OR AIBannerOn = 0 THEN EXIT FUNCTION
+  IF Notify.Count = 0 THEN EXIT FUNCTION
+  AIBannerFocusTurns = AIBannerFocusTurns - 1
+  Notify.SetFocus
+  Result = 1
+END FUNCTION
+
+' A toast's action (notify.inc): the first is Run It (Run Anyway with errors
+' left: Enter on it, as on the banner it was); the second Undo (with errors
+' left Ask It to Fix; Undo is in the chat's card then). 1 when the key was
+' ours. What the assistant did is in the chat's cards: nothing to open here.
+FUNCTION AIMadeToastAction(Key AS STRING, Index AS INTEGER) AS INTEGER
+  IF Key <> "ai-made" THEN EXIT FUNCTION
+  Result = 1
+  IF AIBannerOn = 0 THEN EXIT FUNCTION
+  IF Index = 2 AND AIBannerErrors > 0 THEN
+    ' (Ask it to fix: the assistant asked, in the chat, to fix what is left)
+    ShowAIPanel
+    AIInput.Text = TR$("Please fix the errors that are left.")
+    AISend
+  ELSEIF Index = 2 THEN
+    AIUndoProject
   ELSE
-    bh = 34: h = 56
+    ' (Run It: as F5 — the program runs, Studio's Run)
+    RunCommand "run.start"
   END IF
-  IF AIBanner.Height <> h THEN AIBanner.Height = h
-  w = AIBanner.ClientWidth
-  IF w < 400 THEN w = 400
-  pad = 12
-  y0 = (h - bh) \ 2
-  AIBannerMark.Height = h
-  ' (from the right: ×, What did it do?, Undo, Ask it to fix, Run it)
-  x = w - pad - bh
-  AIBannerClose.Left = x: AIBannerClose.Top = y0: AIBannerClose.Width = bh: AIBannerClose.Height = bh
-  x = x - 8 - 150
-  AIBannerWhat.Left = x: AIBannerWhat.Top = y0: AIBannerWhat.Width = 150: AIBannerWhat.Height = bh
-  x = x - 8 - 100
-  AIBannerUndo.Left = x: AIBannerUndo.Top = y0: AIBannerUndo.Width = 100: AIBannerUndo.Height = bh
-  IF AIBannerFix.Visible THEN
-    x = x - 8 - 132
-    AIBannerFix.Left = x: AIBannerFix.Top = y0: AIBannerFix.Width = 132: AIBannerFix.Height = bh
-  END IF
-  x = x - 8 - 136
-  AIBannerRun.Left = x: AIBannerRun.Top = y0: AIBannerRun.Width = 136: AIBannerRun.Height = bh
-  ' (one line, across from the buttons' middle)
-  AIBannerText.Left = 6 + pad + 4: AIBannerText.Top = (h - 26) \ 2 + 1
-  AIBannerText.Width = x - 16 - AIBannerText.Left: AIBannerText.Height = 26
-END SUB
-
-' Run it: as F5 — the program runs, Studio's Run.
-SUB AIBannerRunClick
-  RunCommand "run.start"
-END SUB
-
-SUB AIBannerRunIn
-  IF AIBanner.Visible THEN AIBannerRun.Default = 1
-END SUB
-
-SUB AIBannerRunOut
-  AIBannerRun.Default = 0
-END SUB
-
-' Ask it to fix: the assistant asked, in the chat, to fix what is left.
-SUB AIBannerFixClick
-  ShowAIPanel
-  AIInput.Text = TR$("Please fix the errors that are left.")
-  AISend
-END SUB
-
-SUB AIBannerUndoClick
-  AIUndoProject
-END SUB
-
-' What did it do?: the Assistant pane, the chat scrolled to the first card
-' of the turn that made the program (its cards are level-5 headings, a blank
-' line apart: back from the one that says Created over those just before
-' it), and the keyboard on the chat — its links, Open and Undo, are Tab stops.
-SUB AIBannerWhatClick
-  DIM all AS STRING, i AS INTEGER, n AS INTEGER, at AS INTEGER, line AS STRING, before AS STRING, anchor AS STRING
-  IF AIReady = 0 THEN EXIT SUB
-  Dock.ShowPane("aipanel")
-  Dock.FocusPane("aipanel")
-  LayOutAIPanel
-  all = AIChat.Headings
-  n = TALLY(all, CHR$(10)) + 1
-  at = 0
-  FOR i = 1 TO n
-    IF INSTR(FIELD$(FIELD$(all, CHR$(10), i), CHR$(9), 2), "Created") > 0 THEN at = i
-  NEXT
-  IF at > 0 THEN
-    DO WHILE at > 1
-      line = FIELD$(all, CHR$(10), at)
-      before = FIELD$(all, CHR$(10), at - 1)
-      IF VAL(FIELD$(before, CHR$(9), 1)) <> 5 OR VAL(FIELD$(line, CHR$(9), 4)) - VAL(FIELD$(before, CHR$(9), 4)) > 2 THEN EXIT DO
-      at = at - 1
-    LOOP
-    anchor = FIELD$(FIELD$(all, CHR$(10), at), CHR$(9), 3)
-  END IF
-  IF anchor <> "" THEN AIChat.ScrollTo "#" + anchor
-  AIChat.SetFocus
-END SUB
-
-SUB AIBannerCloseClick
-  AIHideBanner
-END SUB
+END FUNCTION
 
 ' (a recent project gone: off the list)
 SUB AIForgetRecent(Path AS STRING)

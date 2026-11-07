@@ -174,6 +174,7 @@ SUB ApplyChrome
   ApplyDebugColors
   ApplySearchChrome
   ApplyVersionsChrome
+  ApplyNotifyChrome
   ApplyExternalChrome
   ApplyCrashChrome
   ' (School Lock's card, chip and strips: schoollock.inc)
@@ -198,6 +199,8 @@ SUB ApplyState
       Status.Color = TC("statusbar")
       Status.Font.Color = TC("statusbar.text")
   END SELECT
+  ' (the bell on the bar's colour of the moment: notify.inc)
+  BellColour
   ' (the state takes the room it needs: LayOutStatus)
   LayOutStatus
 END SUB
@@ -278,11 +281,14 @@ SUB LayOutStatus
   wp = StatusMeasure.TextWidth(TR$("Ln {line}, Col {col}", "line", 999, "col", 99)) + 14
   IF wp < 110 THEN wp = 110
   w = Studio.ClientWidth - w0 - wp - 70 - 60 - 160 - McpStatusWidth
+  ' (the bell at the far right takes its room from the last panel's: with
+  ' AI apps' panel there, from the project's — notify.inc)
+  IF McpStatusWidth > 0 THEN w = w - BellRoom
   IF w < 40 THEN w = 40
   ' (AI apps' panel, once they've been on: mcp.inc)
   IF McpStatusWidth > 0 THEN
     Status.Panel(5).Width = 160
-    Status.Panel(6).Width = McpStatusWidth
+    Status.Panel(6).Width = McpStatusWidth + BellRoom
   END IF
   Status.Panel(0).Width = w0
   Status.Panel(0).Caption = FitMiddle(TR$(StateText), w0 - 14)
@@ -299,6 +305,7 @@ SUB LayOutStatus
   ' (School Lock's chip: at the right end of the project's panel —
   ' schoollock.inc)
   LockChipPlace w0 + w - 6
+  BellPlace
   ShowStatusHint
 END SUB
 

@@ -2346,7 +2346,7 @@ msgstr "还有 {n} 行"
 msgid "Undo This Change"
 msgstr "撤销此更改"
 
-#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs crates/rapidr-ui-kernel/src/components/dock.rs
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs crates/rapidr-ui-kernel/src/components/dock.rs crates/rapidr-ui-kernel/src/components/panels/notify.rs
 msgid "Close"
 msgstr "关闭"
 
@@ -2481,6 +2481,18 @@ msgstr "自动隐藏"
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Close {name}"
 msgstr "关闭 {name}"
+
+#: crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Scroll Tabs Left"
+msgstr "向左滚动标签页"
+
+#: crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Scroll Tabs Right"
+msgstr "向右滚动标签页"
+
+#: crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Open Tabs"
+msgstr "打开的标签页"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Undo"
@@ -2718,6 +2730,54 @@ msgstr "锚定底部"
 msgid "code"
 msgstr "代码"
 
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Notifications"
+msgstr "通知"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Information"
+msgstr "信息"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Done"
+msgstr "已完成"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Warning"
+msgstr "警告"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Error"
+msgstr "错误"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Notification history"
+msgstr "通知历史记录"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs crates/rapidr-value/src/panels/notify.rs
+msgid "Clear"
+msgstr "清除"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notify.rs
+msgid "Nothing yet."
+msgstr "暂时没有内容。"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "More"
+msgstr "更多"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs crates/rapidr-value/src/panels/notifybar.rs
+msgid "Dismiss"
+msgstr "忽略"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "Opens a menu with more choices"
+msgstr "打开包含更多选项的菜单"
+
+#: crates/rapidr-ui-kernel/src/components/panels/notifybar.rs
+msgid "A question: choose one answer."
+msgstr "一个问题：请选择一个答案。"
+
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "No commands"
 msgstr "没有命令"
@@ -2933,18 +2993,6 @@ msgstr "亮度"
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|Solid"
 msgstr "颜色|纯色"
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
-msgid "Warning"
-msgstr "警告"
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
-msgid "Error"
-msgstr "错误"
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
-msgid "Information"
-msgstr "信息"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Question"
@@ -3767,6 +3815,10 @@ msgstr "{n} 行"
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "{n} columns"
 msgstr "{n} 列"
+
+#: crates/rapidr-value/src/panels/notify.rs
+msgid "This can no longer be done."
+msgstr "这已无法再执行。"
 
 #: crates/rapidr-value/src/panels/palette.rs
 msgid "Type a command"

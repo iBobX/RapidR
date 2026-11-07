@@ -275,6 +275,22 @@ def markdownview(g):
     arrowhead(g, 16, 16.5, 0, 1, 2.5, c="blue") if g.size != 16 else None
 
 
+@icon("notify", C, "Notify")
+def notify(g):
+    """A window with a toast at its bottom right: a card, its mark and a line of text."""
+    frame(g, 3, 3, 18, 18)
+    g.rect(8.5, 13, 11, 5.5, r=1.5, c="blue", fill="blue-tint")
+    g.line(10.75, 15.75, 16.5, 15.75, c="blue")
+
+
+@icon("notifybar", C, "Notify bar")
+def notifybar(g):
+    """A window with a slim strip across its top: the warning colour's mark and a line of text."""
+    frame(g, 3, 3, 18, 18)
+    g.rect(5.5, 5.75, 13, 4.5, r=1, c="amber", fill="amber-tint")
+    g.line(8, 8, 14, 8, c="amber")
+
+
 # ---- display and drawing ----------------------------------------------------------
 
 def letter_a(g, x=6, y=19, w=12, h=14, c="blue"):

@@ -1202,6 +1202,18 @@ constants = [
 ]
 
 [[group]]
+name = "Notification positions"
+source = "RapidR"
+origin = "rapidr"
+doc = "Where an RNotify puts its toasts: the corner of its area they stack from (npBottomRight, the default, npBottomLeft, npTopRight, npTopLeft). Built into a RapidR program (`.rr`) only: a `.bas` program reads the names as variables that are 0."
+constants = [
+  ["npBottomRight", 0],
+  ["npBottomLeft", 1],
+  ["npTopRight", 2],
+  ["npTopLeft", 3],
+]
+
+[[group]]
 name = "List view change kinds"
 source = "RapidR"
 origin = "rapidr"
