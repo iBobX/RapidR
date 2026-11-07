@@ -199,7 +199,11 @@ SITES = {
     ("crates/rapidr-runtime-core/src/mcpserver.rs", "method"): "RMCPSERVER",
     ("crates/rapidr-runtime-core/src/mcpserver.rs", "modern_request"): "-",
     ("crates/rapidr-runtime-core/src/mcpserver.rs", "legacy"): "-",
-    ("crates/rapidr-runtime-web/src/object_web.rs", "mcp_server_web_method"): "RMCPSERVER",
+    ("crates/rapidr-runtime-core/src/mcpserver.rs", "get"): "RMCPSERVER",
+    # (the core both transports share, and the browser's transport)
+    ("crates/rapidr-value/src/agent_tools/mod.rs", "method"): "RMCPSERVER",
+    ("crates/rapidr-runtime-web/src/agent_tools_web.rs", "method"): "RMCPSERVER",
+    ("crates/rapidr-runtime-web/src/agent_tools_web.rs", "get"): "RMCPSERVER",
     # (the designer reading a program's picture loads - x.Load(, .BMP =,
     # .Icon = - of other components, not RDESIGNSURFACE members)
     ("crates/rapidr-value/src/objects/design.rs", "picture_loads"): "-",

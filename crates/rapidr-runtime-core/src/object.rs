@@ -1054,6 +1054,13 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     if prop_lower == "connected" && ty == "RSOCKET" {
         return crate::network::connected(name);
     }
+    // RMcpServer's Available and Transport: its transport's (mcpserver.rs).
+    #[cfg(feature = "network")]
+    if ty == "RMCPSERVER" {
+        if let Some(v) = crate::mcpserver::get(prop_lower) {
+            return v;
+        }
+    }
     // Screen, Application, Clipboard, Mouse (globals.rs).
     if let Some(v) = crate::globals::get(name, prop_lower) {
         return v;
