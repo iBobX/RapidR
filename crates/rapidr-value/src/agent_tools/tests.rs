@@ -24,6 +24,10 @@ thread_local! {
     /// the handler, later): run with `run_later`.
     static LATER: RefCell<Vec<Box<dyn FnOnce()>>> = RefCell::new(Vec::new());
     static HOLD: Cell<bool> = const { Cell::new(false) };
+    /// The app's components (Expose) and the person's answer (ConfirmChanges).
+    static COMPS: RefCell<Vec<(String, String)>> = const { RefCell::new(Vec::new()) };
+    static ANSWER: Cell<Option<bool>> = const { Cell::new(None) };
+    static ASKED: Cell<u32> = const { Cell::new(0) };
 }
 
 #[derive(Clone, Copy)]
@@ -65,6 +69,13 @@ impl Host for Mock {
     }
     fn scrub(self, text: &str) -> String {
         text.replace("sk-secret-key-0123456789abcdef", "(an API key, not shown)")
+    }
+    fn components(self) -> Vec<(String, String)> {
+        COMPS.with(|c| c.borrow().clone())
+    }
+    fn confirm(self, _text: &str) -> Option<bool> {
+        ASKED.with(|a| a.set(a.get() + 1));
+        ANSWER.with(Cell::get)
     }
 }
 
@@ -455,4 +466,72 @@ fn an_answer_in_each_transports_form() {
     assert!(s.contains("(3580 more"), "{}", &s[s.len() - 80..]);
     assert_eq!(cut("héllo ✓", 0), "héllo ✓");
     assert_eq!(cut("héllo ✓", 7), "héllo ✓");
+}
+
+/// ConfirmChanges: a tool that may change something asks the person first
+/// (a read one never); no: refused, the program never sees it; a host that
+/// can't ask: refused, saying so.
+#[test]
+fn confirm_changes_asks_before_a_change() {
+    let name = "core-confirm";
+    server(name);
+    assert!(add_tool(Mock, name, "save", "Saves the notes.", "", "change"));
+    Mock.set(name, "confirmchanges", v_int(1));
+    on(name, "ontoolcall", |args| {
+        method(Mock, "core-confirm", "reply", &[args[2].clone(), v_str("done")]);
+    });
+    let (_, h) = call(name, "echo", json!({"Text": "x"}), "a");
+    poll(Mock, name);
+    assert_eq!((text_of(&h.borrow().done[0]), ASKED.with(Cell::get)), ("done".to_string(), 0), "a read tool isn't asked");
+    for (answer, said) in [(Some(false), "The person using the app didn't allow it. Ask them what they want instead."), (Some(true), "done"), (None, "This app asks its user before an AI agent changes something, and it can't ask here.")] {
+        ANSWER.with(|a| a.set(answer));
+        let (_, h) = call(name, "save", json!({}), "a");
+        poll(Mock, name);
+        assert_eq!(text_of(&h.borrow().done[0]), said, "{answer:?}");
+    }
+    assert_eq!(ASKED.with(Cell::get), 3);
+    assert_eq!(fired("ontoolcall").len(), 2, "refused calls never reach the program");
+    close(Mock, name);
+    forget(name);
+}
+
+/// Expose: nothing by default; read, the app's windows and their
+/// components' properties (never a non-visual component); write, app_set
+/// too, as the program sets it. The core answers them, never OnToolCall.
+#[test]
+fn expose_offers_the_apps_own_components() {
+    let name = "core-expose";
+    COMPS.with(|c| *c.borrow_mut() = vec![("form1".into(), "RFORM".into()), ("edit1".into(), "REDIT".into()), ("timer1".into(), "RTIMER".into())]);
+    for (n, p, v) in [("form1", "caption", "Notes"), ("form1", "visible", "1"), ("edit1", "text", "hi"), ("edit1", "visible", "1")] {
+        Mock.set(n, p, v_str(v));
+    }
+    Mock.set("edit1", "enabled", v_int(0));
+    server(name);
+    assert!(tools(name).iter().all(|t| !t.name.starts_with("app_")), "nothing exposed by default");
+    Mock.set(name, "expose", v_str("read"));
+    server(name);
+    let names: Vec<String> = tools(name).iter().map(|t| t.name.clone()).collect();
+    assert!(names.contains(&"app_components".into()) && names.contains(&"app_get".into()) && !names.contains(&"app_set".into()), "{names:?}");
+    assert!(tool(name, "app_components").unwrap().untrusted);
+    let (_, h) = call(name, "app_components", json!({}), "a");
+    poll(Mock, name);
+    let list = text_of(&h.borrow().done[0]);
+    assert!(list.contains("form1 (Form): \"Notes\" — shows") && list.contains("edit1 (Edit): \"hi\" — shows, disabled") && !list.contains("timer1"), "{list}");
+    let (_, h) = call(name, "app_get", json!({"name": "EDIT1", "property": "text"}), "a");
+    poll(Mock, name);
+    assert_eq!(text_of(&h.borrow().done[0]), "hi");
+    let (_, h) = call(name, "app_get", json!({"name": "timer1", "property": "interval"}), "a");
+    poll(Mock, name);
+    assert!(text_of(&h.borrow().done[0]).starts_with("No component named timer1"));
+    assert!(fired("ontoolcall").is_empty(), "the core answers them");
+    Mock.set(name, "expose", v_str("write"));
+    server(name);
+    let (_, h) = call(name, "app_set", json!({"name": "edit1", "property": "Text", "value": "Hello"}), "a");
+    poll(Mock, name);
+    assert_eq!(text_of(&h.borrow().done[0]), "edit1.Text is now Hello");
+    Mock.set(name, "expose", v_str(""));
+    server(name);
+    assert!(tools(name).iter().all(|t| !t.name.starts_with("app_")), "taken away again");
+    close(Mock, name);
+    forget(name);
 }

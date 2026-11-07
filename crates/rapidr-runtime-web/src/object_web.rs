@@ -1309,7 +1309,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let ty = comp_type_of(uname);
     let ty = ty.as_str();
     // RMcpServer's Available and Transport: its transport's (agent_tools_web.rs).
-    if ty == "RMCPSERVER" {
+    if ty == "RMCPSERVER" || ty == rapidr_value::agent_tools::AGENT_TOOLS {
         if let Some(v) = crate::agent_tools_web::get(lprop) {
             return v;
         }
@@ -1857,7 +1857,7 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         return http_server_web_method(&uname, &lmethod);
     }
     // (its browser transport: the page's tools for the browser's AI agents)
-    if comp_type == "RMCPSERVER" {
+    if comp_type == "RMCPSERVER" || comp_type == rapidr_value::agent_tools::AGENT_TOOLS {
         return crate::agent_tools_web::method(&uname, &lmethod, args);
     }
     // (the program's own eyes and hands: kernel_web.rs)

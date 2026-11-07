@@ -271,7 +271,7 @@ Why generic tools: the registry has 112 components and about 4,000 members Rapid
 
 ### 4.2 A running program's own MCP server
 
-`RMCPServer` (ide-components.md §3.9) in a user's program: the same transports, token and checks, serving the run-time provider restricted to what the author exposed (§4.3). Off unless the program creates one and calls `Start`; local only; per-client tiers; `OnToolCall` veto. Not on the web (a page can't listen); there RAI is the only way in.
+`RMCPServer` (ide-components.md §3.9) in a user's program: the same transports, token and checks, serving the run-time provider restricted to what the author exposed (§4.3). Off unless the program creates one and calls `Start`; local only; per-client tiers; `OnToolCall` veto. On the web (a page can't listen) the same component offers its tools to the browser's own AI agents instead, through the browser API of the WebMCP draft (`crates/rapidr-runtime-web/src/agent_tools_web.rs`; the core both transports share is `rapidr_value::agent_tools`); `RAgentTools` is the users' face of it (docs/manual/agent-tools.md).
 
 ### 4.3 RAI inside users' programs
 

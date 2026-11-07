@@ -19,9 +19,9 @@ Model Context Protocol® y MCP™ son marcas de LF Projects, LLC
 protocolo habla. Claude Code es un producto de Anthropic, PBC. RapidR es
 independiente de ambos y no está patrocinado ni respaldado por ellos.
 
-Esto es RapidR Studio en el escritorio. Studio en un navegador no puede escuchar
-a las aplicaciones de IA (una página web no puede abrir un puerto); está previsto
-un modo de hacer lo mismo desde el navegador.
+Esto es RapidR Studio en el escritorio. En un navegador, Studio ofrece las mismas
+herramientas, con el mismo menú de permisos, panel y lista de actividad, a los
+agentes de IA del navegador: [En un navegador](#en-un-navegador).
 
 ![El panel “AI Apps”: las llamadas de una aplicación de IA a medida que ocurren; en su encabezado la ficha ámbar suave “No questions asked”, el menú de permisos en “Allow everything” y “Stop”, todos de la misma altura; la barra de estado diciéndolo](../images/ai-apps/pane.png)
 
@@ -310,6 +310,40 @@ escribió una aplicación de IA, ni nada de lo que mostró tu programa) y cómo 
 nunca una clave, el token ni tu código. **Borrar actividad…** en Configuración >
 Aplicaciones de IA quita las líneas de las aplicaciones de IA (después de
 preguntar).
+
+## En un navegador
+
+RapidR Studio en un navegador ofrece sus herramientas a los agentes de IA de
+esa pestaña del navegador — el propio asistente del navegador, una extensión —
+mediante la API del navegador del borrador WebMCP del W3C Web Machine Learning
+Community Group (no es un estándar del W3C;
+[Ofrece las herramientas de tu aplicación a agentes de IA](agent-tools.md)
+tiene la tabla de navegadores y la nota sobre marcas). Todo funciona como en
+el escritorio (el menú de permisos, el panel, la lista de actividad, el
+bloqueo escolar), con estas diferencias:
+
+- **Sin dirección, puerto ni token.** Configuración > Aplicaciones de IA dice,
+  en una fila, que Studio ofrece sus herramientas a los agentes de esta
+  pestaña.
+- **Studio no sabe qué agente llama**: el navegador no lo dice. El panel y la
+  lista de actividad lo llaman *browser agent*.
+- **La primera llamada después de cargar la página te pregunta**: *Un agente
+  de IA de este navegador quiere usar RapidR Studio*, con **Permitir en esta
+  pestaña** y **Denegar**. Hasta que lo permitas, cada llamada se rechaza,
+  diciendo por qué. Al recargar la página pregunta otra vez; también al
+  desactivar y volver a activar las aplicaciones de IA.
+- **Las respuestas largas llegan por partes**: el agente de un navegador
+  acepta respuestas más cortas, así que `read_file` lee un archivo largo por
+  partes (`offset`, `limit`) y dice dónde empieza la siguiente.
+- **Un navegador que no lo ofrece** (la mayoría, hoy): el interruptor está
+  desactivado y en gris, y una línea lo dice. Las aplicaciones de IA pueden
+  seguir usando RapidR Studio en el escritorio.
+
+![Configuración > Aplicaciones de IA en un navegador: el interruptor activado y, en lugar de la dirección y el token, una fila que dice que Studio ofrece sus herramientas a los agentes de IA de esta pestaña y que la primera llamada pregunta](../images/ai-apps/settings-web.png)
+
+![El panel Aplicaciones de IA en un navegador: un agente de IA de este navegador quiere usar RapidR Studio, con Permitir en esta pestaña y Denegar](../images/ai-apps/ask-web.png)
+
+![Configuración > Aplicaciones de IA en un navegador que no lo ofrece: el interruptor desactivado y en gris, una línea que dice por qué](../images/ai-apps/settings-web-unsupported.png)
 
 ## Tus propios programas también pueden hacerlo
 

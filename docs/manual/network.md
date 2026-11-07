@@ -9,8 +9,10 @@ A program talks to the network in two directions:
 - **as a server**, answering others: `RServerSocket` (TCP, by lines, bytes
   or whole HTTP requests), `RHttpServer` (a web server: a local API, a
   dashboard) and `RMcpServer` (your program's own tools for AI apps). All
-  three are RapidR's own, and desktop only: a web page can't listen for
-  connections.
+  three are RapidR's own. A web page can't listen for connections:
+  `RServerSocket` and `RHttpServer` are desktop only; `RMcpServer` offers its
+  tools to the browser's AI agents instead
+  ([Offer your app's tools to AI agents](agent-tools.md)).
 
 ## This computer only, or the whole network
 
@@ -263,9 +265,12 @@ the protocol itself, on the same connections and checks as `RHttpServer`.
 
 ### On the web
 
-A web page can't listen for connections, so `RHttpServer`, `RMcpServer` and
-`RServerSocket` run on the desktop only (interpreted and native). On the
-web `Start` gives False and `Error` says why.
+A web page can't listen for connections, so `RHttpServer` and
+`RServerSocket` run on the desktop only (interpreted and native); on the web
+their `Start` gives False and `Error` says why. `RMcpServer` in a browser
+offers its tools to the browser's own AI agents instead (`Transport` is
+`"browser"`; no address, port or token), where the browser lets a page do
+that (`Available`): [Offer your app's tools to AI agents](agent-tools.md).
 
 ## RMcpServer: your program's tools for AI apps
 

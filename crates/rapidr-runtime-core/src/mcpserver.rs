@@ -107,6 +107,15 @@ impl mcp::Host for Desk {
     fn scrub(self, text: &str) -> String {
         rapidr_ai::keys::redact(text)
     }
+    fn components(self) -> Vec<(String, String)> {
+        crate::object::all_components()
+    }
+    fn program_set(self, name: &str, prop: &str, v: Value) {
+        crate::object::rp_prop_set(name, prop, v);
+    }
+    // (ConfirmChanges: the desktop's AI apps connect with the token the
+    // person gave them; a change asks in OnToolCall — MESSAGEDLG — with
+    // ConfirmChanges = False: from here no window may be opened)
 }
 
 /// An earlier revision's session (initialize's Mcp-Session-Id).
@@ -195,6 +204,11 @@ fn failed(name: &str, why: String) -> Value {
 
 fn start(name: &str) -> Value {
     stop(name);
+    // (RAgentTools: a token of its own when none is set — the program reads
+    // it, never a log)
+    if crate::object::rp_comp_type(name).eq_ignore_ascii_case(rapidr_value::agent_tools::AGENT_TOOLS) && prop_text(name, "token").trim().is_empty() {
+        new_token(name);
+    }
     let mut options = ListenOptions::of(name);
     if options.token.is_empty() {
         return failed(name, "Set a Token before Start (NewToken makes one): an MCP server always needs one, so only the AI apps you give it to can call the program's tools.".into());

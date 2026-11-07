@@ -355,6 +355,15 @@ by `tools/win7/link_audit.sh`, recorded in
 Cephes' `cbrt`/`cbrtf` would come in there (msvcrt has no cube root), so the
 program defines its own (`crates/rapidr-cli/src/cbrt.rs`).
 
+### 3.4 The browser's AI agents (WebMCP)
+
+WebMCP: RapidR calls the browser API described in the Draft Community Group
+Report of the W3C Web Machine Learning Community Group (report licence: W3C
+Software and Document License; contributions: W3C Community Contributor
+License Agreement). No specification text, IDL or code is included
+(`crates/rapidr-runtime-web/src/agent_tools_web.rs` calls the API by its
+names only).
+
 ## 4. What each licence asks of someone who ships a program
 
 | Licence | Binary or web distribution must… | Done by the notices file? |

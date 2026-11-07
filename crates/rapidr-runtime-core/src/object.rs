@@ -1056,7 +1056,7 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     }
     // RMcpServer's Available and Transport: its transport's (mcpserver.rs).
     #[cfg(feature = "network")]
-    if ty == "RMCPSERVER" {
+    if ty == "RMCPSERVER" || ty == rapidr_value::agent_tools::AGENT_TOOLS {
         if let Some(v) = crate::mcpserver::get(prop_lower) {
             return v;
         }
@@ -1747,7 +1747,8 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_null()
             }
         }
-        "RMCPSERVER" => {
+        // (RAgentTools: the same server, its own members on top)
+        "RMCPSERVER" | rapidr_value::agent_tools::AGENT_TOOLS => {
             #[cfg(feature = "network")]
             {
                 crate::mcpserver::method(name, &method_lower, args)

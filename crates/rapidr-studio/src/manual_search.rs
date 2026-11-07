@@ -17,6 +17,7 @@ use std::sync::OnceLock;
 pub const PAGES: &[(&str, &str)] = &[
     ("README.md", include_str!("../../../docs/manual/README.md")),
     ("ai-assistant.md", include_str!("../../../docs/manual/ai-assistant.md")),
+    ("agent-tools.md", include_str!("../../../docs/manual/agent-tools.md")),
     ("ai-apps.md", include_str!("../../../docs/manual/ai-apps.md")),
     ("app-eyes-and-hands.md", include_str!("../../../docs/manual/app-eyes-and-hands.md")),
     ("archives.md", include_str!("../../../docs/manual/archives.md")),
@@ -155,6 +156,7 @@ pub fn sections() -> &'static [Section] {
 /// translation is read in English.
 pub const TRANSLATED: &[(&str, &str, &str)] = &[
     ("es", "README.md", include_str!("../../../docs/manual/es/README.md")),
+    ("es", "agent-tools.md", include_str!("../../../docs/manual/es/agent-tools.md")),
     ("es", "ai-apps.md", include_str!("../../../docs/manual/es/ai-apps.md")),
     ("es", "ai-assistant.md", include_str!("../../../docs/manual/es/ai-assistant.md")),
     ("es", "app-eyes-and-hands.md", include_str!("../../../docs/manual/es/app-eyes-and-hands.md")),

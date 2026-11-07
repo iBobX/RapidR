@@ -202,6 +202,16 @@ is called Versions, and it is built on Git). Their owners' notices:
   protocol it speaks (RapidR Studio's AI apps feature, the `RMcpServer`
   component). Claude Code is a product of Anthropic, PBC; the manual names
   it once, as an example of an AI app that connects.
+- WebMCP is the name of a draft specification of the W3C Web Machine
+  Learning Community Group; RapidR uses the name only to say which draft its
+  browser feature follows (the `RAgentTools` component, RapidR Studio's AI
+  apps in a browser). WebMCP is a different specification from the Model
+  Context Protocol; Model Context Protocol® and MCP™ are marks of LF
+  Projects, LLC (https://www.lfprojects.org/policies/), and RapidR uses them
+  only to say which protocol it speaks. W3C and browser names belong to
+  their owners (https://www.w3.org/policies/). RapidR is independent of all
+  of them and is not made, sponsored or endorsed by any of them. No text,
+  interface description or code of the draft is included in RapidR.
 - RAR is a trademark of its owner; 7-Zip, PKWARE, PKZIP, ZIP64, Deflate64
   and Zstandard are names or marks of their owners. RapidR uses these names
   only to say which file formats it reads and writes (the `RArchive`

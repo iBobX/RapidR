@@ -1,0 +1,70 @@
+' agent_tools.rr: a web app that offers its own tools to the AI agents of
+' the browser (RAgentTools): a list of notes an agent can read and add to.
+' Adding asks the person using the app first (ConfirmChanges), and the
+' agent may also read what the window shows (Expose = "read").
+'
+'   rapidr build agent_tools.rr --web          (a folder to put on a web server)
+'
+' Where the browser doesn't offer tools to AI agents, Available is 0 and the
+' app works as before: the line at the bottom says so. On the desktop the
+' same program serves AI apps on this computer instead (Url and Token).
+$APPTYPE WEB
+
+DECLARE SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
+DECLARE SUB AddClick
+
+DIM Agent AS RAgentTools
+
+CREATE Form1 AS RForm
+    Caption = "Notes"
+    Width = 360: Height = 300
+    CREATE Notes AS RListBox
+        Left = 12: Top = 12: Width = 320: Height = 170
+        AccessibleName = "Notes"
+    END CREATE
+    CREATE NoteEdit AS REdit
+        Left = 12: Top = 194: Width = 230
+        AccessibleName = "New note"
+    END CREATE
+    CREATE AddBtn AS RButton
+        Caption = "&Add"
+        Left = 252: Top = 192: Width = 80
+        OnClick = AddClick
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 12: Top = 232: Width = 320: Height = 40
+        WordWrap = 1: AutoSize = 0
+    END CREATE
+END CREATE
+
+SUB AddClick
+    IF NoteEdit.Text <> "" THEN Notes.AddItems NoteEdit.Text
+    NoteEdit.Text = ""
+END SUB
+
+' (each call of a tool: answered at once with Reply)
+SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
+    DIM i AS INTEGER, said AS STRING
+    SELECT CASE Tool
+    CASE "list_notes"
+        FOR i = 0 TO Notes.ItemCount - 1
+            said = said + Notes.Item(i) + CHR$(10)
+        NEXT
+        IF said = "" THEN said = "(no notes yet)"
+        Agent.Reply CallId, said
+    CASE "add_note"
+        Notes.AddItems Agent.Argument("Text")
+        Agent.Reply CallId, "Added: " + Agent.Argument("Text")
+    END SELECT
+END SUB
+
+Agent.OnToolCall = ToolCalled
+Agent.AddTool "list_notes", "The notes in the list, one a line.", "", "read untrusted"
+Agent.AddTool "add_note", "Adds a note to the list (the person using the app is asked first).", "Text AS STRING", "change"
+Agent.Expose = "read"
+IF Agent.Start THEN
+    Status.Caption = "AI agents in this browser can read and add notes."
+ELSE
+    Status.Caption = "No AI agents here: " + Agent.Error
+END IF
+Form1.ShowModal

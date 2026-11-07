@@ -879,6 +879,10 @@ export const cases = [
   // web/: what only a web page has
   { file: "web/todo.rr", runtimes: ["web"], events: "addbtn.onclick", dump: "info.caption,tasks.itemcount",
     expect: ["info.caption=1 to do, saved", "tasks.itemcount=1"] },
+  // (RAgentTools: a browser without the API — the app goes on and says so;
+  // the calls themselves: tests/web_agent_tools.mjs)
+  { file: "web/agent_tools.rr", runtimes: ["web"], events: "", dump: "status.caption",
+    expect: ["status.caption=No AI agents here: This browser doesn't give web pages a way to offer tools to AI agents."] },
   { file: "web/browser.rr", runtimes: ["web"], events: "aboutbtn.onclick,homebtn.onclick", dump: "title.caption,body.caption",
     expect: ["title.caption=Home", "body.caption=Your browser speaks en-US; the window is 1920 pixels wide; 6 x 7 is 42."] },
   // the IDE (`rapidr ide`; the release builds it from here): it starts

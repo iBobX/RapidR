@@ -4388,11 +4388,19 @@ msgid "Check code, and read what your program prints and RAI's chat. It can also
 msgstr ""
 
 #: ide/mcp.inc
+msgid "Your AI provider keys or passwords: Studio keeps them out of every answer."
+msgstr ""
+
+#: ide/mcp.inc
 msgid "Your AI provider keys or passwords: your keychain keeps them."
 msgstr ""
 
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off to disconnect every AI agent. Studio keeps a list of what they did in this browser only; Clear Activity removes it."
 msgstr ""
 
 #: ide/mcp.inc
@@ -4421,6 +4429,10 @@ msgstr ""
 
 #: ide/mcp.inc
 msgid "AI apps: on, none connected"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Offered to the AI agents of this browser tab"
 msgstr ""
 
 #: ide/mcp.inc
@@ -4586,6 +4598,10 @@ msgid "{client} wants to change {files}: {summary}"
 msgstr ""
 
 #: ide/mcp.inc
+msgid "An AI agent in this browser wants to use RapidR Studio: {what}. Studio can't tell which agent it is. Allow it for this tab only if you started it."
+msgstr ""
+
+#: ide/mcp.inc
 msgid "{client} wants to run your program ({what})."
 msgstr ""
 
@@ -4603,6 +4619,10 @@ msgstr ""
 
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Allow for This Tab"
 msgstr ""
 
 #: ide/mcp.inc
@@ -4631,6 +4651,18 @@ msgstr ""
 
 #: ide/mcp.inc
 msgid "Let AI apps use RapidR Studio?"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "With this on, an AI agent in this browser can work with your open project through Studio, and you see everything it does in the AI Apps pane."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Who can call"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Any AI agent in this browser that can use this page, such as the browser's assistant or an extension. Studio can't tell which. Below you choose what they may do; the first call after the page loads asks you."
 msgstr ""
 
 #: ide/mcp.inc
@@ -4691,6 +4723,42 @@ msgstr ""
 
 #: ide/mcp.inc
 msgid "C&lear"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Off by default. On: the AI agents of this browser tab can work with your open project"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "This browser doesn't give web pages a way to offer tools to AI agents, so AI apps can't use RapidR Studio here. They can in RapidR Studio on the desktop, and in browsers that support it."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Learn more below: the manual says which browsers offer it."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "When on, the AI agents of this browser tab (its assistant, an extension) can work with your open project; you see everything they do in the AI Apps pane (Tools > AI Apps Activity)."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "In this browser, Studio offers its tools to the AI agents of this tab ({n} tools now). Studio can't tell which agent it is: the first call after the page loads asks you."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "In this browser, Studio offers its tools to the AI agents of this tab. Studio can't tell which agent it is: the first call after the page loads asks you."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI agents in this browser can't use RapidR Studio: {error}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI agents in this browser tab can use RapidR Studio now; the first call asks you."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "An AI agent of this browser tab"
 msgstr ""
 
 #: ide/notify.inc

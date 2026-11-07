@@ -1186,6 +1186,11 @@ fn an_outside_ai_apps_calls() {
     let failed = || get(t, "callfailed").unwrap().to_bool();
     assert!(call_tool("read_file", r#"{"path": "main.rr"}"#).contains("Hello") && !failed());
     assert!(call_tool("read_file", r#"{"path": ".secret/key.txt"}"#).contains("hidden") && failed());
+    // (a long file in parts: offset, limit, and where the next part starts)
+    let part = call_tool("read_file", r#"{"path": "main.rr", "offset": 1, "limit": 1}"#);
+    assert!(!failed() && (part.contains("more: call read_file again with offset 2") || part.contains("the end of the file")), "{part}");
+    let beyond = call_tool("read_file", r#"{"path": "main.rr", "offset": 100000}"#);
+    assert!(!failed() && beyond.contains("lines)"), "{beyond}");
     assert!(call_tool("read_file", r#"{"path": "../x.rr"}"#).contains("outside the project") && failed());
     // (a file in the folder, not a listed one: fine in a project's own folder)
     assert!(!call_tool("read_file", r#"{"path": "notes.txt"}"#).is_empty() && !failed());

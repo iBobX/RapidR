@@ -46,7 +46,12 @@
 //                               web at STUDIO_WEB_URL, in Chromium
 //     webFiles: [paths],        (web) the files the page's store has
 //     web: async (page) => {},  (web) what to do on the page before the shot
-//     viewport: { width, height } (web) }]
+//     viewport: { width, height } (web)
+//     testEnv: { … },           (web) what ENVIRON$ reads in the page
+//     launch: { args }          (web) the browser's own flags (a feature
+//                               turned on: the WebMCP draft's API); its
+//                               executable is RAPIDR_WEB_CHROME when set,
+//                               else the tests' Chromium — never the user's }]
 //
 // Studio runs as the tests run it (tests/studio_flows.mjs): `rapidr run
 // ide/studio.rr --fresh --theme rapidr-light --do …` with RAPIDR_SCALE=2 and
@@ -151,6 +156,8 @@ async function web(browser, s, dir, open, steps) {
     const files = (s.webFiles || (open ? [open] : [])).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
     await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, { ...(s.env || {}), RAPIDR_CAPTURE: "web", RAPIDR_CAPTURE_DELAY: String(s.delay || 6), RAPIDR_TEST_DUMP: "" });
+    // (what the page's ENVIRON$ reads: Studio's test steps' own variables)
+    if (s.testEnv) await page.addInitScript((env) => { window.RAPIDR_TEST_ENV = env; }, s.testEnv);
     const q = new URLSearchParams({ theme: s.theme || "rapidr-light", fresh: "" });
     if (!s.maximized) q.set("window", "normal");
     if (steps) q.set("do", steps.replaceAll("{dir}", "/Projects"));
@@ -184,8 +191,19 @@ for (const s of scenes.filter((s) => !filters.length || filters.some((f) => `${s
     let src;
     if (s.host === "web") {
       // (the tests' Playwright: tests/node_modules)
-      if (!browser) browser = await (await import(pathToFileURL(join(ROOT, "tests", "node_modules", "playwright", "index.mjs")).href)).chromium.launch();
-      src = await web(browser, s, dir, open, steps);
+      const chromium = (await import(pathToFileURL(join(ROOT, "tests", "node_modules", "playwright", "index.mjs")).href)).chromium;
+      if (s.launch) {
+        // (a browser of the scene's own, with its flags: a throwaway profile)
+        const own = await chromium.launch({ args: s.launch.args || [], ...(process.env.RAPIDR_WEB_CHROME ? { executablePath: process.env.RAPIDR_WEB_CHROME } : {}) });
+        try {
+          src = await web(own, s, dir, open, steps);
+        } finally {
+          await own.close();
+        }
+      } else {
+        if (!browser) browser = await chromium.launch();
+        src = await web(browser, s, dir, open, steps);
+      }
     } else {
       src = desktop(s, dir, open, steps, extra);
     }

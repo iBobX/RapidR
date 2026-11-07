@@ -7563,3 +7563,71 @@ msgstr "Aplicación MDI"
 #: ide/workspace.inc
 msgid "Child windows, File and Window menus."
 msgstr "Ventanas secundarias, menús Archivo y Ventana."
+
+#: ide/mcp.inc
+msgid "Your AI provider keys or passwords: Studio keeps them out of every answer."
+msgstr "Tus claves de proveedores de IA o contraseñas: Studio las deja fuera de cada respuesta."
+
+#: ide/mcp.inc
+msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off to disconnect every AI agent. Studio keeps a list of what they did in this browser only; Clear Activity removes it."
+msgstr "Comparte solo lo que puedes compartir: las tareas escolares, el código de un empleador o el código con licencia de otra persona pueden no ser tuyos para compartir. Desactiva esto para desconectar a todos los agentes de IA. Studio guarda una lista de lo que hicieron solo en este navegador; Borrar actividad la elimina."
+
+#: ide/mcp.inc
+msgid "Offered to the AI agents of this browser tab"
+msgstr "Ofrecido a los agentes de IA de esta pestaña del navegador"
+
+#: ide/mcp.inc
+msgid "An AI agent in this browser wants to use RapidR Studio: {what}. Studio can't tell which agent it is. Allow it for this tab only if you started it."
+msgstr "Un agente de IA de este navegador quiere usar RapidR Studio: {what}. Studio no puede saber qué agente es. Permítelo en esta pestaña solo si tú lo iniciaste."
+
+#: ide/mcp.inc
+msgid "&Allow for This Tab"
+msgstr "&Permitir en esta pestaña"
+
+#: ide/mcp.inc
+msgid "With this on, an AI agent in this browser can work with your open project through Studio, and you see everything it does in the AI Apps pane."
+msgstr "Con esto activado, un agente de IA de este navegador puede trabajar con tu proyecto abierto a través de Studio, y ves todo lo que hace en el panel Aplicaciones de IA."
+
+#: ide/mcp.inc
+msgid "Who can call"
+msgstr "Quién puede llamar"
+
+#: ide/mcp.inc
+msgid "Any AI agent in this browser that can use this page, such as the browser's assistant or an extension. Studio can't tell which. Below you choose what they may do; the first call after the page loads asks you."
+msgstr "Cualquier agente de IA de este navegador que pueda usar esta página, como el asistente del navegador o una extensión. Studio no puede saber cuál. Abajo eliges qué pueden hacer; la primera llamada después de cargar la página te pregunta."
+
+#: ide/mcp.inc
+msgid "Off by default. On: the AI agents of this browser tab can work with your open project"
+msgstr "Desactivado de forma predeterminada. Activado: los agentes de IA de esta pestaña del navegador pueden trabajar con tu proyecto abierto"
+
+#: ide/mcp.inc
+msgid "This browser doesn't give web pages a way to offer tools to AI agents, so AI apps can't use RapidR Studio here. They can in RapidR Studio on the desktop, and in browsers that support it."
+msgstr "Este navegador no ofrece a las páginas web una forma de ofrecer herramientas a agentes de IA, así que las aplicaciones de IA no pueden usar RapidR Studio aquí. Sí pueden en RapidR Studio en el escritorio y en los navegadores que lo admiten."
+
+#: ide/mcp.inc
+msgid "Learn more below: the manual says which browsers offer it."
+msgstr "Más información abajo: el manual dice qué navegadores lo ofrecen."
+
+#: ide/mcp.inc
+msgid "When on, the AI agents of this browser tab (its assistant, an extension) can work with your open project; you see everything they do in the AI Apps pane (Tools > AI Apps Activity)."
+msgstr "Cuando está activado, los agentes de IA de esta pestaña del navegador (su asistente, una extensión) pueden trabajar con tu proyecto abierto; ves todo lo que hacen en el panel Aplicaciones de IA (Herramientas > Actividad de aplicaciones de IA)."
+
+#: ide/mcp.inc
+msgid "In this browser, Studio offers its tools to the AI agents of this tab ({n} tools now). Studio can't tell which agent it is: the first call after the page loads asks you."
+msgstr "En este navegador, Studio ofrece sus herramientas a los agentes de IA de esta pestaña ({n} herramientas ahora). Studio no puede saber qué agente es: la primera llamada después de cargar la página te pregunta."
+
+#: ide/mcp.inc
+msgid "In this browser, Studio offers its tools to the AI agents of this tab. Studio can't tell which agent it is: the first call after the page loads asks you."
+msgstr "En este navegador, Studio ofrece sus herramientas a los agentes de IA de esta pestaña. Studio no puede saber qué agente es: la primera llamada después de cargar la página te pregunta."
+
+#: ide/mcp.inc
+msgid "AI agents in this browser can't use RapidR Studio: {error}"
+msgstr "Los agentes de IA de este navegador no pueden usar RapidR Studio: {error}"
+
+#: ide/mcp.inc
+msgid "AI agents in this browser tab can use RapidR Studio now; the first call asks you."
+msgstr "Los agentes de IA de esta pestaña del navegador ya pueden usar RapidR Studio; la primera llamada te pregunta."
+
+#: ide/mcp.inc
+msgid "An AI agent of this browser tab"
+msgstr "Un agente de IA de esta pestaña del navegador"

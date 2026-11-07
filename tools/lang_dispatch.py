@@ -196,14 +196,16 @@ SITES = {
     ("crates/rapidr-value/src/objects/tree.rs", "*"): "RTREEVIEW",
     # (RMCPSERVER: its members, desktop and web; the MCP protocol's own
     # method names - initialize, tools/list ... - are not RapidR members)
-    ("crates/rapidr-runtime-core/src/mcpserver.rs", "method"): "RMCPSERVER",
+    ("crates/rapidr-runtime-core/src/mcpserver.rs", "method"): "RMCPSERVER RAGENTTOOLS",
     ("crates/rapidr-runtime-core/src/mcpserver.rs", "modern_request"): "-",
     ("crates/rapidr-runtime-core/src/mcpserver.rs", "legacy"): "-",
-    ("crates/rapidr-runtime-core/src/mcpserver.rs", "get"): "RMCPSERVER",
-    # (the core both transports share, and the browser's transport)
-    ("crates/rapidr-value/src/agent_tools/mod.rs", "method"): "RMCPSERVER",
-    ("crates/rapidr-runtime-web/src/agent_tools_web.rs", "method"): "RMCPSERVER",
-    ("crates/rapidr-runtime-web/src/agent_tools_web.rs", "get"): "RMCPSERVER",
+    ("crates/rapidr-runtime-core/src/mcpserver.rs", "get"): "RMCPSERVER RAGENTTOOLS",
+    # (the core both transports share, and the browser's transport; Expose's
+    # tools are the agents' names, not members)
+    ("crates/rapidr-value/src/agent_tools/mod.rs", "method"): "RMCPSERVER RAGENTTOOLS",
+    ("crates/rapidr-value/src/agent_tools/mod.rs", "exposed_call"): "-",
+    ("crates/rapidr-runtime-web/src/agent_tools_web.rs", "method"): "RMCPSERVER RAGENTTOOLS",
+    ("crates/rapidr-runtime-web/src/agent_tools_web.rs", "get"): "RMCPSERVER RAGENTTOOLS",
     # (the designer reading a program's picture loads - x.Load(, .BMP =,
     # .Icon = - of other components, not RDESIGNSURFACE members)
     ("crates/rapidr-value/src/objects/design.rs", "picture_loads"): "-",

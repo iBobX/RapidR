@@ -35,6 +35,10 @@ use crate::{v_int, v_null, v_str, Value};
 #[cfg(test)]
 mod tests;
 
+/// RAgentTools' type: the one place its name is written (a rename keeps
+/// the old one as the registry's alias; the runtimes read it here).
+pub const AGENT_TOOLS: &str = "RAGENTTOOLS";
+
 /// The name the browser transport gives every caller: the browser says
 /// nothing of who calls (a browser's assistant, an extension, a page's own script).
 pub const BROWSER_AGENT: &str = "browser agent";
@@ -63,6 +67,21 @@ pub trait Host: Copy + 'static {
     /// key-shaped words, rapidr_ai::keys::redact). As it is by default.
     fn scrub(self, text: &str) -> String {
         text.to_string()
+    }
+    /// Every component of the program: (name, type), in creation order
+    /// (Expose's tools); none by default.
+    fn components(self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    /// A property set as the program sets it (what follows runs: an edit's
+    /// OnChange …): Expose's app_set.
+    fn program_set(self, name: &str, prop: &str, v: Value) {
+        self.set(name, prop, v);
+    }
+    /// Asks the person using the program `text` (Allow / Don't): `None`
+    /// where this host can't ask (ConfirmChanges then refuses the call).
+    fn confirm(self, _text: &str) -> Option<bool> {
+        None
     }
 }
 
@@ -147,6 +166,9 @@ struct Defs {
     /// Bumped by every change (a transport that registers the tools
     /// elsewhere syncs when it moved).
     revision: u64,
+    /// Expose's tools (app_components, app_get, app_set): the core answers
+    /// them, never OnToolCall.
+    builtin: Vec<String>,
 }
 
 /// What the server says it is (ServerName, ServerTitle, ServerVersion,
@@ -416,6 +438,7 @@ pub fn open<H: Host>(host: H, name: &str, info: Info, idle: f64) {
     });
     publish_clients(host, name);
     host.set(name, "pendingcount", v_int(0));
+    expose(host, name);
 }
 
 /// The server is down: each call still waiting is told
@@ -851,6 +874,34 @@ fn next_call<H: Host>(host: H, name: &str) {
     host.set(name, "tool", v_str(if kind == Kind::Tool { &target } else { "" }));
     host.set(name, "clientname", v_str(&client));
     host.set(name, "arguments", v_str(&args));
+    // (ConfirmChanges: a tool that may change something asks the person
+    // first — the app's own question, never the agent's)
+    let def = if kind == Kind::Tool { tool(name, &target) } else { None };
+    if let Some(d) = def.as_ref().filter(|d| !d.read_only() && host.get(name, "confirmchanges").to_bool()) {
+        let ask = crate::i18n::tr_ui("An AI agent wants to use \"{tool}\" in this app: {what}\n\nAllow it?").replace("{tool}", &d.name).replace("{what}", d.description.trim_end_matches('.'));
+        let refused = match host.confirm(&ask) {
+            Some(true) => None,
+            Some(false) => Some("The person using the app didn't allow it. Ask them what they want instead."),
+            None => Some("This app asks its user before an AI agent changes something, and it can't ask here."),
+        };
+        if let Some(why) = refused {
+            reply_text(host, name, id, why, true);
+            busy.set(false);
+            if more {
+                host.wake();
+            }
+            return;
+        }
+    }
+    if kind == Kind::Tool && with_defs(name, |d| d.builtin.contains(&target)) {
+        let (text, failed) = exposed_call(host, &target, &args);
+        reply_text(host, name, id, &text, failed);
+        busy.set(false);
+        if more {
+            host.wake();
+        }
+        return;
+    }
     let (event, fire_args) = match kind {
         Kind::Tool => ("ontoolcall", vec![v_str(&target), v_str(&args), v_int(id)]),
         Kind::Resource => ("onreadresource", vec![v_str(&target), v_int(id)]),
@@ -1010,6 +1061,98 @@ pub fn argument(name: &str, key: &str, id: i64) -> String {
     })
     .flatten()
     .unwrap_or_default()
+}
+
+// -------------------------------------------------------------- Expose --
+
+/// Expose: what of the app's own components the agents may use — ""
+/// nothing (the default), "read" (app_components, app_get: what each one
+/// shows and its properties), "write" (app_set too: a property set, asked
+/// first under ConfirmChanges). Only the windows' components (the visual
+/// ones), never a property that holds a credential. Read at Start.
+pub fn expose<H: Host>(host: H, name: &str) {
+    let level = host.get(name, "expose").to_string_val().trim().to_ascii_lowercase();
+    let level = match level.as_str() {
+        "1" | "-1" | "true" | "read" => "read",
+        "write" | "all" => "write",
+        _ => "",
+    };
+    let had: Vec<String> = with_defs(name, |d| std::mem::take(&mut d.builtin));
+    if !had.is_empty() {
+        with_defs(name, |d| {
+            d.tools.retain(|t| !had.contains(&t.name));
+            changed(d);
+        });
+    }
+    if level.is_empty() {
+        return;
+    }
+    let comp = |n: &str| json!({"type": "string", "description": format!("the component's name, as app_components lists it{n}")});
+    let mut defs = vec![
+        ("app_components", "The app's windows and what is on them: each component's name, type, what it shows (its caption or text) and whether it shows and is enabled. Call it first. Example: {}.", json!({"type": "object", "properties": {}, "additionalProperties": false}), "read untrusted"),
+        ("app_get", "One property of one of the app's components (Text, Caption, Checked, ItemIndex …). Example: {\"name\": \"Edit1\", \"property\": \"Text\"}.", json!({"type": "object", "properties": {"name": comp(""), "property": {"type": "string", "description": "the property, e.g. Text"}}, "required": ["name", "property"], "additionalProperties": false}), "read untrusted"),
+    ];
+    if level == "write" {
+        defs.push(("app_set", "Sets one property of one of the app's components, as the program would (the person using the app is asked first). Example: {\"name\": \"Edit1\", \"property\": \"Text\", \"value\": \"Hello\"}.", json!({"type": "object", "properties": {"name": comp(""), "property": {"type": "string"}, "value": {"type": "string", "description": "the new value, as text"}}, "required": ["name", "property", "value"], "additionalProperties": false}), "change"));
+    }
+    for (tool, description, schema, how) in defs {
+        let (annotations, untrusted, consequential) = tool_hints(how).unwrap_or((None, false, None));
+        let def = ToolDef { name: tool.into(), title: String::new(), description: description.into(), schema, annotations, untrusted, consequential };
+        with_defs(name, |d| {
+            d.tools.retain(|t| t.name != tool);
+            d.tools.push(def);
+            d.builtin.push(tool.to_string());
+            changed(d);
+        });
+    }
+}
+
+/// An Expose tool's call, answered by the core: (text, failed).
+fn exposed_call<H: Host>(host: H, tool: &str, args: &str) -> (String, bool) {
+    let args: Json = serde_json::from_str(args).unwrap_or(json!({}));
+    let arg = |k: &str| args.get(k).map(|v| v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())).unwrap_or_default();
+    // (the windows' components only: forms and what is on them)
+    let shown: Vec<(String, &'static rapidr_lang::Component)> = host.components().into_iter().filter_map(|(n, t)| rapidr_lang::component(&t).filter(|c| c.visual).map(|c| (n, c))).collect();
+    let find = |want: &str| shown.iter().find(|(n, _)| n.eq_ignore_ascii_case(want));
+    let prop_of = |c: &'static rapidr_lang::Component, p: &str| c.properties.iter().find(|x| x.name.eq_ignore_ascii_case(p));
+    match tool {
+        "app_components" => {
+            if shown.is_empty() {
+                return ("The app has no windows yet.".into(), false);
+            }
+            let lines: Vec<String> = shown
+                .iter()
+                .map(|(n, c)| {
+                    let says = ["caption", "text"].iter().find(|p| prop_of(c, p).is_some()).map(|p| host.get(n, p).to_string_val()).unwrap_or_default();
+                    let says: String = says.chars().take(80).collect();
+                    let state = format!("{}{}", if host.get(n, "visible").to_bool() { "shows" } else { "hidden" }, if prop_of(c, "enabled").is_some() && !matches!(host.get(n, "enabled"), Value::Null) && !host.get(n, "enabled").to_bool() { ", disabled" } else { "" });
+                    format!("{n} ({}){} — {state}", c.display, if says.is_empty() { String::new() } else { format!(": \"{says}\"") })
+                })
+                .collect();
+            (lines.join("\n"), false)
+        }
+        "app_get" | "app_set" => {
+            let (who, what) = (arg("name"), arg("property"));
+            let Some((n, c)) = find(&who) else {
+                return (format!("No component named {who}: app_components lists them."), true);
+            };
+            let Some(p) = prop_of(c, &what) else {
+                return (format!("{} has no property {what}.", c.display), true);
+            };
+            if p.secret {
+                return (format!("{}.{} holds a credential: it is never given to an AI agent.", c.display, p.name), true);
+            }
+            if tool == "app_get" {
+                return (host.get(n, p.name).to_string_val(), false);
+            }
+            if p.access == rapidr_lang::Access::Read {
+                return (format!("{}.{} can be read, not set.", c.display, p.name), true);
+            }
+            host.program_set(n, &p.name.to_ascii_lowercase(), v_str(&arg("value")));
+            (format!("{n}.{} is now {}", p.name, host.get(n, p.name).to_string_val()), false)
+        }
+        _ => (format!("Unknown tool: {tool}."), true),
+    }
 }
 
 // ------------------------------------------------------------- clients --

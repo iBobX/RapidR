@@ -190,6 +190,13 @@ DIM McpCarrySaid AS STRING
 DIM McpGrants AS STRING
 DIM McpToken AS STRING
 DIM McpCalls AS INTEGER
+' (in a browser — Mcp.Transport "browser" —: no address, port or token;
+' McpNoBrowser: this browser doesn't let a page offer tools to AI agents;
+' McpTabOk: an agent of this tab was let in — asked once each page load,
+' since the browser says nothing of who calls)
+DIM McpWeb AS INTEGER
+DIM McpNoBrowser AS INTEGER
+DIM McpTabOk AS INTEGER
 DIM McpTestToken AS STRING
 ' (the calls waiting for the user, oldest first)
 DIM McpWaitCall(MCPWAITS) AS INTEGER
@@ -343,6 +350,10 @@ CREATE McpPage AS RPanel
   CREATE McpOnNote AS RLabel
     WordWrap = 1: AutoSize = 0
     Caption = TR$("When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings.")
+  END CREATE
+  CREATE McpWebNote AS RLabel
+    WordWrap = 1: AutoSize = 0
+    Visible = 0
   END CREATE
   CREATE McpPortLabel AS RLabel
     Caption = TR$("P&ort:")
@@ -777,17 +788,21 @@ SUB SetUpMcp
   McpTimer.Interval = 250
   McpTimer.Enabled = 0
   McpTimer.OnTimer = McpTickTimer
-  ' (the desktop's only: a web page can't listen for AI apps — WebMCP,
-  ' later, is the browser's way)
-  IF Proj.FileManager = "" THEN
-    McpOn = 0
-    EXIT SUB
+  ' (in a browser the same server offers Studio's tools to the browser's AI
+  ' agents — its transport, crates/rapidr-runtime-web/src/agent_tools_web.rs;
+  ' where the browser doesn't let a page do that, the switch stays off and
+  ' greyed, one line says why, and there is no pane)
+  McpWeb = Flag(Mcp.Transport = "browser")
+  McpNoBrowser = Flag(McpWeb <> 0 AND Mcp.Available = 0)
+  IF McpNoBrowser THEN McpOn = 0
+  IF McpNoBrowser = 0 THEN
+    Dock.AddPane(McpPanel, TR$("AI Apps"), "tab:outputbox", "plug")
+    McpPanel.OnResize = McpLayOutPane
+    Dock.HidePane("mcppanel")
+    ' (Output stays the group's front tab, as SetUpDock left it)
+    Dock.ShowPane("outputbox")
   END IF
-  Dock.AddPane(McpPanel, TR$("AI Apps"), "tab:outputbox", "plug")
-  McpPanel.OnResize = McpLayOutPane
-  Dock.HidePane("mcppanel")
-  ' (Output stays the group's front tab, as SetUpDock left it)
-  Dock.ShowPane("outputbox")
+  McpWebSetUp
   McpPage.Parent = SettingsScroll
   SettingsTabs.AddTabs TR$("AI Apps")
   McpFillModes McpPageModeBox
@@ -860,12 +875,17 @@ FUNCTION McpRowBody(K AS INTEGER) AS STRING
   SELECT CASE K
     CASE 0: Result = TR$("The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them.")
     CASE 1: Result = TR$("Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first.")
-    CASE 2: Result = TR$("Your AI provider keys or passwords: your keychain keeps them.")
+    CASE 2
+      IF McpWeb THEN Result = TR$("Your AI provider keys or passwords: Studio keeps them out of every answer.") ELSE Result = TR$("Your AI provider keys or passwords: your keychain keeps them.")
     CASE ELSE: Result = TR$("RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust.")
   END SELECT
 END FUNCTION
 
 FUNCTION McpFootText AS STRING
+  IF McpWeb THEN
+    Result = TR$("Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off to disconnect every AI agent. Studio keeps a list of what they did in this browser only; Clear Activity removes it.")
+    EXIT FUNCTION
+  END IF
   Result = TR$("Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it.")
 END FUNCTION
 
@@ -884,6 +904,10 @@ SUB McpStart
   IF LockOffApps THEN
     OutputLine TR$("AI apps can't start: School Lock is on (Tools > School Lock...).")
     McpShowState
+    EXIT SUB
+  END IF
+  IF McpWeb THEN
+    McpWebStart
     EXIT SUB
   END IF
   McpToken = McpTokenNow
@@ -920,6 +944,8 @@ SUB McpStopServer
   END IF
   McpTimer.Enabled = 0
   McpGrants = ""
+  ' (the next agent of this tab asks again)
+  McpTabOk = 0
   McpShowState
 END SUB
 
@@ -1091,6 +1117,14 @@ SUB McpLayOutPane
   McpOnceBtn.Left = 16: McpOnceBtn.Top = y: McpOnceBtn.Width = 100: McpOnceBtn.Height = ch
   McpSessionBtn.Left = 124: McpSessionBtn.Top = y: McpSessionBtn.Width = 172: McpSessionBtn.Height = ch
   McpDenyBtn.Left = 304: McpDenyBtn.Top = y: McpDenyBtn.Width = 72: McpDenyBtn.Height = ch
+  ' (letting a browser's agent in: Allow for This Tab in the session
+  ' button's room, which it takes the place of; Deny beside it)
+  IF McpWaitCount > 0 THEN
+    IF McpWaitKind(0) = "connect" THEN
+      McpOnceBtn.Width = 172
+      McpDenyBtn.Left = 196
+    END IF
+  END IF
   McpReviewBtn.Left = 384: McpReviewBtn.Top = y: McpReviewBtn.Width = 88: McpReviewBtn.Height = ch
   ah = y + ch + 12
   IF McpAsk.Height <> ah THEN McpAsk.Height = ah
@@ -1119,7 +1153,7 @@ SUB McpShowState
     NEXT
     IF n = 0 THEN
       head = TR$("AI apps: on, none connected")
-      McpSub.Caption = TR$("Waiting at {url} (this computer only)", "url", McpUrl)
+      IF McpWeb THEN McpSub.Caption = TR$("Offered to the AI agents of this browser tab") ELSE McpSub.Caption = TR$("Waiting at {url} (this computer only)", "url", McpUrl)
     ELSE
       head = TR$("AI apps: {names}", "names", names)
       IF McpLastWhat <> "" THEN McpSub.Caption = McpLastWhat ELSE McpSub.Caption = TRN$("{n} call", "{n} calls", McpCalls)
@@ -1273,6 +1307,12 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
   ' (its permission class — read, change, run, drive, rai, note — from the
   ' one tool set; the decision from the one policy)
   kind = McpTools.ToolGrant(Tool)
+  ' (in a browser: an agent of this tab is let in once a page load, before
+  ' any call — the desktop's token is what says the user set an AI app up)
+  IF McpWeb AND McpTabOk = 0 THEN
+    McpWait Tool, Arguments, CallId, client, "connect", McpTools.ToolActivity(Tool, Arguments)
+    EXIT SUB
+  END IF
   ' (the open project's mode)
   McpModeFollow
   perm = McpDecision(Tool, kind)
@@ -1292,16 +1332,16 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
   END IF
   IF Tool = "open_project" THEN
     ' (a path that can't be opened is said at once: the user isn't asked)
-    what = McpOpenCheck(Mcp.Argument("Path"))
+    what = McpOpenCheck(Mcp.Argument("Path", CallId))
     IF what <> "" THEN
       Mcp.Reply CallId, what, 1
       McpLogLine client, Tool, TR$("Opening a project"), "", "refused"
       EXIT SUB
     END IF
-    what = TR$("Opening {path}", "path", McpShownPath(McpFullPath(Mcp.Argument("Path"))))
+    what = TR$("Opening {path}", "path", McpShownPath(McpFullPath(Mcp.Argument("Path", CallId))))
     ' (outside the Projects folder, the examples and the recent list: asked
     ' in every mode)
-    IF McpOpenAllowed(Mcp.Argument("Path")) = 0 THEN perm = "ask"
+    IF McpOpenAllowed(Mcp.Argument("Path", CallId)) = 0 THEN perm = "ask"
   END IF
   IF perm = "allow" THEN
     McpRun Tool, Arguments, CallId, client, what
@@ -1376,6 +1416,7 @@ SUB McpShowAsk
         NEXT
         t = TR$("{client} wants to change {files}: {summary}", "client", McpWaitClient(0), "files", files, "summary", FIELD$(McpTools.ProposalInfo(0), CHR$(9), 3))
       END IF
+    CASE "connect": t = TR$("An AI agent in this browser wants to use RapidR Studio: {what}. Studio can't tell which agent it is. Allow it for this tab only if you started it.", "what", McpWaitWhat(0))
     CASE "run": t = TR$("{client} wants to run your program ({what}).", "client", McpWaitClient(0), "what", McpWaitWhat(0))
     ' (mcpapp.inc: what Allow Once covers, and what it may see)
     CASE "drive": t = TR$("{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data.", "client", McpWaitClient(0), "what", McpWaitWhat(0))
@@ -1388,6 +1429,9 @@ SUB McpShowAsk
   IF McpWaitCount > 1 THEN t = TR$("{question} ({n} more waiting)", "question", t, "n", McpWaitCount - 1)
   McpAskText.Caption = t
   McpReviewBtn.Visible = Flag(McpWaitKind(0) = "change" AND McpWaitTool(0) <> "open_project")
+  ' (letting a browser's agent in: one Allow, for this tab)
+  McpSessionBtn.Visible = Flag(McpWaitKind(0) <> "connect")
+  IF McpWaitKind(0) = "connect" THEN McpOnceBtn.Caption = TR$("&Allow for This Tab") ELSE McpOnceBtn.Caption = TR$("Allow &Once")
   ' (under the pane's first line: placed there before it shows)
   McpAsk.Top = McpTop.Top + McpTop.Height
   McpAsk.Visible = 1
@@ -1423,6 +1467,11 @@ SUB McpDecide(Choice AS INTEGER)
     McpWaitWhat(k) = McpWaitWhat(k + 1)
   NEXT
   McpWaitCount = McpWaitCount - 1
+  IF kind = "connect" THEN
+    McpConnectDecided Choice, tool, args, callId, client, what
+    McpShowAsk
+    EXIT SUB
+  END IF
   IF Choice = 2 AND INSTR(McpGrants, "|" + kind + "|") = 0 THEN McpGrants = McpGrants + "|" + kind + "|"
   ' (mcpapp.inc: the running program allowed — until this run ends)
   IF Choice > 0 AND kind = "drive" THEN McpAppRunAllowed = RunStarted
@@ -1943,20 +1992,28 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
   McpOnNote.Left = lx: McpOnNote.Top = y: McpOnNote.Width = W: McpOnNote.Height = nh
   McpOnNote.Font.Color = TC("page.dim")
   y = y + nh + 10
-  McpPortLabel.Left = lx: McpPortLabel.Top = y + 5: McpPortLabel.Width = 108
-  McpPortEdit.Left = fx: McpPortEdit.Top = y: McpPortEdit.Width = 80: McpPortEdit.Height = Fh
-  y = y + Row
-  McpAddrLabel.Left = lx: McpAddrLabel.Top = y + 5: McpAddrLabel.Width = 108
-  McpAddrEdit.Left = fx: McpAddrEdit.Top = y: McpAddrEdit.Width = fw - 148: McpAddrEdit.Height = Fh
-  McpCopyAddrBtn.Left = fx + fw - 140: McpCopyAddrBtn.Top = y - (Bh - Fh) \ 2: McpCopyAddrBtn.Width = 140: McpCopyAddrBtn.Height = Bh
-  y = y + Row
-  McpHeaderLabel.Left = lx: McpHeaderLabel.Top = y + 5: McpHeaderLabel.Width = 108
-  McpHeaderEdit.Left = fx: McpHeaderEdit.Top = y: McpHeaderEdit.Width = fw - 148: McpHeaderEdit.Height = Fh
-  McpCopyHeaderBtn.Left = fx + fw - 140: McpCopyHeaderBtn.Top = y - (Bh - Fh) \ 2: McpCopyHeaderBtn.Width = 140: McpCopyHeaderBtn.Height = Bh
-  y = y + Row
-  McpShowTokenBtn.Left = fx: McpShowTokenBtn.Top = y: McpShowTokenBtn.Width = 80: McpShowTokenBtn.Height = Bh
-  McpResetBtn.Left = fx + 88: McpResetBtn.Top = y: McpResetBtn.Width = 132: McpResetBtn.Height = Bh
-  y = y + Bh + 16
+  ' (in a browser: one row, how it is here, in place of the address and the token)
+  IF McpWeb THEN
+    nh = AISetLinesHigh(McpWebNote.Caption, W)
+    McpWebNote.Left = lx: McpWebNote.Top = y: McpWebNote.Width = W: McpWebNote.Height = nh
+    McpWebNote.Font.Color = TC("page.text")
+    y = y + nh + 16
+  ELSE
+    McpPortLabel.Left = lx: McpPortLabel.Top = y + 5: McpPortLabel.Width = 108
+    McpPortEdit.Left = fx: McpPortEdit.Top = y: McpPortEdit.Width = 80: McpPortEdit.Height = Fh
+    y = y + Row
+    McpAddrLabel.Left = lx: McpAddrLabel.Top = y + 5: McpAddrLabel.Width = 108
+    McpAddrEdit.Left = fx: McpAddrEdit.Top = y: McpAddrEdit.Width = fw - 148: McpAddrEdit.Height = Fh
+    McpCopyAddrBtn.Left = fx + fw - 140: McpCopyAddrBtn.Top = y - (Bh - Fh) \ 2: McpCopyAddrBtn.Width = 140: McpCopyAddrBtn.Height = Bh
+    y = y + Row
+    McpHeaderLabel.Left = lx: McpHeaderLabel.Top = y + 5: McpHeaderLabel.Width = 108
+    McpHeaderEdit.Left = fx: McpHeaderEdit.Top = y: McpHeaderEdit.Width = fw - 148: McpHeaderEdit.Height = Fh
+    McpCopyHeaderBtn.Left = fx + fw - 140: McpCopyHeaderBtn.Top = y - (Bh - Fh) \ 2: McpCopyHeaderBtn.Width = 140: McpCopyHeaderBtn.Height = Bh
+    y = y + Row
+    McpShowTokenBtn.Left = fx: McpShowTokenBtn.Top = y: McpShowTokenBtn.Width = 80: McpShowTokenBtn.Height = Bh
+    McpResetBtn.Left = fx + 88: McpResetBtn.Top = y: McpResetBtn.Width = 132: McpResetBtn.Height = Bh
+    y = y + Bh + 16
+  END IF
   ' (the permission mode: a label, its menu beside it, what it means under)
   ' (160 wide, wider when its words in Studio's language are: bold, a tenth more)
   pw = AISetMeasure.TextWidth(REPLACESUBSTR$(McpPermHead.Caption, "&", "")) * 11 \ 10 + 8
@@ -2007,6 +2064,10 @@ END FUNCTION
 
 ' (how tall the page needs to be, for the dialog: settings.inc)
 FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
+  IF McpWeb THEN
+    Result = 26 + McpOnNoteHigh(W) + 10 + AISetLinesHigh(McpWebNote.Caption, W) + 16 + Row + McpModeNoteHigh(W) + 10 + McpRowsHigh(W) + Bh + 20
+    EXIT FUNCTION
+  END IF
   Result = 26 + McpOnNoteHigh(W) + 10 + 3 * Row + Bh + 16 + Row + McpModeNoteHigh(W) + 10 + McpRowsHigh(W) + Bh + 20
 END FUNCTION
 
@@ -2062,7 +2123,8 @@ SUB McpSettingsFill
   McpAddrEdit.Text = McpUrl
   McpHeaderEdit.PasswordChar = "*"
   McpShowTokenBtn.Caption = TR$("Sho&w")
-  IF McpToken = "" AND (McpOn OR McpTestToken <> "") THEN McpToken = McpTokenNow
+  McpWebWords
+  IF McpToken = "" AND McpWeb = 0 AND (McpOn OR McpTestToken <> "") THEN McpToken = McpTokenNow
   IF McpToken <> "" THEN McpHeaderEdit.Text = "Authorization: Bearer " + McpToken ELSE McpHeaderEdit.Text = TR$("(turn AI apps on: a token is made)")
   ' (the open project's mode)
   McpModeFollow
@@ -2098,7 +2160,12 @@ END SUB
 ' rows; Turn On or Cancel — Cancel the default, Escape too. 1: Turn On.
 FUNCTION McpConsent AS INTEGER
   DIM k AS INTEGER
-  ConsentBegin TR$("Let AI apps use RapidR Studio?"), TR$("With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane.")
+  IF McpWeb THEN
+    ConsentBegin TR$("Let AI apps use RapidR Studio?"), TR$("With this on, an AI agent in this browser can work with your open project through Studio, and you see everything it does in the AI Apps pane.")
+    ConsentRow "plug", TR$("Who can call"), TR$("Any AI agent in this browser that can use this page, such as the browser's assistant or an extension. Studio can't tell which. Below you choose what they may do; the first call after the page loads asks you.")
+  ELSE
+    ConsentBegin TR$("Let AI apps use RapidR Studio?"), TR$("With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane.")
+  END IF
   FOR k = 0 TO 3
     ConsentRow McpRowIcon(k), McpRowHead(k), McpRowBody(k)
   NEXT
@@ -2228,9 +2295,7 @@ END SUB
 ' Studio itself. Settings is laid out again after this.
 SUB McpLanguageChanged
   DIM k AS INTEGER, was AS INTEGER
-  ' (the desktop's only: the web has no AI Apps pane)
-  IF Proj.FileManager = "" THEN EXIT SUB
-  Dock.PaneTitle("mcppanel", TR$("AI Apps"))
+  IF McpNoBrowser = 0 THEN Dock.PaneTitle("mcppanel", TR$("AI Apps"))
   SettingsTabs.Tab(2) = TR$("AI Apps")
   ' (the pane's menu: McpModeFilling keeps the refill from being a choice)
   McpModeFilling = 1
@@ -2253,9 +2318,103 @@ SUB McpLanguageChanged
   IF ProjectOpen THEN McpPermHead.Caption = TR$("In {project}, AI apps may &do:", "project", ProjectName) ELSE McpPermHead.Caption = TR$("What AI apps may &do:")
   IF McpPageModeBox.ItemIndex >= 0 THEN McpModeNoteLabel.Caption = McpModeNote(McpModeAt(McpPageModeBox.ItemIndex))
   IF McpToken = "" THEN McpHeaderEdit.Text = TR$("(turn AI apps on: a token is made)")
+  McpWebWords
   IF McpWaitCount > 0 THEN McpShowAsk
   McpShowState
   McpLayOutPane
+END SUB
+
+' ---- in a browser --------------------------------------------------------------
+
+' (SetUpMcp) The page's controls a browser has no use for — the address,
+' the port, the token — hidden; its own row and words instead.
+SUB McpWebSetUp
+  IF McpWeb = 0 THEN EXIT SUB
+  McpPortLabel.Visible = 0: McpPortEdit.Visible = 0
+  McpAddrLabel.Visible = 0: McpAddrEdit.Visible = 0: McpCopyAddrBtn.Visible = 0
+  McpHeaderLabel.Visible = 0: McpHeaderEdit.Visible = 0: McpCopyHeaderBtn.Visible = 0
+  McpShowTokenBtn.Visible = 0: McpResetBtn.Visible = 0
+  McpWebNote.Visible = 1
+  McpWebWords
+END SUB
+
+' (the words that say how it is in this browser: the switch's, its note's,
+' the row's — again when the language changes)
+SUB McpWebWords
+  IF McpWeb = 0 THEN EXIT SUB
+  McpOnBox.AccessibleDescription = TR$("Off by default. On: the AI agents of this browser tab can work with your open project")
+  IF McpNoBrowser THEN
+    McpOnBox.Checked = 0
+    McpOnBox.Enabled = 0
+    McpOnNote.Caption = TR$("This browser doesn't give web pages a way to offer tools to AI agents, so AI apps can't use RapidR Studio here. They can in RapidR Studio on the desktop, and in browsers that support it.")
+    McpWebNote.Caption = TR$("Learn more below: the manual says which browsers offer it.")
+  ELSE
+    McpOnNote.Caption = TR$("When on, the AI agents of this browser tab (its assistant, an extension) can work with your open project; you see everything they do in the AI Apps pane (Tools > AI Apps Activity).")
+    IF Mcp.Listening THEN
+      McpWebNote.Caption = TR$("In this browser, Studio offers its tools to the AI agents of this tab ({n} tools now). Studio can't tell which agent it is: the first call after the page loads asks you.", "n", Mcp.ToolCount)
+    ELSE
+      McpWebNote.Caption = TR$("In this browser, Studio offers its tools to the AI agents of this tab. Studio can't tell which agent it is: the first call after the page loads asks you.")
+    END IF
+  END IF
+END SUB
+
+' (McpStart, in a browser) The tools offered to the browser's agents: no
+' token, no port. Answers as long as Studio's own tools give (the browser's
+' advice, 1,500 characters, would cut a file in two: read_file reads a long
+' one in parts).
+SUB McpWebStart
+  IF McpNoBrowser THEN EXIT SUB
+  McpGrants = ""
+  Mcp.MaxResultSize = 20000
+  McpSyncTools
+  IF Mcp.Start = 0 THEN
+    OutputLine TR$("AI agents in this browser can't use RapidR Studio: {error}", "error", Mcp.Error)
+  ELSE
+    OutputLine TR$("AI agents in this browser tab can use RapidR Studio now; the first call asks you.")
+    McpTimer.Enabled = 1
+  END IF
+  McpWebWords
+  McpShowState
+END SUB
+
+' (McpDecide) The answer to "an agent of this browser wants to use Studio":
+' every call that asked the same goes the same way — let in, each is decided
+' as any call is (the permission mode); not, each is refused.
+SUB McpConnectDecided(Choice AS INTEGER, Tool AS STRING, Args AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
+  DIM n AS INTEGER, k AS INTEGER, j AS INTEGER
+  DIM cTool(MCPWAITS) AS STRING, cArgs(MCPWAITS) AS STRING, cCall(MCPWAITS) AS INTEGER, cClient(MCPWAITS) AS STRING, cWhat(MCPWAITS) AS STRING
+  cTool(0) = Tool: cArgs(0) = Args: cCall(0) = CallId: cClient(0) = Client: cWhat(0) = What
+  n = 1
+  k = 0
+  WHILE k < McpWaitCount
+    IF McpWaitKind(k) = "connect" THEN
+      cTool(n) = McpWaitTool(k): cArgs(n) = McpWaitArgs(k): cCall(n) = McpWaitCall(k): cClient(n) = McpWaitClient(k): cWhat(n) = McpWaitWhat(k)
+      n = n + 1
+      FOR j = k TO McpWaitCount - 2
+        McpWaitCall(j) = McpWaitCall(j + 1)
+        McpWaitTool(j) = McpWaitTool(j + 1)
+        McpWaitArgs(j) = McpWaitArgs(j + 1)
+        McpWaitKind(j) = McpWaitKind(j + 1)
+        McpWaitClient(j) = McpWaitClient(j + 1)
+        McpWaitWhat(j) = McpWaitWhat(j + 1)
+      NEXT
+      McpWaitCount = McpWaitCount - 1
+    ELSE
+      k = k + 1
+    END IF
+  WEND
+  IF Choice > 0 THEN
+    McpTabOk = 1
+    McpLogLine Client, "", TR$("An AI agent of this browser tab"), "", "allowed by you"
+    FOR k = 0 TO n - 1
+      McpToolCalled cTool(k), cArgs(k), cCall(k)
+    NEXT
+  ELSE
+    FOR k = 0 TO n - 1
+      Mcp.Reply cCall(k), "The person using RapidR Studio didn't let AI agents in this browser use it. Ask them to allow it in the AI Apps pane.", 1
+      McpLogLine cClient(k), cTool(k), cWhat(k), "", "denied by you"
+    NEXT
+  END IF
 END SUB
 
 ' ---- commands and test steps ------------------------------------------------------------
@@ -2265,6 +2424,10 @@ FUNCTION McpCommand(Id AS STRING) AS INTEGER
   SELECT CASE Id
     CASE "mcp.settings": ShowSettingsPage 2
     CASE "view.aiApps"
+      IF McpNoBrowser THEN
+        ShowSettingsPage 2
+        EXIT FUNCTION
+      END IF
       McpPaneShow
       Dock.FocusPane("mcppanel")
       McpShowState

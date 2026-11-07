@@ -69,6 +69,17 @@ impl tools::Host for Page {
     fn scrub(self, text: &str) -> String {
         rapidr_ai::keys::redact(text)
     }
+    fn components(self) -> Vec<(String, String)> {
+        crate::object_web::all_components()
+    }
+    fn program_set(self, name: &str, prop: &str, v: Value) {
+        crate::object_web::rp_prop_set(name, prop, v);
+    }
+    // (ConfirmChanges: the browser's own question — it blocks, which is
+    // what asking first means; a screen reader reads it)
+    fn confirm(self, text: &str) -> Option<bool> {
+        web_sys::window().and_then(|w| w.confirm_with_message(text).ok())
+    }
 }
 
 /// One tool the browser has: what it was registered as, the controller

@@ -4296,14 +4296,14 @@ A local web server for the program: a web API, a dashboard, an MCP server. It li
 <a id="rmcpserver"></a>
 ## RMcpServer
 
-Serves the program's own tools to AI apps that support MCP, the protocol AI apps use for tools: an AI app on this computer that has the address and the token can call them, and the program sees each call in OnToolCall, on its own thread, one at a time, and answers it then or later with Reply (text), ReplyImage (a picture) or ReplyJson. Add each tool with AddTool: its name, what it does in a sentence the AI reads, the JSON Schema of its arguments and how it acts ("read", "change" …). The component speaks the protocol itself — the current revision (2026-07-28, no session) and the earlier initialize-based ones — and checks each call's arguments against the tool's schema before the program sees them: a wrong call is answered at once with a sentence saying what the tool needs. It listens on 127.0.0.1 (this computer only) and refuses to start without a Token (NewToken makes one): every request must carry it as `Authorization: Bearer <token>`. It also refuses a request for another host name and any request from a web page. Clients shows who is connected; Disconnect keeps an AI app out until the next Start. What the program exposes, and the privacy of its users' data, are the program's author's responsibility: offer only what an AI app may see, and describe the program as working with MCP clients rather than putting MCP in its name. RapidR's own; desktop only (a web page can't listen for connections).
+Serves the program's own tools to AI apps that support MCP, the protocol AI apps use for tools: an AI app on this computer that has the address and the token can call them, and the program sees each call in OnToolCall, on its own thread, one at a time, and answers it then or later with Reply (text), ReplyImage (a picture) or ReplyJson. Add each tool with AddTool: its name, what it does in a sentence the AI reads, the JSON Schema of its arguments and how it acts ("read", "change" …). The component speaks the protocol itself — the current revision (2026-07-28, no session) and the earlier initialize-based ones — and checks each call's arguments against the tool's schema before the program sees them: a wrong call is answered at once with a sentence saying what the tool needs. It listens on 127.0.0.1 (this computer only) and refuses to start without a Token (NewToken makes one): every request must carry it as `Authorization: Bearer <token>`. It also refuses a request for another host name and any request from a web page. Clients shows who is connected; Disconnect keeps an AI app out until the next Start. What the program exposes, and the privacy of its users' data, are the program's author's responsibility: offer only what an AI app may see, and describe the program as working with MCP clients rather than putting MCP in its name. RapidR's own. In a browser (a web app, RapidR Studio on the web) there is no address, port or token: Start offers the tools to the AI agents of the browser instead (its assistant, an extension), where the browser lets a web page do that (Available says so); every call then comes from "browser agent", since the browser doesn't say which agent it is.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Host` | string | `"127.0.0.1"` | The address it listens on: 127.0.0.1, this computer only (the default and the safe choice). Another address opens the program's tools to the network: don't, unless you know every computer that can reach it. Set it before Start. |
 | `Port` | int | 0 | The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start. AI apps keep the address, so a program that is started again should keep its port. Set it before Start. |
 | `Path` | string | `"/mcp"` | The address's path AI apps send their messages to. Set it before Start. |
-| `Token` | string | `""` | What every request must carry as `Authorization: Bearer <token>` (else 401). Start refuses to run without one. Make it with NewToken, keep it with RSecrets, and show it only to the person who sets up the AI app. Set it before Start. |
+| `Token` | string | `""` | (The desktop's) What every request must carry as `Authorization: Bearer <token>` (else 401). Start refuses to run without one. Make it with NewToken, keep it with RSecrets, and show it only to the person who sets up the AI app. Set it before Start. |
 | `ServerName` | string | `""` | The program's name as AI apps see it (a short id: my-notes); "" says rapidr-app. Set it before Start. |
 | `ServerTitle` | string | `""` | The program's name as AI apps show it to their user (My Notes). Set it before Start. |
 | `ServerVersion` | string | `"1.0"` | The program's version, as AI apps see it. Set it before Start. |
@@ -4314,7 +4314,10 @@ Serves the program's own tools to AI apps that support MCP, the protocol AI apps
 | `MaxConnections` | int | 32 | How many connections may be open at once. Set it before Start. |
 | `Timeout` | int | 30000 | How long a message may take to arrive whole, and how long an idle connection stays open. Set it before Start. |
 | `IdleSeconds` | int | 900 | An AI app silent this long (15 minutes by default) counts as gone: OnDisconnect. Set it before Start. |
-| `Listening` (read-only) | bool |  | True while it listens. |
+| `MaxResultSize` | int | 0 | The longest text a call's answer may have; a longer one is cut, saying how much was left out (ask for a smaller part). 0 (the default): no limit on the desktop, 1500 in a browser, as the browsers' makers advise (an agent may refuse a longer answer). |
+| `Listening` (read-only) | bool |  | True while it listens (in a browser: while its tools are offered). |
+| `Available` (read-only) | bool |  | True when it can serve here: always on the desktop; in a browser, when the browser lets a web page offer tools to AI agents (a secure page with an origin of its own). Where it is False, Start fails and Error says why: the program keeps running. |
+| `Transport` (read-only) | string |  | How it serves: "http" on the desktop (AI apps connect to its address with the token), "browser" in a browser (the browser's AI agents call the page's tools). |
 | `Url` (read-only) | string |  | Its address once started, what AI apps connect to: `http://127.0.0.1:47120/mcp`. |
 | `Error` (read-only) | string |  | Why the last Start, AddTool or ReplyJson failed; "" when it worked. |
 | `Call` (read-only) | int |  | The number of the call OnToolCall is handling: keep it to answer later (Reply's first argument). |
@@ -4327,10 +4330,10 @@ Serves the program's own tools to AI apps that support MCP, the protocol AI apps
 
 | Method | |
 |---|---|
-| `Start AS INTEGER` | Starts listening on Host:Port: True when it does, False when it can't — no Token, the port taken — and Error says why. |
-| `Stop` | Stops listening: the calls still waiting are told the server stopped, the connections close. |
+| `Start AS INTEGER` | Starts listening on Host:Port: True when it does, False when it can't — no Token, the port taken — and Error says why. In a browser: offers the tools to the browser's AI agents (no Token needed); False where Available is False. |
+| `Stop` | Stops listening: the calls still waiting are told the server stopped, the connections close. In a browser: the tools are taken away. |
 | `NewToken AS STRING` | Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it. A new token keeps out every AI app that had the old one (after the next Start). |
-| `AddTool(Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]) AS INTEGER` | Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments — as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`, the optional ones in [ ]; STRING, INTEGER, DOUBLE, BOOLEAN, LIST, OBJECT) or as a JSON Schema ({"type": "object", "properties": {…}}); "" for none — and how it acts: "read" (it only reads), "change", "delete", "network", or the annotations as JSON. Added again: replaced. False when the name or the schema is wrong (Error says why). |
+| `AddTool(Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]) AS INTEGER` | Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments — as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`, the optional ones in [ ]; STRING, INTEGER, DOUBLE, BOOLEAN, LIST, OBJECT) or as a JSON Schema ({"type": "object", "properties": {…}}); "" for none — and how it acts: "read" (it only reads), "change", "delete", "network", or the annotations as JSON; for a browser's agents also "untrusted" (its answer holds what others wrote: a file's text, a web page) and "consequential" (it does something that can't be taken back), as in "read untrusted". Added again: replaced. False when the name or the schema is wrong (Error says why). |
 | `RemoveTool(Name AS STRING) AS INTEGER` | Takes a tool away: True when there was one by that name. |
 | `ClearTools` | Takes every tool away (and every AddAlias). |
 | `AddAlias(OldName AS STRING, Tool AS STRING) AS INTEGER` | Keeps an old name of a tool working for AI apps that still call it (a tool you renamed): a call of OldName is a call of Tool — OnToolCall gets Tool's name — and OldName is never listed. False when either isn't a tool name (Error says why). |
@@ -4351,6 +4354,7 @@ Serves the program's own tools to AI apps that support MCP, the protocol AI apps
 |---|---|
 | `OnToolCall(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)` | An AI app calls a tool: its name, its arguments as JSON (Argument reads one) and the call's number. One at a time: the next waits until this handler is over. Answer with Reply now, or later with the number (after asking the user, say) — Progress meanwhile. |
 | `OnReadResource(Uri AS STRING, CallId AS INTEGER)` | An AI app reads a resource AddResource offers: answer with Reply (its text). |
+| `OnToolCancel(CallId AS INTEGER)` | The AI app gave up a call that waits (in a browser: the agent cancelled it): the call is gone, and Reply to it returns False. |
 | `OnConnect(Client AS STRING)` | An AI app is heard from the first time. |
 | `OnDisconnect(Client AS STRING)` | An AI app ended its session, was disconnected, or has been silent for IdleSeconds. |
 
@@ -6322,6 +6326,55 @@ The program's own hands: clicks, typing, keys, drags and the wheel played into i
 | Event | |
 |---|---|
 | `OnDone(Id AS INTEGER, Ok AS INTEGER, Text AS STRING)` | Action Id is over: Ok True when it was done, Text says what was done in a sentence — or, when Ok is False, what it looked for and what is there instead, or why it couldn't (a disabled button, a window waiting for an answer in front). |
+
+<a id="ragenttools"></a>
+## RAgentTools
+
+Lets your web app offer tools to AI agents that run in the browser, such as a browser's own assistant or an extension. It works with browsers that implement the WebMCP draft, a Draft Community Group Report of the W3C Web Machine Learning Community Group. It is a draft: it is not a W3C Standard, it can change, and today only some browsers offer it. Where a browser does not offer it, Available is 0 and your program keeps running. Add each tool with AddTool — its name, what it does in a sentence the AI reads, its arguments as a SUB's parameters and how it acts ("read", "change" …) —, then Start: each call comes to OnToolCall, one at a time, and Reply answers it (then or later). A tool that may change something asks the person using the app first (ConfirmChanges, True by default). Expose = "read" also lets the agents read what the app's windows show (app_components, app_get); "write" lets them set a property too, asked first. Every answer is checked: a key-shaped word is never sent. On the desktop the same program serves AI apps on this computer instead, over MCP with a token it makes at Start (Url and Token say where and what). What the program offers, and the privacy of its users' data, are the program's author's responsibility. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `ConfirmChanges` | bool | 1 | True (the default): a call of a tool that may change something — one AddTool didn't mark "read" — asks the person using the app first, in the browser's own question; if they say no, the agent is told so. False: every call comes to OnToolCall, and the program decides (MESSAGEDLG asks). On the desktop it can't ask from there: a change is refused while it is True. |
+| `Expose` | string | `""` | What of the app's own windows the agents may use: "" nothing (the default); "read": app_components lists the windows' components — name, type, what each shows, whether it shows and is enabled — and app_get reads one property; "write": app_set sets one too, as the program would (asked first under ConfirmChanges). Never a component that isn't on a window, never a property that holds a credential. Set it before Start. |
+| `MaxResultSize` | int | 0 | The longest text an answer may have; a longer one is cut, saying how much was left out. 0 (the default): 1500 in a browser, as the browsers' makers advise (an agent may refuse a longer answer); no limit on the desktop. |
+| `ServerName` | string | `""` | The app's name as AI apps see it on the desktop (a short id: my-notes); "" says rapidr-app. Set it before Start. |
+| `Instructions` | string | `""` | (The desktop's) A few sentences for the AI: what the tools are for and how to use them well. Set it before Start. |
+| `Port` | int | 0 | (The desktop's) The port AI apps connect to on this computer; 0 (the default) lets the system pick a free one, and Port says which after Start. |
+| `Token` | string | `""` | (The desktop's) What every AI app's request must carry; Start makes one when it is empty. Show it only to the person who sets up the AI app. |
+| `Available` (read-only) | bool |  | True when it can serve here: in a browser, when the browser lets a web page offer tools to AI agents (a secure page with an origin of its own); always on the desktop. |
+| `Transport` (read-only) | string |  | How it serves: "browser" in a browser, "http" on the desktop. |
+| `Listening` (read-only) | bool |  | True while its tools are offered. |
+| `Url` (read-only) | string |  | (The desktop's) Its address once started; "" in a browser. |
+| `Error` (read-only) | string |  | Why the last Start, AddTool or ReplyJson failed, in plain words; "" when it worked. |
+| `Call` (read-only) | int |  | The number of the call OnToolCall is handling: keep it to answer later. |
+| `Tool` (read-only) | string |  | The tool of the call OnToolCall is handling. |
+| `ClientName` (read-only) | string |  | Who calls: "browser agent" in a browser (the browser doesn't say which); an AI app's name on the desktop. |
+| `Arguments` (read-only) | string |  | The call's arguments, as JSON (OnToolCall's Arguments). |
+| `Clients` (read-only) | string |  | Who has called, one a line: name, version, seconds since the last call and how many tools it called, a TAB between. |
+| `ClientCount` (read-only) | int |  | How many have called. |
+| `PendingCount` (read-only) | int |  | How many calls wait for an answer. |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Offers the tools: True when it does, False when it can't (Available is False, a port is taken) and Error says why. |
+| `Stop` | Takes the tools away: the calls still waiting are told. |
+| `AddTool(Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]) AS INTEGER` | Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`) or a JSON Schema, and how it acts: "read" (it only reads), "change", "delete", "network", with "untrusted" when its answer holds what others wrote ("read untrusted"). Added again: replaced, also while offered. False when the name or the schema is wrong (Error says why). |
+| `RemoveTool(Name AS STRING) AS INTEGER` | Takes a tool away: True when there was one by that name. |
+| `ClearTools` | Takes every tool away. |
+| `ToolCount AS INTEGER` | How many tools it offers. |
+| `Reply(CallId AS INTEGER, Text AS STRING, [IsError AS INTEGER]) AS INTEGER` | Answers a call with text, marked as a failure when IsError is True (say what went wrong and what to do instead). False when that call was answered already or its agent gave up. |
+| `ReplyImage(CallId AS INTEGER, File AS STRING, [Text AS STRING]) AS INTEGER` | Answers a call with a picture — a PNG, JPEG, GIF or WebP file (a BMP goes as PNG) — and, when given, a text. |
+| `ReplyJson(CallId AS INTEGER, Result AS STRING) AS INTEGER` | Answers a call with a whole result as JSON ({"content": […], "structuredContent": {…}}): in a browser the agent gets structuredContent. |
+| `Argument(Name AS STRING, [CallId AS INTEGER]) AS STRING` | One of the call's arguments as text; "" when it wasn't given. |
+| `IsOpen(CallId AS INTEGER) AS INTEGER` | True while the call waits for an answer. |
+| `Disconnect([Client AS STRING]) AS INTEGER` | Refuses every call of the one named (everyone when none is) until the next Start. |
+
+| Event | |
+|---|---|
+| `OnToolCall(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)` | An agent calls a tool: its name, its arguments as JSON (Argument reads one) and the call's number. One at a time. Answer with Reply now, or later with the number. |
+| `OnToolCancel(CallId AS INTEGER)` | The agent gave up a call that waits: the call is gone, and Reply to it returns False. |
+| `OnConnect(Client AS STRING)` | The first call of an agent. |
+| `OnDisconnect(Client AS STRING)` | An agent was disconnected, or has been silent for 15 minutes. |
 
 <a id="rproject"></a>
 ## RProject

@@ -20,11 +20,27 @@
 //   - a browser without it: Available = 0, Start fails and says why, the
 //     program goes on.
 //
+//   - RapidR Studio for the web (STUDIO_WEB_URL set: tools/build_studio_web.sh,
+//     served): its tools listed, the first call asks once ("Allow for This
+//     Tab", clicked), a file read (in parts too), a file written, the program
+//     run and its output read, each in the AI Apps pane.
+//
+// RAPIDR_WEB_CHROME=<a Chromium that has the draft's API>: the same calls in
+// a real browser, the API turned on by its own flag
+// (--enable-features=WebMCP,WebMCPTesting) in a throwaway profile, instead of
+// the mock (sections 1, 4 and 5; 3 in a browser without the flag). Never the
+// user's own browser or its profile.
+//
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
 // on http://localhost:8765):  node tests/web_agent_tools.mjs
 
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { openRunner } from "./web_run.mjs";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 let failed = 0;
 const ok = (cond, msg, extra = "") => {
@@ -49,9 +65,10 @@ function mockModelContext(where) {
       return Promise.resolve();
     },
     async getTools() {
-      return [...tools.values()].map((t) => ({ name: t.name, title: t.title, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations }));
+      return [...tools.values()].map((t) => ({ name: t.name, title: t.title, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations })).sort((a, b) => a.name.localeCompare(b.name));
     },
-    async executeTool(name, input, options = {}) {
+    async executeTool(tool, input, options = {}) {
+      const name = typeof tool === "string" ? tool : tool && tool.name;
       const t = tools.get(name);
       if (!t) throw new DOMException(`No tool named ${name}.`, "NotFoundError");
       const result = await t.execute(input, { signal: options.signal });
@@ -129,11 +146,16 @@ F.Caption = "Agent tools"
 F.ShowModal
 `;
 
+const REAL = process.env.RAPIDR_WEB_CHROME || "";
+const STUDIO = (process.env.STUDIO_WEB_URL || "").replace(/\/+$/, "");
 const browser = await chromium.launch();
+// (the real API: the browser's own flag, a throwaway profile)
+const real = REAL ? await chromium.launch({ executablePath: REAL, args: ["--enable-features=WebMCP,WebMCPTesting"] }) : null;
+if (real) console.log(`(a real browser: ${REAL.split("/").slice(-4, -3)[0] || REAL}, ${await real.version()})`);
 
 async function runner(where) {
-  const context = await browser.newContext();
-  if (where) await context.addInitScript(mockModelContext, where);
+  const context = await (real && where === "document" ? real : browser).newContext();
+  if (where && !(real && where === "document")) await context.addInitScript(mockModelContext, where);
   const r = await openRunner(context);
   await r.run(PROGRAM, { name: "agent_tools" });
   return r;
@@ -149,7 +171,17 @@ const agent = async (r, fn, arg) => {
 };
 const call = (r, name, input) => agent(r, async ({ name, input }) => {
   try {
-    return { value: JSON.parse(await document.modelContext.executeTool(name, input)) };
+    const tool = (await document.modelContext.getTools()).find((t) => t.name === name);
+    const out = await document.modelContext.executeTool(tool || name, input);
+    // (an object comes back as its JSON; a text as it is — Chrome 156 — or as
+    // the JSON of a string — the draft's words)
+    if (typeof out !== "string") return { value: out };
+    try {
+      const v = JSON.parse(out);
+      return { value: typeof v === "object" || typeof v === "string" ? v : out };
+    } catch {
+      return { value: out };
+    }
   } catch (e) {
     return { threw: e.name, message: e.message };
   }
@@ -161,10 +193,10 @@ const call = (r, name, input) => agent(r, async ({ name, input }) => {
   ok(await r.waitOutput("started 1"), "Start registers the tools (Listening 1)", r.output() + r.errors());
   ok(r.output().includes("available 1 transport browser"), "Available 1, Transport browser", r.output());
   const tools = await agent(r, () => document.modelContext.getTools());
-  ok(tools.map((t) => t.name).join(",") === "add,fail,later,wait,secret,long,grow,stop", "every tool registered, in order", JSON.stringify(tools.map((t) => t.name)));
+  ok(tools.map((t) => t.name).sort().join(",") === "add,fail,grow,later,long,secret,stop,wait", "every tool registered", JSON.stringify(tools.map((t) => t.name)));
   const add = tools.find((t) => t.name === "add");
   ok(add && add.description === "Adds two numbers." && JSON.stringify(add.inputSchema.required) === '["A","B"]' && add.inputSchema.properties.A.type === "number", "a tool's description and schema", JSON.stringify(add));
-  ok(JSON.stringify(add.annotations) === '{"readOnlyHint":true,"untrustedContentHint":false,"consequentialHint":false}', "read: readOnlyHint", JSON.stringify(add.annotations));
+  ok(add.annotations.readOnlyHint === true && add.annotations.untrustedContentHint === false && add.annotations.consequentialHint === false, "read: readOnlyHint", JSON.stringify(add.annotations));
   const later = tools.find((t) => t.name === "later"), wait = tools.find((t) => t.name === "wait"), fail = tools.find((t) => t.name === "fail");
   ok(later.annotations.untrustedContentHint === true && later.annotations.readOnlyHint === true, "read untrusted: untrustedContentHint", JSON.stringify(later.annotations));
   ok(fail.annotations.consequentialHint === true && wait.annotations.consequentialHint === true, "change: consequentialHint", JSON.stringify([fail.annotations, wait.annotations]));
@@ -172,8 +204,10 @@ const call = (r, name, input) => agent(r, async ({ name, input }) => {
   let res = await call(r, "add", { A: 2, B: 40 });
   ok(res.value === "42", "a call answered with text", JSON.stringify(res));
   ok(r.output().includes('call add {"A":2,"B":40} from browser agent'), "OnToolCall: the tool, its arguments, ClientName browser agent", r.output());
-  res = await call(r, "add", '{"A": 1, "B": "2"}');
-  ok(res.value === "3", "the input as a JSON text (the draft before 2026-08), a number sent as text", JSON.stringify(res));
+  // (the draft before 2026-08 sent the input as a JSON text: the mock only —
+  // Chrome 156 refuses it itself)
+  res = await call(r, "add", real ? { A: 1, B: "2" } : '{"A": 1, "B": "2"}');
+  ok(res.value === "3", "the input as a JSON text (the mock), a number sent as text", JSON.stringify(res));
   res = await call(r, "add", { A: 1 });
   ok(res.value && typeof res.value.error === "string" && res.value.error.startsWith("Call add again: it needs `B`"), "a wrong call: told what the tool needs, as data", JSON.stringify(res));
   ok(!r.output().includes('call add {"A":1}'), "a wrong call never reaches the program", r.output());
@@ -191,7 +225,8 @@ const call = (r, name, input) => agent(r, async ({ name, input }) => {
   // (the agent gives up)
   const aborted = await agent(r, async () => {
     const c = new AbortController();
-    const p = document.modelContext.executeTool("wait", {}, { signal: c.signal });
+    const tool = (await document.modelContext.getTools()).find((t) => t.name === "wait");
+    const p = document.modelContext.executeTool(tool, {}, { signal: c.signal });
     await new Promise((res) => setTimeout(res, 300));
     c.abort();
     try {
@@ -215,7 +250,10 @@ const call = (r, name, input) => agent(r, async ({ name, input }) => {
   ok(res.value === "extra here", "the new tool is called", JSON.stringify(res));
 
   // (a call waiting when the tools go: told, as data)
-  const waiting = agent(r, () => document.modelContext.executeTool("wait", {}).then((v) => JSON.parse(v), (e) => "threw " + e.name));
+  const waiting = agent(r, async () => {
+    const tool = (await document.modelContext.getTools()).find((t) => t.name === "wait");
+    return document.modelContext.executeTool(tool, {}).then((v) => JSON.parse(v), (e) => "threw " + e.name);
+  });
   ok(await r.until(() => (r.output().match(/waiting \d+/g) || []).length >= 2), "a second call waits", r.output());
   res = await call(r, "stop", {});
   ok(res.value === "stopping", "a handler stops the server", JSON.stringify(res));
@@ -223,17 +261,17 @@ const call = (r, name, input) => agent(r, async ({ name, input }) => {
   ok(told && typeof told.error === "string" && told.error.includes("stopped offering its tools"), "a call still waiting is told the tools went", JSON.stringify(told));
   ok(await r.waitOutput("stopped; listening 0"), "Listening 0 after Stop", r.output());
   const left = await agent(r, () => document.modelContext.getTools());
-  const log = await agent(r, () => window.__mcLog);
-  ok(left.length === 0 && log.filter((l) => l.startsWith("unregister")).length >= 8, "Stop takes every tool away (their signals aborted)", JSON.stringify({ left, log }));
+  const log = await agent(r, () => window.__mcLog || []);
+  ok(left.length === 0 && (real || log.filter((l) => l.startsWith("unregister")).length >= 8), "Stop takes every tool away (their signals aborted)", JSON.stringify({ left, log }));
   ok(!r.errors() || !/panicked|RefCell/.test(r.errors()), "no runtime error", r.errors());
   await r.page.context().close();
 }
 
-// ---- 2. Chromium 149's place: navigator.modelContext
-{
+// ---- 2. Chromium 149's place: navigator.modelContext (the mock only)
+if (!real) {
   const r = await runner("navigator");
   ok(await r.waitOutput("started 1"), "navigator.modelContext: started", r.output() + r.errors());
-  const res = await r.page.evaluate(async () => JSON.parse(await navigator.modelContext.executeTool("add", { A: 1, B: 1 })));
+  const res = await r.page.evaluate(async () => JSON.parse(await navigator.modelContext.executeTool((await navigator.modelContext.getTools()).find((t) => t.name === "add"), { A: 1, B: 1 })));
   ok(res === "2", "navigator.modelContext: a call answered", JSON.stringify(res));
   await r.page.context().close();
 }
@@ -249,6 +287,105 @@ const call = (r, name, input) => agent(r, async ({ name, input }) => {
   await r.page.context().close();
 }
 
+// ---- 4. the example web app (examples/web/agent_tools.rr): its own tools,
+// a change asked first (the browser's question, answered here), Expose
+{
+  const context = await (real || browser).newContext();
+  if (!real) await context.addInitScript(mockModelContext, "document");
+  const r = await openRunner(context);
+  const asked = [];
+  let answer = false;
+  r.page.on("dialog", (d) => { asked.push(d.message()); answer ? d.accept() : d.dismiss(); });
+  await r.run(readFileSync(join(ROOT, "examples/web/agent_tools.rr"), "utf8"), { name: "agent_tools" });
+  ok(await r.until(async () => (await r.prop("Status", "Caption")).startsWith("AI agents in this browser")), "the example offers its tools", await r.prop("Status", "Caption"));
+  const names = (await agent(r, () => document.modelContext.getTools())).map((t) => t.name).sort().join(",");
+  ok(names === "add_note,app_components,app_get,list_notes", "its tools and Expose's read ones (no app_set)", names);
+  let res = await call(r, "list_notes", {});
+  ok(res.value === "(no notes yet)", "list_notes", JSON.stringify(res));
+  res = await call(r, "add_note", { Text: "Buy milk" });
+  ok(res.value && res.value.error && res.value.error.startsWith("The person using the app didn't allow it") && asked.length === 1 && asked[0].includes("add_note"), "a change asks first; no: refused", JSON.stringify({ res, asked }));
+  answer = true;
+  res = await call(r, "add_note", { Text: "Buy milk" });
+  ok(res.value === "Added: Buy milk" && asked.length === 2, "yes: done", JSON.stringify({ res, asked }));
+  res = await call(r, "list_notes", {});
+  ok(res.value === "Buy milk\n", "the note is there", JSON.stringify(res));
+  res = await call(r, "app_components", {});
+  ok(typeof res.value === "string" && res.value.toLowerCase().includes("notes (listbox)") && res.value.toLowerCase().includes("status (label)"), "app_components lists the window's components", JSON.stringify(res));
+  res = await call(r, "app_get", { name: "Status", property: "Caption" });
+  ok(res.value === "AI agents in this browser can read and add notes.", "app_get reads one", JSON.stringify(res));
+  ok(asked.length === 2, "reading never asks", JSON.stringify(asked));
+  await context.close();
+}
+
+// ---- 5. RapidR Studio for the web, used as an agent uses it
+if (STUDIO) {
+  const context = await (real || browser).newContext({ viewport: { width: 1440, height: 900 } });
+  if (!real) await context.addInitScript(mockModelContext, "document");
+  const files = ["tests/fixtures/studio_mcp/Hello.rrproj", "tests/fixtures/studio_mcp/main.rr"].map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+  await context.addInitScript((files) => {
+    window.RAPIDR_STUDIO_TEST = { RAPIDR_TEST_MCP_TOKEN: "web-agent-test-token-0123456789" };
+    // (ENVIRON$ on the web: the page's own table — Studio's test steps read it)
+    window.RAPIDR_TEST_ENV = { RAPIDR_TEST_MCP_TOKEN: "web-agent-test-token-0123456789" };
+    window.RAPIDR_STUDIO_TEST_FILES = files;
+    window.RAPIDR_FILE_SINK = () => {};
+  }, files);
+  const page = await context.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  const q = new URLSearchParams({ fresh: "", window: "normal", do: "mcp:mode=edits,mcp:on", open: "tests/fixtures/studio_mcp/Hello.rrproj" });
+  await page.goto(`${STUDIO}/index.html?${q}`, { waitUntil: "load" });
+  const s = { page, output: () => "", errors: () => errs.join("\n") };
+  let tools = [];
+  for (let i = 0; i < 120 && tools.length < 30; i++) {
+    await page.waitForTimeout(500);
+    tools = await page.evaluate(() => (document.modelContext ? document.modelContext.getTools() : [])).catch(() => []);
+  }
+  const names = tools.map((t) => t.name);
+  ok(names.length >= 30 && ["studio_status", "read_file", "write_file", "check_code", "run_program", "read_output"].every((n) => names.includes(n)), `web Studio offers its tools (${names.length})`, JSON.stringify(names));
+  const rf = tools.find((t) => t.name === "read_file");
+  ok(rf && rf.annotations && rf.annotations.readOnlyHint === true && rf.annotations.untrustedContentHint === true && rf.inputSchema.properties.offset, "read_file: read only, untrusted content, offset / limit", JSON.stringify(rf && { a: rf.annotations, p: Object.keys(rf.inputSchema.properties) }));
+  const click = async (label) => {
+    for (let i = 0; i < 40; i++) {
+      const b = page.getByRole("button", { name: label, exact: true });
+      if (await b.count()) {
+        const box = await b.first().boundingBox();
+        if (box) {
+          await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+          return true;
+        }
+      }
+      await page.waitForTimeout(250);
+    }
+    return false;
+  };
+  // (the first call: asked once, in the pane)
+  const first = call(s, "studio_status", {});
+  ok(await click("Allow for This Tab"), "the first call asks: Allow for This Tab (clicked)");
+  let res = await first;
+  ok(typeof res.value === "string" && res.value.includes("main.rr"), "studio_status answered once allowed", JSON.stringify(res).slice(0, 300));
+  res = await call(s, "read_file", { path: "main.rr" });
+  // (its text marked as data: the untrusted wrapper's JSON)
+  ok(JSON.stringify(res.value || "").includes("Hello from Studio") && JSON.stringify(res.value).includes("untrusted"), "read_file: the file's text, marked as data", JSON.stringify(res).slice(0, 200));
+  res = await call(s, "read_file", { path: "main.rr", offset: 1, limit: 2 });
+  ok(typeof res.value === "string" && res.value.includes("more: call read_file again with offset 3"), "read_file in parts: where the next part starts", JSON.stringify(res).slice(0, 300));
+  res = await call(s, "write_file", { path: "notes.txt", text: "A note from an agent\n", summary: "A notes file." });
+  ok(typeof res.value === "string" && res.value.includes("notes.txt"), "write_file (Allow edits): made at once", JSON.stringify(res).slice(0, 200));
+  const run = call(s, "run_program", { wait: 10 });
+  ok(await click("Allow Once"), "run_program asks (Allow edits): Allow Once (clicked)");
+  res = await run;
+  ok(typeof res.value === "string" && res.value.includes("Hello from Studio"), "run_program: the program ran, its output back", JSON.stringify(res).slice(0, 300));
+  res = await call(s, "read_output", {});
+  // (run_program gave its output already: read_output has nothing new)
+  ok(typeof res.value === "string" && /no new output|Line/.test(res.value), "read_output: answered", JSON.stringify(res).slice(0, 200));
+  // (the AI Apps pane's list, as Studio has it)
+  // (the pane's head and the status bar name who called and what it did last)
+  const shown = await page.evaluate(() => ["mcphead.caption", "mcpsub.caption", "mcp.clients"].map((k) => window.rr.rapidr_get_prop(...k.split("."))).join("\n"));
+  ok(/AI apps: browser agent/.test(shown) && /browser agent\t\t\d+\t[5-9]/.test(shown), "the AI Apps pane: browser agent, its calls counted", JSON.stringify(shown).slice(0, 400));
+  ok(!/panicked|RefCell/.test(errs.join("\n")), "no runtime error", errs.join("\n"));
+  await context.close();
+}
+
+if (real) await real.close();
 await browser.close();
 console.log(failed ? `\n${failed} check(s) failed` : "\nall checks passed");
 process.exit(failed ? 1 : 0);

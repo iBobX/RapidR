@@ -19,6 +19,8 @@ Options -Indexes
 </IfModule>
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
+  # (only Studio's own page may offer tools to the browser's AI agents: _headers)
+  Header always set Permissions-Policy "tools=(self)"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Cross-Origin-Opener-Policy "same-origin"
   <Files "index.html">

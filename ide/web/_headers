@@ -14,8 +14,13 @@
 # it, so what runs in it never reaches Studio's storage
 # (docs/security/audit-2026-11-05-web.md SEC-34). Nothing limits its Html
 # beyond what run.html's own sandbox already does.
+#
+# Permissions-Policy tools=(self): only Studio's own page may offer tools to
+# the browser's AI agents (the WebMCP draft's policy feature); no frame of
+# another origin may (crates/rapidr-runtime-web/src/agent_tools_web.rs).
 /*
   X-Content-Type-Options: nosniff
+  Permissions-Policy: tools=(self)
   Referrer-Policy: strict-origin-when-cross-origin
   Cross-Origin-Opener-Policy: same-origin
 /
