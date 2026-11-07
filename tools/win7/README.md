@@ -133,8 +133,13 @@ What the first real run taught (so nobody rediscovers it):
   `schtasks /create /tn <name> /tr C:\x\run.cmd /sc once /st 23:59 /ru <user> /it /f`, then `schtasks /run /tn <name>`
   ("Logon Mode: Interactive only"; delete the task after). The program then draws on the real desktop and a
   `System.Drawing` `CopyFromScreen` picture of it works.
-- **PowerShell 2.0**: no `Expand-Archive`, no `Get-FileHash`, no `Get-ChildItem -Directory`; `Add-Type` with C# 2/3.5 works
-  (the matrix's script unzips with a 40-line C# reader: 170 files, 185 MB in 20 to 30 s). `Start-Process -WindowStyle`
+- **PowerShell 2.0**: no `Expand-Archive`, no `Get-FileHash`, no `Get-ChildItem -Directory`; `Add-Type` with C# 2/3.5 works,
+  but the matrix's script uses none: an antivirus took its hand-written zip reader for malware (docs/build-matrix.md,
+  "Test scripts and antivirus programs"). It unpacks with Windows' own Compressed Folders (`Shell.Application`,
+  `CopyHere` with flags 4+16+512+1024: no boxes; it copies in the background, so the script watches the folder until the
+  files are all there: 204 files, 77 MB in 25 to 35 s), takes the picture with plain `System.Drawing`
+  (`Graphics.CopyFromScreen`) and finds the window with UI Automation (`Add-Type -AssemblyName UIAutomationClient`: the
+  window's title and rectangle). `Start-Process -WindowStyle`
   cannot be combined with `-RedirectStandardOutput`. PowerShell names are case-insensitive: `$r` overwrote `$R`.
 - `vm.sh exec` takes one command line; put anything with quotes inside quotes (`powershell -Command "..."`) in a `.cmd`
   or `.ps1` file, push it, and run the file. `for %f in (...) do ... %~zf` is answered with an OSStatus -2700 event error:

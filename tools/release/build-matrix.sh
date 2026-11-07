@@ -33,6 +33,9 @@
 # The Mac's scratch space is MATRIX_TMP (default /Volumes/RapidRBuild/build-matrix-tmp when that
 # volume is mounted): a native build leaves ~2 GB there while it runs, removed at the end.
 #
+# A lane that never reports does not hold the matrix for ever: every wait for a VM job gives up after
+# MATRIX_TIMEOUT_MIN minutes (default 90) with a clear "TIMEOUT" message and a red row.
+#
 # Nothing here pushes, uploads or signs. Every program run has its own registry, printer folder and
 # settings (the smoke scripts), and RAPIDR_AI_KEYSTORE=memory.
 set -uo pipefail
@@ -50,7 +53,7 @@ while [ $# -gt 0 ]; do
         --shots) SHOTS=1 ;;
         --serial) SERIAL=1 ;;
         --table-only) TABLE_ONLY=1 ;;
-        -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
         -*) die "unknown option $1 (see the top of $0)" ;;
         *) [ -z "$VER" ] && VER="$1" || die "one version only" ;;
     esac
@@ -83,6 +86,13 @@ export RAPIDR_AI_KEYSTORE=memory
 export P5_DELAY="${P5_DELAY:-10}"
 if [ -z "${MATRIX_TMP:-}" ] && [ -d /Volumes/RapidRBuild ]; then MATRIX_TMP=/Volumes/RapidRBuild/build-matrix-tmp; fi
 if [ -n "${MATRIX_TMP:-}" ]; then mkdir -p "$MATRIX_TMP"; export TMPDIR="$MATRIX_TMP"; fi
+
+# How long a lane may go without reporting (minutes): every wait for a VM job below stops after it, with a
+# clear message and a red row, instead of waiting for ever. The slowest job, an x64 installer's native build in
+# emulation, takes about 45 minutes. Also read by windows-vm.sh and win7-vm.sh (exported here).
+TIMEOUT_MIN="${MATRIX_TIMEOUT_MIN:-90}"
+case "$TIMEOUT_MIN" in ""|*[!0-9]*|0) die "MATRIX_TIMEOUT_MIN must be a whole number of minutes (got '$TIMEOUT_MIN')" ;; esac
+export MATRIX_TIMEOUT_MIN="$TIMEOUT_MIN"
 
 want() { case ",$ONLY," in *",$1,"*) return 0 ;; esac; return 1; }
 sum_of() { sed -n "s/^\([0-9a-f]\{64\}\)  $1\$/\1/p" "$OUT/SHA256SUMS" | head -1; }
@@ -211,12 +221,22 @@ EOF
     echo "[linux] smoke tests started in the VM (~/rapidr-release/matrix there)"
     t0=$(now)
     bash "$ubu" run "$script" > /dev/null
-    printf 'cat "$HOME/rapidr-release/matrix/done" 2>/dev/null || true\n' > "$script"
-    local code=""
+    # (each poll also counts the packages finished so far: a job that finishes none for MATRIX_TIMEOUT_MIN
+    # minutes -- a hung VM, a dead job -- never reports, and the lane fails with a message instead of waiting for ever)
+    printf 'M="$HOME/rapidr-release/matrix"; cat "$M/done" 2>/dev/null; echo "finished $(ls "$M"/*.rc 2>/dev/null | wc -l)"\n' > "$script"
+    local out="" fin="" finished=-1 idle_since lane_limit=$(( TIMEOUT_MIN * 60 ))
+    idle_since=$(now)
     while :; do
         sleep 30
-        code="$(bash "$ubu" run "$script" 2>/dev/null || true)"
-        [ -n "$code" ] && break
+        out="$(bash "$ubu" run "$script" 2>/dev/null || true)"
+        case "$out" in *done*) break ;; esac
+        fin="$(printf '%s' "$out" | sed -n 's/.*finished \([0-9][0-9]*\).*/\1/p' | tail -1)"
+        if [ -n "$fin" ] && [ "$fin" != "$finished" ]; then finished="$fin"; idle_since=$(now); fi
+        if [ $(( $(now) - idle_since )) -ge "$lane_limit" ]; then
+            echo "[linux] TIMEOUT: no package finished in $TIMEOUT_MIN minutes (MATRIX_TIMEOUT_MIN=<minutes> waits longer)"
+            record "Linux (aarch64 and x86_64)" "the Linux packages (.tar.gz and .deb, SDK and Runtime)" sdk yes 0 "" "TIMEOUT: the smoke job in the VM \"$vm\" finished no package in $TIMEOUT_MIN minutes (MATRIX_TIMEOUT_MIN=<minutes> waits longer; its logs are in ~/rapidr-release/matrix there)" linux
+            rm -f "$script"; return
+        fi
         vm_awake "$vm"
     done
     # (did the x86_64 packages get a native build? the job says; asked again like the times)

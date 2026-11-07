@@ -64,6 +64,10 @@
 # read from a copy in the repository's .release-share/ (dist/ may be a link to
 # another volume, which the share doesn't follow), removed afterwards. A VM that
 # paused itself ("Pause idle") is resumed first.
+#
+# A job that never ends (a hung VM, a dead task) is not waited for for ever: after MATRIX_TIMEOUT_MIN minutes
+# (a whole number, default 90; the slowest job, an x64 installer's native build in emulation, takes about 45) the
+# wait stops with a "TIMEOUT" message, the log so far, and a failure status.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 VM="${RAPIDR_WIN_VM:-Windows 11 Pro}"
@@ -108,11 +112,17 @@ job() {
     awake; profile
     wps detach.ps1 -Script "$script" -Name "$name" $prep $joined
     echo "(in the VM: $UP\\rapidr-release\\$name.log)"
-    local done=""
+    local done="" limit=$(( ${MATRIX_TIMEOUT_MIN:-90} * 60 )) started=$SECONDS
     while [ -z "$done" ]; do
         sleep 20
         awake
         done="$(wsys "if exist $UP\\rapidr-release\\$name.log.done type $UP\\rapidr-release\\$name.log.done" 2>/dev/null | tr -d ' ' || true)"
+        if [ -z "$done" ] && [ $(( SECONDS - started )) -ge "$limit" ]; then
+            echo "== TIMEOUT: $script sent no end marker within $(( limit / 60 )) minutes (MATRIX_TIMEOUT_MIN=<minutes> waits longer). The log so far:"
+            wsys "type $UP\\rapidr-release\\$name.log" 2>/dev/null | tail -n 40 || true
+            echo "== $script FAILED (timeout). The job may still run in the VM: tools/release/windows-vm.sh stop ends it."
+            return 1
+        fi
     done
     wsys "type $UP\\rapidr-release\\$name.log"
     [ "$done" = 0 ]
@@ -230,7 +240,12 @@ case "${1:-}" in
         got="$(mktemp)"; "$0" fetch flashtest.bin "$got" | sed 's/^/        /'
         wsys "del /q $R\\out\\flashtest.bin" > /dev/null
         stamp "calls done; waiting for the watcher"
-        while [ -z "$(donefile "$watch")" ]; do sleep 3; done
+        # (the watcher is 45 s long: five minutes without its end marker is a failure)
+        waited=0
+        while [ -z "$(donefile "$watch")" ]; do
+            sleep 3; waited=$((waited + 3))
+            [ "$waited" -lt 300 ] || die "flashtest: the window watcher sent no end marker within 5 minutes"
+        done
         wsys "type $R\\$watch.txt" > "$got"
         echo "console windows that appeared (time, process, class, title; cmd= when it could be told):"
         grep CONSOLE "$got" | sed 's/^/  /' || echo "  none"

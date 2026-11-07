@@ -55,7 +55,8 @@ That line is the only thing `build-matrix.sh` reads, besides the `  FAIL` lines.
 4. **built exe runs FAIL** with the build ok: the executable started and printed something else; run it by hand
    from the log's folder.
 5. A row with `the smoke test did not finish (no ##cells line)`: the VM dropped, a command hung, or the script
-   died; the log's last line says where.
+   died; the log's last line says where. If it says `TIMEOUT`, the job sent no end marker within `MATRIX_TIMEOUT_MIN`
+   minutes (below) and the log so far is printed under it.
 
 A flaky red (a timing check on a loaded machine) is rerun alone: `--only <lane>`; `P5_DELAY=12` gives
 Preview 5's headless Studio checks more time on a busy Mac.
@@ -79,6 +80,56 @@ needs Robert's Windows 7 and Windows XP VMs up too (and the XP helper started in
 Everything a program writes goes to a temporary registry file, printer folder and settings folder, and
 `RAPIDR_AI_KEYSTORE=memory`: nothing touches the user's keychain or settings. `windows-vm.sh clean` and
 `linux-vm.sh clean` remove what the runs leave (`--dry-run` first).
+
+**A lane that never reports does not hold the matrix.** Every wait for a VM job stops after `MATRIX_TIMEOUT_MIN`
+minutes (a whole number, default 90; the slowest job, an x64 installer's native build in emulation, takes about 45 and
+the real Windows 7 about the same) with a `TIMEOUT` message, the log so far, and a red row ("the smoke test did not
+finish"): `windows-vm.sh` (every installer and the Windows 7 zip in the Windows 11 VM), `win7-vm.sh` (the real
+Windows 7; `WIN7_WAIT`, in seconds, still wins when set) and the Linux lane (which counts the packages the VM's job has
+finished: 90 minutes without a new one is the limit, however long the whole job takes). A timed-out Windows job may
+still run in the VM: `windows-vm.sh stop` ends it.
+
+## Test scripts and antivirus programs
+
+Bitdefender quarantined `windows/smoke-win7-real.ps1` again and again, on the Mac (as `Heur.BZC.PZQ.Boxter.811…`) and
+in the Windows 11 VM. Adding an exclusion hides it; the script was rewritten instead. What triggers the
+heuristic was found by bisection (2026-11-06, Bitdefender for Mac: variants of the script copied to a folder with no
+exclusion, then which ones were still there after half a minute; its own record is
+`/Library/Application Support/Bitdefender/avformac/Logs/history.plist`, read only):
+
+| Variant | Result |
+|---|---|
+| the script as it was | quarantined in seconds |
+| … without the screenshot code (user32 `GetWindowRect`, `CopyFromScreen`) | still quarantined |
+| … without the zip reader | **kept** |
+| … with the zip reader's C# text in the file but never compiled | quarantined |
+| … with a trivial C# class compiled instead of the reader (`Add-Type` itself) | kept |
+| the same zip reader written in plain PowerShell, no `Add-Type` | quarantined |
+| the zip opened with Windows' own Compressed Folders (`Shell.Application`, what Explorer's *Extract All* uses) | kept |
+| the other 32 scripts of `tools/release`, `tools/win7`, `tools/winxp` (all `.ps1`, `.sh`, `.vbs`, `.js`, `.py`, `.iss`) | kept |
+
+So the trigger is a **hand-written archive reader** (the ZIP header bytes, Deflate, writing the files out), in any
+language: it looks like a dropper unpacking its payload. `Add-Type`, P/Invoke, a screen capture, `Stop-Process`,
+`-ExecutionPolicy Bypass` on a command line and a one-off scheduled task are each fine on their own. The rules for the
+test scripts, kept even where a pattern is harmless:
+
+- no archive readers or unpackers of our own, no decoding of embedded data: use what Windows has (Compressed Folders);
+- no `Add-Type` with C# source and no P/Invoke in a script the matrix runs (plain .NET calls from PowerShell instead);
+  `rformex-check.ps1` and `watch-windows.ps1`, which are not part of the matrix, keep theirs because enumerating and
+  sending messages to windows has no other way, and are kept by Bitdefender;
+- no encoded commands, `Invoke-Expression`, downloads, reflection loading, hidden windows (the one exception, the
+  headless console that `detach.ps1` starts so that no window flashes on the VM's desktop, is explained there), antivirus
+  or policy changes; every path explicit; a header that says what the script is and what it never does;
+- kill only what the script started (by process id) and delete only its own temporary folder.
+
+After changing a script of this kind, check it with the antivirus: copy it to a folder with no exclusion (the
+repository's folders have one), wait 30 seconds, and see whether it is still there. Do not touch the antivirus' settings.
+
+In the Windows 11 VM the antivirus' quarantine holds the old script (a `.bdq` of exactly 19,413 bytes from 2026-11-05)
+and the path `…\rapidr-release\scripts\smoke-win7-real.ps1` still answers *Access is denied* (a stale entry the antivirus
+holds; the "warning: could not copy" line `detach.ps1` prints, harmless since that VM never runs this script). The new
+script written to that VM's disk (`C:\rapidr-win7-av`, 22,739 bytes) was still there after 30 seconds and the quarantine did
+not change. The stale entry should go with a reboot of that VM (Robert's call; scripts here never reboot one).
 
 ## The gaps (what this matrix cannot see)
 
@@ -426,6 +477,40 @@ gets `n/a` for those cells, with the reason in the table.
 | JIT, Linux x86-64 | the same | the code generator's x86-64 backend and the System V x86-64 calling convention of its entry forms and helpers run as x86-64 code (translated) |
 | JIT, Windows x64 | Windows 11 ARM64 VM | translated by Windows' own x64 emulation: the Windows x64 calling convention of the entry forms and helpers (the one thing the Mac's Rosetta run could not cover) runs as x64 code |
 | everything above | | **not run on an x86 CPU**: timings, CPU feature detection and a real x86_64 gcc/glibc are what only a real PC shows |
+
+## Results: WIN-SMOKE (2026-11-06): the Windows 7 script rewritten
+
+Bitdefender quarantined `smoke-win7-real.ps1` (section "Test scripts and antivirus programs" above). The script was
+rewritten as plain PowerShell with every check kept, and run on the real Windows 7 beside the old one, on the same zip,
+through `build-matrix.sh 2.123.0-test --only win7real` (a scratch `RAPIDR_DIST`, the old script from a copy of the tools):
+
+| Zip | Script | Result | Differences in the log |
+|---|---|---|---|
+| the shipped alpha1 (34 MB, no runner programs) | old | red, 47 s: `interp` and `exe` fail (`could not build or find rapidrintr-runner.exe`), `run` and `other` ok | |
+| the same | new | the same red, the same 5 + 3 FAIL lines, 70 s | the unpacking (204 files in 26 s, was 6 s), one more ok line |
+| the fixed zip (84 MB, 170 files) | old | **ALL GREEN**, 24 ok lines, 128 s | |
+| the same | new | **ALL GREEN**, 25 ok lines, 123 s and again in the final run | as above (170 files in 28 s, was 15 s) and the picture's line |
+
+The one new check, `the zip is whole: all N files were unpacked`, compares with the count the Mac takes of the zip
+(`win7-vm.sh` passes it as `-Expect`). The pictures (`win7-desktop.png`, `win7-gui-hello.png`) come out as before; the
+crop now finds the real window by UI Automation (the old code took the process's main window, which on one run was a 16x16
+helper window and made a crop of nothing). The Windows 11 VM's `win7` row (`smoke-win7.ps1`, through the changed
+`windows-vm.sh` wait) is green too: 65 s, as before. The new script, copied outside the repository's antivirus exclusion,
+stays; so do the changed `.sh` files and docs. Other things found:
+
+- **The wait limits were exercised.** The poll loop of `windows-vm.sh`'s `job()` and the Linux lane's no-progress loop were
+  run with their VM calls stubbed (the function text itself, the clock fast-forwarded): a job that never ends gives
+  `TIMEOUT` and status 1, one that ends gives its own status, packages finishing every 40 minutes for two hours do not
+  time out. `win7-vm.sh` was run live on the real Windows 7 with a 300-file zip and `WIN7_WAIT=5`: `TIMEOUT`, the log so
+  far, `smoke test FAILED (timeout…)`, status 1, and the VM left with no task and no process of ours.
+- **A zip push cut off by `win7-vm.sh`'s old 20-minute cap leaves a locked file.** The 84 MB zip needs 9 minutes with the
+  Mac idle and 24 with it busy (the guest agent moves 150 and 60 KB/s); the old cap of 1200 s cut it off, and the file the
+  agent had open stayed open: `C:\rapidr-matrix\z.zip` (67,194,880 bytes) could not be written, deleted or renamed
+  afterwards ("being used by another process"), and `utmctl` answers 0 anyway. Now the cap is `WIN7_PUSH_CAP`, default
+  size / 30 KB/s + 5 minutes; the zip has a name of its own (`z-<12 hex digits of its SHA-256>.zip`) so a blocked name
+  never blocks another zip; and the script checks the size that arrived and says so. The old `z.zip` in the VM stays
+  until the guest agent restarts or the VM reboots (Robert's call; nothing here does either); it is 67 MB of disk, and
+  `C:\rapidr-matrix` cannot be removed while it is there (`win7-vm.sh clean` says so).
 
 ## What this lane found, for the lead
 
