@@ -369,7 +369,7 @@ RestoreChild = { doc = "Gives every MDI child window its normal size and place a
 Resume = { doc = "Lets a suspended thread run again." }
 Reverse = { doc = "Reverses the order of the elements (in place). Same as `Flip`." }
 Rotate = { doc = "Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`)." }
-RoundRect = { doc = "Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`." }
+RoundRect = { doc = "Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled)." }
 RowBlob = { doc = "Returns `Bytes` bytes of the binary field in row `Row`." }
 RowCount = { doc = "How many rows the frame has." }
 Rows = { doc = "Returns the number of rows." }

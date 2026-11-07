@@ -677,6 +677,21 @@ pub fn replay(p: &mut Painter, ops: &[CellDraw], font: &Font, key: &str) {
                 }
                 p.shape(Shape { points, fill: Some(c(*col)), stroke: None });
             }
+            // The same outlined: a stroke in the border colour, the inside
+            // in the fill colour (Bitmap::round_rect_outlined).
+            CellDraw::RoundRectOutlined(x1, y1, x2, y2, cw, ch, col, fill) => {
+                let (l, t, w, h) = box_of(*x1, *y1, *x2, *y2);
+                let (rx, ry) = ((*cw).clamp(0, w) as f64 / 2.0, (*ch).clamp(0, h) as f64 / 2.0);
+                let (l, t, r, b) = (l as f64 + 0.5, t as f64 + 0.5, (l + w) as f64 - 0.5, (t + h) as f64 - 0.5);
+                let mut points = Vec::with_capacity(4 * 13);
+                for (cx, cy, from) in [(r - rx, t + ry, -90.0), (r - rx, b - ry, 0.0), (l + rx, b - ry, 90.0), (l + rx, t + ry, 180.0)] {
+                    for i in 0..=12 {
+                        let a = f64::to_radians(from + 90.0 * i as f64 / 12.0);
+                        points.push((cx + rx * a.cos(), cy + ry * a.sin()));
+                    }
+                }
+                p.shape(Shape { points, fill: fill.map(c), stroke: Some(c(*col)) });
+            }
             // Text clipped to its rectangle, which a background fills.
             CellDraw::TextRect(rect, x, y, text, col, bg) => {
                 let area = box_of(rect.0, rect.1, rect.2, rect.3);

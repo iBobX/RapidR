@@ -184,6 +184,97 @@ fn rgba_of(pixels: &[u32], soft: Option<&[u8]>, transparent: Option<u32>) -> Vec
     out
 }
 
+/// The `s` rectangle of `src` scaled onto the `d` rectangle of `dst`, each
+/// pixel combined with the one it lands on as the raster operation `table`
+/// says ([`super::rop`]): the scaled copy is made on its own first (the
+/// same pixels `copy_rect` would put), so a pixel whose source falls outside
+/// `src`, or outside `dst`, is left as it was.
+#[allow(clippy::too_many_arguments)]
+fn rop_plane(dst: &mut Target, d: (i64, i64, i64, i64), src: Source, s: (i64, i64, i64, i64), smooth: bool, table: u8, pattern: u32) {
+    let (dx, dy, dw, dh) = d;
+    // (u32::MAX is no colour: a pixel the copy did not reach)
+    let mut copy = vec![u32::MAX; (dw * dh) as usize];
+    blit::scale(&mut Target { px: &mut copy, alpha: None, w: dw as usize, h: dh as usize }, (0, 0, dw, dh), src, s, smooth);
+    for ty in 0..dh {
+        let y = dy + ty;
+        if y < 0 || y >= dst.h as i64 {
+            continue;
+        }
+        for tx in 0..dw {
+            let x = dx + tx;
+            let from = copy[(ty * dw + tx) as usize];
+            if x < 0 || x >= dst.w as i64 || from == u32::MAX {
+                continue;
+            }
+            let i = y as usize * dst.w + x as usize;
+            dst.px[i] = super::rop::apply(table, dst.px[i], from, pattern);
+            if let Some(a) = dst.alpha.as_deref_mut().filter(|a| a.len() > i) {
+                a[i] = 255;
+            }
+        }
+    }
+}
+
+/// The rows of the box [`Bitmap::round_rect`] fills — (`l`, `t`)–(`r`, `b`),
+/// corners rounded by ellipses `w` × `h` — each row's first and last
+/// pixel, at `s` device pixels to the pixel (1: the pixels themselves); with
+/// the number of the first row. The box is convex, so a row is one run.
+#[allow(clippy::too_many_arguments)]
+fn round_rows(l: i64, t: i64, r: i64, b: i64, w: i64, h: i64, s: i64) -> (i64, Vec<Option<(i64, i64)>>) {
+    let (top, bottom) = (t * s, b * s);
+    // (a box taller than any picture can be: nothing to draw)
+    if bottom - top > 1 << 15 || bottom <= top {
+        return (top, Vec::new());
+    }
+    let mut rows: Vec<Option<(i64, i64)>> = vec![None; (bottom - top) as usize];
+    let mut add = |y: i64, xa: i64, xb: i64| {
+        if y >= top && y < bottom && xa <= xb {
+            let slot = &mut rows[(y - top) as usize];
+            *slot = Some(slot.map_or((xa, xb), |(a, z)| (a.min(xa), z.max(xb))));
+        }
+    };
+    for y in top..bottom {
+        add(y, (l + w / 2) * s, (r - w / 2) * s - 1);
+    }
+    for y in (t + h / 2) * s..(b - h / 2) * s {
+        add(y, l * s, r * s - 1);
+    }
+    for (cx, cy) in [(l, t), (r - w, t), (l, b - h), (r - w, b - h)] {
+        ellipse_spans(cx * s, cy * s, (cx + w) * s, (cy + h) * s, true, |xa, xb, y| add(y, xa, xb));
+    }
+    (top, rows)
+}
+
+/// Gives `paint(row, first, last, border)` each run of a box's `rows`: its
+/// border (`thickness` pixels wide round the edge) and the inside.
+fn paint_rows(rows: &[Option<(i64, i64)>], thickness: i64, mut paint: impl FnMut(i64, i64, i64, bool)) {
+    // (the box with `thickness` pixels peeled off all round)
+    let mut inner = rows.to_vec();
+    for _ in 0..thickness {
+        let before = inner.clone();
+        for i in 0..before.len() {
+            inner[i] = (|| {
+                let me = before[i]?;
+                let up = if i > 0 { before[i - 1] } else { None }?;
+                let down = before.get(i + 1).copied().flatten()?;
+                let (a, z) = ((me.0 + 1).max(up.0).max(down.0), (me.1 - 1).min(up.1).min(down.1));
+                (a <= z).then_some((a, z))
+            })();
+        }
+    }
+    for (i, row) in rows.iter().enumerate() {
+        let Some((xa, xb)) = *row else { continue };
+        match inner[i] {
+            Some((ia, ib)) => {
+                paint(i as i64, xa, ia - 1, true);
+                paint(i as i64, ia, ib, false);
+                paint(i as i64, ib + 1, xb, true);
+            }
+            None => paint(i as i64, xa, xb, true),
+        }
+    }
+}
+
 /// The points of the line (x1, y1)–(x2, y2), both ends included.
 fn bresenham(x1: i64, y1: i64, x2: i64, y2: i64, mut put: impl FnMut(i64, i64)) {
     let (dx, dy) = ((x2 - x1).abs(), -(y2 - y1).abs());
@@ -254,6 +345,12 @@ pub struct Bitmap {
     /// none is given.
     pub pen: u32,
     pub brush: u32,
+    /// The pattern the raster operations that use one (CopyMode `cmPatCopy`
+    /// …) combine with: the colour last used to fill, as the classic
+    /// compiler's brush follows it (`FillRect`, `Rectangle`, `RoundRect`, a
+    /// `Circle`'s fill, a `TextOut`'s background). A RapidR canvas in a
+    /// RapidR program uses its `BrushColor` instead ([`Bitmap::pattern_color`]).
+    pub(crate) pattern: u32,
     /// Each pixel's opacity, for an image with soft edges (an SVG); used
     /// only while it matches the pixels (drawing on it makes pixels opaque).
     pub alpha: Option<Vec<u8>>,
@@ -390,6 +487,7 @@ impl Default for Bitmap {
             background: BACKGROUND,
             pen: 0,
             brush: BACKGROUND,
+            pattern: 0xFF_FFFF,
             alpha: None,
             hi: None,
             svg: None,
@@ -685,6 +783,84 @@ impl Bitmap {
                     }
                 }
             }
+        }
+    }
+
+    /// The colour the raster operations that use a pattern combine with:
+    /// a RapidR canvas in a RapidR program uses its `BrushColor`; every
+    /// other drawing surface the colour last used to fill, as the classic
+    /// compiler's brush follows it.
+    pub fn pattern_color(&self) -> u32 {
+        if self.canvas && crate::rapidr_program() {
+            self.brush
+        } else {
+            self.pattern
+        }
+    }
+
+    /// The drawing methods that leave their colour in the brush (RC.EXE,
+    /// tests/conformance/cases/rapidq_copymode.bas): `FillRect`,
+    /// `Rectangle` and `RoundRect` with their colour, a `Circle`'s fill, a
+    /// `TextOut`'s background. `Line`, `Pset` and `Paint` leave it alone.
+    fn note_pattern(&mut self, method: &str, args: &[Value]) {
+        let n = |i: usize| args.get(i).map_or(0, Value::to_i64);
+        let colored = |i: usize| n(i) >= 0 || (n(i) as u32) & 0xFF00_0000 == 0x8000_0000;
+        let c = match method {
+            "fillrect" | "rectangle" if args.len() > 4 => n(4),
+            "roundrect" if args.len() > 7 => {
+                if !colored(7) {
+                    return;
+                }
+                n(7)
+            }
+            "roundrect" if args.len() > 6 => n(6),
+            "circle" | "ellipse" if args.len() > 5 => n(5),
+            "textout" if args.len() > 4 && colored(4) => n(4),
+            _ => return,
+        };
+        self.pattern = super::color_bgr(c);
+    }
+
+    /// [`Bitmap::draw`] combined as the raster operation `table` says
+    /// (CopyMode, [`super::rop`]). A picture with a transparent colour or
+    /// soft edges is drawn as it always was.
+    pub fn draw_rop(&mut self, x: i64, y: i64, src: &Bitmap, table: u8) {
+        if table == super::rop::SRC_COPY || src.transparent || src.alpha_channel().is_some() {
+            return self.draw(x, y, src);
+        }
+        let (w, h) = (src.img.width as i64, src.img.height as i64);
+        self.copy_rect_rop((x, y, x + w, y + h), src, (0, 0, w, h), table);
+    }
+
+    /// [`Bitmap::copy_rect`] combined as the raster operation `table` says
+    /// (CopyMode): each pixel of the scaled copy and the pixel it lands on
+    /// make a new one, with the pattern ([`Bitmap::pattern_color`]) for the
+    /// operations that use one. What the screen shows gets the same.
+    #[allow(clippy::too_many_arguments)]
+    pub fn copy_rect_rop(&mut self, (dx1, dy1, dx2, dy2): (i64, i64, i64, i64), src: &Bitmap, (sx1, sy1, sx2, sy2): (i64, i64, i64, i64), table: u8) {
+        if table == super::rop::SRC_COPY {
+            return self.copy_rect((dx1, dy1, dx2, dy2), src, (sx1, sy1, sx2, sy2));
+        }
+        let (dw, dh, sw, sh) = (dx2 - dx1, dy2 - dy1, sx2 - sx1, sy2 - sy1);
+        if dw <= 0 || dh <= 0 || sw <= 0 || sh <= 0 || dw * dh > MAX_PIXELS as i64 {
+            return;
+        }
+        let (smooth, pattern) = (self.smooth, self.pattern_color());
+        self.svg = None;
+        self.redraw = None;
+        self.touch();
+        let (iw, ih, len) = (self.img.width, self.img.height, self.img.pixels.len());
+        let src_plane = Source { px: &src.img.pixels, w: src.img.width, h: src.img.height };
+        rop_plane(&mut Target { px: &mut self.img.pixels, alpha: self.alpha.as_deref_mut().filter(|a| a.len() == len), w: iw, h: ih }, (dx1, dy1, dw, dh), src_plane, (sx1, sy1, sw, sh), smooth, table, pattern);
+        let Some(hi) = self.hi_mut() else { return };
+        let s = hi.scale as i64;
+        let (hw, hh) = (hi.img.width, hi.img.height);
+        let len = hi.img.pixels.len();
+        let mut target = Target { px: &mut hi.img.pixels, alpha: hi.alpha.as_deref_mut().filter(|a| a.len() == len), w: hw, h: hh };
+        let fine = src.hi.as_deref().filter(|h| h.scale as i64 == s && h.img.width == src.img.width * s as usize && h.img.height == src.img.height * s as usize);
+        match fine {
+            Some(f) => rop_plane(&mut target, (dx1 * s, dy1 * s, dw * s, dh * s), Source { px: &f.img.pixels, w: f.img.width, h: f.img.height }, (sx1 * s, sy1 * s, sw * s, sh * s), smooth, table, pattern),
+            None => rop_plane(&mut target, (dx1 * s, dy1 * s, dw * s, dh * s), src_plane, (sx1, sy1, sw, sh), smooth, table, pattern),
         }
     }
 
@@ -993,6 +1169,7 @@ impl Bitmap {
 
     /// Drawing methods (the ones that need nothing but this bitmap).
     pub fn call(&mut self, method: &str, args: &[Value]) -> Option<Value> {
+        self.note_pattern(method, args);
         if self.canvas {
             // The runtime's: showing, hiding, painting again.
             if matches!(method, "update" | "refresh" | "repaint" | "show" | "hide") || (method == "paint" && args.len() < 3) {
@@ -1027,6 +1204,10 @@ impl Bitmap {
                 }
                 self.ellipse(n(0), n(1), n(2), n(3), c(4), false);
             }
+            // RoundRect(x1, y1, x2, y2, rx, ry, c): filled with c (the
+            // classic form, exactly); RapidR's RoundRect(…, Color, Fill)
+            // outlines it in Color and fills it with Fill (-1: not filled).
+            "roundrect" if args.len() > 7 => self.round_rect_outlined(n(0), n(1), n(2), n(3), n(4), n(5), c(6), super::text_color_arg(args.get(7))),
             "roundrect" => self.round_rect(n(0), n(1), n(2), n(3), n(4), n(5), c(6)),
             "paint" => self.flood_fill(n(0), n(1), c(2), c(3)),
             // TextOut(x, y, text, colour, background (-1: transparent)),
@@ -1085,6 +1266,10 @@ impl Bitmap {
                 }
                 self.ellipse(n(0), n(1), n(2), n(3), color(4, pen), false);
             }
+            // RoundRect(x1, y1, x2, y2, rx, ry): a one-pixel border in
+            // PenColor, the inside in BrushColor (the 7 and 8 argument
+            // forms are the general ones').
+            "roundrect" if args.len() == 6 => self.round_rect_outlined(n(0), n(1), n(2), n(3), n(4), n(5), pen, Some(brush)),
             "clear" | "cls" => {
                 self.svg = None;
                 self.redraw = None;
@@ -1146,6 +1331,46 @@ impl Bitmap {
         for (cx, cy) in [(l, t), (r - w, t), (l, b - h), (r - w, b - h)] {
             self.ellipse(cx, cy, cx + w, cy + h, c, true);
         }
+    }
+
+    /// [`Bitmap::round_rect`] with an outline: the box filled with `fill`
+    /// (`None`: not filled, only outlined) and a one-pixel border of `border`
+    /// round it, inside its edge — `RoundRect(…, Color, Fill)`. It is the
+    /// same box `round_rect` fills, so a program that outlines a card covers
+    /// exactly what it filled. What the screen shows draws the curve at its
+    /// own scale, the border the same one pixel wide.
+    #[allow(clippy::too_many_arguments)]
+    pub fn round_rect_outlined(&mut self, x1: i64, y1: i64, x2: i64, y2: i64, w: i64, h: i64, border: u32, fill: Option<u32>) {
+        let (l, t, r, b) = (x1.min(x2), y1.min(y2), x1.max(x2), y1.max(y2));
+        let (w, h) = (w.clamp(0, r - l), h.clamp(0, b - t));
+        self.svg = None;
+        self.redraw = None;
+        self.touch();
+        let (top, rows) = round_rows(l, t, r, b, w, h, 1);
+        let (iw, ih) = (self.img.width as i64, self.img.height as i64);
+        paint_rows(&rows, 1, |dy, xa, xb, is_border| {
+            let y = top + dy;
+            let Some(c) = (if is_border { Some(border) } else { fill }) else { return };
+            if y < 0 || y >= ih {
+                return;
+            }
+            for x in xa.max(0)..=xb.min(iw - 1) {
+                let i = y as usize * self.img.width + x as usize;
+                self.img.pixels[i] = c;
+                if let Some(a) = self.alpha.as_mut().filter(|a| a.len() > i) {
+                    a[i] = 255;
+                }
+            }
+        });
+        let Some(hi) = self.hi_mut() else { return };
+        let s = hi.scale as i64;
+        let (top, rows) = round_rows(l, t, r, b, w, h, s);
+        paint_rows(&rows, s, |dy, xa, xb, is_border| {
+            if let Some(c) = if is_border { Some(border) } else { fill } {
+                let y = top + dy;
+                hi.fill(xa, y, xb + 1, y + 1, c);
+            }
+        });
     }
 
     /// The `.BMP` value: a `data:` URL of the image, with the transparent
@@ -1287,6 +1512,74 @@ mod tests {
         let mut b = Bitmap::default();
         b.resize(w, h);
         b
+    }
+
+    /// RoundRect(…, Color, Fill) covers exactly the box RoundRect(…, c)
+    /// fills; its border is the box's pixels with a neighbour outside the
+    /// box (one pixel wide, all round); the inside is Fill.
+    #[test]
+    fn round_rect_outlined_is_the_filled_box_with_a_one_pixel_border() {
+        const FILL: u32 = 0x00_00FF;
+        const EDGE: u32 = 0xFF_0000;
+        for (x2, y2, w, h) in [(22, 16, 6, 6), (30, 20, 12, 12), (13, 9, 40, 40), (10, 10, 0, 0), (5, 3, 2, 2)] {
+            let (mut solid, mut ring) = (bmp(34, 24), bmp(34, 24));
+            solid.round_rect(2, 2, x2, y2, w, h, 0x11_1111);
+            ring.round_rect_outlined(2, 2, x2, y2, w, h, EDGE, Some(FILL));
+            let inside = |x: i64, y: i64| solid.pixel(x, y) == Some(0x11_1111);
+            for y in 0..24 {
+                for x in 0..34 {
+                    let p = ring.pixel(x, y).unwrap();
+                    let rim = inside(x, y) && [(1, 0), (-1, 0), (0, 1), (0, -1)].iter().any(|(dx, dy)| !inside(x + dx, y + dy));
+                    let want = if rim {
+                        EDGE
+                    } else if inside(x, y) {
+                        FILL
+                    } else {
+                        BACKGROUND
+                    };
+                    assert_eq!(p, want, "box 2,2..{x2},{y2} corners {w}x{h}: pixel {x},{y}");
+                }
+            }
+        }
+    }
+
+    /// Fill -1 leaves the inside alone; only the border is drawn.
+    #[test]
+    fn round_rect_outlined_without_a_fill_keeps_the_inside() {
+        let mut b = bmp(20, 20);
+        b.fill_rect(0, 0, 20, 20, 0x12_3456);
+        b.round_rect_outlined(2, 2, 18, 18, 6, 6, 0xFF_FFFF, None);
+        assert_eq!(b.pixel(10, 10), Some(0x12_3456));
+        assert_eq!(b.pixel(10, 2), Some(0xFF_FFFF));
+        assert_eq!(b.pixel(2, 10), Some(0xFF_FFFF));
+    }
+
+    /// CopyMode: every operation's result on one pixel, a scaled copy and the
+    /// pattern ([`crate::objects::rop`] has the 15 modes; this is the path).
+    #[test]
+    fn copy_rect_rop_combines_with_what_is_there() {
+        let mut src = bmp(2, 2);
+        src.fill_rect(0, 0, 2, 2, 0x55_AA33);
+        let mut dst = bmp(4, 4);
+        dst.fill_rect(0, 0, 4, 4, 0x0F_3CC5);
+        // cmSrcAnd (0x88): AND; the copy is scaled 2 -> 4 first
+        dst.copy_rect_rop((0, 0, 4, 4), &src, (0, 0, 2, 2), 0x88);
+        assert_eq!(dst.pixel(3, 3), Some(0x05_2801));
+        // a Draw is a copy of the picture's size: cmSrcInvert (0x66) twice is no change
+        dst.fill_rect(0, 0, 4, 4, 0x0F_3CC5);
+        dst.draw_rop(1, 1, &src, 0x66);
+        assert_eq!(dst.pixel(1, 1), Some(0x5A_96F6));
+        assert_eq!(dst.pixel(0, 0), Some(0x0F_3CC5), "outside the picture: untouched");
+        dst.draw_rop(1, 1, &src, 0x66);
+        assert_eq!(dst.pixel(1, 1), Some(0x0F_3CC5));
+        // cmPatCopy (0xF0) puts the brush last used to fill (RC.EXE)
+        dst.call("fillrect", &[crate::v_int(0), crate::v_int(0), crate::v_int(4), crate::v_int(4), crate::v_int(0x0A_0B0C)]);
+        dst.copy_rect_rop((0, 0, 2, 2), &src, (0, 0, 2, 2), 0xF0);
+        assert_eq!(dst.pixel(0, 0), Some(0x0A_0B0C));
+        // a copy that runs off the bitmap changes what shows and nothing else
+        dst.copy_rect_rop((3, 3, 7, 7), &src, (0, 0, 2, 2), 0x00);
+        assert_eq!(dst.pixel(3, 3), Some(0));
+        assert_eq!(dst.pixel(2, 2), Some(0x0A_0B0C));
     }
 
     #[test]

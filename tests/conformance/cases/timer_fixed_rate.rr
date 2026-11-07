@@ -1,0 +1,53 @@
+' RTimer's FixedRate — RapidR's own: a tick every Interval milliseconds
+' exactly, by the clock. Without it a RapidR program's RTimer ticks an
+' Interval (in Windows' steps of 15.6 ms: 31.25 for 20) after its handler
+' has ended, so a 4 ms handler at Interval 20 runs about 28 times a second;
+' with it, 50 — a missed tick is made up at once, handlers never overlap.
+' Each half runs a second; the counts are said in ranges (a busy machine makes up the ticks it missed, so a second can hold a few more than 50).
+$APPTYPE CONSOLE
+DECLARE SUB Tick
+DIM Ticks AS INTEGER, Began AS DOUBLE, Phase AS INTEGER, Fixed AS INTEGER, Plain AS INTEGER
+
+CREATE Form AS RForm
+    ClientWidth = 100: ClientHeight = 60
+END CREATE
+CREATE Clock AS RTimer
+    Interval = 20
+    FixedRate = 1
+    OnTimer = Tick
+END CREATE
+
+SUB Tick
+    DIM t AS DOUBLE
+    t = TIMER
+    IF Began = 0 THEN Began = t
+    Ticks = Ticks + 1
+    ' 4 ms of work
+    WHILE TIMER - t < 0.004
+    WEND
+    IF TIMER - Began >= 1 THEN
+        IF Phase = 0 THEN
+            Fixed = Ticks
+            Phase = 1
+            Ticks = 0
+            Began = 0
+            Clock.FixedRate = 0
+        ELSE
+            Plain = Ticks
+            Clock.Enabled = 0
+            Form.Close
+        END IF
+    END IF
+END SUB
+
+Form.ShowModal
+IF Fixed >= 45 AND Fixed <= 60 THEN
+    PRINT "FixedRate: about 50 a second"
+ELSE
+    PRINT "FixedRate: "; Fixed
+END IF
+IF Plain >= 20 AND Plain <= 36 THEN
+    PRINT "default: an Interval after each handler, about 28 a second"
+ELSE
+    PRINT "default: "; Plain
+END IF

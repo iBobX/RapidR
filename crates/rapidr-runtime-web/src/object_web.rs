@@ -1008,6 +1008,10 @@ fn set_property(name: &str, prop: &str, val: Value) {
     let before_dir = if rapidr_value::objects::is_dirtree(name) { rp_comp_get_stored_dir(name) } else { String::new() };
     let orientation_before = if lprop == "orientation" { rapidr_value::objects::trackbar_orientation(name) } else { None };
     if let Some(result) = rapidr_value::objects::set(name, &lprop, &val) {
+        // (an RAudioOut's setting refused: OnError has something to say)
+        if rapidr_value::objects::audioout::has_pending() {
+            crate::audio_web::wake();
+        }
         // A QTRACKBAR turned: its Width and Height swap (RapidQ's).
         if rapidr_value::objects::trackbar_turned(name, orientation_before) {
             let (w, h) = (rp_comp_get(&uname, "width"), rp_comp_get(&uname, "height"));

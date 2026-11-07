@@ -118,10 +118,13 @@ DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
   `DOEVENTS`, a dialog), each to its end before the next. A handler that
   is still running is never interrupted by one: it runs once that handler
   has ended.
-- **A timer never runs inside itself.** If its handler takes longer than its
-  `Interval`, the next tick comes when the handler ends; the ticks missed
-  meanwhile are not made up. An emulator's frame timer at `Interval = 10`
-  whose frame takes 30 ms simply runs about 30 frames a second.
+- **A timer never runs inside itself.** A handler is never interrupted by its
+  timer's next tick. When the handler takes longer than the `Interval`, what
+  follows depends on the timer (the table in [A picture every 20
+  milliseconds](graphics.md#a-picture-every-20-milliseconds)): a RapidR
+  program's `RTimer` ticks again one Interval after the handler ends; an
+  `RTimer` with `FixedRate = 1` ticks at once and makes up the ticks it missed;
+  a classic `QTimer` ticks at once and does not make them up.
 - **A handler that calls `DOEVENTS`** lets the waiting events run there and
   then — another timer's tick, a click —, then goes on.
 - **The events your own code fires run at once**, inside the line that

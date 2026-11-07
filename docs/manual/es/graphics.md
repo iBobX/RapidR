@@ -28,6 +28,76 @@ dibujó — mira
 | Girarla | `Rotate x, y, degrees` |
 | **Muchos píxeles a la vez** | **`SetPixels`, `SetPixels8`, `GetPixels`** — más abajo |
 
+## Cajas redondeadas: RoundRect
+
+`RoundRect x1, y1, x2, y2, rx, ry` dibuja la caja de (`x1`, `y1`) a (`x2`, `y2`)
+— sin incluir sus bordes derecho e inferior, como toda forma — con las esquinas
+redondeadas por una elipse de `rx` de ancho y `ry` de alto. Toma sus colores de
+tres maneras:
+
+| Llamada | Qué se obtiene |
+|---|---|
+| `RoundRect x1, y1, x2, y2, rx, ry, Color` | toda la caja rellena con `Color` |
+| `RoundRect x1, y1, x2, y2, rx, ry, Color, Fill` | un **borde** de un píxel en `Color`, justo dentro del límite, y el interior en `Fill` (-1: sin relleno, solo el borde) |
+| `RoundRect x1, y1, x2, y2, rx, ry` en un `RCanvas` | el borde en `PenColor` y el interior en `BrushColor` |
+
+Así una tarjeta, o una píldora, es una sola llamada:
+
+```basic
+Canvas.RoundRect 12, 12, 468, 92, 16, 16, Application.ThemeColor("border"), Application.ThemeColor("card")
+Canvas.RoundRect x, 108, x + w, 132, 24, 24, Application.ThemeColor("status.info.border"), Application.ThemeColor("status.info")
+```
+
+El borde y el interior cubren exactamente la caja que rellena la forma de un solo
+color, y en una pantalla de alta densidad la curva se dibuja a la escala de la
+propia pantalla, con el borde siempre de un píxel de ancho.
+[round_rect.rr](../../../examples/graphics/round_rect.rr) dibuja una tarjeta, tres
+chips de estado y las tres formas con los colores propios de la apariencia.
+
+![Una tarjeta, tres chips de estado y las tres formas de RoundRect, en la apariencia clara de RapidR: cada forma con un relleno suave dentro de un borde de un píxel](../images/graphics/round-rect.png)
+![Lo mismo en la apariencia oscura](../images/graphics/round-rect-dark.png)
+![Lo mismo en alto contraste: cada borde blanco, el interior negro](../images/graphics/round-rect-contrast.png)
+
+## CopyMode: cómo se encuentra una imagen con lo que ya hay
+
+`Draw`, `StretchDraw` y `CopyRect` ponen una imagen en un lienzo, un mapa de bits,
+una imagen o la superficie de un formulario. Lo que pasa con los píxeles que ya
+estaban es el `CopyMode` del destino. `cmSrcCopy`, el predeterminado, los
+reemplaza por los de la imagen; los demás combinan los dos colores, bit a bit —
+las 15 operaciones de trama de Windows. Funcionan igual en un lienzo, un mapa de
+bits y una imagen, con una imagen entera o una parte, escalada o no, en Windows,
+macOS y Linux y en un navegador.
+
+| `CopyMode` | El píxel pasa a ser |
+|---|---|
+| `cmSrcCopy` | el de la imagen (lo predeterminado) |
+| `cmSrcInvert` | la imagen XOR lo que había: hazlo dos veces y vuelve el original |
+| `cmSrcAnd` | la imagen AND lo que había: más oscuro. Una tira de gris copiada sobre una de cada tres filas da líneas de barrido |
+| `cmSrcPaint` | la imagen OR lo que había: más claro |
+| `cmSrcErase` | la imagen AND NOT lo que había |
+| `cmNotSrcCopy` | la imagen en negativo |
+| `cmNotSrcErase` | NOT (la imagen OR lo que había) |
+| `cmMergePaint` | NOT la imagen OR lo que había |
+| `cmDstInvert` | lo que había, invertido: la imagen solo dice dónde |
+| `cmBlackness`, `cmWhiteness` | negro, o blanco, donde cae la imagen |
+| `cmPatCopy` | el patrón |
+| `cmPatInvert` | el patrón XOR lo que había: dibuja un cuadro de selección, dibújalo otra vez y desaparece |
+| `cmPatPaint` | lo que había OR el patrón OR NOT la imagen |
+| `cmMergeCopy` | la imagen AND el patrón |
+
+El **patrón** es el pincel del destino: en un `RCanvas` de un programa de RapidR,
+su `BrushColor`; en un programa clásico, el último color con que se rellenó (un
+`FillRect`, `Rectangle` o `RoundRect` con color, el relleno de un `Circle`, el
+fondo de un `TextOut`; blanco antes de cualquiera). Una imagen con un color
+transparente, o con bordes suaves (un SVG), se dibuja como siempre sea cual sea el
+modo, y la página de una impresora y los elementos dibujados por el programa de una
+lista o una cuadrícula copian (`cmSrcCopy`) por ahora.
+[copy_modes.rr](../../../examples/graphics/copy_modes.rr) muestra seis en una misma
+imagen, con las líneas de barrido incluidas.
+
+![Una misma imagen en seis CopyMode: reemplazada, XOR, un negativo, OR, líneas de barrido y un cuadro de selección](../images/graphics/copy-modes.png)
+![Lo mismo en la apariencia oscura](../images/graphics/copy-modes-dark.png)
+
 ## Dibujar muchos píxeles rápido
 
 Algunos programas hacen una imagen a partir de números: la memoria de video de
@@ -175,12 +245,32 @@ eso ya no pasa.
 
 ## Una imagen cada 20 milisegundos
 
-Un `RTimer` avanza en pasos de 15.6 ms, como los propios temporizadores de
-Windows, así que `Interval = 20` da unas 32 imágenes por segundo, no 50 — y un
-temporizador vuelve a dispararse 15.6 ms *después* de que termina su controlador
-de eventos. Así que, para 50 exactas por segundo, deja que el temporizador mire
-cada marca y dibuje una imagen solo cuando **toca** una, llevando tú mismo la
-cuenta de la hora en que toca:
+El `Interval` de un temporizador se cuenta en los pasos de 15.6 ms del
+temporizador del sistema, redondeado hacia arriba: `Interval = 20` son 31.25 ms,
+unas 32 marcas por segundo, no 50. Y cuando el controlador tarda buena parte del
+Interval, cómo se siguen las marcas depende del temporizador:
+
+| El temporizador | La siguiente marca llega |
+|---|---|
+| un `RTimer` en un programa de RapidR (lo predeterminado) | un Interval después de que el controlador **terminó**: con un controlador de 24 ms y `Interval = 20` marca cada 55 ms más o menos |
+| un `RTimer` con `FixedRate = 1` | cada Interval **exacto**, según el reloj: `Interval = 20` son 50 por segundo. Una marca que venció mientras un controlador largo se ejecutaba corre en cuanto este termina, y las perdidas además de ella una tras otra (los controladores nunca se solapan), hasta 250 ms de atraso; más atrasado (una ventana arrastrada, un diálogo largo) y vuelve a contar desde ese momento |
+| el `QTimer` de un programa clásico (un archivo `.bas`) | al compás: un Interval después de cuando le tocaba a la última marca, así que con un controlador de 24 ms sigue marcando cada 31 ms; una marca que venció durante el controlador corre en cuanto este termina, y las perdidas además de ella se descartan |
+
+Un programa que quiere un compás parejo — los 50 cuadros por segundo de un
+emulador, la aguja de un reloj, un metrónomo — pone `FixedRate = 1`:
+
+```basic
+Clock.Interval = 20
+Clock.FixedRate = 1            ' cada 20 ms según el reloj, no 20 ms después del último cuadro
+```
+
+![steady_timer.rr: dos temporizadores con Interval = 20 y 4 ms de trabajo en cada marca; el predeterminado contó 25 marcas en el último segundo, el de FixedRate 50](../images/graphics/steady-timer.png)
+
+[steady_timer.rr](../../../examples/gui/steady_timer.rr) ejecuta los dos lado a
+lado y cuenta sus marcas. La otra forma, que funciona sin `FixedRate` y no
+depende del ritmo de las marcas: deja que el temporizador mire cada marca y
+dibuje una imagen solo cuando **toca** una, llevando tú mismo la cuenta de la
+hora en que toca:
 
 ```basic
 SUB Tick
@@ -204,6 +294,9 @@ tardó en calcular la imagen, ponerla en el mapa de bits y dibujarla.
 
 | | |
 |---|---|
+| [round_rect.rr](../../../examples/graphics/round_rect.rr) | `RoundRect` con un borde y un interior en una sola llamada: una tarjeta, tres chips de estado y las tres formas, con los colores propios de la apariencia (clara, oscura, alto contraste) |
+| [copy_modes.rr](../../../examples/graphics/copy_modes.rr) | `CopyMode` en una misma imagen: reemplazar, XOR, un negativo, OR, líneas de barrido (`cmSrcAnd`) y un cuadro de selección (`cmPatInvert`) |
+| [steady_timer.rr](../../../examples/gui/steady_timer.rr) | Un `RTimer` y un `RTimer` con `FixedRate` contando sus marcas lado a lado: unas 25 por segundo contra 50 |
 | [pixels_fast.rr](../../../examples/graphics/pixels_fast.rr) | Un plasma (rotación de paleta, 256 x 192) y el Juego de la vida (64 x 48 celdas calculadas en cada cuadro) a 50 cuadros por segundo, con la lectura en pantalla. **Method** cambia a un `Pset` para cada píxel, para ver la diferencia: el plasma baja a unas 12 imágenes por segundo |
 | [video_memory.rr](../../../examples/recipes/video_memory.rr) | La receta de sistemas: el mapa de bits y los atributos de color de una máquina, guardados decodificados en un arreglo `BYTE` y dibujados con `SetPixels8`; **Repaint** mide el tiempo de un repintado completo (unos 0.2 ms; la primera versión de la receta tardaba de 8 a 13 ms) |
 | [tools/bench/pixels.rr](../../../tools/bench/pixels.rr) | La prueba de rendimiento de arriba, para ejecutarla en tu propia computadora |

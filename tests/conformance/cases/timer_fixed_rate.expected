@@ -1,0 +1,2 @@
+FixedRate: about 50 a second
+default: an Interval after each handler, about 28 a second

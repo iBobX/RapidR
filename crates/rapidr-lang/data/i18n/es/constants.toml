@@ -4,6 +4,7 @@
 [docs]
 "ADDRESS FAMILIES" = "Familias de direcciones para el Family de un socket (AF_INET para IPv4 y otras)."
 "ALIGNMENT IN THE PARENT" = "El Align de un control: dónde se acopla en su contenedor (arriba, abajo, izquierda, derecha, toda el área de cliente) cuando este cambia de tamaño."
+"AUDIO ERRORS" = "Qué salió mal, como lo dice el OnError(Code, Message) de un RAudioOut: aeNoDevice (no hay dispositivo de sonido, o rechazó el flujo), aeDeviceLost (el dispositivo dejó de recibir sonido), aeBadSetting (una propiedad fuera de su rango), aeUnderrun (la cola se vació: el programa no escribió a tiempo), aeNeedsClick (un navegador reproduce sonido solo después de un clic o una tecla). Solo está integrado en un programa de RapidR (`.rr`): un programa `.bas` lee los nombres como variables que valen 0."
 "64-BIT NUMBER TYPES" = "Los tipos de RapidR para ReadNum y WriteNum de un flujo, junto a Num_LONG y los demás: un INT64 o un UINT64 en 8 bytes, un UINT32 en 4, en orden little-endian, sin perder ningún bit. Vienen incorporados solo en un programa de RapidR (`.rr`), como los nombres propios de RapidR."
 "ANCHORS" = "Los indicadores Anchors de RapidR, combinados: los lados de su contenedor a los que un control mantiene su distancia cuando el contenedor cambia de tamaño."
 "BAUD RATES" = "Velocidades del puerto serial para el BaudRate de un RComPort."

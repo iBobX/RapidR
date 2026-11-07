@@ -44,7 +44,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum |  | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (it is fsNormal only). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `TileMode` | int | 0 | How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
@@ -73,7 +73,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` | Gives the form the outline of a bitmap's pixels that aren't TransparentColor (a BMP file, or a $RESOURCE): the bitmap's pixel (x, y) is the window's (x, y) from its top left corner, frame included; what's outside — and outside the bitmap — is cut away, and the mouse reaches what's behind there. Width, Height and BorderStyle don't change; the outline stays when the form is resized. (Wayland gives no program a way to cut its window: it keeps its rectangle there.) |
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `ShowModal AS VARIANT` | Shows the form and waits until it closes; returns its modal result. |
@@ -231,7 +231,7 @@ A form with more: files dropped onto it one by one (OnDrag), its own icon in the
 | `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum |  | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (it is fsNormal only). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `TileMode` | int | 0 | How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
@@ -267,7 +267,7 @@ A form with more: files dropped onto it one by one (OnDrag), its own icon in the
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `ShapeForm(Filename AS STRING, TransparentColor AS LONG)` | Gives the form the outline of a bitmap's pixels that aren't TransparentColor (a BMP file, or a $RESOURCE): the bitmap's pixel (x, y) is the window's (x, y) from its top left corner, frame included; what's outside — and outside the bitmap — is cut away, and the mouse reaches what's behind there. Width, Height and BorderStyle don't change; the outline stays when the form is resized. (Wayland gives no program a way to cut its window: it keeps its rectangle there.) |
 | `Show` | Shows the component or form; a data-science object prints its contents. |
 | `ShowModal AS VARIANT` | Shows the form and waits until it closes; returns its modal result. |
@@ -1308,7 +1308,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `DropDownCount` | int | 8 | How many items the drop-down list shows before it scrolls. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -1367,7 +1367,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -2235,7 +2235,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
 | `Center` | bool | False | Centres the picture in the control instead of placing it at the top left. |
-| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
@@ -2283,7 +2283,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Shows the picture again. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws `BMP` scaled to fill `Rect` (its right and bottom edges left out). RapidR also takes the rectangle as four numbers: `StretchDraw x, y, w, h, BMP` draws it at (`x`, `y`), `w` wide and `h` high. Every pixel of the result takes the nearest pixel of `BMP` - crisp, as pixel art and an emulator's screen want it, and one fast pass over rows (a 256 x 192 picture at twice its size in a fraction of a millisecond). With `Smooth` True the four pixels around it are blended instead. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -2322,7 +2322,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum |  | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
@@ -2366,7 +2366,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was. `FillRect` fills one. |
 | `Repaint` | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high. With a colour `c` alone the whole box is filled in `c`. RapidR's own forms: with a `fill` too, `c` is the one-pixel border (inside the edge) and `fill` the inside (-1: not filled), as `Circle` takes its two colours; with neither, the border is `PenColor` and the inside `BrushColor`. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws `BMP` scaled to fill `Rect` (its right and bottom edges left out). RapidR also takes the rectangle as four numbers: `StretchDraw x, y, w, h, BMP` draws it at (`x`, `y`), `w` wide and `h` high. Every pixel of the result takes the nearest pixel of `BMP` - crisp, as pixel art and an emulator's screen want it, and one fast pass over rows (a 256 x 192 picture at twice its size in a fraction of a millisecond). With `Smooth` True the four pixels around it are blended instead. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -2412,7 +2412,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `Align` | enum | `alTop` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
-| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
@@ -2459,7 +2459,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -2699,7 +2699,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `ClientHeight` | int |  | The height of the area inside the borders (and a form's title bar and menu), in pixels; on `Screen`, the work area's, without the task bar. |
 | `ClientWidth` | int |  | The width of the area inside the borders, in pixels; on `Screen`, the work area's, without the task bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
-| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum |  | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
@@ -2762,7 +2762,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Columns` | int | 0 | On a list box, how many columns the items flow into (0: one, scrolling down); on a list view, the column count; on a data frame, the column names, comma-separated. |
-| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `ExtendedSelect` | bool | True | With `MultiSelect`, lets Shift and Ctrl clicks select a range or add items. |
@@ -2830,7 +2830,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
@@ -3059,7 +3059,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `PenColor` | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
 | `BrushColor` | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
-| `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum |  | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `Anchors` | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
@@ -3089,7 +3089,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Repaint` | Redraws the component. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `SaveToFile(File AS STRING, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(S AS RFILESTREAM, RowOffset AS INTEGER, ColOffset AS INTEGER, MaxRows AS INTEGER)` | Writes the component's contents to an open stream. |
 | `SwapCols(Col1 AS INTEGER, Col2 AS INTEGER)` | Swaps columns `Col1` and `Col2`. |
@@ -3559,17 +3559,18 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 <a id="rtimer"></a>
 ## RTimer
 
-Runs its OnTimer handler every Interval milliseconds while Enabled.
+Runs its OnTimer handler every Interval milliseconds while Enabled, between the program's other work: it ticks while the program waits (a modal form, DOEVENTS, a dialog), one handler at a time, never inside itself. Interval is counted in Windows' timer steps of 15.6 ms, rounded up (20 ticks every 31.25 ms; 0 never ticks). When the handler takes a good part of the Interval, how the ticks follow one another matters: in a RapidR program the next tick comes one Interval after the handler has ended; in a classic program (.bas), as the classic compiler's own timer, the ticks keep their beat and one that fell due meanwhile runs the moment the handler ends. For a steady beat set FixedRate.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Interval` | int | 1000 | The milliseconds between a timer's ticks; on a media object, between its position updates. |
+| `Interval` | int | 1000 | The milliseconds between a timer's ticks, rounded up to Windows' timer steps of 15.6 ms (Interval 20 ticks every 31.25 ms; with FixedRate, exactly as set). 0 or less: it never ticks. |
+| `FixedRate` | bool | False | True: the ticks come every Interval milliseconds exactly, by the clock — the beat of a frame, a clock hand, an emulator's 50 frames a second — not Interval after the last handler ended. A handler that takes longer than the Interval never overlaps the next: the tick that fell due runs the moment it ends, and the ones missed besides it one after another until the timer has caught up; if the program is more than 250 ms behind (a stalled window, a long dialog), the count starts again from then. False (the default): the ticks are as the Interval says above. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 
 | Event | |
 |---|---|
-| `OnTimer(Sender AS RTIMER)` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
+| `OnTimer(Sender AS RTIMER)` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits; a handler is never interrupted by the next tick. |
 
 <a id="rrect"></a>
 ## RRect
@@ -3689,7 +3690,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 |---|---|---|---|
 | `Aborted` (read-only) | int |  | Non-zero when the current print job was cancelled with `Abort`; read-only. |
 | `Copies` | int |  | How many copies to print. |
-| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Fonts` (read-only) | string |  | A printer font's name, `Fonts(i)` from 0; read-only. |
 | `FontsCount` (read-only) | int |  | The number of printer fonts; read-only. |
@@ -3718,7 +3719,7 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -3963,7 +3964,7 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 |---|---|---|---|
 | `BMP` | picture |  | The picture shown, from a .BMP file name; on a button, its glyph. |
 | `BMPHandle` (write-only) | resource |  | Sets the picture from a resource handle (`$RESOURCE`) instead of a file; write-only. |
-| `CopyMode` | enum | `cmSrcCopy` | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
+| `CopyMode` | enum | `cmSrcCopy` | How `Draw`, `StretchDraw` and `CopyRect` combine the picture with what's there: one of the `cmXXX` raster operations. `cmSrcCopy`, the default, replaces it; `cmSrcAnd`, `cmSrcInvert`, `cmSrcPaint`, `cmNotSrcCopy` and the rest combine the two colour by colour; the `cmPat…` ones and `cmMergeCopy` use the brush (an RCanvas's `BrushColor`). |
 | `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Handle` | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
@@ -3996,7 +3997,7 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was. `FillRect` fills one. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high. With a colour `c` alone the whole box is filled in `c`. RapidR's own form, with a `fill` too: `c` is the one-pixel border (inside the edge) and `fill` the inside (-1: not filled), as `Circle` takes its two colours. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(Stream)` | Writes the component's contents to an open stream. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws `BMP` scaled to fill `Rect` (its right and bottom edges left out). RapidR also takes the rectangle as four numbers: `StretchDraw x, y, w, h, BMP` draws it at (`x`, `y`), `w` wide and `h` high. Every pixel of the result takes the nearest pixel of `BMP` - crisp, as pixel art and an emulator's screen want it, and one fast pass over rows (a 256 x 192 picture at twice its size in a fraction of a millisecond). With `Smooth` True the four pixels around it are blended instead. |
@@ -4677,7 +4678,7 @@ Plays sound the program makes sample by sample, as it comes: an emulator's beepe
 | `Playing` (read-only) | bool |  | True between Start and Stop while Enabled. |
 | `Queued` (read-only) | int |  | How much written sound waits to be played, in ms. A frame-driven program writes until it is about BufferMs. The queue holds 2 seconds. |
 | `Underruns` (read-only) | int |  | How many times the queue ran dry while playing — each a gap you hear, because the program didn't write in time (a sound that simply ends counts once too). 0 is the goal; Start begins again at 0. |
-| `Error` (read-only) | string |  | Why it can't be heard ("" when it can): no sound device, a program built without sound, a browser waiting for a click or key, a property set out of its range (the nearest value is used). |
+| `Error` (read-only) | string |  | Why it can't be heard ("" when it can): no sound device, a program built without sound, a browser waiting for a click or key, a property set out of its range (the nearest value is used), a device that stopped taking sound. OnError says each of them as it happens. |
 
 | Method | |
 |---|---|
@@ -4691,6 +4692,7 @@ Plays sound the program makes sample by sample, as it comes: an emulator's beepe
 | Event | |
 |---|---|
 | `OnNeedData(Count AS INTEGER)` | The queue dropped under BufferMs: write about Count samples now (for stereo, both channels counted) to fill it again. Raised on the program's thread, never the sound device's, while it plays; asked again after a Write or half of BufferMs. |
+| `OnError(Code AS INTEGER, Message AS STRING)` | Something went wrong with the sound; Code says what (aeNoDevice 1: no sound device, or it refused the stream; aeDeviceLost 2: the device stopped taking sound while it played — unplugged, a headset that went away; aeBadSetting 3: a property set out of its range, the nearest value is used; aeUnderrun 4: the queue ran dry, a gap you hear — at most four a second, the Message says how many times; aeNeedsClick 5: a browser plays sound only after a click or a key) and Message says it in words (it is also in Error, until the problem is over). Raised on the program's thread, a moment after it happened, never the sound device's; the stream goes on playing silently where it cannot play. |
 
 <a id="rmidiport"></a>
 ## RMIDIPort
@@ -4800,7 +4802,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
 | `Release` | Gives back the DirectX surfaces; RapidR has nothing to free. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Rotates the picture by `Angle` degrees around (`xOrigin`, `yOrigin`). |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER, [fill AS INTEGER])` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. RapidR's own form with a `fill` too: `c` outlines it and `fill` fills it (-1: not filled). |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |

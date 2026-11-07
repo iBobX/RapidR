@@ -141,6 +141,19 @@ Speaker.Start
   da al dispositivo de sonido 40 ms de silencio antes de tus muestras, de modo
   que unos audífonos que toman una ráfaga al comenzar (los Bluetooth lo hacen)
   nunca cortan el inicio.
+- **Cuando algo sale mal,** `OnError(Code, Message)` lo dice, en el hilo de tu
+  programa, un momento después de que ocurrió: `aeNoDevice` (1: no hay dispositivo
+  de sonido, o rechazó el flujo; el flujo suena en silencio, a tiempo),
+  `aeDeviceLost` (2: el dispositivo dejó de recibir sonido mientras sonaba, lo
+  desconectaron o unos auriculares se alejaron; se dice una vez), `aeBadSetting`
+  (3: una propiedad fuera de su rango, se usa el valor más cercano), `aeUnderrun`
+  (4: la cola se vació, un corte que se oye; como mucho cuatro por segundo, el
+  mensaje dice cuántas veces — un sonido que simplemente termina cuenta una vez
+  también) y `aeNeedsClick` (5: un navegador reproduce sonido solo después de un
+  clic o una tecla). `Message` lo dice con palabras, y `Error` también, hasta que el
+  problema pasa. Un programa sin `OnError` no cambia nada: `Error` y `Underruns`
+  siguen diciéndolo. [audio_errors.rr](../../../examples/media/audio_errors.rr)
+  muestra cada uno.
 - **En todas partes.** Igual en Windows, macOS y Linux, interpretado y nativo, y
   en el navegador. El dispositivo convierte tu `SampleRate` al suyo. Sin un
   dispositivo de sonido (o en un programa compilado sin sonido) el flujo se
@@ -174,10 +187,14 @@ vez (examples/media/beeper.rr, y la receta examples/recipes/frame_audio.rr):
 Un `RTimer` revisa con frecuencia y ejecuta cuadros hasta que hay unos 60 ms en
 cola, así que un tic que llega tarde se pone al día y el sonido nunca tiene
 huecos. Usa `Interval = 10`: los tics de un `RTimer` llegan en los pasos de
-15.6 ms del temporizador del sistema, como siempre (`Interval = 20` solo marca
-cada 31 ms, lo que le deja a una cola de 60 ms poco margen para un tic tardío).
-El intérprete de RapidR hace un cuadro así en 0.2 a 0.6 ms, una pequeña parte de
-los 20 ms de que dispone.
+15.6 ms del temporizador del sistema (`Interval = 20` solo marca cada 31 ms, y el
+temporizador de un programa de RapidR marca un Interval después de que su
+controlador *terminó*, lo que le deja a una cola de 60 ms poco margen para un tic
+tardío). O pon `FixedRate = 1` con `Interval = 20`: un tic exactamente cada 20 ms
+según el reloj, un cuadro por tic, y uno tardío se recupera de inmediato
+([Una imagen cada 20 milisegundos](graphics.md#una-imagen-cada-20-milisegundos)).
+El intérprete de RapidR hace un cuadro así en 0.2 a 0.6 ms, una pequeña parte de
+los 20 ms de que dispone.
 
 ![El zumbador de un bit: arriba, el bit del altavoz como una onda cuadrada durante un cuadro, debajo las 882 muestras del cuadro, y la lectura: la nota, el cuadro hecho en mucho menos de un milisegundo, 75 ms en cola, 0 huecos](../images/media/beeper.png)
 

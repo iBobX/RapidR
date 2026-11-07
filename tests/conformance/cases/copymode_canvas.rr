@@ -1,0 +1,72 @@
+' CopyMode on an RCanvas in a RapidR program: Draw, StretchDraw and CopyRect
+' combine the picture with what is on the canvas as CopyMode says, and the
+' modes that use a pattern use the canvas's BrushColor. (The classic
+' compiler's results for the 15 modes: rapidq_copymode.)
+'   - a red canvas, a strip of grey over one row with cmSrcAnd: that row
+'     is a darker red, the others stay red (scanlines);
+'   - cmNotSrcCopy: the picture as a negative;
+'   - cmPatCopy, then cmPatInvert twice: BrushColor, then back.
+$APPTYPE CONSOLE
+DIM Strip AS RBitmap, Ones AS RBitmap
+DIM Whole AS RRect, Part AS RRect
+
+CREATE Form AS RForm
+    ClientWidth = 60: ClientHeight = 30
+    CREATE Cv AS RCanvas
+        Left = 0: Top = 0: Width = 40: Height = 20
+    END CREATE
+END CREATE
+
+Strip.Width = 40: Strip.Height = 3
+Strip.FillRect 0, 0, 40, 3, &HFFFFFF
+Strip.FillRect 0, 1, 40, 2, &H808080
+Ones.Width = 4: Ones.Height = 4
+Ones.FillRect 0, 0, 4, 4, &H112233
+Whole.Left = 0: Whole.Top = 0: Whole.Right = 40: Whole.Bottom = 3
+
+SUB Row (Title AS STRING)
+    PRINT Title + ": " + HEX$(Cv.Pixel(5, 0)) + " " + HEX$(Cv.Pixel(5, 1)) + " " + HEX$(Cv.Pixel(5, 2)) + " " + HEX$(Cv.Pixel(5, 3))
+END SUB
+
+Cv.FillRect 0, 0, 40, 20, &H0000FF
+Cv.CopyMode = cmSrcAnd
+Cv.CopyRect Whole, Strip, Whole
+Row "scanlines, CopyRect cmSrcAnd"
+
+Cv.CopyMode = cmSrcCopy
+Cv.FillRect 0, 0, 40, 20, &H0000FF
+Cv.CopyMode = cmSrcAnd
+Cv.Draw 0, 0, Strip.BMP
+Row "Draw cmSrcAnd"
+
+Cv.CopyMode = cmSrcCopy
+Cv.FillRect 0, 0, 40, 20, &H0000FF
+Cv.CopyMode = cmSrcAnd
+Cv.StretchDraw 0, 0, 40, 3, Strip.BMP
+Row "StretchDraw cmSrcAnd"
+
+Cv.CopyMode = cmSrcCopy
+Cv.FillRect 0, 0, 40, 20, &H0000FF
+Cv.CopyMode = cmNotSrcCopy
+Cv.CopyRect Whole, Strip, Whole
+Row "cmNotSrcCopy"
+
+' the pattern is BrushColor (not the colour a FillRect gave)
+Cv.CopyMode = cmSrcCopy
+Cv.FillRect 0, 0, 40, 20, &H0000FF
+Cv.BrushColor = &H00FF00
+Cv.CopyMode = cmPatCopy
+Cv.CopyRect Whole, Strip, Whole
+Row "cmPatCopy, BrushColor green"
+Cv.CopyMode = cmPatInvert
+Cv.CopyRect Whole, Strip, Whole
+Row "cmPatInvert once more: the green turned over"
+Cv.CopyRect Whole, Strip, Whole
+Row "and again: back to green"
+
+' a picture that ends before the canvas does: the rest is not touched
+Cv.CopyMode = cmSrcCopy
+Cv.FillRect 0, 0, 40, 20, &H0000FF
+Cv.CopyMode = cmSrcInvert
+Cv.Draw 38, 18, Ones.BMP
+PRINT "Draw at the corner, cmSrcInvert: " + HEX$(Cv.Pixel(38, 18)) + " " + HEX$(Cv.Pixel(39, 19)) + " " + HEX$(Cv.Pixel(37, 18))

@@ -58,6 +58,30 @@ pub const LEAD_IN_MS: f64 = 40.0;
 /// How many heard samples the test sink keeps one by one.
 const HEARD_KEPT: usize = 64;
 
+/// What OnError's Code says (RapidR's `aeXXX` constants).
+/// There is no sound device, or it refused the stream: the stream plays
+/// silently, in time.
+pub const ERR_NO_DEVICE: i64 = 1;
+/// The device stopped taking sound while the stream played (unplugged, a
+/// headset that went away, the sound system restarted).
+pub const ERR_DEVICE_LOST: i64 = 2;
+/// A property was set outside its range (the nearest value is used), or to a
+/// value it does not take.
+pub const ERR_BAD_SETTING: i64 = 3;
+/// The queue ran dry while the stream played: a gap you hear, the program
+/// did not write in time.
+pub const ERR_UNDERRUN: i64 = 4;
+/// A browser plays sound only after a click or a key on the page.
+pub const ERR_NEEDS_CLICK: i64 = 5;
+
+/// How long the device may take no sound at all before it counts as lost, in ms.
+pub const STALL_MS: f64 = 1000.0;
+/// At most one underrun is reported in this many ms (a long gap is one
+/// event; a program that keeps running dry says it a few times a second).
+pub const UNDERRUN_EVERY_MS: f64 = 250.0;
+/// What Error says until a browser's page may play sound (a click or a key).
+pub const WAITING_FOR_CLICK: &str = "The browser plays sound only after a click or a key on the page: call Start from a button's OnClick (it plays as soon as the page may)";
+
 // ------------------------------------------------------------- the queue --
 
 /// The lock-free queue between the program (one writer) and the sound
@@ -183,6 +207,8 @@ pub struct Shared {
     /// The test sink: keep what's heard.
     record: AtomicBool,
     heard: Mutex<Heard>,
+    /// For the tests: the device takes no sound (`__Stall`), as one that went away.
+    stall: AtomicBool,
 }
 
 impl Shared {
@@ -198,6 +224,7 @@ impl Shared {
             played: AtomicU64::new(0),
             record: AtomicBool::new(false),
             heard: Mutex::new(Heard::default()),
+            stall: AtomicBool::new(false),
         })
     }
 
@@ -269,6 +296,11 @@ impl Consumer {
         let ch = self.shared.channels.max(1);
         let frames = out.len() / ch;
         let out = &mut out[..frames * ch];
+        // (a device that went away takes nothing: the test's `__Stall`)
+        if self.shared.stall.load(Ordering::Relaxed) {
+            out.fill(0.0);
+            return true;
+        }
         self.shared.played.fetch_add(frames as u64, Ordering::Relaxed);
         // (the lead-in: silence first, the queue untouched)
         if self.lead_in > 0 && self.shared.playing.load(Ordering::Acquire) {
@@ -481,6 +513,17 @@ pub struct AudioOut {
     shared: Arc<Shared>,
     /// When OnNeedData was raised (the runtime's clock, ms), until a Write.
     asked_at: Option<f64>,
+    /// OnError's events waiting to be raised on the program's thread:
+    /// (Code, Message).
+    pending: Vec<(i64, String)>,
+    /// Underruns already reported, and when the last report was (ms).
+    reported_underruns: u64,
+    underrun_at: Option<f64>,
+    /// The device's progress (frames it took, when it last moved: ms) and
+    /// whether it was reported lost.
+    seen_played: u64,
+    progress_at: Option<f64>,
+    lost: bool,
 }
 
 /// Volume (0–100) as a gain: by the ear — 50 sounds about half as loud.
@@ -491,7 +534,7 @@ pub fn gain_of(volume: i64) -> f32 {
 
 impl Default for AudioOut {
     fn default() -> Self {
-        AudioOut { rate: 44100, channels: 1, bits: 16, buffer_ms: 60, volume: 100, enabled: true, started: false, error: String::new(), shared: Shared::new(44100, 1, 1.0), asked_at: None }
+        AudioOut { rate: 44100, channels: 1, bits: 16, buffer_ms: 60, volume: 100, enabled: true, started: false, error: String::new(), shared: Shared::new(44100, 1, 1.0), asked_at: None, pending: Vec::new(), reported_underruns: 0, underrun_at: None, seen_played: 0, progress_at: None, lost: false }
     }
 }
 
@@ -523,12 +566,27 @@ impl AudioOut {
         }
     }
 
+    /// Something went wrong: Error says it, and OnError will (Code,
+    /// Message) on the program's thread.
+    fn fail(&mut self, code: i64, message: impl Into<String>) {
+        let message = message.into();
+        if self.pending.len() < 16 {
+            self.pending.push((code, message.clone()));
+        }
+        self.error = message;
+    }
+
     fn start(&mut self, id: &str) {
         if self.started {
             return;
         }
         self.started = true;
         self.asked_at = None;
+        self.reported_underruns = 0;
+        self.underrun_at = None;
+        self.seen_played = 0;
+        self.progress_at = None;
+        self.lost = false;
         self.shared.paused.store(!self.enabled, Ordering::Release);
         self.shared.playing.store(true, Ordering::Release);
         self.shared.played.store(0, Ordering::Relaxed);
@@ -538,10 +596,11 @@ impl AudioOut {
         match DEVICE.with(|d| d.get()) {
             Some(d) => {
                 if let Err(e) = (d.start)(id, consumer) {
-                    self.error = e;
+                    let code = if e == WAITING_FOR_CLICK { ERR_NEEDS_CLICK } else { ERR_NO_DEVICE };
+                    self.fail(code, e);
                 }
             }
-            None => self.error = "No sound device here: the stream is silent".into(),
+            None => self.fail(ERR_NO_DEVICE, "No sound device here: the stream is silent"),
         }
     }
 
@@ -586,6 +645,7 @@ impl AudioOut {
             "underruns" => v_int(self.shared.underruns() as i64),
             "error" => v_str(&self.error),
             "__heard" => v_str(&self.shared.heard.lock().map(|h| h.text()).unwrap_or_default()),
+            "__stall" => v_int(i64::from(self.shared.stall.load(Ordering::Relaxed))),
             _ => return None,
         })
     }
@@ -596,7 +656,7 @@ impl AudioOut {
             "samplerate" => {
                 let r = n.clamp(MIN_RATE, MAX_RATE);
                 if r != n {
-                    self.error = format!("SampleRate is from {MIN_RATE} to {MAX_RATE}: {r} it is");
+                    self.fail(ERR_BAD_SETTING, format!("SampleRate is from {MIN_RATE} to {MAX_RATE}: {r} it is"));
                 }
                 if r != self.rate {
                     self.rate = r;
@@ -606,7 +666,7 @@ impl AudioOut {
             "channels" => {
                 let c = n.clamp(1, 2);
                 if c != n {
-                    self.error = "Channels is 1 (mono) or 2 (stereo)".into();
+                    self.fail(ERR_BAD_SETTING, "Channels is 1 (mono) or 2 (stereo)");
                 }
                 if c != self.channels {
                     self.channels = c;
@@ -617,13 +677,13 @@ impl AudioOut {
                 if n == 8 || n == 16 {
                     self.bits = n;
                 } else {
-                    self.error = "Bits is 16 (-32768 to 32767) or 8 (0 to 255)".into();
+                    self.fail(ERR_BAD_SETTING, "Bits is 16 (-32768 to 32767) or 8 (0 to 255)");
                 }
             }
             "bufferms" => {
                 self.buffer_ms = n.clamp(MIN_BUFFER_MS, MAX_BUFFER_MS);
                 if self.buffer_ms != n {
-                    self.error = format!("BufferMs is from {MIN_BUFFER_MS} to {MAX_BUFFER_MS}: {} it is", self.buffer_ms);
+                    self.fail(ERR_BAD_SETTING, format!("BufferMs is from {MIN_BUFFER_MS} to {MAX_BUFFER_MS}: {} it is", self.buffer_ms));
                 }
             }
             "volume" => {
@@ -635,6 +695,8 @@ impl AudioOut {
                 self.shared.paused.store(!self.enabled, Ordering::Release);
                 self.asked_at = None;
             }
+            // (for the tests: the device stops taking sound, as one that went away)
+            "__stall" => self.shared.stall.store(crate::panels::runtime::truth(val), Ordering::Relaxed),
             // (read-only: Playing, Queued, Underruns, Error)
             "playing" | "queued" | "underruns" | "error" => {}
             _ => return None,
@@ -835,6 +897,79 @@ pub fn due(now_ms: f64, wants: &dyn Fn(&str) -> bool) -> Vec<(String, i64)> {
         }
     }
     out
+}
+
+/// Whether any stream has an OnError event waiting to be raised.
+pub fn has_pending() -> bool {
+    STREAMS.with(|s| s.borrow().values().any(|s| !s.pending.is_empty()))
+}
+
+/// OnError's events to raise now, `(stream, Code, Message)`: what went wrong
+/// since the last time (a property out of range, no device, a browser
+/// waiting for a click) and what the stream's playing shows — the queue
+/// ran dry (at most [`UNDERRUN_EVERY_MS`] apart, saying how many times),
+/// the device stopped taking sound for [`STALL_MS`] (lost: said once, until
+/// it takes sound again). A stream whose program has no OnError
+/// (`wants(id)` false) keeps only its Error text.
+pub fn errors(now_ms: f64, wants: &dyn Fn(&str) -> bool) -> Vec<(String, i64, String)> {
+    let ids: Vec<String> = STREAMS.with(|s| s.borrow().iter().filter(|(_, s)| !s.pending.is_empty() || s.playing()).map(|(k, _)| k.clone()).collect());
+    let mut out = Vec::new();
+    for id in ids {
+        let listening = wants(&id);
+        let events = with(&id, |s| {
+            if s.playing() && listening {
+                s.watch(now_ms);
+            }
+            std::mem::take(&mut s.pending)
+        })
+        .unwrap_or_default();
+        if listening {
+            out.extend(events.into_iter().map(|(code, message)| (id.clone(), code, message)));
+        }
+    }
+    out
+}
+
+impl AudioOut {
+    /// A playing stream looked at (every poll): did the queue run dry, did the
+    /// device stop?
+    fn watch(&mut self, now_ms: f64) {
+        let underruns = self.shared.underruns();
+        if underruns > self.reported_underruns && self.underrun_at.is_none_or(|at| now_ms - at >= UNDERRUN_EVERY_MS) {
+            let times = underruns - self.reported_underruns;
+            self.reported_underruns = underruns;
+            self.underrun_at = Some(now_ms);
+            let message = if times == 1 { "The sound ran dry: the program did not write in time".to_string() } else { format!("The sound ran dry {times} times: the program did not write in time") };
+            if self.pending.len() < 16 {
+                self.pending.push((ERR_UNDERRUN, message));
+            }
+        }
+        // (a browser waiting for its click is not a device that went away)
+        if self.error == WAITING_FOR_CLICK {
+            self.progress_at = None;
+            return;
+        }
+        let played = self.shared.played();
+        match self.progress_at {
+            Some(_) if played != self.seen_played => {
+                self.seen_played = played;
+                self.progress_at = Some(now_ms);
+                if self.lost {
+                    self.lost = false;
+                    self.error.clear();
+                }
+            }
+            Some(at) if now_ms - at >= STALL_MS && !self.lost => {
+                self.lost = true;
+                self.fail(ERR_DEVICE_LOST, "The sound device stopped taking sound: it may have been unplugged or the sound system restarted");
+            }
+            Some(_) => {}
+            None => {
+                self.seen_played = played;
+                self.progress_at = Some(now_ms);
+            }
+        }
+    }
 }
 
 /// Sets stream `id`'s Error (the device's word: a browser waiting for a click).
@@ -1075,6 +1210,59 @@ mod tests {
         assert_eq!(v, vec![-1.0, -0.5, -1.0, 0.5, -127.0 / 128.0]);
         let (v, _) = samples_of(&s, &[v_int(192)], false);
         assert_eq!(v, vec![0.5]);
+    }
+
+    /// OnError(Code, Message): a setting refused and no device are said at once
+    /// (once), a gap in the sound at most every 250 ms with how many, a
+    /// device that stops taking sound after a second (once, until it takes
+    /// some again). A stream whose program has no OnError says nothing.
+    #[test]
+    fn on_error_says_what_went_wrong() {
+        let id = "ut_errors";
+        create(id, "RAudioOut");
+        let all = |_: &str| true;
+        assert!(errors(0.0, &all).is_empty() && !has_pending());
+        // a setting refused (stopped stream): code 3, the Error text the same
+        set(id, "samplerate", &v_int(5));
+        assert!(has_pending());
+        let said = errors(1.0, &all);
+        assert_eq!(said.len(), 1);
+        assert_eq!((said[0].1, said[0].2.as_str()), (ERR_BAD_SETTING, "SampleRate is from 8000 to 96000: 8000 it is"));
+        assert_eq!(get(id, "error").unwrap().to_string_val(), said[0].2);
+        assert!(errors(2.0, &all).is_empty() && !has_pending(), "said once");
+        // no program listening: nothing raised, Error still says it
+        set(id, "channels", &v_int(7));
+        assert!(errors(3.0, &|_| false).is_empty() && !has_pending());
+        assert!(get(id, "error").unwrap().to_string_val().contains("Channels"));
+        // no device in this test: Start says so (code 1)
+        call(id, "start", &[]);
+        let said = errors(10.0, &all);
+        assert_eq!(said[0].1, ERR_NO_DEVICE);
+        // the queue ran dry twice: one event, saying how many
+        with(id, |s| s.shared.underruns.store(2, Ordering::Relaxed));
+        let said = errors(20.0, &all);
+        assert_eq!((said.len(), said[0].1), (1, ERR_UNDERRUN));
+        assert!(said[0].2.contains("2 times"), "{}", said[0].2);
+        // and once more at once: held back for 250 ms, then said
+        with(id, |s| s.shared.underruns.store(3, Ordering::Relaxed));
+        assert!(errors(100.0, &all).is_empty());
+        let said = errors(300.0, &all);
+        assert_eq!((said.len(), said[0].1), (1, ERR_UNDERRUN));
+        assert!(said[0].2.starts_with("The sound ran dry:"), "{}", said[0].2);
+        // the device takes no sound: lost after a second, once; then it takes some again
+        with(id, |s| s.shared.played.store(1000, Ordering::Relaxed));
+        assert!(errors(400.0, &all).is_empty(), "progress noted");
+        assert!(errors(1300.0, &all).is_empty(), "not yet a second");
+        let said = errors(1400.0, &all);
+        assert_eq!((said.len(), said[0].1), (1, ERR_DEVICE_LOST));
+        assert!(errors(5000.0, &all).is_empty(), "said once");
+        with(id, |s| s.shared.played.store(2000, Ordering::Relaxed));
+        assert!(errors(5100.0, &all).is_empty());
+        assert_eq!(get(id, "error").unwrap().to_string_val(), "", "the problem is over: Error clears");
+        // (and it can be lost again)
+        assert!(errors(6200.0, &all).len() == 1);
+        call(id, "stop", &[]);
+        assert!(remove(id));
     }
 
     #[test]

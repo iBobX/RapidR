@@ -25,6 +25,74 @@ still the ones it drew — see [High-DPI screens](components.md#high-dpi-screens
 | Turn it | `Rotate x, y, degrees` |
 | **Many pixels at once** | **`SetPixels`, `SetPixels8`, `GetPixels`** — below |
 
+## Rounded boxes: RoundRect
+
+`RoundRect x1, y1, x2, y2, rx, ry` draws the box from (`x1`, `y1`) to (`x2`,
+`y2`) — its right and bottom edges left out, as every shape's — with its
+corners rounded by an ellipse `rx` wide and `ry` high. It takes its colours
+in three ways:
+
+| Call | What you get |
+|---|---|
+| `RoundRect x1, y1, x2, y2, rx, ry, Color` | the whole box filled with `Color` |
+| `RoundRect x1, y1, x2, y2, rx, ry, Color, Fill` | a one-pixel **border** in `Color`, just inside the edge, and the inside in `Fill` (-1: no fill, only the border) |
+| `RoundRect x1, y1, x2, y2, rx, ry` on an `RCanvas` | the border in `PenColor` and the inside in `BrushColor` |
+
+So a card, or a pill, is one call:
+
+```basic
+Canvas.RoundRect 12, 12, 468, 92, 16, 16, Application.ThemeColor("border"), Application.ThemeColor("card")
+Canvas.RoundRect x, 108, x + w, 132, 24, 24, Application.ThemeColor("status.info.border"), Application.ThemeColor("status.info")
+```
+
+The border and the inside cover exactly the box the one-colour form fills, and
+on a high-DPI screen the curve is drawn at the screen's own scale, the border
+still one pixel wide. [round_rect.rr](../../examples/graphics/round_rect.rr) draws a
+card, three status chips and the three forms in the look's own colours.
+
+![A card, three status chips and the three forms of RoundRect, in RapidR's light look: each shape a soft fill inside a one-pixel border](images/graphics/round-rect.png)
+![The same in the dark look](images/graphics/round-rect-dark.png)
+![The same in high contrast: every border white, the inside black](images/graphics/round-rect-contrast.png)
+
+## CopyMode: how a picture meets what is there
+
+`Draw`, `StretchDraw` and `CopyRect` put a picture onto a canvas, a bitmap, an
+image or a form's surface. What becomes of the pixels already there is the
+destination's `CopyMode`. `cmSrcCopy`, the default, replaces them with the
+picture's; the others combine the two colour by colour, bit by bit — the 15
+raster operations of Windows. They work the same on a canvas, a bitmap and an
+image, for a whole picture or a part of one, scaled or not, on Windows, macOS
+and Linux and in a browser.
+
+| `CopyMode` | The pixel becomes |
+|---|---|
+| `cmSrcCopy` | the picture's (the default) |
+| `cmSrcInvert` | the picture XOR what is there: do it twice and the original is back |
+| `cmSrcAnd` | the picture AND what is there: darker. A strip of grey copied over every third row gives scanlines |
+| `cmSrcPaint` | the picture OR what is there: lighter |
+| `cmSrcErase` | the picture AND NOT what is there |
+| `cmNotSrcCopy` | the picture as a negative |
+| `cmNotSrcErase` | NOT (the picture OR what is there) |
+| `cmMergePaint` | NOT the picture OR what is there |
+| `cmDstInvert` | what is there, turned over: the picture only says where |
+| `cmBlackness`, `cmWhiteness` | black, or white, where the picture lands |
+| `cmPatCopy` | the pattern |
+| `cmPatInvert` | the pattern XOR what is there: draw a selection box, draw it again and it is gone |
+| `cmPatPaint` | what is there OR the pattern OR NOT the picture |
+| `cmMergeCopy` | the picture AND the pattern |
+
+The **pattern** is the destination's brush: on an `RCanvas` in a RapidR
+program its `BrushColor`; in a classic program the colour last used to fill
+(a `FillRect`, `Rectangle` or `RoundRect` with a colour, a `Circle`'s fill, a
+`TextOut`'s background; white before any). A picture with a transparent
+colour, or soft edges (an SVG), is drawn as it always was whatever the mode,
+and a printer page and the owner-drawn items of a list or a grid copy
+(`cmSrcCopy`) for now. [copy_modes.rr](../../examples/graphics/copy_modes.rr)
+shows six of them on one picture, scanlines included.
+
+![One picture in six CopyModes: replaced, XOR, a negative, OR, scanlines and a selection box](images/graphics/copy-modes.png)
+![The same in the dark look](images/graphics/copy-modes-dark.png)
+
 ## Drawing many pixels fast
 
 Some programs make a picture out of numbers: an emulator's video memory, an
@@ -165,11 +233,31 @@ for 50,000 elements, which hid in every `RAudioOut.Write buf` too; that is gone.
 
 ## A picture every 20 milliseconds
 
-An `RTimer` ticks in steps of 15.6 ms, as Windows' own timers do, so
-`Interval = 20` gives about 32 pictures a second, not 50 — and a
-timer ticks again 15.6 ms *after* its handler ends. So for an exact 50 a
-second, let the timer look at every tick and draw a picture only when one is
-**due**, keeping the due time yourself:
+A timer's `Interval` is counted in the system timer's steps of 15.6 ms,
+rounded up: `Interval = 20` is 31.25 ms, about 32 ticks a second, not 50. And
+when the handler takes a good part of the Interval, how the ticks follow one
+another depends on the timer:
+
+| The timer | The next tick comes |
+|---|---|
+| an `RTimer` in a RapidR program (the default) | one Interval after the handler has **ended**: a 24 ms handler at `Interval = 20` ticks about every 55 ms |
+| an `RTimer` with `FixedRate = 1` | every Interval **exactly**, by the clock: `Interval = 20` is 50 a second. A tick that fell due while a long handler ran runs the moment it ends, and the ones missed besides it one after another (handlers never overlap), up to 250 ms behind; further behind (a dragged window, a long dialog) and it counts again from then |
+| a classic program's `QTimer` (a `.bas` file) | on the beat: an Interval from where the last tick was **due**, so a 24 ms handler still ticks every 31 ms; a tick that fell due during the handler runs the moment it ends, the ones missed besides it are dropped |
+
+A program that wants a steady beat — an emulator's 50 frames a second, a
+clock hand, a metronome — sets `FixedRate = 1`:
+
+```basic
+Clock.Interval = 20
+Clock.FixedRate = 1            ' every 20 ms by the clock, not 20 ms after the last frame
+```
+
+![steady_timer.rr: two timers at Interval = 20 with 4 ms of work in each tick; the default one counted 25 ticks in the last second, the one with FixedRate 50](images/graphics/steady-timer.png)
+
+[steady_timer.rr](../../examples/gui/steady_timer.rr) runs both side by side
+and counts their ticks. The other way, which works without `FixedRate` and
+cares nothing for the ticks' rhythm: let the timer look at every tick and draw a
+picture only when one is **due**, keeping the due time yourself:
 
 ```basic
 SUB Tick
@@ -192,6 +280,9 @@ spent working the picture out, putting it into the bitmap and drawing it.
 
 | | |
 |---|---|
+| [round_rect.rr](../../examples/graphics/round_rect.rr) | `RoundRect` with a border and an inside in one call: a card, three status chips and the three forms, in the look's own colours (light, dark, high contrast) |
+| [copy_modes.rr](../../examples/graphics/copy_modes.rr) | `CopyMode` on one picture: replace, XOR, a negative, OR, scanlines (`cmSrcAnd`) and a selection box (`cmPatInvert`) |
+| [steady_timer.rr](../../examples/gui/steady_timer.rr) | An `RTimer` and an `RTimer` with `FixedRate` counting their ticks side by side: about 25 a second against 50 |
 | [pixels_fast.rr](../../examples/graphics/pixels_fast.rr) | A plasma (palette cycling, 256 x 192) and the Game of Life (64 x 48 cells worked out every frame) at 50 frames a second, with the readout. **Method** switches to a `Pset` for every pixel, to see the difference: the plasma drops to about 12 pictures a second |
 | [video_memory.rr](../../examples/recipes/video_memory.rr) | The systems recipe: a machine's bitmap and colour attributes kept decoded in a `BYTE` array and drawn with `SetPixels8`; **Repaint** times a full repaint (about 0.2 ms; the first version of the recipe took 8 to 13 ms) |
 | [tools/bench/pixels.rr](../../tools/bench/pixels.rr) | The benchmark above, to run on your own computer |

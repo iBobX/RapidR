@@ -1,0 +1,47 @@
+' RAudioOut.OnError(Code, Message) — RapidR's own: what went wrong with the
+' sound, said on the program's thread (here by DOEVENTS) a moment after it
+' happened. The tests' sound sink stands in for the sound card.
+'   3 aeBadSetting   a property out of its range (the nearest is used)
+'   4 aeUnderrun     the queue ran dry while it played
+'   2 aeDeviceLost   the device stopped taking sound (`__Stall` stands in
+'                    for one that was unplugged)
+$APPTYPE CONSOLE
+DIM Speaker AS RAudioOut
+
+SUB Heard (Code AS INTEGER, Message AS STRING)
+    PRINT "OnError " + LTRIM$(STR$(Code)) + " " + LEFT$(Message, 22)
+END SUB
+
+SUB Spin (Seconds AS DOUBLE)
+    DIM began AS DOUBLE
+    began = TIMER
+    WHILE TIMER - began < Seconds
+        DOEVENTS
+    WEND
+END SUB
+
+Speaker.OnError = Heard
+PRINT "codes " + LTRIM$(STR$(aeBadSetting)) + " " + LTRIM$(STR$(aeUnderrun)) + " " + LTRIM$(STR$(aeDeviceLost)) + " " + LTRIM$(STR$(aeNoDevice)) + " " + LTRIM$(STR$(aeNeedsClick))
+
+' a setting refused: said once, Error says it too, the value is the nearest
+Speaker.SampleRate = 5
+Spin 0.05
+PRINT "SampleRate=" + LTRIM$(STR$(Speaker.SampleRate))
+PRINT "Error=" + LEFT$(Speaker.Error, 22)
+Speaker.SampleRate = 22050
+Spin 0.05
+PRINT "in range: nothing said"
+
+' one sample and then nothing: the queue runs dry once the device has taken it
+Speaker.Start
+Speaker.WriteSample 1000
+Spin 0.4
+PRINT "Underruns=" + LTRIM$(STR$(Speaker.Underruns))
+
+' the device takes no sound for a second: lost, said once
+Speaker.__Stall = 1
+Spin 1.4
+Speaker.__Stall = 0
+Spin 0.1
+Speaker.Stop
+PRINT "done"

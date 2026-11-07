@@ -199,7 +199,7 @@ properties = [
   { name = "Playing", type = "bool", access = "read", design = false, doc = "True between Start and Stop while Enabled." },
   { name = "Queued", type = "int", access = "read", design = false, unit = "ms", doc = "How much written sound waits to be played, in ms. A frame-driven program writes until it is about BufferMs. The queue holds 2 seconds." },
   { name = "Underruns", type = "int", access = "read", design = false, unit = "count", doc = "How many times the queue ran dry while playing — each a gap you hear, because the program didn't write in time (a sound that simply ends counts once too). 0 is the goal; Start begins again at 0." },
-  { name = "Error", type = "string", access = "read", design = false, doc = "Why it can't be heard (\"\" when it can): no sound device, a program built without sound, a browser waiting for a click or key, a property set out of its range (the nearest value is used)." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why it can't be heard (\"\" when it can): no sound device, a program built without sound, a browser waiting for a click or key, a property set out of its range (the nearest value is used), a device that stopped taking sound. OnError says each of them as it happens." },
 ]
 methods = [
   { name = "Start", effects = ["device"], doc = "Starts playing: what is queued first, then what the program writes (the sound device gets 40 ms of silence before them, so a headset that takes a burst as it begins never cuts the start). In a browser, call it from a click or key handler (the browser's rule)." },
@@ -211,6 +211,7 @@ methods = [
 ]
 events = [
   { name = "OnNeedData", params = "Count AS INTEGER", doc = "The queue dropped under BufferMs: write about Count samples now (for stereo, both channels counted) to fill it again. Raised on the program's thread, never the sound device's, while it plays; asked again after a Write or half of BufferMs." },
+  { name = "OnError", params = "Code AS INTEGER, Message AS STRING", origin = "rapidr", doc = "Something went wrong with the sound; Code says what (aeNoDevice 1: no sound device, or it refused the stream; aeDeviceLost 2: the device stopped taking sound while it played — unplugged, a headset that went away; aeBadSetting 3: a property set out of its range, the nearest value is used; aeUnderrun 4: the queue ran dry, a gap you hear — at most four a second, the Message says how many times; aeNeedsClick 5: a browser plays sound only after a click or a key) and Message says it in words (it is also in Error, until the problem is over). Raised on the program's thread, a moment after it happened, never the sound device's; the stream goes on playing silently where it cannot play." },
 ]
 
 [[component]]

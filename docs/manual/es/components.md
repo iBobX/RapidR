@@ -126,11 +126,14 @@ DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed lo establece el OnClose del formula
   espera (`ShowModal`, `DOEVENTS`, un cuadro de diálogo), cada uno hasta su final
   antes del siguiente. Un controlador que todavía se está ejecutando nunca es
   interrumpido por uno: este se ejecuta cuando ese controlador ha terminado.
-- **Un temporizador nunca se ejecuta dentro de sí mismo.** Si su controlador
-  tarda más que su `Interval`, la siguiente marca llega cuando el controlador
-  termina; las marcas perdidas mientras tanto no se recuperan. El temporizador de
-  cuadros de un emulador con `Interval = 10` cuyo cuadro tarda 30 ms simplemente
-  ejecuta unos 30 cuadros por segundo.
+- **Un temporizador nunca se ejecuta dentro de sí mismo.** Su controlador nunca es
+  interrumpido por la siguiente marca del temporizador. Cuando el controlador
+  tarda más que el `Interval`, lo que sigue depende del temporizador (la tabla de
+  [Una imagen cada 20 milisegundos](graphics.md#una-imagen-cada-20-milisegundos)):
+  el `RTimer` de un programa de RapidR vuelve a marcar un Interval después de que
+  el controlador termina; un `RTimer` con `FixedRate = 1` marca de inmediato y
+  recupera las marcas que perdió; un `QTimer` clásico marca de inmediato y no las
+  recupera.
 - **Un controlador que llama a `DOEVENTS`** deja que los eventos en espera se
   ejecuten allí mismo — la marca de otro temporizador, un clic —, y luego sigue.
 - **Los eventos que dispara tu propio código se ejecutan al instante**, dentro de

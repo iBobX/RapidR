@@ -127,6 +127,18 @@ Speaker.Start
   `Enabled = False` pauses; `Clear` drops what waits. `Start` gives the
   sound device 40 ms of silence before your samples, so a headset that
   takes a burst as it begins (Bluetooth ones do) never cuts the start.
+- **When something goes wrong,** `OnError(Code, Message)` says it, on your
+  program's thread a moment after it happened: `aeNoDevice` (1: no sound device,
+  or it refused the stream; the stream plays silently, in time), `aeDeviceLost`
+  (2: the device stopped taking sound while it played, unplugged or a headset
+  that went away; said once), `aeBadSetting` (3: a property set out of its range,
+  the nearest value is used), `aeUnderrun` (4: the queue ran dry, a gap you hear;
+  at most four a second, the message says how many times — a sound that simply
+  ends counts once too) and `aeNeedsClick` (5: a browser plays sound only after
+  a click or a key). `Message` says it in words, and so does `Error` until the
+  problem is over. A program without an `OnError` changes nothing: `Error` and
+  `Underruns` still tell. [audio_errors.rr](../../examples/media/audio_errors.rr)
+  shows each one.
 - **Everywhere.** The same on Windows, macOS and Linux, interpreted and
   native, and in the browser. The device converts your `SampleRate` to its
   own. Without a sound device (or in a program built without sound) the
@@ -157,9 +169,13 @@ program at exact moments. An emulator plays it a frame at a time
 An `RTimer` checks often and runs frames until about 60 ms is queued, so a
 tick that comes late catches up and the sound never gaps. Use
 `Interval = 10`: an `RTimer`'s ticks come on the system timer's 15.6 ms
-steps, as they always have (`Interval = 20` ticks only every 31 ms, which
-leaves a 60 ms queue little room for a late one). RapidR's interpreter makes such a frame in 0.2 to 0.6 ms, a
-small part of the 20 ms it has.
+steps (`Interval = 20` ticks only every 31 ms, and a RapidR program's timer
+ticks one Interval after its handler has *ended*, which leaves a 60 ms queue
+little room for a late one). Or set `FixedRate = 1` with `Interval = 20`: a
+tick exactly every 20 ms by the clock, one frame each, a late one made up at
+once ([A picture every 20 milliseconds](graphics.md#a-picture-every-20-milliseconds)).
+RapidR's interpreter makes such a frame in 0.2 to 0.6 ms, a small part of the
+20 ms it has.
 
 ![The one-bit beeper: the speaker bit as a square wave over one frame at the top, the frame's 882 samples below it, and the readout: the note, the frame made in well under a millisecond, 75 ms queued, 0 gaps](images/media/beeper.png)
 
