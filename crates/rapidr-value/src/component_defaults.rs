@@ -97,6 +97,10 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("top", v_int(0));
             put("visible", v_bool(true));
         }
+        // RTimer's FixedRate: on in a RapidR program (a tick every Interval
+        // exactly, by the clock), off in a classic one (QTIMER keeps the
+        // system timer's own beat) — rapidr_ui_app::timers::Rhythm.
+        "RTIMER" => put("fixedrate", v_bool(crate::rapidr_program())),
         // QDIGDISPLAY: a canvas showing its Display (objects::digdisplay).
         "RDIGDISPLAY" => put("color", v_int(0)),
         // (docked at the bottom: its Align, the registry's alBottom)
@@ -380,6 +384,16 @@ mod tests {
 
     fn get<'a>(p: &'a [(String, Value)], k: &str) -> Option<&'a Value> {
         p.iter().rev().find(|(n, _)| n == k).map(|(_, v)| v)
+    }
+
+    /// RTimer's FixedRate starts on in a RapidR program and off in a classic one.
+    #[test]
+    fn a_timers_fixed_rate_follows_the_dialect() {
+        crate::set_rapidr_program(false);
+        assert_eq!(get(&creation("RTIMER"), "fixedrate"), Some(&v_bool(false)), "a classic program's QTIMER");
+        crate::set_rapidr_program(true);
+        assert_eq!(get(&creation("RTIMER"), "fixedrate"), Some(&v_bool(true)), "a RapidR program's RTimer");
+        crate::set_rapidr_program(false);
     }
 
     #[test]

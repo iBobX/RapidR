@@ -11,7 +11,7 @@
 ' cycle of every write to the speaker; 2. for each sample, how much of its
 ' 80 cycles the bit was high (no aliasing hiss); 3. a DC blocker (a real
 ' speaker can't hold a push); 4. Write. An RTimer checks often (Interval
-' 10: its ticks come on the system timer's 15.6 ms steps) and runs frames
+' 10, exactly: a RapidR program's timer ticks by the clock) and runs frames
 ' until about 60 ms is queued, so a late tick catches up and the sound
 ' never gaps.
 ' Runs on the desktop (run, interpreted, native) and the web (Start: a

@@ -20,13 +20,13 @@
 ' cell every frame, and still has time to spare. "Method" switches to the
 ' slow way to see the difference for yourself; Pause stops the frames.
 '
-' The clock: an RTimer ticks in steps of 15.6 ms (as Windows' own timers
-' do), so Interval = 20 would give about 32 frames a
-' second, not 50. This program lets the timer look every tick and draws a
-' frame whenever one is due: the due times (nextAt) are 20 ms apart, so the
-' average is exactly 50 a second whatever the ticks do - as long as a frame's
-' own work is under about 4 ms, since a timer ticks again 15.6 ms after its
-' handler ends. That is why the Life grid is a modest 64 x 48 cells.
+' The clock: a RapidR program's RTimer ticks every Interval exactly, by the
+' clock (a classic program's, and FixedRate = 0, count in Windows' steps of
+' 15.6 ms: Interval = 20 would give about 32 frames a second, not 50). This
+' program lets the timer look every 10 ms and draws a frame whenever one is
+' due: the due times (nextAt) are 20 ms apart, so the average is exactly 50 a
+' second whatever the ticks do - as long as a frame's own work is well under
+' the 20 ms. That is why the Life grid is a modest 64 x 48 cells.
 $THEME rapidr
 
 CONST PW = 256                   ' the plasma's picture: 256 x 192 pixels ...

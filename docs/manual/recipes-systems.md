@@ -165,11 +165,11 @@ are the same or better.
   times as long. A call for every pixel (or every pixel that is set) costs
   1 to 3 µs in the Runtime; `SetPixels8` puts all 49,152 through a palette in
   one call ([Drawing many pixels fast](graphics.md#drawing-many-pixels-fast)).
-- **A frame every 20 ms.** An `RTimer` counts its `Interval` in Windows' steps
-  of 15.6 ms: `Interval = 20` comes every 31.25 ms, about 32 times a second,
-  and a RapidR program's timer ticks one Interval after its handler has
-  *ended*. For exactly 50 a second set `FixedRate = 1`: a tick every 20 ms by
-  the clock, a late one made up at once
+- **A frame every 20 ms.** In a RapidR program an `RTimer` ticks every
+  `Interval` exactly, by the clock (`FixedRate`, on by default): `Interval = 20`
+  is 50 frames a second and a late tick is made up at once. With `FixedRate = 0`,
+  and in a classic program, the Interval is counted in Windows' steps of
+  15.6 ms: `Interval = 20` comes every 31.25 ms, about 32 times a second
   ([A picture every 20 milliseconds](graphics.md#a-picture-every-20-milliseconds)).
 - **The one slow thing found: writing a file a byte at a time.** A write is a
   system call each time (the computer spends 0.8 s of that second in the

@@ -244,6 +244,8 @@ DIM PerfStep AS INTEGER
 DIM StepStarted AS DOUBLE
 DIM PerfReady AS RTimer
 PerfReady.Interval = 1
+' (a turn later, as the timer's first step: not a millisecond on)
+PerfReady.FixedRate = 0
 PerfReady.Enabled = 0
 PerfReady.OnTimer = PerfReadyTick
 ' (the program's turn: a step that hasn't stopped within half a second —

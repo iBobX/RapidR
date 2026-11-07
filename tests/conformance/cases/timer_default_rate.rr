@@ -1,0 +1,35 @@
+' A RapidR program's RTimer ticks every Interval exactly, by the clock — with
+' no property set: FixedRate is on by default. The same program as a classic
+' program ticks in the system timer's steps of 15.6 ms, about 32 times a second
+' (rapidq_timer_steps.bas, the classic compiler's own output): the pair pins
+' both. A second from the first tick; the count is said in a range (a busy
+' machine makes up the ticks it missed, so a second can hold a few more).
+$APPTYPE CONSOLE
+DECLARE SUB Tick
+DIM Ticks AS INTEGER, Began AS DOUBLE
+
+CREATE Form AS RForm
+    ClientWidth = 100: ClientHeight = 60
+END CREATE
+
+CREATE Clock AS RTimer
+    Interval = 20
+    OnTimer = Tick
+END CREATE
+
+SUB Tick
+    IF Began = 0 THEN Began = TIMER
+    Ticks = Ticks + 1
+    IF TIMER - Began >= 1 THEN
+        Clock.Enabled = 0
+        Form.Close
+    END IF
+END SUB
+
+PRINT "FixedRate reads " + LTRIM$(STR$(Clock.FixedRate))
+Form.ShowModal
+IF Ticks >= 45 AND Ticks <= 60 THEN
+    PRINT "Interval 20 by the clock: about 50 a second"
+ELSE
+    PRINT "ticks: "; Ticks
+END IF

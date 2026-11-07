@@ -1,2 +1,2 @@
-FixedRate: about 50 a second
-default: an Interval after each handler, about 28 a second
+default: about 50 a second
+FixedRate = 0: an Interval after each handler, about 28 a second

@@ -111,6 +111,11 @@ pub enum Rhythm {
     Fixed,
 }
 
+/// How long a tick that is already due waits when its handler ends (the
+/// loop's other work gets its turn): the catch-up ticks follow each other at
+/// least this far apart.
+pub const OVERDUE_WAIT: Duration = Duration::from_millis(1);
+
 /// How far behind a `FixedRate` timer catches up one tick after another;
 /// further behind (a window dragged, a dialog, a stalled machine) it starts
 /// counting again, not to replay seconds of ticks.
@@ -238,8 +243,8 @@ pub fn fire_due_then<P: Program>(p: P, then: impl Fn()) -> bool {
         });
         let Some(name) = due else { return false };
         // (a timer that is behind is due again the moment its handler ends:
-        // its next tick waits for the next turn, so the window's events
-        // between are not starved — as WM_TIMER comes after the others)
+        // its next tick waits for a turn of the window loop, so the window's
+        // events between are not starved — as WM_TIMER comes after the others)
         if !round.insert(name.clone()) {
             let at = p.now();
             tm(|s| {
@@ -288,6 +293,10 @@ fn rearm<P: Program>(p: P, name: String) {
     let now = p.now();
     let grid = tm(|s| s.grid.get(&name).copied()).unwrap_or(now);
     let (at, grid) = follow(rhythm(p, &name), grid, period, now);
+    // (already due when its handler ended — it ran long: the loop's other
+    // work gets a turn before it runs again, so a handler that is always due
+    // never starves the window's events, a test script or Studio's link)
+    let at = if at <= now { now + OVERDUE_WAIT } else { at };
     tm(|s| {
         s.gen += 1;
         let g = s.gen;
