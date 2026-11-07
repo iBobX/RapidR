@@ -1976,11 +1976,15 @@ msgid "Ln {line}, Col {col}"
 msgstr ""
 
 #: ide/chrome.inc
+msgid "Chinese text can't be shown on Windows XP yet: RapidR doesn't use the fonts installed there. It works on Windows 7 and newer."
+msgstr ""
+
+#: ide/chrome.inc
 msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
 msgstr ""
 
 #: ide/chrome.inc
-msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+msgid "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
 msgstr ""
 
 #: ide/chrome.inc

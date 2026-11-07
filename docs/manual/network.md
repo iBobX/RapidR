@@ -342,7 +342,7 @@ computer that can reach it); `Start` refuses to run without a `Token`
 [RSecrets](secrets.md)); a request without the token, from a web page or
 for another host name is refused before your program sees it. It speaks the
 current revision (2026-07-28) and the earlier ones that start with
-`initialize`.
+`initialize` (2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05).
 
 What your program offers, and the privacy of its users' data, are yours to
 decide: offer only what an AI app may see and do, describe your program as

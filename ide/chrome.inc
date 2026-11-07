@@ -319,12 +319,16 @@ END FUNCTION
 ' licences allow it on the web only: docs/legal/i18n-zh-font.md). A computer
 ' with no Chinese font shows empty boxes: Studio says so, in the language and
 ' in English, and says how to add the system's own Chinese support (a Linux:
-' the free package; Windows XP: its East Asian files, from the Windows CD;
-' newer Windows: the Chinese language, whose fonts come with it). It installs
-' nothing and names no other source of fonts. The test, on any desktop: the
-' canvas draws a character no font has as a "?", so a Chinese character drawn
-' the very same as "?" has no font. (RAPIDR_TEST_NO_CJK: the note, whatever
-' the fonts, for the tests that look at it.)
+' the free package; Windows 7 and newer: the Chinese language, whose fonts
+' come with it). Windows XP gets the plain truth instead of advice: RapidR's XP
+' build doesn't use the fonts installed there yet, so installing XP's East
+' Asian files wouldn't help (docs/manual/old-windows.md), and Chinese works on
+' Windows 7 and newer. It installs nothing and names no other source of fonts.
+' The test, on any desktop: the canvas draws a character no font has as a "?",
+' so a Chinese character drawn the very same as "?" has no font.
+' (RAPIDR_TEST_NO_CJK: the note, whatever the fonts, for the tests that look at
+' it. "1" names this computer's own system; "xp", "windows" and "linux" show
+' that system's note.)
 DIM ZhProbeA AS RBitmap
 DIM ZhProbeB AS RBitmap
 ' (the system the note names: RSystemInfo's OS — "Windows", "macOS", "Linux")
@@ -354,21 +358,37 @@ END FUNCTION
 ' (Studio's Output, once at the start: only a desktop Studio in Chinese whose
 ' fonts have none for it — the web has its own font)
 SUB ChineseFontNote
-  DIM en AS STRING
+  DIM en AS STRING, sys AS STRING, ver AS STRING
   IF LEFT$(Application.Language, 2) <> "zh" THEN EXIT SUB
   IF ENVIRON$("RAPIDR_TEST_NO_CJK") = "" THEN
     IF Proj.FileManager = "" THEN EXIT SUB
   END IF
   IF ChineseFontMissing() = 0 THEN EXIT SUB
-  SELECT CASE ZhSystem.OS
+  sys = ZhSystem.OS: ver = ZhSystem.OSVersion
+  SELECT CASE ENVIRON$("RAPIDR_TEST_NO_CJK")
+    CASE "xp"
+      sys = "Windows": ver = "5.1 (2600)"
+    CASE "windows"
+      sys = "Windows": ver = "11 24H2 (26100)"
+    CASE "linux"
+      sys = "Linux": ver = ""
+  END SELECT
+  ' (Windows XP: 5.1, and 5.2 on its 64-bit edition)
+  IF sys = "Windows" AND LEFT$(ver, 2) = "5." THEN
+    en = "Chinese text can't be shown on Windows XP yet: RapidR doesn't use the fonts installed there. It works on Windows 7 and newer."
+    OutputLine en
+    OutputLine TR$("Chinese text can't be shown on Windows XP yet: RapidR doesn't use the fonts installed there. It works on Windows 7 and newer.")
+    EXIT SUB
+  END IF
+  SELECT CASE sys
     CASE "Linux"
       en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again."
       OutputLine en
       OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Install the free package fonts-noto-cjk (for example: sudo apt install fonts-noto-cjk), then start Studio again.")
     CASE "Windows"
-      en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
+      en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again."
       OutputLine en
-      OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On Windows XP: Control Panel > Regional and Language Options > Languages > Install files for East Asian languages (it needs the Windows CD). On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again.")
+      OutputLine TR$("No font for Chinese was found on this computer, so Chinese text shows as empty boxes. On newer Windows: Settings > Time & Language > Language > add Chinese (Simplified); its fonts come with it. Then start Studio again.")
     CASE ELSE
       en = "No font for Chinese was found on this computer, so Chinese text shows as empty boxes. Add Chinese (Simplified) in the system's language settings, then start Studio again."
       OutputLine en

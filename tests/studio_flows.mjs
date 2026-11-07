@@ -5048,6 +5048,37 @@ const CASES = [
       "ai.lastrequest": /Write the summary in Spanish \(español\) \(the language the user writes in\)/,
     },
   },
+  // ---- the note about a missing Chinese font (ChineseFontNote, ide/chrome.inc) ----
+  // A Chinese Studio on a computer with no Chinese font says so in English and
+  // in Chinese, with the system's own way to add one. On Windows XP, where
+  // RapidR doesn't use the fonts installed there yet (docs/manual/old-windows.md),
+  // it says that instead of sending the person to install XP's East Asian
+  // files, which wouldn't help. RAPIDR_TEST_NO_CJK names the system whose note
+  // shows (the fonts of the machine running the test are no matter).
+  {
+    name: "chinese-font-note-xp",
+    lang: "zh-Hans",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_NO_CJK: "xp" },
+    delay: 3,
+    dump: { "outputbox.text": /^(?![\s\S]*(East Asian|东亚))[\s\S]*\nChinese text can't be shown on Windows XP yet: RapidR doesn't use the fonts installed there\. It works on Windows 7 and newer\.\nWindows XP 上暂时还不能显示中文：[^\n]*Windows 7 [^\n]*\n?$/ },
+  },
+  {
+    name: "chinese-font-note-windows",
+    lang: "zh-Hans",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_NO_CJK: "windows" },
+    delay: 3,
+    dump: { "outputbox.text": /^(?![\s\S]*(East Asian|东亚|Windows XP))[\s\S]*\nNo font for Chinese was found on this computer, [^\n]*On newer Windows: Settings > Time & Language > Language > add Chinese \(Simplified\)[^\n]*\n这台电脑上找不到[^\n]*设置 > 时间和语言 > 语言[^\n]*\n?$/ },
+  },
+  {
+    name: "chinese-font-note-linux",
+    lang: "zh-Hans",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_NO_CJK: "linux" },
+    delay: 3,
+    dump: { "outputbox.text": /^(?![\s\S]*Windows)[\s\S]*\nNo font for Chinese was found on this computer, [^\n]*Install the free package fonts-noto-cjk[^\n]*\n这台电脑上找不到[^\n]*fonts-noto-cjk[^\n]*\n?$/ },
+  },
   // ---- RAI in Studio's language (ES-REFERENCE part 3, Robert 2026-10-30) ----
   // The assistant answers in Studio's language unless the person clearly
   // writes in another (Settings > AI: "RAI answers in:"). What the model is
