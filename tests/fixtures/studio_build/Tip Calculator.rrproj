@@ -1,0 +1,18 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Tip Calculator"
+main = "tip_calculator.rr"
+
+[[files]]
+path = "tip_calculator.rr"
+kind = "form"
+
+[build]
+icon = "tip.png"
+app_name = "Tip Calculator"
+version = "1.0.0"
+company = "Northfield Coding Club"
+description = "Splits a bill and works out the tip."
+website = "https://northfield.example/tips"
+category = "education"

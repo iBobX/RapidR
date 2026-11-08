@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Target: macOS (a window with round corners, three dots at the left of its bar)</title>
+  <path d="M8 5H24A5 5 0 0 1 29 10V22A5 5 0 0 1 24 27H8A5 5 0 0 1 3 22V10A5 5 0 0 1 8 5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M3 12L29 12" stroke="#5B6478"/>
+  <circle cx="8.5" cy="8.5" r="1.5" fill="#2F5BFF"/>
+  <circle cx="13.5" cy="8.5" r="1.5" fill="#2F5BFF"/>
+  <circle cx="17.5" cy="8.5" r="1.5" fill="#2F5BFF"/>
+</svg>

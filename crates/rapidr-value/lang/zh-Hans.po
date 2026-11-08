@@ -4147,3 +4147,19 @@ msgstr "这次导入没有 WIN32API.INC"
 #: crates/rapidr-studio/src/project.rs
 msgid "nothing imported yet"
 msgstr "还没有导入任何内容"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the browser saves each zip itself"
+msgstr "浏览器会自行保存每个 zip"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "no system is ticked"
+msgstr "未勾选任何系统"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the web Studio packs the apps in the page"
+msgstr "Web 版 RapidR Studio 在页面中打包应用"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "native code is built by RapidR Studio on the desktop"
+msgstr "原生代码由桌面版 RapidR Studio 构建"

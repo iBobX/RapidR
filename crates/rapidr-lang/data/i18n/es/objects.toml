@@ -55,7 +55,7 @@
 "RBITMAP.LINE" = "Dibuja una línea desde (`x1`, `y1`) hasta (`x2`, `y2`) con el color `c`."
 "RBITMAP.LOADFROMFILE" = "Carga el contenido del componente desde un archivo: texto, elementos, celdas de la cuadrícula, nodos del árbol o una imagen."
 "RBITMAP.LOADFROMSTREAM" = "Carga el contenido del componente desde un flujo abierto."
-"RBITMAP.LOADICON" = "Carga uno de los íconos propios de RapidR (un nombre de ícono como \"run\", un tipo de componente, un id de comando), de Size píxeles de lado (16 si se omite), con los colores del tema actual o los de Theme; nítido en cualquier escala de pantalla."
+"RBITMAP.LOADICON" = "Carga uno de los íconos propios de RapidR (un nombre de ícono como \"run\", un tipo de componente, un id de comando), de Size píxeles de lado (16 si se omite), con los colores del tema actual o los de Theme (\"disabled\": los del tema actual, en gris, para algo que todavía no se puede usar); nítido en cualquier escala de pantalla."
 "RBITMAP.MONOCHROME" = "Distinto de cero para un mapa de bits en blanco y negro."
 "RBITMAP.PAINT" = "Rellena el área alrededor de (`x`, `y`) con el color `c`, hasta el color `borderc` que la limita."
 "RBITMAP.PENCOLOR" = "El color de línea que usan los métodos de dibujo, como &HBBGGRR (el atajo de RapidR para el lápiz)."

@@ -19,6 +19,7 @@ const NOT_VALUES: &[(&str, &str, &str, &str)] = &[
     ("RFILEDIALOG", "", "FileTitle", "a file's name without its folder"),
     ("RFILEDIALOG", "", "Files", "the files picked, a list"),
     ("RPROJECT", "", "FileManager", "the file manager's name"),
+    ("RPROJECT", "", "ThemeColor", "the web app's colour as #RRGGBB text (its manifest's)"),
     ("RAIPROJECTTOOLS", "", "ProjectFiles", "a list of the project's files"),
     ("RPRINTER", "", "Fonts", "the printer's fonts, a list"),
     ("RPLOT", "*", "color", "a chart's colours are names or #RRGGBB text"),

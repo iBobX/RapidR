@@ -5,6 +5,87 @@ Linux and the web, all from the computer you are on. Each app is a zip (a
 `.tar.gz` for Linux) that you can give to people: they unpack it and open
 the app. You don't need the other computers, a compiler or anyone's SDK.
 
+## In RapidR Studio: Run > Build
+
+**Run > Build...** opens the Build dialog. It is the same in RapidR Studio on
+the desktop and in the browser. Four steps sit on a list at the left; click
+one (or press Ctrl+Tab) to go to it, and **Next** at the foot goes on.
+
+![The Build dialog's first step: cards for Windows (64-bit, ARM64, 32-bit), macOS, Linux and the web, with All Desktop and Everything](images/build-dialog/01-where-it-runs-en-light.png)
+
+1. **Where it runs.** Tick the systems you want: Windows (64-bit x64 for most
+   PCs, ARM64 for Snapdragon PCs, 32-bit x86 for old PCs: it runs a little
+   slower), macOS (one Universal app for Apple silicon and Intel Macs), Linux (x64, ARM64) and
+   the web. **All Desktop** and **Everything** tick several at once. The
+   first time, only this computer's system is ticked, so a first build works
+   even with no internet. Android, iOS and boards are shown as coming later.
+2. **Your app.** The name, version, author or company, copyright,
+   description, website, app id (made from the author and the name: keep it
+   the same in every version), category and kind (an app with windows, or a
+   console tool), and the icon: one picture, made into every size each
+   system needs, shown at 16 to 48 pixels. A field with a problem says so
+   under it, and the step's name in the list says "Needs attention".
+   **Advanced** holds the web app's colour and the README's language.
+   **Project > Project Options** opens this same step: there is one form for
+   your app's details.
+3. **What goes in.** Your program, compiled once for every system; the data
+   files it reads (untick one to leave it out; **Add Files...** adds more to
+   the project) and what is left out, with the reason ("The program never
+   reads it", "The program writes it"). **Advanced** has **Include the source
+   code** and, in RapidR Studio on the desktop, **Native code**: this
+   computer's app compiled with Rust (the other systems' apps always run the
+   bytecode).
+4. **Build.** One row per app with its zip's name; **Save in** (the
+   project's `build` folder unless you choose another); **Pack as** a zip for
+   each system or everything in one zip as well; and which runners download
+   first, once, from rapidr.dev, each checked against RapidR's signature
+   before it is used.
+
+![Step 2, Your app: the fields at the left, the icon at every size at the right](images/build-dialog/02-your-app-en-light.png)
+
+![Step 3, What goes in: three data files ticked, two files left out with the reason](images/build-dialog/03-what-goes-in-en-light.png)
+
+![Step 4, Ready to build: four apps with their zips, Save in, Pack as, the runners that download first](images/build-dialog/04-ready-to-build-en-light.png)
+
+Every choice is saved in the project as you make it ("Saved in the project as
+you go"), so there is no Cancel: the close X and Esc close the dialog and
+nothing is lost.
+
+**Build 4 Apps** (it counts them) builds. Each app gets its own row: its
+runner checked, packed, zipped, with its own bar; a screen reader hears one
+message per app as it is ready. Esc or **Stop** stops the build, and nothing
+half-made is kept. A failed app says why in its row, with **Try Again**; the
+others are fine.
+
+![Building: one row per app, the first done, one downloading its runner, two being packed](images/build-dialog/05-building-en-light.png)
+
+When it is done, the dialog lists the zips and says how to open the app the
+first time on each system (the same words are in every zip's `README.txt`).
+**Show in Finder** (File Explorer on Windows, Files on Linux) shows them;
+**Try the Web App** opens the web one in your browser.
+
+![Done: four apps built, the zips, how to open them the first time on Windows, macOS and the web](images/build-dialog/06-done-en-light.png)
+
+- **Build Again** (Ctrl+Shift+B) builds the same choices again with no
+  dialog: the status bar says how it goes and a note in the corner says how
+  it ended (**Show**; **Open Build** when an app was not built).
+- **More** (the three dots at the bottom left): **Copy Command Line** (the
+  `rapidr build ... --targets ...` command that does the same, for a script
+  or a terminal), **Save All in One Zip**, **Help**.
+- The keys: Tab and Shift+Tab move through the step's controls, Ctrl+Tab and
+  Ctrl+Shift+Tab between steps, Space ticks, Alt and the underlined letter
+  presses a control, Enter the main button, Esc closes (or stops a build),
+  F1 opens this page.
+- Under 640 pixels wide (a small window, a phone) the steps become one page
+  that scrolls, with the Build button pinned at the bottom.
+
+**In RapidR Studio in the browser** the same dialog packs the apps in the
+page: nothing leaves your computer, the runners come from the web Studio's
+own address and are checked against RapidR's signature before they are used,
+and the browser saves the zips.
+
+## From the command line
+
 ```sh
 rapidr build tips.rr --targets windows-x64,macos,linux-x64,web
 rapidr build Tips.rrproj --all            # every system RapidR builds for
@@ -104,13 +185,16 @@ blurry) or not square (it is centred on a transparent square).
 
 AI assistants (RAI, and the AI apps connected to RapidR Studio) have the
 `build_app` tool: "build it for Windows and the web" saves the details it is
-given in the project and makes the same zips.
+given in the project, ticks those systems in the Build dialog's choices, and
+builds them as Build Again does: the same zips.
 
 ## Safe by design
 
 - Only the data files your program names go in, never a file it writes
   (your own copy may hold your data), and never your source unless you ask
-  with `--include-source`.
+  with `--include-source`. Files the project leaves out (`leave_out` in
+  `[build]`: the Build dialog's step 3) stay out; data files added to the
+  project (**Add Files...**, `kind = "data"`) go in.
 - A data file's path can't leave the app's folder (`..`, absolute paths,
   drives), and links are never followed.
 - A runner for the wrong system is refused, so a mixed-up file can't make a

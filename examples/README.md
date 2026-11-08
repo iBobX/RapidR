@@ -296,7 +296,7 @@ Windows, macOS, Linux and the web ([the manual](../docs/manual/build-for-every-s
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [tip_calculator/main.rr](apps/tip_calculator/main.rr) | The tip calculator as a project (`Tip Calculator.rrproj`, its icon `art/tips.svg`): `rapidr build main.rr --all` makes `Tip-Calculator-1.2.0-<system>.zip` for each system (a `.tar.gz` for Linux), each with a README on how to open it there, and `SHA256SUMS` | run · interp · native · web | `rapidr build apps/tip_calculator/main.rr --all` |
+| [tip_calculator/main.rr](apps/tip_calculator/main.rr) | The tip calculator as a project (`Tip Calculator.rrproj`, its icon `art/tips.svg`): `rapidr build main.rr --all` makes `Tip-Calculator-1.2.0-<system>.zip` for each system (a `.tar.gz` for Linux), each with a README on how to open it there, and `SHA256SUMS`; in RapidR Studio, **Run > Build...** does the same from its dialog | run · interp · native · web | `rapidr build apps/tip_calculator/main.rr --all` |
 
 ### studio/ and the IDE — RapidR Studio's parts
 

@@ -77,7 +77,10 @@ pub fn icon_svg(name: &str, size: i64, theme: Option<&str>) -> Result<String, St
     let size = size.clamp(1, 1024) as u32;
     // (a theme's name — the current one's, or one named — as the icons'
     // palettes are named: classic, modern, dark, highcontrast)
-    let named = match theme.filter(|t| !t.trim().is_empty()) {
+    // ("disabled": the current theme's colours, greyed as a control that
+    // can't be used draws its icon)
+    let disabled = theme.is_some_and(|t| t.trim().eq_ignore_ascii_case("disabled"));
+    let named = match theme.filter(|t| !t.trim().is_empty() && !disabled) {
         Some(n) => match crate::theme::choose(n) {
             crate::theme::Choice::Theme(t) => t,
             _ => crate::theme::current(),
@@ -87,7 +90,9 @@ pub fn icon_svg(name: &str, size: i64, theme: Option<&str>) -> Result<String, St
     let theme = named.icon_palette();
     let device = size * display_scale().max(1) as u32;
     let (variant, _) = rapidr_icons::variant_for(device);
-    let svg = rapidr_icons::themed_svg(icon, variant, &rapidr_icons::Style::new(&theme));
+    let mut style = rapidr_icons::Style::new(&theme);
+    style.disabled = disabled;
+    let svg = rapidr_icons::themed_svg(icon, variant, &style);
     // (the hinted drawing, shown `size` logical pixels big)
     Ok(svg.replacen(&format!("width=\"{variant}\" height=\"{variant}\""), &format!("width=\"{size}\" height=\"{size}\""), 1))
 }

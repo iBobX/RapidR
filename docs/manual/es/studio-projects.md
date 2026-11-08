@@ -1,4 +1,4 @@
-<!-- translated-from: studio-projects.md 1b92e0876ee88c8b -->
+<!-- translated-from: studio-projects.md 368109ac5275be41 -->
 # Proyectos en RapidR Studio
 
 Un programa de RapidR puede ser un archivo o muchos: un archivo principal que
@@ -269,9 +269,10 @@ que sigue a su archivo.
 
 ## Destinos: dónde se ejecuta tu programa
 
-**Proyecto > Opciones del proyecto** tiene una opción **Destinos** (las
-propiedades del proyecto también la tienen, como **Targets**): **Escritorio**
-(el valor predeterminado), **Web** o **Escritorio y web**. Dice dónde se
+El primer paso del diálogo Compilar (**Ejecutar > Compilar...**) lo fija con
+los sistemas que marcas: solo la web es **Web**, solo Windows, macOS o Linux es
+**Escritorio** (el valor predeterminado), ambos es **Escritorio y web**; las
+propiedades del proyecto también lo tienen, como **Targets**. Dice dónde se
 pretende que se ejecute tu programa, y Studio lo guarda en el archivo de
 proyecto:
 
@@ -294,8 +295,6 @@ proyecto se ejecuta donde no funcionan:
 Cada nota aparece una sola vez, en el primer uso, con cuántos usos hay:
 “RServerSocket funciona solo en el escritorio: el entorno de ejecución web no lo
 tiene (12 usos)”.
-
-![Opciones del proyecto: Destinos con el valor Web, con la nota “En un navegador. Problemas indica lo que solo funciona en el escritorio.”](../images/studio-projects/targets.png)
 
 Un proyecto que también compila una aplicación web (`targets` en `[build]`
 incluye `web`) empieza como **Escritorio y web**; cualquier otro empieza como

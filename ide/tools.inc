@@ -121,7 +121,7 @@ END SUB
 ' system and SHA256SUMS), the details given saved in the project first; the
 ' answer is what the build says, when it ends (ToolsBuildDone).
 SUB ToolsBuildApp(Ticket AS STRING)
-  DIM list AS STRING, raw AS STRING, i AS INTEGER, c AS STRING, cat AS STRING
+  DIM list AS STRING, raw AS STRING, i AS INTEGER, c AS STRING, cat AS STRING, old AS STRING
   IF ProjectOpen = 0 THEN
     ToolsAnswer Ticket, "No project is open: open_project or create_project first.", 1
     EXIT SUB
@@ -145,6 +145,16 @@ SUB ToolsBuildApp(Ticket AS STRING)
     ToolsAnswer Ticket, "Say which systems: targets, a list of windows-x64, windows-arm64, windows-x86, macos, linux-x64, linux-arm64, web, or all.", 1
     EXIT SUB
   END IF
+  ' (the systems as the Build dialog keeps them: "all" is every one it offers;
+  ' a name RapidR doesn't build for is dropped, none left is said)
+  IF list = "all" THEN list = "windows-x64,windows-arm64,windows-x86,macos-universal,linux-x64,linux-arm64,web"
+  old = Proj.BuildFor
+  Proj.BuildFor = list
+  IF Proj.BuildFor = "" THEN
+    Proj.BuildFor = old
+    ToolsAnswer Ticket, "None of those is a system RapidR builds for: targets is a list of windows-x64, windows-arm64, windows-x86, macos, linux-x64, linux-arm64, web, or all.", 1
+    EXIT SUB
+  END IF
   cat = LCASE$(ToolsArg("category"))
   IF ToolsArg("name") <> "" THEN Proj.AppName = ToolsArg("name")
   IF ToolsArg("version") <> "" THEN Proj.Version = ToolsArg("version")
@@ -156,7 +166,8 @@ SUB ToolsBuildApp(Ticket AS STRING)
   SaveProjectFile
   ToolsBuildTicket = Ticket
   ToolsBuildLog = ""
-  BuildProject "targets:" + list
+  ' (the Build dialog's own build: Build Again, with what was just saved)
+  BuildAgain
   IF Proj.Building = 0 THEN
     ToolsBuildTicket = ""
     IF Lang.ErrorCount > 0 THEN

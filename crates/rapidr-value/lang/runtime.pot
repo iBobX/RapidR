@@ -2025,6 +2025,10 @@ msgid "{list}: the systems to build for, like windows-x64,macos,linux-x64,web or
 msgstr ""
 
 #: crates/rapidr-studio/src/project.rs
+msgid "the browser saves each zip itself"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
 msgid "{path} isn't a copy of one of RapidR's examples"
 msgstr ""
 
@@ -2046,6 +2050,18 @@ msgstr ""
 
 #: crates/rapidr-studio/src/project.rs
 msgid "Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Build Web App makes a web app and Run shows the program"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "no system is ticked"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the web Studio packs the apps in the page"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "native code is built by RapidR Studio on the desktop"
 msgstr ""
 
 #: crates/rapidr-studio/src/project.rs

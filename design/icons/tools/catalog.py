@@ -9,3 +9,4 @@ import rai  # noqa: F401
 import symbols  # noqa: F401
 import groups  # noqa: F401
 import debug  # noqa: F401
+import targets  # noqa: F401

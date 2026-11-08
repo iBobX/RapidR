@@ -939,7 +939,14 @@ impl ComponentKind for ListBox {
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let (w, h) = (cx.width(), cx.height());
-        sunken(p, w, h, background(cx));
+        // (BorderStyle bsNone: the list on its ground, no frame — a list
+        // that is part of a page, as a dialog's steps; bsSingle, the
+        // default, its sunken field)
+        if crate::store::int(cx.store, cx.id, "borderstyle", 1) == 0 {
+            p.fill((0, 0, w, h), background(cx));
+        } else {
+            sunken(p, w, h, background(cx));
+        }
         let Some(mut l) = with_list(cx.id, |l| l.clone()) else { return };
         let font = cx.font.clone();
         let text_color = ink(cx.store, cx.id, &font, cx.state.enabled, background(cx));

@@ -300,12 +300,10 @@ SUB RunCommand(Id AS STRING)
         SetState "stopped", "Open or make a project first (File > New Project)"
       END IF
     CASE "project.addModule": AddProjectFile "module"
-    CASE "project.options": ShowAppSettings
+    CASE "project.options": ShowBuildDialog 2
     ' ---- run / debug ----
-    CASE "run.build": BuildProject ""
-    CASE "run.buildNative": BuildProject "native"
-    CASE "run.buildInterpreted": BuildProject "interpreted"
-    CASE "run.buildWeb": BuildProject "web"
+    CASE "run.build": ShowBuildDialog 1
+    CASE "run.buildAgain": BuildAgain
     CASE "run.reveal": RevealBuild
     ' ---- window ----
     CASE "window.next": Dock.NextDocument
@@ -634,6 +632,8 @@ SUB MacroTick
   END IF
   id = LTRIM$(RTRIM$(id))
   IF EditorStep(id) THEN EXIT SUB
+  ' (the Build dialog's test steps: build:… — build.inc)
+  IF BuildStep(id) THEN EXIT SUB
   ' (a recorded demo's commands: demo.inc)
   IF DemoStep(id) THEN EXIT SUB
   ' (lang:<tag> — Studio's language changed as Settings changes it, for

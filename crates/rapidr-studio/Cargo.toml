@@ -32,6 +32,8 @@ rapidr-lexer.workspace = true
 rapidr-parser.workspace = true
 # RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it
 rapidr-package.workspace = true
+# (Build: "Everything in one zip" — the zips put in one, stored)
+rapidr-archive = { workspace = true, features = ["zip"] }
 # File > Import RapidQ Project or File: the engine of `rapidr import-rapidq`
 rapidr-import.workspace = true
 # RAIPROJECTTOOLS: the project as tools for RAI (rapidr-ai's component),

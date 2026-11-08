@@ -4176,3 +4176,19 @@ msgstr "esta importación no tiene WIN32API.INC"
 #: crates/rapidr-studio/src/project.rs
 msgid "nothing imported yet"
 msgstr "todavía no se importó nada"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the browser saves each zip itself"
+msgstr "el navegador guarda cada zip"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "no system is ticked"
+msgstr "no hay ningún sistema marcado"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the web Studio packs the apps in the page"
+msgstr "RapidR Studio en la web empaqueta las aplicaciones en la página"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "native code is built by RapidR Studio on the desktop"
+msgstr "el código nativo lo compila RapidR Studio de escritorio"

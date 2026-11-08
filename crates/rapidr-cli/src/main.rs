@@ -865,6 +865,12 @@ fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package
     let carried = carried_for_build(path, &built_in);
     plan.data.extend(carried.files);
     plan.data.extend(carried.catalogs.unwrap_or_default().into_iter().map(|(name, f)| (format!("{}/{name}", rapidr_project::ship::LANG_FOLDER), f)));
+    // (the project's own choices, Studio's Build dialog's step 3: the data
+    // files added to the project go in, the ones it leaves out don't —
+    // rapidr_project::program_files::goes_in shows the same list)
+    if let Some((dir, p)) = project.as_ref() {
+        rapidr_project::program_files::apply_choices(&mut plan.data, dir, p);
+    }
     Ok(plan)
 }
 

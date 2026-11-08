@@ -45,7 +45,7 @@ msgstr "应用(&P)"
 msgid "Apply the accepted changes"
 msgstr "应用已接受的更改"
 
-#: ide/ai.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/contextmenu.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aisetup.inc ide/consent.inc ide/contextmenu.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "取消"
 
@@ -1705,160 +1705,814 @@ msgid "RAI isn't ready yet: {why}"
 msgstr "RAI 还没有准备好：{why}"
 
 #: ide/build.inc
-msgid "Project Options"
-msgstr "项目选项"
+msgctxt "the Build dialog"
+msgid "Build"
+msgstr "构建"
 
 #: ide/build.inc
-msgid "The app's icon"
-msgstr "应用图标"
+msgid "Steps"
+msgstr "步骤"
 
 #: ide/build.inc
-msgid "App &name:"
-msgstr "应用名称(&N):"
+msgid "The arrows move, Enter opens a step. Ctrl+Tab goes to the next step from anywhere in the dialog."
+msgstr "方向键移动，Enter 打开一个步骤。在对话框任何位置按 Ctrl+Tab 都会进入下一步。"
 
 #: ide/build.inc
-msgid "&Bundle ID:"
-msgstr "Bundle ID(&B):"
+msgid "Saved in the project as you go"
+msgstr "边做边保存在项目中"
+
+#: ide/build.inc
+msgid "More"
+msgstr "更多"
+
+#: ide/build.inc
+msgid "More build actions: Copy Command Line, Save All in One Zip, Help"
+msgstr "更多构建操作：复制命令行、全部保存为一个 zip、帮助"
+
+#: ide/build.inc
+msgid "&Next"
+msgstr "下一步(&N)"
+
+#: ide/build.inc
+msgid "Where should it run?"
+msgstr "要在哪里运行？"
+
+#: ide/build.inc
+msgid "Tick every system you want. Build makes them all at once, on this computer."
+msgstr "勾选你想要的每个系统。构建会在这台电脑上一次全部生成。"
+
+#: ide/build.inc
+msgid "All &Desktop"
+msgstr "全部桌面(&D)"
+
+#: ide/build.inc
+msgid "Ticks Windows, macOS and Linux."
+msgstr "勾选 Windows、macOS 和 Linux。"
+
+#: ide/build.inc
+msgid "&Everything"
+msgstr "全部(&E)"
+
+#: ide/build.inc
+msgid "Ticks every system."
+msgstr "勾选所有系统。"
+
+#: ide/build.inc
+msgid "Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. The macOS app is made for Apple silicon and Intel Macs."
+msgstr "不确定？x64 是 2005 年以来的大多数电脑。ARM64 是骁龙电脑和树莓派。macOS 应用专为搭载 Apple 芯片和 Intel 的 Mac 打造。"
+
+#: ide/build.inc
+msgid "Coming later:"
+msgstr "即将推出："
+
+#: ide/build.inc
+msgid "Your app"
+msgstr "你的应用"
+
+#: ide/build.inc
+msgid "Filled in once and saved in the project. Every system shows these."
+msgstr "填写一次，保存在项目中。每个系统都会显示这些信息。"
+
+#: ide/build.inc
+msgid "Na&me:"
+msgstr "名称(&M)："
+
+#: ide/build.inc
+msgid "Name"
+msgstr "名称"
+
+#: ide/build.inc
+msgid "The app's name: its title, the Dock, the Start menu"
+msgstr "应用的名称：标题、程序坞、开始菜单"
 
 #: ide/build.inc
 msgid "&Version:"
 msgstr "版本(&V):"
 
 #: ide/build.inc
-msgid "&Company:"
-msgstr "公司(&C):"
+msgid "Version"
+msgstr "版本"
 
 #: ide/build.inc
-msgid "&Icon:"
-msgstr "图标(&I):"
+msgid "&Author or company:"
+msgstr "作者或公司(&A)："
 
 #: ide/build.inc
-msgid "Choose the icon file"
-msgstr "选择图标文件"
+msgid "Author or company"
+msgstr "作者或公司"
 
 #: ide/build.inc
-msgid "Use RapidR's icon"
-msgstr "使用 RapidR 的图标"
+msgid "Co&pyright:"
+msgstr "版权(&P)："
 
 #: ide/build.inc
-msgid "&Targets:"
-msgstr "目标平台(&T):"
+msgid "Copyright"
+msgstr "版权"
 
 #: ide/build.inc
-msgid "Desktop"
-msgstr "桌面"
+msgid "&Description:"
+msgstr "描述(&D)："
+
+#: ide/build.inc
+msgid "Description"
+msgstr "描述"
+
+#: ide/build.inc
+msgid "One line about the app: Windows' file description, macOS' Get Info, Linux's menu, the web page"
+msgstr "关于应用的一句话：Windows 的文件说明、macOS 的“显示简介”、Linux 的菜单、网页"
+
+#: ide/build.inc
+msgid "&Website:"
+msgstr "网站(&W)："
+
+#: ide/build.inc
+msgid "Website"
+msgstr "网站"
+
+#: ide/build.inc
+msgid "App &id:"
+msgstr "应用 ID(&I)："
+
+#: ide/build.inc
+msgid "App id"
+msgstr "应用 ID"
+
+#: ide/build.inc
+msgid "&Category:"
+msgstr "类别(&C)："
+
+#: ide/build.inc
+msgid "Category"
+msgstr "类别"
+
+#: ide/build.inc
+msgid "&Kind:"
+msgstr "类型(&K)："
+
+#: ide/build.inc
+msgid "Windowed app"
+msgstr "窗口应用"
+
+#: ide/build.inc
+msgid "Console app"
+msgstr "控制台应用"
+
+#: ide/build.inc
+msgid "Found in the program; change it only if it's wrong."
+msgstr "从程序中检测到；只有不对时才需要修改。"
+
+#: ide/build.inc
+msgid "&Theme colour:"
+msgstr "主题颜色(&T)："
+
+#: ide/build.inc
+msgid "Theme colour"
+msgstr "主题颜色"
+
+#: ide/build.inc
+msgid "The web app's colour, #RRGGBB; empty: the page's"
+msgstr "网页应用的颜色，#RRGGBB；留空：使用页面的颜色"
+
+#: ide/build.inc
+msgid "&README language:"
+msgstr "README 语言(&R)："
+
+#: ide/build.inc
+msgid "README language"
+msgstr "README 语言"
+
+#: ide/build.inc
+msgid "The language of the README.txt in every zip: how to open the app the first time"
+msgstr "每个 zip 中 README.txt 的语言：如何第一次打开应用"
+
+#: ide/build.inc
+msgid "Icon"
+msgstr "图标"
+
+#: ide/build.inc
+msgid "The app's icon"
+msgstr "应用图标"
+
+#: ide/build.inc
+msgid "C&hoose Picture..."
+msgstr "选择图片(&H)..."
+
+#: ide/build.inc
+msgid "&Use RapidR's Icon"
+msgstr "使用 RapidR 的图标(&U)"
+
+#: ide/build.inc
+msgid "Made in every size each system needs, 16 to 1024."
+msgstr "生成每个系统需要的所有尺寸，从 16 到 1024。"
+
+#: ide/build.inc
+msgid "What goes in"
+msgstr "包含什么"
+
+#: ide/build.inc
+msgid "Your program and the files it reads. Untick a file to leave it out."
+msgstr "你的程序和它读取的文件。取消勾选某个文件即可不包含它。"
+
+#: ide/build.inc
+msgid "Compiled once for every system."
+msgstr "为所有系统只编译一次。"
+
+#: ide/build.inc
+msgid "&Add Files..."
+msgstr "添加文件(&A)..."
+
+#: ide/build.inc
+msgid "Adds files the program reads to the project: they go in every app"
+msgstr "把程序读取的文件添加到项目：它们会放进每个应用"
+
+#: ide/build.inc
+msgid "No data files: the program names none beside it."
+msgstr "没有数据文件：程序没有提到它旁边的任何文件。"
+
+#: ide/build.inc
+msgid "Include the &source code"
+msgstr "包含源代码(&S)"
+
+#: ide/build.inc
+msgid "Your program's source goes in every zip too, in a folder named source"
+msgstr "你的程序源代码也会放进每个 zip，在名为 source 的文件夹中"
+
+#: ide/build.inc
+msgid "Ready to build"
+msgstr "准备构建"
+
+#: ide/build.inc
+msgid "&Save in:"
+msgstr "保存到(&S)："
+
+#: ide/build.inc
+msgid "Save in"
+msgstr "保存到"
+
+#: ide/build.inc
+msgid "The folder the zips go in"
+msgstr "存放 zip 的文件夹"
+
+#: ide/build.inc
+msgid "Ch&oose..."
+msgstr "选择(&O)..."
+
+#: ide/build.inc ide/window.inc
+msgid "Choose the folder"
+msgstr "选择文件夹"
+
+#: ide/build.inc
+msgid "&Pack as:"
+msgstr "打包为(&P)："
+
+#: ide/build.inc
+msgid "A zip for each system"
+msgstr "每个系统一个 zip"
+
+#: ide/build.inc
+msgid "Everything in one zip"
+msgstr "全部放在一个 zip"
+
+#: ide/build.inc
+msgid "Each zip has a README.txt on opening the app the first time, and SHA256SUMS lists every zip's checksum."
+msgstr "每个 zip 都有一个 README.txt，说明第一次如何打开应用；SHA256SUMS 列出每个 zip 的校验和。"
+
+#: ide/build.inc
+msgid "Opening it the first time on another computer"
+msgstr "第一次在另一台电脑上打开"
+
+#: ide/build.inc
+msgid "Every zip's README.txt says the same, for its system."
+msgstr "每个 zip 的 README.txt 都针对其系统写了同样的内容。"
+
+#: ide/build.inc
+msgid "Windows 64-bit (x64)"
+msgstr "Windows 64 位 (x64)"
+
+#: ide/build.inc
+msgid "Windows ARM64"
+msgstr "Windows ARM64"
+
+#: ide/build.inc
+msgid "Windows 32-bit (x86)"
+msgstr "Windows 32 位 (x86)"
+
+#: ide/build.inc
+msgid "macOS Universal"
+msgstr "macOS 通用"
+
+#: ide/build.inc
+msgid "Linux 64-bit (x64)"
+msgstr "Linux 64 位 (x64)"
+
+#: ide/build.inc
+msgid "Linux ARM64"
+msgstr "Linux ARM64"
 
 #: ide/build.inc
 msgid "Web"
 msgstr "Web"
 
 #: ide/build.inc
-msgid "Desktop and web"
-msgstr "桌面和 Web"
+msgctxt "the decimal separator"
+msgid "."
+msgstr "."
 
 #: ide/build.inc
-msgid "Targets: where the program runs"
-msgstr "目标平台：程序运行的位置"
+msgid "{n} bytes"
+msgstr "{n} 字节"
 
 #: ide/build.inc
-msgid "B&uild:"
-msgstr "构建方式(&U):"
+msgid "{n} KB"
+msgstr "{n} KB"
 
 #: ide/build.inc
-msgid "Compiled (native: needs Rust)"
-msgstr "编译（原生：需要 Rust）"
+msgid "{n} MB"
+msgstr "{n} MB"
 
 #: ide/build.inc
-msgid "Interpreted (no Rust needed)"
-msgstr "解释执行（不需要 Rust）"
+msgid "Nothing ticked yet"
+msgstr "尚未勾选"
 
 #: ide/build.inc
-msgid "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
-msgstr "发布版本的构建：经过优化，是你要发布的版本。“运行”(F5) 用于运行并调试程序。"
+msgid "{n} system"
+msgid_plural "{n} systems"
+msgstr[0] "{n} 个系统"
+msgstr[1] ""
 
 #: ide/build.inc
-msgid "&Output folder:"
-msgstr "输出文件夹(&O):"
+msgid "{n} app"
+msgid_plural "{n} apps"
+msgstr[0] "{n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
-msgid "Output folder: where Build puts the app"
-msgstr "输出文件夹：“构建”会把应用放在这里"
+msgid "One Universal app for Macs with Apple silicon and Intel."
+msgstr "一个通用应用，适用于搭载 Apple 芯片和 Intel 的 Mac。"
 
 #: ide/build.inc
-msgid "Choose the output folder"
-msgstr "选择输出文件夹"
+msgid "A zip for any web host. Runs in any modern browser, phones too."
+msgstr "适用于任何网页主机的 zip。可在任何现代浏览器中运行，手机也可以。"
 
 #: ide/build.inc
-msgid "&Keep the generated Rust source"
-msgstr "保留生成的 Rust 源代码(&K)"
-
-#: ide/build.inc ide/safety.inc ide/settings.inc
-msgid "OK"
-msgstr "确定"
+msgid "One Universal app for Apple silicon and Intel Macs"
+msgstr "适用于 Apple 芯片和 Intel Mac 的通用应用"
 
 #: ide/build.inc
-msgid "In a browser. Problems notes what works on the desktop only."
-msgstr "在浏览器中运行。“问题”面板会标出只能在桌面上使用的功能。"
+msgid "A zip for any web host"
+msgstr "适用于任何网页主机的 zip"
 
 #: ide/build.inc
-msgid "On the desktop and in a browser. Problems notes what works on one of them only."
-msgstr "在桌面和浏览器中运行。“问题”面板会标出只能在其中一处使用的功能。"
+msgid "64-bit (x64)"
+msgstr "64 位 (x64)"
 
 #: ide/build.inc
-msgid "Native builds and the interpreter. What works on the desktop only isn't noted."
-msgstr "原生构建和解释器。只能在桌面上使用的功能不会被标出。"
+msgid "most PCs"
+msgstr "大多数电脑"
 
 #: ide/build.inc
-msgid "RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own."
-msgstr "程序默认使用 RapidR 的图标。也可选择 .icns、.ico、.png（最好是 1024 x 1024）或 .svg 作为应用自己的图标。"
+msgid "Snapdragon PCs"
+msgstr "骁龙电脑"
 
 #: ide/build.inc
-msgid "The app's icon, made into every size each system shows."
-msgstr "应用图标，会生成各系统所需的各种尺寸。"
+msgid "32-bit (x86)"
+msgstr "32 位 (x86)"
 
 #: ide/build.inc
-msgid "32-bit Windows builds interpreted apps: Build makes one, and it runs the same program."
-msgstr "32 位 Windows 上构建的是解释执行应用：“构建”会生成一个，它运行的是同一个程序。"
+msgid "Windows 7, 8, old PCs"
+msgstr "Windows 7、8、旧电脑"
 
 #: ide/build.inc
-msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
-msgstr "Rust 是免费的：“构建原生应用”会提示安装它。解释执行则不需要。"
+msgid "Raspberry Pi 4, 5"
+msgstr "树莓派 4、5"
 
 #: ide/build.inc
-msgid "An interpreted build has no Rust: the app runs the program's bytecode."
-msgstr "解释执行的构建不含 Rust：应用会运行程序的字节码。"
+msgid "Runs on old PCs; a little slower."
+msgstr "可在旧电脑上运行；稍慢一些。"
 
 #: ide/build.inc
-msgid "Left in {path}, beside the app, to read."
-msgstr "保留在 {path}（应用旁边），供你阅读。"
+msgid "A .tar.gz with an install script."
+msgstr "一个带安装脚本的 .tar.gz。"
 
 #: ide/build.inc
-msgid "Off: the Rust RapidR generates is deleted after the build."
-msgstr "关闭：构建后会删除 RapidR 生成的 Rust 代码。"
+msgid "Coming later: Android, iOS, boards (ESP32, micro:bit)"
+msgstr "即将推出：Android、iOS、开发板（ESP32、micro:bit）"
 
 #: ide/build.inc
-msgid "Compiled (not on 32-bit Windows)"
-msgstr "编译（32 位 Windows 上不可用）"
+msgid "Utilities"
+msgstr "实用工具"
 
 #: ide/build.inc
-msgid "Compiled (Rust not installed)"
-msgstr "编译（未安装 Rust）"
+msgid "Productivity"
+msgstr "效率"
+
+#: ide/build.inc
+msgid "Education"
+msgstr "教育"
+
+#: ide/build.inc
+msgid "Games"
+msgstr "游戏"
+
+#: ide/build.inc
+msgid "Developer tools"
+msgstr "开发者工具"
+
+#: ide/build.inc
+msgid "Graphics"
+msgstr "图形"
+
+#: ide/build.inc
+msgid "Music"
+msgstr "音乐"
+
+#: ide/build.inc
+msgid "Video"
+msgstr "视频"
+
+#: ide/build.inc
+msgid "Business"
+msgstr "商务"
+
+#: ide/build.inc
+msgid "Finance"
+msgstr "财务"
+
+#: ide/build.inc
+msgid "Science"
+msgstr "科学"
+
+#: ide/build.inc
+msgid "&Copy Command Line"
+msgstr "复制命令行(&C)"
+
+#: ide/build.inc
+msgid "Save All in &One Zip"
+msgstr "全部保存为一个 zip(&O)"
+
+#: ide/build.inc ide/contextmenu.inc
+msgid "&Help"
+msgstr "帮助(&H)"
+
+#: ide/build.inc
+msgid "&Native code"
+msgstr "原生代码(&N)"
+
+#: ide/build.inc
+msgid "Native code (not on 32-bit Windows)"
+msgstr "原生代码（32 位 Windows 不支持）"
+
+#: ide/build.inc
+msgid "Project Options"
+msgstr "项目选项"
+
+#: ide/build.inc
+msgid "{n} of {m} done, {s} s"
+msgstr "已完成 {n}/{m}，{s} 秒"
+
+#: ide/build.inc
+msgid "Step {n} of 4: {name}"
+msgstr "第 {n} 步，共 4 步：{name}"
+
+#: ide/build.inc
+msgid "Step {n} of 4. The arrows move, Enter opens a step."
+msgstr "第 {n} 步，共 4 步。方向键移动，Enter 打开一个步骤。"
+
+#: ide/build.inc
+msgid "Boards: ESP32, micro:bit"
+msgstr "开发板：ESP32、micro:bit"
+
+#: ide/build.inc
+msgid "The app needs an id: two words or more with dots between them, like com.example.notepad."
+msgstr "应用需要一个 ID：两个或更多单词，中间用点隔开，例如 com.example.notepad。"
+
+#: ide/build.inc
+msgid "No spaces in an app id: use dots or dashes, like com.example.tip-calculator."
+msgstr "应用 ID 中不能有空格：请用点或短横线，例如 com.example.tip-calculator。"
+
+#: ide/build.inc
+msgid "Only letters, digits, dashes and dots in an app id: {c} can't be in it."
+msgstr "应用 ID 只能包含字母、数字、短横线和点：{c} 不能出现在其中。"
+
+#: ide/build.inc
+msgid "Two words or more with dots between them, like com.example.notepad."
+msgstr "两个或更多单词，中间用点隔开，例如 com.example.notepad。"
+
+#: ide/build.inc
+msgid "The app needs a version, like 1.0.0."
+msgstr "应用需要一个版本号，例如 1.0.0。"
+
+#: ide/build.inc
+msgid "Up to four numbers with dots between them, like 1.0 or 2.3.1."
+msgstr "最多四个数字，中间用点隔开，例如 1.0 或 2.3.1。"
+
+#: ide/build.inc
+msgid "A web address starting with https://, like https://example.com."
+msgstr "以 https:// 开头的网址，例如 https://example.com。"
+
+#: ide/build.inc
+msgid "A colour as #RRGGBB, like #2F5BFF."
+msgstr "颜色格式为 #RRGGBB，例如 #2F5BFF。"
+
+#: ide/build.inc
+msgid "Made from the author and the name. Keep it the same in every version."
+msgstr "由作者和名称生成。每个版本都保持不变。"
+
+#: ide/build.inc
+msgid "RapidR's icon for programs."
+msgstr "RapidR 的程序图标。"
+
+#: ide/build.inc
+msgid "This picture is {w} × {h}: the larger sizes look blurry. A 1024 × 1024 PNG or an SVG is sharp everywhere."
+msgstr "这张图片是 {w} × {h}：较大的尺寸会显得模糊。1024 × 1024 的 PNG 或 SVG 在任何地方都清晰。"
+
+#: ide/build.inc
+msgid "It isn't square: it is centred on a transparent square."
+msgstr "它不是正方形：会居中放在一个透明正方形上。"
 
 #: ide/build.inc
 msgid "The App's Icon"
 msgstr "应用图标"
 
 #: ide/build.inc
-msgid "Icons and pictures"
-msgstr "图标和图片"
+msgid "Pictures"
+msgstr "图片"
 
 #: ide/build.inc ide/contextmenu.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
 msgstr "所有文件"
 
 #: ide/build.inc
-msgid "The Output Folder"
-msgstr "输出文件夹"
+msgid "image"
+msgstr "图片"
+
+#: ide/build.inc
+msgid "sound"
+msgstr "声音"
+
+#: ide/build.inc
+msgid "data"
+msgstr "数据"
+
+#: ide/build.inc
+msgid "text"
+msgstr "文本"
+
+#: ide/build.inc
+msgid "translation"
+msgstr "翻译"
+
+#: ide/build.inc
+msgid "font"
+msgstr "字体"
+
+#: ide/build.inc
+msgid "file"
+msgstr "文件"
+
+#: ide/build.inc
+msgid "The program writes it: your copy may hold your own data."
+msgstr "程序会写入它：你的副本可能包含你自己的数据。"
+
+#: ide/build.inc
+msgid "Outside the project folder: copy it in to take it along."
+msgstr "在项目文件夹之外：把它复制进来才能一起带上。"
+
+#: ide/build.inc
+msgid "The program never reads it."
+msgstr "程序从不读取它。"
+
+#: ide/build.inc
+msgid "Add Files"
+msgstr "添加文件"
+
+#: ide/build.inc ide/panels.inc
+msgid "Can't add {file}: {error}"
+msgstr "无法添加 {file}：{error}"
+
+#: ide/build.inc
+msgid "Where the Zips Go"
+msgstr "zip 的存放位置"
+
+#: ide/build.inc
+msgid "The command line was copied"
+msgstr "已复制命令行"
+
+#: ide/build.inc
+msgid "{file} holds every app"
+msgstr "{file} 包含所有应用"
+
+#: ide/build.inc ide/external.inc
+msgid "Show"
+msgstr "显示"
+
+#: ide/build.inc
+msgid "Can't make one zip: {error}"
+msgstr "无法生成单个 zip：{error}"
+
+#: ide/build.inc
+msgid "Where it runs"
+msgstr "运行位置"
+
+#: ide/build.inc
+msgid "Needs attention"
+msgstr "需要注意"
+
+#: ide/build.inc
+msgid "{n} data file"
+msgid_plural "{n} data files"
+msgstr[0] "{n} 个数据文件"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "Building: {n} of {m} done"
+msgstr "构建中：已完成 {n}/{m}"
+
+#: ide/build.inc
+msgid "{n} app built"
+msgid_plural "{n} apps built"
+msgstr[0] "已构建 {n} 个应用"
+msgstr[1] ""
+
+#: ide/build.inc ide/commands.inc ide/mcp.inc
+msgid "&Stop"
+msgstr "停止(&S)"
+
+#: ide/build.inc
+msgid "Esc stops the build; nothing half-made is kept."
+msgstr "按 Esc 停止构建；不会保留做了一半的文件。"
+
+#: ide/build.inc
+msgid "&Done"
+msgstr "完成(&D)"
+
+#: ide/build.inc
+msgid "&Show in {manager}"
+msgstr "在{manager}中显示(&S)"
+
+#: ide/build.inc
+msgid "&Try the Web App"
+msgstr "试用网页应用(&T)"
+
+#: ide/build.inc
+msgid "Build Again any time: Ctrl+Shift+B"
+msgstr "随时再次构建：Ctrl+Shift+B"
+
+#: ide/build.inc
+msgid "&Build {n} App"
+msgid_plural "&Build {n} Apps"
+msgstr[0] "构建 {n} 个应用(&B)"
+msgstr[1] ""
+
+#: ide/build.inc ide/contextmenu.inc
+msgid "&Back"
+msgstr "后退(&B)"
+
+#: ide/build.inc
+msgid "about {size}"
+msgstr "约 {size}"
+
+#: ide/build.inc
+msgid "not chosen"
+msgstr "未选择"
+
+#: ide/build.inc
+msgid "{list} chosen"
+msgstr "已选择 {list}"
+
+#: ide/build.inc
+msgid "The web app's colour, the README's language"
+msgstr "网页应用的颜色、README 的语言"
+
+#: ide/build.inc
+msgid "Advanc&ed"
+msgstr "高级(&E)"
+
+#: ide/build.inc
+msgid "Advanced"
+msgstr "高级"
+
+#: ide/build.inc
+msgid "Data files"
+msgstr "数据文件"
+
+#: ide/build.inc
+msgid "Left out"
+msgstr "未包含"
+
+#: ide/build.inc
+msgid "Most of each app is the RapidR runner for its system; your program's files add {size}."
+msgstr "每个应用的大部分是对应系统的 RapidR 运行器；你的程序文件增加 {size}。"
+
+#: ide/build.inc
+msgid "Each app: {list}. Most of it is the RapidR runner for that system; your program's files add {size}."
+msgstr "每个应用：{list}。大部分是该系统的 RapidR 运行器；你的程序文件增加 {size}。"
+
+#: ide/build.inc
+msgid "Include the source code, native code"
+msgstr "包含源代码、原生代码"
+
+#: ide/build.inc
+msgid "This computer's app is compiled with Rust: the fastest, this system only. Needs Rust (free); the other systems' apps run the bytecode as always."
+msgstr "这台电脑的应用用 Rust 编译：最快，仅限本系统。需要 Rust（免费）；其他系统的应用照常运行字节码。"
+
+#: ide/build.inc
+msgid "for {n} system, all in one zip."
+msgid_plural "for {n} systems, all in one zip."
+msgstr[0] "，用于 {n} 个系统，全部在一个 zip 中。"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "for {n} system, each in its own zip."
+msgid_plural "for {n} systems, each in its own zip."
+msgstr[0] "，用于 {n} 个系统，每个都有自己的 zip。"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "{n} runner downloads first, once"
+msgid_plural "{n} runners download first, once"
+msgstr[0] "先下载 {n} 个运行器，只需一次"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "{list}, {size} from {host}. Each is checked against RapidR's signature before it's used."
+msgstr "{list}，共 {size}，来自 {host}。每个在使用前都会用 RapidR 的签名验证。"
+
+#: ide/build.inc
+msgid "{list}, from {host}. Each is checked against RapidR's signature before it's used."
+msgstr "{list}，来自 {host}。每个在使用前都会用 RapidR 的签名验证。"
+
+#: ide/build.inc
+msgid "and"
+msgstr "和"
+
+#: ide/build.inc
+msgid "{n} app built in {s} s"
+msgid_plural "{n} apps built in {s} s"
+msgstr[0] "{s} 秒内构建了 {n} 个应用"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "{n} of {m} apps built"
+msgstr "已构建 {n}/{m} 个应用"
+
+#: ide/build.inc
+msgid "Your browser saved them. Nothing left your computer: the apps were packed in this page."
+msgstr "你的浏览器已保存它们。没有任何内容离开你的电脑：应用是在这个页面中打包的。"
+
+#: ide/build.inc
+msgid "In {folder}, with SHA256SUMS beside them."
+msgstr "在 {folder}，旁边有 SHA256SUMS。"
+
+#: ide/build.inc
+msgid "Building {n} app"
+msgid_plural "Building {n} apps"
+msgstr[0] "正在构建 {n} 个应用"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "{file} is compiled once. Now each system's app is packed."
+msgstr "{file} 只编译一次。现在正在打包每个系统的应用。"
+
+#: ide/build.inc
+msgid "Try Again"
+msgstr "重试"
+
+#: ide/build.inc
+msgid "If Windows warns, choose More info, then Run anyway."
+msgstr "如果 Windows 发出警告，选择“更多信息”，然后选择“仍要运行”。"
+
+#: ide/build.inc
+msgid "Open it once, then choose Open Anyway in System Settings, Privacy & Security."
+msgstr "先打开一次，然后在“系统设置”的“隐私与安全性”中选择“仍要打开”。"
+
+#: ide/build.inc
+msgid "Unpack it, then run install.sh, or the app in its folder."
+msgstr "解压后运行 install.sh，或运行其文件夹中的应用。"
+
+#: ide/build.inc
+msgid "Put the folder on any web host, or try it here."
+msgstr "把文件夹放到任何网页主机上，或在这里试用。"
+
+#: ide/build.inc
+msgid "Downloading its runner ({size})..."
+msgstr "正在下载运行器（{size}）..."
+
+#: ide/build.inc
+msgid "Runner checked · Packing and zipping..."
+msgstr "运行器已验证 · 正在打包和压缩..."
+
+#: ide/build.inc
+msgid "Runner checked · Packed · Zipped"
+msgstr "运行器已验证 · 已打包 · 已压缩"
+
+#: ide/build.inc
+msgid "Stopped: nothing kept."
+msgstr "已停止：未保留任何内容。"
+
+#: ide/build.inc
+msgid "Waiting"
+msgstr "等待中"
 
 #: ide/build.inc
 msgid "Build: {n} error (see Problems)."
@@ -1871,16 +2525,34 @@ msgid "Can't build: the program has errors"
 msgstr "无法构建：程序有错误"
 
 #: ide/build.inc
-msgid "Building {file}..."
-msgstr "正在构建 {file}..."
-
-#: ide/build.inc
 msgid "Can't build: {error}"
 msgstr "无法构建：{error}"
 
 #: ide/build.inc
 msgid "Can't build {file}"
 msgstr "无法构建 {file}"
+
+#: ide/build.inc
+msgid "Open Build"
+msgstr "打开构建"
+
+#: ide/build.inc
+msgid "Building {n} app..."
+msgid_plural "Building {n} apps..."
+msgstr[0] "正在构建 {n} 个应用..."
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "The build was stopped"
+msgstr "构建已停止"
+
+#: ide/build.inc
+msgid "{app} built, {n} of {m}"
+msgstr "{app} 已构建，{n}/{m}"
+
+#: ide/build.inc
+msgid "{app} was not built: {why}"
+msgstr "{app} 未能构建：{why}"
 
 #: ide/build.inc
 msgid "Installing Rust..."
@@ -1895,20 +2567,8 @@ msgid "Can't install Rust"
 msgstr "无法安装 Rust"
 
 #: ide/build.inc
-msgid "native"
-msgstr "原生"
-
-#: ide/build.inc
-msgid "interpreted"
-msgstr "解释执行"
-
-#: ide/build.inc
-msgid "web"
-msgstr "Web"
-
-#: ide/build.inc
-msgid "✓ Rust is installed ({seconds} s): Run > Build Native App is ready."
-msgstr "✓ Rust 已安装（{seconds} 秒）：可以使用 运行 > 构建原生应用 了。"
+msgid "✓ Rust is installed ({seconds} s): native code builds are ready."
+msgstr "✓ Rust 已安装（{seconds} 秒）：原生代码构建已就绪。"
 
 #: ide/build.inc
 msgid "Rust is installed"
@@ -1923,40 +2583,52 @@ msgid "Installing Rust failed"
 msgstr "安装 Rust 失败"
 
 #: ide/build.inc
-msgid "✓ Built the apps in {seconds} s"
-msgstr "✓ 已构建各系统的应用，用时 {seconds} 秒"
+msgid "Not built: see the Output's Build page."
+msgstr "未构建：请查看输出的“构建”页。"
+
+#: ide/build.inc
+msgid "✓ Built {file} (native code)"
+msgstr "✓ 已构建 {file}（原生代码）"
 
 #: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
 msgstr "在 {manager} 中显示"
 
 #: ide/build.inc
-msgid "Built the apps"
-msgstr "已构建各系统的应用"
+msgid "✗ The native code build failed (exit code {code}): see above."
+msgstr "✗ 原生代码构建失败（退出代码 {code}）：见上方。"
 
 #: ide/build.inc
-msgid "✓ Built {file} — unzip on any web host"
-msgstr "✓ 已构建 {file}——可在任何 Web 主机上解压使用"
+msgid "All in one zip: {file}"
+msgstr "全部在一个 zip 中：{file}"
 
 #: ide/build.inc
-msgid "Built {file}"
-msgstr "已构建 {file}"
+msgid "Native code: Rust isn't installed on this computer (Build > Advanced > Native code; `rapidr setup` installs it)"
+msgstr "原生代码：这台电脑上没有安装 Rust（构建 > 高级 > 原生代码；`rapidr setup` 可安装）"
 
 #: ide/build.inc
-msgid "✓ Built {file} ({mode}) in {seconds} s"
-msgstr "✓ 已构建 {file}（{mode}），用时 {seconds} 秒"
+msgid "Building {file} as native code..."
+msgstr "正在将 {file} 构建为原生代码..."
 
 #: ide/build.inc
-msgid "✗ The build failed (exit code {code}) after {seconds} s: see above."
-msgstr "✗ 构建失败（退出代码 {code}），用时 {seconds} 秒：请看上方的说明。"
+msgid "✓ {n} app built in {s} s"
+msgid_plural "✓ {n} apps built in {s} s"
+msgstr[0] "✓ {s} 秒内构建了 {n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
-msgid "The build failed"
-msgstr "构建失败"
+msgid "{n} app built in {s} seconds"
+msgid_plural "{n} apps built in {s} seconds"
+msgstr[0] "{s} 秒内构建了 {n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
-msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
-msgstr "还没有构建任何内容：使用 运行 > 构建 (Ctrl+Shift+B) 来生成应用。"
+msgid "✗ {n} of {m} apps built: see above."
+msgstr "✗ 已构建 {n}/{m} 个应用：见上方。"
+
+#: ide/build.inc
+msgid "Nothing built yet: Run > Build makes the apps."
+msgstr "尚未构建任何内容：运行 > 构建 会生成应用。"
 
 #: ide/build.inc ide/contextmenu.inc ide/panels.inc
 msgid "Can't show it: {error}"
@@ -2418,10 +3090,6 @@ msgstr "运行(&R)"
 msgid "Run &Without Debugging"
 msgstr "不调试运行(&W)"
 
-#: ide/commands.inc ide/mcp.inc
-msgid "&Stop"
-msgstr "停止(&S)"
-
 #: ide/commands.inc
 msgid "R&estart"
 msgstr "重新启动(&E)"
@@ -2431,32 +3099,16 @@ msgid "Run in &Browser"
 msgstr "在浏览器中运行(&B)"
 
 #: ide/commands.inc
-msgid "&Build Web App (.zip)"
-msgstr "构建 Web 应用 (.zip)(&B)"
+msgid "&Build..."
+msgstr "构建(&B)..."
 
 #: ide/commands.inc
-msgid "&Build (Interpreted App)"
-msgstr "构建解释执行应用(&B)"
+msgid "Build &Again"
+msgstr "再次构建(&A)"
 
 #: ide/commands.inc
-msgid "Build &Web App"
-msgstr "构建 Web 应用(&W)"
-
-#: ide/commands.inc
-msgid "Reveal the &App"
-msgstr "显示应用所在位置(&A)"
-
-#: ide/commands.inc
-msgid "&Build"
-msgstr "构建(&B)"
-
-#: ide/commands.inc
-msgid "Build &Native App"
-msgstr "构建原生应用(&N)"
-
-#: ide/commands.inc
-msgid "Build &Interpreted App"
-msgstr "构建解释执行应用(&I)"
+msgid "&Show the Built Apps"
+msgstr "显示已构建的应用(&S)"
 
 #: ide/commands.inc
 msgid "&Continue"
@@ -2807,10 +3459,6 @@ msgstr "转到处理程序(&G)"
 #: ide/contextmenu.inc
 msgid "&Remove Handler"
 msgstr "移除处理程序(&R)"
-
-#: ide/contextmenu.inc
-msgid "&Help"
-msgstr "帮助(&H)"
 
 #: ide/contextmenu.inc
 msgid "As&k RAI..."
@@ -3207,10 +3855,6 @@ msgstr "就此示例向 RAI 提问..."
 #: ide/contextmenu.inc
 msgid "Actions for the example"
 msgstr "示例的操作"
-
-#: ide/contextmenu.inc
-msgid "&Back"
-msgstr "后退(&B)"
 
 #: ide/contextmenu.inc
 msgid "No page before this one"
@@ -4075,10 +4719,6 @@ msgid "{file} was reloaded"
 msgstr "{file} 已重新载入"
 
 #: ide/external.inc
-msgid "Show"
-msgstr "显示"
-
-#: ide/external.inc
 msgid "{n} file was updated outside Studio"
 msgid_plural "{n} files were updated outside Studio"
 msgstr[0] "有 {n} 个文件在 Studio 之外被更新了"
@@ -4881,10 +5521,6 @@ msgid "Can't make {file}: {error}"
 msgstr "无法创建 {file}：{error}"
 
 #: ide/panels.inc
-msgid "Can't add {file}: {error}"
-msgstr "无法添加 {file}：{error}"
-
-#: ide/panels.inc
 msgid "{main} includes {file} ($INCLUDE): its forms are made when the program starts"
 msgstr "{main} 包含了 {file} ($INCLUDE)：它的窗体会在程序启动时创建"
 
@@ -5311,12 +5947,6 @@ msgstr "两个定时器：默认的每秒触发 50 次，FixedRate = 0 的约 25
 msgid "What an RAudioOut says when the sound goes wrong (OnError)"
 msgstr "RAudioOut 在声音出问题时会说什么 (OnError)"
 
-msgstr ""
-
-#: ide/panes.inc
-msgid "Two timers, one with FixedRate: about 25 ticks a second against 50"
-msgstr ""
-
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr "配方：带 sqrt、sin、log 的计算器，所有按键共用一个事件处理程序"
@@ -5700,6 +6330,10 @@ msgstr "这台电脑上没有安装 Rust。解释执行的应用不需要它，�
 #: ide/prompts.inc
 msgid "&Undo Anyway"
 msgstr "仍然撤销(&U)"
+
+#: ide/safety.inc ide/settings.inc
+msgid "OK"
+msgstr "确定"
 
 #: ide/safety.inc
 msgid "&Copy Details"
@@ -7556,10 +8190,6 @@ msgstr "模板:"
 #: ide/window.inc
 msgid "&Folder:"
 msgstr "文件夹(&F):"
-
-#: ide/window.inc
-msgid "Choose the folder"
-msgstr "选择文件夹"
 
 #: ide/window.inc
 msgid "Create"

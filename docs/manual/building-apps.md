@@ -402,18 +402,12 @@ rapidr build hello_form.rr --web --interp    # hello_form-web.zip
 rapidr bundle-bc hello_form.rr -o site.zip   # the same, named as you like
 ```
 
-**In RapidR Studio**, choose **Run > Build Web App** (on the web page:
-**Run > Build Web App (.zip)**, Ctrl+Shift+B). The program is saved, checked
-and compiled; the Output panel's **Build** page lists what goes in, and ends
-with "✓ Built hello_form-web.zip — unzip on any web host". On the desktop the
-zip is written to the project's output folder (`build` beside the project
-file) and the last line has **Reveal in Finder** (File Explorer, Files); on
-the web page the browser downloads it. The zip is named after the project
-(`Notes-web.zip` for `Notes.rrproj`), else after the program.
-
-![RapidR Studio on the web: the Run menu lists Run, Run Without Debugging, Stop, Restart, Run in Browser and Build Web App (.zip), with Ctrl+Shift+B](images/build-web/run-menu.png)
-
-![The Output panel's Build page after Build Web App: the files that go in, "Saved Notes-web.zip", and the green line "Built Notes-web.zip — unzip on any web host"](images/build-web/build-page.png)
+**In RapidR Studio**, choose **Run > Build...**, tick **Web** and build (see
+[Build your app for every system](build-for-every-system.md)): the program is
+saved, checked and compiled, and `Name-1.0.0-web.zip` is made with the other
+systems' apps. On the desktop the zip is written to the project's output
+folder (`build` beside the project file); in the web Studio the browser saves
+it.
 
 What is in the zip:
 
@@ -439,39 +433,24 @@ browsers don't let a page load WebAssembly from `file://`.)
 
 ## In RapidR Studio
 
-- **Run > Build** (Ctrl+Shift+B, and the Build button on the tool bar)
-  builds the project's app the way **Project > Project Options** says
-  (**Build**: Compiled or Interpreted). **Run > Build Native App** and
-  **Run > Build Interpreted App** build it that way once, whatever the
-  project says. All are release builds
-  for the system Studio runs on, into the project's output folder
-  (`build` beside the project file, or the one Project Options names). What
-  `rapidr build` prints goes to the Output panel's **Build** page as it
-  comes: the app's path and the kept Rust source are links, and the last
-  line, "✓ Built Notepad.app (interpreted) in 12 s", has **Reveal in Finder** (File
-  Explorer, Files) — a click shows the app selected. A build that fails says
-  so in red, after cargo's errors. Run (F5) is the one for debugging: it runs
-  the program under Studio's debugger, no build needed.
-- **Without Rust**, Build Native App asks first: "Native builds need Rust
-  (it is free)." **Build Interpreted Instead** (Enter) makes the
-  interpreted app now; **Install Rust...** runs `rapidr setup` and shows what
-  it says on the Build page (when it ends, native builds work); **Cancel**
-  does nothing. A new project made on a computer without Rust is set to
-  build interpreted, and Project Options says "(Rust not installed)" beside
-  the Compiled choice.
-- **Run > Reveal in Finder** shows the last app built.
-- **Project > Project Options** sets the app's name, bundle ID, version,
-  company and icon (with a preview, as the app will have it); whether
-  Build compiles it natively or makes it interpreted (no Rust needed); the
-  output folder; and **Keep the generated Rust source** (off by default:
-  the Rust is deleted after the build; on, it is left in
-  `<output>/<program>-rust-source` to read). They are saved in the project
-  file.
-- **Run > Build Web App** makes the program a web app (see
-  [Build a web app](#build-a-web-app)). On the web page this is the Build
-  command: **Run > Build Web App (.zip)**. The web page doesn't make apps for
-  a computer (Build Native App, Build Interpreted App, Reveal): those are in
-  RapidR Studio on the desktop.
+- **Run > Build...** opens the Build dialog: where the app runs (Windows,
+  macOS, Linux, the web), your app's details and icon, what goes in, then a
+  zip per system, with a progress row per app. It is described step by step
+  in [Build your app for every system](build-for-every-system.md). What
+  `rapidr build` prints also goes to the Output panel's **Build** page as it
+  comes. Run (F5) is the one for debugging: it runs the program under
+  Studio's debugger, no build needed.
+- **Run > Build Again** (Ctrl+Shift+B, and the Build button on the tool bar)
+  builds the same choices again with no dialog.
+- **Run > Show the Built Apps** shows the last zips built in Finder (File
+  Explorer, Files).
+- **Project > Project Options** opens the Build dialog at its **Your app**
+  step: the app's name, version, author, copyright, description, website,
+  app id, category, kind and icon (one form, saved in the project file).
+- **Native code** (the dialog's step 3, Advanced; RapidR Studio on the
+  desktop, not on 32-bit Windows) also builds this computer's app compiled
+  with Rust, into the output folder. Without Rust, the build says so on the
+  Build page; `rapidr setup` installs it (it is free).
 
 ### RapidR Studio as an app, from a source checkout
 

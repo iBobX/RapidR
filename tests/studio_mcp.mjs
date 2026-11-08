@@ -291,6 +291,14 @@ if (want("all")) {
   check("read_output: nothing new; the program ran and ended", r.text.includes("(no new output)") && r.text.includes("The program started and ended after") && r.text.includes("(exit code 0)."), r.text);
   r = await tool("get_problems");
   check("get_problems: none", !r.error, r.text);
+  // (build_app is the Build dialog's own path: the systems saved in the project as the dialog keeps
+  // them, then Build Again — the zip and SHA256SUMS in the project's build folder)
+  r = await tool("build_app", { targets: ["amiga"] });
+  check("build_app: a system RapidR doesn't build for, said at once", r.error && r.text.includes("None of those"), r.text);
+  r = await tool("build_app", { targets: ["web"], version: "1.2.0" });
+  check("build_app: the web app built (Build Again), its zip and SHA256SUMS", !r.error && r.text.includes("Hello-1.2.0-web.zip") && existsSync(join(WORK, "all", "build", "Hello-1.2.0-web.zip")) && existsSync(join(WORK, "all", "build", "SHA256SUMS")), r.text);
+  const built = readFileSync(join(WORK, "all", "Hello.rrproj"), "utf8");
+  check("…the systems and the version saved in the project, as the dialog keeps them", built.includes('build_for = ["web"]') && built.includes('"1.2.0"'), built);
   r = await tool("open_project", { Path: "examples/../../etc/hosts" });
   check("open_project: only projects and programs, said at once", r.error && r.text.includes("Can't open"), r.text);
 

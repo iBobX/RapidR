@@ -42,7 +42,7 @@ msgstr "&Aplicar"
 msgid "Apply the accepted changes"
 msgstr "Aplicar as alterações aceitas"
 
-#: ide/ai.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/contextmenu.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aisetup.inc ide/consent.inc ide/contextmenu.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1701,160 +1701,814 @@ msgid "RAI isn't ready yet: {why}"
 msgstr "A RAI ainda não está pronta: {why}"
 
 #: ide/build.inc
-msgid "Project Options"
-msgstr "Opções do projeto"
+msgctxt "the Build dialog"
+msgid "Build"
+msgstr "Compilar"
 
 #: ide/build.inc
-msgid "The app's icon"
-msgstr "O ícone do app"
+msgid "Steps"
+msgstr "Etapas"
 
 #: ide/build.inc
-msgid "App &name:"
-msgstr "&Nome do app:"
+msgid "The arrows move, Enter opens a step. Ctrl+Tab goes to the next step from anywhere in the dialog."
+msgstr "As setas se movem, Enter abre uma etapa. Ctrl+Tab vai para a próxima etapa de qualquer lugar da caixa de diálogo."
 
 #: ide/build.inc
-msgid "&Bundle ID:"
-msgstr "&Bundle ID:"
+msgid "Saved in the project as you go"
+msgstr "Salvo no projeto enquanto você trabalha"
+
+#: ide/build.inc
+msgid "More"
+msgstr "Mais"
+
+#: ide/build.inc
+msgid "More build actions: Copy Command Line, Save All in One Zip, Help"
+msgstr "Mais ações de compilação: Copiar linha de comando, Salvar tudo em um zip, Ajuda"
+
+#: ide/build.inc
+msgid "&Next"
+msgstr "&Avançar"
+
+#: ide/build.inc
+msgid "Where should it run?"
+msgstr "Onde deve funcionar?"
+
+#: ide/build.inc
+msgid "Tick every system you want. Build makes them all at once, on this computer."
+msgstr "Marque cada sistema que quiser. Compilar faz todos de uma vez, neste computador."
+
+#: ide/build.inc
+msgid "All &Desktop"
+msgstr "Todo o &desktop"
+
+#: ide/build.inc
+msgid "Ticks Windows, macOS and Linux."
+msgstr "Marca Windows, macOS e Linux."
+
+#: ide/build.inc
+msgid "&Everything"
+msgstr "&Todos os sistemas"
+
+#: ide/build.inc
+msgid "Ticks every system."
+msgstr "Marca todos os sistemas."
+
+#: ide/build.inc
+msgid "Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. The macOS app is made for Apple silicon and Intel Macs."
+msgstr "Na dúvida? x64 é a maioria dos PCs desde 2005. ARM64 são os PCs com Snapdragon e o Raspberry Pi. O aplicativo de macOS é feito para Macs com Apple silicon e com Intel."
+
+#: ide/build.inc
+msgid "Coming later:"
+msgstr "Em breve:"
+
+#: ide/build.inc
+msgid "Your app"
+msgstr "Seu aplicativo"
+
+#: ide/build.inc
+msgid "Filled in once and saved in the project. Every system shows these."
+msgstr "Preenchido uma vez e salvo no projeto. Todos os sistemas mostram estes dados."
+
+#: ide/build.inc
+msgid "Na&me:"
+msgstr "No&me:"
+
+#: ide/build.inc
+msgid "Name"
+msgstr "Nome"
+
+#: ide/build.inc
+msgid "The app's name: its title, the Dock, the Start menu"
+msgstr "O nome do aplicativo: seu título, o Dock, o menu Iniciar"
 
 #: ide/build.inc
 msgid "&Version:"
 msgstr "&Versão:"
 
 #: ide/build.inc
-msgid "&Company:"
-msgstr "&Empresa:"
+msgid "Version"
+msgstr "Versão"
 
 #: ide/build.inc
-msgid "&Icon:"
-msgstr "Íc&one:"
+msgid "&Author or company:"
+msgstr "&Autor ou empresa:"
 
 #: ide/build.inc
-msgid "Choose the icon file"
-msgstr "Escolha o arquivo do ícone"
+msgid "Author or company"
+msgstr "Autor ou empresa"
 
 #: ide/build.inc
-msgid "Use RapidR's icon"
-msgstr "Usar o ícone do RapidR"
+msgid "Co&pyright:"
+msgstr "Co&pyright:"
 
 #: ide/build.inc
-msgid "&Targets:"
-msgstr "&Destinos:"
+msgid "Copyright"
+msgstr "Copyright"
 
 #: ide/build.inc
-msgid "Desktop"
-msgstr "Desktop"
+msgid "&Description:"
+msgstr "&Descrição:"
+
+#: ide/build.inc
+msgid "Description"
+msgstr "Descrição"
+
+#: ide/build.inc
+msgid "One line about the app: Windows' file description, macOS' Get Info, Linux's menu, the web page"
+msgstr "Uma linha sobre o aplicativo: a descrição do arquivo no Windows, Obter Informações no macOS, o menu do Linux, a página web"
+
+#: ide/build.inc
+msgid "&Website:"
+msgstr "Site &web:"
+
+#: ide/build.inc
+msgid "Website"
+msgstr "Site"
+
+#: ide/build.inc
+msgid "App &id:"
+msgstr "&Id do aplicativo:"
+
+#: ide/build.inc
+msgid "App id"
+msgstr "Id do aplicativo"
+
+#: ide/build.inc
+msgid "&Category:"
+msgstr "&Categoria:"
+
+#: ide/build.inc
+msgid "Category"
+msgstr "Categoria"
+
+#: ide/build.inc
+msgid "&Kind:"
+msgstr "&Tipo:"
+
+#: ide/build.inc
+msgid "Windowed app"
+msgstr "Com janelas"
+
+#: ide/build.inc
+msgid "Console app"
+msgstr "De console"
+
+#: ide/build.inc
+msgid "Found in the program; change it only if it's wrong."
+msgstr "Detectado no programa; mude só se estiver errado."
+
+#: ide/build.inc
+msgid "&Theme colour:"
+msgstr "Cor do &tema:"
+
+#: ide/build.inc
+msgid "Theme colour"
+msgstr "Cor do tema"
+
+#: ide/build.inc
+msgid "The web app's colour, #RRGGBB; empty: the page's"
+msgstr "A cor do aplicativo web, #RRGGBB; vazio: a da página"
+
+#: ide/build.inc
+msgid "&README language:"
+msgstr "Idioma do &README:"
+
+#: ide/build.inc
+msgid "README language"
+msgstr "Idioma do README"
+
+#: ide/build.inc
+msgid "The language of the README.txt in every zip: how to open the app the first time"
+msgstr "O idioma do README.txt de cada zip: como abrir o aplicativo pela primeira vez"
+
+#: ide/build.inc
+msgid "Icon"
+msgstr "Ícone"
+
+#: ide/build.inc
+msgid "The app's icon"
+msgstr "O ícone do app"
+
+#: ide/build.inc
+msgid "C&hoose Picture..."
+msgstr "Escol&her imagem..."
+
+#: ide/build.inc
+msgid "&Use RapidR's Icon"
+msgstr "&Usar o ícone do RapidR"
+
+#: ide/build.inc
+msgid "Made in every size each system needs, 16 to 1024."
+msgstr "Feito em cada tamanho que cada sistema precisa, de 16 a 1024."
+
+#: ide/build.inc
+msgid "What goes in"
+msgstr "O que vai junto"
+
+#: ide/build.inc
+msgid "Your program and the files it reads. Untick a file to leave it out."
+msgstr "Seu programa e os arquivos que ele lê. Desmarque um arquivo para deixá-lo de fora."
+
+#: ide/build.inc
+msgid "Compiled once for every system."
+msgstr "Compilado uma vez para todos os sistemas."
+
+#: ide/build.inc
+msgid "&Add Files..."
+msgstr "&Adicionar arquivos..."
+
+#: ide/build.inc
+msgid "Adds files the program reads to the project: they go in every app"
+msgstr "Adiciona ao projeto arquivos que o programa lê: vão em cada aplicativo"
+
+#: ide/build.inc
+msgid "No data files: the program names none beside it."
+msgstr "Sem arquivos de dados: o programa não cita nenhum ao lado dele."
+
+#: ide/build.inc
+msgid "Include the &source code"
+msgstr "Incluir o código-&fonte"
+
+#: ide/build.inc
+msgid "Your program's source goes in every zip too, in a folder named source"
+msgstr "O código-fonte do seu programa também vai em cada zip, em uma pasta chamada source"
+
+#: ide/build.inc
+msgid "Ready to build"
+msgstr "Pronto para compilar"
+
+#: ide/build.inc
+msgid "&Save in:"
+msgstr "&Salvar em:"
+
+#: ide/build.inc
+msgid "Save in"
+msgstr "Salvar em"
+
+#: ide/build.inc
+msgid "The folder the zips go in"
+msgstr "A pasta onde ficam os zips"
+
+#: ide/build.inc
+msgid "Ch&oose..."
+msgstr "Esc&olher..."
+
+#: ide/build.inc ide/window.inc
+msgid "Choose the folder"
+msgstr "Escolha a pasta"
+
+#: ide/build.inc
+msgid "&Pack as:"
+msgstr "&Empacotar como:"
+
+#: ide/build.inc
+msgid "A zip for each system"
+msgstr "Um zip por sistema"
+
+#: ide/build.inc
+msgid "Everything in one zip"
+msgstr "Tudo em um zip"
+
+#: ide/build.inc
+msgid "Each zip has a README.txt on opening the app the first time, and SHA256SUMS lists every zip's checksum."
+msgstr "Cada zip traz um README.txt sobre como abrir o aplicativo pela primeira vez, e SHA256SUMS lista a soma de verificação de cada zip."
+
+#: ide/build.inc
+msgid "Opening it the first time on another computer"
+msgstr "Abrindo pela primeira vez em outro computador"
+
+#: ide/build.inc
+msgid "Every zip's README.txt says the same, for its system."
+msgstr "O README.txt de cada zip diz o mesmo, para o seu sistema."
+
+#: ide/build.inc
+msgid "Windows 64-bit (x64)"
+msgstr "Windows 64 bits (x64)"
+
+#: ide/build.inc
+msgid "Windows ARM64"
+msgstr "Windows ARM64"
+
+#: ide/build.inc
+msgid "Windows 32-bit (x86)"
+msgstr "Windows 32 bits (x86)"
+
+#: ide/build.inc
+msgid "macOS Universal"
+msgstr "macOS Universal"
+
+#: ide/build.inc
+msgid "Linux 64-bit (x64)"
+msgstr "Linux 64 bits (x64)"
+
+#: ide/build.inc
+msgid "Linux ARM64"
+msgstr "Linux ARM64"
 
 #: ide/build.inc
 msgid "Web"
 msgstr "Web"
 
 #: ide/build.inc
-msgid "Desktop and web"
-msgstr "Desktop e web"
+msgctxt "the decimal separator"
+msgid "."
+msgstr ","
 
 #: ide/build.inc
-msgid "Targets: where the program runs"
-msgstr "Destinos: onde o programa é executado"
+msgid "{n} bytes"
+msgstr "{n} bytes"
 
 #: ide/build.inc
-msgid "B&uild:"
-msgstr "Co&mpilação:"
+msgid "{n} KB"
+msgstr "{n} KB"
 
 #: ide/build.inc
-msgid "Compiled (native: needs Rust)"
-msgstr "Compilado (nativo: precisa do Rust)"
+msgid "{n} MB"
+msgstr "{n} MB"
 
 #: ide/build.inc
-msgid "Interpreted (no Rust needed)"
-msgstr "Interpretado (sem precisar do Rust)"
+msgid "Nothing ticked yet"
+msgstr "Nada marcado ainda"
 
 #: ide/build.inc
-msgid "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
-msgstr "Uma compilação final: otimizada, o que você distribui. Executar (F5) executa o programa para depurá-lo."
+msgid "{n} system"
+msgid_plural "{n} systems"
+msgstr[0] "{n} sistema"
+msgstr[1] "{n} sistemas"
 
 #: ide/build.inc
-msgid "&Output folder:"
-msgstr "Pasta de &saída:"
+msgid "{n} app"
+msgid_plural "{n} apps"
+msgstr[0] "{n} aplicativo"
+msgstr[1] "{n} aplicativos"
 
 #: ide/build.inc
-msgid "Output folder: where Build puts the app"
-msgstr "Pasta de saída: onde a compilação coloca o app"
+msgid "One Universal app for Macs with Apple silicon and Intel."
+msgstr "Um aplicativo Universal para Macs com Apple silicon e com Intel."
 
 #: ide/build.inc
-msgid "Choose the output folder"
-msgstr "Escolha a pasta de saída"
+msgid "A zip for any web host. Runs in any modern browser, phones too."
+msgstr "Um zip para qualquer hospedagem web. Funciona em qualquer navegador moderno, também em celulares."
 
 #: ide/build.inc
-msgid "&Keep the generated Rust source"
-msgstr "&Manter o código Rust gerado"
-
-#: ide/build.inc ide/safety.inc ide/settings.inc
-msgid "OK"
-msgstr "OK"
+msgid "One Universal app for Apple silicon and Intel Macs"
+msgstr "Um aplicativo Universal para Macs com Apple silicon e com Intel"
 
 #: ide/build.inc
-msgid "In a browser. Problems notes what works on the desktop only."
-msgstr "Em um navegador. Problemas indica o que só funciona no desktop."
+msgid "A zip for any web host"
+msgstr "Um zip para qualquer hospedagem web"
 
 #: ide/build.inc
-msgid "On the desktop and in a browser. Problems notes what works on one of them only."
-msgstr "No desktop e em um navegador. Problemas indica o que só funciona em um deles."
+msgid "64-bit (x64)"
+msgstr "64 bits (x64)"
 
 #: ide/build.inc
-msgid "Native builds and the interpreter. What works on the desktop only isn't noted."
-msgstr "Compilações nativas e o interpretador. O que só funciona no desktop não é indicado."
+msgid "most PCs"
+msgstr "a maioria dos PCs"
 
 #: ide/build.inc
-msgid "RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own."
-msgstr "O ícone do RapidR para programas. Escolha um .icns, .ico, .png (1024 x 1024 é o melhor) ou .svg para ter o ícone do próprio app."
+msgid "Snapdragon PCs"
+msgstr "PCs com Snapdragon"
 
 #: ide/build.inc
-msgid "The app's icon, made into every size each system shows."
-msgstr "O ícone do app, gerado em todos os tamanhos que cada sistema mostra."
+msgid "32-bit (x86)"
+msgstr "32 bits (x86)"
 
 #: ide/build.inc
-msgid "32-bit Windows builds interpreted apps: Build makes one, and it runs the same program."
-msgstr "No Windows de 32 bits são compilados apps interpretados: Compilar faz um, e ele executa o mesmo programa."
+msgid "Windows 7, 8, old PCs"
+msgstr "Windows 7, 8, PCs antigos"
 
 #: ide/build.inc
-msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
-msgstr "O Rust é gratuito: Compilar app nativo oferece instalá-lo. O interpretado não precisa dele."
+msgid "Raspberry Pi 4, 5"
+msgstr "Raspberry Pi 4 e 5"
 
 #: ide/build.inc
-msgid "An interpreted build has no Rust: the app runs the program's bytecode."
-msgstr "Uma compilação interpretada não tem Rust: o app executa o bytecode do programa."
+msgid "Runs on old PCs; a little slower."
+msgstr "Funciona em PCs antigos; um pouco mais lento."
 
 #: ide/build.inc
-msgid "Left in {path}, beside the app, to read."
-msgstr "Deixado em {path}, ao lado do app, para ler."
+msgid "A .tar.gz with an install script."
+msgstr "Um .tar.gz com um script de instalação."
 
 #: ide/build.inc
-msgid "Off: the Rust RapidR generates is deleted after the build."
-msgstr "Desligado: o Rust que o RapidR gera é excluído depois da compilação."
+msgid "Coming later: Android, iOS, boards (ESP32, micro:bit)"
+msgstr "Em breve: Android, iOS, placas (ESP32, micro:bit)"
 
 #: ide/build.inc
-msgid "Compiled (not on 32-bit Windows)"
-msgstr "Compilado (não no Windows de 32 bits)"
+msgid "Utilities"
+msgstr "Utilitários"
 
 #: ide/build.inc
-msgid "Compiled (Rust not installed)"
-msgstr "Compilado (Rust não instalado)"
+msgid "Productivity"
+msgstr "Produtividade"
+
+#: ide/build.inc
+msgid "Education"
+msgstr "Educação"
+
+#: ide/build.inc
+msgid "Games"
+msgstr "Jogos"
+
+#: ide/build.inc
+msgid "Developer tools"
+msgstr "Ferramentas para desenvolvedores"
+
+#: ide/build.inc
+msgid "Graphics"
+msgstr "Gráficos"
+
+#: ide/build.inc
+msgid "Music"
+msgstr "Música"
+
+#: ide/build.inc
+msgid "Video"
+msgstr "Vídeo"
+
+#: ide/build.inc
+msgid "Business"
+msgstr "Negócios"
+
+#: ide/build.inc
+msgid "Finance"
+msgstr "Finanças"
+
+#: ide/build.inc
+msgid "Science"
+msgstr "Ciência"
+
+#: ide/build.inc
+msgid "&Copy Command Line"
+msgstr "&Copiar linha de comando"
+
+#: ide/build.inc
+msgid "Save All in &One Zip"
+msgstr "Salvar tudo em &um zip"
+
+#: ide/build.inc ide/contextmenu.inc
+msgid "&Help"
+msgstr "&Ajuda"
+
+#: ide/build.inc
+msgid "&Native code"
+msgstr "Código &nativo"
+
+#: ide/build.inc
+msgid "Native code (not on 32-bit Windows)"
+msgstr "Código nativo (não no Windows 32 bits)"
+
+#: ide/build.inc
+msgid "Project Options"
+msgstr "Opções do projeto"
+
+#: ide/build.inc
+msgid "{n} of {m} done, {s} s"
+msgstr "{n} de {m} prontos, {s} s"
+
+#: ide/build.inc
+msgid "Step {n} of 4: {name}"
+msgstr "Etapa {n} de 4: {name}"
+
+#: ide/build.inc
+msgid "Step {n} of 4. The arrows move, Enter opens a step."
+msgstr "Etapa {n} de 4. As setas se movem, Enter abre uma etapa."
+
+#: ide/build.inc
+msgid "Boards: ESP32, micro:bit"
+msgstr "Placas: ESP32, micro:bit"
+
+#: ide/build.inc
+msgid "The app needs an id: two words or more with dots between them, like com.example.notepad."
+msgstr "O aplicativo precisa de um id: duas palavras ou mais com pontos entre elas, como com.example.notepad."
+
+#: ide/build.inc
+msgid "No spaces in an app id: use dots or dashes, like com.example.tip-calculator."
+msgstr "Sem espaços no id do aplicativo: use pontos ou hifens, como com.example.tip-calculator."
+
+#: ide/build.inc
+msgid "Only letters, digits, dashes and dots in an app id: {c} can't be in it."
+msgstr "Só letras, dígitos, hifens e pontos no id do aplicativo: {c} não pode estar nele."
+
+#: ide/build.inc
+msgid "Two words or more with dots between them, like com.example.notepad."
+msgstr "Duas palavras ou mais com pontos entre elas, como com.example.notepad."
+
+#: ide/build.inc
+msgid "The app needs a version, like 1.0.0."
+msgstr "O aplicativo precisa de uma versão, como 1.0.0."
+
+#: ide/build.inc
+msgid "Up to four numbers with dots between them, like 1.0 or 2.3.1."
+msgstr "Até quatro números com pontos entre eles, como 1.0 ou 2.3.1."
+
+#: ide/build.inc
+msgid "A web address starting with https://, like https://example.com."
+msgstr "Um endereço web que começa com https://, como https://example.com."
+
+#: ide/build.inc
+msgid "A colour as #RRGGBB, like #2F5BFF."
+msgstr "Uma cor como #RRGGBB, por exemplo #2F5BFF."
+
+#: ide/build.inc
+msgid "Made from the author and the name. Keep it the same in every version."
+msgstr "Feito com o autor e o nome. Mantenha igual em todas as versões."
+
+#: ide/build.inc
+msgid "RapidR's icon for programs."
+msgstr "O ícone do RapidR para programas."
+
+#: ide/build.inc
+msgid "This picture is {w} × {h}: the larger sizes look blurry. A 1024 × 1024 PNG or an SVG is sharp everywhere."
+msgstr "Esta imagem tem {w} × {h}: os tamanhos maiores ficam borrados. Um PNG de 1024 × 1024 ou um SVG fica nítido em todo lugar."
+
+#: ide/build.inc
+msgid "It isn't square: it is centred on a transparent square."
+msgstr "Não é quadrada: fica centralizada em um quadrado transparente."
 
 #: ide/build.inc
 msgid "The App's Icon"
 msgstr "O ícone do app"
 
 #: ide/build.inc
-msgid "Icons and pictures"
-msgstr "Ícones e imagens"
+msgid "Pictures"
+msgstr "Imagens"
 
 #: ide/build.inc ide/contextmenu.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
 msgstr "Todos os arquivos"
 
 #: ide/build.inc
-msgid "The Output Folder"
-msgstr "A pasta de saída"
+msgid "image"
+msgstr "imagem"
+
+#: ide/build.inc
+msgid "sound"
+msgstr "som"
+
+#: ide/build.inc
+msgid "data"
+msgstr "dados"
+
+#: ide/build.inc
+msgid "text"
+msgstr "texto"
+
+#: ide/build.inc
+msgid "translation"
+msgstr "tradução"
+
+#: ide/build.inc
+msgid "font"
+msgstr "fonte"
+
+#: ide/build.inc
+msgid "file"
+msgstr "arquivo"
+
+#: ide/build.inc
+msgid "The program writes it: your copy may hold your own data."
+msgstr "O programa o escreve: sua cópia pode ter seus próprios dados."
+
+#: ide/build.inc
+msgid "Outside the project folder: copy it in to take it along."
+msgstr "Fora da pasta do projeto: copie-o para dentro para levá-lo junto."
+
+#: ide/build.inc
+msgid "The program never reads it."
+msgstr "O programa nunca o lê."
+
+#: ide/build.inc
+msgid "Add Files"
+msgstr "Adicionar arquivos"
+
+#: ide/build.inc ide/panels.inc
+msgid "Can't add {file}: {error}"
+msgstr "Não foi possível adicionar {file}: {error}"
+
+#: ide/build.inc
+msgid "Where the Zips Go"
+msgstr "Onde ficam os zips"
+
+#: ide/build.inc
+msgid "The command line was copied"
+msgstr "A linha de comando foi copiada"
+
+#: ide/build.inc
+msgid "{file} holds every app"
+msgstr "{file} contém todos os aplicativos"
+
+#: ide/build.inc ide/external.inc
+msgid "Show"
+msgstr "Mostrar"
+
+#: ide/build.inc
+msgid "Can't make one zip: {error}"
+msgstr "Não foi possível fazer um só zip: {error}"
+
+#: ide/build.inc
+msgid "Where it runs"
+msgstr "Onde funciona"
+
+#: ide/build.inc
+msgid "Needs attention"
+msgstr "Precisa de atenção"
+
+#: ide/build.inc
+msgid "{n} data file"
+msgid_plural "{n} data files"
+msgstr[0] "{n} arquivo de dados"
+msgstr[1] "{n} arquivos de dados"
+
+#: ide/build.inc
+msgid "Building: {n} of {m} done"
+msgstr "Compilando: {n} de {m} prontos"
+
+#: ide/build.inc
+msgid "{n} app built"
+msgid_plural "{n} apps built"
+msgstr[0] "{n} aplicativo pronto"
+msgstr[1] "{n} aplicativos prontos"
+
+#: ide/build.inc ide/commands.inc ide/mcp.inc
+msgid "&Stop"
+msgstr "&Parar"
+
+#: ide/build.inc
+msgid "Esc stops the build; nothing half-made is kept."
+msgstr "Esc para a compilação; nada pela metade é mantido."
+
+#: ide/build.inc
+msgid "&Done"
+msgstr "&Concluído"
+
+#: ide/build.inc
+msgid "&Show in {manager}"
+msgstr "&Mostrar no {manager}"
+
+#: ide/build.inc
+msgid "&Try the Web App"
+msgstr "&Testar o aplicativo web"
+
+#: ide/build.inc
+msgid "Build Again any time: Ctrl+Shift+B"
+msgstr "Compilar de novo quando quiser: Ctrl+Shift+B"
+
+#: ide/build.inc
+msgid "&Build {n} App"
+msgid_plural "&Build {n} Apps"
+msgstr[0] "&Compilar {n} aplicativo"
+msgstr[1] "&Compilar {n} aplicativos"
+
+#: ide/build.inc ide/contextmenu.inc
+msgid "&Back"
+msgstr "&Voltar"
+
+#: ide/build.inc
+msgid "about {size}"
+msgstr "cerca de {size}"
+
+#: ide/build.inc
+msgid "not chosen"
+msgstr "não escolhido"
+
+#: ide/build.inc
+msgid "{list} chosen"
+msgstr "{list} escolhidos"
+
+#: ide/build.inc
+msgid "The web app's colour, the README's language"
+msgstr "A cor do aplicativo web, o idioma do README"
+
+#: ide/build.inc
+msgid "Advanc&ed"
+msgstr "Avança&do"
+
+#: ide/build.inc
+msgid "Advanced"
+msgstr "Avançado"
+
+#: ide/build.inc
+msgid "Data files"
+msgstr "Arquivos de dados"
+
+#: ide/build.inc
+msgid "Left out"
+msgstr "Ficam de fora"
+
+#: ide/build.inc
+msgid "Most of each app is the RapidR runner for its system; your program's files add {size}."
+msgstr "Quase todo aplicativo é o executor do RapidR para o seu sistema; os arquivos do seu programa somam {size}."
+
+#: ide/build.inc
+msgid "Each app: {list}. Most of it is the RapidR runner for that system; your program's files add {size}."
+msgstr "Cada aplicativo: {list}. Quase tudo é o executor do RapidR para esse sistema; os arquivos do seu programa somam {size}."
+
+#: ide/build.inc
+msgid "Include the source code, native code"
+msgstr "Incluir o código-fonte, código nativo"
+
+#: ide/build.inc
+msgid "This computer's app is compiled with Rust: the fastest, this system only. Needs Rust (free); the other systems' apps run the bytecode as always."
+msgstr "O aplicativo deste computador é compilado com Rust: o mais rápido, só para este sistema. Precisa do Rust (grátis); os aplicativos dos outros sistemas rodam o bytecode como sempre."
+
+#: ide/build.inc
+msgid "for {n} system, all in one zip."
+msgid_plural "for {n} systems, all in one zip."
+msgstr[0] "para {n} sistema, tudo em um zip."
+msgstr[1] "para {n} sistemas, tudo em um zip."
+
+#: ide/build.inc
+msgid "for {n} system, each in its own zip."
+msgid_plural "for {n} systems, each in its own zip."
+msgstr[0] "para {n} sistema, cada um em seu próprio zip."
+msgstr[1] "para {n} sistemas, cada um em seu próprio zip."
+
+#: ide/build.inc
+msgid "{n} runner downloads first, once"
+msgid_plural "{n} runners download first, once"
+msgstr[0] "Primeiro baixa {n} executor, uma só vez"
+msgstr[1] "Primeiro baixam {n} executores, uma só vez"
+
+#: ide/build.inc
+msgid "{list}, {size} from {host}. Each is checked against RapidR's signature before it's used."
+msgstr "{list}, {size} de {host}. Cada um é verificado com a assinatura do RapidR antes de ser usado."
+
+#: ide/build.inc
+msgid "{list}, from {host}. Each is checked against RapidR's signature before it's used."
+msgstr "{list}, de {host}. Cada um é verificado com a assinatura do RapidR antes de ser usado."
+
+#: ide/build.inc
+msgid "and"
+msgstr "e"
+
+#: ide/build.inc
+msgid "{n} app built in {s} s"
+msgid_plural "{n} apps built in {s} s"
+msgstr[0] "{n} aplicativo pronto em {s} s"
+msgstr[1] "{n} aplicativos prontos em {s} s"
+
+#: ide/build.inc
+msgid "{n} of {m} apps built"
+msgstr "{n} de {m} aplicativos prontos"
+
+#: ide/build.inc
+msgid "Your browser saved them. Nothing left your computer: the apps were packed in this page."
+msgstr "Seu navegador os salvou. Nada saiu do seu computador: os aplicativos foram empacotados nesta página."
+
+#: ide/build.inc
+msgid "In {folder}, with SHA256SUMS beside them."
+msgstr "Em {folder}, com SHA256SUMS ao lado."
+
+#: ide/build.inc
+msgid "Building {n} app"
+msgid_plural "Building {n} apps"
+msgstr[0] "Compilando {n} aplicativo"
+msgstr[1] "Compilando {n} aplicativos"
+
+#: ide/build.inc
+msgid "{file} is compiled once. Now each system's app is packed."
+msgstr "{file} é compilado uma vez. Agora o aplicativo de cada sistema é empacotado."
+
+#: ide/build.inc
+msgid "Try Again"
+msgstr "Tentar de novo"
+
+#: ide/build.inc
+msgid "If Windows warns, choose More info, then Run anyway."
+msgstr "Se o Windows avisar, escolha Mais informações e depois Executar assim mesmo."
+
+#: ide/build.inc
+msgid "Open it once, then choose Open Anyway in System Settings, Privacy & Security."
+msgstr "Abra uma vez e depois escolha Abrir Mesmo Assim em Ajustes do Sistema, Privacidade e Segurança."
+
+#: ide/build.inc
+msgid "Unpack it, then run install.sh, or the app in its folder."
+msgstr "Descompacte e depois execute install.sh, ou o aplicativo na pasta dele."
+
+#: ide/build.inc
+msgid "Put the folder on any web host, or try it here."
+msgstr "Coloque a pasta em qualquer hospedagem web, ou teste aqui."
+
+#: ide/build.inc
+msgid "Downloading its runner ({size})..."
+msgstr "Baixando o executor ({size})..."
+
+#: ide/build.inc
+msgid "Runner checked · Packing and zipping..."
+msgstr "Executor verificado · Empacotando e compactando..."
+
+#: ide/build.inc
+msgid "Runner checked · Packed · Zipped"
+msgstr "Executor verificado · Empacotado · Compactado"
+
+#: ide/build.inc
+msgid "Stopped: nothing kept."
+msgstr "Parado: nada foi mantido."
+
+#: ide/build.inc
+msgid "Waiting"
+msgstr "Aguardando"
 
 #: ide/build.inc
 msgid "Build: {n} error (see Problems)."
@@ -1867,16 +2521,34 @@ msgid "Can't build: the program has errors"
 msgstr "Não foi possível compilar: o programa tem erros"
 
 #: ide/build.inc
-msgid "Building {file}..."
-msgstr "Compilando {file}..."
-
-#: ide/build.inc
 msgid "Can't build: {error}"
 msgstr "Não foi possível compilar: {error}"
 
 #: ide/build.inc
 msgid "Can't build {file}"
 msgstr "Não foi possível compilar {file}"
+
+#: ide/build.inc
+msgid "Open Build"
+msgstr "Abrir Compilar"
+
+#: ide/build.inc
+msgid "Building {n} app..."
+msgid_plural "Building {n} apps..."
+msgstr[0] "Compilando {n} aplicativo..."
+msgstr[1] "Compilando {n} aplicativos..."
+
+#: ide/build.inc
+msgid "The build was stopped"
+msgstr "A compilação foi parada"
+
+#: ide/build.inc
+msgid "{app} built, {n} of {m}"
+msgstr "{app} pronto, {n} de {m}"
+
+#: ide/build.inc
+msgid "{app} was not built: {why}"
+msgstr "{app} não foi compilado: {why}"
 
 #: ide/build.inc
 msgid "Installing Rust..."
@@ -1891,20 +2563,8 @@ msgid "Can't install Rust"
 msgstr "Não foi possível instalar o Rust"
 
 #: ide/build.inc
-msgid "native"
-msgstr "nativo"
-
-#: ide/build.inc
-msgid "interpreted"
-msgstr "interpretado"
-
-#: ide/build.inc
-msgid "web"
-msgstr "web"
-
-#: ide/build.inc
-msgid "✓ Rust is installed ({seconds} s): Run > Build Native App is ready."
-msgstr "✓ O Rust está instalado ({seconds} s): Executar > Compilar app nativo está pronto."
+msgid "✓ Rust is installed ({seconds} s): native code builds are ready."
+msgstr "✓ O Rust está instalado ({seconds} s): as compilações em código nativo estão prontas."
 
 #: ide/build.inc
 msgid "Rust is installed"
@@ -1919,40 +2579,52 @@ msgid "Installing Rust failed"
 msgstr "A instalação do Rust falhou"
 
 #: ide/build.inc
-msgid "✓ Built the apps in {seconds} s"
-msgstr "✓ Apps compilados em {seconds} s"
+msgid "Not built: see the Output's Build page."
+msgstr "Não compilado: veja a página Compilação da Saída."
+
+#: ide/build.inc
+msgid "✓ Built {file} (native code)"
+msgstr "✓ {file} compilado (código nativo)"
 
 #: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
 msgstr "Mostrar em {manager}"
 
 #: ide/build.inc
-msgid "Built the apps"
-msgstr "Apps compilados"
+msgid "✗ The native code build failed (exit code {code}): see above."
+msgstr "✗ A compilação em código nativo falhou (código de saída {code}): veja acima."
 
 #: ide/build.inc
-msgid "✓ Built {file} — unzip on any web host"
-msgstr "✓ {file} compilado — descompacte em qualquer host web"
+msgid "All in one zip: {file}"
+msgstr "Tudo em um zip: {file}"
 
 #: ide/build.inc
-msgid "Built {file}"
-msgstr "{file} compilado"
+msgid "Native code: Rust isn't installed on this computer (Build > Advanced > Native code; `rapidr setup` installs it)"
+msgstr "Código nativo: o Rust não está instalado neste computador (Compilar > Avançado > Código nativo; `rapidr setup` o instala)"
 
 #: ide/build.inc
-msgid "✓ Built {file} ({mode}) in {seconds} s"
-msgstr "✓ {file} compilado ({mode}) em {seconds} s"
+msgid "Building {file} as native code..."
+msgstr "Compilando {file} em código nativo..."
 
 #: ide/build.inc
-msgid "✗ The build failed (exit code {code}) after {seconds} s: see above."
-msgstr "✗ A compilação falhou (código de saída {code}) após {seconds} s: veja acima."
+msgid "✓ {n} app built in {s} s"
+msgid_plural "✓ {n} apps built in {s} s"
+msgstr[0] "✓ {n} aplicativo pronto em {s} s"
+msgstr[1] "✓ {n} aplicativos prontos em {s} s"
 
 #: ide/build.inc
-msgid "The build failed"
-msgstr "A compilação falhou"
+msgid "{n} app built in {s} seconds"
+msgid_plural "{n} apps built in {s} seconds"
+msgstr[0] "{n} aplicativo pronto em {s} segundos"
+msgstr[1] "{n} aplicativos prontos em {s} segundos"
 
 #: ide/build.inc
-msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
-msgstr "Nada foi compilado ainda: Executar > Compilar (Ctrl+Shift+B) gera o app."
+msgid "✗ {n} of {m} apps built: see above."
+msgstr "✗ {n} de {m} aplicativos prontos: veja acima."
+
+#: ide/build.inc
+msgid "Nothing built yet: Run > Build makes the apps."
+msgstr "Nada compilado ainda: Executar > Compilar faz os aplicativos."
 
 #: ide/build.inc ide/contextmenu.inc ide/panels.inc
 msgid "Can't show it: {error}"
@@ -2414,10 +3086,6 @@ msgstr "&Executar"
 msgid "Run &Without Debugging"
 msgstr "Executar &sem depurar"
 
-#: ide/commands.inc ide/mcp.inc
-msgid "&Stop"
-msgstr "&Parar"
-
 #: ide/commands.inc
 msgid "R&estart"
 msgstr "&Reiniciar"
@@ -2427,32 +3095,16 @@ msgid "Run in &Browser"
 msgstr "E&xecutar no navegador"
 
 #: ide/commands.inc
-msgid "&Build Web App (.zip)"
-msgstr "Compilar app &web (.zip)"
+msgid "&Build..."
+msgstr "&Compilar..."
 
 #: ide/commands.inc
-msgid "&Build (Interpreted App)"
-msgstr "&Compilar (app interpretado)"
+msgid "Build &Again"
+msgstr "Compilar de &novo"
 
 #: ide/commands.inc
-msgid "Build &Web App"
-msgstr "Compilar &app web"
-
-#: ide/commands.inc
-msgid "Reveal the &App"
-msgstr "&Mostrar o app"
-
-#: ide/commands.inc
-msgid "&Build"
-msgstr "&Compilar"
-
-#: ide/commands.inc
-msgid "Build &Native App"
-msgstr "Compilar app &nativo"
-
-#: ide/commands.inc
-msgid "Build &Interpreted App"
-msgstr "Compilar app &interpretado"
+msgid "&Show the Built Apps"
+msgstr "&Mostrar os aplicativos compilados"
 
 #: ide/commands.inc
 msgid "&Continue"
@@ -2803,10 +3455,6 @@ msgstr "&Ir para o manipulador"
 #: ide/contextmenu.inc
 msgid "&Remove Handler"
 msgstr "&Remover manipulador"
-
-#: ide/contextmenu.inc
-msgid "&Help"
-msgstr "&Ajuda"
 
 #: ide/contextmenu.inc
 msgid "As&k RAI..."
@@ -3203,10 +3851,6 @@ msgstr "Perguntar à RAI sobre este exemplo..."
 #: ide/contextmenu.inc
 msgid "Actions for the example"
 msgstr "Ações para o exemplo"
-
-#: ide/contextmenu.inc
-msgid "&Back"
-msgstr "&Voltar"
 
 #: ide/contextmenu.inc
 msgid "No page before this one"
@@ -4071,10 +4715,6 @@ msgid "{file} was reloaded"
 msgstr "{file} foi recarregado"
 
 #: ide/external.inc
-msgid "Show"
-msgstr "Mostrar"
-
-#: ide/external.inc
 msgid "{n} file was updated outside Studio"
 msgid_plural "{n} files were updated outside Studio"
 msgstr[0] "{n} arquivo foi atualizado fora do Studio"
@@ -4877,10 +5517,6 @@ msgid "Can't make {file}: {error}"
 msgstr "Não foi possível criar {file}: {error}"
 
 #: ide/panels.inc
-msgid "Can't add {file}: {error}"
-msgstr "Não foi possível adicionar {file}: {error}"
-
-#: ide/panels.inc
 msgid "{main} includes {file} ($INCLUDE): its forms are made when the program starts"
 msgstr "{main} inclui {file} ($INCLUDE): os formulários dele são criados quando o programa inicia"
 
@@ -5307,12 +5943,6 @@ msgstr "Dois temporizadores: o padrão dispara 50 vezes por segundo, um com Fixe
 msgid "What an RAudioOut says when the sound goes wrong (OnError)"
 msgstr "O que um RAudioOut diz quando o som falha (OnError)"
 
-msgstr ""
-
-#: ide/panes.inc
-msgid "Two timers, one with FixedRate: about 25 ticks a second against 50"
-msgstr ""
-
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr "Receita: uma calculadora com sqrt, sin, log, um manipulador para todas as teclas"
@@ -5696,6 +6326,10 @@ msgstr "O Rust não está instalado neste computador. Um app interpretado não p
 #: ide/prompts.inc
 msgid "&Undo Anyway"
 msgstr "&Desfazer mesmo assim"
+
+#: ide/safety.inc ide/settings.inc
+msgid "OK"
+msgstr "OK"
 
 #: ide/safety.inc
 msgid "&Copy Details"
@@ -7543,10 +8177,6 @@ msgstr "Modelo:"
 #: ide/window.inc
 msgid "&Folder:"
 msgstr "&Pasta:"
-
-#: ide/window.inc
-msgid "Choose the folder"
-msgstr "Escolha a pasta"
 
 #: ide/window.inc
 msgid "Create"

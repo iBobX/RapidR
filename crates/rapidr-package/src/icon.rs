@@ -105,6 +105,17 @@ impl Icon {
         matches!(self.source, Source::Default)
     }
 
+    /// Its size as drawn: the largest picture's (width, height) in pixels,
+    /// an SVG's own size; `None` for RapidR's own (the Build dialog shows it
+    /// under the icon and warns when it is small or not square).
+    pub fn size(&self) -> Option<(u32, u32, bool)> {
+        match &self.source {
+            Source::Pictures(p) => p.first().map(|p| (p.width(), p.height(), false)),
+            Source::Svg(tree, _) => Some((tree.size().width().round() as u32, tree.size().height().round() as u32, true)),
+            Source::Default => None,
+        }
+    }
+
     /// Advice about the icon: a small picture scaled up looks blurry; one
     /// that isn't square is centred on a transparent square.
     pub fn notes(&self) -> Vec<String> {

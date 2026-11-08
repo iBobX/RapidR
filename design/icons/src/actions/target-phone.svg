@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>Target: a phone (Android, iOS; later)</title>
+  <path d="M8.75 2.75H15.75A2 2 0 0 1 17.75 4.75V19.75A2 2 0 0 1 15.75 21.75H8.75A2 2 0 0 1 6.75 19.75V4.75A2 2 0 0 1 8.75 2.75Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M10.75 18.75L13.75 18.75" stroke="#5B6478"/>
+  <path d="M9.25 5.75H14.25A0.5 0.5 0 0 1 14.75 6.25V14.25A0.5 0.5 0 0 1 14.25 14.75H9.25A0.5 0.5 0 0 1 8.75 14.25V6.25A0.5 0.5 0 0 1 9.25 5.75Z" fill="#EBE4FD" stroke="#6F42E5"/>
+</svg>
