@@ -6396,8 +6396,12 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Icon` | string |  | The app's icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file's $OPTION ICON, else RapidR's icon for programs. |
 | `AppName` | string |  | The app's name, as Finder, Explorer and the applications menu show it; "" for the project's Name. |
 | `BundleID` | string |  | The app's reverse-DNS identifier (com.example.notepad); "" for dev.rapidr.app.<name>. |
-| `Version` | string |  | The app's version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0. |
+| `Version` | string |  | The app's version: up to four numbers with dots (1.0, 2.3.1); "" for 1.0.0. |
 | `Company` | string |  | Who makes the app (Windows' company name, the copyright line). |
+| `Copyright` | string |  | The app's copyright line (macOS' Get Info, Windows' Properties); "" for "© " and the Company. |
+| `Description` | string |  | One line about the app: Windows' file description, the Linux menu's comment, the web page's description. |
+| `Website` | string |  | The app's web site (https://…), in the README beside it in each system's zip. |
+| `Category` | string |  | What kind of app it is, for the Dock's and the menus' lists (macOS' category, Linux' Categories); "" for utilities. |
 | `BuildKind` | string |  | How Build makes the program: "native" (compiled with Rust) or "interpreted" (RapidR's runner and the program's bytecode; no Rust needed). |
 | `OutputFolder` | string |  | Where Build puts the app: a folder relative to the project's ("" for build). It gets only what is shipped: the generated Rust and the compiler's files stay in RapidR's build cache. |
 | `KeepRust` | int |  | True: a native Build also leaves the Rust RapidR generated beside the app, in <program>-rust-source (with a README). False, the default: it is deleted. |
@@ -6428,7 +6432,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
 | `FileKind(Index AS INTEGER) AS STRING` | File Index's kind: module, form, include, resource, asset or data. |
 | `FullPath(Index AS INTEGER) AS STRING` | File Index's path to open it with (the folder's and its own). |
-| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build — a release build, optimized — in OutputFolder: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind). Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
+| `Build([Kind AS STRING]) AS INTEGER` | Makes the program into an app for this computer's system with rapidr build — a release build, optimized — in OutputFolder: Name.app on macOS, the .exe with its icon and version on Windows, Name.AppDir on Linux. Kind is "native" or "interpreted" (else BuildKind), "web", or "targets:" and a list ("targets:windows-x64,macos,web", "targets:all"): a zip for each of those systems (a .tar.gz for Linux) and SHA256SUMS, from this computer. Runs in the background: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not (on the web there is nothing to run it). |
 | `RustReady AS INTEGER` | True when native builds can run: Rust is installed (rapidr setup --rust). Without it only interpreted builds work. True on the web, where Build is not there to ask. |
 | `InstallRust AS INTEGER` | Installs Rust with rapidr setup --yes --no-path (the free toolchain native builds need), in the background like Build: OnBuildOutput gives its lines, OnBuildDone its end. True when it started; Error says why not. |
 | `StopBuild` | Stops the Build that is running. |
