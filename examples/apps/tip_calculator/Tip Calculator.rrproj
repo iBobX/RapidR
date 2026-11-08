@@ -1,0 +1,26 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Tip Calculator"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"
+
+[[files]]
+path = "art/tips.svg"
+kind = "asset"
+
+[build]
+icon = "art/tips.svg"
+app_name = "Tip Calculator"
+bundle_id = "com.example.tipcalculator"
+version = "1.2.0"
+company = "RapidR Examples"
+copyright = "© 2026 RapidR Examples"
+description = "Splits a bill and works out the tip."
+website = "https://example.com/tip-calculator"
+category = "productivity"
+kind = "window"
+targets = ["bytecode"]

@@ -1856,7 +1856,7 @@ FUNCTION McpDialogOpen AS STRING
   IF AISetup.Visible THEN Result = "Set Up RAI": EXIT FUNCTION
   IF ConsentDialog.Visible OR SavePrompt.Visible OR FailNote.Visible THEN Result = "a question": EXIT FUNCTION
   IF McpReview.Visible OR AIReview.Visible OR AINew.Visible OR AISent.Visible THEN Result = "a review window": EXIT FUNCTION
-  IF AppDialog.Visible OR NewDialog.Visible THEN Result = "a dialog": EXIT FUNCTION
+  IF BuildDialog.Visible OR NewDialog.Visible THEN Result = "a dialog": EXIT FUNCTION
   IF TextViewer.Visible OR ValueEditor.Visible THEN Result = "a value's window": EXIT FUNCTION
 END FUNCTION
 

@@ -1,0 +1,40 @@
+' The Build dialog's test project (tests/studio_build_dialog.mjs): a tip
+' calculator that reads three data files beside it (logo.png, tips.csv,
+' ding.wav) and has a note and a picture it never reads (notes.txt,
+' small.png: left out, with the reason).
+$THEME rapidr
+
+DECLARE SUB Calculate
+
+DIM Rates AS RStringList
+
+CREATE Form AS RForm
+    Caption = "Tip Calculator"
+    ClientWidth = 300: ClientHeight = 200
+    Center
+    CREATE Logo AS RImage
+        Left = 16: Top = 16: Width = 48: Height = 48: Stretch = 1
+    END CREATE
+    CREATE BillLabel AS RLabel
+        Caption = "&Bill:": Left = 80: Top = 20: Width = 60
+    END CREATE
+    CREATE BillEdit AS REdit
+        Text = "": Left = 140: Top = 16: Width = 140
+        OnChange = Calculate
+    END CREATE
+    CREATE Total AS RLabel
+        Caption = "Total: 0.00": Left = 16: Top = 90: Width = 268
+    END CREATE
+END CREATE
+
+SUB Calculate
+    DIM bill AS DOUBLE
+    bill = VAL(BillEdit.Text)
+    Total.Caption = "Total: " + FORMAT$("%.2f", bill * 1.15)
+END SUB
+
+Logo.LoadFromFile "logo.png"
+Rates.LoadFromFile "tips.csv"
+PLAYWAV "ding.wav", 1
+BillEdit.SetFocus
+Form.ShowModal

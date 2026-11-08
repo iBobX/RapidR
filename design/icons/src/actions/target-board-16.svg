@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Target: a board (ESP32, micro:bit; later)</title>
+  <path d="M4.5 3.5H11.5A1 1 0 0 1 12.5 4.5V11.5A1 1 0 0 1 11.5 12.5H4.5A1 1 0 0 1 3.5 11.5V4.5A1 1 0 0 1 4.5 3.5Z" fill="#D6F2E8" stroke="#08805E"/>
+  <path d="M7 6.5H9A0.5 0.5 0 0 1 9.5 7V9A0.5 0.5 0 0 1 9 9.5H7A0.5 0.5 0 0 1 6.5 9V7A0.5 0.5 0 0 1 7 6.5Z" stroke="#08805E"/>
+  <path d="M6.5 1.5L6.5 3.5" stroke="#5B6478"/>
+  <path d="M6.5 12.5L6.5 14.5" stroke="#5B6478"/>
+  <path d="M1.5 6.5L3.5 6.5" stroke="#5B6478"/>
+  <path d="M12.5 6.5L14.5 6.5" stroke="#5B6478"/>
+  <path d="M9.5 1.5L9.5 3.5" stroke="#5B6478"/>
+  <path d="M9.5 12.5L9.5 14.5" stroke="#5B6478"/>
+  <path d="M1.5 9.5L3.5 9.5" stroke="#5B6478"/>
+  <path d="M12.5 9.5L14.5 9.5" stroke="#5B6478"/>
+</svg>

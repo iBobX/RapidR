@@ -253,10 +253,11 @@ note that follows its file.
 
 ## Targets: where your program runs
 
-**Project > Project Options** has a **Targets** choice (the project's
-properties have it too, as **Targets**): **Desktop** (the
-default), **Web**, or **Desktop and web**. It says where your program is
-meant to run, and Studio keeps it in the project file:
+The Build dialog's first step (**Run > Build...**) sets it from the systems
+you tick: the web only is **Web**, Windows, macOS or Linux only is
+**Desktop** (the default), both is **Desktop and web**; the project's
+properties have it too, as **Targets**. It says where your program is meant
+to run, and Studio keeps it in the project file:
 
 ```toml
 [build]
@@ -276,8 +277,6 @@ tells you about them only when your project runs where they don't work:
 Each note comes once, at the first use, with how many uses there are:
 "RServerSocket works on the desktop only: the web runtime doesn't have it
 (12 uses)".
-
-![Project Options: Targets set to Web, with the note "In a browser. Problems notes what works on the desktop only."](images/studio-projects/targets.png)
 
 A project that builds a web app too (`targets` in `[build]` includes `web`)
 starts as **Desktop and web**; any other starts as **Desktop**.

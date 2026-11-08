@@ -5745,6 +5745,7 @@ dependencies = [
  "getrandom 0.4.2",
  "libc",
  "rapidr-ai",
+ "rapidr-archive",
  "rapidr-ast",
  "rapidr-bcgen",
  "rapidr-codegen-rust",

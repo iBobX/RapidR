@@ -236,24 +236,12 @@ SUB DefineCommands
   AddCmd "run.restart", "R&estart", "Run", "Ctrl+Shift+F5", "", "session", ""
   AddCmd "run.browser", "Run in &Browser", "Run", "", "", "project", "groups/web"
   AddSep "Run"
-  IF Proj.FileManager = "" THEN
-    ' (the web has no file manager: apps for a computer are the desktop
-    ' Studio's to build; here the program becomes a web app, a .zip that any
-    ' web host serves)
-    AddCmd "run.buildWeb", "&Build Web App (.zip)", "Run", "Ctrl+Shift+B", "", "project", "run.build"
-  ELSEIF Proj.NativeBuilds = 0 THEN
-    ' (32-bit Windows: no native builds there; the one Build makes the
-    ' interpreted app, and says so)
-    AddCmd "run.build", "&Build (Interpreted App)", "Run", "Ctrl+Shift+B", "", "project", ""
-    AddCmd "run.buildWeb", "Build &Web App", "Run", "", "", "project", "groups/web"
-    AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
-  ELSE
-    AddCmd "run.build", "&Build", "Run", "Ctrl+Shift+B", "", "project", ""
-    AddCmd "run.buildNative", "Build &Native App", "Run", "", "", "project", "run.build"
-    AddCmd "run.buildInterpreted", "Build &Interpreted App", "Run", "", "", "project", "run.build"
-    AddCmd "run.buildWeb", "Build &Web App", "Run", "", "", "project", "groups/web"
-    AddCmd "run.reveal", "Reveal the &App", "Run", "", "", "project", ""
-  END IF
+  ' (Build: the dialog — where it runs, the app, what goes in — and a zip
+  ' per system, on the desktop and in the browser alike; Build Again builds
+  ' the saved choices with no dialog: build.inc)
+  AddCmd "run.build", "&Build...", "Run", "", "", "project", ""
+  AddCmd "run.buildAgain", "Build &Again", "Run", "Ctrl+Shift+B", "", "project", "rebuild"
+  IF Proj.FileManager <> "" THEN AddCmd "run.reveal", "&Show the Built Apps", "Run", "", "", "project", ""
 
   ' ---- Debug ----
   AddCmd "run.continue", "&Continue", "Debug", "", "F5", "paused", ""

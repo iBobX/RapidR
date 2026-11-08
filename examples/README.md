@@ -260,6 +260,12 @@ run them there for that).
 | [midi_sysex_in.rr](windows/midi_sysex_in.rr) | MIDI System Exclusive messages received with winmm: Open lends the driver a buffer through a `MIDIHDR` (`midiInPrepareHeader`, `midiInAddBuffer`, `midiInStart`); the driver fills it later and posts `MM_MIM_LONGDATA`, and WndProc lists the bytes in hex and gives the buffer back; Close stops, resets, unprepares and closes. The `MIDIHDR` as this Windows lays it (120 bytes on 64-bit, 64 on 32-bit), by its address | run · interp · native · web | `rapidr run windows/midi_sysex_in.rr` |
 | [midi_sysex_out.rr](windows/midi_sysex_out.rr) | A MIDI System Exclusive message sent with winmm: pick the output, write the bytes in hex (the GS Reset is there), Send runs `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, waits for `MHDR_DONE`, then `midiOutUnprepareHeader` and `midiOutClose`, and lists each call's result code in words; the `MIDIHDR` is written out as 64-bit Windows lays it (120 bytes: pointers as two LONGs, `dwReserved` an array field) | run · interp · native · web | `rapidr run windows/midi_sysex_out.rr` |
 
+### apps/ — one project, an app for every system
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [tip_calculator/](apps/tip_calculator/main.rr) | A project with its whole App info filled in (`Tip Calculator.rrproj`: name, version, author, copyright, description, website, category, its own SVG icon): open it in RapidR Studio and choose **Run > Build...** to make a zip for Windows, macOS, Linux and the web at once ([the manual](../docs/manual/build-for-every-system.md)) | run · web | `rapidr build "apps/tip_calculator/Tip Calculator.rrproj" --all` |
+
 ### web/ — what only a web page has
 
 | Example | What it shows | Runs on | Try |

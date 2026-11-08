@@ -427,6 +427,156 @@ fn find_file(dir: &Path, name: &std::ffi::OsStr, depth: u8) -> Option<PathBuf> {
     dirs.iter().find_map(|d| find_file(d, name, depth + 1))
 }
 
+/// Why a file the Build dialog shows is not in the apps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeftOut {
+    /// The program writes it: your copy may hold your own data.
+    Written,
+    /// It is outside the project's folder: copy it in to take it along.
+    Outside,
+    /// It is beside the program, but the program never names it.
+    NeverRead,
+}
+
+impl LeftOut {
+    /// The word Studio reads (`written`, `outside`, `unread`).
+    pub fn word(self) -> &'static str {
+        match self {
+            LeftOut::Written => "written",
+            LeftOut::Outside => "outside",
+            LeftOut::NeverRead => "unread",
+        }
+    }
+}
+
+/// What goes in an app of a program: the Build dialog's step 3 and every
+/// build of it (`rapidr build`'s data files) from ONE list.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GoesIn {
+    /// The data files: (its path in the app, `/`-separated; the file;
+    /// whether it goes in — false when the project leaves it out).
+    pub files: Vec<(String, PathBuf, bool)>,
+    /// What the program names, or has beside it, that never goes in: (its
+    /// name as the program or the folder has it; why).
+    pub left_out: Vec<(String, LeftOut)>,
+}
+
+/// Whether `rel` (a path in the app, or from the project's folder) is one
+/// the project leaves out (`[build] leave_out`).
+fn left_out_by(project: &crate::Project, rel: &str) -> bool {
+    let rel = rel.replace('\\', "/");
+    project.build.leave_out.iter().any(|l| l.replace('\\', "/").trim_start_matches("./").eq_ignore_ascii_case(&rel))
+}
+
+/// The project's own choices on the data files a build found (`data`: its
+/// path in the app, the file): the data files added to the project (`kind
+/// = "data"`, inside its folder) go in at their paths there; the ones it
+/// leaves out (`[build] leave_out`, the Build dialog's step 3) don't.
+pub fn apply_choices(data: &mut Vec<(String, PathBuf)>, project_dir: &Path, project: &crate::Project) {
+    for f in project.files_of_kind(crate::FileKind::Data) {
+        let rel = f.path.replace('\\', "/");
+        let at = project_dir.join(&rel);
+        if crate::ship::place(&rel) != crate::ship::Place::Outside && at.is_file() && is_inside(&at, project_dir) && !data.iter().any(|(to, p)| to.eq_ignore_ascii_case(&rel) || same_path(p, &at)) {
+            data.push((rel, at));
+        }
+    }
+    data.retain(|(to, p)| {
+        let from_project = p.strip_prefix(project_dir).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_default();
+        !left_out_by(project, to) && (from_project.is_empty() || !left_out_by(project, &from_project))
+    });
+}
+
+/// Everything step 3 of the Build dialog shows for program `src` (in a
+/// project, `project`: its folder and itself): the data files a build packs
+/// — ticked, or left out by the project — and what is never packed, with
+/// the reason. A build packs exactly the ticked ones (`rapidr build`: the
+/// same files through [`apply_choices`]).
+pub fn goes_in(src: &Path, project: Option<(&Path, &crate::Project)>) -> GoesIn {
+    let mut out = GoesIn::default();
+    let Some(folder) = src.parent() else { return out };
+    let folder = if folder.as_os_str().is_empty() { Path::new(".") } else { folder };
+    let pre = rapidr_preprocessor::preprocess_file(src, rapidr_preprocessor::PreprocessOptions::default()).ok();
+    let built_in: Vec<PathBuf> = pre.as_ref().map(|p| p.resources.iter().filter_map(|r| r.path.clone()).collect()).unwrap_or_default();
+    let written = written_by(src);
+    let mut data: Vec<(String, PathBuf)> = Vec::new();
+    for f in data_files_of(src) {
+        if built_in.iter().any(|r| same_path(r, &f)) {
+            continue;
+        }
+        let name = f.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        if written.contains(&name.to_lowercase()) {
+            out.left_out.push((name, LeftOut::Written));
+        } else {
+            data.push((name, f));
+        }
+    }
+    let carried = carried_of(src);
+    for (to, f) in carried.files {
+        if built_in.iter().any(|r| same_path(r, &f)) {
+            continue;
+        }
+        if written.contains(&to.to_lowercase()) {
+            out.left_out.push((to, LeftOut::Written));
+        } else {
+            data.push((to, f));
+        }
+    }
+    data.extend(carried.catalogs.unwrap_or_default().into_iter().map(|(name, f)| (format!("{}/{name}", crate::ship::LANG_FOLDER), f)));
+    for w in &carried.warnings {
+        // ("\"../music/song.wav\" is outside …": the name between the quotes)
+        let name = w.split('"').nth(1).unwrap_or(w).to_string();
+        out.left_out.push((name, LeftOut::Outside));
+    }
+    // (the project's own: the files added, the ones it leaves out)
+    let mut all = data.clone();
+    if let Some((dir, p)) = project {
+        for f in p.files_of_kind(crate::FileKind::Data) {
+            let rel = f.path.replace('\\', "/");
+            let at = dir.join(&rel);
+            if !at.is_file() {
+                continue;
+            }
+            if !is_inside(&at, dir) {
+                out.left_out.push((rel, LeftOut::Outside));
+            } else if !all.iter().any(|(to, q)| to.eq_ignore_ascii_case(&rel) || same_path(q, &at)) {
+                all.push((rel, at));
+            }
+        }
+    }
+    for (to, f) in all {
+        let kept = match project {
+            Some((dir, p)) => {
+                let mut one = vec![(to.clone(), f.clone())];
+                apply_choices(&mut one, dir, p);
+                !one.is_empty()
+            }
+            None => true,
+        };
+        out.files.push((to, f, kept));
+    }
+    // (beside it but never named: shown, so nobody wonders where it went —
+    // not programs, not what it includes, not the project's own files or
+    // its icon, not hidden ones)
+    let includes = includes_of(src);
+    let icon = project.map(|(dir, p)| dir.join(&p.build.icon)).filter(|_| project.is_some_and(|(_, p)| !p.build.icon.trim().is_empty()));
+    let mut unread: Vec<String> = fs::read_dir(folder)
+        .into_iter()
+        .flat_map(|d| d.flatten())
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && !is_program(p) && !includes.iter().any(|i| same_path(i, p)))
+        .filter(|p| !built_in.iter().any(|r| same_path(r, p)) && !icon.as_ref().is_some_and(|i| same_path(i, p)))
+        .filter(|p| !out.files.iter().any(|(_, f, _)| same_path(f, p)))
+        .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+        .filter(|n| {
+            let l = n.to_ascii_lowercase();
+            !n.starts_with('.') && !l.ends_with(".rrproj") && !l.ends_with(".inc") && !written.contains(&l) && !matches!(l.as_str(), "sha256sums" | "readme.md" | "license" | "license.txt")
+        })
+        .collect();
+    unread.sort();
+    out.left_out.extend(unread.into_iter().map(|n| (n, LeftOut::NeverRead)));
+    out
+}
+
 /// Whether `a` and `b` are the same folder (each as it is on disk when it's
 /// there: links followed, any case where the disk ignores case).
 pub fn same_path(a: &Path, b: &Path) -> bool {
@@ -631,5 +781,47 @@ PRINT "Saved to notes.txt" ' cfg.SaveToFile "comment.cfg"
         fs::set_permissions(examples.join("data"), fs::Permissions::from_mode(0o755)).unwrap();
         std::env::remove_var("RAPIDR_DOCUMENTS");
         fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod goes_in_tests {
+    use super::*;
+
+    /// The Build dialog's step 3 and `rapidr build` from one list: the data
+    /// files the program names go in (unless the project leaves one out),
+    /// what is beside it and never named is shown as left out, and a file
+    /// the program writes never goes in.
+    #[test]
+    fn what_goes_in_and_what_is_left_out() {
+        let dir = std::env::temp_dir().join(format!("rapidr-goes-in-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("tip.rr"), "Logo.LoadFromFile \"logo.png\"\nRates.LoadFromFile \"tips.csv\"\nPLAYWAV \"ding.wav\", 1\nOPEN \"settings.ini\" FOR OUTPUT AS #1\n").unwrap();
+        for f in ["logo.png", "tips.csv", "ding.wav", "notes.txt", "settings.ini", "Tip.rrproj"] {
+            fs::write(dir.join(f), "x").unwrap();
+        }
+        let mut p = crate::Project::default();
+        p.main = "tip.rr".into();
+        let got = goes_in(&dir.join("tip.rr"), Some((&dir, &p)));
+        let ins: Vec<(&str, bool)> = got.files.iter().map(|(t, _, k)| (t.as_str(), *k)).collect();
+        assert_eq!(ins, [("ding.wav", true), ("logo.png", true), ("tips.csv", true)]);
+        assert!(got.left_out.contains(&("notes.txt".to_string(), LeftOut::NeverRead)), "{:?}", got.left_out);
+        assert!(got.left_out.contains(&("settings.ini".to_string(), LeftOut::Written)), "{:?}", got.left_out);
+        assert!(!got.left_out.iter().any(|(n, _)| n.ends_with(".rrproj")));
+        // (left out by the project: unticked here, and not packed by a build)
+        p.build.leave_out = vec!["tips.csv".into()];
+        let got = goes_in(&dir.join("tip.rr"), Some((&dir, &p)));
+        assert!(got.files.iter().any(|(t, _, k)| t == "tips.csv" && !k));
+        let mut data: Vec<(String, PathBuf)> = got.files.iter().map(|(t, f, _)| (t.clone(), f.clone())).collect();
+        apply_choices(&mut data, &dir, &p);
+        assert_eq!(data.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>(), ["ding.wav", "logo.png"]);
+        // (a data file added to the project goes in, at its path there)
+        fs::create_dir_all(dir.join("more")).unwrap();
+        fs::write(dir.join("more/extra.dat"), "x").unwrap();
+        p.files.push(crate::ProjectFile { path: "more/extra.dat".into(), kind: crate::FileKind::Data });
+        apply_choices(&mut data, &dir, &p);
+        assert!(data.iter().any(|(t, _)| t == "more/extra.dat"));
+        let _ = fs::remove_dir_all(&dir);
     }
 }

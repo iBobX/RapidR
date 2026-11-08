@@ -132,6 +132,26 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "targets" => Value::String(m.project.build.runs_on_or_default().to_string().into()),
             "outputfolder" => Value::String(m.project.build.output.clone().into()),
             "keeprust" => flag(m.project.build.keep_rust),
+            // (the App info the Build dialog's step 2 and Project Options
+            // share: one form; `[build]`)
+            "copyright" => Value::String(m.project.build.copyright.clone().into()),
+            "description" => Value::String(m.project.build.description.clone().into()),
+            "website" => Value::String(m.project.build.website.clone().into()),
+            "category" => Value::String(m.project.build.category.clone().into()),
+            "appkind" => Value::String(m.project.build.kind.clone().into()),
+            "themecolor" => Value::String(m.project.build.theme_color.clone().into()),
+            // (the Build dialog's choices, saved as they are made: the
+            // systems — "" never chosen —, one zip or one each, the data
+            // files left out, the source, native code)
+            "buildfor" => Value::String(m.project.build.build_for.join(",").into()),
+            "packas" => Value::String(if m.project.build.pack.eq_ignore_ascii_case("one") { "one" } else { "each" }.into()),
+            "leaveout" => Value::String(m.project.build.leave_out.join("\n").into()),
+            "includesource" => flag(m.project.build.include_source),
+            "nativecode" => flag(m.project.build.native),
+            "language" => Value::String(m.project.build.language.clone().into()),
+            // ("1024\t1024\t0": the icon's width, height, 1 for an SVG; ""
+            // for RapidR's own or one that can't be read)
+            "iconsize" => Value::String(icon_size(m).into()),
             "runargs" => Value::String(join_args(&m.project.run.args).into()),
             "designergrid" => Value::Integer(i64::from(m.project.designer.grid)),
             "designersnap" => flag(m.project.designer.snap),
@@ -204,6 +224,35 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "company" => m.project.build.company = v.to_string_val().trim().to_string(),
             "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
+            "copyright" => m.project.build.copyright = v.to_string_val().trim().to_string(),
+            "description" => m.project.build.description = v.to_string_val().trim().to_string(),
+            "website" => m.project.build.website = v.to_string_val().trim().to_string(),
+            "category" => m.project.build.category = v.to_string_val().trim().to_ascii_lowercase(),
+            "appkind" => {
+                let k = v.to_string_val().trim().to_ascii_lowercase();
+                m.project.build.kind = if matches!(k.as_str(), "window" | "console") { k } else { String::new() };
+            }
+            "themecolor" => m.project.build.theme_color = v.to_string_val().trim().to_string(),
+            "buildfor" => {
+                let list: Vec<rapidr_package::Target> = v.to_string_val().split([',', ' ', ';']).filter_map(|n| rapidr_package::Target::parse(n).ok()).collect();
+                crate::build_plan::set_targets(&mut m.project, &list);
+            }
+            "packas" => m.project.build.pack = if v.to_string_val().trim().eq_ignore_ascii_case("one") { "one".into() } else { String::new() },
+            "leaveout" => {
+                let mut list: Vec<String> = v.to_string_val().lines().map(|l| normalize_path(l.trim())).filter(|l| !l.is_empty()).collect();
+                list.sort();
+                list.dedup();
+                m.project.build.leave_out = list;
+            }
+            "includesource" => m.project.build.include_source = truth(v),
+            "nativecode" => m.project.build.native = truth(v),
+            "language" => {
+                let l = v.to_string_val().trim().to_ascii_lowercase();
+                m.project.build.language = if l.starts_with("es") { "es".into() } else { String::new() };
+            }
+            // (what a build made: the Build dialog sets its first zip, which
+            // Reveal shows)
+            "builtpath" => m.built = v.to_string_val(),
             "runargs" => m.project.run.args = crate::session::split_args(&v.to_string_val()),
             "designergrid" => m.project.designer.grid = v.to_i64().clamp(1, 64) as u32,
             "designersnap" => m.project.designer.snap = truth(v),
@@ -214,7 +263,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 m.project.build.runs_on = if matches!(t.as_str(), "desktop" | "web" | "both") { t } else { "desktop".into() };
             }
             "includefolders" => set_include_folders(&v.to_string_val()),
-            "filename" | "folder" | "kind" | "error" | "warning" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
+            "filename" | "folder" | "kind" | "error" | "warning" | "filecount" | "building" | "iconsize" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
             _ => return false,
         }
         true
@@ -645,6 +694,134 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
     })
 }
 
+// ---- the Build dialog (crate::build_plan: the one plan the dialog, Build
+// Again and the AI's build_app share) -------------------------------------------------
+
+/// The project's main file in full, its project file ("" for a single
+/// file), its folder in full and the main file's stem.
+fn build_where(m: &Model) -> Result<(String, String, String, String), String> {
+    if m.kind.is_empty() {
+        return Err(tr_ui("no project is open"));
+    }
+    let folder = full(&m.folder);
+    let main = join(&folder, &m.project.main);
+    let file = if m.kind == "project" && !m.file_name.is_empty() { full(&m.file_name) } else { String::new() };
+    Ok((main.clone(), file, folder, stem(&main)))
+}
+
+/// The output folder in full: the project's, else `build` in its folder.
+fn out_dir(m: &Model, folder: &str) -> String {
+    join(folder, m.project.build.output_folder())
+}
+
+/// This computer's first choice: its own system (the desktop), or the
+/// browser's (`platform`: navigator.platform, the web).
+fn first_targets(platform: &str) -> Vec<rapidr_package::Target> {
+    if cfg!(target_arch = "wasm32") {
+        vec![crate::build_plan::target_of_platform(platform)]
+    } else {
+        crate::build_plan::first_choice(rapidr_package::Target::host())
+    }
+}
+
+/// Step 3's list, a line each, tab-separated: `in`, the path in the app,
+/// its size in bytes, 1 (goes in) or 0 (left out); then `out`, the name,
+/// why (`written`, `outside`, `unread`). The same list a build packs
+/// (rapidr_project::program_files::goes_in).
+#[cfg(not(target_arch = "wasm32"))]
+fn build_files<H: Host>(_host: H, m: &Model) -> Result<String, String> {
+    let (main, _, folder, _) = build_where(m)?;
+    let project = (m.kind == "project").then_some((std::path::Path::new(&folder), &m.project));
+    let list = rapidr_project::program_files::goes_in(std::path::Path::new(&main), project);
+    let mut out = Vec::new();
+    for (to, f, kept) in &list.files {
+        let size = std::fs::metadata(f).map(|x| x.len()).unwrap_or(0);
+        out.push(format!("in\t{to}\t{size}\t{}", u8::from(*kept)));
+    }
+    for (name, why) in &list.left_out {
+        out.push(format!("out\t{name}\t{}", why.word()));
+    }
+    Ok(out.join("\n"))
+}
+
+/// On the web: the files the program names that the page's store has (its
+/// data, as Run sends them to its frame), each ticked unless left out.
+#[cfg(target_arch = "wasm32")]
+fn build_files<H: Host>(host: H, m: &Model) -> Result<String, String> {
+    let (main, _, _, _) = build_where(m)?;
+    let files = program_files(&main, &|f: &str| host.list_files(f))?;
+    let mut out = Vec::new();
+    for (to, data) in &files.data {
+        let left = m.project.build.leave_out.iter().any(|l| l.eq_ignore_ascii_case(to));
+        out.push(format!("in\t{to}\t{}\t{}", data.len(), u8::from(!left)));
+    }
+    Ok(out.join("\n"))
+}
+
+/// The sizes of the zips a build made before (in the output folder, for
+/// this version): `target<tab>bytes` a line each — what steps 3 and 4 say
+/// before a new build ("" when none was built).
+#[cfg(not(target_arch = "wasm32"))]
+fn built_sizes(m: &Model) -> Result<String, String> {
+    let (_, _, folder, st) = build_where(m)?;
+    let dir = out_dir(m, &folder);
+    let mut out = Vec::new();
+    for t in crate::build_plan::OFFERED {
+        let zip = join(&dir, &crate::build_plan::zip_name(&m.project, &st, t));
+        if let Ok(meta) = std::fs::metadata(&zip) {
+            out.push(format!("{}\t{}", t.name(), meta.len()));
+        }
+    }
+    Ok(out.join("\n"))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn built_sizes(_m: &Model) -> Result<String, String> {
+    Ok(String::new())
+}
+
+/// "Everything in one zip": the zips just built (`names`, a line each, in
+/// the output folder) and `SHA256SUMS` in one `<Name>-<version>-all.zip`
+/// beside them; its path.
+#[cfg(not(target_arch = "wasm32"))]
+fn pack_one_zip(m: &Model, names: &str) -> Result<String, String> {
+    let (_, _, folder, st) = build_where(m)?;
+    let dir = out_dir(m, &folder);
+    // (the zips are packed already: stored as they are)
+    let mut w = rapidr_archive::Writer::new(rapidr_archive::Format::Zip, 0, 0)?;
+    let mut list: Vec<&str> = names.lines().map(str::trim).filter(|n| !n.is_empty() && !n.contains(['/', '\\'])).collect();
+    list.push("SHA256SUMS");
+    for n in list {
+        let path = join(&dir, n);
+        let Ok(bytes) = std::fs::read(&path) else { continue };
+        let mtime = std::fs::metadata(&path).ok().and_then(|x| x.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs() as i64);
+        w.add(n, bytes, mtime)?;
+    }
+    let bytes = w.finish()?;
+    let to = join(&dir, &crate::build_plan::all_zip_name(&m.project, &st));
+    std::fs::write(&to, bytes).map_err(|e| format!("{to}: {e}"))?;
+    Ok(to)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn pack_one_zip(_m: &Model, _names: &str) -> Result<String, String> {
+    Err(tr_ui("the browser saves each zip itself"))
+}
+
+/// The project's icon's size, tab-separated: width, height, 1 for an SVG
+/// ("" for RapidR's own, or one that can't be read).
+fn icon_size(m: &Model) -> String {
+    if m.project.build.icon.trim().is_empty() {
+        return String::new();
+    }
+    let path = join(&m.folder, &m.project.build.icon);
+    let Ok(bytes) = rapidr_value::objects::read_file(&path) else { return String::new() };
+    match rapidr_package::Icon::from_bytes(&bytes, &path).ok().and_then(|i| i.size()) {
+        Some((w, h, svg)) => format!("{w}\t{h}\t{}", u8::from(svg)),
+        None => String::new(),
+    }
+}
+
 /// The web build the page makes (Build Web App): the project's main file, as
 /// `<name>-web.zip` — the name of its project's file, else of the program.
 fn web_build<H: Host>(host: H, name: &str) -> Result<(), String> {
@@ -893,6 +1070,83 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 }
             });
             flag(ok)
+        }
+        // (the Build dialog: crate::build_plan — the desktop builds through
+        // `rapidr build --targets`, its lines read with BuildNews)
+        "buildtargets" => {
+            let started = with(name, |m| -> Result<(Vec<String>, String), String> {
+                let (main, file, folder, _) = build_where(m)?;
+                let targets = crate::build_plan::targets(&m.project, &first_targets(""));
+                if targets.is_empty() {
+                    return Err(tr_ui("no system is ticked"));
+                }
+                Ok((crate::build_plan::cli_args(&main, Some(&file), &m.project, &out_dir(m, &folder), &targets), folder))
+            })
+            .and_then(|(args, cwd)| {
+                let rapidr = host.rapidr().ok_or_else(|| tr_ui("the web Studio packs the apps in the page"))?;
+                crate::build::start(name, rapidr, &args, &cwd)
+            });
+            let ok = started.is_ok();
+            with(name, |m| {
+                m.error = started.err().unwrap_or_default();
+                if ok {
+                    m.built.clear();
+                }
+            });
+            flag(ok)
+        }
+        "buildnative" => {
+            let started = with(name, |m| -> Result<(Vec<String>, String), String> {
+                let (main, file, folder, _) = build_where(m)?;
+                Ok((crate::build_plan::native_args(&main, Some(&file), &m.project, &out_dir(m, &folder)), folder))
+            })
+            .and_then(|(args, cwd)| {
+                let rapidr = host.rapidr().ok_or_else(|| tr_ui("native code is built by RapidR Studio on the desktop"))?;
+                crate::build::start(name, rapidr, &args, &cwd)
+            });
+            let ok = started.is_ok();
+            with(name, |m| m.error = started.err().unwrap_or_default());
+            flag(ok)
+        }
+        "buildnews" => Value::String(crate::build_plan::news_words(&s(0)).into()),
+        "buildcommandline" => Value::String(
+            with(name, |m| {
+                let (main, file, folder, _) = build_where(m).ok()?;
+                let targets = crate::build_plan::targets(&m.project, &first_targets(""));
+                Some(crate::build_plan::command_line(&crate::build_plan::cli_args(&main, Some(&file), &m.project, &out_dir(m, &folder), &targets)))
+            })
+            .unwrap_or_default()
+            .into(),
+        ),
+        "firsttargets" => Value::String(first_targets(&s(0)).iter().map(|t| t.name()).collect::<Vec<_>>().join(",").into()),
+        "zipname" => Value::String(
+            rapidr_package::Target::parse(&s(0))
+                .map(|t| with(name, |m| crate::build_plan::zip_name(&m.project, &stem(&m.project.main), t)))
+                .unwrap_or_default()
+                .into(),
+        ),
+        "allzipname" => Value::String(with(name, |m| crate::build_plan::all_zip_name(&m.project, &stem(&m.project.main))).into()),
+        "suggestedappid" => Value::String(crate::build_plan::suggested_app_id(&s(0), &s(1)).into()),
+        "outputpath" => Value::String(with(name, |m| if m.kind.is_empty() { String::new() } else { out_dir(m, &full(&m.folder)) }).into()),
+        "buildfiles" => {
+            let r = with(name, |m| build_files(host, m));
+            let text = r.unwrap_or_else(|e| {
+                with(name, |m| m.error = e);
+                String::new()
+            });
+            Value::String(text.into())
+        }
+        // (the systems of a list whose runners this computer doesn't have:
+        // they download first — crate::build_plan::runners_to_fetch)
+        "runnerstofetch" => Value::String(crate::build_plan::runners_to_fetch(&s(0), host.rapidr().as_deref()).into()),
+        "builtsizes" => Value::String(with(name, |m| built_sizes(m)).unwrap_or_default().into()),
+        "packonezip" => {
+            let r = with(name, |m| pack_one_zip(m, &s(0)));
+            let path = r.unwrap_or_else(|e| {
+                with(name, |m| m.error = e);
+                String::new()
+            });
+            Value::String(path.into())
         }
         // (the desktop asks `rapidr setup --rust`; the web has nothing to ask,
         // and Build says on its own that it is the desktop's)

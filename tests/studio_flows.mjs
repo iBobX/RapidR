@@ -970,76 +970,54 @@ const CASES = [
     dump: {},
   },
   {
-    // Run > Build: the app for this system (interpreted: the project says),
-    // with the project's own icon; on the web Build says it's the desktop's
+    // Build (the dialog's choices, Build Again's path): this computer's
+    // system the first time — its zip, with the project's own icon, and
+    // SHA256SUMS in the project's build folder; on the web the page packs
+    // the apps itself (the web Studio's own runner for the web)
     name: "build-app",
     open: "tests/fixtures/studio_app/Notes.rrproj",
     copyDir: true,
-    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
-    do: "run.build",
-    // (cargo checks the runner first: a minute on a busy machine)
-    delay: 90,
-    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|Notes\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
-    webDump: { "outputbox.text": /Can't build: Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
+    desktopOnly: true,
+    do: "wait,build:start",
+    // (cargo checks the runner first in a source checkout: a minute on a busy machine)
+    delay: 120,
+    dump: { "proj.builtpath": /Notes-1\.2\.0-(macos-universal|windows-x64|linux-x64)\.zip$/, "proj.building": /^0$/, "proj.buildfor": /^$/ },
   },
-  // Run > Build Web App: the program as a web app, <project>-web.zip (the
-  // desktop runs `rapidr build --web --interp`; the web page zips it itself
-  // and downloads it). The web case checks the download: its files, then
-  // the unzipped app served and run.
+  // Build for the web: Notes-1.2.0-web.zip — the page, the runtime, the
+  // program and its data
   {
     name: "build-web-app",
     open: "tests/fixtures/studio_app/Notes.rrproj",
     copyDir: true,
-    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
-    do: "run.buildWeb",
+    desktopOnly: true,
+    do: "wait,build:untick=macos-universal,build:untick=windows-x64,build:untick=linux-x64,build:tick=web,build:start",
     delay: 25,
-    dump: { "proj.builtpath": /Notes-web\.zip$/, "outputbox.text": /Web: .*Notes-web\.zip[\s\S]*Built Notes-web\.zip — unzip on any web host/, "proj.building": /^0$/ },
-    webDump: { "outputbox.text": /✓ Built Notes-web\.zip — unzip on any web host/, "proj.builtpath": /^Notes-web\.zip$/, "proj.building": /^0$/ },
-    web: (page, scale, record) => builtWebApp(page, record, "Notes-web.zip", ["main.rrbc"]),
+    dump: { "proj.builtpath": /Notes-1\.2\.0-web\.zip$/, "proj.building": /^0$/, "proj.targets": /^web$/ },
   },
   // (an example with its data file: the CSV the program loads goes in the zip)
   {
     name: "build-web-app-data",
     open: "examples/data/dataframe.rr",
     copyDir: true,
-    webFiles: ["examples/data/dataframe.rr", "examples/data/staff.csv"],
-    do: "run.buildWeb",
+    desktopOnly: true,
+    do: "wait,build:untick=macos-universal,build:untick=windows-x64,build:untick=linux-x64,build:tick=web,build:start",
     delay: 25,
-    dump: { "proj.builtpath": /dataframe-web\.zip$/ },
-    webDump: { "outputbox.text": /✓ Built dataframe-web\.zip — unzip on any web host/ },
-    web: (page, scale, record) => builtWebApp(page, record, "dataframe-web.zip", ["dataframe.rrbc", "rapidr-assets.js"]),
+    dump: { "proj.builtpath": /-web\.zip$/ },
   },
-  // (T1b) A program that translates: its lang/*.po go in the zip beside the
-  // page, with their list (lang/index.txt), as the CLI's builds put them
-  {
-    name: "build-web-app-translations",
-    open: "examples/translations/languages.rr",
-    copyDir: true,
-    webFiles: ["examples/translations/languages.rr", "examples/translations/lang/es.po", "examples/translations/lang/pt.po", "examples/translations/lang/zh-Hans.po"],
-    do: "run.buildWeb",
-    delay: 25,
-    dump: { "proj.builtpath": /languages-web\.zip$/, "outputbox.text": /Translations beside the page: lang\/es\.po, lang\/pt\.po, lang\/zh-Hans\.po/ },
-    webDump: { "outputbox.text": /lang\/index\.txt[\s\S]*lang\/es\.po[\s\S]*✓ Built languages-web\.zip — unzip on any web host/ },
-    web: (page, scale, record) => builtWebApp(page, record, "languages-web.zip", ["languages.rrbc", "lang/index.txt", "lang/es.po", "lang/pt.po", "lang/zh-Hans.po"]),
-  },
-  // (NO-RUST) A computer without Rust (RAPIDR_NO_RUST=1 says so): Build
-  // Native App asks first (prompts.inc) — Enter is Build Interpreted Instead
-  // (the app, "(interpreted)" in the log), Cancel builds nothing, Install
-  // Rust... runs `rapidr setup` and the log says it ended; Run > Build with
-  // a native project asks the same, and with an interpreted one just builds.
+  // (NO-RUST) A computer without Rust (RAPIDR_NO_RUST=1 says so) and Native
+  // code ticked (the dialog's step 3, Advanced): Build asks first
+  // (prompts.inc) — Enter is Build Interpreted Instead (the zips, without
+  // native code), Cancel builds nothing, Install Rust... runs `rapidr setup`
   {
     name: "build-native-no-rust-interpreted",
     open: "tests/fixtures/studio_app/Notes.rrproj",
     copyDir: true,
     desktopOnly: true,
     env: { RAPIDR_NO_RUST: "1" },
-    do: "run.buildNative",
+    do: "wait,build:native=1,build:start",
     events: "promptsave.__key_13",
-    // (the events fire at the end of the delay and the dump follows at once:
-    // the build has begun, as interpreted; its end, "(interpreted) in N s",
-    // is build-app's)
     delay: 8,
-    dump: { "prompttitle.caption": /^Native builds need Rust/, "promptsave.caption": /^&Build Interpreted Instead$/, "promptdont.caption": /^&Install Rust\.\.\.$/, "saveprompt.visible": /^0$/, "outputbox.text": /^Building main\.rr: interpreted, release/ },
+    dump: { "prompttitle.caption": /^Native builds need Rust/, "promptsave.caption": /^&Build Interpreted Instead$/, "promptdont.caption": /^&Install Rust\.\.\.$/, "saveprompt.visible": /^0$/, "proj.nativecode": /^(1|-1)$/ },
   },
   {
     name: "build-native-no-rust-cancel",
@@ -1047,10 +1025,10 @@ const CASES = [
     copyDir: true,
     desktopOnly: true,
     env: { RAPIDR_NO_RUST: "1" },
-    do: "run.buildNative,wait",
+    do: "wait,build:native=1,build:start,wait",
     events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
     delay: 6,
-    dump: { "prompttitle.caption": /^Native builds need Rust/, "saveprompt.visible": /^0$/, "proj.builtpath": /^$/, "proj.building": /^0$/, "outputbox.text": /^(?![\s\S]*(Built|Building))/ },
+    dump: { "prompttitle.caption": /^Native builds need Rust/, "saveprompt.visible": /^0$/, "proj.builtpath": /^$/, "proj.building": /^0$/ },
   },
   {
     name: "build-native-no-rust-install",
@@ -1058,43 +1036,11 @@ const CASES = [
     copyDir: true,
     desktopOnly: true,
     env: { RAPIDR_NO_RUST: "1" },
-    do: "run.buildNative",
+    do: "wait,build:native=1,build:start",
     events: "promptdont.__mousedown_12_12,promptdont.__mouseup_12_12",
     delay: 8,
     // (a source checkout: setup only reports the Rust the machine has)
     dump: { "proj.builtpath": /^$/, "outputbox.text": /^RapidR \d/ },
-  },
-  {
-    name: "build-default-native-no-rust",
-    open: "tests/fixtures/studio_app_native/Notes.rrproj",
-    copyDir: true,
-    desktopOnly: true,
-    env: { RAPIDR_NO_RUST: "1" },
-    do: "run.build,wait",
-    events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
-    delay: 6,
-    dump: { "prompttitle.caption": /^Native builds need Rust/, "proj.buildkind": /^native$/, "proj.builtpath": /^$/, "proj.building": /^0$/ },
-  },
-  {
-    // Project Options: the Compiled choice says Rust is missing
-    name: "app-options-no-rust",
-    open: "tests/fixtures/studio_app_native/Notes.rrproj",
-    copyDir: true,
-    desktopOnly: true,
-    env: { RAPIDR_NO_RUST: "1" },
-    do: "project.options",
-    delay: 4,
-    dump: { "appkind.text": /^Compiled \(Rust not installed\)$/, "appkindnote.caption": /^Rust is free/ },
-  },
-  {
-    // Project Options: Rust is there (this machine's): the Compiled choice as it was
-    name: "app-options-with-rust",
-    open: "tests/fixtures/studio_app_native/Notes.rrproj",
-    copyDir: true,
-    desktopOnly: true,
-    do: "project.options",
-    delay: 4,
-    dump: { "appkind.text": /^Compiled \(native: needs Rust\)$/ },
   },
   {
     // Project > Project Options: the app's name, ID, version, icon (previewed)
@@ -1107,7 +1053,8 @@ const CASES = [
     // (DARK-FIX: the dialog's text judged in every look, on both hosts)
     themes: LOOKS,
     contrast: true,
-    dump: { "appnameedit.text": /^Notes$/, "appversionedit.text": /^1\.2\.0$/, "appiconedit.text": /^note\.svg$/, "appiconnote.caption": /every size/ },
+    // (the Build dialog on its "Your app" step: one form for the app's details)
+    dump: { "bdname.text": /^Notes$/, "bdversion.text": /^1\.2\.0$/, "bdiconfile.caption": /^note\.svg/, "bdiconnote.caption": /every size/, "builddialog.caption": /^Project Options$/ },
   },
   {
     name: "palette",
@@ -2577,15 +2524,14 @@ const CASES = [
     delay: 4,
     dump: { "lang.errorcount": /^0$/, "outputbox.problemcount": /^0$/, "lang.targets": /^desktop$/ },
   },
-  // (S5) Targets = Web (Project Options, picked and OK'd with the keys):
+  // (S5) Targets = Web (the Build dialog's first step: only the web ticked):
   // one note for RServerSocket with how many uses, not one per call
   {
     name: "problems-targets-web",
     open: "tests/fixtures/studio_search/Counter.rrproj",
     copyDir: true,
     webFiles: SEARCH_FILES,
-    do: "wait,project.options",
-    events: "apptargets.__item_1,appdialog.__key_13",
+    do: "wait,build:untick=macos-universal,build:untick=windows-x64,build:untick=linux-x64,build:tick=web,wait",
     delay: 5,
     dump: { "proj.targets": /^web$/, "lang.targets": /^web$/, "outputbox.problemcount": /^1$/ },
     files: { "Counter.rrproj": /\nruns_on = "web"\n/ },
@@ -9379,7 +9325,8 @@ const CASES = [
     ["schoollock", "examples/gui/hello_form.rr", "tools.schoolLock", "lockdialog"],
     ["newproject", "examples/gui/hello_form.rr", "file.newProject", "newdialog"],
     ["setup-rai", "examples/gui/hello_form.rr", "ai.setup", "aisetup"],
-    ["project-options", "tests/fixtures/studio_mcp/Hello.rrproj", "project.options", "appdialog"],
+    ["project-options", "tests/fixtures/studio_mcp/Hello.rrproj", "project.options", "builddialog"],
+    ["build", "tests/fixtures/studio_mcp/Hello.rrproj", "run.build", "builddialog"],
   ].flatMap(([state, open, steps, dialog]) =>
     ["en", "es"].map((lang) => ({
       name: `dialog-fits-${state}-${lang}`,

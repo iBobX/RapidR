@@ -99,7 +99,12 @@ pub fn caption_right(cx: &Cx, p: &mut Painter, mark: i64) {
     caption(p, (x, 0, w - x, h), &text, &cx.font, color, Place::Left);
     if cx.state.focused {
         let (tw, th) = text_size(&mnemonic(&text).0, &cx.font);
-        if t.fluent() {
+        if text.is_empty() {
+            // (no caption — a box named for a screen reader by its
+            // AccessibleName, its words in a label beside it: the ring
+            // round the mark itself, never a sliver beside it)
+            p.focus((0, 0, mark.min(w).max(1), h));
+        } else if t.fluent() {
             // (a ring round the caption, clear of it and of the mark)
             let pad = t.focus_width as i64 + 2;
             let (fx, fh) = (x - pad, (th + 2 * pad).min(h));

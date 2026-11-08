@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Target: Windows (a window, its close cross at the right of a solid title bar)</title>
+  <path d="M4.5 5H27.5A1.5 1.5 0 0 1 29 6.5V25.5A1.5 1.5 0 0 1 27.5 27H4.5A1.5 1.5 0 0 1 3 25.5V6.5A1.5 1.5 0 0 1 4.5 5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <rect x="3" y="5" width="26" height="7" fill="#2F5BFF"/>
+  <path d="M22 7L25 10" stroke="#FFFFFF"/>
+  <path d="M25 7L22 10" stroke="#FFFFFF"/>
+  <path d="M8.5 17H23.5A0.5 0.5 0 0 1 24 17.5V22.5A0.5 0.5 0 0 1 23.5 23H8.5A0.5 0.5 0 0 1 8 22.5V17.5A0.5 0.5 0 0 1 8.5 17Z" fill="#E3E9FF" stroke="#2F5BFF"/>
+</svg>

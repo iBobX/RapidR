@@ -170,6 +170,7 @@ SUB NotifyAction(Id AS INTEGER, Index AS INTEGER, Key AS STRING)
   IF ExtToastAction(Key, Index) THEN EXIT SUB
   IF AIChatToastAction(Key, Index) THEN EXIT SUB
   IF AIMadeToastAction(Key, Index) THEN EXIT SUB
+  IF BuildToastAction(Key, Index) THEN EXIT SUB
 END SUB
 
 ' A toast went. The keyboard was on it: back to the editor.

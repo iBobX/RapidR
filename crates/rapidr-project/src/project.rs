@@ -142,6 +142,27 @@ pub struct Build {
     /// (`<program>-rust-source`); by default it's deleted.
     #[serde(skip_serializing_if = "is_false")]
     pub keep_rust: bool,
+    /// The Build dialog's systems, as `rapidr build --targets` names them
+    /// (`windows-x64`, `macos-universal`, `linux-arm64`, `web` …); empty =
+    /// never chosen (the dialog ticks this computer's system).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub build_for: Vec<String>,
+    /// How the apps are packed: `one` (everything in one zip); empty = a
+    /// zip for each system.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub pack: String,
+    /// The data files the Build dialog leaves out (their paths from the
+    /// project's folder, `/`-separated): never packed.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub leave_out: Vec<String>,
+    /// The program's source goes in the archives too (`source/`).
+    #[serde(skip_serializing_if = "is_false")]
+    pub include_source: bool,
+    /// This computer's app is built as native code (needs Rust; the Build
+    /// dialog's Advanced, desktop only); the other systems' always run the
+    /// bytecode on their runner.
+    #[serde(skip_serializing_if = "is_false")]
+    pub native: bool,
 }
 
 /// A project's output folder when it names none: `build`, in its folder.

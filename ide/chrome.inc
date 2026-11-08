@@ -530,7 +530,7 @@ SUB StudioThemeChanged
   FillProjectTree
   AnalyzeActive
   UpdateCommands
-  LayOutAppDialog
+  LayOutBuildDialog
   LayOutSettingsDialog
   LayOutPrompt PromptMany
   PickTemplate TplChosen

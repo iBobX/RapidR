@@ -29,6 +29,7 @@ use rapidr_value::Value;
 pub mod ai;
 pub mod ai_tools;
 pub mod build;
+pub mod build_plan;
 pub mod channel;
 pub mod coach;
 pub mod crash;

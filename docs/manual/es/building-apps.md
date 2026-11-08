@@ -325,19 +325,12 @@ rapidr build hello_form.rr --web --interp    # hello_form-web.zip
 rapidr bundle-bc hello_form.rr -o site.zip   # lo mismo, con el nombre que quieras
 ```
 
-**En RapidR Studio**, elige **Ejecutar > Compilar aplicación web** (en la página
-web: **Ejecutar > Compilar aplicación web (.zip)**, Ctrl+Shift+B). El programa se
-guarda, se revisa y se compila; la página **Compilación** del panel Salida enumera
-lo que entra, y termina con “✓ Se compiló hello_form-web.zip — descomprímelo en
-cualquier servidor web”. En el escritorio el zip se escribe en la carpeta de salida
-del proyecto (`build` junto al archivo del proyecto) y la última línea tiene
-**Mostrar en Finder** (Explorador de archivos, Archivos); en la página web lo
-descarga el navegador. El zip lleva el nombre del proyecto (`Notes-web.zip` para
-`Notes.rrproj`) o, si no, el del programa.
-
-![RapidR Studio en la web: el menú “Run” enumera Run, Run Without Debugging, Stop, Restart, Run in Browser y Build Web App (.zip), con Ctrl+Shift+B](../images/build-web/run-menu.png)
-
-![La página “Build” del panel “Output” después de “Build Web App”: los archivos que entran, “Saved Notes-web.zip” y la línea verde “Built Notes-web.zip — unzip on any web host”](../images/build-web/build-page.png)
+**En RapidR Studio**, elige **Ejecutar > Compilar...**, marca **Web** y compila
+(mira [Compila tu app para todos los sistemas](build-for-every-system.md)): el
+programa se guarda, se revisa y se compila, y se hace `Nombre-1.0.0-web.zip`
+junto con las aplicaciones de los otros sistemas. En el escritorio el zip se
+escribe en la carpeta de salida del proyecto (`build` junto al archivo del
+proyecto); en el Studio web lo guarda el navegador.
 
 Lo que hay en el zip:
 
@@ -364,45 +357,26 @@ navegadores no dejan que una página cargue WebAssembly desde `file://`.)
 
 ## En RapidR Studio
 
-- **Ejecutar > Compilar** (Ctrl+Shift+B, y el botón Compilar de la barra de
-  herramientas) compila la aplicación del proyecto como dice **Proyecto > Opciones
-  del proyecto** (**Compilación**: Compilada o Interpretada). **Ejecutar >
-  Compilar aplicación nativa** y **Ejecutar > Compilar aplicación interpretada** la
-  compilan de esa manera una sola vez, diga lo que diga el proyecto. Todas son
-  compilaciones finales para el sistema en el que se ejecuta Studio, en la carpeta
-  de salida del proyecto (`build` junto al archivo del proyecto, o la que nombra
-  Opciones del proyecto). Lo que imprime `rapidr build` va a la página
-  **Compilación** del panel Salida a medida que llega: la ruta de la aplicación y
-  el código fuente de Rust que se conserva son enlaces, y la última línea, “✓ Se
-  compiló Notepad.app (interpretado) en 12 s”, tiene **Mostrar en Finder**
-  (Explorador de archivos, Archivos): un clic muestra la aplicación seleccionada.
-  Una compilación que falla lo dice en rojo, después de los errores de cargo.
-  Ejecutar (F5) es la que sirve para depurar: ejecuta el programa bajo el
-  depurador de Studio, sin compilar.
-<!-- legal -->
-- **Sin Rust**, Compilar aplicación nativa pregunta primero: “Las compilaciones
-  nativas necesitan Rust (es gratuito).” **Compilar interpretada en su lugar**
-  (Enter) crea ahora la aplicación interpretada; **Instalar Rust...** ejecuta
-  `rapidr setup` y muestra lo que dice en la página Compilación (cuando termina,
-  las compilaciones nativas funcionan); **Cancelar** no hace nada. Un proyecto
-  nuevo hecho en una computadora sin Rust queda configurado para compilar de forma
-  interpretada, y Opciones del proyecto dice “(Rust sin instalar)” junto a la
-  opción Compilada.
-- **Ejecutar > Mostrar en Finder** muestra la última aplicación compilada.
-- **Proyecto > Opciones del proyecto** establece el nombre, el bundle ID, la
-  versión, la empresa y el ícono de la aplicación (con una vista previa, tal como
-  los tendrá la aplicación); si Compilar la compila de forma nativa o la hace
-  interpretada (no necesita Rust); la carpeta de salida; y **Mantener el código
-  fuente de Rust generado** (desactivado de forma predeterminada: el Rust se
-  elimina después de compilar; activado, se deja en
-  `<salida>/<programa>-rust-source` para leerlo). Se guardan en el archivo del
-  proyecto.
-- **Ejecutar > Compilar aplicación web** convierte el programa en una aplicación
-  web (mira [Compilar una aplicación web](#compilar-una-aplicación-web)). En la página web este
-  es el comando Compilar: **Ejecutar > Compilar aplicación web (.zip)**. La página
-  web no crea aplicaciones para una computadora (Compilar aplicación nativa,
-  Compilar aplicación interpretada, Mostrar): esas están en RapidR Studio en el
-  escritorio.
+- **Ejecutar > Compilar...** abre el diálogo Compilar: dónde funciona la
+  aplicación (Windows, macOS, Linux, la web), los datos y el ícono de tu
+  aplicación, qué incluye, y luego un zip por sistema, con una fila de progreso
+  por aplicación. Se explica paso a paso en
+  [Compila tu app para todos los sistemas](build-for-every-system.md). Lo que
+  imprime `rapidr build` también va a la página **Compilación** del panel Salida
+  a medida que llega. Ejecutar (F5) es la que sirve para depurar: ejecuta el
+  programa bajo el depurador de Studio, sin compilar.
+- **Ejecutar > Compilar de nuevo** (Ctrl+Shift+B, y el botón Compilar de la
+  barra de herramientas) vuelve a compilar las mismas opciones sin diálogo.
+- **Ejecutar > Mostrar las aplicaciones compiladas** muestra los últimos zips
+  compilados en Finder (Explorador de archivos, Archivos).
+- **Proyecto > Opciones del proyecto** abre el diálogo Compilar en su paso
+  **Tu aplicación**: el nombre, la versión, el autor, el copyright, la
+  descripción, el sitio web, el id. de la aplicación, la categoría, el tipo y el
+  ícono (un solo formulario, guardado en el archivo del proyecto).
+- **Código nativo** (paso 3 del diálogo, Avanzado; RapidR Studio en el
+  escritorio, no en Windows de 32 bits) también compila la aplicación de esta
+  computadora con Rust, en la carpeta de salida. Sin Rust, la compilación lo dice
+  en la página Compilación; `rapidr setup` lo instala (es gratuito).
 
 ### RapidR Studio como una aplicación, desde una copia del código fuente
 
