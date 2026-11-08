@@ -205,7 +205,7 @@ guarda un registro de accesos. Nada más sale de tu computadora: ni tu programa,
 ni tu nombre, ni lo que compilas; ni cookies ni identificadores. No se envía
 nada cuando el ejecutor está en la instalación o ya guardado. Quién es el
 responsable y cómo consultar tus datos: la política de privacidad en
-https://rapidr.dev/privacidad.
+https://rutainternet.company/privacidad.
 
 ### Sin conexión
 

@@ -76,7 +76,6 @@ docs/manual/pt-BR/windows-api.md :: RapidQ…
 docs/manual/zh-Hans/windows-api.md :: RapidR 的 RapidQ 兼容层
 docs/manual/zh-Hans/windows-api.md :: c:\rapidq\include\
 docs/manual/zh-Hans/windows-api.md :: 导入 RapidQ
-CHANGELOG.md :: RapidR's RapidQ compatibility layer
 
 # ---- values a program writes: ids, not wording ----
 # CompatMode = "rapidq" (a project kept classic-compatible) and the project

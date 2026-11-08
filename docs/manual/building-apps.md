@@ -193,7 +193,7 @@ deliver the files and to defend against attacks; RapidR keeps no access log of
 it. Nothing else leaves your computer: not your program, not your name, not
 what you build; no cookie and no identifier. Nothing is sent when the runner
 is in the install or already kept. Who is responsible and how to ask about
-your data: the privacy policy at https://rapidr.dev/en/privacy.
+your data: the privacy policy at https://rutainternet.company/en/privacy.
 
 ### Offline
 
