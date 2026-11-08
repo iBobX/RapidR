@@ -212,7 +212,7 @@ if (want("all")) {
   check("server/discover: the current revision, Studio's name", d.json.result?.supportedVersions?.[0] === MODERN && d.json.result?._meta?.["io.modelcontextprotocol/serverInfo"]?.name === "rapidr-studio", JSON.stringify(d.json));
   const list = (await call("tools/list")).json.result?.tools || [];
   const names = list.map((t) => t.name);
-  for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit", "save_version", "list_versions", "compare_versions", "restore_version", "start_versions", "how_do_i", "report_gap", "button_grid"]) {
+  for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit", "save_version", "list_versions", "compare_versions", "restore_version", "start_versions", "how_do_i", "report_gap", "button_grid", "build_app"]) {
     check(`tools/list has ${t}`, names.includes(t), names.join(","));
   }
   // (the one tool set: an old name answered, never listed — get_problems is check_code now)

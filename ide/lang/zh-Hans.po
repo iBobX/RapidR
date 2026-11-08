@@ -1923,12 +1923,20 @@ msgid "Installing Rust failed"
 msgstr "安装 Rust 失败"
 
 #: ide/build.inc
-msgid "✓ Built {file} — unzip on any web host"
-msgstr "✓ 已构建 {file}——可在任何 Web 主机上解压使用"
+msgid "✓ Built the apps in {seconds} s"
+msgstr "✓ 已构建各系统的应用，用时 {seconds} 秒"
 
 #: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
 msgstr "在 {manager} 中显示"
+
+#: ide/build.inc
+msgid "Built the apps"
+msgstr "已构建各系统的应用"
+
+#: ide/build.inc
+msgid "✓ Built {file} — unzip on any web host"
+msgstr "✓ 已构建 {file}——可在任何 Web 主机上解压使用"
 
 #: ide/build.inc
 msgid "Built {file}"
@@ -4455,6 +4463,10 @@ msgstr "你打开的项目的文件——你的代码、窗体和数据文件—
 msgid "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
 msgstr "检查代码，并读取你的程序输出的内容和 RAI 的对话。它还可以更改窗体和代码、打开其他项目、运行、调试、查看你的程序、在其中点击和输入，以及向 RAI 提问（这可能产生费用），每一项都只在你的权限模式允许时才能进行；默认会先询问你。"
 
+#: ide/mcp.inc
+msgid "Your AI provider keys or passwords: Studio keeps them out of every answer."
+msgstr "你的 AI 服务商密钥或密码：Studio 不会把它们放进任何回答。"
+
 # legal
 #: ide/mcp.inc
 msgid "Your AI provider keys or passwords: your keychain keeps them."
@@ -4464,6 +4476,10 @@ msgstr "你的 AI 服务商密钥或密码：它们由你的钥匙串保管。"
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
 msgstr "RapidR 不会把这些内容发送到任何地方，但 AI 应用可能会把它读取到的内容转交给开发它的公司，并受该公司条款约束。程序可能显示私人数据（你的或他人的），而在其中点击就相当于以你的身份操作：真实的“发送”“支付”或“删除”按钮会真的执行，所以请使用测试数据。许多 AI 应用仅限成年人使用：如果你未满 18 岁，请在家长或老师的陪同下进行设置。只连接你信任的 AI 应用。"
+
+#: ide/mcp.inc
+msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off to disconnect every AI agent. Studio keeps a list of what they did in this browser only; Clear Activity removes it."
+msgstr "只分享你可以分享的内容：作业、雇主的代码或他人受许可保护的代码可能不归你分享。关闭此项即可断开所有 AI 代理。Studio 只在此浏览器中保留它们所做操作的列表；“清除活动”可将其删除。"
 
 # legal
 #: ide/mcp.inc
@@ -4493,6 +4509,10 @@ msgstr "AI 应用：已停止。所有 AI 应用都已断开连接。"
 #: ide/mcp.inc
 msgid "AI apps: on, none connected"
 msgstr "AI 应用：已开启，暂无连接"
+
+#: ide/mcp.inc
+msgid "Offered to the AI agents of this browser tab"
+msgstr "已提供给此浏览器标签页的 AI 代理"
 
 #: ide/mcp.inc
 msgid "Waiting at {url} (this computer only)"
@@ -4657,6 +4677,10 @@ msgid "{client} wants to change {files}: {summary}"
 msgstr "{client} 想更改 {files}：{summary}"
 
 #: ide/mcp.inc
+msgid "An AI agent in this browser wants to use RapidR Studio: {what}. Studio can't tell which agent it is. Allow it for this tab only if you started it."
+msgstr "此浏览器中的一个 AI 代理想要使用 RapidR Studio：{what}。Studio 无法得知是哪个代理。只有在它是你启动的情况下，才在此标签页中允许它。"
+
+#: ide/mcp.inc
 msgid "{client} wants to run your program ({what})."
 msgstr "{client} 想运行你的程序（{what}）。"
 
@@ -4677,6 +4701,10 @@ msgstr "RAI 会自己为你工作，但对于 AI 应用提出的问题，它会�
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
 msgstr "{question}（还有 {n} 项在等待）"
+
+#: ide/mcp.inc
+msgid "&Allow for This Tab"
+msgstr "在此标签页中允许(&A)"
 
 #: ide/mcp.inc
 msgid "The program started and ended after {seconds} s (exit code {code}), with no output"
@@ -4706,6 +4734,18 @@ msgstr "在 {project} 中，AI 应用可以做什么(&D):"
 #: ide/mcp.inc
 msgid "Let AI apps use RapidR Studio?"
 msgstr "允许 AI 应用使用 RapidR Studio？"
+
+#: ide/mcp.inc
+msgid "With this on, an AI agent in this browser can work with your open project through Studio, and you see everything it does in the AI Apps pane."
+msgstr "开启后，此浏览器中的 AI 代理可以通过 Studio 处理你打开的项目，你可以在“AI 应用”窗格中看到它所做的一切。"
+
+#: ide/mcp.inc
+msgid "Who can call"
+msgstr "谁可以调用"
+
+#: ide/mcp.inc
+msgid "Any AI agent in this browser that can use this page, such as the browser's assistant or an extension. Studio can't tell which. Below you choose what they may do; the first call after the page loads asks you."
+msgstr "此浏览器中任何可以使用此页面的 AI 代理，例如浏览器自带的助手或扩展程序。Studio 无法得知是哪一个。你在下面选择它们可以做什么；页面加载后的第一次调用会先询问你。"
 
 # legal
 #: ide/mcp.inc
@@ -4769,6 +4809,42 @@ msgstr "删除 AI 应用做过的事的列表"
 #: ide/mcp.inc
 msgid "C&lear"
 msgstr "清除(&L)"
+
+#: ide/mcp.inc
+msgid "Off by default. On: the AI agents of this browser tab can work with your open project"
+msgstr "默认关闭。开启后：此浏览器标签页的 AI 代理可以处理你打开的项目"
+
+#: ide/mcp.inc
+msgid "This browser doesn't give web pages a way to offer tools to AI agents, so AI apps can't use RapidR Studio here. They can in RapidR Studio on the desktop, and in browsers that support it."
+msgstr "此浏览器没有为网页提供向 AI 代理提供工具的方式，因此 AI 应用无法在这里使用 RapidR Studio。它们可以在桌面版 RapidR Studio 中以及支持此功能的浏览器中使用。"
+
+#: ide/mcp.inc
+msgid "Learn more below: the manual says which browsers offer it."
+msgstr "详见下方：手册中列出了哪些浏览器提供此功能。"
+
+#: ide/mcp.inc
+msgid "When on, the AI agents of this browser tab (its assistant, an extension) can work with your open project; you see everything they do in the AI Apps pane (Tools > AI Apps Activity)."
+msgstr "开启后，此浏览器标签页的 AI 代理（浏览器助手、扩展程序）可以处理你打开的项目；你可以在“AI 应用”窗格（工具 > AI 应用活动）中看到它们所做的一切。"
+
+#: ide/mcp.inc
+msgid "In this browser, Studio offers its tools to the AI agents of this tab ({n} tools now). Studio can't tell which agent it is: the first call after the page loads asks you."
+msgstr "在此浏览器中，Studio 向此标签页的 AI 代理提供它的工具（当前 {n} 个工具）。Studio 无法得知是哪个代理：页面加载后的第一次调用会先询问你。"
+
+#: ide/mcp.inc
+msgid "In this browser, Studio offers its tools to the AI agents of this tab. Studio can't tell which agent it is: the first call after the page loads asks you."
+msgstr "在此浏览器中，Studio 向此标签页的 AI 代理提供它的工具。Studio 无法得知是哪个代理：页面加载后的第一次调用会先询问你。"
+
+#: ide/mcp.inc
+msgid "AI agents in this browser can't use RapidR Studio: {error}"
+msgstr "此浏览器中的 AI 代理无法使用 RapidR Studio：{error}"
+
+#: ide/mcp.inc
+msgid "AI agents in this browser tab can use RapidR Studio now; the first call asks you."
+msgstr "此浏览器标签页的 AI 代理现在可以使用 RapidR Studio；第一次调用会先询问你。"
+
+#: ide/mcp.inc
+msgid "An AI agent of this browser tab"
+msgstr "此浏览器标签页的一个 AI 代理"
 
 #: ide/notify.inc
 msgid "Notifications"
@@ -5218,6 +5294,22 @@ msgstr "演示给我看：由一个指针替你输入和点击"
 #: ide/panes.inc
 msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
 msgstr "快速绘制像素：每秒 50 帧的等离子特效和生命游戏 (SetPixels8)"
+
+#: ide/panes.inc
+msgid "RoundRect with a border and an inside in one call: a card, chips, the three forms"
+msgstr ""
+
+#: ide/panes.inc
+msgid "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Two timers: the default ticks 50 a second, one with FixedRate = 0 about 25"
+msgstr ""
+
+#: ide/panes.inc
+msgid "What an RAudioOut says when the sound goes wrong (OnError)"
+msgstr ""
 
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
@@ -6382,6 +6474,14 @@ msgid "The provider's links"
 msgstr "服务商的链接"
 
 #: ide/settings.inc
+msgid "Automatic"
+msgstr "自动"
+
+#: ide/settings.inc
+msgid "Always"
+msgstr "始终"
+
+#: ide/settings.inc
 msgid "As long as their words need"
 msgstr "按文字所需的时间"
 
@@ -6408,14 +6508,6 @@ msgstr "有帮助：标记、该行的帮助、参数名称"
 #: ide/settings.inc
 msgid "Everything: every argument's name, choices marked too"
 msgstr "全部：每个参数的名称，选项也加以标记"
-
-#: ide/settings.inc
-msgid "Automatic"
-msgstr "自动"
-
-#: ide/settings.inc
-msgid "Always"
-msgstr "始终"
 
 #: ide/settings.inc
 msgid "Add an Include Folder"
@@ -7500,71 +7592,3 @@ msgstr "MDI 应用"
 #: ide/workspace.inc
 msgid "Child windows, File and Window menus."
 msgstr "子窗口，以及“文件”和“窗口”菜单。"
-
-#: ide/mcp.inc
-msgid "Your AI provider keys or passwords: Studio keeps them out of every answer."
-msgstr "你的 AI 服务商密钥或密码：Studio 不会把它们放进任何回答。"
-
-#: ide/mcp.inc
-msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off to disconnect every AI agent. Studio keeps a list of what they did in this browser only; Clear Activity removes it."
-msgstr "只分享你可以分享的内容：作业、雇主的代码或他人受许可保护的代码可能不归你分享。关闭此项即可断开所有 AI 代理。Studio 只在此浏览器中保留它们所做操作的列表；“清除活动”可将其删除。"
-
-#: ide/mcp.inc
-msgid "Offered to the AI agents of this browser tab"
-msgstr "已提供给此浏览器标签页的 AI 代理"
-
-#: ide/mcp.inc
-msgid "An AI agent in this browser wants to use RapidR Studio: {what}. Studio can't tell which agent it is. Allow it for this tab only if you started it."
-msgstr "此浏览器中的一个 AI 代理想要使用 RapidR Studio：{what}。Studio 无法得知是哪个代理。只有在它是你启动的情况下，才在此标签页中允许它。"
-
-#: ide/mcp.inc
-msgid "&Allow for This Tab"
-msgstr "在此标签页中允许(&A)"
-
-#: ide/mcp.inc
-msgid "With this on, an AI agent in this browser can work with your open project through Studio, and you see everything it does in the AI Apps pane."
-msgstr "开启后，此浏览器中的 AI 代理可以通过 Studio 处理你打开的项目，你可以在“AI 应用”窗格中看到它所做的一切。"
-
-#: ide/mcp.inc
-msgid "Who can call"
-msgstr "谁可以调用"
-
-#: ide/mcp.inc
-msgid "Any AI agent in this browser that can use this page, such as the browser's assistant or an extension. Studio can't tell which. Below you choose what they may do; the first call after the page loads asks you."
-msgstr "此浏览器中任何可以使用此页面的 AI 代理，例如浏览器自带的助手或扩展程序。Studio 无法得知是哪一个。你在下面选择它们可以做什么；页面加载后的第一次调用会先询问你。"
-
-#: ide/mcp.inc
-msgid "Off by default. On: the AI agents of this browser tab can work with your open project"
-msgstr "默认关闭。开启后：此浏览器标签页的 AI 代理可以处理你打开的项目"
-
-#: ide/mcp.inc
-msgid "This browser doesn't give web pages a way to offer tools to AI agents, so AI apps can't use RapidR Studio here. They can in RapidR Studio on the desktop, and in browsers that support it."
-msgstr "此浏览器没有为网页提供向 AI 代理提供工具的方式，因此 AI 应用无法在这里使用 RapidR Studio。它们可以在桌面版 RapidR Studio 中以及支持此功能的浏览器中使用。"
-
-#: ide/mcp.inc
-msgid "Learn more below: the manual says which browsers offer it."
-msgstr "详见下方：手册中列出了哪些浏览器提供此功能。"
-
-#: ide/mcp.inc
-msgid "When on, the AI agents of this browser tab (its assistant, an extension) can work with your open project; you see everything they do in the AI Apps pane (Tools > AI Apps Activity)."
-msgstr "开启后，此浏览器标签页的 AI 代理（浏览器助手、扩展程序）可以处理你打开的项目；你可以在“AI 应用”窗格（工具 > AI 应用活动）中看到它们所做的一切。"
-
-#: ide/mcp.inc
-msgid "In this browser, Studio offers its tools to the AI agents of this tab ({n} tools now). Studio can't tell which agent it is: the first call after the page loads asks you."
-msgstr "在此浏览器中，Studio 向此标签页的 AI 代理提供它的工具（当前 {n} 个工具）。Studio 无法得知是哪个代理：页面加载后的第一次调用会先询问你。"
-
-#: ide/mcp.inc
-msgid "In this browser, Studio offers its tools to the AI agents of this tab. Studio can't tell which agent it is: the first call after the page loads asks you."
-msgstr "在此浏览器中，Studio 向此标签页的 AI 代理提供它的工具。Studio 无法得知是哪个代理：页面加载后的第一次调用会先询问你。"
-
-#: ide/mcp.inc
-msgid "AI agents in this browser can't use RapidR Studio: {error}"
-msgstr "此浏览器中的 AI 代理无法使用 RapidR Studio：{error}"
-
-#: ide/mcp.inc
-msgid "AI agents in this browser tab can use RapidR Studio now; the first call asks you."
-msgstr "此浏览器标签页的 AI 代理现在可以使用 RapidR Studio；第一次调用会先询问你。"
-
-#: ide/mcp.inc
-msgid "An AI agent of this browser tab"
-msgstr "此浏览器标签页的一个 AI 代理"

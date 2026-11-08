@@ -222,6 +222,22 @@ fn run_args() -> Json {
     )
 }
 
+fn build_args() -> Json {
+    schema(
+        json!({
+            "targets": {"type": "array", "items": {"type": "string", "enum": ["windows-x64", "windows-arm64", "windows-x86", "macos", "linux-x64", "linux-arm64", "web", "all"]}, "description": "the systems: windows-x64, windows-arm64, windows-x86, macos, linux-x64, linux-arm64, web, or all"},
+            "name": {"type": "string", "description": "the app's name people see"},
+            "version": {"type": "string", "description": "1.2.0"},
+            "company": {"type": "string"},
+            "copyright": {"type": "string"},
+            "description": {"type": "string", "description": "one line about the app"},
+            "website": {"type": "string", "description": "https://…"},
+            "category": {"type": "string", "enum": ["utilities", "productivity", "education", "games", "developer-tools", "graphics", "music", "video", "business", "finance", "science"]}
+        }),
+        &["targets"],
+    )
+}
+
 fn output_args() -> Json {
     schema(json!({"all": {"type": "boolean"}}), &[])
 }
@@ -558,6 +574,18 @@ pub const TOOLS: &[Spec] = &[
         description: "Runs the program as Run does (files saved first), waits up to wait seconds (5) or until it ends, and says how it went and what it printed. Refused while the code has errors. action: start, stop, restart, status; debug: true for the debugger. Example: {\"action\": \"start\"}.",
         lite: "",
         schema: run_args,
+        mcp_hint: "change",
+    },
+    Spec {
+        name: "build_app",
+        group: "runner",
+        kind: Kind::Run,
+        grant: "run",
+        handler: Handler::Studio,
+        offer: Offer::Both,
+        description: "Builds the app for the systems in targets from this computer, as Run > Build does: one zip per system (a .tar.gz for Linux) in the project's build folder, each with a README on how to open it there, and SHA256SUMS. targets: windows-x64, windows-arm64, windows-x86, macos, linux-x64, linux-arm64, web, or all. The details you give (name, version, company, copyright, description, website, category) are saved in the project first. Files are saved first; refused while the code has errors. Answers with each file made, or why a system wasn't built. Example: {\"targets\": [\"windows-x64\", \"web\"], \"version\": \"1.2.0\"}.",
+        lite: "",
+        schema: build_args,
         mcp_hint: "change",
     },
     Spec {

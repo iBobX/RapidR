@@ -1882,11 +1882,19 @@ msgid "Installing Rust failed"
 msgstr ""
 
 #: ide/build.inc
-msgid "✓ Built {file} — unzip on any web host"
+msgid "✓ Built the apps in {seconds} s"
 msgstr ""
 
 #: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Built the apps"
+msgstr ""
+
+#: ide/build.inc
+msgid "✓ Built {file} — unzip on any web host"
 msgstr ""
 
 #: ide/build.inc
@@ -5208,6 +5216,22 @@ msgstr ""
 
 #: ide/panes.inc
 msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
+msgstr ""
+
+#: ide/panes.inc
+msgid "RoundRect with a border and an inside in one call: a card, chips, the three forms"
+msgstr ""
+
+#: ide/panes.inc
+msgid "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Two timers: the default ticks 50 a second, one with FixedRate = 0 about 25"
+msgstr ""
+
+#: ide/panes.inc
+msgid "What an RAudioOut says when the sound goes wrong (OnError)"
 msgstr ""
 
 #: ide/panes.inc

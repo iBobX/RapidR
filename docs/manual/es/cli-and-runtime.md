@@ -1,4 +1,4 @@
-<!-- translated-from: cli-and-runtime.md b4520dc2e4c2bd36 -->
+<!-- translated-from: cli-and-runtime.md 42af21a65c83a62c -->
 # La CLI y el RapidR Runtime
 
 Un solo comando, `rapidr`, es el compilador, la herramienta de compilación y el
@@ -64,7 +64,8 @@ rapidr build prog.bas --web --interp       # paquete web: prog-web.zip
 | `--web`, `-w` | para el navegador (también cuando el programa dice `$APPTYPE WEB`) |
 | `--csp "connect-src https://api.example.com; …"` | (compilaciones web, y `bundle-bc`) orígenes que la Content-Security-Policy de la página añade a lo que necesitan los componentes del programa ([Compilar aplicaciones](building-apps.md#compilar-una-aplicación-web)) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | la aplicación en que se convierte y su ícono: [Compilar aplicaciones y sus íconos](building-apps.md) |
-| `--target <os>-<arch>` | una compilación interpretada para otra arquitectura, a partir de los ejecutores (runners) que incluye el SDK: en Windows `windows-x86_64` y `windows-aarch64`; en macOS `macos` (universal, el valor predeterminado), `macos-arm64`, `macos-x86_64`; en Linux la propia de la máquina (`linux-x86_64` o `linux-aarch64`). Una copia del código fuente compila con cargo el ejecutor que necesita |
+| `--target <os>-<arch>` | una compilación interpretada para otro sistema o procesador, en una carpeta (`windows-x64`, `windows-arm64`, `windows-x86`, `macos` (universal, el valor predeterminado en un Mac), `macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`; también los nombres de los ejecutores, `windows-x86_64` …), a partir del ejecutor de esta instalación o de uno descargado ([De dónde vienen los ejecutores](building-apps.md#de-dónde-vienen-los-ejecutores)). Una copia del código fuente compila con cargo el ejecutor de esta máquina |
+| `--targets <lista>` / `--all` | un zip para cada sistema de la lista (un `.tar.gz` para Linux), con su README para abrirla la primera vez y los avisos, y `SHA256SUMS`: [Compila tu app para todos los sistemas](build-for-every-system.md) |
 
 Adónde va cada cosa — la carpeta de salida: la que indicas; si no, la del
 proyecto (`[build] output`, `build` de forma predeterminada) cuando el programa

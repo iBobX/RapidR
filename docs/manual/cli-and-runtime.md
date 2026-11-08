@@ -62,7 +62,8 @@ rapidr build prog.bas --web --interp       # web bundle: prog-web.zip
 | `--web`, `-w` | for the browser (also when the program says `$APPTYPE WEB`) |
 | `--csp "connect-src https://api.example.com; …"` | (web builds, and `bundle-bc`) sources the page's Content-Security-Policy adds to what the program's components need ([Building apps](building-apps.md#build-a-web-app)) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | the app it becomes and its icon: [Building apps and their icons](building-apps.md) |
-| `--target <os>-<arch>` | an interpreted build for another architecture, from the runners the SDK ships: on Windows `windows-x86_64` and `windows-aarch64`; on macOS `macos` (universal, the default), `macos-arm64`, `macos-x86_64`; on Linux the machine's own (`linux-x86_64` or `linux-aarch64`). A source checkout builds the runner it needs with cargo |
+| `--target <os>-<arch>` | an interpreted build for another system or processor, in a folder (`windows-x64`, `windows-arm64`, `windows-x86`, `macos` (universal, the default on a Mac), `macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`; the runners' own names, `windows-x86_64` …, too), from this install's runner or a downloaded one ([Where runners come from](building-apps.md#where-runners-come-from)). A source checkout builds this machine's runner with cargo |
+| `--targets <list>` / `--all` | a zip for each system in the list (a `.tar.gz` for Linux), with its first-launch README and notices, and `SHA256SUMS`: [Build your app for every system](build-for-every-system.md) |
 
 Where things go — the output folder: the one you name, else the project's
 (`[build] output`, `build` by default) when the program has a `.rrproj`, else

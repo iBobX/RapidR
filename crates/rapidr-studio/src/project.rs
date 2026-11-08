@@ -128,6 +128,10 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "bundleid" => Value::String(m.project.build.bundle_id.clone().into()),
             "version" => Value::String(m.project.build.version.clone().into()),
             "company" => Value::String(m.project.build.company.clone().into()),
+            "copyright" => Value::String(m.project.build.copyright.clone().into()),
+            "description" => Value::String(m.project.build.description.clone().into()),
+            "website" => Value::String(m.project.build.website.clone().into()),
+            "category" => Value::String(m.project.build.category.clone().into()),
             "buildkind" => Value::String(build_kind(&m.project).to_string().into()),
             "targets" => Value::String(m.project.build.runs_on_or_default().to_string().into()),
             "outputfolder" => Value::String(m.project.build.output.clone().into()),
@@ -202,6 +206,10 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "bundleid" => m.project.build.bundle_id = v.to_string_val().trim().to_string(),
             "version" => m.project.build.version = v.to_string_val().trim().to_string(),
             "company" => m.project.build.company = v.to_string_val().trim().to_string(),
+            "copyright" => m.project.build.copyright = v.to_string_val().trim().to_string(),
+            "description" => m.project.build.description = v.to_string_val().trim().to_string(),
+            "website" => m.project.build.website = v.to_string_val().trim().to_string(),
+            "category" => m.project.build.category = v.to_string_val().trim().to_ascii_lowercase(),
             "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
             "runargs" => m.project.run.args = crate::session::split_args(&v.to_string_val()),
@@ -630,8 +638,19 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
         if !b.icon.trim().is_empty() {
             put("--icon", &join(&folder, &b.icon));
         }
+        put("--copyright", &b.copyright);
+        put("--description", &b.description);
+        put("--website", &b.website);
+        put("--category", &b.category);
         let kind = if kind.is_empty() { build_kind(&m.project) } else { kind };
-        if kind.eq_ignore_ascii_case("interpreted") {
+        // (`targets:windows-x64,macos,web`: a zip per system, interpreted)
+        let targets = kind.get(..8).filter(|p| p.eq_ignore_ascii_case("targets:")).map(|_| kind[8..].trim().to_string());
+        if let Some(list) = targets {
+            if list.is_empty() || !list.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ',' | '-' | '_')) {
+                return Err(tr_ui_fill("{list}: the systems to build for, like windows-x64,macos,linux-x64,web or all", &[("list", &list)]));
+            }
+            args.extend(["--targets".to_string(), list]);
+        } else if kind.eq_ignore_ascii_case("interpreted") {
             args.push("--interp".into());
         } else if kind.eq_ignore_ascii_case("web") {
             // (a web app: the bytecode and the web runtime, a .zip)
@@ -1502,6 +1521,18 @@ mod tests {
             assert!(args.iter().any(|a| a == want), "{want}: {args:?}");
         }
         assert!(!build_args("p1", "native").unwrap().0.contains(&"--interp".to_string()));
+        // (the app's other details; a build for other systems: --targets)
+        set("copyright", "(c) 2026 Me");
+        set("description", "Does things");
+        set("website", "https://example.com");
+        set("category", "Games");
+        assert_eq!((get("copyright"), get("category")), ("(c) 2026 Me".into(), "games".into()));
+        let args = build_args("p1", "targets:windows-x64,macos,web").unwrap().0;
+        for pair in [["--targets", "windows-x64,macos,web"], ["--copyright", "(c) 2026 Me"], ["--description", "Does things"], ["--website", "https://example.com"], ["--category", "games"]] {
+            assert!(args.windows(2).any(|w| w[0] == pair[0] && w[1] == pair[1]), "{pair:?}: {args:?}");
+        }
+        assert!(!args.contains(&"--interp".to_string()) && !args.contains(&"--web".to_string()), "{args:?}");
+        assert!(build_args("p1", "targets:").is_err() && build_args("p1", "targets:web;rm -rf").is_err());
         // (the output folder and the Rust source: the project's)
         set("outputfolder", &format!("{d}/dist/mac"));
         assert!(super::set("p1", "keeprust", &Value::Integer(-1)));

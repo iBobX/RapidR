@@ -53,6 +53,9 @@ crates/rapidr-ai/src/rai.rs :: "vb6"
 README.md :: xcode-select --install
 COMPILER_MANUAL.md :: Xcode's command-line tools
 docs/native-ui-plan.md :: Xcode builds
+# The Mach-O signer's clean-room record lists the public sources it was written from:
+# Apple's headers, as they ship with the SDK (a platform's build tool, named nominatively).
+docs/macho-signer-design.md :: (Xcode 27)
 docs/native-ui-plan.md :: Xcode or Gradle project
 tools/release/macos.sh :: Xcode's command line tools
 tools/release/macos.sh :: Xcode command line tools
