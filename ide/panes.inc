@@ -101,6 +101,13 @@ DIM MoreFile(63) AS STRING
 DIM MoreWhat(63) AS STRING
 DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
+' (the page's foot, left: a quiet link to the privacy policy — a panel Tab
+' reaches, Enter or Space opens, the word a label on it. Tab goes in the order
+' the controls were made, so these come after the cards' (and the Start rows',
+' the Recent links'): the page's last Tab stop. AddPrivacy; LayOutWelcome
+' places it)
+DIM PrivacyRow AS RPanel
+DIM PrivacyLink AS RLabel
 
 SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartRow(k).Parent = WelcomePage
@@ -120,6 +127,23 @@ SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartLink(k).Cursor = -21
   StartLink(k).Tag = k + 1
   StartLink(k).OnClick = WelcomeLink
+END SUB
+
+SUB AddPrivacy
+  PrivacyRow.Parent = WelcomePage
+  PrivacyRow.Left = 44: PrivacyRow.Top = 560: PrivacyRow.Width = 80: PrivacyRow.Height = 24
+  PrivacyRow.BevelOuter = 0
+  PrivacyRow.Cursor = -21
+  PrivacyRow.TabStop = 1
+  PrivacyRow.AccessibleName = TR$("Privacy policy")
+  PrivacyRow.AccessibleDescription = TR$("Opens the privacy policy in your browser")
+  PrivacyRow.OnClick = PrivacyRowPicked
+  PrivacyLink.Parent = PrivacyRow
+  PrivacyLink.Left = 4: PrivacyLink.Top = 3: PrivacyLink.Width = 72: PrivacyLink.Height = 18
+  PrivacyLink.Caption = TR$("Privacy")
+  PrivacyLink.Cursor = -21
+  PrivacyLink.AccessibleHidden = 1
+  PrivacyLink.OnClick = PrivacyLabelPicked
 END SUB
 
 SUB AddExample(File AS STRING, What AS STRING)
@@ -246,6 +270,7 @@ SUB FillExamples
   AddMoreExample "recipes/keyboard_matrix.rr", "Systems recipe: a keyboard matrix and an IN port"
   AddMoreExample "recipes/cpu_timing.rr", "Systems recipe: a CPU run in cycles per frame"
   AddMoreExample "recipes/frame_audio.rr", "Recipe: emulator sound from a speaker bit's flips"
+  AddPrivacy
   LayOutWelcome
 END SUB
 
@@ -277,7 +302,7 @@ SUB LayOutWelcome
   DIM cols AS INTEGER, k AS INTEGER, room AS INTEGER, w AS INTEGER, x0 AS INTEGER
   DIM rows AS INTEGER, pitch AS INTEGER, tall AS INTEGER
   DIM pageW AS INTEGER, pageH AS INTEGER, bottom AS INTEGER, pass AS INTEGER
-  DIM sw AS INTEGER, tw AS INTEGER, two AS INTEGER
+  DIM sw AS INTEGER, tw AS INTEGER, two AS INTEGER, pw AS INTEGER
   ' (Start as wide as its longest link — 200 pixels at least, English's —
   ' in the language Studio speaks: a longer one isn't cut off)
   StatusMeasure.Font.Name = LinkFont.Name: StatusMeasure.Font.Size = LinkFont.Size
@@ -292,6 +317,12 @@ SUB LayOutWelcome
   FOR k = 0 TO 5
     RecentLink(k).Width = sw + 30
   NEXT
+  ' (the Privacy link at the page's foot as wide as its word, in the
+  ' language Studio speaks; 8 pixels each side for the hand and the ring)
+  StatusMeasure.Font.Name = DimFont.Name: StatusMeasure.Font.Size = DimFont.Size
+  pw = StatusMeasure.TextWidth(PrivacyLink.Caption) + 8
+  PrivacyLink.Width = pw: PrivacyRow.Width = pw + 8
+  PrivacyLink.Top = (PrivacyRow.Height - PrivacyLink.Height) \ 2
   x0 = 44 + sw + 46
   pageW = Welcome.Width
   FOR pass = 1 TO 2
@@ -314,8 +345,8 @@ SUB LayOutWelcome
     rows = (ExampleCount + cols - 1) \ cols
     pitch = 70: tall = 58
     IF rows > 0 THEN
-      IF 168 + rows * pitch - 12 > Welcome.Height - 8 THEN
-        pitch = (Welcome.Height - 170) \ rows
+      IF 168 + rows * pitch - 12 > Welcome.Height - 36 THEN
+        pitch = (Welcome.Height - 198) \ rows
         IF pitch < 56 THEN pitch = 56
         IF pitch > 70 THEN pitch = 70
         tall = pitch - 6
@@ -332,7 +363,8 @@ SUB LayOutWelcome
       IF RecentLink(k).Visible AND RecentLink(k).Top + 20 > bottom THEN bottom = RecentLink(k).Top + 20
     NEXT
     IF RecentNone.Top + 20 > bottom THEN bottom = RecentNone.Top + 20
-    pageH = bottom + 24
+    ' (and under it the page's foot: 16, the Privacy link's row of 24, 12)
+    pageH = bottom + 52
     ' (taller than the window: laid out again beside the scroll bar)
     IF pageH <= Welcome.Height OR pass = 2 THEN EXIT FOR
     pageW = Welcome.Width - 17
@@ -340,6 +372,7 @@ SUB LayOutWelcome
   IF pageH < Welcome.Height THEN pageH = Welcome.Height
   WelcomePage.Width = pageW
   WelcomePage.Height = pageH
+  PrivacyRow.Top = pageH - 36
   ExamplesHead.Left = x0
   FOR k = 0 TO ExampleCount - 1
     ExCard(k).Left = x0 + (k MOD cols) * (w + 12)

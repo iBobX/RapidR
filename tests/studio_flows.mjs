@@ -652,13 +652,14 @@ const CASES = [
     dump: { "application.theme": /^rapidr light$/, "welcome.color": /^16777215$/ },
   },
   // (THEME-LIVE) The Welcome page's cards from the keyboard: Shift+Tab from
-  // the Project pane (where the keyboard starts) reaches the last card,
-  // the page scrolled to it; again: the one before; Enter opens it
+  // the Project pane (where the keyboard starts) reaches the page's last
+  // stop, the Privacy link; again: the last card, the page scrolled to it;
+  // again: the one before; Enter opens it
   {
     name: "welcome-cards-keyboard",
     look: "dark",
     theme: "rapidr",
-    events: "projecttree.__key_9_256,studio.__key_9_256,studio.__key_13",
+    events: "projecttree.__key_9_256,studio.__key_9_256,studio.__key_9_256,studio.__key_13",
     delay: 4,
     dump: { "studio.caption": /^notepad - RapidR Studio$/, "welcome.vertposition": /^[1-9]\d*$/, "excard(14).tabstop": /^1$/ },
   },
@@ -2310,8 +2311,8 @@ const CASES = [
     dump: { "studio.caption": /^RapidR Studio$/, "recentlink(0).tabstop": /^(1|-1)$/, "recentlink(0).visible": /^(1|-1)$/ },
   },
   // …and without it (turned off in Settings), Shift+Tab from the Project
-  // pane walks back over the example cards (17) to the same link (18 times); Enter on
-  // it opens the project, as a click does.
+  // pane walks back over the Privacy link and the example cards (17) to the
+  // same link (19 times); Enter on it opens the project, as a click does.
   {
     name: "welcome-recent-link-enter",
     open: "tests/fixtures/studio_forms/Shelf.rrproj",
@@ -2320,7 +2321,7 @@ const CASES = [
     do: "wait,view.settings,wait",
     events: "reopenbox.__mousedown_6_6,reopenbox.__mouseup_6_6,settingsokbtn.__key_13",
     delay: 4,
-    restart: { noOpen: true, do: "wait", delay: 4, events: [...Array(18).fill("studio.__key_9_256"), "studio.__key_13"].join(",") },
+    restart: { noOpen: true, do: "wait", delay: 4, events: [...Array(19).fill("studio.__key_9_256"), "studio.__key_13"].join(",") },
     dump: { "studio.caption": /^Shelf - RapidR Studio$/, "reopenrow.visible": /^0$/ },
   },
   // (S2) …Clear Recent (Alt+F, R, C): the list is empty — the menu says
@@ -2797,6 +2798,80 @@ const CASES = [
     do: "wait,about:text",
     delay: 4,
     dump: { "outputbox.text": new RegExp(`RapidR Studio \\(RapidR ${WORKSPACE_VERSION.replaceAll(".", "\\.")}\\)\\r?\\nBASIC is powerful again`) },
+  },
+  {
+    // Help > Privacy Policy and the Welcome page's Privacy link open the
+    // company's policy page in the language Studio is shown in (about:privacy
+    // says which page): English by default and for a language with no page
+    // (German, Traditional Chinese), Spanish (any es-), Portuguese (RapidR's
+    // is Brazil's, Portugal's too) and Simplified Chinese their own
+    name: "privacy-link-urls",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,about:privacy,lang:es,about:privacy,lang:es-AR,about:privacy,lang:pt-BR,about:privacy,lang:pt-PT,about:privacy,lang:zh-Hans,about:privacy,lang:zh-CN,about:privacy,lang:zh-TW,about:privacy,lang:de,about:privacy,lang:en,about:privacy",
+    delay: 14,
+    dump: {
+      "outputbox.text": new RegExp(
+        ["en/privacy", "privacidad", "privacidad", "pt/privacidade", "pt/privacidade", "zh/privacy", "zh/privacy", "en/privacy", "en/privacy", "en/privacy"]
+          .map((p) => `(?:^|\\n)https://rutainternet\\.company/${p.replace(".", "\\.")}(?:\\r?\\n|$)`)
+          .join("[\\s\\S]*?"),
+      ),
+    },
+  },
+  {
+    // the Privacy link is the Welcome page's last Tab stop, after the cards:
+    // Shift+Tab from the Project pane reaches it, the page scrolled to it,
+    // and a screen reader says its name and what Enter does; looked at in
+    // the three looks, its text judged against the page (AA)
+    name: "privacy-link-last-stop",
+    events: "projecttree.__key_9_256",
+    delay: 4,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    a11y: [["Privacy policy", "button", "focused", (n) => /privacy policy/.test(n.description || "") && (n.actions || []).includes("click")]],
+    dump: { "studio.caption": /^RapidR Studio$/ },
+  },
+  {
+    // Help > Privacy Policy is a command of the table (the palette's too):
+    // run, it is known (no "not there yet" in the Output) and Studio goes on
+    // (the desktop host only reports the page it would open under the test
+    // hooks, the web page opens a tab: neither shows in the Output)
+    name: "privacy-command",
+    do: "wait,help.privacy,about:text",
+    delay: 6,
+    dump: { "outputbox.text": /^(?![\s\S]*not there yet)[\s\S]*Copyright \(c\) 2025-2026 Ruta Internet SRL/ },
+  },
+  {
+    // the Welcome page's Privacy link: a keyboard stop named "Privacy policy"
+    // (Tab reaches it, Enter or Space opens the policy), its word the dim
+    // text's colour, at the page's foot; Enter on it is the same as the menu's
+    name: "privacy-link-welcome",
+    look: "dark",
+    theme: "rapidr",
+    events: "privacyrow.__key_13",
+    delay: 4,
+    dump: {
+      "privacyrow.tabstop": /^1$/,
+      "privacyrow.accessiblename": /^Privacy policy$/,
+      "privacyrow.accessibledescription": /^Opens the privacy policy in your browser$/,
+      "privacylink.caption": /^Privacy$/,
+      "privacylink.accessiblehidden": /^(1|-1|True)$/,
+      "studio.caption": /^RapidR Studio$/,
+    },
+  },
+  {
+    // ... and in Spanish: the word, the name a screen reader says and what
+    // Enter does, all in Studio's language
+    name: "privacy-link-welcome-es",
+    do: "wait,lang:es,wait",
+    events: "privacyrow.__key_13",
+    delay: 6,
+    dump: {
+      "privacyrow.accessiblename": /^Política de privacidad$/,
+      "privacyrow.accessibledescription": /^Abre la política de privacidad en tu navegador$/,
+      "privacylink.caption": /^Privacidad$/,
+    },
   },
   {
     // the code helpers: a colour of a sub-object, Font.Color in a CREATE body,

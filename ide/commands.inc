@@ -327,6 +327,9 @@ SUB DefineCommands
   AddCmd "help.examples", "&Examples", "Help", "", "", "", "RFORM"
   AddSep "Help"
   AddCmd "help.about", "&About RapidR Studio", "Help", "", "", "", "-"
+  ' (the company's privacy policy, in the browser, in Studio's language:
+  ' shell.inc's PrivacyUrl; the Welcome page's Privacy link does the same)
+  AddCmd "help.privacy", "&Privacy Policy", "Help", "", "", "", "lock"
   ' (the right-click menus' own: contextmenu.inc)
   DefineContextCommands
 END SUB

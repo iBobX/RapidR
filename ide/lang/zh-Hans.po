@@ -3327,6 +3327,10 @@ msgid "&About RapidR Studio"
 msgstr "关于 RapidR Studio(&A)"
 
 #: ide/commands.inc
+msgid "&Privacy Policy"
+msgstr "隐私政策(&P)"
+
+#: ide/commands.inc
 msgctxt "menubar"
 msgid "&File"
 msgstr "文件(&F)"
@@ -5714,6 +5718,18 @@ msgstr "版本"
 #: ide/panes.inc
 msgid "Example {name}: {what}"
 msgstr "示例 {name}：{what}"
+
+#: ide/panes.inc
+msgid "Privacy policy"
+msgstr "隐私政策"
+
+#: ide/panes.inc
+msgid "Opens the privacy policy in your browser"
+msgstr "在浏览器中打开隐私政策"
+
+#: ide/panes.inc
+msgid "Privacy"
+msgstr "隐私"
 
 #: ide/panes.inc
 msgid "New Project..."

@@ -56,6 +56,31 @@ SUB ShowAbout
   SHOWMESSAGE AboutText
 END SUB
 
+' The company's privacy policy page, in the language Studio is shown in:
+' Spanish (es, es-AR …), Portuguese (pt-BR, and pt-PT: RapidR's Portuguese is
+' Brazil's) and Simplified Chinese (zh-Hans, zh-CN …) have their own page,
+' every other language the English one — Traditional Chinese (zh-Hant, zh-TW,
+' zh-HK) has no catalog yet, so it reads English here too.
+FUNCTION PrivacyUrl AS STRING
+  DIM lg AS STRING, root AS STRING
+  root = "https://rutainternet.company/"
+  lg = LCASE$(Application.Language)
+  Result = root + "en/privacy"
+  IF lg = "es" OR LEFT$(lg, 3) = "es-" THEN
+    Result = root + "privacidad"
+  ELSEIF lg = "pt" OR LEFT$(lg, 3) = "pt-" THEN
+    Result = root + "pt/privacidade"
+  ELSEIF lg = "zh" OR LEFT$(lg, 3) = "zh-" THEN
+    IF INSTR(lg, "hant") = 0 AND LEFT$(lg, 5) <> "zh-tw" AND LEFT$(lg, 5) <> "zh-hk" AND LEFT$(lg, 5) <> "zh-mo" THEN Result = root + "zh/privacy"
+  END IF
+END FUNCTION
+
+' Help > Privacy Policy and the Welcome page's Privacy link: the policy in the
+' browser (a new tab on the web, without a way back to Studio).
+SUB ShowPrivacy
+  OpenWebLink PrivacyUrl
+END SUB
+
 SUB ShowShortcuts
   DIM i AS INTEGER, t AS STRING
   t = ""
@@ -310,6 +335,7 @@ SUB RunCommand(Id AS STRING)
     CASE "window.previous": Dock.PreviousDocument
     ' ---- help ----
     CASE "help.about": ShowAbout
+    CASE "help.privacy": ShowPrivacy
     CASE ELSE
       ' (a test step: import:<file or folder> — imported without the dialog)
       IF LEFT$(Id, 7) = "import:" THEN
@@ -352,6 +378,10 @@ SUB RunCommand(Id AS STRING)
       ELSEIF Id = "about:text" THEN
         ' (a test step: about:text — what Help > About says, in the Output)
         OutputLine AboutText
+      ELSEIF Id = "about:privacy" THEN
+        ' (a test step: about:privacy — the page Help > Privacy Policy opens
+        ' in Studio's language, in the Output)
+        OutputLine PrivacyUrl
       ELSEIF EditorCommand(Id) = 0 THEN
         OutputLine TR$("({id}: not there yet)", "id", Id)
       END IF
@@ -463,6 +493,15 @@ END SUB
 
 SUB StartRowPicked(Sender AS RPanel)
   StartAction Sender.Tag
+END SUB
+
+' (the Welcome page's Privacy link: by mouse, or Tab and Enter / Space)
+SUB PrivacyRowPicked(Sender AS RPanel)
+  ShowPrivacy
+END SUB
+
+SUB PrivacyLabelPicked(Sender AS RLabel)
+  ShowPrivacy
 END SUB
 
 ' (the Welcome page's Start rows: by mouse, or Tab and Enter / Space)

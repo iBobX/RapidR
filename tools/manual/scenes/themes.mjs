@@ -20,5 +20,5 @@ export const scenes = [
   { name: "status-colors-light", program: STATUS, theme: "rapidr-light", delay: 2 },
   { name: "status-colors-dark", program: STATUS, theme: "rapidr-dark", delay: 2 },
   { name: "status-colors-contrast", program: STATUS, theme: "rapidr-high-contrast", delay: 2 },
-  { name: "studio-welcome-last-card", theme: "rapidr", delay: 5, crop: [245, 68, 790, 500], env: { RAPIDR_TEST_SYSTEM_LOOK: "dark", RAPIDR_TEST_EVENTS: "projecttree.__key_9_256" } },
+  { name: "studio-welcome-last-card", theme: "rapidr", delay: 5, crop: [245, 68, 790, 500], env: { RAPIDR_TEST_SYSTEM_LOOK: "dark", RAPIDR_TEST_EVENTS: "projecttree.__key_9_256,studio.__key_9_256" } },
 ];
