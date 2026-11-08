@@ -5216,6 +5216,22 @@ msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPix
 msgstr "Pixels, rápido: um plasma e o Jogo da Vida a 50 quadros por segundo (SetPixels8)"
 
 #: ide/panes.inc
+msgid "RoundRect with a border and an inside in one call: a card, chips, the three forms"
+msgstr "RoundRect com borda e interior em uma só chamada: um cartão, chips, as três formas"
+
+#: ide/panes.inc
+msgid "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
+msgstr "CopyMode: substituir, XOR, um negativo, OR, linhas de varredura, um retângulo de seleção"
+
+#: ide/panes.inc
+msgid "Two timers: the default ticks 50 a second, one with FixedRate = 0 about 25"
+msgstr "Dois temporizadores: o padrão dispara 50 vezes por segundo, um com FixedRate = 0 cerca de 25"
+
+#: ide/panes.inc
+msgid "What an RAudioOut says when the sound goes wrong (OnError)"
+msgstr "O que um RAudioOut diz quando o som falha (OnError)"
+
+#: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr "Receita: uma calculadora com sqrt, sin, log, um manipulador para todas as teclas"
 
