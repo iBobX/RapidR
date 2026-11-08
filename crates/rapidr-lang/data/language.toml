@@ -452,8 +452,8 @@ doc = "`ON`: strings in this file understand escapes (`\\n`, `\\t`, `\\\"`, `\\\
 
 [[directive]]
 name = "$OPTION"
-syntax = "$OPTION ICON \"file\" | DECIMAL | BYREF | INKEY$ TRAPALL | EXPLICIT …"
-doc = "Program options: `ICON \"file\"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; an .ico, .icns, .png or .svg file), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`."
+syntax = "$OPTION ICON \"file\" | DECIMAL | BYREF | INKEY$ TRAPALL | EXPLICIT | WEAKTYPE ON | OFF …"
+doc = "Program options: `ICON \"file\"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; an .ico, .icns, .png or .svg file), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`, and, in a classic program (`.bas`, `.rqw`, `.rqb`), `WEAKTYPE ON` / `OFF`: with `ON` a CONST can be written again (also `Public Const`) with no error and the last value wins, even of another type, as the classic compiler has it — the VB constants files older programs include start with it ON and end with it OFF; with `OFF` (the default) a second CONST of a name is `CONST variable A already defined`. A `.rr` program has no such option."
 
 [[directive]]
 name = "$THEME"

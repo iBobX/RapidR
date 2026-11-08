@@ -34,7 +34,7 @@ example's CSV or JSON file sits beside it.
 
 In the order to read them: the language first, then windows, drawing, data,
 the debugger, media and DirectX, the network, AI, boards, classic programs,
-Windows messages, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
+Windows messages, an app for every system, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
 example is tested on (by `tests/examples_run.mjs`: every example, every way it
 claims, headless).
 
@@ -237,6 +237,7 @@ Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/ser
 |---------|---------------|---------|-----|
 | [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, classic components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
 | [shapes/shapes.bas](rapidq/shapes/shapes.bas) | An older program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
+| [weaktype/weaktype.bas](rapidq/weaktype/weaktype.bas) | A CONST written again, as a VB port does: `$OPTION WEAKTYPE ON` lets it through (the last value wins, even a text), `OFF` makes it an error ([Compatibility](../docs/manual/compatibility.md#a-const-written-again-option-weaktype)) | run · interp · native · web | `rapidr run rapidq/weaktype/weaktype.bas` |
 
 Older programs run unchanged. The other examples use RapidR's own
 names: `RButton`, `RForm`, `RStringGrid` …. To bring an older program of your
@@ -266,6 +267,7 @@ run them there for that).
 |---------|---------------|---------|-----|
 | [todo.rr](web/todo.rr) | A to-do list kept in the browser's storage (`RWebStorage`): it's there again next visit | web | `rapidr bundle-bc web/todo.rr -o todo.zip` |
 | [browser.rr](web/browser.rr) | Asking the browser with `RJavaScript.Eval`; pages in the address's `#` with `RRouter` (Back works) | web | `rapidr bundle-bc web/browser.rr -o browser.zip` |
+| [agent_tools.rr](web/agent_tools.rr) | A web app that offers its own tools to the AI agents of the browser (`RAgentTools`): a list of notes they can read, and add to once the person using the app agrees; where the browser offers no such tools the app goes on and says so ([the manual](../docs/manual/agent-tools.md)) | web | `rapidr build web/agent_tools.rr --web` |
 
 ### showcase/ — bigger programs, written from the idea alone
 

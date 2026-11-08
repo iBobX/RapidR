@@ -1179,6 +1179,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_directive(&mut self) -> Option<Statement> {
+        let at = self.pos;
         let tok = self.advance()?;
         let span_start = tok.span.start;
         let name = tok.lexeme.clone();
@@ -1187,6 +1188,23 @@ impl<'a> Parser<'a> {
             if let Some(v) = value.as_deref().map(|v| v.trim().to_ascii_uppercase()) {
                 if v.starts_with("BYREF") {
                     self.default_by_ref = true;
+                }
+                // `$OPTION WEAKTYPE ON|OFF` (rapidr_ast::rapidq_checks reads
+                // it: ON lets a CONST be defined again): RC.EXE's words for
+                // anything else after it.
+                let mut words = v.split_whitespace();
+                if words.next() == Some("WEAKTYPE") {
+                    // (a comment may follow the setting directly: `ON'why`)
+                    let raw = words.next();
+                    let comment_follows = raw.is_some_and(|w| w.contains('\''));
+                    let setting = raw.map(|w| w.split('\'').next().unwrap_or(""));
+                    if !matches!(setting, Some("ON" | "OFF")) {
+                        // (RC.EXE says nothing after `got` when there is nothing)
+                        let got = setting.filter(|g| !g.is_empty()).unwrap_or("nothing");
+                        self.error_at(at, format!("Option WEAKTYPE expected ON|OFF but got {got} — write `$OPTION WEAKTYPE ON` or `$OPTION WEAKTYPE OFF`"));
+                    } else if let Some(extra) = words.next().filter(|w| !comment_follows && !w.starts_with('\'')) {
+                        self.error_at(at, format!("Expected end-of-line but got {extra}"));
+                    }
                 }
                 if let Some(mode) = v.strip_prefix("INKEY$") {
                     // `$OPTION INKEY$ TRAPALL` / `DEFAULT`: set from here on.
