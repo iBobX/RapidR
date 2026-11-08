@@ -4135,3 +4135,11 @@ msgstr "em ordem crescente"
 #: crates/rapidr-value/src/agent_tools/mod.rs
 msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
 msgstr "Um agente de IA quer usar {tool} neste aplicativo: {what}. Permitir?"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "this import has no WIN32API.INC"
+msgstr "esta importação não tem WIN32API.INC"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing imported yet"
+msgstr "nada foi importado ainda"

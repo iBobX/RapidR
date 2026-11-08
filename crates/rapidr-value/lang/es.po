@@ -3931,7 +3931,6 @@ msgstr "Una pista mostró la solución completa demasiado pronto: Studio le pidi
 msgid "Asked for the hint without the solution"
 msgstr "Se pidió la pista sin la solución"
 
-
 msgid "Running your program"
 msgstr "Ejecutando el programa"
 
@@ -3946,15 +3945,6 @@ msgstr "Guardando una versión"
 
 msgid "Saving the version “{message}”"
 msgstr "Guardando la versión «{message}»"
-
-
-
-
-
-
-
-
-
 
 msgid "RAI applied its change to {path} (working on its own)."
 msgstr "RAI aplicó su cambio a {path} (trabajando por su cuenta)."
@@ -4178,3 +4168,11 @@ msgstr "en orden ascendente"
 #: crates/rapidr-value/src/agent_tools/mod.rs
 msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
 msgstr "Un agente de IA quiere usar {tool} en esta aplicación: {what}. ¿Lo permites?"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "this import has no WIN32API.INC"
+msgstr "esta importación no tiene WIN32API.INC"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing imported yet"
+msgstr "todavía no se importó nada"

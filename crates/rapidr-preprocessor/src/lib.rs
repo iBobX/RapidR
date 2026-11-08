@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use rapidr_diagnostics::{Diagnostic, SourceLocation, TextSpan};
 
 mod origin;
+pub mod rwin32;
 use origin::{MappedText, Output};
 pub use origin::{decode_source, encode_source, FileId, LineKind, Origin, OriginMap, OriginSpan, Segment, SourceEncoding, SourceFile};
 
@@ -22,9 +23,54 @@ impl MacroDefinition {
     }
 }
 
+/// The kind of computer a program is compiled for, as its `$IFDEF WIN64`
+/// sees it: a compile input the caller gives (the build's target, or the
+/// computer `rapidr run` runs it on), never guessed from the compiler's own.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Target {
+    /// 64-bit: every target RapidR builds for but one (Windows x64 and
+    /// ARM64, macOS, Linux, the web): `WIN64` is defined.
+    #[default]
+    Bits64,
+    /// 32-bit Windows (x86: the Windows 7 and XP downloads): no `WIN64`.
+    WindowsX86,
+}
+
+impl Target {
+    /// The target of an interpreted build's `--target` (`windows-x86`,
+    /// `windows-i686`: 32-bit Windows; anything else 64-bit).
+    pub fn of_build_target(target: &str) -> Target {
+        let t = target.to_ascii_lowercase();
+        if t.starts_with("windows-") && (t.ends_with("-x86") || t.ends_with("-i686") || t.ends_with("-i586")) {
+            Target::WindowsX86
+        } else {
+            Target::Bits64
+        }
+    }
+}
+
+static DEFAULT_TARGET: std::sync::RwLock<Target> = std::sync::RwLock::new(Target::Bits64);
+
+/// The target of every compile that doesn't give its own
+/// ([`PreprocessOptions::target`]): the CLI sets it from the command's
+/// target (`rapidr run` on 32-bit Windows: [`Target::WindowsX86`]).
+pub fn set_default_target(target: Target) {
+    if let Ok(mut t) = DEFAULT_TARGET.write() {
+        *t = target;
+    }
+}
+
+/// [`set_default_target`]'s target (64-bit until one is set).
+pub fn default_target() -> Target {
+    DEFAULT_TARGET.read().map(|t| *t).unwrap_or_default()
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct PreprocessOptions {
     pub defines: HashMap<String, String>,
+    /// What the program is compiled for (`None`: [`default_target`]):
+    /// `WIN64` is defined for a 64-bit target.
+    pub target: Option<Target>,
     /// The include folders: searched for `$INCLUDE` files after the main
     /// program's own folder, as RC.EXE's `-I` folder (RapidQ's `include\`),
     /// in order ([`include_search`]). [`preprocess_file`] adds the user's
@@ -115,6 +161,7 @@ fn normal_path(path: &str) -> String {
 
 /// State shared by a file and everything it includes: a `$DEFINE` or `$MACRO`
 /// in an include file is visible to the code after the `$INCLUDE`.
+#[derive(Clone)]
 struct PpState {
     defines: HashMap<String, String>,
     macros: HashMap<String, MacroDefinition>,
@@ -161,6 +208,13 @@ struct PpState {
     /// Recovering ([`preprocess_file_recovering`]): errors collected here,
     /// the line in error left out, and preprocessing goes on.
     errors: Option<Vec<PreprocessError>>,
+    /// `$INCLUDE "RWin32.inc"` was met (the first reading: the program is
+    /// read again with what it uses of the file, [`rwin32`]).
+    rwin32_wanted: bool,
+    /// It has been given (a second `$INCLUDE` of it gives nothing).
+    rwin32_given: bool,
+    /// The second reading: what the program gets of RWin32.inc.
+    rwin32: Option<std::rc::Rc<rwin32::Selection>>,
 }
 
 impl PpState {
@@ -169,6 +223,11 @@ impl PpState {
         // Built-in definition of the Windows version of RapidQ, which RapidR
         // emulates; programs use `$IFDEF WIN32` around their includes.
         defines.entry("WIN32".to_string()).or_insert_with(|| "WIN32".to_string());
+        // A 64-bit target (every one but 32-bit Windows, the web too):
+        // `$IFDEF WIN64` (RWin32.inc's TYPEs lay their pointers out by it).
+        if options.target.unwrap_or_else(default_target) == Target::Bits64 {
+            defines.entry("WIN64".to_string()).or_insert_with(|| "WIN64".to_string());
+        }
         Self {
             defines,
             macros: HashMap::new(),
@@ -189,6 +248,9 @@ impl PpState {
             includes: Vec::new(),
             follow_includes: true,
             errors: None,
+            rwin32_wanted: false,
+            rwin32_given: false,
+            rwin32: None,
         }
     }
 
@@ -429,7 +491,7 @@ pub enum IncludeFound {
 pub fn is_builtin_include(name: &str) -> bool {
     let n = name.trim().replace('\\', "/");
     let n = n.rsplit('/').next().unwrap_or(&n);
-    n.eq_ignore_ascii_case("RAPIDQ.INC") || LIBRARY_INCLUDES.iter().any(|(f, _)| f.eq_ignore_ascii_case(n)) || RAPIDR_LIBRARIES.iter().any(|(_, f, _)| f.eq_ignore_ascii_case(n))
+    n.eq_ignore_ascii_case("RAPIDQ.INC") || rwin32::is_rwin32(n) || LIBRARY_INCLUDES.iter().any(|(f, _)| f.eq_ignore_ascii_case(n)) || RAPIDR_LIBRARIES.iter().any(|(_, f, _)| f.eq_ignore_ascii_case(n))
 }
 
 /// One `$RESOURCE` of a program.
@@ -647,8 +709,35 @@ fn names_word(source: &str, word: &str) -> bool {
     false
 }
 
-/// The program, after RapidR's libraries for the components it names.
+/// The program, after RapidR's libraries for the components it names. A
+/// program that includes RWin32.inc is read twice: the first time with the
+/// include empty, to see what it uses and has of its own, the second with
+/// what it gets of the file ([`rwin32`]).
 fn preprocess_program(source: &str, encoding: SourceEncoding, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<Output, PreprocessError> {
+    let fresh = state.clone();
+    let out = preprocess_program_once(source, encoding, base_dir, file_path.clone(), state)?;
+    if !state.rwin32_wanted || state.rwin32.is_some() {
+        return Ok(out);
+    }
+    let rapidr_program = file_path.as_deref().is_some_and(is_rapidr_program_path);
+    let mut own = rwin32::own_names(&out.text);
+    for k in state.defines.keys() {
+        own.insert_everywhere(k.to_ascii_uppercase());
+    }
+    if rapidr_program {
+        // (RAPIDQ.INC's constants are a RapidR program's own, and so are
+        // its True and False)
+        own.values.extend(RAPIDQ_INC_CONSTANTS.iter().map(|(n, _)| n.to_ascii_uppercase()));
+    }
+    let Some(selection) = rwin32::select(&out.text, &own, rapidr_program, RAPIDQ_INC_CONSTANTS) else {
+        return Err(PreprocessError::new(format!("{}: RapidR's Windows API declarations couldn't be read here", rwin32::FILE_NAME), 1, 1, file_path.as_ref().map(|p| p.display().to_string())));
+    };
+    *state = fresh;
+    state.rwin32 = Some(std::rc::Rc::new(selection));
+    preprocess_program_once(source, encoding, base_dir, file_path, state)
+}
+
+fn preprocess_program_once(source: &str, encoding: SourceEncoding, base_dir: &Path, file_path: Option<PathBuf>, state: &mut PpState) -> Result<Output, PreprocessError> {
     let mut out = Output::default();
     state.main_dir = base_dir.to_path_buf();
     for (name, file, text) in RAPIDR_LIBRARIES {
@@ -962,6 +1051,29 @@ fn preprocess_with_state(
             let at = range.start + lead + line.find(['"', '<']).map_or(0, |q| q + 1);
             let record = |found: IncludeFound| IncludeUse { file: file_id, line: line_number, written: include_file.clone(), span: at..at + include_file.len(), found };
 
+            // RWin32.inc: RapidR's, never a file (the first reading gives
+            // nothing; the second what the program uses: preprocess_program)
+            if rwin32::is_rwin32(&include_file) {
+                state.includes.push(record(IncludeFound::BuiltIn));
+                if !state.follow_includes || std::mem::replace(&mut state.rwin32_given, true) {
+                    emit!(out, LineKind::Directive, blank());
+                    continue;
+                }
+                state.rwin32_wanted = true;
+                let Some(selection) = state.rwin32.clone() else {
+                    emit!(out, LineKind::Directive, blank());
+                    continue;
+                };
+                // (RAPIDQ.INC's Windows numbers it uses and has from nowhere
+                // else, on the include's line, as RAPIDQ.INC's own are)
+                if !selection.rapidq_constants.is_empty() {
+                    let line = selection.rapidq_constants.iter().map(|(n, v)| format!("CONST {n} = {v}")).collect::<Vec<_>>().join(" : ");
+                    out.push_line(generated(line), (file_path.clone(), line_number), (file_id, range.start, false));
+                }
+                let (lib, _) = preprocess_with_state(&selection.text, SourceEncoding::Utf8, base_dir, Some(PathBuf::from(format!("<RapidR>/{}", rwin32::FILE_NAME))), state)?;
+                out.push_output(lib, newline);
+                continue;
+            }
             // A RapidQ library RapidR has its own version of: that one, put
             // before the program already (or now).
             let short = Path::new(&include_file.replace('\\', "/")).file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_uppercase();
@@ -1828,6 +1940,7 @@ fn substitute_defines_outside_strings(line: &mut MappedText, index: &DefineIndex
 /// The `$DEFINE`s as a line's substitution tries them — longest first (the
 /// order the defines' map gave them in, among equals), as each line sorted
 /// them before — and which of them a word may be.
+#[derive(Clone)]
 struct DefineIndex {
     /// (symbol, value, symbol in lower case), longest symbol first.
     order: Vec<(String, String, String)>,

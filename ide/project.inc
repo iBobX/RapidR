@@ -294,6 +294,8 @@ SUB ImportRapidQ(Source AS STRING)
     OutputLine TR$("{file}: include file not found: {include} - {what}", "file", FIELD$(row, CHR$(9), 1), "include", FIELD$(row, CHR$(9), 2), "what", FIELD$(row, CHR$(9), 3))
   NEXT
   OutputLine TR$("The copy: {path}", "path", made)
+  ' (a classic WIN32API.INC: kept, and RWin32.inc offered — asked, never done unasked)
+  IF Proj.ImportWin32Api <> "" THEN AskUseRWin32
   OpenProject made
   OpenDocument report
   IF n > 0 THEN
@@ -301,6 +303,29 @@ SUB ImportRapidQ(Source AS STRING)
   ELSE
     SetState "stopped", TR$("Imported {file} as a copy with RapidR's names", "file", FileTitle(Source))
   END IF
+END SUB
+
+' The imported program includes a classic WIN32API.INC: it keeps working
+' with it; the user may switch the copy to RWin32.inc, RapidR's standard
+' Windows API declarations (docs/manual/windows-api.md). Keeping the file is
+' the default answer; the report lists every difference either way.
+SUB AskUseRWin32
+  DIM yes AS INTEGER, n AS STRING
+  n = Proj.ImportWin32Api
+  ConsentBegin TR$("Use RWin32.inc in the copy?"), TR$("This program includes WIN32API.INC. It keeps working as it is: the copy uses your file, as the original does.")
+  ConsentRow "info", TR$("RWin32.inc"), TR$("RapidR's one standard set of Windows API declarations, built in: generated from Microsoft's published metadata, complete, right on 64-bit and 32-bit Windows, with the classic names.")
+  ConsentRow "visible", TR$("What differs"), TR$("For the names this program uses: {n}. The import's report lists each one, so nothing changes without you seeing it.", "n", n)
+  yes = ConsentAsk("", "", TR$("&Use RWin32.inc"), TR$("Keep my file"))
+  IF yes = 0 THEN
+    OutputLine TR$("The copy keeps WIN32API.INC. The report says what RWin32.inc would change, should you want it later.")
+    EXIT SUB
+  END IF
+  IF Proj.UseRWin32() THEN
+    OutputLine TR$("The copy uses RWin32.inc now and compiles. The report lists what differs.")
+  ELSE
+    OutputLine TR$("The copy uses RWin32.inc now, but: {error}. The report lists what differs.", "error", Proj.Error)
+  END IF
+  OutputLine Proj.ImportSummary
 END SUB
 
 ' File > New Project: a form program (or a console one) where the user says.

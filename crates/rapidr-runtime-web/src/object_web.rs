@@ -504,8 +504,38 @@ pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
     // (Studio's language service and designer: `$INCLUDE`s from the page too)
     rapidr_studio::install_page_sources();
+    install_rwin32_reader();
     // (RAI: a provider's answer delivered as it streams in)
     crate::ai_web::install();
+}
+
+/// RWin32.inc, RapidR's Windows API declarations, isn't in the wasm: the
+/// compiler fetches it from beside the runtime the first time a program
+/// includes it (the page's compile and its file hooks both install this).
+pub fn install_rwin32_reader() {
+    rapidr_preprocessor::rwin32::set_reader(Some(read_rwin32));
+}
+
+/// Where RWin32.inc's compressed copy is: beside the runtime, as the fonts
+/// are (the page's `RAPIDR_FONTS` is the runtime's `fonts/`), else beside
+/// the page (a `rapidr build --web` site, a bundle).
+fn rwin32_url() -> String {
+    let file = "RWin32.inc.gz";
+    let Some(w) = web_sys::window() else { return file.into() };
+    if let Some(fonts) = js_sys::Reflect::get(&w, &JsValue::from_str("RAPIDR_FONTS")).ok().and_then(|v| v.as_string()) {
+        if let Ok(u) = web_sys::Url::new_with_base(&format!("../{file}"), &if fonts.ends_with('/') { fonts.clone() } else { format!("{fonts}/") }) {
+            return u.href();
+        }
+    }
+    let page = w.document().and_then(|d| d.base_uri().ok().flatten()).unwrap_or_default();
+    web_sys::Url::new_with_base(file, &page).map(|u| u.href()).unwrap_or_else(|_| file.into())
+}
+
+/// RWin32.inc's compressed bytes, fetched (synchronously, the page's own
+/// origin) when the preprocessor first needs them; it keeps them for the
+/// visit.
+fn read_rwin32() -> Option<Vec<u8>> {
+    web_read_file(&rwin32_url()).ok().filter(|b| b.starts_with(&[0x1f, 0x8b]))
 }
 
 /// A file's length (0 if it can't be read).

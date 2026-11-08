@@ -5311,6 +5311,12 @@ msgstr "两个定时器：默认的每秒触发 50 次，FixedRate = 0 的约 25
 msgid "What an RAudioOut says when the sound goes wrong (OnError)"
 msgstr "RAudioOut 在声音出问题时会说什么 (OnError)"
 
+msgstr ""
+
+#: ide/panes.inc
+msgid "Two timers, one with FixedRate: about 25 ticks a second against 50"
+msgstr ""
+
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr "配方：带 sqrt、sin、log 的计算器，所有按键共用一个事件处理程序"
@@ -5566,6 +5572,50 @@ msgstr[1] ""
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
 msgstr "已将 {file} 作为使用 RapidR 名称的副本导入"
+
+#: ide/project.inc
+msgid "Use RWin32.inc in the copy?"
+msgstr "在副本中使用 RWin32.inc？"
+
+#: ide/project.inc
+msgid "This program includes WIN32API.INC. It keeps working as it is: the copy uses your file, as the original does."
+msgstr "这个程序包含 WIN32API.INC。它照常工作：副本和原程序一样使用你的文件。"
+
+#: ide/project.inc
+msgid "RWin32.inc"
+msgstr "RWin32.inc"
+
+#: ide/project.inc
+msgid "RapidR's one standard set of Windows API declarations, built in: generated from Microsoft's published metadata, complete, right on 64-bit and 32-bit Windows, with the classic names."
+msgstr "RapidR 内置的统一 Windows API 声明：根据 Microsoft 发布的元数据生成，内容完整，在 64 位和 32 位 Windows 上都正确，并保留经典名称。"
+
+#: ide/project.inc
+msgid "What differs"
+msgstr "有何不同"
+
+#: ide/project.inc
+msgid "For the names this program uses: {n}. The import's report lists each one, so nothing changes without you seeing it."
+msgstr "就这个程序用到的名称而言：{n} 处。导入报告逐条列出，任何改动你都能看到。"
+
+#: ide/project.inc
+msgid "&Use RWin32.inc"
+msgstr "使用 RWin32.inc(&U)"
+
+#: ide/project.inc
+msgid "Keep my file"
+msgstr "保留我的文件"
+
+#: ide/project.inc
+msgid "The copy keeps WIN32API.INC. The report says what RWin32.inc would change, should you want it later."
+msgstr "副本保留 WIN32API.INC。报告说明了 RWin32.inc 会带来哪些变化，以后需要时可以参考。"
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now and compiles. The report lists what differs."
+msgstr "副本现在使用 RWin32.inc，并能编译。报告列出了不同之处。"
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now, but: {error}. The report lists what differs."
+msgstr "副本现在使用 RWin32.inc，但是：{error}。报告列出了不同之处。"
 
 #: ide/project.inc
 msgid "Where the new project goes"

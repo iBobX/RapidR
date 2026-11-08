@@ -22,13 +22,53 @@ use crate::{folder_of, join, slashes, Host};
 /// What an import made: the copy's project file, the copy's folder, the
 /// report's file and its one-line summary, and the includes found nowhere
 /// (a line each: file:line, the name as written, what to do — tabs between).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Imported {
     pub project: String,
     pub folder: String,
     pub report: String,
     pub summary: String,
     pub missing: String,
+    /// The import itself (its RWin32.inc offer: [`use_rwin32`]).
+    pub data: rapidr_import::ImportReport,
+}
+
+/// The copy of an import that includes WIN32API.INC switched to RWin32.inc
+/// (`rapidr_import::rwin32::switch_copy`), its report written again: the
+/// new summary line, or why it can't.
+pub fn use_rwin32<H: Host>(host: H, imported: &mut Imported) -> Result<String, String> {
+    if imported.data.rwin32.is_none() {
+        return Err(rapidr_value::i18n::tr_ui("this import has no WIN32API.INC"));
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = host;
+        rapidr_import::rwin32::switch_copy(&rapidr_import::Disk, &mut imported.data)?;
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        // (the copy is in the page's store: read in, switched, written back)
+        let folder = imported.folder.clone();
+        let files: Vec<(std::path::PathBuf, Vec<u8>)> = host
+            .list_tree(&folder)
+            .into_iter()
+            .filter_map(|rel| {
+                let p = join(&folder, &rel);
+                rapidr_value::objects::read_file(&p).ok().map(|b| (std::path::PathBuf::from(p), b))
+            })
+            .collect();
+        let mem = rapidr_import::Memory::new(files);
+        rapidr_import::rwin32::switch_copy(&mem, &mut imported.data)?;
+        for (p, bytes) in mem.written() {
+            rapidr_value::objects::write_file(&p.to_string_lossy(), &bytes)?;
+        }
+    }
+    rapidr_value::objects::write_file(&imported.report, report::markdown(&imported.data).as_bytes())?;
+    imported.summary = report::summary(&imported.data);
+    match imported.data.rwin32.as_ref().and_then(|o| o.switched.clone()) {
+        Some(Err(e)) => Err(e),
+        _ => Ok(imported.summary.clone()),
+    }
 }
 
 fn ext(path: &str) -> String {
@@ -104,7 +144,7 @@ pub fn import<H: Host>(host: H, source: &str, dest: &str) -> Result<Imported, St
             missing.push(line);
         }
     }
-    Ok(Imported { project, folder, report: report_file, summary: report::summary(&r), missing: missing.join("\n") })
+    Ok(Imported { project, folder, report: report_file, summary: report::summary(&r), missing: missing.join("\n"), data: r })
 }
 
 /// The copy's project: the `.rrproj` the import copied (a project was

@@ -118,6 +118,17 @@ rapidr run rapidq/shapes/shapes.bas
 rapidr import-rapidq rapidq/shapes/shapes.bas
 ```
 
+### A program with its own WIN32API.INC
+
+The copy keeps your `WIN32API.INC` and is checked like any other. The
+report then tells you that `RWin32.inc`, RapidR's one standard set of
+Windows API declarations, can take its place, and lists, for the names
+your program uses, everything that would differ. Nothing is switched unless
+you say so: RapidR Studio asks you after the import (**Keep my file** is
+the default answer), and `rapidr import-rapidq --rwin32` makes the switch
+in the copy and checks that it still compiles. The whole story is in
+[One standard for the Windows API](windows-api.md).
+
 ## Which files
 
 You can import one file — `.bas`, `.rqw`, `.rqb`, `.rq` (the extensions
