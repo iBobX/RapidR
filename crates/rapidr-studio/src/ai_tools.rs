@@ -660,11 +660,31 @@ fn read_file(input: &Json, p: &Project) -> Outcome {
         Ok(text) => {
             // (a key a developer wrote into a file never reaches the model)
             let text = rapidr_ai::keys::redact(&text);
+            // (a part of it: lines offset.. offset+limit-1, 1 the first — a
+            // long file read in parts, where an answer has a size limit)
+            let all: Vec<&str> = text.split_inclusive('\n').collect();
+            let total = all.len();
+            let offset = input.get("offset").and_then(Json::as_u64).filter(|n| *n > 0).map(|n| n as usize);
+            let limit = input.get("limit").and_then(Json::as_u64).filter(|n| *n > 0).map(|n| n as usize);
+            let part = offset.is_some() || limit.is_some();
+            let first = offset.unwrap_or(1).min(total + 1);
+            let last = limit.map_or(total, |l| (first - 1).saturating_add(l).min(total));
+            let text = if part { all[first - 1..last.max(first - 1)].concat() } else { text.clone() };
             let (text, cut) = clip(&text);
             let lines = text.lines().count();
             let mut out = untrusted(&format!("file:{rel}"), json!(text));
+            // (where the next part starts, said so an AI reads on)
+            let shown_last = if cut { first - 1 + text.matches('\n').count() } else { last };
             if cut {
-                out.push_str(&format!("\n(only its first {MAX_TEXT} characters)"));
+                out.push_str(&format!("\n(only its first {MAX_TEXT} characters; more: call read_file again with offset {})", shown_last + 1));
+            } else if part && total == 0 {
+                out.push_str("\n(the file is empty)");
+            } else if part && first > total {
+                out.push_str(&format!("\n(the file has {total} lines)"));
+            } else if part && last < total {
+                out.push_str(&format!("\n(lines {first} to {last} of {total}; more: call read_file again with offset {})", last + 1));
+            } else if part {
+                out.push_str(&format!("\n(lines {first} to {last} of {total}: the end of the file)"));
             }
             Outcome { content: out, is_error: false, note: format!("Read {rel} ({lines} lines)"), read: Some(format!("file:{rel}")), risk: "read", target: rel }
         }

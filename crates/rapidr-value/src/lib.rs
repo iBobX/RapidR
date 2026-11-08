@@ -78,6 +78,10 @@ pub mod sysinfo;
 pub mod i18n;
 // RNUM, RDATAFRAME, RPLOT: one implementation for every runtime.
 pub mod datascience;
+// (RapidR's) The core of the components that offer a program's tools to
+// AI agents (RMcpServer, RAgentTools): tools, calls, clients, answers — the
+// same for the desktop's HTTP transport and the browser's.
+pub mod agent_tools;
 // (Stage W3) What both runtimes' component registries give a new
 // component, and what the UI kernel reads as unset.
 pub mod component_defaults;

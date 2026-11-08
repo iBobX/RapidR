@@ -148,7 +148,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RSQLITE" | "RMYSQL" => &[DATABASE],
         "RSOCKET" | "RSERVERSOCKET" | "RHTTP" => &[NETWORK],
         "RHTTPSERVER" => &[HTTP_SERVER],
-        "RMCPSERVER" => &[MCP_SERVER],
+        "RMCPSERVER" | crate::agent_tools::AGENT_TOOLS => &[MCP_SERVER],
         "RAPPHANDS" => &[APP_HANDS],
         "RFILESTREAM" | "RMEMORYSTREAM" => &[STREAM],
         "RJSON" => &[JSON],

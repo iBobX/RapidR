@@ -120,7 +120,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/socket.svg" width="20" height="20" alt=""> | [`RSocket`](members.md#rsocket) | desktop (TCP); web (WebSocket) |
 | <img src="../icons/light/components/serversocket.svg" width="20" height="20" alt=""> | [`RServerSocket`](members.md#rserversocket) | desktop |
 | <img src="../icons/light/components/httpserver.svg" width="20" height="20" alt=""> | [`RHttpServer`](members.md#rhttpserver) | desktop |
-| <img src="../icons/light/components/mcpserver.svg" width="20" height="20" alt=""> | [`RMcpServer`](members.md#rmcpserver) | desktop |
+| <img src="../icons/light/components/mcpserver.svg" width="20" height="20" alt=""> | [`RMcpServer`](members.md#rmcpserver) | everywhere |
 | <img src="../icons/light/components/http.svg" width="20" height="20" alt=""> | [`RHttp`](members.md#rhttp) | everywhere |
 | <img src="../icons/light/components/cgi.svg" width="20" height="20" alt=""> | [`RCGI`](members.md#rcgi) | everywhere |
 | <img src="../icons/light/components/comport.svg" width="20" height="20" alt=""> | [`RComPort`](members.md#rcomport) | desktop (serial2); web (Web Serial) |
@@ -211,6 +211,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAI`](members.md#rai) | everywhere |
 | <img src="../icons/light/components/windowcapture.svg" width="20" height="20" alt=""> | [`RWindowCapture`](members.md#rwindowcapture) | everywhere |
 | <img src="../icons/light/components/apphands.svg" width="20" height="20" alt=""> | [`RAppHands`](members.md#rapphands) | everywhere |
+| <img src="../icons/light/components/agenttools.svg" width="20" height="20" alt=""> | [`RAgentTools`](members.md#ragenttools) | everywhere |
 
 ## Libraries built in
 
@@ -228,4 +229,4 @@ These objects aren't in RapidR yet. Variables of the OLE types compile as generi
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-128 components.
+129 components.

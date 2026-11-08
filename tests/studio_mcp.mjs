@@ -238,7 +238,7 @@ if (want("all")) {
   check("an earlier revision's initialize carries the same instructions", legacyInit.json.result?.instructions === instructions, String(legacyInit.json.result?.instructions || "").slice(0, 200));
   const byName = (n) => list.find((t) => t.name === n) || {};
   check("create_project and the writing tools say the open project IS the user's program", /open project IS the user's program/.test(byName("create_project").description) && /open project \(which IS the user's program\)/.test(byName("propose_edit").description) && /open project \(which IS the user's program\)/.test(byName("write_file").description) && /open project IS the user's program/.test(byName("open_project").description));
-  check("every path argument is lower case (path), open_project's too", Object.keys(byName("open_project").inputSchema?.properties || {}).join() === "path" && Object.keys(byName("read_file").inputSchema?.properties || {}).join() === "path", JSON.stringify(byName("open_project").inputSchema));
+  check("every path argument is lower case (path), open_project's too; read_file's part (offset, limit)", Object.keys(byName("open_project").inputSchema?.properties || {}).join() === "path" && Object.keys(byName("read_file").inputSchema?.properties || {}).join() === "path,offset,limit", JSON.stringify(byName("open_project").inputSchema));
 
   let r = await tool("studio_status");
   check("studio_status: the project, the permission", r.text.includes("Project: Hello") && r.text.includes("Permission: Allow everything"), r.text);

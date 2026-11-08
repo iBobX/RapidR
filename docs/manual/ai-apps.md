@@ -15,9 +15,9 @@ Model Context Protocol® and MCP™ are marks of LF Projects, LLC
 protocol it speaks. Claude Code is a product of Anthropic, PBC. RapidR is
 independent of both and is not sponsored or endorsed by them.
 
-This is RapidR Studio on the desktop. Studio in a browser can't listen for
-AI apps (a web page can't open a port); a browser way to do the same is
-planned.
+This is RapidR Studio on the desktop. In a browser, Studio offers the same
+tools, with the same permission menu, pane and activity list, to the AI
+agents of the browser instead: [In a browser](#in-a-browser).
 
 ![The AI Apps pane: an AI app's calls as they happen; in its header the soft amber No questions asked chip, the permission menu set to Allow everything and Stop, all one height; the status bar saying so](images/ai-apps/pane.png)
 
@@ -271,6 +271,37 @@ project's file it touched (never the file's text, or a picture, the text an
 AI app typed, or anything your program showed) and how it went; never a
 key, the token or your code. **Clear Activity…** in Settings > AI Apps
 removes the AI apps' lines (after asking).
+
+## In a browser
+
+RapidR Studio in a browser offers its tools to the AI agents of that browser
+tab — the browser's own assistant, an extension — through the browser API of
+the WebMCP draft of the W3C Web Machine Learning Community Group (not a W3C
+Standard; [Offer your app's tools to AI agents](agent-tools.md) has the
+browser table and the trademark note). Everything works as on the desktop
+(the permission menu, the pane, the activity list, School Lock), with these
+differences:
+
+- **No address, port or token.** Settings > AI Apps says, in one row, that
+  Studio offers its tools to the agents of this tab.
+- **Studio can't tell which agent calls**: the browser doesn't say. The pane
+  and the activity list name it *browser agent*.
+- **The first call after the page loads asks you**: *An AI agent in this
+  browser wants to use RapidR Studio*, with **Allow for This Tab** and
+  **Deny**. Until you allow it, every call is refused, saying why. Reloading
+  the page asks again; so does turning AI apps off and on.
+- **Long answers come in parts**: a browser's agent takes shorter answers,
+  so `read_file` reads a long file a part at a time (`offset`, `limit`) and
+  says where the next part starts.
+- **A browser that doesn't offer it** (most, today): the switch is off and
+  greyed, and one line says so. AI apps can still use RapidR Studio on the
+  desktop.
+
+![Settings > AI Apps in a browser: the switch on, and in place of the address and the token one row saying Studio offers its tools to the AI agents of this tab and that the first call asks](images/ai-apps/settings-web.png)
+
+![The AI Apps pane in a browser: An AI agent in this browser wants to use RapidR Studio, with Allow for This Tab and Deny](images/ai-apps/ask-web.png)
+
+![Settings > AI Apps in a browser that doesn't offer it: the switch off and greyed, one line saying why](images/ai-apps/settings-web-unsupported.png)
 
 ## Your own programs can do this too
 

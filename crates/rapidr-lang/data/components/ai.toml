@@ -238,3 +238,63 @@ methods = [
 events = [
   { name = "OnDone", params = "Id AS INTEGER, Ok AS INTEGER, Text AS STRING", doc = "Action Id is over: Ok True when it was done, Text says what was done in a sentence — or, when Ok is False, what it looked for and what is there instead, or why it couldn't (a disabled button, a window waiting for an answer in front)." },
 ]
+
+[[component]]
+name = "RAGENTTOOLS"
+display = "AgentTools"
+visual = false
+default_event = "OnToolCall"
+doc = "Lets your web app offer tools to AI agents that run in the browser, such as a browser's own assistant or an extension. It works with browsers that implement the WebMCP draft, a Draft Community Group Report of the W3C Web Machine Learning Community Group. It is a draft: it is not a W3C Standard, it can change, and today only some browsers offer it. Where a browser does not offer it, Available is 0 and your program keeps running. Add each tool with AddTool — its name, what it does in a sentence the AI reads, its arguments as a SUB's parameters and how it acts (\"read\", \"change\" …) —, then Start: each call comes to OnToolCall, one at a time, and Reply answers it (then or later). A tool that may change something asks the person using the app first (ConfirmChanges, True by default). Expose = \"read\" also lets the agents read what the app's windows show (app_components, app_get); \"write\" lets them set a property too, asked first. Every answer is checked: a key-shaped word is never sent. On the desktop the same program serves AI apps on this computer instead, over MCP with a token it makes at Start (Url and Token say where and what). What the program offers, and the privacy of its users' data, are the program's author's responsibility. RapidR's own."
+example = """
+DIM Agent AS RAgentTools
+SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
+    IF Tool = "add" THEN
+        Agent.Reply CallId, STR$(VAL(Agent.Argument("A")) + VAL(Agent.Argument("B")))
+    END IF
+END SUB
+Agent.OnToolCall = ToolCalled
+Agent.AddTool "add", "Adds two numbers.", "A AS DOUBLE, B AS DOUBLE", "read"
+IF Agent.Start THEN PRINT "Offered to AI agents"
+Agent.Stop
+"""
+properties = [
+  { name = "ConfirmChanges", type = "bool", default = 1, category = "Behavior", doc = "True (the default): a call of a tool that may change something — one AddTool didn't mark \"read\" — asks the person using the app first, in the browser's own question; if they say no, the agent is told so. False: every call comes to OnToolCall, and the program decides (MESSAGEDLG asks). On the desktop it can't ask from there: a change is refused while it is True." },
+  { name = "Expose", type = "string", default = "", values = ["", "read", "write"], category = "Behavior", doc = "What of the app's own windows the agents may use: \"\" nothing (the default); \"read\": app_components lists the windows' components — name, type, what each shows, whether it shows and is enabled — and app_get reads one property; \"write\": app_set sets one too, as the program would (asked first under ConfirmChanges). Never a component that isn't on a window, never a property that holds a credential. Set it before Start." },
+  { name = "MaxResultSize", type = "int", default = 0, range = "0..", unit = "chars", category = "Network", doc = "The longest text an answer may have; a longer one is cut, saying how much was left out. 0 (the default): 1500 in a browser, as the browsers' makers advise (an agent may refuse a longer answer); no limit on the desktop." },
+  { name = "ServerName", type = "string", default = "", doc = "The app's name as AI apps see it on the desktop (a short id: my-notes); \"\" says rapidr-app. Set it before Start." },
+  { name = "Instructions", type = "string", default = "", category = "Network", doc = "(The desktop's) A few sentences for the AI: what the tools are for and how to use them well. Set it before Start." },
+  { name = "Port", type = "int", default = 0, range = "0..65535", doc = "(The desktop's) The port AI apps connect to on this computer; 0 (the default) lets the system pick a free one, and Port says which after Start." },
+  { name = "Token", type = "string", default = "", design = false, secret = true, doc = "(The desktop's) What every AI app's request must carry; Start makes one when it is empty. Show it only to the person who sets up the AI app." },
+  { name = "Available", type = "bool", access = "read", design = false, doc = "True when it can serve here: in a browser, when the browser lets a web page offer tools to AI agents (a secure page with an origin of its own); always on the desktop." },
+  { name = "Transport", type = "string", access = "read", design = false, doc = "How it serves: \"browser\" in a browser, \"http\" on the desktop." },
+  { name = "Listening", type = "bool", access = "read", design = false, doc = "True while its tools are offered." },
+  { name = "Url", type = "string", access = "read", design = false, doc = "(The desktop's) Its address once started; \"\" in a browser." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Start, AddTool or ReplyJson failed, in plain words; \"\" when it worked." },
+  { name = "Call", type = "int", access = "read", design = false, doc = "The number of the call OnToolCall is handling: keep it to answer later." },
+  { name = "Tool", type = "string", access = "read", design = false, doc = "The tool of the call OnToolCall is handling." },
+  { name = "ClientName", type = "string", access = "read", design = false, doc = "Who calls: \"browser agent\" in a browser (the browser doesn't say which); an AI app's name on the desktop." },
+  { name = "Arguments", type = "string", access = "read", design = false, doc = "The call's arguments, as JSON (OnToolCall's Arguments)." },
+  { name = "Clients", type = "string", access = "read", design = false, doc = "Who has called, one a line: name, version, seconds since the last call and how many tools it called, a TAB between." },
+  { name = "ClientCount", type = "int", access = "read", design = false, doc = "How many have called." },
+  { name = "PendingCount", type = "int", access = "read", design = false, doc = "How many calls wait for an answer." },
+]
+methods = [
+  { name = "Start", returns = "INTEGER", value = true, effects = ["network"], test = "skip: offers tools to AI agents (tests/web_agent_tools.mjs)", doc = "Offers the tools: True when it does, False when it can't (Available is False, a port is taken) and Error says why." },
+  { name = "Stop", effects = ["network"], doc = "Takes the tools away: the calls still waiting are told." },
+  { name = "AddTool", params = "Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]", returns = "INTEGER", effects = ["state"], doc = "Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`) or a JSON Schema, and how it acts: \"read\" (it only reads), \"change\", \"delete\", \"network\", with \"untrusted\" when its answer holds what others wrote (\"read untrusted\"). Added again: replaced, also while offered. False when the name or the schema is wrong (Error says why)." },
+  { name = "RemoveTool", params = "Name AS STRING", returns = "INTEGER", effects = ["state"], doc = "Takes a tool away: True when there was one by that name." },
+  { name = "ClearTools", effects = ["state"], doc = "Takes every tool away." },
+  { name = "ToolCount", returns = "INTEGER", value = true, effects = ["none"], doc = "How many tools it offers." },
+  { name = "Reply", params = "CallId AS INTEGER, Text AS STRING, [IsError AS INTEGER]", returns = "INTEGER", effects = ["network"], doc = "Answers a call with text, marked as a failure when IsError is True (say what went wrong and what to do instead). False when that call was answered already or its agent gave up." },
+  { name = "ReplyImage", params = "CallId AS INTEGER, File AS STRING, [Text AS STRING]", returns = "INTEGER", effects = ["network", "file-read"], arg_kinds = { File = "file:image" }, doc = "Answers a call with a picture — a PNG, JPEG, GIF or WebP file (a BMP goes as PNG) — and, when given, a text." },
+  { name = "ReplyJson", params = "CallId AS INTEGER, Result AS STRING", returns = "INTEGER", effects = ["network"], doc = "Answers a call with a whole result as JSON ({\"content\": […], \"structuredContent\": {…}}): in a browser the agent gets structuredContent." },
+  { name = "Argument", params = "Name AS STRING, [CallId AS INTEGER]", returns = "STRING", effects = ["none"], doc = "One of the call's arguments as text; \"\" when it wasn't given." },
+  { name = "IsOpen", params = "CallId AS INTEGER", returns = "INTEGER", effects = ["none"], doc = "True while the call waits for an answer." },
+  { name = "Disconnect", params = "[Client AS STRING]", returns = "INTEGER", effects = ["network"], doc = "Refuses every call of the one named (everyone when none is) until the next Start." },
+]
+events = [
+  { name = "OnToolCall", params = "Tool AS STRING, Arguments AS STRING, CallId AS INTEGER", doc = "An agent calls a tool: its name, its arguments as JSON (Argument reads one) and the call's number. One at a time. Answer with Reply now, or later with the number." },
+  { name = "OnToolCancel", params = "CallId AS INTEGER", doc = "The agent gave up a call that waits: the call is gone, and Reply to it returns False." },
+  { name = "OnConnect", params = "Client AS STRING", doc = "The first call of an agent." },
+  { name = "OnDisconnect", params = "Client AS STRING", doc = "An agent was disconnected, or has been silent for 15 minutes." },
+]

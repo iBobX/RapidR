@@ -395,7 +395,7 @@ members = "RWEBVIEW RDOM RJAVASCRIPT RWEBSTORAGE RWEBAUDIO RWEBVIDEO RWEBNOTIFIC
 [toolbox-groups.ai]
 icon = "ai"
 title = "AI"
-members = "RAI RAICHAT RWINDOWCAPTURE RAPPHANDS"
+members = "RAI RAICHAT RWINDOWCAPTURE RAPPHANDS RAGENTTOOLS"
 [toolbox-groups.ide]
 icon = "ide"
 title = "IDE"

@@ -95,6 +95,10 @@ features = [
     "HashChangeEvent",
     "CustomEvent",
     "AddEventListenerOptions",
+    # (the browser's AI agents: a tool registered with its signal, a call's
+    # signal — agent_tools_web.rs)
+    "AbortController",
+    "AbortSignal",
 
     # Canvas 2D
     "CanvasRenderingContext2d",

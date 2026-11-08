@@ -4127,3 +4127,7 @@ msgstr "em ordem decrescente"
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "sorted ascending"
 msgstr "em ordem crescente"
+
+#: crates/rapidr-value/src/agent_tools/mod.rs
+msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
+msgstr "Um agente de IA quer usar {tool} neste aplicativo: {what}. Permitir?"

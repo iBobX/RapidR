@@ -1,15 +1,14 @@
-//! RMcpServer (RapidR's; desktop only): a program's tools served to AI
-//! apps over MCP's Streamable HTTP transport, on 127.0.0.1 with a token —
-//! RapidR Studio's own server is one (ide/mcp.inc), and any program can
-//! have one.
+//! RMcpServer on the desktop: its **http** transport. A program's tools
+//! served to AI apps over MCP's Streamable HTTP transport, on 127.0.0.1
+//! with a token — RapidR Studio's own server is one (ide/mcp.inc), and any
+//! program can have one.
 //!
-//! The program registers its tools (AddTool: a name, a description, the
-//! JSON Schema of its arguments) and its resources (AddResource); the
-//! component speaks the protocol itself — every message, every check —
-//! and gives the program only the calls: OnToolCall(Tool, Arguments, Call)
-//! on the program's own thread, one at a time, answered then or later
-//! with Reply / ReplyImage / ReplyJson (a call can wait for the user, and
-//! say how it goes with Progress meanwhile).
+//! What the tools are and how their calls go (the definitions, the
+//! arguments' check, the calls handed to the program one at a time, the
+//! clients, the answers) is the core's, [`rapidr_value::agent_tools`], which the
+//! web's browser transport shares (rapidr-runtime-web's `agent_tools_web.rs`).
+//! This file is only the wire: MCP's JSON-RPC messages, its sessions, the
+//! HTTP connections the answers go back on.
 //!
 //! Both eras of the protocol are answered on the same endpoint (one POST
 //! a message):
@@ -34,13 +33,14 @@
 //! The protocol is implemented here from the public specification
 //! (modelcontextprotocol.io); no SDK.
 
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, VecDeque};
-use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::sync::mpsc;
-use std::time::{Duration, Instant};
+use std::sync::OnceLock;
+use std::time::Instant;
 
-use serde_json::{json, Map, Value as Json};
+use rapidr_value::agent_tools::{self as mcp, Done, Dropped, Kind, Outcome, Queued, Refused};
+use serde_json::{json, Value as Json};
 
 use crate::httpserver::{self, Arrived, ListenOptions, Out};
 use crate::netframe::Request;
@@ -76,44 +76,46 @@ fn supported() -> Vec<&'static str> {
     MODERN.iter().chain(LEGACY).copied().collect()
 }
 
-/// A tool the program offers.
-#[derive(Clone, Debug)]
-struct ToolDef {
-    name: String,
-    description: String,
-    schema: Json,
-    annotations: Option<Json>,
-    title: String,
-}
+/// The runtime as the core sees it.
+#[derive(Clone, Copy)]
+struct Desk;
 
-/// A resource the program offers (resources/list; resources/read asks it).
-#[derive(Clone, Debug)]
-struct ResourceDef {
-    uri: String,
-    name: String,
-    description: String,
-    mime: String,
-}
-
-#[derive(Default)]
-struct Defs {
-    tools: Vec<ToolDef>,
-    resources: Vec<ResourceDef>,
-    /// Old names still answered, never listed (AddAlias): (alias, tool).
-    aliases: Vec<(String, String)>,
-    /// The program's prompts (AddPrompt): ready-made instructions an AI
-    /// app's person can pick (prompts/list, prompts/get).
-    prompts: Vec<PromptDef>,
-}
-
-/// A prompt the program offers: its name, title, what it is for, and the
-/// text it gives (one user message).
-#[derive(Clone, Debug)]
-struct PromptDef {
-    name: String,
-    title: String,
-    description: String,
-    text: String,
+impl mcp::Host for Desk {
+    fn get(self, name: &str, prop: &str) -> Value {
+        rp_comp_get(name, prop)
+    }
+    fn set(self, name: &str, prop: &str, v: Value) {
+        rp_comp_set(name, prop, v);
+    }
+    fn has_handler(self, name: &str, event: &str) -> bool {
+        crate::object::rp_has_handler(name, event)
+    }
+    fn fire_then(self, name: &str, event: &str, args: &[Value], then: Box<dyn FnOnce()>) {
+        crate::object::rp_fire_event_then(name, event, args, move |_| then());
+    }
+    fn wake(self) {
+        crate::object::rp_wake();
+    }
+    fn now(self) -> f64 {
+        static START: OnceLock<Instant> = OnceLock::new();
+        START.get_or_init(Instant::now).elapsed().as_secs_f64()
+    }
+    fn read_file(self, path: &str) -> Result<Vec<u8>, String> {
+        std::fs::read(path).map_err(|e| e.to_string())
+    }
+    // (a key a program's tool read never reaches an AI app)
+    fn scrub(self, text: &str) -> String {
+        rapidr_ai::keys::redact(text)
+    }
+    fn components(self) -> Vec<(String, String)> {
+        crate::object::all_components()
+    }
+    fn program_set(self, name: &str, prop: &str, v: Value) {
+        crate::object::rp_prop_set(name, prop, v);
+    }
+    // (ConfirmChanges: the desktop's AI apps connect with the token the
+    // person gave them; a change asks in OnToolCall — MESSAGEDLG — with
+    // ConfirmChanges = False: from here no window may be opened)
 }
 
 /// An earlier revision's session (initialize's Mcp-Session-Id).
@@ -122,88 +124,32 @@ struct Session {
     protocol: String,
 }
 
-/// An AI app the server has heard from.
-struct Client {
-    name: String,
-    version: String,
-    last: Instant,
-    calls: u64,
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Kind {
-    Tool,
-    Resource,
-}
-
-/// A call the program hasn't answered yet.
-struct Call {
-    conn: mpsc::Sender<Out>,
-    request: Request,
-    /// The JSON-RPC id.
-    id: Json,
-    kind: Kind,
-    /// The tool's name, or the resource's URI.
-    name: String,
-    args: Json,
-    client: String,
-    modern: bool,
-    /// The client takes an event stream as the answer.
-    events: bool,
-    progress: Option<Json>,
-    /// Once its answer is a stream: whether its events go as chunks.
-    stream: Option<bool>,
-}
-
-struct Server {
+/// The http transport's own part of a server: its listener, the
+/// connections' messages, its address's path, the earlier revisions'
+/// sessions.
+struct Http {
     running: httpserver::Accepting,
     events: mpsc::Receiver<Arrived>,
     path: String,
-    info: Info,
     sessions: HashMap<String, Session>,
-    clients: Vec<Client>,
-    /// The AI apps the program disconnected (lowercase names): refused
-    /// until the server starts again.
-    shut_out: Vec<String>,
-    calls: HashMap<i64, Call>,
-    /// Calls whose OnToolCall / OnReadResource hasn't run yet.
-    queue: VecDeque<i64>,
-    busy: Rc<Cell<bool>>,
-    idle: Duration,
-}
-
-/// What the server says it is.
-#[derive(Clone, Default)]
-struct Info {
-    name: String,
-    title: String,
-    version: String,
-    instructions: String,
 }
 
 thread_local! {
-    static SERVERS: RefCell<HashMap<String, Server>> = RefCell::new(HashMap::new());
-    static DEFS: RefCell<HashMap<String, Defs>> = RefCell::new(HashMap::new());
+    static SERVERS: RefCell<HashMap<String, Http>> = RefCell::new(HashMap::new());
 }
 
-fn with_server<R>(name: &str, f: impl FnOnce(&mut Server) -> R) -> Option<R> {
+fn with_http<R>(name: &str, f: impl FnOnce(&mut Http) -> R) -> Option<R> {
     SERVERS.with(|s| s.borrow_mut().get_mut(name).map(f))
-}
-
-fn with_defs<R>(name: &str, f: impl FnOnce(&mut Defs) -> R) -> R {
-    DEFS.with(|d| f(d.borrow_mut().entry(name.to_string()).or_default()))
 }
 
 fn prop_text(name: &str, prop: &str) -> String {
     rp_comp_get(name, prop).to_string_val()
 }
 
-/// RMcpServer `name`'s method.
+/// RMcpServer `name`'s method: the transport's own (Start, Stop, NewToken,
+/// Disconnect's sessions), else the core's.
 pub fn method(name: &str, method: &str, args: &[Value]) -> Value {
     let name = name.to_lowercase();
-    let text = |i: usize| args.get(i).map(Value::to_string_val).unwrap_or_default();
-    let flag = |i: usize| args.get(i).is_some_and(Value::to_bool);
-    let call = |i: usize| call_arg(&name, args, i);
     match method {
         "start" => start(&name),
         "stop" => {
@@ -211,51 +157,28 @@ pub fn method(name: &str, method: &str, args: &[Value]) -> Value {
             v_null()
         }
         "newtoken" => v_str(&new_token(&name)),
-        "addtool" => v_int(add_tool(&name, &text(0), &text(1), &text(2), &text(3)) as i64),
-        "removetool" => v_int(with_defs(&name, |d| {
-            let n = d.tools.len();
-            let t = text(0);
-            d.tools.retain(|x| !x.name.eq_ignore_ascii_case(&t));
-            d.tools.len() != n
-        }) as i64),
-        "cleartools" => {
-            with_defs(&name, |d| {
-                d.tools.clear();
-                d.aliases.clear();
+        "disconnect" => {
+            let who = args.first().map(Value::to_string_val).unwrap_or_default();
+            // (its sessions end with it)
+            let out = mcp::disconnect(Desk, &name, &who, |out| {
+                with_http(&name, |h| h.sessions.retain(|_, x| !out.iter().any(|n| n.eq_ignore_ascii_case(&x.client))));
             });
-            v_null()
+            v_int(out.is_some() as i64)
         }
-        "addalias" => v_int(add_alias(&name, &text(0), &text(1)) as i64),
-        "addprompt" => v_int(add_prompt(&name, &text(0), &text(1), &text(2), &text(3)) as i64),
-        "clearprompts" => {
-            with_defs(&name, |d| d.prompts.clear());
-            v_null()
-        }
-        "toolcount" => v_int(with_defs(&name, |d| d.tools.len()) as i64),
-        "addresource" => v_int(add_resource(&name, &text(0), &text(1), &text(2), &text(3)) as i64),
-        "clearresources" => {
-            with_defs(&name, |d| d.resources.clear());
-            v_null()
-        }
-        "reply" => v_int(reply_text(&name, call(0), &text(1), flag(2)) as i64),
-        "replyimage" => v_int(reply_image(&name, call(0), &text(1), &text(2)) as i64),
-        "replyjson" => v_int(reply_json(&name, call(0), &text(1)) as i64),
-        "progress" => v_int(progress(&name, call(0), &text(1), args.get(2).map(Value::to_f64), args.get(3).map(Value::to_f64)) as i64),
-        "argument" => v_str(&argument(&name, &text(0), call_arg(&name, args, 1))),
-        "isopen" => v_int(with_server(&name, |s| s.calls.contains_key(&call(0))).unwrap_or(false) as i64),
-        "disconnect" => v_int(disconnect(&name, &text(0)) as i64),
-        _ => {
+        _ => mcp::method(Desk, &name, method, args).unwrap_or_else(|| {
             eprintln!("[WARN] RMcpServer.{method}() not implemented");
             v_null()
-        }
+        }),
     }
 }
 
-/// A method's Call argument (at `at`), else the call being handled.
-fn call_arg(name: &str, args: &[Value], at: usize) -> i64 {
-    match args.get(at) {
-        Some(v) if !matches!(v, Value::Null) && !v.to_string_val().is_empty() => v.to_i64(),
-        _ => rp_comp_get(name, "call").to_i64(),
+/// RMcpServer's properties the transport answers: Available (always, on
+/// the desktop), Transport ("http").
+pub fn get(prop: &str) -> Option<Value> {
+    match prop {
+        "available" => Some(v_int(1)),
+        "transport" => Some(v_str("http")),
+        _ => None,
     }
 }
 
@@ -272,178 +195,6 @@ fn new_token(name: &str) -> String {
     }
 }
 
-/// AddTool: a tool named `tool` (letters, digits, `_`, `-`, `.`), what it
-/// does, the JSON Schema of its arguments ("" — none) and how it acts:
-/// "read" (it only reads), "change", "delete" … or annotations as JSON.
-/// Added again: replaced, in its place. False (Error says why) when the
-/// name or the schema isn't right.
-fn add_tool(name: &str, tool: &str, description: &str, schema: &str, how: &str) -> bool {
-    let tool = tool.trim();
-    let fail = |why: String| {
-        rp_comp_set(name, "error", v_str(&why));
-        false
-    };
-    if tool.is_empty() || tool.len() > 128 || !tool.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')) {
-        return fail(format!("AddTool: \"{tool}\" isn't a tool name (1 to 128 letters, digits, _ - .)"));
-    }
-    let schema = if schema.trim().is_empty() {
-        // ("properties": {} said: valid MCP without it, but a model server that builds a grammar from the
-        // tool's schema — Ollama, for some models — refuses a list with `properties must be an object`:
-        // found by tools/ai_eval, where one of eight local models couldn't use any of the 26 tools)
-        json!({"type": "object", "properties": {}, "additionalProperties": false})
-    } else if !schema.trim_start().starts_with('{') {
-        // (a SUB's parameter list: `Text AS STRING, [Count AS INTEGER]`)
-        match params_schema(schema) {
-            Ok(v) => v,
-            Err(why) => return fail(format!("AddTool {tool}: {why}")),
-        }
-    } else {
-        match serde_json::from_str::<Json>(schema) {
-            Ok(v) if v.is_object() => v,
-            Ok(_) => return fail(format!("AddTool {tool}: its schema must be a JSON object ({{\"type\": \"object\", \"properties\": …}})")),
-            Err(e) => return fail(format!("AddTool {tool}: its schema isn't JSON ({e})")),
-        }
-    };
-    let how = how.trim();
-    let annotations = if how.starts_with('{') {
-        match serde_json::from_str::<Json>(how) {
-            Ok(v) if v.is_object() => Some(v),
-            _ => return fail(format!("AddTool {tool}: its annotations aren't a JSON object")),
-        }
-    } else {
-        match how.to_ascii_lowercase().as_str() {
-            "" => None,
-            "read" => Some(json!({"readOnlyHint": true, "openWorldHint": false})),
-            "change" => Some(json!({"readOnlyHint": false, "destructiveHint": false, "openWorldHint": false})),
-            "delete" | "destructive" => Some(json!({"readOnlyHint": false, "destructiveHint": true, "openWorldHint": false})),
-            "network" => Some(json!({"readOnlyHint": false, "openWorldHint": true})),
-            other => return fail(format!("AddTool {tool}: \"{other}\" isn't read, change, delete, network or annotations in JSON")),
-        }
-    };
-    let title = annotations.as_ref().and_then(|a| a.get("title")).and_then(Json::as_str).unwrap_or("").to_string();
-    let def = ToolDef { name: tool.to_string(), description: description.to_string(), schema, annotations, title };
-    with_defs(name, |d| match d.tools.iter_mut().find(|t| t.name == def.name) {
-        Some(t) => *t = def,
-        None => d.tools.push(def),
-    });
-    true
-}
-
-/// A tool's arguments written as a SUB's parameters — `Text AS STRING,
-/// [Count AS INTEGER]`, `[ ]` around the optional ones — as the JSON
-/// Schema AI apps read. STRING; INTEGER, LONG, SHORT, BYTE, WORD, DWORD;
-/// SINGLE, DOUBLE, NUMBER; BOOLEAN; LIST; OBJECT.
-fn params_schema(text: &str) -> Result<Json, String> {
-    let mut props = Map::new();
-    let mut required = Vec::new();
-    for part in text.split(',').map(str::trim).filter(|p| !p.is_empty()) {
-        let optional = part.starts_with('[') && part.ends_with(']');
-        let part = part.trim_start_matches('[').trim_end_matches(']').trim();
-        let words: Vec<&str> = part.split_whitespace().collect();
-        let (key, kind) = match words.as_slice() {
-            [k] => (*k, "STRING"),
-            [k, as_, t] if as_.eq_ignore_ascii_case("as") => (*k, *t),
-            _ => return Err(format!("\"{part}\" isn't Name AS TYPE")),
-        };
-        let key = key.trim_end_matches('$');
-        if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-            return Err(format!("\"{key}\" isn't an argument's name"));
-        }
-        let t = match kind.to_ascii_uppercase().as_str() {
-            "STRING" => "string",
-            "INTEGER" | "LONG" | "SHORT" | "BYTE" | "WORD" | "DWORD" | "INT64" | "UINT64" => "integer",
-            "SINGLE" | "DOUBLE" | "NUMBER" => "number",
-            "BOOLEAN" | "BOOL" => "boolean",
-            "LIST" | "ARRAY" => "array",
-            "OBJECT" => "object",
-            other => return Err(format!("{key}'s type {other} isn't STRING, INTEGER, DOUBLE, BOOLEAN, LIST or OBJECT")),
-        };
-        props.insert(key.to_string(), json!({"type": t}));
-        if !optional {
-            required.push(json!(key));
-        }
-    }
-    Ok(json!({"type": "object", "properties": props, "required": required, "additionalProperties": false}))
-}
-
-/// AddAlias: calls of `alias` (an old name a connected AI app may still
-/// use) are calls of `tool`, which the program gets under the tool's own
-/// name; the alias is never listed. False (Error says why) when either
-/// isn't a tool name.
-fn add_alias(name: &str, alias: &str, tool: &str) -> bool {
-    let (alias, tool) = (alias.trim(), tool.trim());
-    let good = |t: &str| !t.is_empty() && t.len() <= 128 && t.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'));
-    if !good(alias) || !good(tool) || alias == tool {
-        rp_comp_set(name, "error", v_str(&format!("AddAlias: \"{alias}\" for \"{tool}\" isn't an old name for a tool")));
-        return false;
-    }
-    with_defs(name, |d| {
-        d.aliases.retain(|(a, _)| a != alias);
-        d.aliases.push((alias.to_string(), tool.to_string()));
-    });
-    true
-}
-
-/// AddPrompt: a ready-made instruction the AI app's person can pick (MCP's
-/// prompts) — its name (letters, digits, _ - .), title, what it is for, and
-/// its text, given as one user message. Added again: replaced.
-fn add_prompt(name: &str, prompt: &str, title: &str, description: &str, text: &str) -> bool {
-    let prompt = prompt.trim();
-    if prompt.is_empty() || prompt.len() > 128 || !prompt.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')) {
-        rp_comp_set(name, "error", v_str(&format!("AddPrompt: \"{prompt}\" isn't a prompt name (1 to 128 letters, digits, _ - .)")));
-        return false;
-    }
-    if text.trim().is_empty() {
-        rp_comp_set(name, "error", v_str(&format!("AddPrompt {prompt}: its text is empty")));
-        return false;
-    }
-    let def = PromptDef { name: prompt.to_string(), title: title.trim().to_string(), description: description.to_string(), text: text.to_string() };
-    with_defs(name, |d| match d.prompts.iter_mut().find(|p| p.name == def.name) {
-        Some(p) => *p = def,
-        None => d.prompts.push(def),
-    });
-    true
-}
-
-fn prompts_list(name: &str) -> Json {
-    let list: Vec<Json> = with_defs(name, |d| {
-        d.prompts
-            .iter()
-            .map(|p| {
-                let mut j = json!({"name": p.name, "description": p.description, "arguments": []});
-                if !p.title.is_empty() {
-                    j["title"] = json!(p.title);
-                }
-                j
-            })
-            .collect()
-    });
-    json!({"prompts": list})
-}
-
-/// prompts/get: the prompt's text as one user message, or why not.
-fn prompts_get(name: &str, body: &Json) -> Result<Json, String> {
-    let wanted = body.pointer("/params/name").and_then(Json::as_str).unwrap_or("");
-    match with_defs(name, |d| d.prompts.iter().find(|p| p.name == wanted).cloned()) {
-        Some(p) => Ok(json!({"description": p.description, "messages": [{"role": "user", "content": {"type": "text", "text": p.text}}]})),
-        None => Err(format!("Unknown prompt: {wanted}. The prompts are: {}.", with_defs(name, |d| d.prompts.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ")))),
-    }
-}
-
-fn add_resource(name: &str, uri: &str, title: &str, description: &str, mime: &str) -> bool {
-    let uri = uri.trim();
-    if uri.is_empty() || !uri.contains(':') {
-        rp_comp_set(name, "error", v_str(&format!("AddResource: \"{uri}\" isn't a URI (scheme:…, as file:///notes.txt or app://status)")));
-        return false;
-    }
-    let def = ResourceDef { uri: uri.to_string(), name: if title.trim().is_empty() { uri.to_string() } else { title.trim().to_string() }, description: description.to_string(), mime: if mime.trim().is_empty() { "text/plain".into() } else { mime.trim().to_string() } };
-    with_defs(name, |d| match d.resources.iter_mut().find(|r| r.uri == def.uri) {
-        Some(r) => *r = def,
-        None => d.resources.push(def),
-    });
-    true
-}
-
 fn failed(name: &str, why: String) -> Value {
     eprintln!("[McpServer] {why}");
     rp_comp_set(name, "error", v_str(&why));
@@ -453,6 +204,11 @@ fn failed(name: &str, why: String) -> Value {
 
 fn start(name: &str) -> Value {
     stop(name);
+    // (RAgentTools: a token of its own when none is set — the program reads
+    // it, never a log)
+    if crate::object::rp_comp_type(name).eq_ignore_ascii_case(rapidr_value::agent_tools::AGENT_TOOLS) && prop_text(name, "token").trim().is_empty() {
+        new_token(name);
+    }
     let mut options = ListenOptions::of(name);
     if options.token.is_empty() {
         return failed(name, "Set a Token before Start (NewToken makes one): an MCP server always needs one, so only the AI apps you give it to can call the program's tools.".into());
@@ -476,58 +232,22 @@ fn start(name: &str) -> Value {
         path.insert(0, '/');
     }
     let idle = rp_comp_get(name, "idleseconds").to_f64();
-    let info = Info {
-        name: {
-            let n = prop_text(name, "servername").trim().to_string();
-            if n.is_empty() { "rapidr-app".into() } else { n }
-        },
-        title: prop_text(name, "servertitle").trim().to_string(),
-        version: {
-            let v = prop_text(name, "serverversion").trim().to_string();
-            if v.is_empty() { "1.0".into() } else { v }
-        },
-        instructions: prop_text(name, "instructions"),
-    };
     let url = format!("{}{}", l.url.trim_end_matches('/'), path);
-    SERVERS.with(|s| {
-        s.borrow_mut().insert(
-            name.to_string(),
-            Server {
-                running: l.running,
-                events: l.events,
-                path,
-                info,
-                sessions: HashMap::new(),
-                clients: Vec::new(),
-                shut_out: Vec::new(),
-                calls: HashMap::new(),
-                queue: VecDeque::new(),
-                busy: Rc::new(Cell::new(false)),
-                idle: Duration::from_secs_f64(if idle > 0.0 { idle } else { 15.0 * 60.0 }),
-            },
-        )
-    });
+    SERVERS.with(|s| s.borrow_mut().insert(name.to_string(), Http { running: l.running, events: l.events, path, sessions: HashMap::new() }));
+    mcp::open(Desk, name, mcp::Info::of(Desk, name), idle);
     rp_comp_set(name, "port", v_int(i64::from(l.port)));
     rp_comp_set(name, "url", v_str(&url));
     rp_comp_set(name, "error", v_str(""));
     rp_comp_set(name, "listening", v_int(1));
-    publish_clients(name);
     v_int(1)
 }
 
 fn stop(name: &str) {
-    if let Some(mut s) = SERVERS.with(|s| s.borrow_mut().remove(name)) {
-        s.running.stop();
-        // (each call still waiting: told, then closed)
-        for (_, c) in s.calls.drain() {
-            let answer = error_message(&c.id, INTERNAL_ERROR, "The server stopped before this call was answered.");
-            finish_call(c, &answer);
-        }
-        rp_comp_set(name, "listening", v_int(0));
-        rp_comp_set(name, "clients", v_str(""));
-        rp_comp_set(name, "clientcount", v_int(0));
-        rp_comp_set(name, "pendingcount", v_int(0));
+    if let Some(mut h) = SERVERS.with(|s| s.borrow_mut().remove(name)) {
+        h.running.stop();
     }
+    // (each call still waiting: told, then closed)
+    mcp::close(Desk, name);
 }
 
 /// Whether a server is listening.
@@ -547,11 +267,10 @@ pub fn poll() -> bool {
 
 fn poll_one(name: &str) {
     loop {
-        let Some(a) = with_server(name, |s| s.events.try_recv().ok()).flatten() else { break };
+        let Some(a) = with_http(name, |s| s.events.try_recv().ok()).flatten() else { break };
         arrived(name, a);
     }
-    idle_check(name);
-    next_call(name);
+    mcp::poll(Desk, name);
 }
 
 // ---------------------------------------------------------------- answers --
@@ -601,125 +320,68 @@ fn send_plain(a: &Arrived, status: u16, extra: &[(&str, &str)], body: &str) {
     httpserver::write_response(&a.conn, &a.request, status, headers, body.as_bytes());
 }
 
-/// A call's answer written: as the last event of its stream, or as JSON.
-fn finish_call(c: Call, message: &Json) -> bool {
-    let text = ascii(message);
-    match c.stream {
-        Some(chunked) => httpserver::write_event(&c.conn, chunked, &text, "message") && httpserver::write_stream_end(&c.conn, &c.request, chunked),
-        None => httpserver::write_response(&c.conn, &c.request, 200, vec![("Content-Type".into(), "application/json".into())], text.as_bytes()),
+/// Where one call's answer goes: its connection, as JSON or as the last
+/// event of its stream.
+struct Reply {
+    conn: mpsc::Sender<Out>,
+    request: Request,
+    /// The JSON-RPC id.
+    id: Json,
+    modern: bool,
+    /// The client takes an event stream as the answer.
+    events: bool,
+    progress: Option<Json>,
+    /// Once its answer is a stream: whether its events go as chunks.
+    stream: Option<bool>,
+}
+
+impl Reply {
+    fn send(&self, message: &Json) -> bool {
+        let text = ascii(message);
+        match self.stream {
+            Some(chunked) => httpserver::write_event(&self.conn, chunked, &text, "message") && httpserver::write_stream_end(&self.conn, &self.request, chunked),
+            None => httpserver::write_response(&self.conn, &self.request, 200, vec![("Content-Type".into(), "application/json".into())], text.as_bytes()),
+        }
     }
 }
 
-/// The program's answer to call `id`: its result (a tool's, a resource's).
-fn answer(name: &str, id: i64, mut result: Json, failed_text: Option<&str>) -> bool {
-    let Some(c) = with_server(name, |s| s.calls.remove(&id)).flatten() else { return false };
-    let message = match (c.kind, failed_text) {
-        (Kind::Resource, Some(why)) => error_message(&c.id, INTERNAL_ERROR, why),
-        _ => {
-            if c.modern {
-                if let Some(o) = result.as_object_mut() {
-                    o.entry("resultType").or_insert(json!("complete"));
+impl mcp::Sink for Reply {
+    fn finish(self: Box<Self>, done: Done) -> bool {
+        let message = match done {
+            Done::Answer { kind: Kind::Resource, outcome: Outcome::Text { text, error: true }, .. } => error_message(&self.id, INTERNAL_ERROR, &text),
+            Done::Answer { kind, target, mime, outcome } => {
+                let mut result = match (kind, outcome) {
+                    (Kind::Resource, Outcome::Text { text, .. }) => json!({"contents": [{"uri": target, "mimeType": mime, "text": text}]}),
+                    (_, other) => other.mcp_tool_result(),
+                };
+                if self.modern {
+                    if let Some(o) = result.as_object_mut() {
+                        o.entry("resultType").or_insert(json!("complete"));
+                    }
                 }
+                result_message(&self.id, result)
             }
-            result_message(&c.id, result)
-        }
-    };
-    let ok = finish_call(c, &message);
-    let left = with_server(name, |s| s.calls.len()).unwrap_or(0);
-    rp_comp_set(name, "pendingcount", v_int(left as i64));
-    ok
-}
-
-/// Reply: a call answered with text (a tool's result, marked as an error
-/// when `failed`; a resource's contents).
-fn reply_text(name: &str, id: i64, text: &str, failed: bool) -> bool {
-    let Some((kind, uri, mime)) = with_server(name, |s| {
-        s.calls.get(&id).map(|c| {
-            let mime = with_defs(name, |d| d.resources.iter().find(|r| r.uri == c.name).map(|r| r.mime.clone())).unwrap_or_else(|| "text/plain".into());
-            (c.kind, c.name.clone(), mime)
-        })
-    })
-    .flatten() else {
-        return false;
-    };
-    match kind {
-        Kind::Tool => {
-            let mut r = json!({"content": [{"type": "text", "text": text}]});
-            if failed {
-                r["isError"] = json!(true);
-            }
-            answer(name, id, r, None)
-        }
-        Kind::Resource if failed => answer(name, id, Json::Null, Some(text)),
-        Kind::Resource => answer(name, id, json!({"contents": [{"uri": uri, "mimeType": mime, "text": text}]}), None),
+            Done::Dropped(Dropped::Stopped) => error_message(&self.id, INTERNAL_ERROR, "The server stopped before this call was answered."),
+            Done::Dropped(Dropped::Disconnected) => error_message(&self.id, SESSION_REFUSED, "Disconnected by the person using the app."),
+            Done::Dropped(Dropped::Cancelled) => error_message(&self.id, INTERNAL_ERROR, "The call was cancelled."),
+        };
+        self.send(&message)
     }
-}
 
-/// The MIME type of an image's bytes, by its signature.
-fn image_mime(b: &[u8]) -> Option<&'static str> {
-    if b.starts_with(b"\x89PNG") {
-        Some("image/png")
-    } else if b.starts_with(&[0xFF, 0xD8]) {
-        Some("image/jpeg")
-    } else if b.starts_with(b"GIF8") {
-        Some("image/gif")
-    } else if b.len() > 12 && &b[..4] == b"RIFF" && &b[8..12] == b"WEBP" {
-        Some("image/webp")
-    } else {
-        None
-    }
-}
-
-/// ReplyImage: a tool's answer with a picture (a PNG, JPEG, GIF or WebP
-/// file; a BMP — a capture's — goes as PNG) and, when given, a text.
-fn reply_image(name: &str, id: i64, file: &str, text: &str) -> bool {
-    let bytes = match std::fs::read(file) {
-        Ok(b) => b,
-        Err(e) => return reply_text(name, id, &format!("The picture couldn't be read ({e})."), true),
-    };
-    let (data, mime) = match image_mime(&bytes) {
-        Some(m) => (bytes, m),
-        None if bytes.starts_with(b"BM") => match rapidr_value::objects::codec::decode_bmp(&bytes).and_then(|img| rapidr_value::objects::codec::encode_png(&img)) {
-            Ok(png) => (png, "image/png"),
-            Err(e) => return reply_text(name, id, &format!("The picture couldn't be read ({e})."), true),
-        },
-        None => return reply_text(name, id, "The picture isn't a PNG, JPEG, GIF, WebP or BMP image.", true),
-    };
-    let mut content = Vec::new();
-    if !text.is_empty() {
-        content.push(json!({"type": "text", "text": text}));
-    }
-    content.push(json!({"type": "image", "data": rapidr_value::objects::codec::base64_encode(&data), "mimeType": mime}));
-    answer(name, id, json!({"content": content}), None)
-}
-
-/// ReplyJson: a call answered with a whole result object, as written.
-fn reply_json(name: &str, id: i64, text: &str) -> bool {
-    match serde_json::from_str::<Json>(text) {
-        Ok(v) if v.is_object() => answer(name, id, v, None),
-        _ => {
-            rp_comp_set(name, "error", v_str("ReplyJson: the result must be a JSON object ({\"content\": […]})"));
-            false
-        }
-    }
-}
-
-/// Progress: a word on how a call goes, while it waits — as a progress
-/// notification (when the client asked for them) or a log message, on the
-/// call's event stream. False when the client takes no stream or left.
-fn progress(name: &str, id: i64, message: &str, done: Option<f64>, total: Option<f64>) -> bool {
-    with_server(name, |s| {
-        let Some(c) = s.calls.get_mut(&id) else { return false };
-        if c.stream.is_none() {
-            if !c.events {
+    /// As a progress notification (when the client asked for them) or a
+    /// log message, on the call's event stream. False when the client
+    /// takes no stream or left.
+    fn progress(&mut self, server: &str, message: &str, done: Option<f64>, total: Option<f64>) -> bool {
+        if self.stream.is_none() {
+            if !self.events {
                 return false;
             }
-            match httpserver::write_stream_head(&c.conn, &c.request, "") {
-                Some(chunked) => c.stream = Some(chunked),
+            match httpserver::write_stream_head(&self.conn, &self.request, "") {
+                Some(chunked) => self.stream = Some(chunked),
                 None => return false,
             }
         }
-        let note = match &c.progress {
+        let note = match &self.progress {
             Some(token) => {
                 let mut p = json!({"progressToken": token, "progress": done.unwrap_or(0.0), "message": message});
                 if let Some(t) = total.filter(|t| *t > 0.0) {
@@ -727,36 +389,18 @@ fn progress(name: &str, id: i64, message: &str, done: Option<f64>, total: Option
                 }
                 json!({"jsonrpc": "2.0", "method": "notifications/progress", "params": p})
             }
-            None => json!({"jsonrpc": "2.0", "method": "notifications/message", "params": {"level": "info", "logger": s.info.name, "data": message}}),
+            None => json!({"jsonrpc": "2.0", "method": "notifications/message", "params": {"level": "info", "logger": server, "data": message}}),
         };
-        httpserver::write_event(&c.conn, c.stream.unwrap_or(true), &ascii(&note), "message")
-    })
-    .unwrap_or(false)
-}
+        httpserver::write_event(&self.conn, self.stream.unwrap_or(true), &ascii(&note), "message")
+    }
 
-/// Argument: one of a call's arguments as text — a string as it is, a
-/// number or true/false as written, a list or an object as JSON, "" when
-/// it wasn't given. `a.b` reaches inside an object.
-fn argument(name: &str, key: &str, id: i64) -> String {
-    with_server(name, |s| {
-        let c = s.calls.get(&id)?;
-        let mut v = &c.args;
-        for part in key.split('.') {
-            // (an argument's name in any case: a model sends `path` for a
-            // tool whose schema says `Path`, and BASIC names don't care)
-            v = match v.get(part) {
-                Some(found) => found,
-                None => v.as_object()?.iter().find(|(k, _)| same_name(k, part))?.1,
-            };
+    /// Not answered in its handler: it waits — as a stream when the client
+    /// takes one, so it can hear how the call goes.
+    fn waiting(&mut self) {
+        if self.stream.is_none() && self.events {
+            self.stream = httpserver::write_stream_head(&self.conn, &self.request, "");
         }
-        Some(match v {
-            Json::String(t) => t.clone(),
-            Json::Null => String::new(),
-            other => other.to_string(),
-        })
-    })
-    .flatten()
-    .unwrap_or_default()
+    }
 }
 
 // -------------------------------------------------------------- clients --
@@ -767,104 +411,11 @@ fn client_title(info: Option<&Json>) -> (String, String) {
     (name, field("version").unwrap_or_default())
 }
 
-/// The program's Clients / ClientCount, as they are now.
-fn publish_clients(name: &str) {
-    let lines = with_server(name, |s| {
-        let now = Instant::now();
-        s.clients.iter().map(|c| format!("{}\t{}\t{}\t{}", c.name, c.version, now.duration_since(c.last).as_secs(), c.calls)).collect::<Vec<_>>()
-    })
-    .unwrap_or_default();
-    rp_comp_set(name, "clientcount", v_int(lines.len() as i64));
-    rp_comp_set(name, "clients", v_str(&lines.join("\n")));
-}
-
-/// A request from `client`: it is in (OnConnect the first time).
-fn heard(name: &str, client: &str, version: &str, call: bool) {
-    let new = with_server(name, |s| match s.clients.iter_mut().find(|c| c.name == client) {
-        Some(c) => {
-            c.last = Instant::now();
-            c.calls += u64::from(call);
-            false
-        }
-        None => {
-            s.clients.push(Client { name: client.to_string(), version: version.to_string(), last: Instant::now(), calls: u64::from(call) });
-            true
-        }
-    })
-    .unwrap_or(false);
-    publish_clients(name);
-    if new && crate::object::rp_has_handler(name, "onconnect") {
-        crate::object::rp_fire_event_then(name, "onconnect", &[v_str(client)], |_| {});
-    }
-}
-
-/// Clients quiet for IdleSeconds (and with no call waiting) are gone:
-/// OnDisconnect.
-fn idle_check(name: &str) {
-    let gone = with_server(name, |s| {
-        let pending: Vec<String> = s.calls.values().map(|c| c.client.clone()).collect();
-        let idle = s.idle;
-        let (gone, kept): (Vec<Client>, Vec<Client>) = std::mem::take(&mut s.clients).into_iter().partition(|c| c.last.elapsed() > idle && !pending.contains(&c.name));
-        s.clients = kept;
-        gone.into_iter().map(|c| c.name).collect::<Vec<_>>()
-    })
-    .unwrap_or_default();
-    if gone.is_empty() {
-        return;
-    }
-    publish_clients(name);
-    for c in gone {
-        if crate::object::rp_has_handler(name, "ondisconnect") {
-            crate::object::rp_fire_event_then(name, "ondisconnect", &[v_str(&c)], |_| {});
-        }
-    }
-}
-
-/// Disconnect: the AI app named (every one, when "") is out until the
-/// server starts again — its sessions end, its calls waiting are told,
-/// its next requests refused (403). The token stays: a new token (and a
-/// Start) is what keeps everyone out for sure.
-fn disconnect(name: &str, who: &str) -> bool {
-    let who = who.trim().to_lowercase();
-    let out = with_server(name, |s| {
-        let names: Vec<String> = s.clients.iter().map(|c| c.name.clone()).filter(|n| who.is_empty() || n.to_lowercase() == who).collect();
-        let mut out = names.clone();
-        if !who.is_empty() && !out.iter().any(|n| n.to_lowercase() == who) {
-            out.push(who.clone());
-        }
-        for n in &out {
-            let low = n.to_lowercase();
-            if !s.shut_out.contains(&low) {
-                s.shut_out.push(low);
-            }
-        }
-        s.sessions.retain(|_, x| !out.iter().any(|n| n.eq_ignore_ascii_case(&x.client)));
-        s.clients.retain(|c| !out.iter().any(|n| n.eq_ignore_ascii_case(&c.name)));
-        let ids: Vec<i64> = s.calls.iter().filter(|(_, c)| out.iter().any(|n| n.eq_ignore_ascii_case(&c.client))).map(|(k, _)| *k).collect();
-        for id in ids {
-            if let Some(c) = s.calls.remove(&id) {
-                let m = error_message(&c.id, SESSION_REFUSED, "Disconnected by the person using the app.");
-                finish_call(c, &m);
-            }
-        }
-        s.queue.retain(|id| s.calls.contains_key(id));
-        names
-    });
-    let Some(names) = out else { return false };
-    publish_clients(name);
-    for n in &names {
-        if crate::object::rp_has_handler(name, "ondisconnect") {
-            crate::object::rp_fire_event_then(name, "ondisconnect", &[v_str(n)], |_| {});
-        }
-    }
-    true
-}
-
 // ------------------------------------------------------------- requests --
 
 /// A request that arrived, answered — or, a call, kept for the program.
 fn arrived(name: &str, a: Arrived) {
-    let path = with_server(name, |s| s.path.clone()).unwrap_or_default();
+    let path = with_http(name, |s| s.path.clone()).unwrap_or_default();
     if a.request.path() != path {
         return send_plain(&a, 404, &[], &format!("AI apps connect at {path}.\n"));
     }
@@ -873,17 +424,13 @@ fn arrived(name: &str, a: Arrived) {
         "DELETE" => {
             // (an earlier revision's session ended)
             let sid = a.request.header("mcp-session-id").unwrap_or("").trim().to_string();
-            let gone = with_server(name, |s| s.sessions.remove(&sid)).flatten();
+            let gone = with_http(name, |s| s.sessions.remove(&sid)).flatten();
             match gone {
                 Some(x) => {
-                    let still = with_server(name, |s| s.sessions.values().any(|o| o.client == x.client)).unwrap_or(false);
+                    let still = with_http(name, |s| s.sessions.values().any(|o| o.client == x.client)).unwrap_or(false);
                     send_plain(&a, 200, &[], "");
                     if !still {
-                        with_server(name, |s| s.clients.retain(|c| c.name != x.client));
-                        publish_clients(name);
-                        if crate::object::rp_has_handler(name, "ondisconnect") {
-                            crate::object::rp_fire_event_then(name, "ondisconnect", &[v_str(&x.client)], |_| {});
-                        }
+                        mcp::client_gone(Desk, name, &x.client);
                     }
                 }
                 None if sid.is_empty() => send_plain(&a, 405, &[("Allow", "POST")], "Send each message as a POST.\n"),
@@ -933,10 +480,10 @@ fn post(name: &str, a: Arrived) {
         if let Some(id) = &id {
             let meta = body.pointer("/params/_meta").and_then(|m| m.get(META_CLIENT));
             let (client, version_of) = client_title(meta.or_else(|| body.pointer("/params/clientInfo")));
-            if shut_out(name, &client) {
+            if mcp::shut_out(name, &client) {
                 return send_json(&a, 403, &[], &error_message(id, SESSION_REFUSED, "Disconnected by the person using the app: they can let AI apps in again by turning the server off and on."));
             }
-            heard(name, &client, &version_of, false);
+            mcp::heard(Desk, name, &client, &version_of, false);
             return discover(name, &a, id);
         }
     }
@@ -1006,14 +553,14 @@ fn modern_request(name: &str, a: Arrived, body: &Json, header_version: Option<St
         }
     }
     let (client, version_of) = client_title(body.pointer("/params/_meta").and_then(|m| m.get(META_CLIENT)));
-    if shut_out(name, &client) {
+    if mcp::shut_out(name, &client) {
         return send_json(&a, 403, &[], &error_message(&idj, SESSION_REFUSED, "Disconnected by the person using the app: they can let AI apps in again by turning the server off and on."));
     }
     // (a notification: nothing to say back)
     let Some(id) = id else {
         return send_plain(&a, 202, &[], "");
     };
-    heard(name, &client, &version_of, method == "tools/call");
+    mcp::heard(Desk, name, &client, &version_of, method == "tools/call");
     match method.as_str() {
         "server/discover" => discover(name, &a, &id),
         "ping" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete"}))),
@@ -1021,7 +568,7 @@ fn modern_request(name: &str, a: Arrived, body: &Json, header_version: Option<St
         "resources/list" => send_json(&a, 200, &[], &result_message(&id, with_type(resources_list(name), true))),
         "resources/templates/list" => send_json(&a, 200, &[], &result_message(&id, json!({"resultType": "complete", "resourceTemplates": []}))),
         "prompts/list" => send_json(&a, 200, &[], &result_message(&id, with_type(prompts_list(name), true))),
-        "prompts/get" => match prompts_get(name, &body) {
+        "prompts/get" => match prompts_get(name, body) {
             Ok(r) => send_json(&a, 200, &[], &result_message(&id, with_type(r, true))),
             Err(why) => send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &why)),
         },
@@ -1038,11 +585,7 @@ fn with_type(mut r: Json, modern: bool) -> Json {
     r
 }
 
-fn shut_out(name: &str, client: &str) -> bool {
-    with_server(name, |s| s.shut_out.contains(&client.to_lowercase())).unwrap_or(false)
-}
-
-fn server_info(info: &Info) -> Json {
+fn server_info(info: &mcp::Info) -> Json {
     let mut i = json!({"name": info.name, "version": info.version});
     if !info.title.trim().is_empty() {
         i["title"] = json!(info.title);
@@ -1052,40 +595,62 @@ fn server_info(info: &Info) -> Json {
 
 /// The server's info and capabilities: tools always; resources when it
 /// has some; logging (its messages on a call's stream).
-fn describe(name: &str) -> (Info, Json) {
-    let info = with_server(name, |s| s.info.clone()).unwrap_or_default();
+fn describe(name: &str) -> (mcp::Info, Json) {
+    let info = mcp::info(name);
     let mut caps = json!({"tools": {}, "logging": {}});
-    if with_defs(name, |d| !d.resources.is_empty()) {
+    if !mcp::resources(name).is_empty() {
         caps["resources"] = json!({});
     }
-    if with_defs(name, |d| !d.prompts.is_empty()) {
+    if !mcp::prompts(name).is_empty() {
         caps["prompts"] = json!({});
     }
     (info, caps)
 }
 
 fn tools_list(name: &str) -> Json {
-    let tools: Vec<Json> = with_defs(name, |d| {
-        d.tools
-            .iter()
-            .map(|t| {
-                let mut j = json!({"name": t.name, "description": t.description, "inputSchema": t.schema});
-                if !t.title.is_empty() {
-                    j["title"] = json!(t.title);
-                }
-                if let Some(a) = &t.annotations {
-                    j["annotations"] = a.clone();
-                }
-                j
-            })
-            .collect()
-    });
+    let tools: Vec<Json> = mcp::tools(name)
+        .iter()
+        .map(|t| {
+            let mut j = json!({"name": t.name, "description": t.description, "inputSchema": t.schema});
+            if !t.title.is_empty() {
+                j["title"] = json!(t.title);
+            }
+            if let Some(a) = &t.annotations {
+                j["annotations"] = a.clone();
+            }
+            j
+        })
+        .collect();
     json!({"tools": tools})
 }
 
 fn resources_list(name: &str) -> Json {
-    let list: Vec<Json> = with_defs(name, |d| d.resources.iter().map(|r| json!({"uri": r.uri, "name": r.name, "description": r.description, "mimeType": r.mime})).collect());
+    let list: Vec<Json> = mcp::resources(name).iter().map(|r| json!({"uri": r.uri, "name": r.name, "description": r.description, "mimeType": r.mime})).collect();
     json!({"resources": list})
+}
+
+fn prompts_list(name: &str) -> Json {
+    let list: Vec<Json> = mcp::prompts(name)
+        .iter()
+        .map(|p| {
+            let mut j = json!({"name": p.name, "description": p.description, "arguments": []});
+            if !p.title.is_empty() {
+                j["title"] = json!(p.title);
+            }
+            j
+        })
+        .collect();
+    json!({"prompts": list})
+}
+
+/// prompts/get: the prompt's text as one user message, or why not.
+fn prompts_get(name: &str, body: &Json) -> Result<Json, String> {
+    let wanted = body.pointer("/params/name").and_then(Json::as_str).unwrap_or("");
+    let prompts = mcp::prompts(name);
+    match prompts.iter().find(|p| p.name == wanted) {
+        Some(p) => Ok(json!({"description": p.description, "messages": [{"role": "user", "content": {"type": "text", "text": p.text}}]})),
+        None => Err(format!("Unknown prompt: {wanted}. The prompts are: {}.", prompts.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", "))),
+    }
 }
 
 /// An earlier revision's initialize: a session begins.
@@ -1094,20 +659,20 @@ fn initialize(name: &str, a: &Arrived, body: &Json) {
     let asked = body.pointer("/params/protocolVersion").and_then(Json::as_str).unwrap_or("");
     let version = if LEGACY.contains(&asked) { asked.to_string() } else { LEGACY[0].to_string() };
     let (client, client_version) = client_title(body.pointer("/params/clientInfo"));
-    if shut_out(name, &client) {
+    if mcp::shut_out(name, &client) {
         return send_json(a, 403, &[], &error_message(&id, SESSION_REFUSED, "Disconnected by the person using the app: they can let AI apps in again by turning the server off and on."));
     }
     let Some(sid) = httpserver::random_token().map(|t| t[..32].to_string()) else {
         return send_json(a, 500, &[], &error_message(&id, INTERNAL_ERROR, "The system's secure random source gave nothing: no session could start."));
     };
-    with_server(name, |s| s.sessions.insert(sid.clone(), Session { client: client.clone(), protocol: version.clone() }));
+    with_http(name, |s| s.sessions.insert(sid.clone(), Session { client: client.clone(), protocol: version.clone() }));
     let (info, caps) = describe(name);
     let mut r = json!({"protocolVersion": version, "capabilities": caps, "serverInfo": server_info(&info)});
     if !info.instructions.trim().is_empty() {
         r["instructions"] = json!(info.instructions);
     }
     send_json(a, 200, &[("Mcp-Session-Id", &sid)], &result_message(&id, r));
-    heard(name, &client, &client_version, false);
+    mcp::heard(Desk, name, &client, &client_version, false);
 }
 
 /// A request in an earlier revision's session.
@@ -1115,17 +680,17 @@ fn legacy(name: &str, a: Arrived, body: &Json, sid: &str) {
     let id = body.get("id").cloned();
     let idj = id.clone().unwrap_or(Json::Null);
     let method = body.get("method").and_then(Json::as_str).unwrap_or("").to_string();
-    let Some((client, _protocol)) = with_server(name, |s| s.sessions.get(sid).map(|x| (x.client.clone(), x.protocol.clone()))).flatten() else {
+    let Some((client, _protocol)) = with_http(name, |s| s.sessions.get(sid).map(|x| (x.client.clone(), x.protocol.clone()))).flatten() else {
         return send_json(&a, 404, &[], &error_message(&idj, SESSION_ENDED, "This session ended (the app was closed, or its server turned off and on): start a new one with initialize."));
     };
-    if shut_out(name, &client) {
+    if mcp::shut_out(name, &client) {
         return send_json(&a, 403, &[], &error_message(&idj, SESSION_REFUSED, "Disconnected by the person using the app."));
     }
     // (a notification, or the client's answer to a request: nothing to say)
     let Some(id) = id.filter(|_| !method.is_empty()) else {
         return send_plain(&a, 202, &[], "");
     };
-    heard(name, &client, "", method == "tools/call");
+    mcp::heard(Desk, name, &client, "", method == "tools/call");
     match method.as_str() {
         "ping" | "logging/setLevel" => send_json(&a, 200, &[], &result_message(&id, json!({}))),
         "tools/list" => send_json(&a, 200, &[], &result_message(&id, tools_list(name))),
@@ -1141,309 +706,39 @@ fn legacy(name: &str, a: Arrived, body: &Json, sid: &str) {
     }
 }
 
-/// A tools/call or resources/read: checked, then kept for the program.
+/// A tools/call or resources/read: checked (the core's), then kept for the
+/// program with the connection its answer goes back on.
 fn call(name: &str, a: Arrived, body: &Json, id: Json, client: String, modern: bool) {
     let params = body.get("params").cloned().unwrap_or(json!({}));
     let read = body.get("method").and_then(Json::as_str) == Some("resources/read");
     let events = a.request.header("accept").is_some_and(|h| h.to_ascii_lowercase().contains("text/event-stream"));
     let progress = params.pointer("/_meta/progressToken").cloned().filter(|t| t.is_string() || t.is_number());
-    let (kind, target, args) = if read {
-        let uri = params.get("uri").and_then(Json::as_str).unwrap_or("").to_string();
-        if !with_defs(name, |d| d.resources.iter().any(|r| r.uri == uri)) {
-            return send_json(&a, 200, &[], &error_data(&id, RESOURCE_NOT_FOUND, "Resource not found", json!({"uri": uri})));
-        }
-        (Kind::Resource, uri, json!({}))
+    let (kind, asked, args) = if read {
+        (Kind::Resource, params.get("uri").and_then(Json::as_str).unwrap_or("").to_string(), json!({}))
     } else {
-        let asked = params.get("name").and_then(Json::as_str).unwrap_or("").to_string();
-        // (an old name: its tool's call, under the tool's own name)
-        let tool = with_defs(name, |d| d.aliases.iter().find(|(a, _)| a.eq_ignore_ascii_case(&asked)).map(|(_, t)| t.clone())).unwrap_or(asked);
-        let Some(def) = with_defs(name, |d| d.tools.iter().find(|t| t.name == tool).cloned()) else {
-            let known = with_defs(name, |d| d.tools.iter().map(|t| t.name.clone()).collect::<Vec<_>>().join(", "));
-            return send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &format!("Unknown tool: {tool}. The tools are: {known}.")));
-        };
-        let args = params.get("arguments").cloned().unwrap_or(json!({}));
-        let mut args = if args.is_null() { json!({}) } else { args };
-        coerce_args(&def, &mut args);
+        (Kind::Tool, params.get("name").and_then(Json::as_str).unwrap_or("").to_string(), params.get("arguments").cloned().unwrap_or(json!({})))
+    };
+    let (target, args) = match mcp::check_call(name, kind, &asked, args) {
+        Ok(checked) => checked,
+        Err(Refused::UnknownResource(uri)) => return send_json(&a, 200, &[], &error_data(&id, RESOURCE_NOT_FOUND, "Resource not found", json!({"uri": uri}))),
+        Err(Refused::UnknownTool(why)) => return send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &why)),
         // (a wrong call: told at once what the tool needs, as a tool's
         // error the AI reads and acts on)
-        if let Err(why) = check_args(&def, &args) {
+        Err(Refused::BadArguments(why)) => {
             let mut r = json!({"content": [{"type": "text", "text": why}], "isError": true});
             if modern {
                 r["resultType"] = json!("complete");
             }
             return send_json(&a, 200, &[], &result_message(&id, r));
         }
-        (Kind::Tool, tool, args)
     };
-    let key = a.id;
-    let waiting = with_server(name, |s| {
-        s.calls.insert(key, Call { conn: a.conn, request: a.request, id, kind, name: target, args, client, modern, events, progress, stream: None });
-        s.queue.push_back(key);
-        s.calls.len()
-    })
-    .unwrap_or(0);
-    rp_comp_set(name, "pendingcount", v_int(waiting as i64));
-}
-
-/// The next call to the program, once the last one's handler has run.
-fn next_call(name: &str) {
-    let next = with_server(name, |s| {
-        if s.busy.get() {
-            return None;
-        }
-        while let Some(k) = s.queue.pop_front() {
-            if let Some(c) = s.calls.get(&k) {
-                s.busy.set(true);
-                return Some((k, c.kind, c.name.clone(), c.args.to_string(), c.client.clone(), s.busy.clone(), !s.queue.is_empty()));
-            }
-        }
-        None
-    })
-    .flatten();
-    let Some((key, kind, target, args, client, busy, more)) = next else { return };
-    rp_comp_set(name, "call", v_int(key));
-    rp_comp_set(name, "tool", v_str(if kind == Kind::Tool { &target } else { "" }));
-    rp_comp_set(name, "clientname", v_str(&client));
-    rp_comp_set(name, "arguments", v_str(&args));
-    let (event, fire_args) = match kind {
-        Kind::Tool => ("ontoolcall", vec![v_str(&target), v_str(&args), v_int(key)]),
-        Kind::Resource => ("onreadresource", vec![v_str(&target), v_int(key)]),
-    };
-    if !crate::object::rp_has_handler(name, event) {
-        let why = if kind == Kind::Tool { "This program doesn't answer tool calls yet (it has no OnToolCall handler)." } else { "This program doesn't read resources (it has no OnReadResource handler)." };
-        reply_text(name, key, why, true);
-        busy.set(false);
-        if more {
-            crate::object::rp_wake();
-        }
-        return;
-    }
-    let owner = name.to_string();
-    crate::object::rp_fire_event_then(name, event, &fire_args, move |_| {
-        busy.set(false);
-        // (not answered in the handler: it waits — as a stream when the
-        // client takes one, so it can hear how the call goes)
-        with_server(&owner, |s| {
-            if let Some(c) = s.calls.get_mut(&key) {
-                if c.stream.is_none() && c.events {
-                    c.stream = httpserver::write_stream_head(&c.conn, &c.request, "");
-                }
-            }
-        });
-        crate::object::rp_wake();
-    });
-}
-
-// ------------------------------------------------------ arguments' check --
-
-fn type_ok(want: &str, v: &Json) -> bool {
-    match want {
-        "string" => v.is_string(),
-        "integer" => v.as_i64().is_some() || v.as_u64().is_some() || v.as_f64().is_some_and(|f| f.fract() == 0.0),
-        "number" => v.is_number(),
-        "boolean" => v.is_boolean(),
-        "array" => v.is_array(),
-        "object" => v.is_object(),
-        "null" => v.is_null(),
-        _ => true,
-    }
-}
-
-fn type_words(want: &str) -> &str {
-    match want {
-        "string" => "a string",
-        "integer" => "a whole number",
-        "number" => "a number",
-        "boolean" => "true or false",
-        "array" => "a list",
-        "object" => "an object",
-        other => other,
-    }
-}
-
-/// What a property is, for the sentence that says a tool needs it.
-fn property_words(key: &str, p: &Json) -> String {
-    let t = p.get("type").and_then(Json::as_str).map(type_words).unwrap_or("a value");
-    let what = p.get("description").and_then(Json::as_str).map(|d| format!(": {d}")).unwrap_or_default();
-    let choices = p.get("enum").and_then(Json::as_array).map(|e| format!(", one of {}", e.iter().map(Json::to_string).collect::<Vec<_>>().join(", "))).unwrap_or_default();
-    format!("`{key}` ({t}{choices}{what})")
-}
-
-/// Two argument names that are the same but for case and underscores
-/// (`Path` and `path`, `ToX` and `to_x`: an older tool list's spelling).
-fn same_name(a: &str, b: &str) -> bool {
-    let bare = |s: &str| s.chars().filter(|c| *c != '_').map(|c| c.to_ascii_lowercase()).collect::<String>();
-    a.eq_ignore_ascii_case(b) || bare(a) == bare(b)
-}
-
-/// What a small model sends for a list or an object is often that value as a JSON *string*
-/// (`"edits": "[{\"old_text\": …}]"`), a whole number as `"20"`, a flag as `"true"`: the AI
-/// app's own tool-call layer didn't parse it. The tool's schema says what it wants, so a
-/// string that is exactly that value is that value (found by the outside-AI-app eval,
-/// tests/ai-eval/README.md: a small model repeated the refused call to the step limit). A
-/// string that isn't is left for `check_args` to refuse in words.
-fn coerce_args(def: &ToolDef, args: &mut Json) {
-    let empty = Map::new();
-    let props = def.schema.get("properties").and_then(Json::as_object).unwrap_or(&empty);
-    let Some(obj) = args.as_object_mut() else { return };
-    // (an argument named in another case — `Path` for `path`, as an older
-    // tool list wrote it — is that argument)
-    let sent: Vec<String> = obj.keys().cloned().collect();
-    for key in sent {
-        if props.contains_key(&key) {
-            continue;
-        }
-        if let Some(spelled) = props.keys().find(|p| same_name(p, &key)).filter(|p| !obj.contains_key(*p)) {
-            if let Some(v) = obj.remove(&key) {
-                obj.insert(spelled.clone(), v);
-            }
-        }
-    }
-    for (key, v) in obj.iter_mut() {
-        let Some(want) = props.get(key).and_then(|p| p.get("type")).and_then(Json::as_str) else { continue };
-        let Some(text) = v.as_str().map(str::trim) else { continue };
-        let parsed = match want {
-            "array" | "object" | "integer" | "number" | "boolean" => serde_json::from_str::<Json>(text).ok(),
-            _ => None,
-        };
-        if let Some(p) = parsed.filter(|p| type_ok(want, p)) {
-            *v = p;
-        }
-    }
-}
-
-/// A tool's arguments checked against its schema (the top level, and a
-/// list's items' type): Err with a sentence an AI can act on.
-fn check_args(def: &ToolDef, args: &Json) -> Result<(), String> {
-    let Some(obj) = args.as_object() else {
-        return Err(format!("The arguments of {} must be a JSON object.", def.name));
-    };
-    let empty = Map::new();
-    let props = def.schema.get("properties").and_then(Json::as_object).unwrap_or(&empty);
-    let mut problems = Vec::new();
-    for key in def.schema.get("required").and_then(Json::as_array).into_iter().flatten().filter_map(Json::as_str) {
-        if obj.get(key).is_none_or(Json::is_null) {
-            problems.push(format!("it needs {}", property_words(key, props.get(key).unwrap_or(&Json::Null))));
-        }
-    }
-    for (key, v) in obj {
-        let Some(p) = props.get(key) else {
-            if def.schema.get("additionalProperties") == Some(&json!(false)) {
-                let known: Vec<&str> = props.keys().map(String::as_str).collect();
-                problems.push(if known.is_empty() { format!("it takes no arguments (not `{key}`)") } else { format!("it has no argument `{key}` (its arguments: {})", known.join(", ")) });
-            }
-            continue;
-        };
-        if v.is_null() {
-            continue;
-        }
-        if let Some(t) = p.get("type").and_then(Json::as_str) {
-            if !type_ok(t, v) {
-                problems.push(format!("`{key}` must be {}, not {v}", type_words(t)));
-                continue;
-            }
-        }
-        if let Some(choices) = p.get("enum").and_then(Json::as_array) {
-            if !choices.contains(v) {
-                problems.push(format!("`{key}` must be one of {}, not {v}", choices.iter().map(Json::to_string).collect::<Vec<_>>().join(", ")));
-            }
-        }
-        if let (Some(items), Some(list)) = (p.pointer("/items/type").and_then(Json::as_str), v.as_array()) {
-            if let Some((i, bad)) = list.iter().enumerate().find(|(_, x)| !type_ok(items, x)) {
-                problems.push(format!("`{key}`[{i}] must be {}, not {bad}", type_words(items)));
-            }
-        }
-    }
-    if problems.is_empty() {
-        Ok(())
-    } else {
-        Err(format!("Call {} again: {}.", def.name, problems.join("; ")))
-    }
+    let reply = Reply { conn: a.conn, request: a.request, id, modern, events, progress, stream: None };
+    mcp::enqueue(Desk, name, Queued { kind, target, args, client }, Box::new(reply));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn def(schema: Json) -> ToolDef {
-        ToolDef { name: "read_file".into(), description: String::new(), schema, annotations: None, title: String::new() }
-    }
-
-    #[test]
-    fn arguments_are_checked_with_words_an_ai_can_act_on() {
-        let d = def(json!({"type": "object", "properties": {"path": {"type": "string", "description": "the file's path"}, "lines": {"type": "integer"}, "mode": {"type": "string", "enum": ["a", "b"]}, "edits": {"type": "array", "items": {"type": "object"}}}, "required": ["path"], "additionalProperties": false}));
-        assert!(check_args(&d, &json!({"path": "main.rr"})).is_ok());
-        let e = check_args(&d, &json!({})).unwrap_err();
-        assert!(e.contains("it needs `path` (a string: the file's path)"), "{e}");
-        let e = check_args(&d, &json!({"path": 3})).unwrap_err();
-        assert!(e.contains("`path` must be a string, not 3"), "{e}");
-        assert!(check_args(&d, &json!({"path": "x", "lines": 2.0})).is_ok(), "2.0 is a whole number");
-        assert!(check_args(&d, &json!({"path": "x", "lines": 2.5})).is_err());
-        let e = check_args(&d, &json!({"path": "x", "file": "y"})).unwrap_err();
-        assert!(e.contains("no argument `file`") && e.contains("path, lines, mode, edits"), "{e}");
-        assert!(check_args(&d, &json!({"path": "x", "mode": "c"})).unwrap_err().contains("one of \"a\", \"b\""));
-        assert!(check_args(&d, &json!({"path": "x", "edits": [{}, 3]})).unwrap_err().contains("`edits`[1] must be an object"));
-        assert!(check_args(&d, &json!([1])).is_err());
-        assert!(check_args(&def(json!({"type": "object"})), &json!({"anything": 1})).is_ok(), "no schema to keep to: anything");
-    }
-
-    #[test]
-    fn a_list_sent_as_json_text_is_the_list() {
-        // (a small model's tool call layer: "edits" as a string of JSON, "20" for a number)
-        let d = def(json!({"type": "object", "properties": {"path": {"type": "string"}, "edits": {"type": "array", "items": {"type": "object"}}, "wait": {"type": "integer"}, "debug": {"type": "boolean"}, "meta": {"type": "object"}}, "required": ["path"], "additionalProperties": false}));
-        let mut a = json!({"path": "main.rr", "edits": "[{\"old_text\": \"a\", \"new_text\": \"b\"}]", "wait": " 20 ", "debug": "true", "meta": "{\"k\": 1}"});
-        coerce_args(&d, &mut a);
-        assert_eq!(a["edits"], json!([{"old_text": "a", "new_text": "b"}]));
-        assert_eq!(a["wait"], json!(20));
-        assert_eq!(a["debug"], json!(true));
-        assert_eq!(a["meta"], json!({"k": 1}));
-        assert!(check_args(&d, &a).is_ok());
-        // (a string that isn't the value stays, and is refused in words; a string argument is never parsed)
-        let mut b = json!({"path": "[1, 2]", "edits": "[{\"old_text\": \"a\"}]\n}", "wait": "soon"});
-        coerce_args(&d, &mut b);
-        assert_eq!(b["path"], json!("[1, 2]"));
-        assert_eq!(b["edits"], json!("[{\"old_text\": \"a\"}]\n}"));
-        let e = check_args(&d, &b).unwrap_err();
-        assert!(e.contains("`edits` must be a list") && e.contains("`wait` must be a whole number"), "{e}");
-        // (an object where a list is wanted is not made a list)
-        let mut c = json!({"path": "x", "edits": "{\"old_text\": \"a\"}"});
-        coerce_args(&d, &mut c);
-        assert!(c["edits"].is_string());
-    }
-
-    #[test]
-    fn an_argument_in_another_case_is_that_argument() {
-        // (`Path` for `path`: a tool list that spelled it so, a model that guesses)
-        let d = def(json!({"type": "object", "properties": {"path": {"type": "string"}, "wait": {"type": "integer"}}, "required": ["path"], "additionalProperties": false}));
-        let mut a = json!({"Path": "main.rr", "WAIT": "5"});
-        coerce_args(&d, &mut a);
-        assert_eq!(a, json!({"path": "main.rr", "wait": 5}));
-        assert!(check_args(&d, &a).is_ok());
-        // (both given: the schema's own spelling wins, the other is refused as unknown)
-        let mut both = json!({"path": "a", "Path": "b"});
-        coerce_args(&d, &mut both);
-        assert_eq!(both["path"], json!("a"));
-        assert!(check_args(&d, &both).is_err());
-        // (`ToX` for `to_x`: an older tool list's spelling, underscores aside)
-        let d = def(json!({"type": "object", "properties": {"to_x": {"type": "integer"}, "to_y": {"type": "integer"}}, "required": ["to_x", "to_y"], "additionalProperties": false}));
-        let mut a = json!({"ToX": 180, "ToY": "20"});
-        coerce_args(&d, &mut a);
-        assert_eq!(a, json!({"to_x": 180, "to_y": 20}));
-        assert!(check_args(&d, &a).is_ok());
-    }
-
-    #[test]
-    fn a_subs_parameters_make_a_schema() {
-        let s = params_schema("Text AS STRING, [Count AS INTEGER], Done AS BOOLEAN, [Tags AS LIST]").unwrap();
-        assert_eq!(s["properties"]["Text"]["type"], "string");
-        assert_eq!(s["properties"]["Count"]["type"], "integer");
-        assert_eq!(s["properties"]["Done"]["type"], "boolean");
-        assert_eq!(s["properties"]["Tags"]["type"], "array");
-        assert_eq!(s["required"], json!(["Text", "Done"]));
-        assert_eq!(params_schema("Name$").unwrap()["properties"]["Name"]["type"], "string");
-        assert!(params_schema("X AS PICTURE").unwrap_err().contains("PICTURE"));
-        assert!(params_schema("a b c d").is_err());
-    }
 
     #[test]
     fn messages_go_as_ascii_meaning_the_same() {
@@ -1471,10 +766,8 @@ mod tests {
     /// are handed to `post` as they would arrive.
     fn test_server(name: &str) {
         let (_tx, rx) = mpsc::channel();
-        let info = Info { name: "rapidr-test".into(), version: "1.0".into(), ..Info::default() };
-        SERVERS.with(|s| {
-            s.borrow_mut().insert(name.to_string(), Server { running: httpserver::Accepting::none(), events: rx, path: "/mcp".into(), info, sessions: HashMap::new(), clients: Vec::new(), shut_out: Vec::new(), calls: HashMap::new(), queue: VecDeque::new(), busy: Rc::new(Cell::new(false)), idle: Duration::from_secs(900) })
-        });
+        SERVERS.with(|s| s.borrow_mut().insert(name.to_string(), Http { running: httpserver::Accepting::none(), events: rx, path: "/mcp".into(), sessions: HashMap::new() }));
+        mcp::open(Desk, name, mcp::Info { name: "rapidr-test".into(), version: "1.0".into(), ..mcp::Info::default() }, 900.0);
     }
 
     /// A POST of `body` with `headers` to server `name`: its status, its
@@ -1485,6 +778,10 @@ mod tests {
         all.extend(headers.iter().map(|(n, v)| (n.to_string(), v.to_string())));
         let request = Request { method: "POST".into(), target: "/mcp".into(), version: "HTTP/1.1".into(), headers: all, body: body.to_string().into_bytes() };
         post(name, Arrived { id: 1, request, peer: "127.0.0.1".into(), conn: tx });
+        read_out(&rx)
+    }
+
+    fn read_out(rx: &mpsc::Receiver<Out>) -> (u16, Json, String) {
         let mut bytes = Vec::new();
         while let Ok(out) = rx.try_recv() {
             if let Out::Bytes(b) = out {
@@ -1498,7 +795,7 @@ mod tests {
     }
 
     fn clients_of(name: &str) -> Vec<String> {
-        with_server(name, |s| s.clients.iter().map(|c| c.name.clone()).collect()).unwrap_or_default()
+        mcp::clients(name).iter().map(|c| c.name.clone()).collect()
     }
 
     /// server/discover asked with an earlier revision's header, or with
@@ -1525,19 +822,18 @@ mod tests {
         assert_eq!(status, 200);
         assert!(clients_of(name).contains(&"an AI app".to_string()));
         // (disconnected by the person: refused, not heard again)
-        with_server(name, |s| s.shut_out.push("goose".into()));
-        let before = with_server(name, |s| s.clients.iter().find(|c| c.name == "goose").map(|c| c.last)).flatten();
+        assert_eq!(method(name, "disconnect", &[v_str("goose")]).to_i64(), 1);
         let (status, answer, _) = posted(name, &[("MCP-Protocol-Version", "2025-06-18")], &ask("Goose"));
         assert_eq!(status, 403, "{answer}");
         assert_eq!(answer["error"]["code"], json!(SESSION_REFUSED));
         assert!(answer["error"]["message"].as_str().unwrap_or("").contains("Disconnected"), "{answer}");
-        let after = with_server(name, |s| s.clients.iter().find(|c| c.name == "goose").map(|c| c.last)).flatten();
-        assert_eq!(before, after, "a refused client isn't heard");
+        assert!(!clients_of(name).iter().any(|c| c.eq_ignore_ascii_case("goose")), "a refused client isn't heard");
         stop(name);
     }
 
     /// An earlier revision's initialize at 2024-11-05: answered with that
-    /// revision and a session; the session's requests work.
+    /// revision and a session; the session's requests work; Disconnect
+    /// ends its sessions (the next request: no such session).
     #[test]
     fn a_session_at_2024_11_05() {
         let name = "mcp-test-2024";
@@ -1552,21 +848,27 @@ mod tests {
         assert_eq!(status, 200, "{answer}");
         assert_eq!(answer["result"], json!({}));
         assert_eq!(clients_of(name), vec!["old-app".to_string()]);
+        assert_eq!(method(name, "disconnect", &[v_str("old-app")]).to_i64(), 1);
+        let (status, answer, _) = posted(name, &[("Mcp-Session-Id", &sid)], &json!({"jsonrpc": "2.0", "id": 3, "method": "ping"}));
+        assert_eq!(status, 404, "{answer}");
+        assert_eq!(answer["error"]["code"], json!(SESSION_ENDED));
         stop(name);
     }
 
     /// An old name (AddAlias) is its tool's call, never listed; prompts
     /// (AddPrompt) are listed and given, the capability said — on the
-    /// current revision as on the earlier ones.
+    /// current revision as on the earlier ones. A call kept for the
+    /// program is answered on its connection by Reply (the core's), as
+    /// MCP's result with resultType; Stop tells a waiting call.
     #[test]
-    fn aliases_and_prompts() {
+    fn aliases_prompts_and_a_call_answered() {
         let name = "mcp-test-aliases";
         test_server(name);
-        assert!(add_tool(name, "check_code", "Compiles.", "", "read"));
-        assert!(add_alias(name, "get_problems", "check_code"));
-        assert!(!add_alias(name, "check_code", "check_code"), "a tool isn't its own alias");
-        assert!(add_prompt(name, "rapidr-way", "Work the RapidR way", "How to work on this project", "1. studio_status\n2. find_example"));
-        assert!(!add_prompt(name, "bad name", "", "", "x"));
+        assert_eq!(method(name, "addtool", &[v_str("check_code"), v_str("Compiles."), v_str(""), v_str("read")]).to_i64(), 1);
+        assert_eq!(method(name, "addalias", &[v_str("get_problems"), v_str("check_code")]).to_i64(), 1);
+        assert_eq!(method(name, "addalias", &[v_str("check_code"), v_str("check_code")]).to_i64(), 0, "a tool isn't its own alias");
+        assert_eq!(method(name, "addprompt", &[v_str("rapidr-way"), v_str("Work the RapidR way"), v_str("How to work on this project"), v_str("1. studio_status\n2. find_example")]).to_i64(), 1);
+        assert_eq!(method(name, "addprompt", &[v_str("bad name"), v_str(""), v_str(""), v_str("x")]).to_i64(), 0);
         let modern = |method: &str, id: i64, params: Json, named: Option<&str>| {
             let mut p = params;
             p["_meta"] = json!({META_VERSION: MODERN[0], META_CLIENT: {"name": "alias-test", "version": "1"}});
@@ -1574,41 +876,57 @@ mod tests {
             if let Some(n) = named {
                 headers.push(("Mcp-Name", n));
             }
-            posted(name, &headers, &json!({"jsonrpc": "2.0", "id": id, "method": method, "params": p}))
+            let (tx, rx) = mpsc::channel();
+            let mut all = vec![("Content-Type".to_string(), "application/json".to_string())];
+            all.extend(headers.iter().map(|(n, v)| (n.to_string(), v.to_string())));
+            let request = Request { method: "POST".into(), target: "/mcp".into(), version: "HTTP/1.1".into(), headers: all, body: json!({"jsonrpc": "2.0", "id": id, "method": method, "params": p}).to_string().into_bytes() };
+            post(name, Arrived { id: 1, request, peer: "127.0.0.1".into(), conn: tx });
+            let out = read_out(&rx);
+            (out, rx)
         };
-        let (status, answer, _) = modern("tools/list", 1, json!({}), None);
+        let ((status, answer, _), _) = modern("tools/list", 1, json!({}), None);
         assert_eq!(status, 200, "{answer}");
         let names: Vec<&str> = answer["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
         assert_eq!(names, ["check_code"], "the alias isn't listed");
-        let (_, answer, _) = modern("server/discover", 2, json!({}), None);
+        assert_eq!(answer["result"]["tools"][0]["annotations"], json!({"readOnlyHint": true, "openWorldHint": false}));
+        let ((_, answer, _), _) = modern("server/discover", 2, json!({}), None);
         assert_eq!(answer["result"]["capabilities"]["prompts"], json!({}), "{answer}");
-        let (_, answer, _) = modern("prompts/list", 3, json!({}), None);
+        let ((_, answer, _), _) = modern("prompts/list", 3, json!({}), None);
         assert_eq!(answer["result"]["prompts"][0]["name"], json!("rapidr-way"), "{answer}");
         assert_eq!(answer["result"]["prompts"][0]["title"], json!("Work the RapidR way"));
-        let (_, answer, _) = modern("prompts/get", 4, json!({"name": "rapidr-way"}), Some("rapidr-way"));
+        let ((_, answer, _), _) = modern("prompts/get", 4, json!({"name": "rapidr-way"}), Some("rapidr-way"));
         assert_eq!(answer["result"]["messages"][0]["content"]["text"], json!("1. studio_status\n2. find_example"), "{answer}");
         assert_eq!(answer["result"]["messages"][0]["role"], json!("user"));
-        let (_, answer, _) = modern("prompts/get", 5, json!({"name": "nope"}), Some("nope"));
+        let ((_, answer, _), _) = modern("prompts/get", 5, json!({"name": "nope"}), Some("nope"));
         assert_eq!(answer["error"]["code"], json!(INVALID_PARAMS), "{answer}");
+        let ((_, answer, _), _) = modern("tools/call", 9, json!({"name": "nope", "arguments": {}}), Some("nope"));
+        assert_eq!(answer["error"]["code"], json!(INVALID_PARAMS), "{answer}");
+        assert!(answer["error"]["message"].as_str().unwrap().starts_with("Unknown tool: nope. The tools are: check_code."), "{answer}");
         // (the old name's call: kept for the program as the tool's own)
-        let (status, answer, _) = modern("tools/call", 6, json!({"name": "get_problems", "arguments": {}}), Some("get_problems"));
+        let ((status, answer, _), rx) = modern("tools/call", 6, json!({"name": "get_problems", "arguments": {}}), Some("get_problems"));
         assert_eq!(status, 0, "kept for the program, not answered yet: {answer}");
-        let kept: Vec<String> = with_server(name, |s| s.calls.values().map(|c| c.name.clone()).collect()).unwrap_or_default();
-        assert_eq!(kept, ["check_code"]);
+        let kept = mcp::waiting(name);
+        assert_eq!(kept.iter().map(|c| c.2.as_str()).collect::<Vec<_>>(), ["check_code"]);
+        assert_eq!(rp_comp_get(name, "pendingcount").to_i64(), 1);
+        // (answered: MCP's result, resultType on the current revision)
+        assert_eq!(method(name, "reply", &[v_int(kept[0].0), v_str("No problems.")]).to_i64(), 1);
+        let (status, answer, _) = read_out(&rx);
+        assert_eq!(status, 200, "{answer}");
+        assert_eq!(answer, json!({"jsonrpc": "2.0", "id": 6, "result": {"content": [{"type": "text", "text": "No problems."}], "resultType": "complete"}}));
+        assert_eq!(rp_comp_get(name, "pendingcount").to_i64(), 0);
         // (an earlier revision lists them too)
         let (_, answer, head) = posted(name, &[], &json!({"jsonrpc": "2.0", "id": 7, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "old", "version": "1"}}}));
         assert_eq!(answer["result"]["capabilities"]["prompts"], json!({}), "{answer}");
         let sid = head.lines().find_map(|l| l.strip_prefix("Mcp-Session-Id: ")).map(str::trim).unwrap_or("").to_string();
         let (_, answer, _) = posted(name, &[("Mcp-Session-Id", &sid)], &json!({"jsonrpc": "2.0", "id": 8, "method": "prompts/get", "params": {"name": "rapidr-way"}}));
         assert!(answer["result"]["messages"][0]["content"]["text"].as_str().unwrap_or("").contains("studio_status"), "{answer}");
+        // (a call still waiting when the server stops: told so)
+        let ((status, _, _), rx) = modern("tools/call", 10, json!({"name": "check_code", "arguments": {}}), Some("check_code"));
+        assert_eq!(status, 0);
         stop(name);
-        DEFS.with(|d| d.borrow_mut().remove(name));
-    }
-
-    #[test]
-    fn images_are_known_by_their_bytes() {
-        assert_eq!(image_mime(b"\x89PNG\r\n\x1a\n...."), Some("image/png"));
-        assert_eq!(image_mime(&[0xFF, 0xD8, 0xFF]), Some("image/jpeg"));
-        assert_eq!(image_mime(b"BM...."), None);
+        let (status, answer, _) = read_out(&rx);
+        assert_eq!(status, 200, "{answer}");
+        assert_eq!(answer["error"]["message"], json!("The server stopped before this call was answered."));
+        mcp::forget(name);
     }
 }

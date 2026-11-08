@@ -628,7 +628,7 @@ SUB LockSettingsShow
   AIReviewBox.Enabled = Flag(aiOff = 0)
   ' (AI Apps: the switch off and greyed — the user's choice is kept for
   ' when it is unlocked —, the rest read-only)
-  McpOnBox.Enabled = Flag(appsOff = 0)
+  McpOnBox.Enabled = Flag(appsOff = 0 AND McpNoBrowser = 0)
   IF appsOff THEN McpOnBox.Checked = 0 ELSE McpOnBox.Checked = McpOn
   McpPortEdit.Enabled = Flag(appsOff = 0)
   McpCopyAddrBtn.Enabled = Flag(appsOff = 0)

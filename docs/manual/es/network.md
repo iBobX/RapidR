@@ -10,8 +10,11 @@ Un programa se comunica con la red en dos direcciones:
 - **como servidor**, que responde a otros: `RServerSocket` (TCP, por líneas,
   bytes o solicitudes HTTP completas), `RHttpServer` (un servidor web: una API
   local, un panel de control) y `RMcpServer` (las herramientas propias de tu
-  programa para las aplicaciones de IA). Los tres son propios de RapidR, y solo
-  para el escritorio: una página web no puede escuchar conexiones.
+  programa para las aplicaciones de IA). Los tres son propios de RapidR. Una
+  página web no puede escuchar conexiones: `RServerSocket` y `RHttpServer` son
+  solo para el escritorio; `RMcpServer` ofrece en cambio sus herramientas a los
+  agentes de IA del navegador
+  ([Ofrece las herramientas de tu aplicación a agentes de IA](agent-tools.md)).
 
 ## Solo esta computadora, o toda la red
 
@@ -275,9 +278,13 @@ protocolo por sí mismo, con las mismas conexiones y comprobaciones que
 
 ### En la web
 
-Una página web no puede escuchar conexiones, así que `RHttpServer`, `RMcpServer`
-y `RServerSocket` se ejecutan solo en el escritorio (interpretados y nativos). En
-la web `Start` da False y `Error` dice por qué.
+Una página web no puede escuchar conexiones, así que `RHttpServer` y
+`RServerSocket` se ejecutan solo en el escritorio (interpretados y nativos); en
+la web su `Start` da False y `Error` dice por qué. `RMcpServer` en un navegador
+ofrece en cambio sus herramientas a los propios agentes de IA del navegador
+(`Transport` es `"browser"`; sin dirección, puerto ni token), donde el
+navegador permite que una página lo haga (`Available`):
+[Ofrece las herramientas de tu aplicación a agentes de IA](agent-tools.md).
 
 ## RMcpServer: las herramientas de tu programa para las aplicaciones de IA
 

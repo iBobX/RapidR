@@ -1308,6 +1308,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
     let uname = uname.as_ref();
     let ty = comp_type_of(uname);
     let ty = ty.as_str();
+    // RMcpServer's Available and Transport: its transport's (agent_tools_web.rs).
+    if ty == "RMCPSERVER" || ty == rapidr_value::agent_tools::AGENT_TOOLS {
+        if let Some(v) = crate::agent_tools_web::get(lprop) {
+            return v;
+        }
+    }
     // (an RFormEx's own members, and its TRAYICO's — rapidr_ui_app::formex)
     if ty == "RFORM" && (rapidr_ui_app::formex::reads(lprop) || lprop.starts_with("trayico.")) && rapidr_value::formex::is(uname) {
         if let Some((sub, member)) = rapidr_ui_app::formex::sub_component(uname, lprop) {
@@ -1850,8 +1856,9 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if comp_type == "RHTTPSERVER" {
         return http_server_web_method(&uname, &lmethod);
     }
-    if comp_type == "RMCPSERVER" {
-        return mcp_server_web_method(&uname, &lmethod);
+    // (its browser transport: the page's tools for the browser's AI agents)
+    if comp_type == "RMCPSERVER" || comp_type == rapidr_value::agent_tools::AGENT_TOOLS {
+        return crate::agent_tools_web::method(&uname, &lmethod, args);
     }
     // (the program's own eyes and hands: kernel_web.rs)
     if comp_type == "RWINDOWCAPTURE" {
@@ -2037,23 +2044,6 @@ fn http_server_web_method(name: &str, method: &str) -> Value {
         "header" | "newtoken" => v_str(""),
         "stop" => v_null(),
         "respond" | "beginstream" | "sendevent" | "endstream" | "close" => v_int(0),
-        _ => v_null(),
-    }
-}
-
-/// RMcpServer on the web: desktop only, as RHttpServer (a page can't
-/// listen for connections). Start fails and Error says why; tools can
-/// still be added (a program that serves them on the desktop runs here).
-fn mcp_server_web_method(name: &str, method: &str) -> Value {
-    match method {
-        "start" => {
-            rp_comp_set(name, "error", v_str("RMcpServer runs on the desktop only: a web page can't listen for connections"));
-            rp_comp_set(name, "listening", v_int(0));
-            v_int(0)
-        }
-        "newtoken" | "argument" => v_str(""),
-        "addtool" | "addresource" | "removetool" => v_int(1),
-        "toolcount" | "reply" | "replyimage" | "replyjson" | "progress" | "isopen" | "disconnect" => v_int(0),
         _ => v_null(),
     }
 }

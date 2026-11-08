@@ -928,7 +928,8 @@ impl ToolProvider for Handle {
             // (the same file read again in the same answer, unchanged: not
             // sent again — a small model rereads in a loop, and each copy
             // fills its window)
-            if name == "read_file" {
+            // (a part of it — offset, limit — is always sent: another part)
+            if name == "read_file" && input.get("offset").is_none() && input.get("limit").is_none() {
                 if let Ok(rel) = ai_tools::project_path(&t.folder, input.get("path").and_then(Json::as_str).unwrap_or("")) {
                     let pending = |p: &Proposal| t.folder.is_empty() && p.kind == "project" && p.decision != "created";
                     let now = t.proposals.iter().find(|p| p.path == rel && (p.project.is_empty() || pending(p))).map(|p| p.new.clone()).or_else(|| t.project().text(&rel).ok());

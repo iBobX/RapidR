@@ -3404,6 +3404,10 @@ msgstr ""
 msgid "log point"
 msgstr ""
 
+#: crates/rapidr-value/src/agent_tools/mod.rs
+msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
+msgstr ""
+
 #: crates/rapidr-value/src/dialogs.rs
 msgid "Confirm"
 msgstr ""
