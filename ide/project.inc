@@ -320,7 +320,7 @@ SUB AskUseRWin32
     OutputLine TR$("The copy keeps WIN32API.INC. The report says what RWin32.inc would change, should you want it later.")
     EXIT SUB
   END IF
-  IF Proj.UseRWin32 THEN
+  IF Proj.UseRWin32() THEN
     OutputLine TR$("The copy uses RWin32.inc now and compiles. The report lists what differs.")
   ELSE
     OutputLine TR$("The copy uses RWin32.inc now, but: {error}. The report lists what differs.", "error", Proj.Error)
