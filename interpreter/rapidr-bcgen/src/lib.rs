@@ -114,7 +114,7 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     let program = &tray;
     // ($TYPECHECK: on the program as written, each SUB where it stands)
     let mut typecheck = rapidr_ast::typecheck_errors(program, &|n| builtins::is_builtin(n) || RAPIDQ_BUILTINS.contains(&n));
-    typecheck.extend(rapidr_ast::rapidq_checks(program));
+    typecheck.extend(rapidr_ast::rapidq_checks(program, rapidr_program));
     // (a global named like a built-in: rapidr_ast::builtin_name_clashes)
     typecheck.extend(rapidr_ast::builtin_name_clashes(program, rapidr_program, &|n| builtins::is_builtin(n), &|n| builtins::BARE_BUILTINS.contains(&builtins::builtin_key(n).as_str())));
     let hoisted = rapidr_ast::type_values::lower(&rapidr_ast::stream_arrays::lower(&rapidr_ast::memory::lower(&rapidr_ast::array_refs::lower(&rapidr_ast::routine_objects(&rapidr_ast::suffix_routines::lower(&rapidr_ast::init_arrays(&rapidr_ast::create_property_reads(&rapidr_ast::option_dim(&rapidr_ast::dotted_fields(&rapidr_ast::templates(&rapidr_ast::quicksort(&rapidr_ast::for_locals::lower(&rapidr_ast::suffix_vars::lower(&rapidr_ast::hoist_routines(&rapidr_ast::dotted_function_results(program))))))), &|n| builtins::is_builtin(n))))))))));

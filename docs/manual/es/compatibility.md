@@ -52,6 +52,63 @@ que el original, con un informe.
   de prueba y comparando sus píxeles y sus árboles de accesibilidad: nativo
   contra interpretado, el escritorio contra el navegador, a escala 1× y 2×.
 
+## Costumbres de los programas anteriores que RapidR conserva
+
+### Una CONST escrita otra vez: `$OPTION WEAKTYPE`
+
+Un programa clásico (`.bas`, `.rqw`, `.rqb`) puede escribir otra vez una CONST
+cuando `$OPTION WEAKTYPE ON` está vigente donde está la segunda CONST. Los
+archivos de constantes de VB que los programas anteriores incluyen
+con `$INCLUDE` (un archivo «Win32 API», por ejemplo) empiezan con
+`$OPTION WEAKTYPE ON`, terminan con `$OPTION WEAKTYPE OFF` y vuelven a escribir
+algunos de los nombres que tiene `RAPIDQ.INC`; RapidR los compila como el
+compilador clásico, en el mismo orden.
+
+```basic
+$OPTION WEAKTYPE ON
+CONST Version = 1
+CONST Version = 2             ' sin error: desde aquí Version es 2
+CONST Version = "dos"         ' gana la última, de cualquier tipo
+$OPTION WEAKTYPE OFF
+CONST Version = 3             ' error: CONST variable Version already defined
+```
+
+- **Con `ON`** (donde se escribe la segunda CONST): sin error. Gana el último
+  valor, del mismo tipo o no, y una línea entre dos CONST lee el valor de la
+  anterior. `Public Const` y `Private Const` son CONST; las mayúsculas no
+  cuentan (`a` es `A`). Una CONST también puede tomar el nombre de una variable
+  o un arreglo declarados con DIM, o de una SUB o FUNCTION escrita antes.
+- **Con `OFF`** (lo predeterminado): una segunda CONST con un mismo nombre es un
+  error, tenga el valor que tenga, en el mismo archivo o en otro, también con
+  `Public Const`: `CONST variable ANSI_CHARSET already defined`. La opción
+  cuenta donde se escribe la segunda CONST, así que un archivo incluido que
+  termina con ella en ON la deja puesta. El orden de los archivos importa:
+  `$INCLUDE "rapidq.inc"` y luego el archivo portado compila; el archivo
+  portado primero y luego `rapidq.inc` se detiene en el primer nombre que
+  `rapidq.inc` repite. (`$OPTION VBDLL ON`, que esos archivos también activan,
+  no hace esto.)
+- **Solo una CONST.** Un nombre declarado dos veces con DIM (`Identifier B
+  already used, try another name`), un DIM después de una CONST y una segunda
+  SUB, FUNCTION o CREATE con un mismo nombre siguen siendo errores. Todo lo que
+  no sea `ON` u `OFF` después de la opción es un error (`Option WEAKTYPE
+  expected ON|OFF but got MAYBE`).
+- **Un programa `.rr` no tiene esta opción**: una CONST repetida sigue siendo un
+  error ahí, y dice dónde está la primera. Escribe cada nombre una vez: borra la
+  línea repetida, o deja fuera del programa el archivo que la repite.
+
+Hay dos rincones que no son los del compilador clásico. Una SUB o FUNCTION
+escrita *antes* de la segunda CONST y llamada después lee aquí el valor nuevo (el
+compilador clásico fija una constante donde se escribe la rutina, así que la
+rutina conserva el valor anterior); y `CONST A = A + 1`, una CONST definida a
+partir de su propio valor anterior, le suma 1 aquí, mientras que el compilador
+clásico lee ahí el nombre como 0. Una SUB o FUNCTION escrita *después* de una
+CONST con su nombre sigue siendo un error aquí (el compilador clásico la deja
+pasar con la opción, y entonces la rutina oculta a la CONST).
+
+Pruébalo: [examples/rapidq/weaktype](../../../examples/rapidq/weaktype/weaktype.bas)
+(un archivo de constantes y un programa que escriben otra vez los nombres de
+RAPIDQ.INC).
+
 ## Lo que RapidR no hace
 
 - **Llamadas a la API de Windows fuera de Windows.** Un programa que llama a las

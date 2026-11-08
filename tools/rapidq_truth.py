@@ -287,7 +287,7 @@ def stage(set_name, progs, kind=None):
                 if os.path.isfile(fp) and os.path.getsize(fp) < 2_000_000 and not f.lower().endswith((".exe", ".dll")):
                     shutil.copy(fp, os.path.join(d, f))
         elif kind == "conformance":
-            for folder in ("resource_files", "picture_files"):
+            for folder in ("resource_files", "picture_files", "include_files"):
                 if os.path.isdir(os.path.join(CASES, folder)):
                     shutil.copytree(os.path.join(CASES, folder), os.path.join(d, folder))
         prog = os.path.join(d, p["name"] + ".bas")
