@@ -56,30 +56,35 @@ still has `macho::universal(&[slices])` (a fat Mach-O from thin ones, slices
 aligned to 16 KiB as Apple's tools do), so a runner delivered as two thin files
 works too, and the native build uses it instead of running `lipo`.
 
-## 3. One runner per target: `runner_bytes(target)`
+## 3. One runner per target: `bundle(target)` and `for_packer`
 
-The CLI finds runners through ONE pair of functions
-(`crates/rapidr-cli/src/runners.rs`); the RUNNERS lane adds the cache and the
-verified download behind them, without changing the callers:
+The CLI finds runners through ONE call (`crates/rapidr-cli/src/runners.rs`,
+on the RUNNERS lane's crate `rapidr-runners`):
 
 ```rust
-pub fn runner_bytes(target: Target) -> Result<Vec<u8>, String>;
-pub fn runner_notices(target: Target) -> Result<String, String>;
+pub fn bundle(target: &str) -> Result<(rapidr_runners::Bundle, Source), String>;
+pub fn for_packer(target: Target, windowed: bool) -> Result<(Vec<u8>, String, Source), String>;
 ```
 
-- Today: the install's `runners/<dir>/rapidrintr-runner[.exe]` and
-  `notices/<kind>.txt`; in a source checkout, this machine's runner built by
-  cargo (as `locate_or_build_stub` did) and the notices made by `notices.rs`.
+- `bundle` is the target's files — the runner, `THIRD-PARTY-NOTICES.txt`,
+  and for the web the interpreter and its fonts — from this install, else the
+  runners downloaded before (checked again each time), else a download from
+  the runners host, used only after the list's minisign signature, its
+  version and the file's SHA-256 check out. A source checkout builds this
+  machine's runner with cargo instead (never older than the CLI) and takes
+  its web runtime from `target/web`.
+- `for_packer` turns a bundle into what the packer takes
+  (`rapidr_package::Runner`): the runner program (for the web, the runtime as
+  one tar, `web::runtime_tar`) and the notices. Every build calls it: the
+  folder build and `--targets`.
 - **One file per target.** Windows' windowed runner (`rapidrintr-runnerw.exe`)
   is the console runner with one field changed: the PE optional header's
   `Subsystem` (3 console, 2 GUI). Checked on the 2.123.0 Windows 7 runners:
   the two files differ in exactly 4 bytes, the build time stamp, the checksum
   and the subsystem. So the core makes the windowed one
   (`windows::set_subsystem`), and a download is one file, not two.
-- The web's "runner" is the web runtime: a plain tar (ustar, read by
-  rapidr-archive) holding `rapidrintr.js`, `rapidrintr_bg.wasm` and `fonts/…`.
-- The error, when there is none: the target's name in plain words and where it
-  was looked for ("no runner for Windows (64-bit, x64) in this install …").
+- The errors are sentences for the person building ("This runner doesn't
+  match RapidR 2.123.1's list: it was not used.").
 
 ## 4. The App info
 
@@ -155,10 +160,12 @@ and archives, on every system and in the browser, come out signed. The
 
 ## 8. The AI facet
 
-`build_app(targets, metadata)` in the shared tool set (rapidr-studio's
-toolset.rs): handled by Studio (it saves the App info into the project, then
-runs the CLI with `--targets`), offered to RAI and AI apps alike, permission
-class `run`.
+`build_app(targets, name, version, company, copyright, description,
+website, category)` in the shared tool set (rapidr-studio's toolset.rs):
+handled by Studio (ide/tools.inc: the details saved in the project, then
+`Proj.Build("targets:<list>")`, which runs `rapidr build --targets`; the
+answer is what the build printed), offered to RAI and AI apps alike,
+permission class `run`.
 
 ## 9. Tests and budgets
 

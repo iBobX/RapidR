@@ -6,21 +6,21 @@ main = "main.rr"
 
 [[files]]
 path = "main.rr"
-kind = "form"
+kind = "module"
 
 [[files]]
 path = "art/tips.svg"
-kind = "asset"
+kind = "resource"
 
 [build]
 icon = "art/tips.svg"
 app_name = "Tip Calculator"
-bundle_id = "com.example.tipcalculator"
+bundle_id = "dev.rapidr.example.tips"
 version = "1.2.0"
 company = "RapidR Examples"
-copyright = "© 2026 RapidR Examples"
-description = "Splits a bill and works out the tip."
-website = "https://example.com/tip-calculator"
-category = "productivity"
-kind = "window"
+copyright = "(c) 2026 RapidR Examples"
+description = "Splits the bill and the tip between friends"
+website = "https://github.com/iBobX/RapidR"
+category = "finance"
 targets = ["bytecode"]
+output = "build"

@@ -2014,6 +2014,11 @@ msgid "Web"
 msgstr "Web"
 
 #: ide/build.inc
+msgctxt "the decimal separator"
+msgid "."
+msgstr "."
+
+#: ide/build.inc
 msgid "{n} bytes"
 msgstr "{n} 字节"
 
@@ -2033,11 +2038,13 @@ msgstr "尚未勾选"
 msgid "{n} system"
 msgid_plural "{n} systems"
 msgstr[0] "{n} 个系统"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "{n} app"
 msgid_plural "{n} apps"
 msgstr[0] "{n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "One Universal app for every Mac: Apple silicon and Intel."
@@ -2090,10 +2097,6 @@ msgstr "一个带安装脚本的 .tar.gz。"
 #: ide/build.inc
 msgid "Coming later: Android, iOS, boards (ESP32, micro:bit)"
 msgstr "即将推出：Android、iOS、开发板（ESP32、micro:bit）"
-
-#: ide/build.inc
-msgid "Where it runs"
-msgstr "运行位置"
 
 #: ide/build.inc
 msgid "Utilities"
@@ -2164,26 +2167,12 @@ msgid "Project Options"
 msgstr "项目选项"
 
 #: ide/build.inc
+msgid "{n} of {m} done, {s} s"
+msgstr "已完成 {n}/{m}，{s} 秒"
+
+#: ide/build.inc
 msgid "Step {n} of 4: {name}"
 msgstr "第 {n} 步，共 4 步：{name}"
-
-#: ide/build.inc
-msgid "{n} data file"
-msgid_plural "{n} data files"
-msgstr[0] "{n} 个数据文件"
-
-#: ide/build.inc
-msgid "Building: {n} of {m} done"
-msgstr "构建中：已完成 {n}/{m}"
-
-#: ide/build.inc
-msgid "{n} app built"
-msgid_plural "{n} apps built"
-msgstr[0] "已构建 {n} 个应用"
-
-#: ide/build.inc
-msgid "Needs attention"
-msgstr "需要注意"
 
 #: ide/build.inc
 msgid "Step {n} of 4. The arrows move, Enter opens a step."
@@ -2321,6 +2310,30 @@ msgstr "显示"
 msgid "Can't make one zip: {error}"
 msgstr "无法生成单个 zip：{error}"
 
+#: ide/build.inc
+msgid "Where it runs"
+msgstr "运行位置"
+
+#: ide/build.inc
+msgid "Needs attention"
+msgstr "需要注意"
+
+#: ide/build.inc
+msgid "{n} data file"
+msgid_plural "{n} data files"
+msgstr[0] "{n} 个数据文件"
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "Building: {n} of {m} done"
+msgstr "构建中：已完成 {n}/{m}"
+
+#: ide/build.inc
+msgid "{n} app built"
+msgid_plural "{n} apps built"
+msgstr[0] "已构建 {n} 个应用"
+msgstr[1] ""
+
 #: ide/build.inc ide/commands.inc ide/mcp.inc
 msgid "&Stop"
 msgstr "停止(&S)"
@@ -2349,6 +2362,7 @@ msgstr "随时再次构建：Ctrl+Shift+B"
 msgid "&Build {n} App"
 msgid_plural "&Build {n} Apps"
 msgstr[0] "构建 {n} 个应用(&B)"
+msgstr[1] ""
 
 #: ide/build.inc ide/contextmenu.inc
 msgid "&Back"
@@ -2406,16 +2420,19 @@ msgstr "这台电脑的应用用 Rust 编译：最快，仅限本系统。需要
 msgid "for {n} system, all in one zip."
 msgid_plural "for {n} systems, all in one zip."
 msgstr[0] "，用于 {n} 个系统，全部在一个 zip 中。"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "for {n} system, each in its own zip."
 msgid_plural "for {n} systems, each in its own zip."
 msgstr[0] "，用于 {n} 个系统，每个都有自己的 zip。"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "{n} runner downloads first, once"
 msgid_plural "{n} runners download first, once"
 msgstr[0] "先下载 {n} 个运行器，只需一次"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "{list}, {size} from {host}. Each is checked against RapidR's signature before it's used."
@@ -2433,6 +2450,7 @@ msgstr "和"
 msgid "{n} app built in {s} s"
 msgid_plural "{n} apps built in {s} s"
 msgstr[0] "{s} 秒内构建了 {n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "{n} of {m} apps built"
@@ -2450,14 +2468,11 @@ msgstr "在 {folder}，旁边有 SHA256SUMS。"
 msgid "Building {n} app"
 msgid_plural "Building {n} apps"
 msgstr[0] "正在构建 {n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "{file} is compiled once. Now each system's app is packed."
 msgstr "{file} 只编译一次。现在正在打包每个系统的应用。"
-
-#: ide/build.inc
-msgid "{n} of {m} done, {s} s"
-msgstr "已完成 {n}/{m}，{s} 秒"
 
 #: ide/build.inc
 msgid "Try Again"
@@ -2525,6 +2540,7 @@ msgstr "打开构建"
 msgid "Building {n} app..."
 msgid_plural "Building {n} apps..."
 msgstr[0] "正在构建 {n} 个应用..."
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "The build was stopped"
@@ -2567,6 +2583,10 @@ msgid "Installing Rust failed"
 msgstr "安装 Rust 失败"
 
 #: ide/build.inc
+msgid "Not built: see the Output's Build page."
+msgstr "未构建：请查看输出的“构建”页。"
+
+#: ide/build.inc
 msgid "✓ Built {file} (native code)"
 msgstr "✓ 已构建 {file}（原生代码）"
 
@@ -2577,10 +2597,6 @@ msgstr "在 {manager} 中显示"
 #: ide/build.inc
 msgid "✗ The native code build failed (exit code {code}): see above."
 msgstr "✗ 原生代码构建失败（退出代码 {code}）：见上方。"
-
-#: ide/build.inc
-msgid "Not built: see the Output's Build page."
-msgstr "未构建：请查看输出的“构建”页。"
 
 #: ide/build.inc
 msgid "All in one zip: {file}"
@@ -2598,11 +2614,13 @@ msgstr "正在将 {file} 构建为原生代码..."
 msgid "✓ {n} app built in {s} s"
 msgid_plural "✓ {n} apps built in {s} s"
 msgstr[0] "✓ {s} 秒内构建了 {n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "{n} app built in {s} seconds"
 msgid_plural "{n} apps built in {s} seconds"
 msgstr[0] "{s} 秒内构建了 {n} 个应用"
+msgstr[1] ""
 
 #: ide/build.inc
 msgid "✗ {n} of {m} apps built: see above."
@@ -5915,19 +5933,19 @@ msgstr "快速绘制像素：每秒 50 帧的等离子特效和生命游戏 (Set
 
 #: ide/panes.inc
 msgid "RoundRect with a border and an inside in one call: a card, chips, the three forms"
-msgstr ""
+msgstr "RoundRect 一次调用画出边框和内部：卡片、小标签、三种形状"
 
 #: ide/panes.inc
 msgid "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
-msgstr ""
+msgstr "CopyMode：替换、XOR、负片、OR、扫描线、选择框"
 
 #: ide/panes.inc
 msgid "Two timers: the default ticks 50 a second, one with FixedRate = 0 about 25"
-msgstr ""
+msgstr "两个定时器：默认的每秒触发 50 次，FixedRate = 0 的约 25 次"
 
 #: ide/panes.inc
 msgid "What an RAudioOut says when the sound goes wrong (OnError)"
-msgstr ""
+msgstr "RAudioOut 在声音出问题时会说什么 (OnError)"
 
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"

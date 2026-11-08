@@ -42,6 +42,9 @@ members = [
     "crates/rapidr-lsp",
     "crates/rapidr-dap",
     "crates/rapidr-package",
+    # Runners for every system: the install's, the cache, or a download checked
+    # against a minisign-signed list (docs/build-for-every-platform-plan.md)
+    "crates/rapidr-runners",
     # Versions (Git) on gitoxide, not in Studio yet (docs/versions-plan.md)
     "crates/rapidr-vcs",
     # RapidR's own diff engine (Myers' paper): RDIFFVIEW, Versions, RAI
@@ -110,6 +113,7 @@ rapidr-ai = { path = "crates/rapidr-ai" }
 rapidr-lsp = { path = "crates/rapidr-lsp" }
 rapidr-dap = { path = "crates/rapidr-dap" }
 rapidr-package = { path = "crates/rapidr-package" }
+rapidr-runners = { path = "crates/rapidr-runners" }
 rapidr-diff = { path = "crates/rapidr-diff" }
 
 # Crates.io crates RapidR replaces with its own. Every generated program's

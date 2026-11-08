@@ -459,7 +459,8 @@ fn the_instructions() {
     // (the one tool set, crate::toolset: the reading ones, then those that
     // change or run — the program's eyes and hands only while it runs)
     assert_eq!(ai_tools::tools(false).len(), 16);
-    assert_eq!(ai_tools::tools(true).len(), 25);
+    // (build_app among those that run: the app for other systems)
+    assert_eq!(ai_tools::tools(true).len(), 26);
 }
 
 /// K1 and K3 (docs/preview4-plan.md): what RAI sends a provider carries the

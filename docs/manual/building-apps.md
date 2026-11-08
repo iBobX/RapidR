@@ -132,6 +132,95 @@ A native build on a computer without Rust stops at once and says so: "Native
 builds need Rust (it is free). Run `rapidr setup` to install it, or build
 without it: add --interp". It changes nothing and leaves nothing half built.
 
+## Where runners come from
+
+An interpreted app is RapidR's **runner** with your program's bytecode after
+it. The runner is a program of its own, made for one system, so building for
+another system needs that system's runner. Each RapidR install carries the
+runner of its own system and fetches the others, once, when you first build
+for them.
+
+For `--target windows-x86_64` (or any system), RapidR looks in this order and
+uses the first that has it:
+
+1. **This install.** The runner is part of RapidR; nothing is downloaded.
+2. **Runners downloaded before.** They are kept on your computer and checked
+   again every time they are used. Building for that system now works offline.
+3. **The download.** The first time you build for a system this install doesn't
+   carry, RapidR fetches that one runner from studio.rapidr.dev, shows how far it is
+   (10 to 25 MB each), checks it against RapidR's signature and keeps it. A
+   runner is never used before that check.
+
+| Target | The runner for | Download (about) |
+|---|---|---|
+| `windows-x86_64` | Windows 64-bit (x64: most PCs since 2005) | 11 MB |
+| `windows-aarch64` | Windows ARM64 (Snapdragon PCs, Windows in a Mac's virtual machine) | 11 MB |
+| `windows-x86` | Windows 32-bit, Windows 7 and later (no JIT there: the fast interpreter) | 19 MB |
+| `macos` | macOS: one runner for Apple silicon and Intel (`macos-arm64` and `macos-x86_64` are slices of it) | 24 MB |
+| `linux-x86_64`, `linux-aarch64` | Linux 64-bit (x64) and Linux ARM64 (also a Raspberry Pi 4 or 5 with a 64-bit system) | 14 to 15 MB |
+| `web` | the interpreter a web build uses, and its fallback fonts | 16 MB |
+
+`x64`, `arm64`, `amd64` and `i686` are understood as well: `--target windows-x64`
+means `windows-x86_64`.
+
+### What is checked
+
+A downloaded runner is used only if it is the one RapidR released for **your**
+version of RapidR:
+
+- the list of that version's runners is signed with RapidR's release key
+  (minisign; the public key is built into RapidR, the one on every release's
+  page), and the list says it is for exactly your version: a 2.123.1 never uses
+  2.123.0's runners, nor 2.124's;
+- the file has the size and SHA-256 the list gives for it;
+- what is inside is exactly the files the list names: no links, no names that
+  leave the folder.
+
+When one of these fails, the runner is not used and nothing of it is kept.
+RapidR says why: *This runner doesn't match RapidR 2.123.1's list: it was not
+used.*, or *These runners are for RapidR 2.122.1, not 2.123.1: they were not
+used.* The same checks run on a runner kept from before, so a file that changed
+on your disk is not used either (it is removed).
+
+### What is sent
+
+The download asks studio.rapidr.dev for three files (`https://studio.rapidr.dev/runners/2.123.1/`:
+the list, its signature and the runner) like a web page does, so the host sees
+your computer's address and `RapidR/2.123.1`. Nothing else leaves your computer: not your program, not
+your name, not what you build. Nothing is sent when the runner is in the
+install or already kept.
+
+### Offline
+
+With a runner in the install or kept, building works with no network.
+Without one, RapidR says which runner is missing and what to do:
+
+> The Windows ARM64 runner is not on this computer: it is not part of this
+> install, and it has not been downloaded yet. RapidR can't reach studio.rapidr.dev
+> (…). Connect to the internet once and build again: the runner is kept after
+> it is downloaded, and later builds for it work offline.
+
+To get runners before you need them (before a trip, for a classroom's
+computers):
+
+```sh
+rapidr runners                               # which runners you have, and where from
+rapidr runners fetch windows-x86_64 macos    # get these now
+rapidr runners fetch --all                   # all seven: about 110 MB
+rapidr runners clear                         # delete the downloaded ones
+```
+
+### Settings
+
+| | |
+|---|---|
+| `RAPIDR_RUNNERS_URL` | the address runners are downloaded from, `https://…` (`http://` only for this computer). Else the first line of `runners-url.txt` in RapidR's settings folder (`RAPIDR_CONFIG_DIR`, or `~/Library/Application Support/RapidR`, `%APPDATA%\RapidR`, `~/.config/rapidr`), else `https://studio.rapidr.dev/runners`, the address built into RapidR |
+| `RAPIDR_RUNNERS_OFFLINE=1` | never use the network for runners: only this install's and the kept ones |
+| `RAPIDR_RUNNERS_CACHE` | where runners are kept, one folder per RapidR version. Else `…/runners/<version>` in RapidR's cache: `~/Library/Caches/RapidR` (macOS), `%LOCALAPPDATA%\RapidR\Cache` (Windows), `~/.cache/rapidr` (Linux) |
+
+The kept runners of a version of RapidR nobody has used for 30 days are removed
+the next time a runner is downloaded; `rapidr runners clear` removes them all at once.
+
 ## The app's details
 
 | Option | Project setting (`.rrproj`, `[build]`) | What it is | Default |

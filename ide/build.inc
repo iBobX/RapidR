@@ -717,6 +717,11 @@ FUNCTION BdIndex(Target AS STRING) AS INTEGER
   NEXT
 END FUNCTION
 
+' (a number with one decimal, in the language's way: 2.8 / 2,8)
+FUNCTION BdOne(X AS DOUBLE) AS STRING
+  Result = REPLACESUBSTR$(FORMAT$("%.1f", X), ".", TR$(".", "the decimal separator"))
+END FUNCTION
+
 ' (a size as people read it: 12 KB, 21 MB, 1.4 MB)
 FUNCTION BdSize(Bytes AS DOUBLE) AS STRING
   IF Bytes < 1024 THEN
@@ -724,7 +729,7 @@ FUNCTION BdSize(Bytes AS DOUBLE) AS STRING
   ELSEIF Bytes < 1048576 THEN
     Result = TR$("{n} KB", "n", LTRIM$(STR$(INT((Bytes + 1023) / 1024))))
   ELSEIF Bytes < 10485760 THEN
-    Result = TR$("{n} MB", "n", FORMAT$("%.1f", Bytes / 1048576))
+    Result = TR$("{n} MB", "n", BdOne(Bytes / 1048576))
   ELSE
     Result = TR$("{n} MB", "n", LTRIM$(STR$(INT(Bytes / 1048576 + 0.5))))
   END IF
@@ -1058,6 +1063,13 @@ SUB BdLoad
   FOR i = 0 TO BD_APPS - 1
     BdOn(i) = Flag(INSTR("," + list + ",", "," + BdTarget(i) + ",") > 0)
   NEXT
+  ' (RapidR Studio on the web builds the web app, in the page: the other
+  ' systems are the desktop Studio's for now)
+  IF Proj.FileManager = "" THEN
+    FOR i = 0 TO BD_APPS - 1
+      BdOn(i) = Flag(i = 6)
+    NEXT
+  END IF
   nm = Proj.AppName
   IF nm = "" THEN nm = Proj.Name
   IF nm = "" THEN nm = BaseName(ProjectMain)
@@ -1136,7 +1148,7 @@ SUB BdTick
     EXIT SUB
   END IF
   IF BdShown THEN
-    BdAllNote.Caption = TR$("{n} of {m} done, {s} s", "n", LTRIM$(STR$(BdDoneCount)), "m", LTRIM$(STR$(BdApps)), "s", FORMAT$("%.1f", TIMER - BdStarted))
+    BdAllNote.Caption = TR$("{n} of {m} done, {s} s", "n", LTRIM$(STR$(BdDoneCount)), "m", LTRIM$(STR$(BdApps)), "s", BdOne(TIMER - BdStarted))
     BdAllNote.Repaint
   END IF
 END SUB
@@ -2271,6 +2283,14 @@ SUB BdLayP1Ticks
     BdArch(i).Enabled = BdSys(0).Checked
   NEXT
   BdArch(3).Enabled = BdSys(2).Checked: BdArch(4).Enabled = BdSys(2).Checked
+  ' (the web Studio: the web app only)
+  IF Proj.FileManager = "" THEN
+    FOR c = 0 TO 2
+      BdSys(c).Enabled = 0
+    NEXT
+    BdSys(3).Enabled = 0
+    BdAllDesktop.Visible = 0: BdEverything.Visible = 0
+  END IF
   BdSys(0).AccessibleDescription = BdArchWords(0)
   BdSys(2).AccessibleDescription = BdArchWords(2)
   BdFilling = 0
@@ -2660,6 +2680,7 @@ FUNCTION BdLayP4(Pad AS INTEGER, W AS INTEGER) AS INTEGER
   END IF
   lx = x + UITextWidth(StripAmp(BdPackLabel.Caption)) + 12
   IF lx < x + 80 THEN lx = x + 80
+  BdPackLabel.Visible = Flag(Proj.FileManager <> ""): BdPackEach.Visible = BdPackLabel.Visible: BdPackOne.Visible = BdPackLabel.Visible
   BdPackLabel.Left = x: BdPackLabel.Top = y + 2
   BdPackEach.Left = lx: BdPackEach.Top = y: BdPackEach.Height = 20: BdPackEach.Width = UITextWidth(BdPackEach.Caption) + 28
   BdPackOne.Left = lx + BdPackEach.Width + 16: BdPackOne.Top = y: BdPackOne.Height = 20: BdPackOne.Width = UITextWidth(BdPackOne.Caption) + 28
@@ -2734,7 +2755,7 @@ FUNCTION BdLayP5(Pad AS INTEGER, W AS INTEGER) AS INTEGER
   IF BdPhase = "done" THEN
     IF built = BdApps THEN
       BdBmp(6).LoadIcon "success", 20
-      BdH5.Caption = TRN$("{n} app built in {s} s", "{n} apps built in {s} s", built, "s", FORMAT$("%.1f", BdSeconds))
+      BdH5.Caption = TRN$("{n} app built in {s} s", "{n} apps built in {s} s", built, "s", BdOne(BdSeconds))
     ELSE
       BdBmp(6).LoadIcon "warning", 20
       BdH5.Caption = TR$("{n} of {m} apps built", "n", LTRIM$(STR$(built)), "m", LTRIM$(STR$(BdApps)))
@@ -2762,7 +2783,7 @@ FUNCTION BdLayP5(Pad AS INTEGER, W AS INTEGER) AS INTEGER
     BdAllBar.Left = x: BdAllBar.Top = y + 5: BdAllBar.Width = W * 6 \ 10: BdAllBar.Height = 8
     BdAllBar.Repaint
     BdAllNote.Left = x + BdAllBar.Width + 16: BdAllNote.Top = y: BdAllNote.Width = W - BdAllBar.Width - 16: BdAllNote.Height = 18
-    BdAllNote.Caption = TR$("{n} of {m} done, {s} s", "n", LTRIM$(STR$(BdDoneCount)), "m", LTRIM$(STR$(BdApps)), "s", FORMAT$("%.1f", TIMER - BdStarted))
+    BdAllNote.Caption = TR$("{n} of {m} done, {s} s", "n", LTRIM$(STR$(BdDoneCount)), "m", LTRIM$(STR$(BdApps)), "s", BdOne(TIMER - BdStarted))
     y = y + 30
   END IF
   ' (a row per app)
@@ -2791,7 +2812,13 @@ FUNCTION BdLayP5(Pad AS INTEGER, W AS INTEGER) AS INTEGER
         BdRunStage(i).Left = x + 36: BdRunStage(i).Top = ry + 30
         BdRunStage(i).Width = W - 36 - 180: BdRunStage(i).Height = 18
       END IF
-      IF BdBytes(i) > 0 THEN BdRunSize(i).Caption = BdSize(BdBytes(i)) ELSE BdRunSize(i).Caption = ""
+      IF BdBytes(i) > 0 THEN
+        BdRunSize(i).Caption = BdSize(BdBytes(i))
+      ELSEIF BdState(i) = "built" THEN
+        BdRunSize(i).Caption = "—"
+      ELSE
+        BdRunSize(i).Caption = ""
+      END IF
       BdRunSize(i).Left = x + W - 120: BdRunSize(i).Width = 80: BdRunSize(i).Top = ry + 8: BdRunSize(i).Height = 18
       BdRunSize(i).Font.Color = TC("page.dim")
       BdRunMark(i).Left = x + W - 30: BdRunMark(i).Top = ry + 9
@@ -2950,11 +2977,17 @@ SUB BdStart
   BuildMode = "targets"
   BdStarted = TIMER
   BuildStarted = TIMER
-  started = Proj.BuildTargets()
+  IF Proj.FileManager = "" THEN
+    ' (the web Studio: the page packs the web app and the browser saves it)
+    BuildMode = "webpage"
+    started = Proj.Build("web")
+  ELSE
+    started = Proj.BuildTargets()
+  END IF
   IF started = 0 THEN
     BuildLine CHR$(27) + "[31m" + TR$("Can't build: {error}", "error", Proj.Error) + CHR$(27) + "[0m"
     SetState "error", TR$("Can't build {file}", "file", FileTitle(ProjectMain))
-    IF BdQuiet THEN BdToastId = Toast(TR$("Can't build: {error}", "error", Proj.Error), "error", TR$("Open Build"), "build")
+    IF BdQuiet AND ToolsBuildTicket = "" THEN BdToastId = Toast(TR$("Can't build: {error}", "error", Proj.Error), "error", TR$("Open Build"), "build")
     EXIT SUB
   END IF
   BdPhase = "building"
@@ -2992,6 +3025,7 @@ SUB BdStop
   NEXT
   BdPhase = "done"
   BdSeconds = TIMER - BdStarted
+  IF ToolsBuildTicket <> "" THEN ToolsBuildDone 1
   SetState "stopped", TR$("The build was stopped")
   Application.Announce TR$("The build was stopped")
   IF BdShown THEN BdLayOut
@@ -3001,6 +3035,8 @@ END SUB
 ' it says about an app moves its row (RPROJECT.BuildNews).
 SUB BuildOutput(Text AS STRING)
   DIM news AS STRING, kind AS STRING, i AS INTEGER, k AS INTEGER, path AS STRING, head AS STRING, nxt AS INTEGER
+  ' (a build an AI asked for, build_app: its answer is what the build says)
+  IF ToolsBuildTicket <> "" THEN ToolsBuildLog = ToolsBuildLog + Text + CHR$(10)
   k = INSTR(Text, ": ")
   IF k > 0 AND Proj.FileManager <> "" THEN
     head = LEFT$(Text, k - 1)
@@ -3091,6 +3127,19 @@ SUB BuildDone(Code AS INTEGER, Built AS STRING)
     END IF
     EXIT SUB
   END IF
+  IF BuildMode = "webpage" THEN
+    ' (the page's web app: its one row)
+    BuildMode = "targets"
+    IF Code = 0 THEN
+      BdState(6) = "built": BdZip(6) = FileTitle(Built)
+      BdMade = BdZip(6) + CHR$(10)
+    ELSE
+      BdState(6) = "failed": BdWhy(6) = TR$("Not built: see the Output's Build page.")
+    END IF
+    BdFinish
+    IF Code = 0 THEN Proj.BuiltPath = Built
+    EXIT SUB
+  END IF
   IF BuildMode = "native" THEN
     BuildLine ""
     IF Code = 0 THEN
@@ -3138,15 +3187,17 @@ SUB BdFinish
   BdPhase = "done"
   BdSeconds = TIMER - BdStarted
   built = BdBuiltCount
+  ' (build_app's answer: every app built, or not)
+  IF ToolsBuildTicket <> "" THEN ToolsBuildDone Flag(built < BdApps)
   FOR i = 0 TO BD_APPS - 1
     IF BdOn(i) AND BdState(i) = "built" AND first = "" THEN first = BdOutDir + "/" + BdZip(i)
   NEXT
   IF first <> "" THEN Proj.BuiltPath = first
   BuildLine ""
   IF built = BdApps THEN
-    BuildLine CHR$(27) + "[32m" + TRN$("✓ {n} app built in {s} s", "✓ {n} apps built in {s} s", built, "s", FORMAT$("%.1f", BdSeconds)) + CHR$(27) + "[0m   " + Hyperlink(TR$("Reveal in {manager}", "manager", Proj.FileManager), "reveal:" + first)
+    BuildLine CHR$(27) + "[32m" + TRN$("✓ {n} app built in {s} s", "✓ {n} apps built in {s} s", built, "s", BdOne(BdSeconds)) + CHR$(27) + "[0m   " + Hyperlink(TR$("Reveal in {manager}", "manager", Proj.FileManager), "reveal:" + first)
     SetState "stopped", TRN$("{n} app built", "{n} apps built", built)
-    Application.Announce TRN$("{n} app built in {s} seconds", "{n} apps built in {s} seconds", built, "s", FORMAT$("%.1f", BdSeconds))
+    Application.Announce TRN$("{n} app built in {s} seconds", "{n} apps built in {s} seconds", built, "s", BdOne(BdSeconds))
     IF BdShown = 0 THEN BdToastId = Toast(TRN$("{n} app built", "{n} apps built", built), "success", TR$("Show"), "build")
   ELSE
     BuildLine CHR$(27) + "[31m" + TR$("✗ {n} of {m} apps built: see above.", "n", LTRIM$(STR$(built)), "m", LTRIM$(STR$(BdApps))) + CHR$(27) + "[0m"

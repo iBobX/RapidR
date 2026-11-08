@@ -2047,6 +2047,10 @@ msgid "no project is open"
 msgstr "没有打开的项目"
 
 #: crates/rapidr-studio/src/project.rs
+msgid "{list}: the systems to build for, like windows-x64,macos,linux-x64,web or all"
+msgstr "{list}：要构建的系统，例如 windows-x64,macos,linux-x64,web 或 all"
+
+#: crates/rapidr-studio/src/project.rs
 msgid "{path} isn't a copy of one of RapidR's examples"
 msgstr "{path} 不是 RapidR 某个示例的副本"
 
@@ -4135,3 +4139,27 @@ msgstr "升序"
 #: crates/rapidr-value/src/agent_tools/mod.rs
 msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
 msgstr "一个 AI 代理想要在此应用中使用 {tool}：{what}。允许吗？"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "this import has no WIN32API.INC"
+msgstr "这次导入没有 WIN32API.INC"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing imported yet"
+msgstr "还没有导入任何内容"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the browser saves each zip itself"
+msgstr "浏览器会自行保存每个 zip"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "no system is ticked"
+msgstr "未勾选任何系统"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the web Studio packs the apps in the page"
+msgstr "Web 版 RapidR Studio 在页面中打包应用"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "native code is built by RapidR Studio on the desktop"
+msgstr "原生代码由桌面版 RapidR Studio 构建"

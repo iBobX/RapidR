@@ -1909,6 +1909,10 @@ msgid "no project is open"
 msgstr "no hay un proyecto abierto"
 
 #: crates/rapidr-studio/src/project.rs
+msgid "{list}: the systems to build for, like windows-x64,macos,linux-x64,web or all"
+msgstr "{list}: los sistemas para los que compilar, como windows-x64,macos,linux-x64,web o all"
+
+#: crates/rapidr-studio/src/project.rs
 msgid "{path} isn't a copy of one of RapidR's examples"
 msgstr "{path} no es una copia de uno de los ejemplos de RapidR"
 
@@ -3927,7 +3931,6 @@ msgstr "Una pista mostró la solución completa demasiado pronto: Studio le pidi
 msgid "Asked for the hint without the solution"
 msgstr "Se pidió la pista sin la solución"
 
-
 msgid "Running your program"
 msgstr "Ejecutando el programa"
 
@@ -3942,15 +3945,6 @@ msgstr "Guardando una versión"
 
 msgid "Saving the version “{message}”"
 msgstr "Guardando la versión «{message}»"
-
-
-
-
-
-
-
-
-
 
 msgid "RAI applied its change to {path} (working on its own)."
 msgstr "RAI aplicó su cambio a {path} (trabajando por su cuenta)."
@@ -4174,3 +4168,27 @@ msgstr "en orden ascendente"
 #: crates/rapidr-value/src/agent_tools/mod.rs
 msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
 msgstr "Un agente de IA quiere usar {tool} en esta aplicación: {what}. ¿Lo permites?"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "this import has no WIN32API.INC"
+msgstr "esta importación no tiene WIN32API.INC"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing imported yet"
+msgstr "todavía no se importó nada"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the browser saves each zip itself"
+msgstr "el navegador guarda cada zip"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "no system is ticked"
+msgstr "no hay ningún sistema marcado"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the web Studio packs the apps in the page"
+msgstr "RapidR Studio en la web empaqueta las aplicaciones en la página"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "native code is built by RapidR Studio on the desktop"
+msgstr "el código nativo lo compila RapidR Studio de escritorio"

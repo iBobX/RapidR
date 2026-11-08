@@ -23,7 +23,7 @@ examples/**
 !examples/**/*.svg
 # (translations: lang/es.po beside a program)
 !examples/**/*.po
-# (a project's file: its App info — the Build dialog's, `rapidr build`'s)
+# (a project's file: its App info, which Build and --all read — apps/tip_calculator)
 !examples/**/*.rrproj
 examples/**/*_rust/
 examples/**/*_web/

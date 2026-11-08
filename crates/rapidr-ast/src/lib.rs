@@ -2054,7 +2054,11 @@ pub fn is_read_only_property(type_name: &str, property: &str) -> bool {
 ///   not in FUNCTION`;
 /// - a read-only property assigned (`List.ItemCount = 3`, or `Handle = …`
 ///   in its CREATE): `Property ItemCount of List is read-only.`
-pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
+///
+/// `rapidr`: the program is a RapidR one (a `.rr`): the classic compiler's
+/// `$OPTION WEAKTYPE ON` — which lets a CONST be defined again — is no
+/// switch there ([`global_name_clashes`]).
+pub fn rapidq_checks(program: &Program, rapidr: bool) -> Vec<(TextSpan, String)> {
     use std::collections::{HashMap, HashSet};
     let key = |n: &str| strip_type_suffix(n).to_ascii_lowercase();
     // (a DECLARE SUB without LIB is the routine's signature too: RapidQ's
@@ -2361,7 +2365,7 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
             _ => {}
         }
     }
-    out.extend(global_name_clashes(program));
+    out.extend(global_name_clashes(program, rapidr));
     out.extend(component_used_as_array(program));
     out
 }
@@ -2385,7 +2389,19 @@ enum GlobalKind {
 /// DIM of the type a CREATE then makes (`DIM Form AS QFORM` … `CREATE Form
 /// AS QFORM`) is one component, as RapidQ's programs write it. A SUB's own
 /// variables and its parameters may reuse any name (`Foo(matrix …)`).
-fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
+///
+/// **`$OPTION WEAKTYPE ON`** (a classic program; RC.EXE, probed in the
+/// Windows VM): a CONST written while it is on defines a name again, with
+/// no error, the last value winning — even of another type (`CONST A = 1`,
+/// `CONST A = "x"`) — whether the name was a CONST (`Public Const`,
+/// `Private Const` too), a DIM'd variable or array, or a SUB or FUNCTION.
+/// The switch counts where the CONST is written: `OFF` (the default)
+/// refuses any second one, in the same file or another, and an include
+/// file that ends with the option on leaves it on. Only a CONST is let
+/// through: a second DIM, SUB, FUNCTION or CREATE is refused as before. A
+/// `.rr` program (`rapidr`) has no such switch: its repeated CONST stays
+/// an error (docs/rr-sane-audit.md).
+fn global_name_clashes(program: &Program, rapidr: bool) -> Vec<(TextSpan, String)> {
     use std::collections::HashMap;
     struct First {
         kind: GlobalKind,
@@ -2395,11 +2411,38 @@ fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
     fn type_key(t: &str) -> String {
         canonical_type_name(t).to_ascii_uppercase()
     }
+    /// What `$OPTION WEAKTYPE ON|OFF` switches to, if the statement is that
+    /// directive (anything else after the option is the parser's error).
+    fn weaktype_switch(s: &Statement) -> Option<bool> {
+        let Statement::Directive(d) = s else { return None };
+        if !d.name.eq_ignore_ascii_case("$OPTION") {
+            return None;
+        }
+        let mut words = d.value.as_deref()?.split_whitespace();
+        if !words.next()?.eq_ignore_ascii_case("WEAKTYPE") {
+            return None;
+        }
+        let setting = words.next()?.split('\'').next().unwrap_or("");
+        if setting.eq_ignore_ascii_case("ON") {
+            Some(true)
+        } else if setting.eq_ignore_ascii_case("OFF") {
+            Some(false)
+        } else {
+            None
+        }
+    }
+    /// Whether `$OPTION WEAKTYPE ON` is in force where a statement starts
+    /// (`switches`: each `$OPTION WEAKTYPE` of the program, by position, and
+    /// the setting it makes).
+    fn weaktype_at(switches: &[(usize, bool)], pos: usize) -> bool {
+        switches.iter().take_while(|(at, _)| *at < pos).last().is_some_and(|(_, on)| *on)
+    }
     fn note(
         name: &str,
         kind: GlobalKind,
         type_name: &str,
         span: TextSpan,
+        weak: bool,
         seen: &mut HashMap<String, First>,
         out: &mut Vec<(TextSpan, String)>,
     ) {
@@ -2411,6 +2454,13 @@ fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
             seen.insert(key, First { kind, type_name: type_key(type_name), at: span.start });
             return;
         };
+        // (WEAKTYPE ON: a CONST defines the name again — after a CONST, a
+        // DIM'd variable or array, a SUB or a FUNCTION; from here on the
+        // name is the CONST's, and the place a later clash points at)
+        if weak && kind == GlobalKind::Constant && matches!(first.kind, GlobalKind::Constant | GlobalKind::Variable | GlobalKind::Routine) {
+            seen.insert(key, First { kind, type_name: String::new(), at: span.start });
+            return;
+        }
         // (two DIMs: the DIM check's message)
         if kind == GlobalKind::Variable && first.kind == GlobalKind::Variable {
             return;
@@ -2431,27 +2481,27 @@ fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
         };
         out.push((span, message));
     }
-    fn visit(stmts: &[Statement], seen: &mut HashMap<String, First>, out: &mut Vec<(TextSpan, String)>) {
+    fn visit(stmts: &[Statement], switches: &[(usize, bool)], seen: &mut HashMap<String, First>, out: &mut Vec<(TextSpan, String)>) {
         for s in stmts {
             match s {
                 Statement::Dim(d) if !d.is_redim && !d.is_static => {
                     for v in &d.declarators {
-                        note(&v.name, GlobalKind::Variable, if is_rapidq_object_type(&d.type_name) || is_component_type_name(&d.type_name) { &d.type_name } else { "" }, v.span, seen, out);
+                        note(&v.name, GlobalKind::Variable, if is_rapidq_object_type(&d.type_name) || is_component_type_name(&d.type_name) { &d.type_name } else { "" }, v.span, false, seen, out);
                     }
                 }
-                Statement::Const(c) => note(&c.name, GlobalKind::Constant, "", c.span, seen, out),
-                Statement::Subroutine(r) => note(&r.name, GlobalKind::Routine, "", r.span, seen, out),
-                Statement::Function(f) => note(&f.name, GlobalKind::Routine, "", f.span, seen, out),
+                Statement::Const(c) => note(&c.name, GlobalKind::Constant, "", c.span, weaktype_at(switches, c.span.start), seen, out),
+                Statement::Subroutine(r) => note(&r.name, GlobalKind::Routine, "", r.span, false, seen, out),
+                Statement::Function(f) => note(&f.name, GlobalKind::Routine, "", f.span, false, seen, out),
                 Statement::Create(c) => {
-                    note(&c.name, GlobalKind::Component, &c.type_name, c.span, seen, out);
+                    note(&c.name, GlobalKind::Component, &c.type_name, c.span, false, seen, out);
                     visit_children(&c.body, seen, out);
                 }
                 Statement::If(i) => {
-                    visit(&i.then_body, seen, out);
+                    visit(&i.then_body, switches, seen, out);
                     for b in &i.elseif_branches {
-                        visit(&b.body, seen, out);
+                        visit(&b.body, switches, seen, out);
                     }
-                    visit(&i.else_body, seen, out);
+                    visit(&i.else_body, switches, seen, out);
                 }
                 _ => {}
             }
@@ -2461,15 +2511,30 @@ fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
     fn visit_children(body: &[Statement], seen: &mut HashMap<String, First>, out: &mut Vec<(TextSpan, String)>) {
         for s in body {
             if let Statement::Create(c) = s {
-                note(&c.name, GlobalKind::Component, &c.type_name, c.span, seen, out);
+                note(&c.name, GlobalKind::Component, &c.type_name, c.span, false, seen, out);
                 visit_children(&c.body, seen, out);
             }
         }
     }
+    // (`$OPTION WEAKTYPE`, wherever it stands — an include file's too —
+    // counts where it is written)
+    let mut switches: Vec<(usize, bool)> = Vec::new();
+    if !rapidr {
+        walk(
+            &program.statements,
+            &mut |s| {
+                if let (Some(on), Statement::Directive(d)) = (weaktype_switch(s), s) {
+                    switches.push((d.span.start, on));
+                }
+            },
+            &mut |_| {},
+        );
+        switches.sort_by_key(|(at, _)| *at);
+    }
     let mut seen = HashMap::new();
     let mut out = Vec::new();
     let top: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Type(_))).cloned().collect();
-    visit(&top, &mut seen, &mut out);
+    visit(&top, &switches, &mut seen, &mut out);
     out
 }
 

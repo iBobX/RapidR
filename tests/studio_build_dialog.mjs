@@ -40,8 +40,8 @@ const ok = (cond, what) => {
 // Each scene: the steps before the dialog opens (it is modal: the steps wait
 // while it shows), the step it opens on, what the dump must say.
 const PICK = "wait,wait,build:tick=windows-x64,build:tick=windows-x86,build:tick=macos-universal,build:tick=web,build:untick=linux-x64";
-const BUILDING = "build:phase=building,build:state=windows-x64~built~22020096,build:state=windows-x86~download~19.0 MB,build:state=macos-universal~working,build:state=web~working";
-const DONE = "build:state=windows-x64~built~22020096,build:state=windows-x86~built~19677149,build:state=macos-universal~built~16693150,build:state=web~built~23304209,build:phase=done";
+const BUILDING = "build:phase=building,build:state=windows-x64~built~0,build:state=windows-x86~download~19.0 MB,build:state=macos-universal~working,build:state=web~working";
+const DONE = "build:state=windows-x64~built~0,build:state=windows-x86~built~19677149,build:state=macos-universal~built~16693150,build:state=web~built~23304209,build:phase=done";
 const SCENES = [
   { name: "01-where-it-runs", steps: `${PICK},build:open=1`, dump: { "bdnext.caption": /Next|Siguiente/, "proj.buildfor": /windows-x64.*web/ } },
   { name: "02-your-app", steps: `${PICK},build:open=2`, dump: { "bdname.text": /^Tip Calculator$/, "bdid.text": /^com\.northfield\.tipcalculator$/ } },

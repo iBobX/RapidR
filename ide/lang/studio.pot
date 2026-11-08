@@ -1973,6 +1973,11 @@ msgid "Web"
 msgstr ""
 
 #: ide/build.inc
+msgctxt "the decimal separator"
+msgid "."
+msgstr ""
+
+#: ide/build.inc
 msgid "{n} bytes"
 msgstr ""
 
@@ -2053,10 +2058,6 @@ msgid "Coming later: Android, iOS, boards (ESP32, micro:bit)"
 msgstr ""
 
 #: ide/build.inc
-msgid "Where it runs"
-msgstr ""
-
-#: ide/build.inc
 msgid "Utilities"
 msgstr ""
 
@@ -2125,27 +2126,11 @@ msgid "Project Options"
 msgstr ""
 
 #: ide/build.inc
+msgid "{n} of {m} done, {s} s"
+msgstr ""
+
+#: ide/build.inc
 msgid "Step {n} of 4: {name}"
-msgstr ""
-
-#: ide/build.inc
-msgid "{n} data file"
-msgid_plural "{n} data files"
-msgstr[0] ""
-msgstr[1] ""
-
-#: ide/build.inc
-msgid "Building: {n} of {m} done"
-msgstr ""
-
-#: ide/build.inc
-msgid "{n} app built"
-msgid_plural "{n} apps built"
-msgstr[0] ""
-msgstr[1] ""
-
-#: ide/build.inc
-msgid "Needs attention"
 msgstr ""
 
 #: ide/build.inc
@@ -2283,6 +2268,30 @@ msgstr ""
 #: ide/build.inc
 msgid "Can't make one zip: {error}"
 msgstr ""
+
+#: ide/build.inc
+msgid "Where it runs"
+msgstr ""
+
+#: ide/build.inc
+msgid "Needs attention"
+msgstr ""
+
+#: ide/build.inc
+msgid "{n} data file"
+msgid_plural "{n} data files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "Building: {n} of {m} done"
+msgstr ""
+
+#: ide/build.inc
+msgid "{n} app built"
+msgid_plural "{n} apps built"
+msgstr[0] ""
+msgstr[1] ""
 
 #: ide/build.inc ide/commands.inc ide/mcp.inc
 msgid "&Stop"
@@ -2425,10 +2434,6 @@ msgid "{file} is compiled once. Now each system's app is packed."
 msgstr ""
 
 #: ide/build.inc
-msgid "{n} of {m} done, {s} s"
-msgstr ""
-
-#: ide/build.inc
 msgid "Try Again"
 msgstr ""
 
@@ -2537,6 +2542,10 @@ msgid "Installing Rust failed"
 msgstr ""
 
 #: ide/build.inc
+msgid "Not built: see the Output's Build page."
+msgstr ""
+
+#: ide/build.inc
 msgid "✓ Built {file} (native code)"
 msgstr ""
 
@@ -2546,10 +2555,6 @@ msgstr ""
 
 #: ide/build.inc
 msgid "✗ The native code build failed (exit code {code}): see above."
-msgstr ""
-
-#: ide/build.inc
-msgid "Not built: see the Output's Build page."
 msgstr ""
 
 #: ide/build.inc

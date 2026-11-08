@@ -1,4 +1,4 @@
-<!-- translated-from: studio-projects.md 1b92e0876ee88c8b -->
+<!-- translated-from: studio-projects.md 368109ac5275be41 -->
 # Proyectos en RapidR Studio
 
 Un programa de RapidR puede ser un archivo o muchos: un archivo principal que

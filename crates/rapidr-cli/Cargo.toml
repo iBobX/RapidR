@@ -39,6 +39,9 @@ rapidr-ai.workspace = true
 rapidr-introspect = { workspace = true, optional = true, features = ["design"] }
 # `rapidr build`: programs made into apps (Name.app, the .exe's resources, Name.AppDir) with their icons
 rapidr-package.workspace = true
+# `rapidr runners`, and the runner a build for another system starts from:
+# this install's, a kept download, or a download checked against RapidR's signed list
+rapidr-runners.workspace = true
 # a program's project (`.rrproj`): its app name, icon, version
 rapidr-project.workspace = true
 # `rapidr import-rapidq` / `upgrade-names`: RapidR's names in RapidQ programs

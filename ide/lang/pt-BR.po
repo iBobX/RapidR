@@ -2010,6 +2010,11 @@ msgid "Web"
 msgstr "Web"
 
 #: ide/build.inc
+msgctxt "the decimal separator"
+msgid "."
+msgstr ","
+
+#: ide/build.inc
 msgid "{n} bytes"
 msgstr "{n} bytes"
 
@@ -2090,10 +2095,6 @@ msgid "Coming later: Android, iOS, boards (ESP32, micro:bit)"
 msgstr "Em breve: Android, iOS, placas (ESP32, micro:bit)"
 
 #: ide/build.inc
-msgid "Where it runs"
-msgstr "Onde funciona"
-
-#: ide/build.inc
 msgid "Utilities"
 msgstr "Utilitários"
 
@@ -2162,28 +2163,12 @@ msgid "Project Options"
 msgstr "Opções do projeto"
 
 #: ide/build.inc
+msgid "{n} of {m} done, {s} s"
+msgstr "{n} de {m} prontos, {s} s"
+
+#: ide/build.inc
 msgid "Step {n} of 4: {name}"
 msgstr "Etapa {n} de 4: {name}"
-
-#: ide/build.inc
-msgid "{n} data file"
-msgid_plural "{n} data files"
-msgstr[0] "{n} arquivo de dados"
-msgstr[1] "{n} arquivos de dados"
-
-#: ide/build.inc
-msgid "Building: {n} of {m} done"
-msgstr "Compilando: {n} de {m} prontos"
-
-#: ide/build.inc
-msgid "{n} app built"
-msgid_plural "{n} apps built"
-msgstr[0] "{n} aplicativo pronto"
-msgstr[1] "{n} aplicativos prontos"
-
-#: ide/build.inc
-msgid "Needs attention"
-msgstr "Precisa de atenção"
 
 #: ide/build.inc
 msgid "Step {n} of 4. The arrows move, Enter opens a step."
@@ -2320,6 +2305,30 @@ msgstr "Mostrar"
 #: ide/build.inc
 msgid "Can't make one zip: {error}"
 msgstr "Não foi possível fazer um só zip: {error}"
+
+#: ide/build.inc
+msgid "Where it runs"
+msgstr "Onde funciona"
+
+#: ide/build.inc
+msgid "Needs attention"
+msgstr "Precisa de atenção"
+
+#: ide/build.inc
+msgid "{n} data file"
+msgid_plural "{n} data files"
+msgstr[0] "{n} arquivo de dados"
+msgstr[1] "{n} arquivos de dados"
+
+#: ide/build.inc
+msgid "Building: {n} of {m} done"
+msgstr "Compilando: {n} de {m} prontos"
+
+#: ide/build.inc
+msgid "{n} app built"
+msgid_plural "{n} apps built"
+msgstr[0] "{n} aplicativo pronto"
+msgstr[1] "{n} aplicativos prontos"
 
 #: ide/build.inc ide/commands.inc ide/mcp.inc
 msgid "&Stop"
@@ -2462,10 +2471,6 @@ msgid "{file} is compiled once. Now each system's app is packed."
 msgstr "{file} é compilado uma vez. Agora o aplicativo de cada sistema é empacotado."
 
 #: ide/build.inc
-msgid "{n} of {m} done, {s} s"
-msgstr "{n} de {m} prontos, {s} s"
-
-#: ide/build.inc
 msgid "Try Again"
 msgstr "Tentar de novo"
 
@@ -2574,6 +2579,10 @@ msgid "Installing Rust failed"
 msgstr "A instalação do Rust falhou"
 
 #: ide/build.inc
+msgid "Not built: see the Output's Build page."
+msgstr "Não compilado: veja a página Compilação da Saída."
+
+#: ide/build.inc
 msgid "✓ Built {file} (native code)"
 msgstr "✓ {file} compilado (código nativo)"
 
@@ -2584,10 +2593,6 @@ msgstr "Mostrar em {manager}"
 #: ide/build.inc
 msgid "✗ The native code build failed (exit code {code}): see above."
 msgstr "✗ A compilação em código nativo falhou (código de saída {code}): veja acima."
-
-#: ide/build.inc
-msgid "Not built: see the Output's Build page."
-msgstr "Não compilado: veja a página Compilação da Saída."
 
 #: ide/build.inc
 msgid "All in one zip: {file}"
@@ -5924,19 +5929,19 @@ msgstr "Pixels, rápido: um plasma e o Jogo da Vida a 50 quadros por segundo (Se
 
 #: ide/panes.inc
 msgid "RoundRect with a border and an inside in one call: a card, chips, the three forms"
-msgstr ""
+msgstr "RoundRect com borda e interior em uma só chamada: um cartão, chips, as três formas"
 
 #: ide/panes.inc
 msgid "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
-msgstr ""
+msgstr "CopyMode: substituir, XOR, um negativo, OR, linhas de varredura, um retângulo de seleção"
 
 #: ide/panes.inc
 msgid "Two timers: the default ticks 50 a second, one with FixedRate = 0 about 25"
-msgstr ""
+msgstr "Dois temporizadores: o padrão dispara 50 vezes por segundo, um com FixedRate = 0 cerca de 25"
 
 #: ide/panes.inc
 msgid "What an RAudioOut says when the sound goes wrong (OnError)"
-msgstr ""
+msgstr "O que um RAudioOut diz quando o som falha (OnError)"
 
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"

@@ -199,7 +199,7 @@ SCENES = [
         "env": {"RAPIDR_NO_RUST": "1"},
         "window": 2,
         "delay": 4,
-        "why": "Project > Project Options: the app's name, ID, version and icon",
+        "why": "Project > Project Options: the Build dialog on its Your app step (one form for the app's details and icon)",
     },
     {
         "name": "find-in-files",

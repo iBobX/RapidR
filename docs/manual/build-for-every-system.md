@@ -107,6 +107,10 @@ downloaded is what you built (`sha256sum -c SHA256SUMS` on Linux,
 `shasum -a 256 -c SHA256SUMS` on a Mac). Building again for one system
 updates its line and keeps the others.
 
+The other systems' runners (the program each app starts from) come from your
+install, from the ones downloaded before, or from a checked download:
+[Where runners come from](building-apps.md#where-runners-come-from).
+
 ## The systems
 
 | `--targets` | What it makes | Runs on |
@@ -178,6 +182,11 @@ category = "finance"
 
 RapidR warns when the icon is small (under 512 pixels: large sizes look
 blurry) or not square (it is centred on a transparent square).
+
+AI assistants (RAI, and the AI apps connected to RapidR Studio) have the
+`build_app` tool: "build it for Windows and the web" saves the details it is
+given in the project, ticks those systems in the Build dialog's choices, and
+builds them as Build Again does: the same zips.
 
 ## Safe by design
 

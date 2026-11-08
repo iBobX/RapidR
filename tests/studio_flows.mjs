@@ -983,26 +983,45 @@ const CASES = [
     delay: 120,
     dump: { "proj.builtpath": /Notes-1\.2\.0-(macos-universal|windows-x64|linux-x64)\.zip$/, "proj.building": /^0$/, "proj.buildfor": /^$/ },
   },
-  // Build for the web: Notes-1.2.0-web.zip — the page, the runtime, the
-  // program and its data
+  // Build for the web: on the desktop Notes-1.2.0-web.zip through `rapidr
+  // build --targets web`; in the web Studio the dialog has the web app only
+  // and the page packs it (<project>-web.zip, the browser's download: its
+  // files, then the unzipped app served and run)
   {
     name: "build-web-app",
     open: "tests/fixtures/studio_app/Notes.rrproj",
     copyDir: true,
-    desktopOnly: true,
+    webFiles: ["tests/fixtures/studio_app/Notes.rrproj", "tests/fixtures/studio_app/main.rr", "tests/fixtures/studio_app/note.svg"],
     do: "wait,build:untick=macos-universal,build:untick=windows-x64,build:untick=linux-x64,build:tick=web,build:start",
     delay: 25,
     dump: { "proj.builtpath": /Notes-1\.2\.0-web\.zip$/, "proj.building": /^0$/, "proj.targets": /^web$/ },
+    webDump: { "proj.builtpath": /^Notes-web\.zip$/, "proj.building": /^0$/ },
+    web: (page, scale, record) => builtWebApp(page, record, "Notes-web.zip", ["main.rrbc"]),
   },
   // (an example with its data file: the CSV the program loads goes in the zip)
   {
     name: "build-web-app-data",
     open: "examples/data/dataframe.rr",
     copyDir: true,
-    desktopOnly: true,
+    webFiles: ["examples/data/dataframe.rr", "examples/data/staff.csv"],
     do: "wait,build:untick=macos-universal,build:untick=windows-x64,build:untick=linux-x64,build:tick=web,build:start",
     delay: 25,
     dump: { "proj.builtpath": /-web\.zip$/ },
+    webDump: { "proj.builtpath": /^dataframe-web\.zip$/ },
+    web: (page, scale, record) => builtWebApp(page, record, "dataframe-web.zip", ["dataframe.rrbc", "rapidr-assets.js"]),
+  },
+  // (T1b) A program that translates: its lang/*.po go in the zip beside the
+  // page, with their list (lang/index.txt), as the CLI's builds put them
+  {
+    name: "build-web-app-translations",
+    open: "examples/translations/languages.rr",
+    copyDir: true,
+    webFiles: ["examples/translations/languages.rr", "examples/translations/lang/es.po", "examples/translations/lang/pt.po", "examples/translations/lang/zh-Hans.po"],
+    do: "wait,build:untick=macos-universal,build:untick=windows-x64,build:untick=linux-x64,build:tick=web,build:start",
+    delay: 25,
+    dump: { "proj.builtpath": /-web\.zip$/ },
+    webDump: { "proj.builtpath": /^languages-web\.zip$/ },
+    web: (page, scale, record) => builtWebApp(page, record, "languages-web.zip", ["languages.rrbc", "lang/index.txt", "lang/es.po", "lang/pt.po", "lang/zh-Hans.po"]),
   },
   // (NO-RUST) A computer without Rust (RAPIDR_NO_RUST=1 says so) and Native
   // code ticked (the dialog's step 3, Advanced): Build asks first

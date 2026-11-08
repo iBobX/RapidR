@@ -74,6 +74,7 @@ SUB ToolsRun(Ticket AS STRING, Tool AS STRING, Arguments AS STRING)
     CASE "save_version": ToolsSaveVersion Ticket
     CASE "restore_version": ToolsRestoreVersion Ticket
     CASE "start_versions": ToolsStartVersions Ticket
+    CASE "build_app": ToolsBuildApp Ticket
     CASE ELSE: ToolsAnswer Ticket, Tool + " isn't one of RapidR Studio's own tools.", 1
   END SELECT
   ToolsCalling = 0
@@ -108,6 +109,84 @@ SUB ToolsDropMcp
     ToolsAnswer ToolsDebugTicket, "The server stopped.", 1
     ToolsDebugTicket = ""
   END IF
+  IF LEFT$(ToolsBuildTicket, 4) = "mcp:" THEN
+    ToolsAnswer ToolsBuildTicket, "The server stopped.", 1
+    ToolsBuildTicket = ""
+  END IF
+END SUB
+
+' ---- build_app ---------------------------------------------------------------------------
+
+' build_app: the app for other systems (rapidr build --targets: a zip per
+' system and SHA256SUMS), the details given saved in the project first; the
+' answer is what the build says, when it ends (ToolsBuildDone).
+SUB ToolsBuildApp(Ticket AS STRING)
+  DIM list AS STRING, raw AS STRING, i AS INTEGER, c AS STRING, cat AS STRING, old AS STRING
+  IF ProjectOpen = 0 THEN
+    ToolsAnswer Ticket, "No project is open: open_project or create_project first.", 1
+    EXIT SUB
+  END IF
+  IF Proj.Building OR ToolsBuildTicket <> "" THEN
+    ToolsAnswer Ticket, "A build is running already: wait for it to end, then call build_app again.", 1
+    EXIT SUB
+  END IF
+  ' (["windows-x64", "web"] as windows-x64,web: names only, nothing else gets through)
+  raw = LCASE$(ToolsArg("targets"))
+  FOR i = 1 TO LEN(raw)
+    c = MID$(raw, i, 1)
+    IF (c >= "a" AND c <= "z") OR (c >= "0" AND c <= "9") OR c = "-" OR c = "_" THEN
+      list = list + c
+    ELSEIF RIGHT$(list, 1) <> "," AND list <> "" THEN
+      list = list + ","
+    END IF
+  NEXT
+  IF RIGHT$(list, 1) = "," THEN list = LEFT$(list, LEN(list) - 1)
+  IF list = "" THEN
+    ToolsAnswer Ticket, "Say which systems: targets, a list of windows-x64, windows-arm64, windows-x86, macos, linux-x64, linux-arm64, web, or all.", 1
+    EXIT SUB
+  END IF
+  ' (the systems as the Build dialog keeps them: "all" is every one it offers;
+  ' a name RapidR doesn't build for is dropped, none left is said)
+  IF list = "all" THEN list = "windows-x64,windows-arm64,windows-x86,macos-universal,linux-x64,linux-arm64,web"
+  old = Proj.BuildFor
+  Proj.BuildFor = list
+  IF Proj.BuildFor = "" THEN
+    Proj.BuildFor = old
+    ToolsAnswer Ticket, "None of those is a system RapidR builds for: targets is a list of windows-x64, windows-arm64, windows-x86, macos, linux-x64, linux-arm64, web, or all.", 1
+    EXIT SUB
+  END IF
+  cat = LCASE$(ToolsArg("category"))
+  IF ToolsArg("name") <> "" THEN Proj.AppName = ToolsArg("name")
+  IF ToolsArg("version") <> "" THEN Proj.Version = ToolsArg("version")
+  IF ToolsArg("company") <> "" THEN Proj.Company = ToolsArg("company")
+  IF ToolsArg("copyright") <> "" THEN Proj.Copyright = ToolsArg("copyright")
+  IF ToolsArg("description") <> "" THEN Proj.Description = ToolsArg("description")
+  IF ToolsArg("website") <> "" THEN Proj.Website = ToolsArg("website")
+  IF cat <> "" THEN Proj.Category = cat
+  SaveProjectFile
+  ToolsBuildTicket = Ticket
+  ToolsBuildLog = ""
+  ' (the Build dialog's own build: Build Again, with what was just saved)
+  BuildAgain
+  IF Proj.Building = 0 THEN
+    ToolsBuildTicket = ""
+    IF Lang.ErrorCount > 0 THEN
+      ToolsAnswer Ticket, "Not built: the code has " + Num(Lang.ErrorCount) + " error(s). check_code lists each one with its hint; fix them, then build_app again.", 1
+    ELSE
+      ToolsAnswer Ticket, "Not built: " + Proj.Error, 1
+    END IF
+  END IF
+END SUB
+
+' The build build_app started ended: its lines are the answer.
+SUB ToolsBuildDone(Code AS INTEGER)
+  DIM t AS STRING, ticket AS STRING
+  ticket = ToolsBuildTicket
+  ToolsBuildTicket = ""
+  IF Code = 0 THEN t = "Built. " ELSE t = "The build ended with exit code " + Num(Code) + ". "
+  t = t + "What rapidr build said:" + CHR$(10) + RIGHT$(ToolsBuildLog, 6000)
+  ToolsBuildLog = ""
+  ToolsAnswer ticket, t, Flag(Code <> 0)
 END SUB
 
 ' ---- studio_status and list_documents ----------------------------------------------------

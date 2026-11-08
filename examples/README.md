@@ -34,7 +34,7 @@ example's CSV or JSON file sits beside it.
 
 In the order to read them: the language first, then windows, drawing, data,
 the debugger, media and DirectX, the network, AI, boards, classic programs,
-Windows messages, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
+Windows messages, an app for every system, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
 example is tested on (by `tests/examples_run.mjs`: every example, every way it
 claims, headless).
 
@@ -237,6 +237,7 @@ Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/ser
 |---------|---------------|---------|-----|
 | [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, classic components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
 | [shapes/shapes.bas](rapidq/shapes/shapes.bas) | An older program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
+| [weaktype/weaktype.bas](rapidq/weaktype/weaktype.bas) | A CONST written again, as a VB port does: `$OPTION WEAKTYPE ON` lets it through (the last value wins, even a text), `OFF` makes it an error ([Compatibility](../docs/manual/compatibility.md#a-const-written-again-option-weaktype)) | run · interp · native · web | `rapidr run rapidq/weaktype/weaktype.bas` |
 
 Older programs run unchanged. The other examples use RapidR's own
 names: `RButton`, `RForm`, `RStringGrid` …. To bring an older program of your
@@ -260,18 +261,13 @@ run them there for that).
 | [midi_sysex_in.rr](windows/midi_sysex_in.rr) | MIDI System Exclusive messages received with winmm: Open lends the driver a buffer through a `MIDIHDR` (`midiInPrepareHeader`, `midiInAddBuffer`, `midiInStart`); the driver fills it later and posts `MM_MIM_LONGDATA`, and WndProc lists the bytes in hex and gives the buffer back; Close stops, resets, unprepares and closes. The `MIDIHDR` as this Windows lays it (120 bytes on 64-bit, 64 on 32-bit), by its address | run · interp · native · web | `rapidr run windows/midi_sysex_in.rr` |
 | [midi_sysex_out.rr](windows/midi_sysex_out.rr) | A MIDI System Exclusive message sent with winmm: pick the output, write the bytes in hex (the GS Reset is there), Send runs `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, waits for `MHDR_DONE`, then `midiOutUnprepareHeader` and `midiOutClose`, and lists each call's result code in words; the `MIDIHDR` is written out as 64-bit Windows lays it (120 bytes: pointers as two LONGs, `dwReserved` an array field) | run · interp · native · web | `rapidr run windows/midi_sysex_out.rr` |
 
-### apps/ — one project, an app for every system
-
-| Example | What it shows | Runs on | Try |
-|---------|---------------|---------|-----|
-| [tip_calculator/](apps/tip_calculator/main.rr) | A project with its whole App info filled in (`Tip Calculator.rrproj`: name, version, author, copyright, description, website, category, its own SVG icon): open it in RapidR Studio and choose **Run > Build...** to make a zip for Windows, macOS, Linux and the web at once ([the manual](../docs/manual/build-for-every-system.md)) | run · web | `rapidr build "apps/tip_calculator/Tip Calculator.rrproj" --all` |
-
 ### web/ — what only a web page has
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [todo.rr](web/todo.rr) | A to-do list kept in the browser's storage (`RWebStorage`): it's there again next visit | web | `rapidr bundle-bc web/todo.rr -o todo.zip` |
 | [browser.rr](web/browser.rr) | Asking the browser with `RJavaScript.Eval`; pages in the address's `#` with `RRouter` (Back works) | web | `rapidr bundle-bc web/browser.rr -o browser.zip` |
+| [agent_tools.rr](web/agent_tools.rr) | A web app that offers its own tools to the AI agents of the browser (`RAgentTools`): a list of notes they can read, and add to once the person using the app agrees; where the browser offers no such tools the app goes on and says so ([the manual](../docs/manual/agent-tools.md)) | web | `rapidr build web/agent_tools.rr --web` |
 
 ### showcase/ — bigger programs, written from the idea alone
 
@@ -291,6 +287,16 @@ has a picture of each and explains its best lines.
 | [signal_lab.rr](showcase/signal_lab.rr) | A signal generator and a two-screen oscilloscope: four waves, frequency, amplitude, noise and a second tone; the top screen held still by a trigger, the bottom the spectrum from an FFT written in BASIC (radix 2, 1024 points), its peaks marked in hertz | run · interp · native · web | `rapidr run showcase/signal_lab.rr` |
 | [midi_visualizer.rr](showcase/midi_visualizer.rr) | A 3D scene that dances to a song: the program reads the `.mid` file itself (chunks, variable-length times, tempo, Note On), RMIDI plays it, every note moves the scene; Load MIDI…, a Calm switch | run · interp · native · web | `rapidr run showcase/midi_visualizer.rr` |
 | [make_song.rr](showcase/make_song.rr) | Composes [song.mid](showcase/song.mid), the visualizer's own 32-bar loop (kick, bass, arpeggio, pad), and writes it as a MIDI file | run · interp · native · web | `rapidr run showcase/make_song.rr` |
+
+### apps/ — a whole app, built for every system
+
+A project with its App info filled in (name, version, company, copyright,
+description, website, category, an SVG icon), so one command makes it for
+Windows, macOS, Linux and the web ([the manual](../docs/manual/build-for-every-system.md)).
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [tip_calculator/main.rr](apps/tip_calculator/main.rr) | The tip calculator as a project (`Tip Calculator.rrproj`, its icon `art/tips.svg`): `rapidr build main.rr --all` makes `Tip-Calculator-1.2.0-<system>.zip` for each system (a `.tar.gz` for Linux), each with a README on how to open it there, and `SHA256SUMS`; in RapidR Studio, **Run > Build...** does the same from its dialog | run · interp · native · web | `rapidr build apps/tip_calculator/main.rr --all` |
 
 ### studio/ and the IDE — RapidR Studio's parts
 

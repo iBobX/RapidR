@@ -246,6 +246,20 @@ export const cases = [
   // up), the question on its slim line; the history keeps both messages
   { file: "gui/notify.rr", runtimes: ["run", "interp", "native", "web"], events: "savedbtn.onclick,filesbtn.onclick,filesbtn.onclick,askbtn.onclick", dump: "notify.count,notify.unseencount,notify.historycount,bar.visible,bar.text,bellbtn.caption",
     expect: ["notify.count=2", "notify.unseencount=2", "notify.historycount=2", "bar.visible=1", "bar.text=main.rr changed on disk while you were editing it.", "bellbtn.caption=&Notifications (2)"] },
+  // BringToFront / SendToBack (the drawer made before the list, so it starts
+  // under it): a click on the list at the drawer's place selects a row — the
+  // list is over the drawer —; Filters brings the drawer to the front and the
+  // same click is the drawer's (nothing selected); the drawer's own check
+  // boxes, clicked where the list would cover them, filter the orders; its
+  // close button sends it to the back and the list takes the click again
+  { file: "gui/drawer.rr", runtimes: ["run", "interp", "native", "web"], events: "orders.__mousedown_20_30,orders.__mouseup_20_30", dump: "orders.itemindex,status.caption",
+    expect: ["orders.itemindex=2", "status.caption=Press Filters to open the drawer over the orders."] },
+  { file: "gui/drawer.rr", runtimes: ["run", "interp", "native", "web"], events: "filtersbtn.onclick,orders.__mousedown_20_30,orders.__mouseup_20_30", dump: "orders.itemindex,status.caption",
+    expect: ["orders.itemindex=-1", "status.caption=The drawer is in front: it covers the orders and takes their clicks."] },
+  { file: "gui/drawer.rr", runtimes: ["run", "interp", "native", "web"], events: "filtersbtn.onclick,openonly.__mousedown_10_10,openonly.__mouseup_10_10,bigonly.__mousedown_10_10,bigonly.__mouseup_10_10", dump: "subtitle.caption,orders.itemcount",
+    expect: ["subtitle.caption=2 of 6 orders", "orders.itemcount=2"] },
+  { file: "gui/drawer.rr", runtimes: ["run", "interp", "native", "web"], events: "filtersbtn.onclick,closebtn.__mousedown_10_10,closebtn.__mouseup_10_10,orders.__mousedown_20_30,orders.__mouseup_20_30", dump: "orders.itemindex,status.caption",
+    expect: ["orders.itemindex=2", "status.caption=The drawer is at the back, under the orders."] },
   // translations/ (TR$ / TRN$ with lang/*.po beside it — `includes`: the
   // folder copied whole; on the web its lang/ files are the page's): it
   // starts in the language given, the list switches it, OnLanguageChange
@@ -272,6 +286,11 @@ export const cases = [
     expect: ["display.caption=Error"] },
   // (100 typed as the bill, the tip's 15 replaced by 20 — Ctrl+A, then typed —, 4 people)
   { file: "recipes/tip_calculator.rr", runtimes: ["run", "interp", "native", "web"],
+    events: `${typeKeys("billedit", "100")},tipedit.__key_65_16,${typeKeys("tipedit", "20")},peopleedit.__key_65_16,${typeKeys("peopleedit", "4")}`, dump: "tipamount.caption,total.caption,each.caption",
+    expect: ["tipamount.caption=Tip: 20.00", "total.caption=Total: 120.00", "each.caption=Each pays: 30.00"] },
+  // (the same program as an app for every system, with its project's app info:
+  // the same bill, tip and people, the same totals)
+  { file: "apps/tip_calculator/main.rr", runtimes: ["run", "interp", "native", "web"],
     events: `${typeKeys("billedit", "100")},tipedit.__key_65_16,${typeKeys("tipedit", "20")},peopleedit.__key_65_16,${typeKeys("peopleedit", "4")}`, dump: "tipamount.caption,total.caption,each.caption",
     expect: ["tipamount.caption=Tip: 20.00", "total.caption=Total: 120.00", "each.caption=Each pays: 30.00"] },
   { file: "recipes/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("form", 12)},startbtn.onclick`, dump: "startbtn.caption,display.caption",
@@ -570,6 +589,17 @@ export const cases = [
     events: "engbtn.onclick,lastbtn.onclick",
     dump: "nameedit.text,status.caption,grid.rowcount",
     expect: ["nameedit.text=Eduardo", "status.caption=Row 3 of 3", "grid.rowcount=3"] },
+  // (an RDBGrid's current cell, Col: the first cell at the start; a click on
+  // a cell; Down, Right, Left and Left again move it (Row and Col) and the
+  // line under the grid says each; the program's Go to City, which sets Col)
+  { file: "data/grid_cells.rr", runtimes: ["run", "interp", "native", "web"], dump: "said.caption,grid.row,grid.col",
+    expect: ["said.caption=name: Ada   (row 1, column 1)", "grid.row=0", "grid.col=0"] },
+  { file: "data/grid_cells.rr", runtimes: ["run", "interp", "native", "web"], events: "grid.__cell_2_1", dump: "said.caption,grid.row,grid.col",
+    expect: ["said.caption=city: Paris   (row 2, column 3)", "grid.row=1", "grid.col=2"] },
+  { file: "data/grid_cells.rr", runtimes: ["run", "interp", "native", "web"], events: "grid.__cell_1_2,grid.__key_40,grid.__key_39,grid.__key_37,grid.__key_37", dump: "said.caption,grid.row,grid.col",
+    expect: ["said.caption=name: Dana   (row 4, column 1)", "grid.row=3", "grid.col=0"] },
+  { file: "data/grid_cells.rr", runtimes: ["run", "interp", "native", "web"], events: "citybtn.onclick", dump: "said.caption,grid.row,grid.col",
+    expect: ["said.caption=city: London   (row 1, column 3)", "grid.row=0", "grid.col=2"] },
   // (I7: JSON records as a data source — a product picked, the bound edits
   // and label follow; grouped by category)
   { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"],
@@ -830,6 +860,9 @@ export const cases = [
   // on Windows — `Lib\Geometry.INC` is lib/geometry.inc)
   { file: "rapidq/shapes/shapes.bas", runtimes: ["run", "interp", "native", "web"], includes: true, events: "areabutton.onclick", dump: "answerlabel.caption",
     expect: ["answerlabel.caption=Circle: 12.57 square cm"] },
+  // (a CONST written again under $OPTION WEAKTYPE ON, in an include file and in the program; RC.EXE prints the same)
+  { file: "rapidq/weaktype/weaktype.bas", runtimes: ["run", "interp", "native", "web"], includes: true,
+    expect: ["SND_SYNC = 0\nSND_NODEFAULT = 2", "WM_USER = 1024", "Version = 1\nVersion = 2\nVersion = two point five"] },
   // windows/: a form's Windows messages (WndProc). On Windows real windows
   // (RAPIDR_CAPTURE_WINDOWS: the headless host has no window to send to) and
   // the messages arrive; elsewhere, and on the web, the examples say they

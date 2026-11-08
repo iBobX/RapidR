@@ -280,7 +280,10 @@ fn named(text: &str, anywhere: bool) -> Option<(Target, usize)> {
     let mut best: Option<(Target, usize)> = None;
     for t in OFFERED {
         for name in said_as(t) {
-            let found = if anywhere { text.find(name).map(|i| i + name.len()) } else { text.starts_with(name).then_some(name.len()) };
+            // (the CLI capitalizes a label that starts a line: "The web")
+            let lower = text.to_ascii_lowercase();
+            let name_l = name.to_ascii_lowercase();
+            let found = if anywhere { lower.find(&name_l).map(|i| i + name.len()) } else { lower.starts_with(&name_l).then_some(name.len()) };
             if let Some(end) = found {
                 if best.is_none_or(|(_, e)| name.len() > e) {
                     best = Some((t, end));
@@ -334,7 +337,8 @@ pub fn news(line: &str) -> Option<News> {
         let sizes = sizes.trim_end_matches(')');
         let mut parts = sizes.split(", ");
         let mb: f64 = parts.next()?.trim_end_matches(" MB").parse().ok()?;
-        let seconds: f64 = parts.next().map(|s| s.trim_end_matches(" s").parse().unwrap_or(0.0)).unwrap_or(0.0);
+        // ("0.7 s" or "0.7 s; this install's runner": where the runner came from after it)
+        let seconds: f64 = parts.next().map(|s| s.split(';').next().unwrap_or("").trim().trim_end_matches(" s").parse().unwrap_or(0.0)).unwrap_or(0.0);
         return Some(News::Built { target: t, zip: zip.trim().to_string(), bytes: (mb * 1_048_576.0) as u64, seconds });
     }
     None
@@ -382,6 +386,16 @@ mod tests {
             Some(News::Failed { target: Target::MacosUniversal, why: "This runner doesn't match RapidR 2.123.1's list: it was not used.".into() })
         );
         assert!(matches!(news("  the web: T-1.0.0-web.zip (6.0 MB, 0.1 s)"), Some(News::Built { target: Target::Web, .. })));
+        // (the CLI's lines since the runners came in: the label capitalized,
+        // where the runner came from after the seconds)
+        match news("  The web: Tip-Calculator-1.0.0-web.zip (22.2 MB, 0.7 s; this install's runner)") {
+            Some(News::Built { target: Target::Web, zip, seconds, .. }) => {
+                assert_eq!(zip, "Tip-Calculator-1.0.0-web.zip");
+                assert!((seconds - 0.7).abs() < 1e-9);
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(matches!(news("  MacOS (Apple silicon and Intel): not built: offline"), Some(News::Failed { target: Target::MacosUniversal, .. })));
         assert_eq!(news("Downloading the Windows 32-bit (x86) runner (19.0 MB)…"), Some(News::Downloading(Target::WindowsX86, "19.0 MB".into())));
         assert_eq!(news("3 of 4 built in 2.8 s"), Some(News::Summary { built: 3, of: 4, seconds: 2.8 }));
         assert_eq!(news("Checksums: /p/build/SHA256SUMS"), Some(News::Checksums("/p/build/SHA256SUMS".into())));

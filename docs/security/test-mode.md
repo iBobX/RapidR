@@ -151,6 +151,7 @@ Every hook below is ignored by a release build without a valid token.
 | `RAPIDR_LOGIN_SHELL` | a stand-in login shell for Studio's PATH | `rapidr-studio` `login_path.rs` |
 | `RAPIDR_DEMO`, `RAPIDR_DEMO_OUT`, `RAPIDR_DEMO_LANG` | demo mode: a script played in Studio and recorded headless (input automation; docs/video-pipeline.md) | `rapidr-ui-app` `demo`; `ide/demo.inc` through `ENVIRON$` |
 | `RAPIDR_AI_TEST_SERVER`, `RAPIDR_AI_TEST_DNS_FAIL_ONCE` | the AI provider on a loopback test server; a DNS failure | `rapidr-ai` `provider.rs`, `http.rs` |
+| `RAPIDR_TEST_RUNNERS_KEY` | another minisign public key for the list of runners (a test serving its own signed list on this computer); a release build always trusts RapidR's release key alone | `rapidr-cli` `runners.rs` |
 | every other `RAPIDR_TEST_*` read with `ENVIRON$` | — | `rapidr-value` `environ.rs` |
 
 `rapidr_testmode::is_hook` names them: every `RAPIDR_TEST_*` (but

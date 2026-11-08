@@ -1,4 +1,4 @@
-<!-- translated-from: building-apps.md baf3c580ff72a7d8 -->
+<!-- translated-from: building-apps.md c0de149cfb86290d -->
 # Compilar aplicaciones y sus íconos
 
 `rapidr build` convierte un programa en una aplicación propiamente dicha para su
@@ -139,6 +139,106 @@ rapidr setup                        # instala Rust (pregunta antes); rapidr setu
 Una compilación nativa en una computadora sin Rust se detiene de inmediato y lo
 dice: “Native builds need Rust (it is free). Run `rapidr setup` to install it, or
 build without it: add --interp”. No cambia nada y no deja nada a medio compilar.
+
+## De dónde vienen los ejecutores
+
+Una aplicación interpretada es el **ejecutor** de RapidR con el bytecode de tu
+programa a continuación. El ejecutor es un programa aparte, hecho para un solo
+sistema, así que compilar para otro sistema necesita el ejecutor de ese sistema.
+Cada instalación de RapidR trae el ejecutor de su propio sistema y descarga los
+demás, una sola vez, la primera vez que compilas para ellos.
+
+Para `--target windows-x86_64` (o cualquier sistema), RapidR busca en este orden
+y usa el primero que lo tiene:
+
+1. **Esta instalación.** El ejecutor forma parte de RapidR; no se descarga nada.
+2. **Ejecutores descargados antes.** Se guardan en tu computadora y se
+   comprueban de nuevo cada vez que se usan. Compilar para ese sistema ya
+   funciona sin conexión.
+3. **La descarga.** La primera vez que compilas para un sistema que esta
+   instalación no trae, RapidR descarga ese único ejecutor de studio.rapidr.dev,
+   muestra cuánto falta (de 10 a 25 MB cada uno), lo comprueba con la firma de
+   RapidR y lo guarda. Un ejecutor nunca se usa antes de esa comprobación.
+
+| Destino | El ejecutor para | Descarga (aprox.) |
+|---|---|---|
+| `windows-x86_64` | Windows de 64 bits (x64: la mayoría de las PC desde 2005) | 11 MB |
+| `windows-aarch64` | Windows ARM64 (PC con Snapdragon, Windows en una máquina virtual de una Mac) | 11 MB |
+| `windows-x86` | Windows de 32 bits, Windows 7 y posteriores (sin JIT allí: el intérprete rápido) | 19 MB |
+| `macos` | macOS: un solo ejecutor para Apple silicon e Intel (`macos-arm64` y `macos-x86_64` son partes de él) | 24 MB |
+| `linux-x86_64`, `linux-aarch64` | Linux de 64 bits (x64) y Linux ARM64 (también una Raspberry Pi 4 o 5 con un sistema de 64 bits) | de 14 a 15 MB |
+| `web` | el intérprete que usa una compilación web, y sus tipografías de respaldo | 16 MB |
+
+También se entienden `x64`, `arm64`, `amd64` e `i686`: `--target windows-x64`
+significa `windows-x86_64`.
+
+### Qué se comprueba
+
+Un ejecutor descargado se usa solo si es el que RapidR publicó para **tu** versión
+de RapidR:
+
+- la lista de los ejecutores de esa versión está firmada con la clave de
+  publicación de RapidR (minisign; la clave pública va dentro de RapidR, la misma
+  que aparece en la página de cada versión), y la lista dice que es exactamente
+  para tu versión: una 2.123.1 nunca usa los ejecutores de la 2.123.0 ni de la
+  2.124;
+- el archivo tiene el tamaño y el SHA-256 que la lista da para él;
+- lo que hay dentro es exactamente los archivos que la lista nombra: ni enlaces
+  ni nombres que salgan de la carpeta.
+
+Cuando algo de esto falla, el ejecutor no se usa y no se guarda nada de él.
+RapidR dice por qué: *This runner doesn't match RapidR 2.123.1's list: it was not
+used.* (“Este ejecutor no coincide con la lista de RapidR 2.123.1: no se usó”), o
+*These runners are for RapidR 2.122.1, not 2.123.1: they were not used.* Las
+mismas comprobaciones se hacen con un ejecutor guardado de antes, de modo que un
+archivo que cambió en tu disco tampoco se usa (se borra).
+
+### Qué se envía
+
+La descarga le pide a studio.rapidr.dev tres archivos (`https://studio.rapidr.dev/runners/2.123.1/`:
+la lista, su firma y el ejecutor), como hace una página web, así que el servidor
+ve la dirección de tu computadora y `RapidR/2.123.1`. Nada más sale de tu computadora: ni tu programa, ni tu nombre,
+ni lo que compilas. No se envía nada cuando el ejecutor está en la instalación o
+ya guardado.
+
+### Sin conexión
+
+Con un ejecutor en la instalación o guardado, compilar funciona sin red. Sin él,
+RapidR dice qué ejecutor falta y qué hacer (el mensaje está en inglés, como los
+demás de la línea de comandos):
+
+> The Windows ARM64 runner is not on this computer: it is not part of this
+> install, and it has not been downloaded yet. RapidR can't reach studio.rapidr.dev
+> (…). Connect to the internet once and build again: the runner is kept after
+> it is downloaded, and later builds for it work offline.
+
+(“El ejecutor de Windows ARM64 no está en esta computadora: no forma parte de
+esta instalación y todavía no se descargó. RapidR no puede conectarse con
+studio.rapidr.dev. Conéctate a internet una vez y compila de nuevo: el ejecutor se
+guarda al descargarlo, y las siguientes compilaciones para él funcionan sin
+conexión.”)
+
+Para tener ejecutores antes de necesitarlos (antes de un viaje, para las
+computadoras de un aula):
+
+```sh
+rapidr runners                               # qué ejecutores tienes y de dónde vienen
+rapidr runners fetch windows-x86_64 macos    # descarga estos ahora
+rapidr runners fetch --all                   # los siete: unos 110 MB
+rapidr runners clear                         # borra los descargados
+```
+
+### Ajustes
+
+| | |
+|---|---|
+| `RAPIDR_RUNNERS_URL` | la dirección de donde se descargan los ejecutores, `https://…` (`http://` solo para esta computadora). Si no, la primera línea de `runners-url.txt` en la carpeta de ajustes de RapidR (`RAPIDR_CONFIG_DIR`, o `~/Library/Application Support/RapidR`, `%APPDATA%\RapidR`, `~/.config/rapidr`), y si no, `https://studio.rapidr.dev/runners`, la dirección que trae RapidR |
+| `RAPIDR_RUNNERS_OFFLINE=1` | no usar nunca la red para los ejecutores: solo los de esta instalación y los guardados |
+| `RAPIDR_RUNNERS_CACHE` | dónde se guardan los ejecutores, una carpeta por versión de RapidR. Si no, `…/runners/<versión>` en la caché de RapidR: `~/Library/Caches/RapidR` (macOS), `%LOCALAPPDATA%\RapidR\Cache` (Windows), `~/.cache/rapidr` (Linux) |
+
+Los ejecutores guardados de una versión de RapidR que nadie ha usado en 30 días se
+borran la próxima vez que se descarga un ejecutor; `rapidr runners clear` los borra
+todos de una vez.
 
 ## Los detalles de la aplicación
 

@@ -41,7 +41,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "school-lock", "dev", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "school-lock", "runners", "dev", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -220,6 +220,7 @@ fn main() -> ExitCode {
         (Some("i18n"), _) => i18n::command(&args[1..]),
         (Some("ai"), _) => ai::command(&args[1..]),
         (Some("school-lock"), _) => school_lock::command(&args[1..]),
+        (Some("runners"), _) => runners::command(&args[1..]),
         (Some("dev"), _) => test_mode::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
@@ -414,7 +415,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr school-lock hash [--stdin] | check [FILE]  School Lock for a school's IT: the policy file's password hash line; what the policy locks");
-            eprintln!("  rapidr dev test-mode new-key|issue|status          The signed test mode (RapidR's own test hooks): keys, tokens, this build's status");
+            eprintln!("  rapidr runners [fetch <target>…|--all | clear]    The runners apps for other systems start from: this install's, downloaded (checked), kept");
+            eprintln!("  rapidr dev test-mode new-key|issue|status         The signed test mode (RapidR's own test hooks): keys, tokens, this build's status");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr check <file.rr>                           Its errors, in your language (RAPIDR_LANG, else the system's)");
@@ -1609,10 +1611,7 @@ fn build_interp_desktop(path: &str, dest_dir: &Path, plan: &package::Plan) -> Ex
     let rrbc = compiled.module.to_bytes();
 
     // 2. The target's runner and its notices; 3. the app (package.rs).
-    let target = plan.target.runner_dir();
-    let made = runners::runner_bytes(target, !plan.info.console)
-        .and_then(|runner| Ok((runner, runners::runner_notices(target)?)))
-        .and_then(|(runner, notices)| package::finish(plan, &runner, Some(&rrbc), dest_dir, &notices));
+    let made = runners::for_packer(plan.target, !plan.info.console).and_then(|(runner, notices, _)| package::finish(plan, &runner, Some(&rrbc), dest_dir, &notices));
     match made {
         Ok(made) => {
             println!("Built interpreted program: {} ({} bytes of bytecode)", made.executable.display(), rrbc.len());
@@ -1708,9 +1707,8 @@ fn build_targets(path: &str, output_dir: Option<String>, targets: &[rapidr_packa
                 _ => !plan.info.console,
             });
         }
-        let made = (|| -> Result<rapidr_package::Archive, String> {
-            let runner = runners::runner_bytes(t.runner_dir(), !plan.info.console)?;
-            let notices = runners::runner_notices(t.runner_dir())?;
+        let made = (|| -> Result<(rapidr_package::Archive, runners::Source), String> {
+            let (runner, notices, from) = runners::for_packer(t, !plan.info.console)?;
             let mut app = package::app(&plan, Some(&rrbc), &data, &source, mtime);
             app.web_needs = needs.as_ref();
             if t == Target::Web {
@@ -1727,15 +1725,20 @@ fn build_targets(path: &str, output_dir: Option<String>, targets: &[rapidr_packa
             let archive = rapidr_package::archive(&packed, &app)?;
             let to = out.dir.join(&archive.name);
             fs::write(&to, &archive.bytes).map_err(|e| format!("write {}: {e}", to.display()))?;
-            Ok(archive)
+            Ok((archive, from))
         })();
         match made {
-            Ok(a) => {
-                println!("  {}: {} ({:.1} MB, {:.1} s)", t.label(), a.name, a.bytes.len() as f64 / 1_048_576.0, t0.elapsed().as_secs_f64());
+            Ok((a, from)) => {
+                let from = match from {
+                    runners::Source::Install => "this install's runner",
+                    runners::Source::Cache => "the runner downloaded before, checked again",
+                    runners::Source::Download => "the runner downloaded now, checked",
+                };
+                println!("  {}: {} ({:.1} MB, {:.1} s; {from})", capitalized(t.label()), a.name, a.bytes.len() as f64 / 1_048_576.0, t0.elapsed().as_secs_f64());
                 sums.push((a.name.clone(), rapidr_package::sha256_hex(&a.bytes)));
             }
             Err(e) => {
-                eprintln!("  {}: not built: {e}", t.label());
+                eprintln!("  {}: not built: {e}", capitalized(t.label()));
                 failed.push(t.name().to_string());
             }
         }
@@ -1749,6 +1752,8 @@ fn build_targets(path: &str, output_dir: Option<String>, targets: &[rapidr_packa
             return ExitCode::from(1);
         }
         println!("Checksums: {}", at.display());
+        // (what Studio's Build reveals: the folder of the zips)
+        println!("Apps: {}", out.dir.display());
     }
     println!("{} of {} built in {:.1} s", sums.len(), targets.len(), started.elapsed().as_secs_f64());
     if failed.is_empty() {
@@ -1757,6 +1762,15 @@ fn build_targets(path: &str, output_dir: Option<String>, targets: &[rapidr_packa
     } else {
         eprintln!("Not built: {}", failed.join(", "));
         ExitCode::from(1)
+    }
+}
+
+/// A system's name at the start of a line: "the web" as "The web" (and
+/// "macOS" as it is).
+fn capitalized(text: &str) -> String {
+    match text.strip_prefix("the ") {
+        Some(rest) => format!("The {rest}"),
+        None => text.to_string(),
     }
 }
 

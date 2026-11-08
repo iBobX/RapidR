@@ -24,6 +24,10 @@
 //   lang/                translation catalogs (lang/es.po …) the i18n_*
 //                         cases read: beside each built program, as a
 //                         program's own lang folder
+//   include_files/       the $INCLUDE files some cases read
+//                         (`$INCLUDE "include_files/x.inc"`); a case that
+//                         needs them carries `' skip-on: web` (the web
+//                         runner is handed one program, no files)
 //
 // Known bugs are tracked with a first-line marker in the .bas file:
 //   ' xfail: vm, codegen — reason (ROADMAP item)
@@ -122,8 +126,9 @@ function runCodegen(name, src, input, progArgs) {
   copyFileSync(src, rr);
   // Files cases build in with $RESOURCE, next to the copy as next to the case.
   // (resource_files: files a case lists; archive_files: RArchive's samples; picture_files: pictures it loads;
-  // video_files: QVIDEO's clips; lang: TR$'s catalogs, beside the program)
-  for (const folder of ["resource_files", "archive_files", "picture_files", "video_files", "lang"]) {
+  // video_files: QVIDEO's clips; lang: TR$'s catalogs, beside the program;
+  // include_files: the $INCLUDE files a case reads, `$INCLUDE "include_files/x.inc"`)
+  for (const folder of ["resource_files", "archive_files", "picture_files", "video_files", "lang", "include_files"]) {
     const resources = join(CASES, folder);
     if (existsSync(resources)) cpSync(resources, join(dir, folder), { recursive: true });
   }

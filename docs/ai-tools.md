@@ -63,6 +63,7 @@ tool now has one name, one description and one behaviour.
 | `layout_report` | designer | read | core | — | yes | both | — |
 | `button_grid` | designer | read | core | yes (`layout`) | — | both | renamed (next to `layout_report` and `app_layout` the old name confused small models); `layout` is an alias; never in Coach (it writes the code) |
 | `run_program` | runner | run | Studio | yes (start/stop/status, 5 s, max 30) | yes (+restart, debug, 3 s, max 60) | both | one behaviour: start, stop, restart, status; debug; 5 s, max 60; **refused while the code has errors** (the first three said), warned loudly with warnings; the ERRORS lane's "started and ended after N s" kept |
+| `build_app` | runner | run | Studio | — | — | both | new (BUILD-CORE): the app for other systems, `rapidr build --targets` (a zip per system and SHA256SUMS in the project's build folder); the details given saved in the project first; refused while the code has errors; answered with what the build printed |
 | `read_output` | runner | read | Studio | — | yes | both (RAI: while the program runs) | — |
 | `debug` | debugger | run | Studio | — | yes | both (RAI: while the program runs) | RAI may step a run it started (asked once a run), set breakpoints and read the state any time |
 | `save_version` | versions | change | Studio | yes | — | both | AI apps get it; open files saved first (as Run does); Versions started when the project has none (as Save a Version does — a 4B model stopped at the refusal); the version's author is the AI ("RAI", "<app> (AI app)") |
