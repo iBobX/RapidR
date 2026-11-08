@@ -304,6 +304,38 @@ differences:
 
 ![Settings > AI Apps in a browser that doesn't offer it: the switch off and greyed, one line saying why](images/ai-apps/settings-web-unsupported.png)
 
+### Try it today: an AI app on your computer
+
+Browser assistants don't call a page's tools yet. You can still try it now:
+an AI app on your computer that speaks MCP reaches Studio's tools through
+Chrome's DevTools MCP server, the browser automation server Chrome's makers
+publish (`chrome-devtools-mcp`, Apache-2.0). Tried on 2026-11-08 with
+Chrome 156 and two AI apps; WebMCP is a draft, so these steps can change.
+
+1. **Add the server to your AI app** as an MCP server (a "stdio" server) with
+   the command `npx` and these arguments:
+
+   ```
+   -y chrome-devtools-mcp@latest --categoryExperimentalWebmcp --chromeArg=--enable-features=WebMCP,WebMCPTesting --no-usage-statistics --no-performance-crux
+   ```
+
+   `--categoryExperimentalWebmcp` gives the AI app two tools, *list the page's
+   WebMCP tools* and *run one*; the `--chromeArg` turns WebMCP on in the
+   Chrome window it opens. The last two keep the server from sending usage
+   statistics and page addresses to its maker.
+2. **Ask your AI app to open `https://studio.rapidr.dev`.** The server opens
+   its own Chrome window, with its own profile (not your everyday Chrome).
+3. **In that window, tick Settings > AI Apps** and confirm (once: that
+   profile keeps it).
+4. **Ask your AI app to list the page's WebMCP tools and call
+   `studio_status`.** Studio asks you: **Allow for This Tab**. From then on
+   it works as on the desktop, and the AI Apps pane shows every call.
+
+Keep in mind: that server lets the AI app drive the whole Chrome window it
+opened (pages, clicks, scripts), not only Studio. Use that window for RapidR
+only. For AI apps every day, RapidR Studio on the desktop is simpler: its own
+server, no extra browser ([Set up your AI app](#set-up-your-ai-app)).
+
 ## Your own programs can do this too
 
 `RMcpServer` gives a program of yours its own tools for AI apps, with the

@@ -346,6 +346,43 @@ bloqueo escolar), con estas diferencias:
 
 ![Configuración > Aplicaciones de IA en un navegador que no lo ofrece: el interruptor desactivado y en gris, una línea que dice por qué](../images/ai-apps/settings-web-unsupported.png)
 
+### Pruébalo hoy: una aplicación de IA de tu computadora
+
+Los asistentes de los navegadores todavía no llaman a las herramientas de una
+página. Igual puedes probarlo ya: una aplicación de IA de tu computadora que
+hable MCP llega a las herramientas de Studio a través del servidor MCP de
+DevTools de Chrome, el servidor de automatización que publican los creadores
+de Chrome (`chrome-devtools-mcp`, Apache-2.0). Probado el 2026-11-08 con
+Chrome 156 y dos aplicaciones de IA; WebMCP es un borrador, así que estos
+pasos pueden cambiar.
+
+1. **Agrega el servidor a tu aplicación de IA** como servidor MCP (de tipo
+   "stdio") con el comando `npx` y estos argumentos:
+
+   ```
+   -y chrome-devtools-mcp@latest --categoryExperimentalWebmcp --chromeArg=--enable-features=WebMCP,WebMCPTesting --no-usage-statistics --no-performance-crux
+   ```
+
+   `--categoryExperimentalWebmcp` le da a la aplicación de IA dos
+   herramientas, *listar las herramientas WebMCP de la página* y *ejecutar
+   una*; el `--chromeArg` activa WebMCP en la ventana de Chrome que abre. Los
+   dos últimos evitan que el servidor envíe estadísticas de uso y direcciones
+   de páginas a su creador.
+2. **Pídele a tu aplicación de IA que abra `https://studio.rapidr.dev`.** El
+   servidor abre su propia ventana de Chrome, con su propio perfil (no tu
+   Chrome de todos los días).
+3. **En esa ventana, marca Configuración > Aplicaciones de IA** y confirma
+   (una vez: ese perfil lo recuerda).
+4. **Pídele a tu aplicación de IA que liste las herramientas WebMCP de la
+   página y llame a `studio_status`.** Studio te pregunta: **Permitir en esta
+   pestaña**. Desde ahí funciona como en el escritorio, y el panel
+   Aplicaciones de IA muestra cada llamada.
+
+Ten en cuenta: ese servidor deja que la aplicación de IA maneje toda la
+ventana de Chrome que abrió (páginas, clics, scripts), no solo Studio. Usa
+esa ventana solo para RapidR. Para el día a día, RapidR Studio en el
+escritorio es más simple: su propio servidor, sin otro navegador.
+
 ## Tus propios programas también pueden hacerlo
 
 `RMcpServer` le da a un programa tuyo sus propias herramientas para aplicaciones de
