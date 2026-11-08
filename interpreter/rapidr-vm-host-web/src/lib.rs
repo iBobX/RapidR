@@ -966,6 +966,8 @@ pub fn rapidr_start() {
     std::panic::set_hook(Box::new(|info| {
         web_sys::console::error_1(&JsValue::from_str(&format!("RapidR panicked: {info}")));
     }));
+    // (a program that includes RWin32.inc: the page's compile fetches it)
+    obj::install_rwin32_reader();
 }
 
 /// Decode and execute a `.rrbc` module from a byte slice.

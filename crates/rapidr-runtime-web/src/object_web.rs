@@ -504,11 +504,16 @@ pub fn install_file_hooks() {
     rapidr_value::objects::set_file_io(web_read_file, web_write_file);
     // (Studio's language service and designer: `$INCLUDE`s from the page too)
     rapidr_studio::install_page_sources();
-    // (RWin32.inc, RapidR's Windows API declarations: not in the wasm —
-    // fetched from beside the runtime the first time a program includes it)
-    rapidr_preprocessor::rwin32::set_reader(Some(read_rwin32));
+    install_rwin32_reader();
     // (RAI: a provider's answer delivered as it streams in)
     crate::ai_web::install();
+}
+
+/// RWin32.inc, RapidR's Windows API declarations, isn't in the wasm: the
+/// compiler fetches it from beside the runtime the first time a program
+/// includes it (the page's compile and its file hooks both install this).
+pub fn install_rwin32_reader() {
+    rapidr_preprocessor::rwin32::set_reader(Some(read_rwin32));
 }
 
 /// Where RWin32.inc's compressed copy is: beside the runtime, as the fonts
