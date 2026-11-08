@@ -5503,6 +5503,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-gen-win32"
+version = "2.123.0"
+dependencies = [
+ "rapidr-ast",
+ "rapidr-bytecode",
+ "rapidr-preprocessor",
+ "sha2 0.10.9",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "rapidr-i18n"
 version = "2.123.0"
 

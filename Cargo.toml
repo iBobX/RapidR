@@ -58,6 +58,8 @@ members = [
     "interpreter/rapidr-runner-stub",
     # The JIT: hot typed code compiled while it runs (docs/jit-design.md)
     "interpreter/rapidr-jit",
+    # RapidR's generator of RWin32.inc, the Windows API declarations (a tool)
+    "tools/gen-win32",
 ]
 
 # The desktop host prototype keeps its own lockfile (see its Cargo.toml).
