@@ -245,7 +245,7 @@ own over to RapidR's names, use `rapidr import-rapidq` (it writes a converted
 copy and a report, and leaves the original alone; see
 [Importing older programs](../docs/manual/importing-rapidq.md)).
 
-### windows/ — Windows only: a form's Windows messages, winmm's MIDI
+### windows/ — Windows only: the Windows API, a form's Windows messages, winmm's MIDI
 
 A form's `WndProc` hears every message Windows sends or posts to its window
 ([Windows messages](../docs/manual/components.md#windows-messages-a-forms-wndproc)).
@@ -255,6 +255,7 @@ run them there for that).
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
+| [rwin32_system_info.rr](windows/rwin32_system_info.rr) | A little look at your Windows computer through the Windows API itself: one line, `$INCLUDE "RWin32.inc"`, brings the declarations (and the structures laid out as Windows lays them) for `GetTickCount`, `GetSystemMetrics`, `GetComputerNameA`, `GlobalMemoryStatusEx` and `GetSystemInfo` ([One standard for the Windows API](../docs/manual/windows-api.md)); on other systems it compiles, says it needs Windows and stops | run · interp · native · web | `rapidr run windows/rwin32_system_info.rr` |
 | [wndproc_messages.rr](windows/wndproc_messages.rr) | A little Spy++: each message of the form's window as it comes, its number in hex and its name | run · interp · native · web | `rapidr run windows/wndproc_messages.rr` |
 | [wndproc_postmessage.rr](windows/wndproc_postmessage.rr) | A button posts `WM_USER + 1` to the form with `PostMessageA(Form.Handle, …)`; WndProc shows its wParam and lParam | run · interp · native · web | `rapidr run windows/wndproc_postmessage.rr` |
 | [midi_in.rr](windows/midi_in.rr) | A MIDI keyboard's notes: winmm's `midiInOpen` with `CALLBACK_WINDOW` sends them to the form as `MM_MIM_DATA`; says so when there is no MIDI input; Test note posts one to try it without a keyboard | run · interp · native · web | `rapidr run windows/midi_in.rr` |

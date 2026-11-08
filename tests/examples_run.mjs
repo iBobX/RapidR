@@ -77,6 +77,10 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //            meanwhile: what it needs (lang/*.po …) must have come with the build
 //   sameFile: a file the program writes must be byte for byte the one shipped
 //            beside it (make_song.rr's song.mid)
+//   exe:     (interp, native) the built executable's name where it isn't the
+//            program's own: a project (.rrproj) beside the program names the
+//            app (app_name "Tip Calculator" -> Tip-Calculator); its icon and
+//            the rest of what the project lists need `includes`
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
@@ -289,8 +293,11 @@ export const cases = [
     events: `${typeKeys("billedit", "100")},tipedit.__key_65_16,${typeKeys("tipedit", "20")},peopleedit.__key_65_16,${typeKeys("peopleedit", "4")}`, dump: "tipamount.caption,total.caption,each.caption",
     expect: ["tipamount.caption=Tip: 20.00", "total.caption=Total: 120.00", "each.caption=Each pays: 30.00"] },
   // (the same program as an app for every system, with its project's app info:
-  // the same bill, tip and people, the same totals)
-  { file: "apps/tip_calculator/main.rr", runtimes: ["run", "interp", "native", "web"],
+  // the same bill, tip and people, the same totals; `includes`: the project's
+  // art/ folder comes along — the project names art/tips.svg as its icon, and a
+  // build of the folder stops, saying so, when the icon isn't there; `exe`: the
+  // project names the app, so the executable is Tip-Calculator, not main)
+  { file: "apps/tip_calculator/main.rr", runtimes: ["run", "interp", "native", "web"], includes: true, exe: "Tip-Calculator",
     events: `${typeKeys("billedit", "100")},tipedit.__key_65_16,${typeKeys("tipedit", "20")},peopleedit.__key_65_16,${typeKeys("peopleedit", "4")}`, dump: "tipamount.caption,total.caption,each.caption",
     expect: ["tipamount.caption=Tip: 20.00", "total.caption=Total: 120.00", "each.caption=Each pays: 30.00"] },
   { file: "recipes/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("form", 12)},startbtn.onclick`, dump: "startbtn.caption,display.caption",
@@ -866,8 +873,15 @@ export const cases = [
   // windows/: a form's Windows messages (WndProc). On Windows real windows
   // (RAPIDR_CAPTURE_WINDOWS: the headless host has no window to send to) and
   // the messages arrive; elsewhere, and on the web, the examples say they
-  // need Windows and do nothing.
+  // need Windows and do nothing. rwin32_system_info.rr, a console program,
+  // calls Windows' own functions through RWin32.inc: on Windows it prints what
+  // they answer (the lines' beginnings: the numbers are the computer's), elsewhere
+  // it compiles all the same, says it needs Windows and stops before the first call.
   ...(process.platform === "win32" ? [
+    { file: "windows/rwin32_system_info.rr", runtimes: ["run", "interp", "native"],
+      expect: ["Windows has been running for ", "Screen: ", "Processors: ", "SYSTEM_INFO is "] },
+    { file: "windows/rwin32_system_info.rr", runtimes: ["web"],
+      expect: ["This example talks to Windows itself, so it runs on Windows.", "Here it compiled fine: RWin32.inc's declarations are ready when you are."] },
     { file: "windows/wndproc_postmessage.rr", runtimes: ["run", "interp", "native"], env: { RAPIDR_CAPTURE_WINDOWS: "1" },
       events: `postbtn.onclick,${wait("count", 4)}`, dump: "status.caption,count.caption",
       expect: ["status.caption=WM_USER + 1 arrived: wParam 1, lParam 9", "count.caption=Posted 1, arrived 1"] },
@@ -898,6 +912,8 @@ export const cases = [
     { file: "windows/midi_in.rr", runtimes: ["web"], events: "openbtn.onclick,testbtn.onclick", dump: "status.caption,notes.itemcount",
       expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "notes.itemcount=0"] },
   ] : [
+    { file: "windows/rwin32_system_info.rr", runtimes: ["run", "interp", "native", "web"],
+      expect: ["This example talks to Windows itself, so it runs on Windows.", "Here it compiled fine: RWin32.inc's declarations are ready when you are."] },
     { file: "windows/wndproc_postmessage.rr", runtimes: ["run", "interp", "native", "web"], events: "postbtn.onclick", dump: "status.caption,postbtn.enabled",
       expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "postbtn.enabled=0"] },
     { file: "windows/wndproc_messages.rr", runtimes: ["run", "interp", "native", "web"], events: "clearbtn.onclick", dump: "hint.caption",
@@ -1085,7 +1101,7 @@ function runDesktop(c, runtime) {
   const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? ["--debug"] : ["--interp"])], {
     cwd: work, env: env({ CARGO_TARGET_DIR: CARGO_TARGET, RAPIDR_BUILD_CACHE: join(dirname(CARGO_TARGET), "build-cache") }), timeout: 1800000,
   });
-  const exe = join(out, `${stem}${EXE}`);
+  const exe = join(out, `${c.exe || stem}${EXE}`);
   let r;
   if (!build.ok || !existsSync(exe)) r = { out: build.out.split("\n").filter((l) => /^error|error:/.test(l)).slice(0, 8).join("\n") || build.out.slice(-800), ok: false, why: ` (build failed${build.why})` };
   else if (c.elsewhere) {
