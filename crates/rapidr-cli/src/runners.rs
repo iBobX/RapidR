@@ -93,6 +93,10 @@ fn first_setting(text: &str) -> Option<String> {
 /// takes its web runtime from `target/web`. The error is a sentence to
 /// show as it is.
 pub fn bundle(target: &str) -> Result<(rapidr_runners::Bundle, Source), String> {
+    // (the RapidR Runtime runs programs and builds none: it never looks for or downloads a runner)
+    if Home::find().is_some_and(|h| !h.can_build()) {
+        return Err("This is the RapidR Runtime: it runs programs (`rapidr run`) and builds none. Executables need the RapidR SDK.".into());
+    }
     let canonical = names::canonical(target).ok_or_else(|| format!("\"{target}\" is not a system RapidR builds apps for ({}).", names::TARGETS.join(", ")))?;
     if let Some(bundle) = checkout_bundle(canonical)? {
         return Ok((bundle, Source::Install));
