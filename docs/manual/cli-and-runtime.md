@@ -25,6 +25,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr upgrade-names <file> [--dry-run]` | The same conversion in place, for RapidR's own files; `--dry-run` prints a diff and changes nothing |
 | `rapidr setup [--check] [--yes] [--no-path]` | Install the Rust native builds use; put `rapidr` on PATH. `rapidr setup --rust` only answers whether native builds can run (exit code 0 yes, 1 no); a native `rapidr build` without Rust stops and says to use `--interp` or run `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
+| `rapidr runners [fetch <target>…\|--all \| clear]` | The runners apps for other systems start from: which are in this install and which were downloaded, get some now so a later build works offline, or delete the downloaded ones ([Where runners come from](building-apps.md#where-runners-come-from)) |
 | `rapidr ai providers`, `rapidr ai models --provider P`, `rapidr ai ask --provider P [--model M] "question"` | RapidR's AI providers from a terminal: which there are, a provider's own models, a question and its streamed answer; the key comes from the provider's environment variable or the keychain ([The AI assistant and RAI](ai-assistant.md)) |
 | `rapidr school-lock hash [--stdin]`, `rapidr school-lock check [file]` | School Lock for a school's IT: the policy file's `password_hash` line for a password typed twice (never shown, never kept), and what the computer's policy (or a file) locks ([For teachers](for-teachers.md#for-a-schools-it-the-computers-policy)) |
 | `rapidr lsp`, `rapidr dap` | The language server and the debug adapter (standard protocols over stdin and stdout), for other editors such as VS Code |
@@ -284,6 +285,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
 | `RAPIDR_DOCUMENTS=<folder>` | the folder used as your Documents: RapidR Studio's copies of the examples (`RapidR/Examples/`) and builds that can't go beside their program (`RapidR/Builds/`) |
 | `RAPIDR_HOME=<folder>` | RapidR's home (above) |
+| `RAPIDR_RUNNERS_URL=<https://…>`, `RAPIDR_RUNNERS_OFFLINE=1`, `RAPIDR_RUNNERS_CACHE=<folder>` | where the runners for other systems are downloaded from, never using the network for them, and where they are kept ([Where runners come from](building-apps.md#where-runners-come-from)) |
 | `RAPIDR_TOOLCHAIN=msvc` | Windows native builds with Microsoft's toolchain |
 | `RAPIDR_INCLUDE_PATH=<folders>` | include folders, separated as in `PATH` (`:`; `;` on Windows), searched after `--include-dir`'s and RapidR Studio's |
 | `RAPIDR_RUNTIME` | set by the Runtime for the program it runs: the `rapidr` running it |

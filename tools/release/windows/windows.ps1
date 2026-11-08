@@ -199,6 +199,13 @@ foreach ($a in $Arch) {
         Run $iscc @("/Q", "/DVersion=$Version", "/DKind=$kind", "/DArch=$iarch", "/DStage=$Stage\$kind-$a", "/DOutDir=$Out",
             "tools\release\windows\rapidr.iss")
     }
+    # This architecture's runner (the console one: the packer sets the subsystem) and its notices as the tar the Mac turns into windows-$a.zst, the file
+    # other systems' Studios download to build for Windows (tools/release/runners.sh; fetch it with
+    # `windows-vm.sh fetch windows-$a.tar dist/<ver>/prep/runners/windows-$a.tar`). Python's tarfile only: the
+    # tar is the same bytes the Mac would make, and the Mac compresses it.
+    $lib = "$Stage\sdk-$a\lib\rapidr"
+    Run $python.FullName @("tools\release\runners.py", "tar", "--target", "windows-$a", "--from", "$lib\runners\windows-$a",
+        "--notices", "$lib\notices\windows-$a.txt", "--out", "$Out\windows-$a.tar")
     Remove-Item -Recurse -Force "$Stage\sdk-$a", "$Stage\runtime-$a", "$Work\toolchains" -ErrorAction SilentlyContinue
 }
 if ($signing) {

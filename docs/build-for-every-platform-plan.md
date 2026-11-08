@@ -54,7 +54,7 @@ One packer, written once in Rust, used by the CLI, the desktop Studio and the we
 1. **Compile once:** the program becomes `.rrbc` bytecode plus resources. This is the same for every target, so it's done once.
 2. **Get the runner** for each target:
    - from the install, if it's there;
-   - otherwise download it from **rapidr.dev/runners/<version>/<target>.zst** (CORS on; not GitHub release links, which have no CORS);
+   - otherwise download it from **studio.rapidr.dev/runners/<version>/<target>.zst** (CORS on; not GitHub release links, which have no CORS);
    - verify the **SHA-256 from a manifest signed with our minisign key**, which is shipped inside Studio (desktop and web), before using it;
    - cache it (`~/Library/Caches/RapidR/runners/<version>/`; in the browser, IndexedDB/Cache Storage);
    - the runner's version always equals Studio's: a 2.123 Studio uses 2.123 runners, never older or newer.
@@ -102,7 +102,7 @@ Every build includes `THIRD-PARTY-NOTICES.txt` for that runner.
 |---|---|---|
 | B1 | The packer crate: per-target packing (PE resources, .app + Info.plist + icns, Linux tar.gz + .desktop, web manifest), icon generation, zip; CLI `--all`, metadata from `.rrproj` | Opus L |
 | B2 | The ad-hoc Mach-O signer (own code), tested on Apple silicon from a non-Mac build | Opus M |
-| B3 | Runners for every target in the release chain (adding windows-x86), the signed manifest, rapidr.dev hosting with CORS; download + verify + cache in the CLI and Studio | Sonnet M |
+| B3 | Runners for every target in the release chain (adding windows-x86), the signed manifest, studio.rapidr.dev hosting with CORS; download + verify + cache in the CLI and Studio | Sonnet M |
 | B4 | The Build dialog in Studio (Pen mockup first, design guide, EN/ES, a11y), the saved choices, Build again | Opus M |
 | B5 | The web Studio: the packer in wasm, runner fetch into Cache Storage, the downloads | Opus M |
 | B6 | The test matrix in the VMs + the manual + the example + the video | Sonnet M + coordinator |
@@ -114,3 +114,11 @@ Order: B1 and B3 first (the core, in the CLI); then B2 and B4; then B5; then B6.
 - **Android:** an APK runner (our UI kernel already draws everything). Signing with a debug key, or the user's own.
 - **iOS:** needs a Mac, Apple's tools and the user's own Apple account, by Apple's rules. Desktop Studio on a Mac only.
 - **Boards** (ESP32, micro:bit): through Preview 6/7's board work.
+
+## 10. As built: runners (B3, 2026-11-07)
+- **Crate `rapidr-runners`** (crates/rapidr-runners). Checking is pure and wasm-safe (`verify::check_all(trust, list, signature, target, file)`: bytes in, a bundle or a `Refusal` out). The download (ureq, the system's TLS), the cache and the install's files are the `native` feature. The web Studio fetches with the browser's `fetch`, keeps the files in Cache Storage and calls the same functions; the addresses are `urls::{manifest_url, signature_url, file_url}`.
+- **Order**: this install's runner, the cache (re-checked every time, never trusted), the host. Nothing is kept before it passed. Only `https://` addresses (and `http://` for this computer, for tests). `urls::DEFAULT_BASE_URL` is `https://studio.rapidr.dev/runners` (Robert, 2026-11-07): a folder per version, `https://studio.rapidr.dev/runners/<version>/` with the list, its signature and the `<target>.zst` files; the web Studio is served from the same host, so its fetch is same-origin and needs no CORS headers (a Studio served from elsewhere would). Overridable by `RAPIDR_RUNNERS_URL` or `runners-url.txt`, which every test uses (localhost only).
+- **The list** (`runners-manifest.json`, `format` 1): `version`, and per runner `target`, `file`, `size`, `sha256` (of the `.zst` as served), `unpacked`, `files`. Its minisign signature (`runners-manifest.json.minisig`, the release key, `RWT4oRaArdWhjGXn5bIqoxGsqPvaLFJxHRpQqZXKUFDFuDZWgMPC3srG`) is checked first; nothing in an unsigned list is read, not even its version.
+- **The files** (`<target>.zst`): a zstd-compressed ustar tar. Windows: ONE program, `rapidrintr-runner.exe` (an install's console and windowed runners differ in four bytes of the PE header, and the packer sets the subsystem), and `THIRD-PARTY-NOTICES.txt`; macOS: the **universal** `rapidrintr-runner` (one file for Apple silicon and Intel; `macos-arm64` / `macos-x86_64` are slices of it) and the notices; Linux: `rapidrintr-runner` and the notices; web: `rapidrintr.js`, `rapidrintr_bg.wasm`, `fonts/*` and the notices. Targets are named as an install's `runners/<target>/` folders are (`windows-x86_64`, `windows-aarch64`, `windows-x86`, `macos`, `linux-x86_64`, `linux-aarch64`, `web`); `x64`, `arm64`, `amd64`, `i686` are understood (`names::canonical`).
+- **The one call** a build makes: `rapidr_runners::runner_bytes(&config, target, windowed, progress) -> Result<Vec<u8>, Error>` (the CLI's wrapper: `runners::runner_bytes(target, windowed)`), plus `resolve(...)` for all of a target's files and where they came from. `windowed` is accepted but changes nothing: there is one runner per target.
+- **Sizes**: macos 24 MB, linux 14 and 15 MB, web 16 MB and windows-x86 19 MB (all four measured on the 2.123.0 packages); windows x64 and ARM64 about 12 MB each (measured on the October 31 runner builds: the 2.123.x ones come from the Windows VM). All seven about 110 MB.
