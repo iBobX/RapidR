@@ -1585,6 +1585,10 @@ msgid "no file named"
 msgstr ""
 
 #: crates/rapidr-studio/src/import.rs
+msgid "this import has no WIN32API.INC"
+msgstr ""
+
+#: crates/rapidr-studio/src/import.rs
 msgid "nothing to import"
 msgstr ""
 
@@ -2046,6 +2050,10 @@ msgstr ""
 
 #: crates/rapidr-studio/src/project.rs
 msgid "nothing built yet"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing imported yet"
 msgstr ""
 
 #: crates/rapidr-studio/src/recovery.rs

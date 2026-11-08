@@ -4127,3 +4127,11 @@ msgstr "em ordem decrescente"
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "sorted ascending"
 msgstr "em ordem crescente"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "this import has no WIN32API.INC"
+msgstr "esta importação não tem WIN32API.INC"
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing imported yet"
+msgstr "nada foi importado ainda"
