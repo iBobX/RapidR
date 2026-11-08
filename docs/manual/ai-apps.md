@@ -312,12 +312,30 @@ Chrome's DevTools MCP server, the browser automation server Chrome's makers
 publish (`chrome-devtools-mcp`, Apache-2.0). Tried on 2026-11-08 with
 Chrome 156 and two AI apps; WebMCP is a draft, so these steps can change.
 
-1. **Add the server to your AI app** as an MCP server (a "stdio" server) with
-   the command `npx` and these arguments:
+1. **Add the server to your AI app.** Most AI apps take MCP servers in a JSON
+   settings file; add this entry (no key or token is needed):
 
+   ```json
+   {
+     "mcpServers": {
+       "rapidr-studio-web": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "chrome-devtools-mcp@latest",
+           "--categoryExperimentalWebmcp",
+           "--chromeArg=--enable-features=WebMCP,WebMCPTesting",
+           "--no-usage-statistics",
+           "--no-performance-crux"
+         ]
+       }
+     }
+   }
    ```
-   -y chrome-devtools-mcp@latest --categoryExperimentalWebmcp --chromeArg=--enable-features=WebMCP,WebMCPTesting --no-usage-statistics --no-performance-crux
-   ```
+
+   An AI app that asks in a form instead: a "stdio" server, command `npx`,
+   and the arguments above, separated by spaces.
+
 
    `--categoryExperimentalWebmcp` gives the AI app two tools, *list the page's
    WebMCP tools* and *run one*; the `--chromeArg` turns WebMCP on in the

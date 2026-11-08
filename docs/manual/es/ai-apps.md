@@ -356,12 +356,32 @@ de Chrome (`chrome-devtools-mcp`, Apache-2.0). Probado el 2026-11-08 con
 Chrome 156 y dos aplicaciones de IA; WebMCP es un borrador, así que estos
 pasos pueden cambiar.
 
-1. **Agrega el servidor a tu aplicación de IA** como servidor MCP (de tipo
-   "stdio") con el comando `npx` y estos argumentos:
+1. **Agrega el servidor a tu aplicación de IA.** La mayoría de las
+   aplicaciones de IA guardan sus servidores MCP en un archivo de
+   configuración JSON; agrega esta entrada (no hace falta ninguna clave ni
+   token):
 
+   ```json
+   {
+     "mcpServers": {
+       "rapidr-studio-web": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "chrome-devtools-mcp@latest",
+           "--categoryExperimentalWebmcp",
+           "--chromeArg=--enable-features=WebMCP,WebMCPTesting",
+           "--no-usage-statistics",
+           "--no-performance-crux"
+         ]
+       }
+     }
+   }
    ```
-   -y chrome-devtools-mcp@latest --categoryExperimentalWebmcp --chromeArg=--enable-features=WebMCP,WebMCPTesting --no-usage-statistics --no-performance-crux
-   ```
+
+   Si tu aplicación de IA lo pide en un formulario: un servidor "stdio",
+   comando `npx`, y los argumentos de arriba, separados por espacios.
+
 
    `--categoryExperimentalWebmcp` le da a la aplicación de IA dos
    herramientas, *listar las herramientas WebMCP de la página* y *ejecutar
