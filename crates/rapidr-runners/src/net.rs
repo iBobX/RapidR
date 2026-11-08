@@ -42,13 +42,20 @@ impl Default for UreqFetch {
 
 impl UreqFetch {
     pub fn new() -> UreqFetch {
-        let agent = ureq::AgentBuilder::new()
+        let builder = ureq::AgentBuilder::new()
             .timeout_connect(Duration::from_secs(10))
             // (between two reads, not for the whole file: a big runner on a slow line is fine)
             .timeout_read(Duration::from_secs(30))
             .redirects(3)
-            .user_agent(&format!("RapidR/{}", env!("CARGO_PKG_VERSION")))
-            .build();
+            .user_agent(&format!("RapidR/{}", env!("CARGO_PKG_VERSION")));
+        // (HTTPS through the system's TLS, as rapidr-ai's and the runtime's
+        // agents: ureq's `native-tls` feature is used only when the agent is
+        // given the connector — without it every https:// download failed
+        // with "no TLS backend is configured")
+        let agent = match ureq::native_tls::TlsConnector::new() {
+            Ok(tls) => builder.tls_connector(std::sync::Arc::new(tls)).build(),
+            Err(_) => builder.build(),
+        };
         UreqFetch { agent }
     }
 }

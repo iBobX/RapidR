@@ -48,7 +48,16 @@ RUNNERS="$OUT/runners"
 W="$WORK/runners"
 rm -rf "$W" && mkdir -p "$W" "$RUNNERS"
 MNT=""
-cleanup() { [ -z "$MNT" ] || hdiutil detach -quiet "$MNT" 2>/dev/null || true; rm -rf "$W"; }
+# (a disk image is let go of first — a moment later, or forced, when something still reads it —
+# and the scratch folder is removed only once nothing is mounted in it)
+detach() { hdiutil detach -quiet "$1" 2>/dev/null || { sleep 2; hdiutil detach -quiet "$1" 2>/dev/null; } || hdiutil detach -quiet -force "$1"; }
+cleanup() {
+    if [ -n "$MNT" ] && ! detach "$MNT"; then
+        echo "  $MNT is still mounted: the scratch folder $W was left (hdiutil detach it, then remove it)"
+        return
+    fi
+    rm -rf "$W"
+}
 trap cleanup EXIT
 PY="python3 tools/release/runners.py"
 START=$SECONDS
@@ -62,7 +71,7 @@ if [ -f "$DMG" ]; then
     MNT="$W/dmg"; mkdir -p "$MNT"
     hdiutil attach -quiet -nobrowse -readonly -mountpoint "$MNT" "$DMG"
     $PY prefix "$MNT/RapidR Studio.app/Contents/lib/rapidr" --out "$RUNNERS" --only macos web
-    hdiutil detach -quiet "$MNT"; MNT=""
+    detach "$MNT"; MNT=""
 else
     echo "  no $DMG"; missing+=(macos web)
 fi
