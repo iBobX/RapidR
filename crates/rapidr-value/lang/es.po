@@ -1909,6 +1909,10 @@ msgid "no project is open"
 msgstr "no hay un proyecto abierto"
 
 #: crates/rapidr-studio/src/project.rs
+msgid "{list}: the systems to build for, like windows-x64,macos,linux-x64,web or all"
+msgstr "{list}: los sistemas para los que compilar, como windows-x64,macos,linux-x64,web o all"
+
+#: crates/rapidr-studio/src/project.rs
 msgid "{path} isn't a copy of one of RapidR's examples"
 msgstr "{path} no es una copia de uno de los ejemplos de RapidR"
 

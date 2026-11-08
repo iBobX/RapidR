@@ -261,12 +261,6 @@ run them there for that).
 | [midi_sysex_in.rr](windows/midi_sysex_in.rr) | MIDI System Exclusive messages received with winmm: Open lends the driver a buffer through a `MIDIHDR` (`midiInPrepareHeader`, `midiInAddBuffer`, `midiInStart`); the driver fills it later and posts `MM_MIM_LONGDATA`, and WndProc lists the bytes in hex and gives the buffer back; Close stops, resets, unprepares and closes. The `MIDIHDR` as this Windows lays it (120 bytes on 64-bit, 64 on 32-bit), by its address | run · interp · native · web | `rapidr run windows/midi_sysex_in.rr` |
 | [midi_sysex_out.rr](windows/midi_sysex_out.rr) | A MIDI System Exclusive message sent with winmm: pick the output, write the bytes in hex (the GS Reset is there), Send runs `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, waits for `MHDR_DONE`, then `midiOutUnprepareHeader` and `midiOutClose`, and lists each call's result code in words; the `MIDIHDR` is written out as 64-bit Windows lays it (120 bytes: pointers as two LONGs, `dwReserved` an array field) | run · interp · native · web | `rapidr run windows/midi_sysex_out.rr` |
 
-### apps/ — one project, an app for every system
-
-| Example | What it shows | Runs on | Try |
-|---------|---------------|---------|-----|
-| [main.rr](apps/tip_calculator/main.rr) | The tip calculator as an app: the project beside it carries the name, version, company and icon (`art/tips.svg`) every system shows, and `rapidr build main.rr --all` makes a zip for each system ([the manual](../docs/manual/build-for-every-system.md)) | run · interp · native · web | `rapidr run apps/tip_calculator/main.rr` |
-
 ### web/ — what only a web page has
 
 | Example | What it shows | Runs on | Try |
@@ -293,6 +287,16 @@ has a picture of each and explains its best lines.
 | [signal_lab.rr](showcase/signal_lab.rr) | A signal generator and a two-screen oscilloscope: four waves, frequency, amplitude, noise and a second tone; the top screen held still by a trigger, the bottom the spectrum from an FFT written in BASIC (radix 2, 1024 points), its peaks marked in hertz | run · interp · native · web | `rapidr run showcase/signal_lab.rr` |
 | [midi_visualizer.rr](showcase/midi_visualizer.rr) | A 3D scene that dances to a song: the program reads the `.mid` file itself (chunks, variable-length times, tempo, Note On), RMIDI plays it, every note moves the scene; Load MIDI…, a Calm switch | run · interp · native · web | `rapidr run showcase/midi_visualizer.rr` |
 | [make_song.rr](showcase/make_song.rr) | Composes [song.mid](showcase/song.mid), the visualizer's own 32-bar loop (kick, bass, arpeggio, pad), and writes it as a MIDI file | run · interp · native · web | `rapidr run showcase/make_song.rr` |
+
+### apps/ — a whole app, built for every system
+
+A project with its App info filled in (name, version, company, copyright,
+description, website, category, an SVG icon), so one command makes it for
+Windows, macOS, Linux and the web ([the manual](../docs/manual/build-for-every-system.md)).
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [tip_calculator/main.rr](apps/tip_calculator/main.rr) | The tip calculator as a project (`Tip Calculator.rrproj`, its icon `art/tips.svg`): `rapidr build main.rr --all` makes `Tip-Calculator-1.2.0-<system>.zip` for each system (a `.tar.gz` for Linux), each with a README on how to open it there, and `SHA256SUMS` | run · interp · native · web | `rapidr build apps/tip_calculator/main.rr --all` |
 
 ### studio/ and the IDE — RapidR Studio's parts
 

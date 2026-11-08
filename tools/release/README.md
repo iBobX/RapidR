@@ -14,6 +14,7 @@ flow.
 | macOS | `macos.sh` | Mac | `RapidR-<ver>-macos-universal.dmg` (RapidR Studio.app + RapidR Runtime.app, an Applications alias, the licences) and `RapidR-Runtime-<ver>-macos-universal.dmg` |
 | Windows | `windows-vm.sh build` | Windows 11 VM | `RapidR-<ver>-windows-<x64\|arm64>-setup.exe` and `RapidR-Runtime-…` (Inno Setup, per user) |
 | Linux | `linux-vm.sh` | Ubuntu VM | `rapidr_<ver>_<amd64\|arm64>.deb`, `rapidr-<ver>-linux-<arch>.tar.gz` and the `rapidr-runtime…` pair |
+| (all) | `runners.sh` | Mac | the runners other systems' Studios download, from the packages above: `runners/<target>.zst` (windows-x86_64, windows-aarch64, windows-x86, macos, linux-x86_64, linux-aarch64, web) and `runners-manifest.json` (version, target, size, SHA-256). Not part of the GitHub release: `runners/` goes to the runners host |
 | (all) | `finish.sh` | Mac | the licence files checked in every package; `SHA256SUMS` |
 | (all) | `build-matrix.sh <ver>` | Mac, drives both VMs | not a package: **the gate before publishing**. Installs every artifact the way a user does, presses Build (interpreted) and Build Native, runs what they made, and prints ONE table ([docs/build-matrix.md](../../docs/build-matrix.md)) |
 
@@ -49,8 +50,13 @@ how to run it.
 5. **`tools/release/windows-vm.sh build`** (about two hours on the first run),
    then for each installer `windows-vm.sh smoke <installer> Native` (add `Regress` for the conformance suite and the examples with the installed rapidr) and
    `-Associations`, then `windows-vm.sh fetch <installer> dist/<ver>/out/<installer>`.
-6. **`tools/release/finish.sh`**.
-7. **`tools/release/build-matrix.sh <ver>`: the gate.** Before publish it must be
+6. **`tools/release/runners.sh`** (after step 5 and `tools/win7/alpha.sh`): the runners other systems' Studios download. Windows x64 and ARM64 come from the
+   Windows build's `windows-<arch>.tar` (windows.ps1 writes them next to the installers; the installers can't be opened on a Mac):
+   `tools/release/windows-vm.sh fetch windows-x86_64.tar dist/<ver>/prep/runners/windows-x86_64.tar` and the same for `windows-aarch64`. The others are taken from
+   the packages already in `out/` (macOS' image, the Linux tarballs, the Windows 7 zip). About a minute. Without `--allow-missing` it stops if a target has no source.
+7. **`tools/release/finish.sh`** (with `RAPIDR_MINISIGN_KEY` it signs `runners-manifest.json` too, before `SHA256SUMS`), then
+   `target/release/rapidr runners check dist/<ver>/out`: the list's signature, its version and every runner checked as a Studio checks a download.
+8. **`tools/release/build-matrix.sh <ver>`: the gate.** Before publish it must be
    **all green, or every red explained** in the release notes (an explained red is
    a known gap, never a surprise: [docs/build-matrix.md](../../docs/build-matrix.md)
    lists the gaps). It exits non-zero on any red, so a script can stop on it.
@@ -62,9 +68,9 @@ how to run it.
    checked too when it is in `out/`: in the Windows 11 VM (`win7`, emulation) and on the real Windows 7
    (`win7real`: the UTM VM started by Robert, somebody logged in at its desktop, the guest agent working).
    A VM job that never reports ends the wait with a `TIMEOUT` and a red row after `MATRIX_TIMEOUT_MIN` minutes (default 90).
-8. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish
+9. **Look at `dist/<ver>/out/`**, do the fresh-user journey below, then publish
    by hand (`gh release create`, see the packaging doc).
-9. **Clean up** (the last step, always: a release leaves ~10 GB in each VM and
+10. **Clean up** (the last step, always: a release leaves ~10 GB in each VM and
    the Windows VM's disk once filled up): `rm -rf dist/<ver>/work dist/<ver>/prep`,
    then `linux-vm.sh clean` and `windows-vm.sh clean`. Each removes the release
    work folder, the build cache, the smoke tests' temporary folders and the test

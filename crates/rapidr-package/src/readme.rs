@@ -116,11 +116,11 @@ fn macos(name: &str, exe: &str, target: Target, app: bool, es: bool) -> String {
         if app {
             s.push_str(&format!("2. Arrastra {name}.app a tu carpeta Aplicaciones (o déjala donde quieras).\n3. Haz doble clic en ella.\n"));
             s.push_str(&format!(
-                "\nLa primera vez, macOS puede decir que no puede comprobar que {name} no\ntenga software malicioso, o que es de un desarrollador no identificado:\nla app no está firmada con un Developer ID de Apple. Si confías en quien\nte la dio:\n  - pulsa \"Aceptar\" (o \"Listo\"), abre Ajustes del Sistema > Privacidad y\n    seguridad, baja hasta el aviso sobre {name} y pulsa \"Abrir igualmente\";\n    confirma con tu contraseña. macOS lo recuerda.\n  - En versiones anteriores de macOS: clic derecho (o Control-clic) sobre la\n    app, \"Abrir\", y otra vez \"Abrir\".\n"
+                "\nLa primera vez, macOS dice que no abrió {name}: Apple no pudo verificar\nque no tenga software malicioso, porque la app no está firmada con un\nDeveloper ID de Apple. Si confías en quien te la dio:\n  1. Haz clic en \"Listo\" (no en \"Mover a la papelera\").\n  2. Abre Configuración del Sistema > Privacidad y seguridad, baja hasta el\n     aviso sobre {name} y haz clic en \"Abrir de todos modos\"; confirma con\n     tu contraseña o Touch ID, y haz clic en \"Abrir\". macOS lo recuerda.\n  (En macOS 14 y anteriores también sirve: clic derecho sobre la app,\n  \"Abrir\", y otra vez \"Abrir\".)\n"
             ));
         } else {
             s.push_str(&format!(
-                "2. Es un programa de consola: abre Terminal en la carpeta (clic derecho\n   sobre ella, Servicios > Nuevo Terminal en la carpeta) y escribe ./{exe}\n\nSi macOS no lo deja abrir la primera vez, ve a Ajustes del Sistema >\nPrivacidad y seguridad y pulsa \"Abrir igualmente\".\n"
+                "2. Es un programa de consola: abre Terminal en la carpeta (clic derecho\n   sobre ella, Servicios > Nuevo Terminal en la carpeta) y escribe ./{exe}\n\nSi macOS no lo deja abrir la primera vez, ve a Configuración del Sistema >\nPrivacidad y seguridad y haz clic en \"Abrir de todos modos\".\n"
             ));
         }
     } else {
@@ -128,7 +128,7 @@ fn macos(name: &str, exe: &str, target: Target, app: bool, es: bool) -> String {
         if app {
             s.push_str(&format!("2. Drag {name}.app to your Applications folder (or keep it anywhere).\n3. Double-click it.\n"));
             s.push_str(&format!(
-                "\nThe first time, macOS may say it can't check {name} for malicious\nsoftware, or that it is from an unidentified developer: the app is not\nsigned with an Apple Developer ID. If you trust whoever gave it to you:\n  - click \"OK\" (or \"Done\"), open System Settings > Privacy & Security,\n    scroll down to the message about {name} and click \"Open Anyway\";\n    confirm with your password. macOS remembers it.\n  - On older macOS: right-click (or Control-click) the app, choose \"Open\",\n    then \"Open\" again.\n"
+                "\nThe first time, macOS says \"{name}\" Not Opened: \"Apple could not verify\n{name} is free of malware...\", because the app is not signed with an Apple\nDeveloper ID. If you trust whoever gave it to you:\n  1. Click \"Done\" (not \"Move to Trash\").\n  2. Open System Settings > Privacy & Security, scroll down to the message\n     about {name} and click \"Open Anyway\"; confirm with your password or\n     Touch ID, then click \"Open\". macOS remembers it.\n  (On macOS 14 and earlier this works too: right-click the app, choose\n  \"Open\", then \"Open\" again.)\n"
             ));
         } else {
             s.push_str(&format!(
@@ -187,7 +187,8 @@ mod tests {
         }
         assert!(readme(&info, Target::WindowsX64, "en", true).contains("Run anyway"));
         assert!(readme(&info, Target::WindowsX64, "es", true).contains("Ejecutar de todas"));
-        assert!(readme(&info, Target::MacosUniversal, "en", true).contains("Open Anyway"));
+        let mac = readme(&info, Target::MacosUniversal, "en", true);
+        assert!(mac.contains("\"Tip Calculator\" Not Opened") && mac.contains("Click \"Done\" (not \"Move to Trash\")") && mac.contains("Open Anyway"), "{mac}");
         assert!(readme(&info, Target::LinuxX64, "en", true).contains("./install.sh"));
         assert!(readme(&info, Target::WindowsX86, "en", true).contains("Windows 7"));
         assert!(readme(&info, Target::Web, "es", true).contains("alojamiento web"));

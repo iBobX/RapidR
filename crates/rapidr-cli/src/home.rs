@@ -56,16 +56,6 @@ impl Home {
     pub fn can_build(&self) -> bool {
         self.release.as_ref().is_none_or(|r| r.kind == "sdk")
     }
-
-    /// The runner targets an install ships (`runners/<target>/`: runners.rs
-    /// reads them).
-    pub fn runner_targets(&self) -> Vec<String> {
-        let mut out: Vec<String> = fs::read_dir(self.root.join("runners"))
-            .map(|d| d.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().into_owned()).collect())
-            .unwrap_or_default();
-        out.sort();
-        out
-    }
 }
 
 impl Home {
@@ -278,7 +268,6 @@ mod tests {
         assert_eq!((r.version.as_str(), r.rust.as_str(), r.kind.as_str()), ("2.116.0", "1.98.1", "sdk"));
         let home = Home { root: dir.clone(), release: Some(r) };
         assert!(home.can_build());
-        assert_eq!(home.runner_targets(), ["linux-x86_64", "windows-aarch64"]);
         fs::remove_dir_all(&dir).unwrap();
     }
 

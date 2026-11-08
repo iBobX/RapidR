@@ -426,11 +426,13 @@ END SUB
 ' that show them in the file manager.
 SUB BuildOutput(Text AS STRING)
   DIM k AS INTEGER, head AS STRING, path AS STRING
+  ' (a build an AI asked for, build_app: its answer is what the build says)
+  IF ToolsBuildTicket <> "" THEN ToolsBuildLog = ToolsBuildLog + Text + CHR$(10)
   k = INSTR(Text, ": ")
   IF k > 0 THEN
     head = LEFT$(Text, k - 1)
     path = MID$(Text, k + 2)
-    IF (head = "App" OR head = "AppDir" OR head = "Executable" OR head = "Web" OR head = "Rust source" OR head = "Output folder") AND Proj.FileManager <> "" THEN
+    IF (head = "App" OR head = "AppDir" OR head = "Executable" OR head = "Web" OR head = "Apps" OR head = "Rust source" OR head = "Output folder") AND Proj.FileManager <> "" THEN
       BuildLine head + ": " + Hyperlink(path, "reveal:" + path)
       EXIT SUB
     END IF
@@ -460,6 +462,8 @@ FUNCTION BuildModeWord AS STRING
     CASE "native": Result = TR$("native")
     CASE "interpreted": Result = TR$("interpreted")
     CASE "web": Result = TR$("web")
+    CASE ELSE
+      IF LEFT$(BuildMode, 8) = "targets:" THEN Result = MID$(BuildMode, 9) ELSE Result = BuildMode
     CASE ELSE: Result = BuildMode
   END SELECT
 END FUNCTION
@@ -467,6 +471,7 @@ END FUNCTION
 SUB BuildDone(Code AS INTEGER, Built AS STRING)
   DIM took AS STRING
   took = LTRIM$(STR$(INT(TIMER - BuildStarted)))
+  IF ToolsBuildTicket <> "" THEN ToolsBuildDone Code
   IF BuildMode = "setup" THEN
     BuildLine ""
     IF Code = 0 THEN
@@ -478,7 +483,12 @@ SUB BuildDone(Code AS INTEGER, Built AS STRING)
     END IF
     EXIT SUB
   END IF
-  IF Code = 0 AND BuildMode = "web" THEN
+  IF Code = 0 AND LEFT$(BuildMode, 8) = "targets:" THEN
+    ' (a zip for each system, and SHA256SUMS, in the output folder)
+    BuildLine ""
+    BuildLine CHR$(27) + "[32m" + TR$("✓ Built the apps in {seconds} s", "seconds", took) + CHR$(27) + "[0m   " + Hyperlink(TR$("Reveal in {manager}", "manager", Proj.FileManager), "reveal:" + Built)
+    SetState "stopped", TR$("Built the apps")
+  ELSEIF Code = 0 AND BuildMode = "web" THEN
     ' (a web app: the .zip any web host serves, unzipped)
     BuildLine ""
     IF Proj.FileManager = "" THEN

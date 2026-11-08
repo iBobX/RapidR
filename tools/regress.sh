@@ -67,6 +67,10 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (the UI kernel and the program glue stay GUI-free: they must build for
   # the browser too)
   cargo check -q -p rapidr-ui-kernel -p rapidr-ui-app -p rapidr-session -p rapidr-project -p rapidr-lang -p rapidr-designer -p rapidr-introspect --features rapidr-introspect/design --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
+  # (the runners' checking — signature, version, SHA-256, unpacking — is bytes
+  # in, so the web Studio runs the same code; the download and the cache are
+  # the `native` feature: docs/manual/building-apps.md, "Where runners come from")
+  cargo check -q -p rapidr-runners --no-default-features --target wasm32-unknown-unknown 2>&1 | grep -E "^error" -A5 | head -10
   # (the AI introspection interface's design-time side: a cargo feature the
   # workspace's own test run leaves off — docs/ai-architecture.md)
   cargo test -q -p rapidr-introspect --features design 2>&1 | grep -E "test result: FAILED|panicked|^error" | head -5

@@ -254,6 +254,8 @@ DECLARE FUNCTION ToolsDebugState AS STRING
 DECLARE SUB ToolsSaveVersion(Ticket AS STRING)
 DECLARE SUB ToolsRestoreVersion(Ticket AS STRING)
 DECLARE SUB ToolsStartVersions(Ticket AS STRING)
+DECLARE SUB ToolsBuildApp(Ticket AS STRING)
+DECLARE SUB ToolsBuildDone(Code AS INTEGER)
 DECLARE SUB ToolsTick(Sender AS RTimer)
 DECLARE SUB McpStudioAnswered(CallId AS INTEGER, Text AS STRING, Failed AS INTEGER)
 DECLARE SUB McpRunEnded
@@ -457,6 +459,8 @@ DIM AIRunFullPower AS INTEGER
 ' is being answered, tools.inc ToolsRun; and whether the last run was
 ' sandboxed, for what the tools say)
 DIM ToolsCalling AS INTEGER
+' (a build_app call waiting for its build: its ticket, the build's lines)
+DIM ToolsBuildTicket AS STRING, ToolsBuildLog AS STRING
 DIM RunSandboxed AS INTEGER
 ' (applying RAI's changes by itself — "Work on its own" — now: not twice)
 DIM AIAutoApplying AS INTEGER

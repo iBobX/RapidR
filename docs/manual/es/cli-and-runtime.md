@@ -1,4 +1,4 @@
-<!-- translated-from: cli-and-runtime.md 87146dfd490330b9 -->
+<!-- translated-from: cli-and-runtime.md 42af21a65c83a62c -->
 # La CLI y el RapidR Runtime
 
 Un solo comando, `rapidr`, es el compilador, la herramienta de compilación y el
@@ -27,6 +27,7 @@ entorno de ejecución.
 | `rapidr upgrade-names <file> [--dry-run]` | La misma conversión en el mismo archivo, para los archivos propios de RapidR; `--dry-run` imprime las diferencias y no cambia nada |
 | `rapidr setup [--check] [--yes] [--no-path]` | Instala el Rust que usan las compilaciones nativas; pone `rapidr` en el PATH. `rapidr setup --rust` solo responde si las compilaciones nativas pueden ejecutarse (código de salida 0 sí, 1 no); un `rapidr build` nativo sin Rust se detiene y dice que uses `--interp` o ejecutes `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Imprime los avisos de terceros que lleva un tipo de compilación |
+| `rapidr runners [fetch <target>…\|--all \| clear]` | Los ejecutores desde los que arrancan las aplicaciones para otros sistemas: cuáles están en esta instalación y cuáles se descargaron, descargar algunos ahora para que una compilación posterior funcione sin conexión, o borrar los descargados ([De dónde vienen los ejecutores](building-apps.md#de-dónde-vienen-los-ejecutores)) |
 | `rapidr ai providers`, `rapidr ai models --provider P`, `rapidr ai ask --provider P [--model M] "question"` | Los proveedores de IA de RapidR desde una terminal: cuáles hay, los modelos propios de un proveedor, una pregunta y su respuesta a medida que llega; la clave viene de la variable de entorno del proveedor o del llavero ([El asistente de IA y RAI](ai-assistant.md)) |
 | `rapidr school-lock hash [--stdin]`, `rapidr school-lock check [file]` | El bloqueo escolar para el equipo de informática de una escuela: la línea `password_hash` del archivo de política para una contraseña escrita dos veces (nunca se muestra ni se guarda), y qué bloquea la política de la computadora (o un archivo) ([Para docentes](for-teachers.md#para-el-equipo-de-informática-de-la-escuela-la-política-de-la-computadora)) |
 | `rapidr lsp`, `rapidr dap` | El servidor de lenguaje y el adaptador de depuración (protocolos estándar sobre stdin y stdout), para otros editores como VS Code |
@@ -63,7 +64,8 @@ rapidr build prog.bas --web --interp       # paquete web: prog-web.zip
 | `--web`, `-w` | para el navegador (también cuando el programa dice `$APPTYPE WEB`) |
 | `--csp "connect-src https://api.example.com; …"` | (compilaciones web, y `bundle-bc`) orígenes que la Content-Security-Policy de la página añade a lo que necesitan los componentes del programa ([Compilar aplicaciones](building-apps.md#compilar-una-aplicación-web)) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | la aplicación en que se convierte y su ícono: [Compilar aplicaciones y sus íconos](building-apps.md) |
-| `--target <os>-<arch>` | una compilación interpretada para otra arquitectura, a partir de los ejecutores (runners) que incluye el SDK: en Windows `windows-x86_64` y `windows-aarch64`; en macOS `macos` (universal, el valor predeterminado), `macos-arm64`, `macos-x86_64`; en Linux la propia de la máquina (`linux-x86_64` o `linux-aarch64`). Una copia del código fuente compila con cargo el ejecutor que necesita |
+| `--target <os>-<arch>` | una compilación interpretada para otro sistema o procesador, en una carpeta (`windows-x64`, `windows-arm64`, `windows-x86`, `macos` (universal, el valor predeterminado en un Mac), `macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`; también los nombres de los ejecutores, `windows-x86_64` …), a partir del ejecutor de esta instalación o de uno descargado ([De dónde vienen los ejecutores](building-apps.md#de-dónde-vienen-los-ejecutores)). Una copia del código fuente compila con cargo el ejecutor de esta máquina |
+| `--targets <lista>` / `--all` | un zip para cada sistema de la lista (un `.tar.gz` para Linux), con su README para abrirla la primera vez y los avisos, y `SHA256SUMS`: [Compila tu app para todos los sistemas](build-for-every-system.md) |
 
 Adónde va cada cosa — la carpeta de salida: la que indicas; si no, la del
 proyecto (`[build] output`, `build` de forma predeterminada) cuando el programa
@@ -305,6 +307,7 @@ desde la que se ejecuta el comando. `rapidr setup --check` imprime cuál.
 | `RAPIDR_CONFIG_DIR=<folder>` | tu carpeta de RapidR (la lista de archivos de confianza) |
 | `RAPIDR_DOCUMENTS=<folder>` | la carpeta que se usa como tus Documentos: las copias de los ejemplos de RapidR Studio (`RapidR/Examples/`) y las compilaciones que no pueden ir junto a su programa (`RapidR/Builds/`) |
 | `RAPIDR_HOME=<folder>` | la carpeta principal de RapidR (arriba) |
+| `RAPIDR_RUNNERS_URL=<https://…>`, `RAPIDR_RUNNERS_OFFLINE=1`, `RAPIDR_RUNNERS_CACHE=<folder>` | de dónde se descargan los ejecutores para otros sistemas, no usar nunca la red para ellos, y dónde se guardan ([De dónde vienen los ejecutores](building-apps.md#de-dónde-vienen-los-ejecutores)) |
 | `RAPIDR_TOOLCHAIN=msvc` | compilaciones nativas de Windows con el conjunto de herramientas de Microsoft |
 | `RAPIDR_INCLUDE_PATH=<folders>` | carpetas de inclusión, separadas como en `PATH` (`:`; `;` en Windows), que se buscan después de las de `--include-dir` y las de RapidR Studio |
 | `RAPIDR_RUNTIME` | lo define el Runtime para el programa que ejecuta: el `rapidr` que lo ejecuta |

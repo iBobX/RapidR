@@ -1882,11 +1882,19 @@ msgid "Installing Rust failed"
 msgstr ""
 
 #: ide/build.inc
-msgid "✓ Built {file} — unzip on any web host"
+msgid "✓ Built the apps in {seconds} s"
 msgstr ""
 
 #: ide/build.inc ide/contextmenu.inc
 msgid "Reveal in {manager}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Built the apps"
+msgstr ""
+
+#: ide/build.inc
+msgid "✓ Built {file} — unzip on any web host"
 msgstr ""
 
 #: ide/build.inc

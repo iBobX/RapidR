@@ -18,7 +18,8 @@ use crate::Host;
 pub struct Running {
     lines: Receiver<String>,
     child: std::process::Child,
-    /// What it made (the line starting "App:", "AppDir:" or "Executable:").
+    /// What it made (the line starting "App:", "AppDir:", "Executable:",
+    /// "Web:", or "Apps:" — the folder of a build for other systems' zips).
     made: String,
 }
 
@@ -154,7 +155,7 @@ pub fn stop(name: &str) {
 
 /// What `rapidr build` says it made, from one of its lines.
 pub fn made_by(line: &str) -> Option<&str> {
-    ["App: ", "AppDir: ", "Executable: ", "Web: "].iter().find_map(|p| line.strip_prefix(p)).map(str::trim)
+    ["App: ", "AppDir: ", "Executable: ", "Web: ", "Apps: "].iter().find_map(|p| line.strip_prefix(p)).map(str::trim)
 }
 
 /// Every build's news as its events (`OnBuildOutput`, `OnBuildDone`);
@@ -269,6 +270,7 @@ mod tests {
         assert_eq!(made_by("App: /x/Notepad.app"), Some("/x/Notepad.app"));
         assert_eq!(made_by("AppDir: a b.AppDir"), Some("a b.AppDir"));
         assert_eq!(made_by("Executable: C:\\x\\n.exe"), Some("C:\\x\\n.exe"));
+        assert_eq!(made_by("Apps: /x/build"), Some("/x/build"));
         assert_eq!(made_by("Building with cargo"), None);
     }
 

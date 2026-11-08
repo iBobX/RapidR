@@ -5383,6 +5383,7 @@ dependencies = [
  "rapidr-parser",
  "rapidr-preprocessor",
  "rapidr-project",
+ "rapidr-runners",
  "rapidr-session",
  "rapidr-studio",
  "rapidr-testmode",
@@ -5665,6 +5666,20 @@ version = "2.123.0"
 dependencies = [
  "rapidr-testmode",
  "rapidr-vm-host-native",
+]
+
+[[package]]
+name = "rapidr-runners"
+version = "2.123.0"
+dependencies = [
+ "base64 0.22.1",
+ "ed25519-compact",
+ "rapidr-archive",
+ "rapidr-runners",
+ "ruzstd",
+ "serde_json",
+ "sha2 0.10.9",
+ "ureq",
 ]
 
 [[package]]
