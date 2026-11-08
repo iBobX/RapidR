@@ -362,7 +362,8 @@ in a canvas. See [The web](web.md).
 On the Welcome page, **Examples** opens a program to run and read; start with
 `hello_form.rr`, then the data examples. A window too short for all of
 them scrolls (the wheel, the bar); from the keyboard, Tab and Shift+Tab
-go from card to card and to each project under **Recent** — the page
+go from card to card, to each project under **Recent** and, last, to the
+quiet **Privacy** link at the page's foot — the page
 scrolls to the one you reach, a ring shows round it — and Enter opens it. Studio opens in your system's light, dark or high-contrast look
 and follows it when you switch ([Themes](components.md#when-the-look-changes)).
 
@@ -382,7 +383,7 @@ is kept in the browser (the page's store), over the original.
 
 ![File > Copy Example Again from the Original asks first: "Copy linked_data.rr again from the original?" — your changes to the example's own files are replaced, files you added stay — Cancel or Copy Again](images/examples/copy-again-question.png)
 
-![The Welcome page scrolled to its last cards: Shift+Tab from the Project pane reached hello.rr, ringed, ready for Enter](images/themes/studio-welcome-last-card.png)
+![The Welcome page scrolled to its last cards: Shift+Tab from the Project pane reached the Privacy link first, then hello.rr, ringed, ready for Enter; the Privacy link shows at the page's foot](images/themes/studio-welcome-last-card.png)
 
 ### Panes and splitters
 
@@ -429,6 +430,28 @@ it divides, and says where it is as a percentage ("45%").
 While a program runs with the debugger, Studio shows the debug panes beside
 Output; when it ends, the bottom panel gets the whole width again
 ([Debugging: two layouts](debugging.md#two-layouts-editing-and-debugging)).
+
+### The Help menu
+
+**Help > RapidR Help** (F1) opens the Help pane, **Examples** the Welcome
+page and **About RapidR Studio** says which version of RapidR you have and
+under which licence it comes.
+
+**Help > Privacy Policy** opens Ruta Internet's privacy policy, the company
+behind RapidR, in your browser, in the language Studio is shown in: English,
+Spanish, Portuguese and Chinese (Simplified) each have their own page, any
+other language gets the English one. On the web it opens in a new tab and
+Studio stays where it is. The same link is a quiet **Privacy** link at the
+foot of the Welcome page (a Tab stop: Enter or Space opens it; a screen
+reader calls it "Privacy policy") and, on the web, a plain link on the page
+that loads Studio, there before Studio itself is. Like every command it is in
+the command palette (Ctrl+Shift+P): type *privacy*.
+
+![Help open in Studio: RapidR Help (F1), Examples, then About RapidR Studio and Privacy Policy](images/help-menu/help-menu.png)
+
+![The Welcome page's foot in the light look: a dim, underlined Privacy link at the left, under Recent](images/help-menu/welcome-privacy-light.png)
+
+![The same in the dark look](images/help-menu/welcome-privacy-dark.png)
 
 ## Where next
 

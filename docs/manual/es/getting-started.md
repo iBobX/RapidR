@@ -391,7 +391,8 @@ interfaz en un lienzo. Mira [La web](web.md).
 En la página de bienvenida, **Ejemplos** abre un programa para ejecutar y leer;
 empieza con `hello_form.rr` y luego los ejemplos de datos. Una ventana demasiado
 baja para todos ellos se desplaza (con la rueda o con la barra); con el teclado,
-Tab y Shift+Tab van de una tarjeta a otra y a cada proyecto de **Recientes** (la
+Tab y Shift+Tab van de una tarjeta a otra, a cada proyecto de **Recientes** y, al
+final, al discreto enlace **Privacidad** del pie de la página (la
 página se desplaza hasta el que alcanzas, y un anillo lo rodea) y Enter lo abre.
 Studio se abre con el aspecto claro, oscuro o de contraste alto de tu sistema y
 lo sigue cuando lo cambias ([Temas](components.md#cuando-cambia-el-aspecto)).
@@ -413,7 +414,7 @@ el original.
 
 ![Archivo > Copiar el ejemplo otra vez del original pregunta primero: “Copy linked_data.rr again from the original?” — tus cambios a los archivos propios del ejemplo se reemplazan, los archivos que añadiste se quedan — Cancel o Copy Again](../images/examples/copy-again-question.png)
 
-![La página de bienvenida desplazada hasta sus últimas tarjetas: Shift+Tab desde el panel Proyecto llegó a hello.rr, rodeada por el anillo, lista para Enter](../images/themes/studio-welcome-last-card.png)
+![La página de bienvenida desplazada hasta sus últimas tarjetas: Shift+Tab desde el panel Proyecto llegó primero al enlace Privacidad y luego a hello.rr, rodeada por el anillo, lista para Enter; el enlace Privacidad se ve en el pie de la página](../images/themes/studio-welcome-last-card.png)
 
 ### Paneles y divisores
 
@@ -463,6 +464,25 @@ paneles que divide, y dice dónde está como un porcentaje (“45%”).
 Mientras un programa se ejecuta con el depurador, Studio muestra los paneles de
 depuración junto a Salida; cuando termina, el panel inferior recupera todo el
 ancho ([Depuración: dos disposiciones](debugging.md#dos-disposiciones-edición-y-depuración)).
+
+### El menú Ayuda
+
+**Ayuda > Ayuda de RapidR** (F1) abre el panel de ayuda, **Ejemplos** la página de
+bienvenida y **Acerca de RapidR Studio** dice qué versión de RapidR tienes y con qué
+licencia viene.
+
+**Ayuda > Política de privacidad** abre en tu navegador la política de privacidad
+de Ruta Internet, la empresa detrás de RapidR, en el idioma en que Studio se
+muestra: inglés, español, portugués y chino (simplificado) tienen cada uno su
+propia página, y cualquier otro idioma recibe la inglesa. En la web se abre en una
+pestaña nueva y Studio se queda donde está. El mismo enlace es un discreto enlace
+**Privacidad** al pie de la página de bienvenida (una parada de Tab: Enter o la
+barra espaciadora lo abren; un lector de pantalla lo llama «Política de
+privacidad») y, en la web, un enlace simple en la página que carga Studio, que está
+ahí antes de que Studio mismo se cargue. Como todo comando, está en la paleta de
+comandos (Ctrl+Shift+P): escribe *privacidad*.
+
+![Ayuda abierto en Studio en español: Ayuda de RapidR (F1), Ejemplos, y luego Acerca de RapidR Studio y Política de privacidad](../images/help-menu/help-menu-es.png)
 
 ## Adónde ir después
 

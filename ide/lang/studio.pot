@@ -3286,6 +3286,10 @@ msgid "&About RapidR Studio"
 msgstr ""
 
 #: ide/commands.inc
+msgid "&Privacy Policy"
+msgstr ""
+
+#: ide/commands.inc
 msgctxt "menubar"
 msgid "&File"
 msgstr ""
@@ -5636,6 +5640,18 @@ msgstr ""
 
 #: ide/panes.inc
 msgid "Example {name}: {what}"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Privacy policy"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Opens the privacy policy in your browser"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Privacy"
 msgstr ""
 
 #: ide/panes.inc

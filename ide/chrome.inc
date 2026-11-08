@@ -95,6 +95,7 @@ SUB ApplyFonts
   NEXT
   WelcomeTag.Font = UIFont
   RecentNone.Font = DimFont
+  PrivacyLink.Font = DimFont
   FOR k = 0 TO 4
     StartLink(k).Font = LinkFont
   NEXT
@@ -154,6 +155,10 @@ SUB ApplyChrome
   ExamplesHead.Font = SubFont
   ExamplesHead.Font.Color = TC("page.heading")
   RecentNone.Font.Color = TC("page.dim")
+  ' (the foot's Privacy link: quiet, the page's dim text)
+  PrivacyLink.Font.Color = TC("page.dim")
+  PrivacyLink.Font.Underline = 1
+  PrivacyRow.Color = TC("page")
   FOR k = 0 TO 4
     StartLink(k).Font.Color = TC("page.link")
     StartRow(k).Color = TC("page")

@@ -65,6 +65,9 @@ async function main() {
     window.RAPIDR_FILE_REMOVED = forgetFile;
   }
   say("");
+  // (Studio's Welcome page and Help menu have the privacy link from here)
+  const fallback = document.getElementById("studio-fallback");
+  if (fallback) fallback.remove();
   rt.rapidr_run_bc(new Uint8Array(bytes));
   // (File > Exit: Studio's program ended — the page says so, and a button
   // opens Studio again, as a reload does)
