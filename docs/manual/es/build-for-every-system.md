@@ -1,4 +1,4 @@
-<!-- translated-from: build-for-every-system.md 609e6ff7240a2e87 -->
+<!-- translated-from: build-for-every-system.md d55dbeda0259a1c3 -->
 # Compila tu app para todos los sistemas
 
 Escribe tu programa una vez y RapidR lo convierte en una aplicación para
@@ -19,7 +19,7 @@ abajo, avanza.
 1. **Dónde funciona.** Marca los sistemas que quieras: Windows (64 bits x64
    para la mayoría de los PC, ARM64 para los PC con Snapdragon, 32 bits x86
    para PC viejas: funciona un poco más lento), macOS (una aplicación
-   Universal para todos los Mac), Linux (x64, ARM64) y la web. **Todo el
+   Universal para Mac con Apple silicon y con Intel), Linux (x64, ARM64) y la web. **Todo el
    escritorio** y **Todos los sistemas** marcan varios a la vez. La primera
    vez solo está marcado el sistema de esta computadora, así la primera
    compilación funciona incluso sin internet. Android, iOS y las placas

@@ -5504,6 +5504,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-gen-win32"
+version = "2.123.0"
+dependencies = [
+ "flate2",
+ "rapidr-ast",
+ "rapidr-bytecode",
+ "rapidr-preprocessor",
+ "sha2 0.10.9",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "rapidr-i18n"
 version = "2.123.0"
 
@@ -5647,6 +5659,7 @@ dependencies = [
 name = "rapidr-preprocessor"
 version = "2.123.0"
 dependencies = [
+ "flate2",
  "rapidr-diagnostics",
 ]
 
@@ -5724,6 +5737,7 @@ dependencies = [
  "rapidr-db",
  "rapidr-lang",
  "rapidr-langsvc",
+ "rapidr-preprocessor",
  "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",

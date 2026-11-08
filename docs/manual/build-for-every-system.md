@@ -15,7 +15,7 @@ one (or press Ctrl+Tab) to go to it, and **Next** at the foot goes on.
 
 1. **Where it runs.** Tick the systems you want: Windows (64-bit x64 for most
    PCs, ARM64 for Snapdragon PCs, 32-bit x86 for old PCs: it runs a little
-   slower), macOS (one Universal app for every Mac), Linux (x64, ARM64) and
+   slower), macOS (one Universal app for Apple silicon and Intel Macs), Linux (x64, ARM64) and
    the web. **All Desktop** and **Everything** tick several at once. The
    first time, only this computer's system is ticked, so a first build works
    even with no internet. Android, iOS and boards are shown as coming later.

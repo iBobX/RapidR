@@ -218,7 +218,8 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("lastresult", v_str(""));
             put("error", v_str(""));
         }
-        // (RAgentTools: RMcpServer's, a change asked first, nothing exposed)
+        // (RAgentTools: RMcpServer's; ConfirmChanges and Expose are the
+        // registry's defaults: a change asked first, nothing exposed)
         crate::agent_tools::AGENT_TOOLS => {
             put("listening", v_int(0));
             put("url", v_str(""));
@@ -230,8 +231,6 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("clients", v_str(""));
             put("clientcount", v_int(0));
             put("pendingcount", v_int(0));
-            put("confirmchanges", v_int(1));
-            put("expose", v_str(""));
         }
         // (RMcpServer: what it reads back once started, and the call in hand)
         "RMCPSERVER" => {

@@ -1754,8 +1754,8 @@ msgid "Ticks every system."
 msgstr "Marca todos os sistemas."
 
 #: ide/build.inc
-msgid "Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. Every Mac, old or new, runs the macOS app."
-msgstr "Na dúvida? x64 é a maioria dos PCs desde 2005. ARM64 são os PCs com Snapdragon e o Raspberry Pi. Todo Mac, novo ou antigo, abre o aplicativo de macOS."
+msgid "Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. The macOS app is made for Apple silicon and Intel Macs."
+msgstr "Na dúvida? x64 é a maioria dos PCs desde 2005. ARM64 são os PCs com Snapdragon e o Raspberry Pi. O aplicativo de macOS é feito para Macs com Apple silicon e com Intel."
 
 #: ide/build.inc
 msgid "Coming later:"
@@ -2043,16 +2043,16 @@ msgstr[0] "{n} aplicativo"
 msgstr[1] "{n} aplicativos"
 
 #: ide/build.inc
-msgid "One Universal app for every Mac: Apple silicon and Intel."
-msgstr "Um aplicativo Universal para todo Mac: Apple silicon e Intel."
+msgid "One Universal app for Macs with Apple silicon and Intel."
+msgstr "Um aplicativo Universal para Macs com Apple silicon e com Intel."
 
 #: ide/build.inc
 msgid "A zip for any web host. Runs in any modern browser, phones too."
 msgstr "Um zip para qualquer hospedagem web. Funciona em qualquer navegador moderno, também em celulares."
 
 #: ide/build.inc
-msgid "One Universal app for every Mac"
-msgstr "Um aplicativo Universal para todo Mac"
+msgid "One Universal app for Apple silicon and Intel Macs"
+msgstr "Um aplicativo Universal para Macs com Apple silicon e com Intel"
 
 #: ide/build.inc
 msgid "A zip for any web host"
@@ -6198,6 +6198,50 @@ msgstr[1] "{file} importado, mas {n} arquivos incluídos não foram encontrados:
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
 msgstr "{file} importado como uma cópia com os nomes do RapidR"
+
+#: ide/project.inc
+msgid "Use RWin32.inc in the copy?"
+msgstr "Usar o RWin32.inc na cópia?"
+
+#: ide/project.inc
+msgid "This program includes WIN32API.INC. It keeps working as it is: the copy uses your file, as the original does."
+msgstr "Este programa inclui o WIN32API.INC. Ele continua funcionando como está: a cópia usa o seu arquivo, como o original."
+
+#: ide/project.inc
+msgid "RWin32.inc"
+msgstr "RWin32.inc"
+
+#: ide/project.inc
+msgid "RapidR's one standard set of Windows API declarations, built in: generated from Microsoft's published metadata, complete, right on 64-bit and 32-bit Windows, with the classic names."
+msgstr "O conjunto padrão de declarações da API do Windows do RapidR, já incluído: gerado a partir dos metadados que a Microsoft publica, completo, correto no Windows de 64 e de 32 bits, com os nomes clássicos."
+
+#: ide/project.inc
+msgid "What differs"
+msgstr "O que muda"
+
+#: ide/project.inc
+msgid "For the names this program uses: {n}. The import's report lists each one, so nothing changes without you seeing it."
+msgstr "Para os nomes que este programa usa: {n}. O relatório da importação lista cada um, então nada muda sem que você veja."
+
+#: ide/project.inc
+msgid "&Use RWin32.inc"
+msgstr "&Usar o RWin32.inc"
+
+#: ide/project.inc
+msgid "Keep my file"
+msgstr "Manter meu arquivo"
+
+#: ide/project.inc
+msgid "The copy keeps WIN32API.INC. The report says what RWin32.inc would change, should you want it later."
+msgstr "A cópia mantém o WIN32API.INC. O relatório diz o que o RWin32.inc mudaria, caso você queira mais tarde."
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now and compiles. The report lists what differs."
+msgstr "A cópia agora usa o RWin32.inc e compila. O relatório lista o que muda."
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now, but: {error}. The report lists what differs."
+msgstr "A cópia agora usa o RWin32.inc, mas: {error}. O relatório lista o que muda."
 
 #: ide/project.inc
 msgid "Where the new project goes"

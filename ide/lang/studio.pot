@@ -1717,7 +1717,7 @@ msgid "Ticks every system."
 msgstr ""
 
 #: ide/build.inc
-msgid "Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. Every Mac, old or new, runs the macOS app."
+msgid "Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. The macOS app is made for Apple silicon and Intel Macs."
 msgstr ""
 
 #: ide/build.inc
@@ -2006,7 +2006,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/build.inc
-msgid "One Universal app for every Mac: Apple silicon and Intel."
+msgid "One Universal app for Macs with Apple silicon and Intel."
 msgstr ""
 
 #: ide/build.inc
@@ -2014,7 +2014,7 @@ msgid "A zip for any web host. Runs in any modern browser, phones too."
 msgstr ""
 
 #: ide/build.inc
-msgid "One Universal app for every Mac"
+msgid "One Universal app for Apple silicon and Intel Macs"
 msgstr ""
 
 #: ide/build.inc
@@ -6124,6 +6124,50 @@ msgstr[1] ""
 
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
+msgstr ""
+
+#: ide/project.inc
+msgid "Use RWin32.inc in the copy?"
+msgstr ""
+
+#: ide/project.inc
+msgid "This program includes WIN32API.INC. It keeps working as it is: the copy uses your file, as the original does."
+msgstr ""
+
+#: ide/project.inc
+msgid "RWin32.inc"
+msgstr ""
+
+#: ide/project.inc
+msgid "RapidR's one standard set of Windows API declarations, built in: generated from Microsoft's published metadata, complete, right on 64-bit and 32-bit Windows, with the classic names."
+msgstr ""
+
+#: ide/project.inc
+msgid "What differs"
+msgstr ""
+
+#: ide/project.inc
+msgid "For the names this program uses: {n}. The import's report lists each one, so nothing changes without you seeing it."
+msgstr ""
+
+#: ide/project.inc
+msgid "&Use RWin32.inc"
+msgstr ""
+
+#: ide/project.inc
+msgid "Keep my file"
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy keeps WIN32API.INC. The report says what RWin32.inc would change, should you want it later."
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now and compiles. The report lists what differs."
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now, but: {error}. The report lists what differs."
 msgstr ""
 
 #: ide/project.inc

@@ -42,6 +42,7 @@ pub mod import;
 pub mod includes;
 pub mod rapidq_inc;
 pub mod report;
+pub mod rwin32;
 pub mod verify;
 
 pub use convert::{plan_program, plan_program_with, Change, Edit, FilePlan, NameStyle, Note, Options, ProgramPlan};

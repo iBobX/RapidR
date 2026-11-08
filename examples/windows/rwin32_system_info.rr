@@ -1,0 +1,55 @@
+' rwin32_system_info.rr: a little look at your Windows computer through the
+' Windows API itself, with RWin32.inc — RapidR's one standard set of Windows
+' API declarations.
+'
+'   rapidr run rwin32_system_info.rr
+'
+' One line is all it takes: $INCLUDE "RWin32.inc" (below). It is built into
+' RapidR, so there is no file to find or copy. Your program gets exactly the
+' declarations it uses — here GetTickCount, GetSystemMetrics,
+' GetComputerNameA, GlobalMemoryStatusEx and GetSystemInfo, with the TYPEs
+' they need — and a name you declare yourself always stays yours.
+'
+' If you have an older program with its own WIN32API.INC, it keeps working
+' as it is. Should you like to try RWin32.inc there, change its include line
+' to this one; `rapidr import-rapidq --rwin32` (or RapidR Studio's import)
+' does it in a copy and lists every difference first. The manual's page
+' "One standard for the Windows API" tells the whole story.
+'
+' The structures are laid out as Windows lays them out, on 64-bit and on
+' 32-bit Windows alike: MEMORYSTATUSEX has 64-bit numbers, and SYSTEM_INFO
+' has pointers, which are 8 bytes wide on 64-bit Windows and 4 on 32-bit —
+' RWin32.inc picks the right layout for the computer you build for.
+'
+' Windows only: Windows' own functions run on Windows. Elsewhere this
+' program still compiles, says so kindly, and stops before the first call.
+
+$APPTYPE CONSOLE
+$INCLUDE "RWin32.inc"
+
+DIM name AS STRING
+DIM size AS LONG
+DIM memory AS MEMORYSTATUSEX
+DIM info AS SYSTEM_INFO
+
+IF ENVIRON$("OS") <> "Windows_NT" THEN
+    PRINT "This example talks to Windows itself, so it runs on Windows."
+    PRINT "Here it compiled fine: RWin32.inc's declarations are ready when you are."
+    END
+END IF
+
+PRINT "Windows has been running for "; GetTickCount \ 60000; " minutes"
+PRINT "Screen: "; GetSystemMetrics(SM_CXSCREEN); " x "; GetSystemMetrics(SM_CYSCREEN); " pixels, "; GetSystemMetrics(SM_CMONITORS); " monitor(s)"
+
+name = SPACE$(MAX_COMPUTERNAME_LENGTH + 1)
+size = LEN(name)
+IF GetComputerNameA(name, size) THEN PRINT "Computer name: "; LEFT$(name, size)
+
+memory.dwLength = SIZEOF(memory)
+IF GlobalMemoryStatusEx(memory) THEN
+    PRINT "Memory: "; memory.ullTotalPhys \ 1048576; " MB in all, "; memory.dwMemoryLoad; "% in use"
+END IF
+
+GetSystemInfo info
+PRINT "Processors: "; info.dwNumberOfProcessors; ", page size "; info.dwPageSize; " bytes"
+PRINT "SYSTEM_INFO is "; SIZEOF(info); " bytes in this program (48 on 64-bit Windows, 36 on 32-bit)"

@@ -20,6 +20,20 @@ app that opens. This signer does the same job in pure Rust, in
   golden tests check this, so whatever macOS accepts from `codesign` it
   accepts from us.
 
+## 0. Red lines
+
+Set by the legal review of 2026-11-08
+([legal/review-2026-11-08-release-2.123.1.md](legal/review-2026-11-08-release-2.123.1.md)).
+An ad-hoc signature is a documented, valid kind that Apple's own tools write,
+and RapidR changes nothing about what macOS checks. Any of these three would
+change that analysis and needs a new legal review first:
+
+1. Never remove or rewrite the quarantine attribute from RapidR code.
+2. Never produce a Developer ID, a Team ID, a CMS signature or an
+   "Apple-signed" claim, and never reuse anyone's certificate.
+3. Never touch entitlements or library validation to weaken what macOS
+   checks.
+
 ## 1. Clean room
 
 The legal decision of 2026-10-22 (7b) says this signer is written from public
@@ -33,6 +47,11 @@ MPL, GPL or AGPL. Sources:
    `usr/include/mach-o/loader.h` (`mach_header_64`, `segment_command_64`,
    `section_64`, `linkedit_data_command`, `LC_CODE_SIGNATURE`, `LC_UUID`)
    and `usr/include/mach-o/fat.h` (`fat_header`, `fat_arch`, `fat_arch_64`).
+   The same headers are public in Apple's open-source XNU
+   (`osfmk/kern/cs_blobs.h`, APSL 2.0), so nobody has to rely on the SDK's
+   licence. The magic numbers, slot numbers and field layouts are facts
+   needed to interoperate; `macho_sign.rs` re-expresses them as Rust
+   constants with its own comments and copies no code or header text.
 2. Apple Technical Note TN2206, *macOS Code Signing In Depth*: what an ad-hoc
    signature is, the bundle layout (`_CodeSignature/CodeResources`), and the
    resource rules (`rules`, `rules2`, `omit`, `optional`, `nested`, `weight`).
@@ -56,6 +75,22 @@ MPL, GPL or AGPL. Sources:
 Hashing uses the `sha2` crate, already in the tree (Cargo.lock; MIT or
 Apache-2.0). SHA-1 and base64 are written here (a few dozen lines each, from
 the standards), so the signer adds no crate.
+
+Similarity check (legal review, 2026-11-08): a word-shingle comparison (6 and
+8 consecutive words of code, comments and identifiers, split on camelCase and
+underscores) of `macho_sign.rs` against Go's `cmd/internal/codesign/codesign.go`
+(BSD-3), LLVM's `lld/MachO/SyntheticSections.cpp` (Apache-2.0 with the LLVM
+exception) and six files of apple-codesign (MPL-2.0: `code_directory.rs`,
+`code_resources.rs`, `macho_signing.rs`, `macho_universal.rs`,
+`bundle_signing.rs`, `embedded_signature_builder.rs`) found no shared 8-word
+run with Go, lld or five of the six apple-codesign files. The only overlap is
+31 six-word runs (0.5% of ours) with apple-codesign's `code_resources.rs`,
+and every one is Apple's plist `DOCTYPE` line or Apple's default resource-rule
+patterns: data macOS expects in every signed app's `CodeResources`, not code.
+`ldid` was not compared. Shingles find copied wording, identifiers and data,
+not a faithful translation of someone's structure, and the code was written
+by an AI assistant, so repeat the check (same method as the 2026-10-06
+RapidQ review) whenever the file changes materially.
 
 ## 2. What a signed Mach-O looks like
 
@@ -113,8 +148,10 @@ code unit, `&`, `<` and `>` escaped, each hash as one base64 line in
   left out.
 - `files2` (version 2, what macOS checks): each file under `Resources/` with
   its SHA-256 (`hash2`), with the same `optional` rule.
-- `rules` and `rules2`: Apple's default rule sets, verbatim (TN2206). They
-  tell a verifier which files to expect and how strictly.
+- `rules` and `rules2`: the default rule sets `codesign` writes into every
+  bundle (TN2206 prints them too): data macOS expects, so they are
+  reproduced as they are. They tell a verifier which files to expect and how
+  strictly.
 
 Info.plist and PkgInfo are not in `files2` (`omit`): Info.plist is bound by
 the main executable's special slot -1, and PkgInfo is left out by the rules.

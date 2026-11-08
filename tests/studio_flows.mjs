@@ -972,8 +972,9 @@ const CASES = [
   {
     // Build (the dialog's choices, Build Again's path): this computer's
     // system the first time — its zip, with the project's own icon, and
-    // SHA256SUMS in the project's build folder; on the web the page packs
-    // the apps itself (the web Studio's own runner for the web)
+    // SHA256SUMS in the project's build folder, and that system saved as the
+    // project's choice (Build Again builds it again); on the web the page
+    // packs the apps itself (the web Studio's own runner for the web)
     name: "build-app",
     open: "tests/fixtures/studio_app/Notes.rrproj",
     copyDir: true,
@@ -981,7 +982,7 @@ const CASES = [
     do: "wait,build:start",
     // (cargo checks the runner first in a source checkout: a minute on a busy machine)
     delay: 120,
-    dump: { "proj.builtpath": /Notes-1\.2\.0-(macos-universal|windows-x64|linux-x64)\.zip$/, "proj.building": /^0$/, "proj.buildfor": /^$/ },
+    dump: { "proj.builtpath": /Notes-1\.2\.0-(macos-universal|windows-x64|linux-x64)\.zip$/, "proj.building": /^0$/, "proj.buildfor": /^(macos-universal|windows-x64|linux-x64)$/ },
   },
   // Build for the web: on the desktop Notes-1.2.0-web.zip through `rapidr
   // build --targets web`; in the web Studio the dialog has the web app only

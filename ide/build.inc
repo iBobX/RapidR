@@ -252,7 +252,7 @@ CREATE BuildDialog AS RForm
       END CREATE
       CREATE BdHelpText AS RLabel
         WordWrap = 1: AutoSize = 0
-        Caption = TR$("Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. Every Mac, old or new, runs the macOS app.")
+        Caption = TR$("Not sure? x64 is most PCs since 2005. ARM64 is Snapdragon PCs and the Raspberry Pi. The macOS app is made for Apple silicon and Intel Macs.")
       END CREATE
       CREATE BdLaterLabel AS RLabel
         Caption = TR$("Coming later:")
@@ -963,9 +963,9 @@ SUB BdWords
   BdSysName(2).Caption = "Linux": BdSysName(3).Caption = TR$("Web")
   BdSys(0).AccessibleName = "Windows": BdSys(1).AccessibleName = "macOS"
   BdSys(2).AccessibleName = "Linux": BdSys(3).AccessibleName = TR$("Web")
-  BdSysText(1).Caption = TR$("One Universal app for every Mac: Apple silicon and Intel.")
+  BdSysText(1).Caption = TR$("One Universal app for Macs with Apple silicon and Intel.")
   BdSysText(3).Caption = TR$("A zip for any web host. Runs in any modern browser, phones too.")
-  BdSys(1).AccessibleDescription = TR$("One Universal app for every Mac")
+  BdSys(1).AccessibleDescription = TR$("One Universal app for Apple silicon and Intel Macs")
   BdSys(3).AccessibleDescription = TR$("A zip for any web host")
   BdArch(0).Caption = TR$("64-bit (x64)"): BdArchNote(0).Caption = TR$("most PCs")
   BdArch(1).Caption = "ARM64": BdArchNote(1).Caption = TR$("Snapdragon PCs")
@@ -1041,11 +1041,14 @@ END SUB
 ' (the dialog's size: 860 x 600, at most 85 % of the screen; narrow, one
 ' page, under 640)
 SUB BdSize2Screen
-  DIM w AS INTEGER, h AS INTEGER
+  DIM w AS INTEGER, h AS INTEGER, fw AS INTEGER, fh AS INTEGER
   w = 860: h = 600
   IF ThemeName = "classic" THEN w = 820: h = 580
-  IF w > Screen.ClientWidth * 85 \ 100 THEN w = Screen.ClientWidth * 85 \ 100
-  IF h > Screen.ClientHeight * 85 \ 100 THEN h = Screen.ClientHeight * 85 \ 100
+  ' (the window with its frame and title bar: at most 85 % of the screen)
+  fw = BuildDialog.Width - BuildDialog.ClientWidth
+  fh = BuildDialog.Height - BuildDialog.ClientHeight
+  IF w + fw > Screen.ClientWidth * 85 \ 100 THEN w = Screen.ClientWidth * 85 \ 100 - fw
+  IF h + fh > Screen.ClientHeight * 85 \ 100 THEN h = Screen.ClientHeight * 85 \ 100 - fh
   IF w < 320 THEN w = 320
   IF h < 360 THEN h = 360
   BuildDialog.ClientWidth = w
@@ -1136,8 +1139,11 @@ SUB BdKeep
   Proj.NativeCode = BdNative.Checked
   BdKeepFolder
   IF BdPackOne.Checked THEN Proj.PackAs = "one" ELSE Proj.PackAs = "each"
-  ' (the Problems pane's notes follow where it runs)
-  Lang.Targets = Proj.Targets
+  ' (the Problems pane's notes follow where it runs: checked again when that changes)
+  IF Lang.Targets <> Proj.Targets THEN
+    Lang.Targets = Proj.Targets
+    AnalyzeActive
+  END IF
   BdSaveTimer.Enabled = 0
   BdSaveTimer.Enabled = 1
 END SUB

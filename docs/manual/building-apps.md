@@ -185,10 +185,15 @@ on your disk is not used either (it is removed).
 ### What is sent
 
 The download asks studio.rapidr.dev for three files (`https://studio.rapidr.dev/runners/2.123.1/`:
-the list, its signature and the runner) like a web page does, so the host sees
-your computer's address and `RapidR/2.123.1`. Nothing else leaves your computer: not your program, not
-your name, not what you build. Nothing is sent when the runner is in the
-install or already kept.
+the list, its signature and the runner) like a web page does. Any web server
+sees the address your computer connects from, the time, the file asked for and
+the program's name, `RapidR/2.123.1`. This one is served through Amazon
+CloudFront (Amazon Web Services), which handles those requests for RapidR to
+deliver the files and to defend against attacks; RapidR keeps no access log of
+it. Nothing else leaves your computer: not your program, not your name, not
+what you build; no cookie and no identifier. Nothing is sent when the runner
+is in the install or already kept. Who is responsible and how to ask about
+your data: the privacy policy at https://rapidr.dev/en/privacy.
 
 ### Offline
 

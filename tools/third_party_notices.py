@@ -106,6 +106,12 @@ def render(pkgs):
         "\"RapidR Symbols Subset\" (58 symbols cut from Noto Sans Symbols 2, renamed) is",
         "built into the desktop and drawn only on a computer with no system fonts.",
         "",
+        "RapidR's Windows API declarations, `RWin32.inc`, are generated from data, not a crate:",
+        "",
+        "| What | Who | Upstream |",
+        "|---|---|---|",
+        "| Win32 API declarations (include files generated from Microsoft's windows-rs metadata, MIT OR Apache-2.0, used under MIT) | Microsoft Corporation | <https://github.com/microsoft/windows-rs> |",
+        "",
         f"**{len(pkgs)} libraries** under {len(by_license)} license expressions.",
         "",
     ]

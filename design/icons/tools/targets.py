@@ -39,12 +39,13 @@ def target_macos(g):
     g.line(3, 9, 21, 9, c="ink")
     if g.size == 16:
         # (three 2-pixel dots a pixel apart, drawn in the 16-pixel grid:
-        # still three dots at 16 px)
-        for x, hue in ((3, "red"), (6, "amber"), (9, "teal")):
-            g.native(16, f"M{x} 3h2v2h-2z", c=None, fill=hue)
+        # still three dots at 16 px; one colour, never red, amber and green —
+        # docs/legal/review-2026-11-08-release-2.123.1.md, item 3)
+        for x in (3, 6, 9):
+            g.native(16, f"M{x} 3h2v2h-2z", c=None, fill="blue")
     else:
-        for x, hue in ((6.75, "red"), (10, "amber"), (13.25, "teal")):
-            g.circle(x, 6.5, 1.1, c=None, fill=hue)
+        for x in (6.75, 10, 13.25):
+            g.circle(x, 6.5, 1.1, c=None, fill="blue")
 
 
 @icon("target-linux", A, "Target: Linux (a terminal's window and its prompt)", mono=False)

@@ -108,7 +108,7 @@
 
 | Directive | |
 |---|---|
-| `$INCLUDE "file"` | Includes another source file at this point. The include folders and `\` paths work; `RAPIDQ.INC` is built in. |
+| `$INCLUDE "file"` | Includes another source file at this point. The include folders and `\` paths work; `RAPIDQ.INC` is built in, and so is `RWin32.inc`, RapidR's one standard set of Windows API declarations (generated from Microsoft's published metadata, right on 64-bit and 32-bit Windows, with the classic names): a program gets only the declarations it uses, and its own names always win. |
 | `$RESOURCE name AS "file"` | Builds a file into the program as a resource, for `RESOURCE(n)`, `EXTRACTRESOURCE`, `PLAYWAV` and pictures. |
 | `$DEFINE name [text]` | Defines a name for `$IFDEF` and, with text, replaces the name by the text in the lines that follow. |
 | `$UNDEF name` | Removes a name defined with `$DEFINE`. |

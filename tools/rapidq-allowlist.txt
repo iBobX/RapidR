@@ -59,6 +59,25 @@ crates/rapidr-lang/data/components/studio.toml :: Imports a RapidQ program
 crates/rapidr-lang/data/i18n/es/studio.toml :: Importa un programa RapidQ
 docs/manual/reference/members.md :: Imports a RapidQ program
 
+# ---- one standard for the Windows API (docs/manual/windows-api.md and its translations) ----
+# The lead's wording rule for this page: it names the older compiler only as
+# "RapidR's RapidQ compatibility layer" (what keeps a program's own
+# WIN32API.INC working), an old $INCLUDE line's path as older programs write
+# it (C:\rapidq\include\…), and Studio's import menu item as each language
+# names it. The CHANGELOG line says the same.
+docs/manual/windows-api.md :: RapidR's RapidQ compatibility layer
+docs/manual/windows-api.md :: c:\rapidq\include\
+docs/manual/es/windows-api.md :: RapidQ de RapidR
+docs/manual/es/windows-api.md :: c:\rapidq\include\
+docs/manual/es/windows-api.md :: RapidQ…
+docs/manual/pt-BR/windows-api.md :: o RapidQ do RapidR
+docs/manual/pt-BR/windows-api.md :: c:\rapidq\include\
+docs/manual/pt-BR/windows-api.md :: RapidQ…
+docs/manual/zh-Hans/windows-api.md :: RapidR 的 RapidQ 兼容层
+docs/manual/zh-Hans/windows-api.md :: c:\rapidq\include\
+docs/manual/zh-Hans/windows-api.md :: 导入 RapidQ
+CHANGELOG.md :: RapidR's RapidQ compatibility layer
+
 # ---- values a program writes: ids, not wording ----
 # CompatMode = "rapidq" (a project kept classic-compatible) and the project
 # template "rapidq": the values programs and project files already use.

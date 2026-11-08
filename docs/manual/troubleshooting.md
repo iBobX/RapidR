@@ -6,9 +6,8 @@
 malware** — RapidR's downloads aren't signed yet. Click **Done**, open **System Settings >
 Privacy & Security**, scroll to *Security* and click **Open Anyway** next to
 “RapidR Studio” was blocked (then your password or Touch ID). Once is enough.
-Right-click > Open doesn't work on macOS 15 and newer. In the Terminal:
-`xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"`. With
-screenshots: [Install on macOS](getting-started.md#install-on-macos).
+Right-click > Open doesn't work on macOS 15 and newer. With screenshots:
+[Install on macOS](getting-started.md#install-on-macos).
 
 **Windows: "Windows protected your PC"** — SmartScreen, for the same reason.
 Click **More info**, then **Run anyway**

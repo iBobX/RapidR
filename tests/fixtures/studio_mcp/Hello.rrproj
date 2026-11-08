@@ -7,3 +7,34 @@ main = "main.rr"
 [[files]]
 path = "main.rr"
 kind = "module"
+
+[build]
+app_name = "Hello"
+bundle_id = "dev.rapidr.app.hello"
+version = "1.0.0"
+category = "utilities"
+kind = "window"
+targets = []
+runs_on = "desktop"
+build_for = ["macos-universal"]
+
+[run]
+args = []
+separate_windows = false
+
+[compat]
+rapidq_compatible = false
+level = "warn"
+
+[designer]
+grid = 8
+snap = true
+guides = true
+
+[ai]
+allowed = false
+context_include = []
+context_exclude = []
+data_access = "schema"
+sample_rows = 20
+redact_columns = []

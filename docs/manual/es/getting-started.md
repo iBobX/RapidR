@@ -1,4 +1,4 @@
-<!-- translated-from: getting-started.md 0caf3d76f12504dd -->
+<!-- translated-from: getting-started.md 197f46e49ede285b -->
 # Primeros pasos
 
 **En tres líneas**
@@ -108,11 +108,8 @@ tiene uno de los dos: instalar el otro lo reemplaza.
 
    En el macOS actual (15 Sequoia y posteriores), hacer clic derecho en la
    aplicación y elegir *Abrir* ya no sirve para superar esto: **Abrir de todos
-   modos** es el camino. ¿Prefieres la Terminal? Esto hace lo mismo:
-
-   ```sh
-   xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"
-   ```
+   modos** (Configuración del Sistema > Privacidad y seguridad, arriba) es el
+   camino.
 
 4. **Se abre RapidR Studio.** A partir de ahora es una aplicación normal de Mac.
 

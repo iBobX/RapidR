@@ -1,0 +1,34 @@
+[package]
+# RapidR's own generator of RWin32.inc, the one standard set of Windows API
+# declarations (docs/legal/win32-declarations-review.md): reads Microsoft's
+# Win32 metadata as the windows-sys crate publishes it (MIT OR Apache-2.0,
+# used under MIT) and writes RapidR's DECLARE / CONST / TYPE lines.
+# A development tool: nothing of it ships but the file it writes.
+name = "rapidr-gen-win32"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+[dependencies]
+# (already RapidR's: rapidr-cli's build cache uses it) the input's fingerprint
+sha2 = "0.10"
+# RAPIDQ.INC's constants: RWin32.inc leaves those names to it
+rapidr-preprocessor.workspace = true
+# RapidR's built-ins and RC.EXE's reserved names: no CONST or TYPE takes one
+rapidr-ast.workspace = true
+rapidr-bytecode.workspace = true
+# the compressed copy the binaries carry (gzip, as rapidr-archive's)
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
+
+[dev-dependencies]
+# The tests' layout oracle: the same metadata as Rust types (already in
+# Cargo.lock), measured with size_of on this machine.
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Media_Audio", "Win32_Media_Multimedia", "Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_UI_Controls", "Win32_UI_Controls_Dialogs", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "gen-win32"
+path = "src/main.rs"

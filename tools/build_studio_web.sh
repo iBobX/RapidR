@@ -48,6 +48,8 @@ mkdir -p "$OUT/runtime"
 "$RAPIDR" build-bc ide/studio.rr -o "$OUT/studio.rrbc"
 cp ide/web/index.html ide/web/studio.js ide/web/run.html "$OUT/"
 cp target/web/rapidrintr.js target/web/rapidrintr_bg.wasm target/web/THIRD-PARTY-NOTICES.txt "$OUT/runtime/"
+# (RWin32.inc, fetched beside the runtime by a program that includes it)
+cp target/web/RWin32.inc.gz "$OUT/runtime/" 2>/dev/null || cp crates/rapidr-preprocessor/src/libraries/RWin32.inc.gz "$OUT/runtime/"
 # (the frame an RWEBVIEW's Html runs in: docs/security-audit.md SEC-15)
 cp interpreter/rapidr-webbundle/web/rapidr-webview.html "$OUT/runtime/"
 # (the hosts' headers: ide/web/_headers, .htaccess — no CORS, no framing by
