@@ -28,7 +28,7 @@ RapidR is an original implementation, written from the ground up in Rust, and
 **RapidR Studio itself is written in RapidR**. Free and MIT-licensed; the apps
 you build are yours.
 
-👉 **Try it in your browser: [rapidr.dev](https://rapidr.dev)**, nothing to install.
+👉 **Try it in your browser: [studio.rapidr.dev](https://studio.rapidr.dev)**, nothing to install.
 
 ### New in Preview 5 (2.122): Pair with AI 🤝
 
@@ -262,12 +262,14 @@ Next: **[the user manual](docs/manual/README.md)** and
 
 From [the roadmap](ROADMAP.md), in no order and with no dates:
 
-- **Speed**: faster programs in Studio and native builds, a real-time audio
-  engine, and bigger numbers (`INT128`, and whole numbers of any size).
+- **Build for every system from the browser**: RapidR Studio on the web makes
+  the Windows, macOS and Linux apps too (the desktop Studio already does).
+- **Speed**: fast arrays and maths everywhere, a real-time audio engine, and
+  bigger numbers (`INT128`, and whole numbers of any size).
 - **Clearer error messages**: "did you mean…?", fixes suggested, for people
   and AI agents alike.
-- **Portuguese and Chinese**: Studio, the messages and the manual (English and
-  Spanish are done).
+- **Portuguese and Chinese: the manual and Help** (Studio and its messages are
+  already there, in beta).
 - **A native look** (`$THEME native`): programs that look like the system they
   run on — Windows 11, macOS, Linux.
 - **RapidR on the ESP32**: BASIC running on the board itself, flashed from
