@@ -11,9 +11,8 @@ seguridad** (*System Settings > Privacy & Security*), baja hasta *Seguridad*
 (*Security*) y haz clic en **Abrir de todos modos** (*Open Anyway*), junto a
 “RapidR Studio” fue bloqueada (después, tu contraseña o Touch ID). Una vez es
 suficiente. Clic derecho > Abrir no funciona en macOS 15 ni en las versiones
-posteriores. En la Terminal:
-`xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"`. Con capturas
-de pantalla: [Instalar en macOS](getting-started.md#instalar-en-macos).
+posteriores. Con capturas de pantalla:
+[Instalar en macOS](getting-started.md#instalar-en-macos).
 
 **Windows: “Windows protegió su PC”** (*Windows protected your PC*) — SmartScreen,
 por el mismo motivo. Haz clic en **Más información** (*More info*) y luego en

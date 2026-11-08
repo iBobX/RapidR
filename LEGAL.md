@@ -166,8 +166,12 @@ code, artwork or documentation of Microsoft, Embarcadero, DelphiX's author
 or Xojo. Microsoft, Windows, Visual Basic, Visual Studio, DirectX and
 Direct3D are trademarks of the Microsoft group of companies; Delphi is a
 trademark of Embarcadero Technologies, Inc.; Xojo and REALbasic are
-trademarks of Xojo, Inc.; Apple and macOS are trademarks of Apple Inc.;
-Linux is a trademark of Linus Torvalds; other names belong to their owners.
+trademarks of Xojo, Inc.; Apple, Mac, macOS, Xcode, Rosetta and Touch ID are
+trademarks of Apple Inc., registered in the U.S. and other countries and
+regions; Intel is a trademark of Intel Corporation or its subsidiaries;
+Snapdragon is a trademark of Qualcomm Incorporated; Raspberry Pi is a
+trademark of Raspberry Pi Ltd; Linux is a trademark of Linus Torvalds; other
+names belong to their owners.
 They are named only to describe compatibility or to identify a platform,
 never to suggest endorsement.
 

@@ -355,7 +355,7 @@ by `tools/win7/link_audit.sh`, recorded in
 Cephes' `cbrt`/`cbrtf` would come in there (msvcrt has no cube root), so the
 program defines its own (`crates/rapidr-cli/src/cbrt.rs`).
 
-### 3.4 The browser's AI agents (WebMCP)
+### 3.4 The browser's AI agents
 
 WebMCP: RapidR calls the browser API described in the Draft Community Group
 Report of the W3C Web Machine Learning Community Group (report licence: W3C
@@ -363,6 +363,18 @@ Software and Document License; contributions: W3C Community Contributor
 License Agreement). No specification text, IDL or code is included
 (`crates/rapidr-runtime-web/src/agent_tools_web.rs` calls the API by its
 names only).
+
+### 3.5 RapidR's own ad-hoc Mach-O signer
+
+`crates/rapidr-package/src/macho_sign.rs` writes ad-hoc code signatures (no
+certificate, no identity) for the Mac programs and apps RapidR builds. It is
+RapidR's own code, written from Apple's published file-format descriptions
+(the Mach-O and code-signature header files, Apple's technical notes on code
+signing) and from the observed output of Apple's `codesign`; no other
+signer's code was used. It adds no dependency (SHA-256 comes from the `sha2`
+crate already listed). It does not remove or work around macOS's quarantine
+check, Gatekeeper or notarisation. Record: `docs/macho-signer-design.md`
+section 1 and `docs/legal/review-2026-11-08-release-2.123.1.md`.
 
 ## 4. What each licence asks of someone who ships a program
 
