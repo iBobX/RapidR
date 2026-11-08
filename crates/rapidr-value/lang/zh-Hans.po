@@ -4131,3 +4131,7 @@ msgstr "降序"
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "sorted ascending"
 msgstr "升序"
+
+#: crates/rapidr-value/src/agent_tools/mod.rs
+msgid "An AI agent wants to use {tool} in this app: {what}. Allow it?"
+msgstr "一个 AI 代理想要在此应用中使用 {tool}：{what}。允许吗？"

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Agent tools (a web app's tools for the browser's AI agents)</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="4.5" y1="12.9" x2="11.5" y2="5.9"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient></defs>
+  <path d="M3 2.5H13A1.5 1.5 0 0 1 14.5 4V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V4A1.5 1.5 0 0 1 3 2.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M1.5 5.5L14.5 5.5" stroke="#007F9C"/>
+  <path d="M8 6.425Q8.567 9.008 11.15 9.575Q8.567 10.142 8 12.725Q7.433 10.142 4.85 9.575Q7.433 9.008 8 6.425Z" fill="url(#g1)"/>
+</svg>

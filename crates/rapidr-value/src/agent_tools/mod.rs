@@ -32,9 +32,6 @@ use serde_json::{json, Map, Value as Json};
 
 use crate::{v_int, v_null, v_str, Value};
 
-#[cfg(test)]
-mod tests;
-
 /// RAgentTools' type: the one place its name is written (a rename keeps
 /// the old one as the registry's alias; the runtimes read it here).
 pub const AGENT_TOOLS: &str = "RAGENTTOOLS";
@@ -878,7 +875,7 @@ fn next_call<H: Host>(host: H, name: &str) {
     // first — the app's own question, never the agent's)
     let def = if kind == Kind::Tool { tool(name, &target) } else { None };
     if let Some(d) = def.as_ref().filter(|d| !d.read_only() && host.get(name, "confirmchanges").to_bool()) {
-        let ask = crate::i18n::tr_ui("An AI agent wants to use \"{tool}\" in this app: {what}\n\nAllow it?").replace("{tool}", &d.name).replace("{what}", d.description.trim_end_matches('.'));
+        let ask = crate::i18n::tr_ui_fill("An AI agent wants to use {tool} in this app: {what}. Allow it?", &[("tool", &d.name), ("what", d.description.trim_end_matches('.'))]);
         let refused = match host.confirm(&ask) {
             Some(true) => None,
             Some(false) => Some("The person using the app didn't allow it. Ask them what they want instead."),
@@ -1396,3 +1393,7 @@ pub fn check_args(def: &ToolDef, args: &Json) -> Result<(), String> {
         Err(format!("Call {} again: {}.", def.name, problems.join("; ")))
     }
 }
+
+// (after the code: the catalogs' extractor reads up to the first test marker)
+#[cfg(test)]
+mod tests;

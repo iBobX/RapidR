@@ -685,6 +685,17 @@ def mcpserver(g):
     star4(g, 12, 6.75, 5.75, fill=grad)
 
 
+@icon("agenttools", C, "Agent tools (a web app's tools for the browser's AI agents)", mono=False)
+def agenttools(g):
+    # (a page — a browser's window, its bar on top — with an AI's spark on
+    # it: RAgentTools offers the page's own tools to the browser's AI
+    # agents; RapidR's own drawing, no protocol or browser logo)
+    g.rect(3, 4, 18, 16, r=2, c="cyan", fill="cyan-tint")
+    g.line(3, 8.5, 21, 8.5, c="cyan")
+    grad = g.gradient(7, 19, 17, 9, [(0, "blue"), (1, "spark")])
+    star4(g, 12, 14.25, 4.5, fill=grad)
+
+
 @icon("download", C, "Download")
 def download(g):
     g.path("M4 14 V19 A1 1 0 0 0 5 20 H19 A1 1 0 0 0 20 19 V14", c="ink")
