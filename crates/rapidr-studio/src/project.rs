@@ -15,6 +15,8 @@
 //! | `ImportRapidQ(Source [, Dest])` → the copy's project file | File ▸ Import RapidQ Project or File… (`crate::import`): a copy of a RapidQ program or folder with RapidR's names, its report and project; "" (Error says why) when it can't |
 //! | `ImportSummary`, `ImportReport` | the last import's summary line and its report's file |
 //! | `ImportMissing` | the last import's includes found nowhere, a line each: `file:line`, the name, what to do (tabs between) |
+//! | `ImportWin32Api` | the last import includes a classic WIN32API.INC: how many differences RWin32.inc would make for what it uses ("0" too); "": it doesn't (or its copy uses RWin32.inc already) |
+//! | `UseRWin32` → True / False | that copy's `$INCLUDE "WIN32API.INC"` lines name RWin32.inc now (`rapidr_import::rwin32`), its report says what differs and whether it compiles; False: Error says why |
 //! | `IncludeFolders` | Studio's include folders, a line each: where `$INCLUDE` looks after the program's folder, for everything compiled here (and the programs it runs) |
 //! | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, "" none), `Error` | read-only |
 //! | `Name`, `MainFile`, `CompatMode` (`"rapidq"` or "") | read / write |
@@ -59,6 +61,8 @@ thread_local! {
     /// The last import's (summary, report file), by component: kept when a
     /// project is opened (the copy is, next).
     static IMPORTED: RefCell<HashMap<String, (String, String, String)>> = RefCell::new(HashMap::new());
+    /// Each component's last import (UseRWin32 switches its copy).
+    static LAST_IMPORT: RefCell<HashMap<String, crate::import::Imported>> = RefCell::new(HashMap::new());
 }
 
 /// The project's file (relative, as listed) whose code `$INCLUDE`s the main
@@ -141,6 +145,9 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "importsummary" => Value::String(imported(name).0.into()),
             "importreport" => Value::String(imported(name).1.into()),
             "importmissing" => Value::String(imported(name).2.into()),
+            // (the last import includes WIN32API.INC: how many differences
+            // RWin32.inc would make for what it uses; "": it doesn't)
+            "importwin32api" => Value::String(LAST_IMPORT.with(|l| l.borrow().get(&name.to_ascii_lowercase()).and_then(|i| i.data.rwin32.as_ref().filter(|o| o.switched.is_none()).map(|o| o.differences.len().to_string()))).unwrap_or_default().into()),
             "includefolders" => Value::String(include_folders().into()),
             "examplecopy" => Value::String(EXAMPLE_COPY.with(|e| e.borrow().get(&name.to_ascii_lowercase()).copied().unwrap_or("")).to_string().into()),
             // (Reveal's: what the system calls its file manager)
@@ -214,7 +221,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 m.project.build.runs_on = if matches!(t.as_str(), "desktop" | "web" | "both") { t } else { "desktop".into() };
             }
             "includefolders" => set_include_folders(&v.to_string_val()),
-            "filename" | "folder" | "kind" | "error" | "warning" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
+            "filename" | "folder" | "kind" | "error" | "warning" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "importwin32api" | "examplecopy" => {}
             _ => return false,
         }
         true
@@ -1043,9 +1050,31 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             match r {
                 Ok(i) => {
                     IMPORTED.with(|x| x.borrow_mut().insert(name.to_ascii_lowercase(), (i.summary.clone(), i.report.clone(), i.missing.clone())));
-                    Value::String(i.project.into())
+                    let project = i.project.clone();
+                    LAST_IMPORT.with(|l| l.borrow_mut().insert(name.to_ascii_lowercase(), i));
+                    Value::String(project.into())
                 }
                 Err(_) => Value::String(String::new().into()),
+            }
+        }
+        // (after an import that includes WIN32API.INC, the user said yes:
+        // the copy uses RWin32.inc, its report says what differs)
+        "userwin32" => {
+            let key = name.to_ascii_lowercase();
+            let r = LAST_IMPORT.with(|l| match l.borrow_mut().get_mut(&key) {
+                Some(i) => crate::import::use_rwin32(host, i).map(|summary| (summary, i.report.clone(), i.missing.clone())),
+                None => Err(rapidr_value::i18n::tr_ui("nothing imported yet")),
+            });
+            match r {
+                Ok((summary, report, missing)) => {
+                    IMPORTED.with(|x| x.borrow_mut().insert(key, (summary, report, missing)));
+                    with(name, |m| m.error.clear());
+                    flag(true)
+                }
+                Err(e) => {
+                    with(name, |m| m.error = e);
+                    flag(false)
+                }
             }
         }
         // (Studio's keys) MacKeys: a Mac's keyboard (Option moves by words)

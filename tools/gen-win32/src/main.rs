@@ -60,6 +60,13 @@ fn main() -> ExitCode {
         c.classic_types
     );
     println!("left to RAPIDQ.INC: {}; name clashes skipped: {}; TYPEs that can't be written: {}", c.left_to_rapidq_inc, c.name_clashes, c.skipped_types);
+    if !c.rapidq_inc_differs.is_empty() {
+        eprintln!("gen-win32: RAPIDQ.INC's number differs from Windows' for: {}", c.rapidq_inc_differs.join(", "));
+        return ExitCode::from(1);
+    }
+    let gz = rapidr_gen_win32::compress(&generated.text);
+    let gz_out = out.with_extension("inc.gz");
+    println!("{}: {} bytes", gz_out.display(), gz.len());
     for (why, n) in &c.skipped_consts {
         println!("  constants left out ({why}): {n}");
     }
@@ -71,14 +78,14 @@ fn main() -> ExitCode {
     }
     if check {
         let now = std::fs::read_to_string(&out).unwrap_or_default();
-        if now != generated.text {
+        if now != generated.text || std::fs::read(&gz_out).ok().as_deref() != Some(&gz[..]) {
             eprintln!("gen-win32: {} is not what the input gives: run gen-win32 without --check", out.display());
             return ExitCode::from(1);
         }
         println!("{} is up to date", out.display());
         return ExitCode::SUCCESS;
     }
-    if let Err(e) = std::fs::write(&out, &generated.text) {
+    if let Err(e) = std::fs::write(&out, &generated.text).and_then(|_| std::fs::write(&gz_out, &gz)) {
         eprintln!("gen-win32: {}: {e}", out.display());
         return ExitCode::from(1);
     }

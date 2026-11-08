@@ -5143,6 +5143,22 @@ msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPix
 msgstr ""
 
 #: ide/panes.inc
+msgid "RoundRect with a border and an inside in one call: a card, chips, the three forms"
+msgstr ""
+
+#: ide/panes.inc
+msgid "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Two timers, one with FixedRate: about 25 ticks a second against 50"
+msgstr ""
+
+#: ide/panes.inc
+msgid "What an RAudioOut says when the sound goes wrong (OnError)"
+msgstr ""
+
+#: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr ""
 
@@ -5396,6 +5412,50 @@ msgstr[1] ""
 
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
+msgstr ""
+
+#: ide/project.inc
+msgid "Use RWin32.inc in the copy?"
+msgstr ""
+
+#: ide/project.inc
+msgid "This program includes WIN32API.INC. It keeps working as it is: the copy uses your file, as the original does."
+msgstr ""
+
+#: ide/project.inc
+msgid "RWin32.inc"
+msgstr ""
+
+#: ide/project.inc
+msgid "RapidR's one standard set of Windows API declarations, built in: generated from Microsoft's published metadata, complete, right on 64-bit and 32-bit Windows, with the classic names."
+msgstr ""
+
+#: ide/project.inc
+msgid "What differs"
+msgstr ""
+
+#: ide/project.inc
+msgid "For the names this program uses: {n}. The import's report lists each one, so nothing changes without you seeing it."
+msgstr ""
+
+#: ide/project.inc
+msgid "&Use RWin32.inc"
+msgstr ""
+
+#: ide/project.inc
+msgid "Keep my file"
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy keeps WIN32API.INC. The report says what RWin32.inc would change, should you want it later."
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now and compiles. The report lists what differs."
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy uses RWin32.inc now, but: {error}. The report lists what differs."
 msgstr ""
 
 #: ide/project.inc

@@ -34,6 +34,11 @@ wasm-pack build interpreter/rapidr-vm-host-web \
 # the runtime, as every web build has it beside its page.
 cp interpreter/rapidr-webbundle/web/rapidr-webview.html target/web/
 
+# RWin32.inc, RapidR's Windows API declarations, compressed: not in the
+# wasm; the compiler fetches it from beside the runtime when a program
+# includes it (rapidr_preprocessor::rwin32).
+cp crates/rapidr-preprocessor/src/libraries/RWin32.inc.gz target/web/
+
 # The fallback fonts (fonts/fallback, docs/web-host-plan.md §3.7): Noto's
 # chunks beside the runtime, loaded by a page as its text needs them. The
 # CJK ones are fetched once into target/fonts-src (offline: left out, and

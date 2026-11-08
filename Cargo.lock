@@ -5506,6 +5506,7 @@ dependencies = [
 name = "rapidr-gen-win32"
 version = "2.123.0"
 dependencies = [
+ "flate2",
  "rapidr-ast",
  "rapidr-bytecode",
  "rapidr-preprocessor",
@@ -5654,6 +5655,7 @@ dependencies = [
 name = "rapidr-preprocessor"
 version = "2.123.0"
 dependencies = [
+ "flate2",
  "rapidr-diagnostics",
 ]
 
@@ -5717,6 +5719,7 @@ dependencies = [
  "rapidr-db",
  "rapidr-lang",
  "rapidr-langsvc",
+ "rapidr-preprocessor",
  "rapidr-studio",
  "rapidr-ui-app",
  "rapidr-ui-host-web",

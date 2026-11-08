@@ -9,7 +9,8 @@ use std::process::ExitCode;
 use rapidr_import::{diff, report, Options, Verification};
 
 fn usage() -> ExitCode {
-    eprintln!("usage: rapidr import-rapidq <file.bas|.rqw|.rqb|.rq|.inc | folder | project.rrproj> [OUT_DIR | -o OUT_DIR] [--include-dir DIR]… [--no-verify]");
+    eprintln!("usage: rapidr import-rapidq <file.bas|.rqw|.rqb|.rq|.inc | folder | project.rrproj> [OUT_DIR | -o OUT_DIR] [--include-dir DIR]… [--no-verify] [--rwin32]");
+    eprintln!("       --rwin32: a program that includes WIN32API.INC gets RWin32.inc, RapidR's standard Windows API declarations, in the copy (the report lists what differs)");
     eprintln!("       rapidr upgrade-names <file> [--dry-run] [--include-dir DIR]…");
     ExitCode::from(2)
 }
@@ -22,11 +23,12 @@ struct Args {
     includes: Vec<PathBuf>,
     dry_run: bool,
     verify: bool,
+    rwin32: bool,
     bad: bool,
 }
 
 fn args(rest: &[String]) -> Args {
-    let mut a = Args { path: None, second: None, out: None, includes: Vec::new(), dry_run: false, verify: true, bad: false };
+    let mut a = Args { path: None, second: None, out: None, includes: Vec::new(), dry_run: false, verify: true, rwin32: false, bad: false };
     let mut it = rest.iter();
     while let Some(x) = it.next() {
         match x.as_str() {
@@ -37,6 +39,7 @@ fn args(rest: &[String]) -> Args {
             },
             "--dry-run" | "-n" => a.dry_run = true,
             "--no-verify" => a.verify = false,
+            "--rwin32" => a.rwin32 = true,
             s if s.starts_with('-') => a.bad = true,
             s if a.path.is_none() => a.path = Some(s.to_string()),
             s if a.second.is_none() => a.second = Some(s.to_string()),
@@ -57,13 +60,20 @@ pub fn import_rapidq(rest: &[String]) -> ExitCode {
         input.parent().unwrap_or(Path::new(".")).join(format!("{stem}-rapidr"))
     });
     let options = Options { include_dirs: a.includes, normalize_case: true };
-    let r = match rapidr_import::import(input, &out, &options, a.verify) {
+    let mut r = match rapidr_import::import(input, &out, &options, a.verify) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("import-rapidq: {e}");
             return ExitCode::from(1);
         }
     };
+    // (WIN32API.INC: RWin32.inc in the copy when asked, else offered)
+    if a.rwin32 {
+        if let Err(e) = rapidr_import::rwin32::switch_copy(&rapidr_import::Disk, &mut r) {
+            eprintln!("import-rapidq: {e}");
+            return ExitCode::from(1);
+        }
+    }
     let report_path = r.out_dir.join(report::FILE_NAME);
     if let Err(e) = fs::write(&report_path, report::markdown(&r)) {
         eprintln!("{}: {e}", report_path.display());
@@ -72,6 +82,13 @@ pub fn import_rapidq(rest: &[String]) -> ExitCode {
     println!("{}", report::summary(&r));
     println!("copy: {}", r.out_dir.display());
     println!("report: {}", report_path.display());
+    if let Some(o) = r.rwin32.as_ref().filter(|o| o.switched.is_none()) {
+        println!("this program includes WIN32API.INC and keeps it; RWin32.inc, RapidR's standard Windows API declarations, can take its place: run again with --rwin32 ({} difference(s) for what the program uses, in the report)", o.differences.len());
+    }
+    if let Some(Some(Err(e))) = r.rwin32.as_ref().map(|o| &o.switched) {
+        eprintln!("import-rapidq: with RWin32.inc the copy doesn't compile yet: {e} (the report lists what differs)");
+        return ExitCode::from(1);
+    }
     // (an include found nowhere is never passed over: each one, and what to do)
     let mut said: Vec<String> = Vec::new();
     for m in r.missing() {

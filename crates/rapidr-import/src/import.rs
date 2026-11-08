@@ -95,6 +95,9 @@ pub struct ImportReport {
     pub builtin_left_out: Vec<PathBuf>,
     /// Programs that `$INCLUDE "RAPIDQ.INC"` (the line kept).
     pub rapidq_inc_includers: usize,
+    /// The programs include a classic WIN32API.INC: RWin32.inc offered in
+    /// its place, with what would differ ([`crate::rwin32`]).
+    pub rwin32: Option<crate::rwin32::Offer>,
 }
 
 impl ImportReport {
@@ -493,6 +496,9 @@ pub fn import_with(fs: &dyn Files, input: &Path, out_dir: &Path, options: &Optio
         });
         report.programs.push(ProgramReport { entry, copy, verification });
     }
+    // (a classic WIN32API.INC: RWin32.inc offered, what would differ listed)
+    let texts: Vec<(PathBuf, String)> = files.values().map(|f| (f.path.clone(), f.text.clone())).collect();
+    report.rwin32 = crate::rwin32::offer(&report, &texts, &|a, b| same_file(fs, a, b));
     Ok(report)
 }
 

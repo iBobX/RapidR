@@ -7,6 +7,9 @@ license.workspace = true
 
 [dependencies]
 rapidr-diagnostics.workspace = true
+# RWin32.inc, carried compressed (gzip, as rapidr-archive reads it): the
+# same crate and backend RapidR already ships
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 
 [lib]
 path = "src/lib.rs"

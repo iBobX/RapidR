@@ -1,0 +1,7 @@
+' RWin32.inc in a RapidR program: RapidR's own built-ins stay RapidR's
+' (SLEEP here, in seconds, on every system), RAPIDQ.INC's numbers are built
+' in (MB_ICONERROR) and True is RapidR's -1. The classic program gets the
+' DLL's Sleep: rwin32_builtins_classic.bas.
+$INCLUDE "RWin32.inc"
+SLEEP 0
+PRINT "RapidR's SLEEP"; MB_ICONERROR; True; WM_CLOSE

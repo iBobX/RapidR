@@ -18,6 +18,8 @@ rapidr-preprocessor.workspace = true
 # RapidR's built-ins and RC.EXE's reserved names: no CONST or TYPE takes one
 rapidr-ast.workspace = true
 rapidr-bytecode.workspace = true
+# the compressed copy the binaries carry (gzip, as rapidr-archive's)
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 
 [dev-dependencies]
 # The tests' layout oracle: the same metadata as Rust types (already in

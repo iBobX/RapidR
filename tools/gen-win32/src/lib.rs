@@ -1005,6 +1005,8 @@ pub struct Counts {
     pub skipped_function_names: Vec<String>,
     pub skipped_types: usize,
     pub left_to_rapidq_inc: usize,
+    /// RAPIDQ.INC names whose number isn't the metadata's (must stay empty)
+    pub rapidq_inc_differs: Vec<String>,
     pub name_clashes: usize,
 }
 
@@ -1256,6 +1258,8 @@ pub fn generate(src: &Source, rapidq_inc: &[(&str, i64)]) -> Output {
     let mut counts = Counts::default();
     let dll_short: HashMap<&str, &str> = DLLS.iter().copied().collect();
     let rapidq: HashSet<String> = rapidq_inc.iter().map(|(n, _)| n.to_ascii_uppercase()).collect();
+    // the RAPIDQ.INC names that are Windows' too, with RAPIDQ.INC's spelling
+    let mut left_to_rapidq: BTreeSet<String> = BTreeSet::new();
 
     // the functions
     let funcs: Vec<&Func> = md.funcs.iter().filter(|f| dll_short.contains_key(f.dll.as_str())).collect();
@@ -1300,6 +1304,15 @@ pub fn generate(src: &Source, rapidq_inc: &[(&str, i64)]) -> Output {
             let upper = c.name.to_ascii_uppercase();
             if rapidq.contains(&upper) {
                 counts.left_to_rapidq_inc += 1;
+                let (name, value) = rapidq_inc.iter().find(|(n, _)| n.eq_ignore_ascii_case(&c.name)).copied().unwrap_or_default();
+                // (the same number: RAPIDQ.INC's as a LONG holds it)
+                if let Some(t) = const_text(&w, c) {
+                    let ours = if let Some(h) = t.strip_prefix("&H") { i64::from_str_radix(h, 16).map(|v| v as i32 as i64).unwrap_or(i64::MIN) } else { t.parse::<i64>().unwrap_or(i64::MIN) };
+                    if ours != value && ours as i32 as i64 != value {
+                        counts.rapidq_inc_differs.push(format!("{name} (RAPIDQ.INC {value}, Windows {t})"));
+                    }
+                }
+                left_to_rapidq.insert(name.to_string());
                 continue;
             }
             if is_reserved(&c.name) || is_rapidr_builtin(&c.name) {
@@ -1599,6 +1612,13 @@ pub fn generate(src: &Source, rapidq_inc: &[(&str, i64)]) -> Output {
         counts.consts, counts.types, counts.types_arch_specific, counts.functions, counts.classic_functions, counts.classic_types
     );
     let mut text = header(&src.sha256, &counts_line);
+    // (what a program that uses RWin32.inc without RAPIDQ.INC gets of it:
+    // RAPIDQ.INC's own numbers, the same — the preprocessor reads this list)
+    text.push_str("\n' ===== left to RAPIDQ.INC: RapidR's compatibility layer has these, with the same numbers =====\n");
+    let names: Vec<&String> = left_to_rapidq.iter().collect();
+    for chunk in names.chunks(8) {
+        let _ = writeln!(text, "' RAPIDQ.INC: {}", chunk.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" "));
+    }
     text.push_str("\n' ===== constants =====\n");
     text.push_str(&const_out);
     text.push_str("\n' ===== TYPEs =====\n");
@@ -1679,6 +1699,16 @@ pub fn rapidr_type_sizes(text: &str, bit64: bool) -> BTreeMap<String, usize> {
         }
     }
     sizes
+}
+
+/// The file as RapidR's binaries carry it: gzip (deflate, level 9; RFC
+/// 1952 — `gunzip` reads it), with no time or name in its header, so the
+/// same text gives the same bytes.
+pub fn compress(text: &str) -> Vec<u8> {
+    use std::io::Write;
+    let mut e = flate2::GzBuilder::new().mtime(0).write(Vec::new(), flate2::Compression::best());
+    e.write_all(text.as_bytes()).expect("in memory");
+    e.finish().expect("in memory")
 }
 
 /// Whether a structure name is a nested anonymous part of another (`NAME_0`).
@@ -1866,6 +1896,13 @@ mod tests {
         assert!(a.text == b.text, "two generations differ");
         let committed = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/rapidr-preprocessor/src/libraries/RWin32.inc")).unwrap();
         assert!(committed == a.text, "RWin32.inc is not what the input gives: run `cargo run -p rapidr-gen-win32 --release`");
+        // the copy the binaries carry is the same text, compressed
+        let gz = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/rapidr-preprocessor/src/libraries/RWin32.inc.gz")).unwrap();
+        let mut back = String::new();
+        std::io::Read::read_to_string(&mut flate2::read::GzDecoder::new(&gz[..]), &mut back).unwrap();
+        assert!(back == a.text, "RWin32.inc.gz is not RWin32.inc");
+        assert!(compress(&a.text) == compress(&b.text));
+        assert!(a.counts.rapidq_inc_differs.is_empty(), "{:?}", a.counts.rapidq_inc_differs);
     }
 
     #[test]

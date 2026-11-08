@@ -131,6 +131,13 @@ fn main() -> ExitCode {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
     take_include_dirs(&mut args);
+    // What a program is compiled for ($IFDEF WIN64, RWin32.inc's layouts):
+    // the computer it runs on here — 32-bit on the 32-bit Windows downloads
+    // (Windows 7 / XP), 64-bit everywhere else — unless a build names its
+    // target (`--target`, below).
+    if cfg!(all(windows, target_pointer_width = "32")) {
+        rapidr_preprocessor::set_default_target(rapidr_preprocessor::Target::WindowsX86);
+    }
 
     // The language service every code editor of a program run here asks
     // (RapidR Studio's RCODEEDITOR): per thread, and programs run on this
@@ -324,6 +331,9 @@ fn main() -> ExitCode {
             if csp.is_some() && !web {
                 eprintln!("--csp: only web builds (--web) have a Content-Security-Policy");
                 return ExitCode::from(2);
+            }
+            if let Some(t) = &target {
+                rapidr_preprocessor::set_default_target(rapidr_preprocessor::Target::of_build_target(t));
             }
             build_source_file(&path, output_dir.or(app.output.clone()), release.unwrap_or(true), web, interp, target, csp, &app)
         }

@@ -48,6 +48,15 @@ pub fn summary(r: &ImportReport) -> String {
     }
     let (copied, builtin, missing) = include_counts(r);
     let _ = write!(s, "; include files: {copied} copied, {builtin} RapidR's built-in, {missing} not found");
+    if let Some(o) = &r.rwin32 {
+        match &o.switched {
+            Some(Ok(())) => s.push_str("; WIN32API.INC: the copy uses RWin32.inc now and compiles"),
+            Some(Err(_)) => s.push_str("; WIN32API.INC: the copy uses RWin32.inc now but doesn't compile (see the report)"),
+            None => {
+                let _ = write!(s, "; WIN32API.INC: kept, RWin32.inc offered ({} difference(s) for what the program uses, in the report)", o.differences.len());
+            }
+        }
+    }
     s
 }
 
@@ -84,6 +93,37 @@ fn place_text(i: &IncludeReport, root: &Path) -> String {
         Place::Elsewhere(d) => format!("in `{}`", d.display()),
         Place::BuiltIn => "RapidR's built-in".to_string(),
         Place::Missing => "**not found**".to_string(),
+    }
+}
+
+/// The report's part about a classic WIN32API.INC and RWin32.inc.
+fn rwin32_section(out: &mut String, o: &crate::rwin32::Offer, root: &Path, copy_root: &Path) {
+    let _ = writeln!(out, "## Windows API declarations: WIN32API.INC and RWin32.inc\n");
+    let file = o.file.as_ref().map(|f| format!(" (`{}`)", rel(f, root))).unwrap_or_default();
+    match &o.switched {
+        None => {
+            let _ = writeln!(out, "This program includes `WIN32API.INC`{file}. Nothing changes unless you want it to: the copy uses your file, exactly as the original does.\n");
+            let _ = writeln!(out, "RapidR also has one standard set of Windows API declarations built in, `RWin32.inc`: generated from the Win32 metadata Microsoft publishes, so it is complete and current, and its structures are right on 64-bit and 32-bit Windows. The classic names (`MessageBox`, `GetWindowText`, `RECT`, `POINTAPI` …) are there too. If you'd like to use it, the change is one line, `$INCLUDE \"RWin32.inc\"`; `rapidr import-rapidq --rwin32` makes it in the copy, and RapidR Studio asks you after an import.\n");
+        }
+        Some(result) => {
+            let lines: Vec<String> = o.lines.iter().map(|(p, l, _)| format!("`{}`, line {l}", rel(p, copy_root))).collect();
+            let _ = writeln!(out, "As you asked, the copy includes `RWin32.inc` in place of `WIN32API.INC`{file}: {}. Your own file is still in the copy, unused, and the original program is unchanged.\n", lines.join("; "));
+            match result {
+                Ok(()) => out.push_str("The switched copy compiles.\n\n"),
+                Err(e) => {
+                    let _ = writeln!(out, "**The switched copy doesn't compile yet**: {e}. The list below says what differs; to keep your file instead, put the line back as `$INCLUDE \"WIN32API.INC\"`.\n");
+                }
+            }
+        }
+    }
+    if o.differences.is_empty() {
+        out.push_str("For the names this program uses, nothing differs between your WIN32API.INC and RWin32.inc.\n\n");
+    } else {
+        let _ = writeln!(out, "For the names this program uses, this is what differs ({}):\n", o.differences.len());
+        for d in &o.differences {
+            let _ = writeln!(out, "- {d}");
+        }
+        out.push('\n');
     }
 }
 
@@ -154,6 +194,10 @@ pub fn markdown(r: &ImportReport) -> String {
         } else {
             let _ = writeln!(out, "Include folders searched: {}.\n", r.include_dirs.iter().map(|d| format!("`{}`", d.display())).collect::<Vec<_>>().join(", "));
         }
+    }
+
+    if let Some(o) = &r.rwin32 {
+        rwin32_section(&mut out, o, root, &r.out_dir);
     }
 
     if r.rapidq_inc_includers > 0 || !r.builtin_left_out.is_empty() {
