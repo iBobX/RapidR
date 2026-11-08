@@ -1,0 +1,6 @@
+3:1
+Option WEAKTYPE expected ON|OFF but got MAYBE
+4:1
+Expected end-of-line but got JUNK
+5:1
+Option WEAKTYPE expected ON|OFF but got nothing

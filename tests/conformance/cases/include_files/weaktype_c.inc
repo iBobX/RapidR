@@ -1,0 +1,2 @@
+$OPTION WEAKTYPE ON
+Public Const A = 1

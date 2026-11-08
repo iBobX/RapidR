@@ -237,6 +237,7 @@ Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/ser
 |---------|---------------|---------|-----|
 | [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, classic components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
 | [shapes/shapes.bas](rapidq/shapes/shapes.bas) | An older program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
+| [weaktype/weaktype.bas](rapidq/weaktype/weaktype.bas) | A CONST written again, as a VB port does: `$OPTION WEAKTYPE ON` lets it through (the last value wins, even a text), `OFF` makes it an error ([Compatibility](../docs/manual/compatibility.md#a-const-written-again-option-weaktype)) | run · interp · native · web | `rapidr run rapidq/weaktype/weaktype.bas` |
 
 Older programs run unchanged. The other examples use RapidR's own
 names: `RButton`, `RForm`, `RStringGrid` …. To bring an older program of your

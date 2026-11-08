@@ -1,7 +1,8 @@
 //! Diagnostics equal the compiler's (docs/ide-plan.md, I3 acceptance): for
 //! every conformance error case (`tests/conformance/cases/*.expected-error`,
 //! the compiler's own contract), the service reports each expected message
-//! at the expected line and column.
+//! at the expected line and column. (An error in an `$INCLUDE`d file is
+//! expected as `file.inc:1:8`: its file's name before the position.)
 
 use std::fs;
 use std::path::Path;
@@ -26,16 +27,27 @@ fn every_conformance_error_case() {
         let got: Vec<(String, String)> = analysis
             .diagnostics(&source)
             .iter()
-            .filter(|d| d.file == source)
             .map(|d| {
-                let (l, c) = index.line_col(d.start);
-                (format!("{}:{}", l + 1, c + 1), d.message.clone())
+                // (an include file's error: its own text, its name before the position)
+                if d.file == source {
+                    let (l, c) = index.line_col(d.start);
+                    (format!("{}:{}", l + 1, c + 1), d.message.clone())
+                } else {
+                    let included = rapidr_preprocessor::read_source(&d.file).unwrap();
+                    let (l, c) = LineIndex::new(&included).line_col(d.start);
+                    (format!("{}:{}:{}", d.file.file_name().unwrap().to_string_lossy(), l + 1, c + 1), d.message.clone())
+                }
             })
             .collect();
         let want = fs::read_to_string(expected).unwrap();
         let mut position: Option<String> = None;
         for line in want.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            let is_position = line.split_once(':').is_some_and(|(a, b)| a.parse::<usize>().is_ok() && b.parse::<usize>().is_ok());
+            let number = |s: &str| s.parse::<usize>().is_ok();
+            let is_position = match line.split(':').collect::<Vec<_>>().as_slice() {
+                [l, c] => number(l) && number(c),
+                [file, l, c] => !file.is_empty() && !file.contains(' ') && number(l) && number(c),
+                _ => false,
+            };
             if is_position {
                 position = Some(line.to_string());
                 continue;

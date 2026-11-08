@@ -47,6 +47,59 @@ converted copy, proved to compile exactly as the original, with a report.
   comparing their pixels and accessibility trees: native against
   interpreted, the desktop against the browser, at 1× and 2× scale.
 
+## Older programs' habits RapidR keeps
+
+### A CONST written again: `$OPTION WEAKTYPE`
+
+A classic program (`.bas`, `.rqw`, `.rqb`) can write a CONST again when
+`$OPTION WEAKTYPE ON` is in force where the second CONST stands. The VB
+constants files older programs `$INCLUDE` (a "Win32 API" file, say)
+start with `$OPTION WEAKTYPE ON`, end with `$OPTION WEAKTYPE OFF` and write
+some of the names `RAPIDQ.INC` has again; RapidR compiles them as the
+classic compiler does, in the same order.
+
+```basic
+$OPTION WEAKTYPE ON
+CONST Version = 1
+CONST Version = 2             ' no error: from here Version is 2
+CONST Version = "two"         ' the last one wins, of any type
+$OPTION WEAKTYPE OFF
+CONST Version = 3             ' error: CONST variable Version already defined
+```
+
+- **On** (where the second CONST is written): no error. The last value
+  wins, of the same type or not, and a line between two CONSTs reads the
+  value of the one before it. `Public Const` and `Private Const` are CONSTs;
+  capitals don't matter (`a` is `A`). A CONST may also take the name of a
+  variable or array you DIMmed, or of a SUB or FUNCTION written before it.
+- **Off** (the default): a second CONST of a name is an error, whatever
+  value it has, in the same file or another, `Public Const` too:
+  `CONST variable ANSI_CHARSET already defined`. The option counts where the
+  second CONST is written, so an include file that ends with it ON leaves it
+  on. The order of the files matters: `$INCLUDE "rapidq.inc"` then the port
+  compiles; the port first and then `rapidq.inc` stops at the first name
+  `rapidq.inc` repeats. (`$OPTION VBDLL ON`, which those files also
+  switch, does not do this.)
+- **Only a CONST.** A name DIMmed twice (`Identifier B already used, try
+  another name`), a DIM after a CONST, and a second SUB, FUNCTION or CREATE
+  of a name stay errors. Anything but `ON` or `OFF` after the option is an
+  error (`Option WEAKTYPE expected ON|OFF but got MAYBE`).
+- **A `.rr` program has no such option**: a repeated CONST stays an error
+  there, and says where the first one is. Write each name once: delete the
+  repeated line, or leave out of the program the file that repeats it.
+
+Two corners are not the classic compiler's. A SUB or FUNCTION written
+*before* the second CONST and called after it reads the new value here (the
+classic compiler fixes a constant where a routine is written, so the routine
+keeps the older one); and `CONST A = A + 1`, a CONST defined from its own
+earlier value, adds 1 to it here, where the classic compiler reads the name
+as 0 there. A SUB or FUNCTION written *after* a CONST of its name is still an
+error here (the classic compiler lets it through under the option, and the
+routine then hides the CONST).
+
+Try it: [examples/rapidq/weaktype](../../examples/rapidq/weaktype/weaktype.bas)
+(a constants file and a program that write RAPIDQ.INC's names again).
+
 ## What RapidR doesn't do
 
 - **Windows API calls off Windows.** A program that calls Windows' DLLs

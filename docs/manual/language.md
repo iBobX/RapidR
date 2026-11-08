@@ -698,6 +698,7 @@ SLEEP(Calc.Twice(3)) / 10         ' (…) starts the argument: SLEEP 0.6
 | `$APPTYPE CONSOLE \| GUI \| CGI \| WEB` | the program's kind |
 | `$RESOURCE NAME AS "file"` | a file built into the program (`RESOURCE(n)`, `EXTRACTRESOURCE`, pictures) |
 | `$OPTION ICON "file.ico"` | the program's icon: its windows' and the built app's ([Building apps](building-apps.md)) |
+| `$OPTION WEAKTYPE ON` / `OFF` | a classic program (`.bas`, `.rqw`, `.rqb`): with `ON` a CONST can be written again, no error and the last value wins (the VB constants files older programs include start with `ON` and end with `OFF`); with `OFF`, the default, a second CONST of a name is an error ([Compatibility](compatibility.md#a-const-written-again-option-weaktype)) |
 | `$ESCAPECHARS ON` | escape sequences in this file's strings |
 | `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | every variable must be declared (DIM, CONST, a parameter): an undeclared one stored into gives `Undeclared identifier x`, read gives `Undefined symbol X` |
 | `$OPTIMIZE` | accepted |

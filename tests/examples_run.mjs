@@ -830,6 +830,9 @@ export const cases = [
   // on Windows — `Lib\Geometry.INC` is lib/geometry.inc)
   { file: "rapidq/shapes/shapes.bas", runtimes: ["run", "interp", "native", "web"], includes: true, events: "areabutton.onclick", dump: "answerlabel.caption",
     expect: ["answerlabel.caption=Circle: 12.57 square cm"] },
+  // (a CONST written again under $OPTION WEAKTYPE ON, in an include file and in the program; RC.EXE prints the same)
+  { file: "rapidq/weaktype/weaktype.bas", runtimes: ["run", "interp", "native", "web"], includes: true,
+    expect: ["SND_SYNC = 0\nSND_NODEFAULT = 2", "WM_USER = 1024", "Version = 1\nVersion = 2\nVersion = two point five"] },
   // windows/: a form's Windows messages (WndProc). On Windows real windows
   // (RAPIDR_CAPTURE_WINDOWS: the headless host has no window to send to) and
   // the messages arrive; elsewhere, and on the web, the examples say they
