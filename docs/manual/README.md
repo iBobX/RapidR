@@ -75,6 +75,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | Chapter | What's in it |
 |---|---|
 | [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build; Build Web App |
+| [One standard for the Windows API](windows-api.md) | `$INCLUDE "RWin32.inc"`: RapidR's built-in Windows API declarations, generated from Microsoft's published metadata, right on 64-bit and 32-bit Windows, with the classic names; your own WIN32API.INC keeps working, and the importer offers the switch and lists every difference |
 | [Importing older programs](importing-rapidq.md) | A copy of an older program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, checked to compile to the same bytecode: in RapidR Studio and with `rapidr import-rapidq`; include files |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components, windows bigger than the page |
 | [RapidR in other editors](other-editors.md) | The Visual Studio Code extension (which `rapidr` it uses, completion, Help beside the code, colours, projects, debugging), and what `rapidr lsp` and `rapidr dap` give any editor that speaks the protocols |

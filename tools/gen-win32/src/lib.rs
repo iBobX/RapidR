@@ -9,7 +9,7 @@
 //! Apache-2.0 and used here under MIT. The crate is the one RapidR already
 //! depends on (Cargo.lock), read from cargo's own cache: no network. Nothing
 //! else is read — no SDK header, no other include file. The few names the
-//! metadata has no entry for (Visual Basic's `POINTAPI` …) are a table of
+//! metadata has no entry for (the classic `POINTAPI` …) are a table of
 //! RapidR's own here ([`CLASSIC_TYPE_ALIASES`]), checked against Microsoft's
 //! documentation.
 //!
@@ -111,8 +111,9 @@ pub const NAMESPACES_LEFT_OUT: &[&str] = &[
 /// (the classic name, the metadata structure it is the same as, why).
 /// Checked against Microsoft's documentation of each structure.
 pub const CLASSIC_TYPE_ALIASES: &[(&str, &str, &str)] = &[
-    // Visual Basic called POINT `POINTAPI` (Point was a word of its own there)
-    ("POINTAPI", "POINT", "Visual Basic's name for POINT"),
+    // the classic files called POINT `POINTAPI` (Point was a keyword of the
+    // BASIC they were written for)
+    ("POINTAPI", "POINT", "the classic name for POINT"),
     // SIZEL is the SDK's second name for SIZE (wingdi.h: typedef SIZE SIZEL)
     ("SIZEL", "SIZE", "the SDK's other name for SIZE"),
 ];

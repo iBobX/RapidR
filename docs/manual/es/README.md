@@ -76,6 +76,7 @@ saber en qué destaca RapidR? [Por qué RapidR](why-rapidr.md).
 | Capítulo | Qué contiene |
 |---|---|
 | [Compilar aplicaciones y sus íconos](building-apps.md) | `Name.app`, el ícono y la versión del `.exe`, `Name.AppDir`; tu ícono o el de RapidR; Compilar de Studio; Compilar aplicación web |
+| [Un estándar para la API de Windows](windows-api.md) | `$INCLUDE "RWin32.inc"`: las declaraciones de la API de Windows incluidas en RapidR, generadas a partir de los metadatos que publica Microsoft, correctas en Windows de 64 y de 32 bits, con los nombres clásicos; tu propio WIN32API.INC sigue funcionando, y el importador ofrece el cambio y enumera cada diferencia |
 | [Importar programas anteriores](importing-rapidq.md) | Una copia de un programa anterior (`.bas`, `.rqw`, `.rqb`, `.rq`) con los nombres de RapidR, comprobada para que se compile al mismo bytecode: en RapidR Studio y con `rapidr import-rapidq`; archivos incluidos |
 | [La web](web.md) | Ejecutar programas en un navegador: paquetes, compilaciones `--web`, archivos y recursos, componentes solo para la web, ventanas más grandes que la página |
 | [RapidR en otros editores](other-editors.md) | La extensión de Visual Studio Code (qué `rapidr` usa, autocompletado, Ayuda junto al código, colores, proyectos, depuración), y lo que `rapidr lsp` y `rapidr dap` le ofrecen a cualquier editor que hable esos protocolos |

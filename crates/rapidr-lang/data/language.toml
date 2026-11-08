@@ -388,7 +388,7 @@ doc = "Puts Rust code in the program, up to `RUSTEND`; only in native builds (th
 [[directive]]
 name = "$INCLUDE"
 syntax = "$INCLUDE \"file\""
-doc = "Includes another source file at this point. The include folders and `\\` paths work; `RAPIDQ.INC` is built in."
+doc = "Includes another source file at this point. The include folders and `\\` paths work; `RAPIDQ.INC` is built in, and so is `RWin32.inc`, RapidR's one standard set of Windows API declarations (generated from Microsoft's published metadata, right on 64-bit and 32-bit Windows, with the classic names): a program gets only the declarations it uses, and its own names always win."
 
 [[directive]]
 name = "$RESOURCE"

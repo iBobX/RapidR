@@ -1,4 +1,4 @@
-<!-- translated-from: importing-rapidq.md 38e8b3960766d0cc -->
+<!-- translated-from: importing-rapidq.md ea239f915edfca08 -->
 # Importar programas de RapidQ
 
 RapidR ejecuta los programas de RapidQ **tal como están**: no tienes que importar
@@ -123,6 +123,18 @@ RapidQ cuya biblioteca y cuya ventana están en `lib/` y `forms/`:
 rapidr run rapidq/shapes/shapes.bas
 rapidr import-rapidq rapidq/shapes/shapes.bas
 ```
+
+### Un programa con su propio WIN32API.INC
+
+La copia mantiene tu `WIN32API.INC` y se comprueba como cualquier otra. El
+informe te dice luego que `RWin32.inc`, el conjunto estándar de
+declaraciones de la API de Windows de RapidR, puede ocupar su lugar, y
+enumera, para los nombres que usa tu programa, todo lo que cambiaría. Nada
+se cambia si no lo pides: RapidR Studio te lo pregunta después de la
+importación (**Mantener mi archivo** es la respuesta predeterminada), y
+`rapidr import-rapidq --rwin32` hace el cambio en la copia y comprueba que
+siga compilando. Toda la historia está en
+[Un estándar para la API de Windows](windows-api.md).
 
 ## Qué archivos
 

@@ -31,7 +31,7 @@ and RapidR's own type mapping and syntax. `cargo run -p rapidr-gen-win32 --relea
 `-- --check` says whether the committed file is what the input gives.
 
 Tests (`cargo test -p rapidr-gen-win32 --release`): two generations give the same bytes and the
-committed file is them; every TYPE's size in RapidR (its packed fields and the gaps written out) is
+committed file is them (and the `.gz` unpacks to it); every TYPE's size in RapidR (its packed fields and the gaps written out) is
 the structure's size on 64-bit and on 32-bit Windows; 40 structures' 64-bit sizes agree with Rust's
 own `size_of` of the same metadata (windows-sys compiled for this machine: the layout oracle).
 
@@ -40,13 +40,14 @@ own `size_of` of the same metadata (windows-sys compiled for this machine: the l
 | | |
 |---|---|
 | File | `crates/rapidr-preprocessor/src/libraries/RWin32.inc` |
-| Size | 4,463,530 bytes, 120,076 lines |
-| SHA-256 | `08939c44957903a65f367dc03e3b6afd5888621a1762172deb58558e5b65da12` |
+| Size | 4,465,054 bytes, 120,093 lines; the copy the binaries carry, `RWin32.inc.gz` beside it (gzip, level 9, no time or name in its header): 788,021 bytes |
+| SHA-256 | `fd199c3985a31de0fa815c2515151b077c269b93250d87e4764110b2881a49b6` (the `.gz`: `5b95c1d123ef6f212532e2936c38a53beb436864535298eda4f50d3c357415dc`) |
 | Contents | 55,710 constants (2,916 of them text), 3,675 TYPEs (1,734 with a 64-bit and a 32-bit layout), 6,506 functions of 29 DLLs; classic names: 1,028 functions, 325 TYPEs |
 | Header | the notice of the review's "Exact notice text" (Microsoft's copyright line, the MIT permission notice, the trademark line), the pinned input and its hashes |
 
 Left out on purpose (counted by the tool): the 115 names RapidR's built-in RAPIDQ.INC already has
-(RapidR's compatibility layer gives those), GUIDs (1,063), floating-point and structure values,
+(RapidR's compatibility layer gives those, with the same numbers — the tool checks each value; the
+file lists their names so the compiler can give them to a classic program without RAPIDQ.INC), GUIDs (1,063), floating-point and structure values,
 text RapidR strings can't hold, functions with variable arguments or a structure of more than
 8 bytes by value, items for one 64-bit kind of Windows only (x64 or ARM64), names that are RapidR
 words or built-ins, and whole API areas a covered DLL only touches (Windows Search, cryptography,
@@ -58,7 +59,7 @@ Checked against Microsoft's documentation, names and facts only:
 
 | Name | Is | Why | Documentation |
 |---|---|---|---|
-| `POINTAPI` | the same TYPE as `POINT` | Visual Basic's name for POINT, which older programs use | <https://learn.microsoft.com/en-us/windows/win32/api/windef/ns-windef-point> |
+| `POINTAPI` | the same TYPE as `POINT` | the classic name for POINT, which older programs use | <https://learn.microsoft.com/en-us/windows/win32/api/windef/ns-windef-point> |
 | `SIZEL` | the same TYPE as `SIZE` | the SDK's second name for SIZE | <https://learn.microsoft.com/en-us/windows/win32/api/windef/ns-windef-size> |
 | `tagINPUT` | the TYPE for the INPUT structure | `INPUT` is a statement of RapidR's; `tagINPUT` is the structure's C tag name | <https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-input> |
 
