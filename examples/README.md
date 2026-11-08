@@ -34,7 +34,7 @@ example's CSV or JSON file sits beside it.
 
 In the order to read them: the language first, then windows, drawing, data,
 the debugger, media and DirectX, the network, AI, boards, classic programs,
-Windows messages, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
+Windows messages, an app for every system, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
 example is tested on (by `tests/examples_run.mjs`: every example, every way it
 claims, headless).
 
@@ -260,12 +260,19 @@ run them there for that).
 | [midi_sysex_in.rr](windows/midi_sysex_in.rr) | MIDI System Exclusive messages received with winmm: Open lends the driver a buffer through a `MIDIHDR` (`midiInPrepareHeader`, `midiInAddBuffer`, `midiInStart`); the driver fills it later and posts `MM_MIM_LONGDATA`, and WndProc lists the bytes in hex and gives the buffer back; Close stops, resets, unprepares and closes. The `MIDIHDR` as this Windows lays it (120 bytes on 64-bit, 64 on 32-bit), by its address | run · interp · native · web | `rapidr run windows/midi_sysex_in.rr` |
 | [midi_sysex_out.rr](windows/midi_sysex_out.rr) | A MIDI System Exclusive message sent with winmm: pick the output, write the bytes in hex (the GS Reset is there), Send runs `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, waits for `MHDR_DONE`, then `midiOutUnprepareHeader` and `midiOutClose`, and lists each call's result code in words; the `MIDIHDR` is written out as 64-bit Windows lays it (120 bytes: pointers as two LONGs, `dwReserved` an array field) | run · interp · native · web | `rapidr run windows/midi_sysex_out.rr` |
 
+### apps/ — one project, an app for every system
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [main.rr](apps/tip_calculator/main.rr) | The tip calculator as an app: the project beside it carries the name, version, company and icon (`art/tips.svg`) every system shows, and `rapidr build main.rr --all` makes a zip for each system ([the manual](../docs/manual/build-for-every-system.md)) | run · interp · native · web | `rapidr run apps/tip_calculator/main.rr` |
+
 ### web/ — what only a web page has
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [todo.rr](web/todo.rr) | A to-do list kept in the browser's storage (`RWebStorage`): it's there again next visit | web | `rapidr bundle-bc web/todo.rr -o todo.zip` |
 | [browser.rr](web/browser.rr) | Asking the browser with `RJavaScript.Eval`; pages in the address's `#` with `RRouter` (Back works) | web | `rapidr bundle-bc web/browser.rr -o browser.zip` |
+| [agent_tools.rr](web/agent_tools.rr) | A web app that offers its own tools to the AI agents of the browser (`RAgentTools`): a list of notes they can read, and add to once the person using the app agrees; where the browser offers no such tools the app goes on and says so ([the manual](../docs/manual/agent-tools.md)) | web | `rapidr build web/agent_tools.rr --web` |
 
 ### showcase/ — bigger programs, written from the idea alone
 

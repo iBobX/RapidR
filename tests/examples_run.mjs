@@ -288,6 +288,11 @@ export const cases = [
   { file: "recipes/tip_calculator.rr", runtimes: ["run", "interp", "native", "web"],
     events: `${typeKeys("billedit", "100")},tipedit.__key_65_16,${typeKeys("tipedit", "20")},peopleedit.__key_65_16,${typeKeys("peopleedit", "4")}`, dump: "tipamount.caption,total.caption,each.caption",
     expect: ["tipamount.caption=Tip: 20.00", "total.caption=Total: 120.00", "each.caption=Each pays: 30.00"] },
+  // (the same program as an app for every system, with its project's app info:
+  // the same bill, tip and people, the same totals)
+  { file: "apps/tip_calculator/main.rr", runtimes: ["run", "interp", "native", "web"],
+    events: `${typeKeys("billedit", "100")},tipedit.__key_65_16,${typeKeys("tipedit", "20")},peopleedit.__key_65_16,${typeKeys("peopleedit", "4")}`, dump: "tipamount.caption,total.caption,each.caption",
+    expect: ["tipamount.caption=Tip: 20.00", "total.caption=Total: 120.00", "each.caption=Each pays: 30.00"] },
   { file: "recipes/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("form", 12)},startbtn.onclick`, dump: "startbtn.caption,display.caption",
     expect: ["startbtn.caption=&Start", "display.caption=0:00."] },
   { file: "recipes/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("form", 12)},startbtn.onclick,resetbtn.onclick`, dump: "display.caption",
