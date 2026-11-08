@@ -452,7 +452,16 @@ mod tests {
                         _ => &[macho::CPU_TYPE_ARM64, macho::CPU_TYPE_X86_64],
                     };
                     assert_eq!(macho::cpus(exe).unwrap(), want, "{t}");
-                    assert_eq!(packed.signature, Some(Signature::NotYet));
+                    // signed ad hoc by RapidR's signer, in the archive too: every slice, with
+                    // the app's identifier, its Info.plist and its seal bound
+                    assert_eq!(packed.signature, Some(Signature::AdHoc));
+                    assert_eq!(has("Tip Calculator.app/Contents/_CodeSignature/CodeResources"), Some(false), "{t}: {listed:?}");
+                    let slices = crate::macho_sign::check(exe).unwrap_or_else(|e| panic!("{t}: {e}"));
+                    assert_eq!(slices.len(), want.len(), "{t}");
+                    assert!(slices.iter().all(|s| s.identifier == "dev.rapidr.app.tip-calculator" && s.special.len() == 3), "{t}: {slices:?}");
+                    let seal = &packed.files.get("Tip Calculator.app/Contents/_CodeSignature/CodeResources").unwrap().bytes;
+                    let seal = String::from_utf8_lossy(seal);
+                    assert!(seal.contains("<key>Resources/art/logo.svg</key>") && seal.contains("<key>Resources/staff.csv</key>"), "{t}: {seal}");
                 }
                 Some(System::Linux) => {
                     let top = format!("Tip-Calculator-1.2.0-{}", t.name());

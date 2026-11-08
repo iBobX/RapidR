@@ -6,14 +6,16 @@
 //! Name.app/Contents/MacOS/<exe>         the program (0755)
 //! Name.app/Contents/Resources/AppIcon.icns
 //! Name.app/Contents/Resources/…         what else it carries (an interpreted program's .rrbc, data, notices)
+//! Name.app/Contents/_CodeSignature/CodeResources   the seal of Contents/Resources
 //! ```
 //!
 //! made in memory ([`app_files`]) and signed ad hoc ([`sign_ad_hoc`]) so it
-//! opens on Apple silicon.
+//! opens on Apple silicon: by RapidR's own signer ([`crate::macho_sign`]),
+//! the same on every system and in the browser.
 
 use crate::files::Files;
 use crate::info::{xml, AppInfo};
-use crate::Icon;
+use crate::{macho_sign, Icon};
 
 /// The icon's file in Contents/Resources (and Info.plist's CFBundleIconFile).
 pub const ICON_FILE: &str = "AppIcon.icns";
@@ -90,28 +92,54 @@ pub fn app_files(app: &MacApp) -> Result<Files, String> {
     Ok(f)
 }
 
-/// Whether an app's signature is made.
+/// How an app is signed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Signature {
-    /// Signed ad hoc (no identity: what Apple silicon needs to run it).
+    /// Ad hoc: no identity, no certificate; what Apple silicon needs to run
+    /// it (a Developer ID signature is made later, on a Mac, with the
+    /// user's own Apple account).
     AdHoc,
-    /// Not signed yet: the caller signs it (on a Mac, the CLI's
-    /// `codesign_bridge`) — until RapidR's own signer is here.
-    NotYet,
 }
 
-/// Signs the app at `app_root` (`Name.app`) in `files` ad hoc, in memory:
-/// its main executable (every slice) and the bundle's
-/// `_CodeSignature/CodeResources`.
+/// Signs the app at `app_root` (`Name.app`) in `files` ad hoc, in memory,
+/// with RapidR's own signer ([`macho_sign::sign_app`]): its main executable
+/// (every slice, bound to its Info.plist and the seal) and the bundle's
+/// `_CodeSignature/CodeResources` (an old seal replaced). Every macOS app
+/// any build makes passes here, folder builds and archives alike, on every
+/// system and in the browser (docs/build-core-design.md §6,
+/// docs/macho-signer-design.md).
 ///
-/// THE CALL SITE for RapidR's own Mach-O signer (docs/build-core-design.md
-/// §6, the MACHO-SIGN lane's `macho_sign.rs`): every macOS app any build
-/// makes passes here, folder builds and archives alike, on every system
-/// and in the browser. Until the signer is here it signs nothing and says
-/// so ([`Signature::NotYet`]).
+/// Refused, with `files` as they were: no program at
+/// `Contents/MacOS/<info.exe>`, a file outside Contents/Resources besides
+/// Info.plist, PkgInfo and the program (nested code), a program that isn't
+/// a Mach-O one or is damaged.
 pub fn sign_ad_hoc(files: &mut Files, app_root: &str, info: &AppInfo) -> Result<Signature, String> {
-    let _ = (files, app_root, info);
-    Ok(Signature::NotYet)
+    let root = app_root.trim_end_matches('/');
+    if !files.contains(&format!("{root}/Contents/MacOS/{}", info.exe)) {
+        return Err(format!("{root} can't be signed: it has no program Contents/MacOS/{}", info.exe));
+    }
+    // (taken out, not copied: a runner is tens of megabytes; put back as they were on an error)
+    let paths: Vec<String> = files.below(root).map(|(rest, _)| rest.to_string()).collect();
+    let mut executable = std::collections::HashSet::new();
+    let mut app: Vec<(String, Vec<u8>)> = Vec::with_capacity(paths.len());
+    for rest in paths {
+        let f = files.remove(&format!("{root}/{rest}")).expect("listed just now");
+        if f.executable {
+            executable.insert(rest.clone());
+        }
+        app.push((rest, f.bytes));
+    }
+    let signed = macho_sign::sign_app(&mut app);
+    for (rest, bytes) in app {
+        let path = format!("{root}/{rest}");
+        if executable.contains(&rest) {
+            files.add_executable(&path, bytes)?;
+        } else {
+            files.add(&path, bytes)?;
+        }
+    }
+    signed.map_err(|e| format!("{root} can't be signed: {e}"))?;
+    Ok(Signature::AdHoc)
 }
 
 #[cfg(test)]
@@ -206,5 +234,49 @@ mod tests {
         // (a resource that would leave the bundle: refused)
         let bad = MacApp { resources: vec![("../../evil".into(), Vec::new())], ..app };
         assert!(app_files(&bad).is_err());
+    }
+
+    /// Signed in memory by RapidR's signer: the program (still executable)
+    /// and the seal; what it can't sign is refused with the files as they were.
+    #[test]
+    fn signed_ad_hoc_in_memory() {
+        use crate::macho::{CPU_TYPE_ARM64, CPU_TYPE_X86_64};
+        use crate::macho_sign::synth;
+        let info = AppInfo::new("Hello", "hello");
+        let icon = Icon::rapidr_default();
+        let a = synth::program(CPU_TYPE_ARM64, b"arm");
+        let x = synth::program(CPU_TYPE_X86_64, b"intel");
+        let fat = crate::macho::universal(&[&a, &x]).unwrap();
+        let app = MacApp { info: &info, icon: &icon, executable: &fat, resources: vec![("hello.rrbc".into(), b"RRBC".to_vec())], minimum_system: MINIMUM_SYSTEM };
+        let mut f = app_files(&app).unwrap();
+        f.add("README.txt", b"beside the app: not in it".to_vec()).unwrap();
+        assert_eq!(sign_ad_hoc(&mut f, "Hello.app", &info).unwrap(), Signature::AdHoc);
+        let exe = f.get("Hello.app/Contents/MacOS/hello").unwrap();
+        assert!(exe.executable, "still executable");
+        let slices = macho_sign::check(&exe.bytes).unwrap();
+        assert_eq!(slices.len(), 2);
+        assert!(slices.iter().all(|s| s.identifier == "dev.rapidr.app.hello" && s.flags == macho_sign::CS_ADHOC));
+        let seal = f.get("Hello.app/Contents/_CodeSignature/CodeResources").unwrap();
+        assert!(!seal.executable && String::from_utf8_lossy(&seal.bytes).contains("<key>Resources/hello.rrbc</key>"));
+        assert!(f.contains("README.txt"), "files outside the app untouched");
+        // signed again: the same bytes
+        let before = f.clone();
+        sign_ad_hoc(&mut f, "Hello.app/", &info).unwrap();
+        assert_eq!(f.sorted(), before.sorted());
+
+        // nested code, a script for a program, no program: refused, nothing changed
+        let mut nested = app_files(&app).unwrap();
+        nested.add_executable("Hello.app/Contents/MacOS/helper", b"x".to_vec()).unwrap();
+        let was = nested.clone();
+        let e = sign_ad_hoc(&mut nested, "Hello.app", &info).unwrap_err();
+        assert!(e.starts_with("Hello.app can't be signed: Contents/MacOS/helper:"), "{e}");
+        assert_eq!(nested.sorted(), was.sorted());
+        let script = MacApp { executable: b"#!/bin/sh\necho hi\n", resources: Vec::new(), ..app };
+        let mut s = app_files(&script).unwrap();
+        let was = s.clone();
+        assert!(sign_ad_hoc(&mut s, "Hello.app", &info).unwrap_err().contains("not a Mach-O program (it starts with 23212f62: a script?"));
+        assert_eq!(s.sorted(), was.sorted());
+        let other = AppInfo::new("Hello", "other");
+        assert!(sign_ad_hoc(&mut s, "Hello.app", &other).unwrap_err().contains("it has no program Contents/MacOS/other"));
     }
 }

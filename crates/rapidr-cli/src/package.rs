@@ -323,93 +323,6 @@ pub fn build_time() -> i64 {
         .unwrap_or_else(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64))
 }
 
-/// Signs a macOS app in `files` that the packer couldn't sign yet, with
-/// `codesign` (macOS' own): the `.app` written to a temporary folder,
-/// signed ad hoc and checked, read back. Used by folder builds and
-/// archives alike; elsewhere the app stays unsigned (said).
-///
-/// THE BRIDGE until RapidR's own Mach-O signer is in rapidr-package
-/// (rapidr_package::macos::sign_ad_hoc, the MACHO-SIGN lane): then this is
-/// deleted (docs/build-core-design.md §6).
-pub fn codesign_bridge(packed: &mut rapidr_package::Packed) -> Result<bool, String> {
-    if packed.signature != Some(rapidr_package::macos::Signature::NotYet) {
-        return Ok(packed.signature.is_some());
-    }
-    if !cfg!(target_os = "macos") {
-        return Ok(false);
-    }
-    static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-    let tmp = std::env::temp_dir().join(format!("rapidr-sign-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
-    let _ = fs::remove_dir_all(&tmp);
-    let root = packed.main.clone();
-    let signed = (|| -> Result<Vec<(String, Vec<u8>, bool)>, String> {
-        for (rest, f) in packed.files.below(&root) {
-            write_file(&tmp.join(&root).join(rest), &f.bytes, f.executable)?;
-        }
-        // (an absolute path: `codesign --verify` takes a relative one
-        // starting with a digit for a process id, `3dcube.app`)
-        let app = tmp.join(&root);
-        let run = |args: &[&str]| -> Result<(), String> {
-            let out = std::process::Command::new("codesign").args(args).arg(&app).output().map_err(|e| format!("codesign: {e}"))?;
-            if out.status.success() {
-                Ok(())
-            } else {
-                Err(format!("codesign {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim()))
-            }
-        };
-        run(&["--force", "--sign", "-"])?;
-        run(&["--verify", "--strict"])?;
-        let mut back = Vec::new();
-        read_tree(&app, &app, &mut back)?;
-        Ok(back)
-    })();
-    let _ = fs::remove_dir_all(&tmp);
-    let signed = signed?;
-    let old: Vec<String> = packed.files.below(&root).map(|(rest, _)| format!("{root}/{rest}")).collect();
-    for p in old {
-        packed.files.remove(&p);
-    }
-    for (rest, bytes, executable) in signed {
-        let at = format!("{root}/{rest}");
-        if executable {
-            packed.files.add_executable(&at, bytes)?;
-        } else {
-            packed.files.add(&at, bytes)?;
-        }
-    }
-    packed.signature = Some(rapidr_package::macos::Signature::AdHoc);
-    Ok(true)
-}
-
-/// Every file below `dir`, by its path from `base` (`/`-separated), with
-/// whether it is executable.
-fn read_tree(base: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>, bool)>) -> Result<(), String> {
-    let entries = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    for e in entries.flatten() {
-        let p = e.path();
-        let ft = e.file_type().map_err(|err| format!("{}: {err}", p.display()))?;
-        if ft.is_dir() {
-            read_tree(base, &p, out)?;
-        } else if ft.is_file() {
-            let rel = p.strip_prefix(base).map_err(|_| format!("{}: outside {}", p.display(), base.display()))?.to_string_lossy().replace('\\', "/");
-            let executable = is_executable(&e.metadata().map_err(|err| format!("{}: {err}", p.display()))?);
-            out.push((rel, fs::read(&p).map_err(|err| format!("{}: {err}", p.display()))?, executable));
-        }
-    }
-    Ok(())
-}
-
-#[cfg(unix)]
-fn is_executable(m: &fs::Metadata) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    m.permissions().mode() & 0o111 != 0
-}
-
-#[cfg(not(unix))]
-fn is_executable(_m: &fs::Metadata) -> bool {
-    false
-}
-
 /// Writes one file (its folders first), executable when asked.
 fn write_file(path: &Path, bytes: &[u8], executable: bool) -> Result<(), String> {
     if let Some(dir) = path.parent() {
@@ -475,15 +388,13 @@ fn make_executable(_p: &Path) {}
 pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, notices: &str) -> Result<Made, String> {
     let data = read_data(plan)?;
     let app = app(plan, rrbc, &data, &[], build_time());
-    let mut packed = rapidr_package::pack(plan.target, &app, &rapidr_package::Runner { bytes: binary, notices })?;
+    let packed = rapidr_package::pack(plan.target, &app, &rapidr_package::Runner { bytes: binary, notices })?;
     for note in &packed.notes {
         eprintln!("note: {note}");
     }
+    // (a Mac app: signed ad hoc in pack, by RapidR's own signer, on every system)
     if packed.signature.is_some() {
-        match codesign_bridge(&mut packed)? {
-            true => println!("Signed (ad hoc): {}", dest_dir.join(&packed.main).display()),
-            false => println!("note: {} is not signed: on Apple silicon Macs it opens once it is (codesign is macOS'; RapidR's own signer comes next)", packed.main),
-        }
+        println!("Signed (ad hoc): {}", dest_dir.join(&packed.main).display());
     }
     write_tree(dest_dir, &packed)?;
     let path = dest_dir.join(&packed.main);

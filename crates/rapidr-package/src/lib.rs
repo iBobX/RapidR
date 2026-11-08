@@ -7,7 +7,8 @@
 //! - [`pack()`]: a program (its bytecode, its data files) and a runner made
 //!   into an app for a [`Target`], as [`Files`]:
 //!   - **macOS** ([`macos`]): `Name.app` — Info.plist, the program in
-//!     Contents/MacOS, its icon as `.icns`, signed ad hoc;
+//!     Contents/MacOS, its icon as `.icns`, signed ad hoc by RapidR's own
+//!     signer ([`macho_sign`]);
 //!   - **Windows** ([`windows`]): the `.exe` with its icon (every size
 //!     Explorer shows), version information and manifest as resources;
 //!   - **Linux** ([`linux`]): `Name.AppDir` — the program, a desktop entry,
@@ -27,6 +28,7 @@ mod icon;
 mod info;
 pub mod linux;
 pub mod macho;
+pub mod macho_sign;
 pub mod macos;
 mod pack;
 pub mod picture;

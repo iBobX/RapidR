@@ -19,8 +19,9 @@ Un programa “tiene ventanas” cuando dice `$APPTYPE GUI`, o no dice ningún
 `$APPTYPE` y crea formularios u otros componentes. Las compilaciones nativas y las
 interpretadas (`--interp`) producen las mismas aplicaciones. Las compilaciones
 cruzadas también: `rapidr build prog.bas --interp --target windows-x86_64` en una
-Mac escribe el ícono y la información de versión del `.exe`; solo firmar una
-aplicación de macOS necesita una Mac.
+Mac escribe el ícono y la información de versión del `.exe`. Firmar una aplicación
+de macOS tampoco necesita una Mac: RapidR la firma por sí mismo, igual en macOS,
+Windows y Linux.
 
 ```sh
 rapidr build notepad.bas --interp          # macOS: notepad.app
@@ -192,8 +193,8 @@ rapidr build 3dcube.bas --interp --name "3D Cube"    # "3D Cube.app"
   `./3dcube.app` (o la ruta completa) para un nombre que empieza con un dígito:
   `codesign` toma `3dcube.app` por un número de proceso y responde “No such
   process”. Las versiones anteriores de `rapidr build` se detenían con ese mensaje
-  para un nombre así; ahora `rapidr build` le pasa a `codesign` la ruta completa, y
-  firma y comprueba la aplicación.
+  para un nombre así; ahora `rapidr build` firma y comprueba la aplicación por sí
+  mismo, sin `codesign`.
 
 ### El nombre del ejecutable
 
@@ -260,12 +261,18 @@ formatos de arriba.
 ## macOS
 
 <!-- legal -->
-- La aplicación se firma ad hoc (`codesign --sign -`): se abre en la Mac que la
-  compiló, y las Mac con Apple silicon la ejecutan. Para dársela a otras personas,
-  fírmala con tu Developer ID y notarízala (`codesign`, `xcrun notarytool`); una
-  aplicación descargada sin firmar se permite una sola vez en Configuración del
-  Sistema > Privacidad y seguridad > Abrir de todos modos (*System Settings >
-  Privacy & Security > Open Anyway*; mira
+- La aplicación se firma ad hoc, con el firmador de RapidR: una firma sin
+  certificado (la misma que hace `codesign --sign -`), hecha en el sistema que
+  compiló la aplicación, así que una aplicación de Mac compilada en Windows o en
+  Linux también queda firmada. Las Mac con Apple silicon la ejecutan, y se abre en
+  la Mac que la compiló. Su sello, `Contents/_CodeSignature/CodeResources`, cubre
+  todos los archivos de `Contents/Resources`.
+- Para dársela a otras personas, fírmala con tu Developer ID y notarízala, en una
+  Mac (`codesign`, `xcrun notarytool`). Sin eso, una aplicación descargada se
+  permite una sola vez: macOS dice “Nombre” Not Opened (*Apple could not verify
+  “Nombre” is free of malware…*; haz clic en **Done**), y luego Configuración del
+  Sistema > Privacidad y seguridad > **Abrir de todos modos** (*System Settings >
+  Privacy & Security > Open Anyway*) la abre (mira
   [Instalar en macOS](getting-started.md#instalar-en-macos)).
 - Una aplicación compilada se abre como cualquier otra aplicación de Mac:
 
