@@ -92,12 +92,8 @@ replaces it.
    ![System Settings, Privacy & Security, Security: “RapidR Studio” was blocked to protect your Mac, with the Open Anyway button](images/install/macos-open-anyway.png)
 
    On current macOS (15 Sequoia and newer), right-clicking the app and
-   choosing *Open* no longer gets past this: **Open Anyway** is the way.
-   Prefer the Terminal? This does the same:
-
-   ```sh
-   xattr -dr com.apple.quarantine "/Applications/RapidR Studio.app"
-   ```
+   choosing *Open* no longer gets past this: **Open Anyway** (System Settings
+   > Privacy & Security, above) is the way.
 
 4. **RapidR Studio opens.** It is a normal Mac app from now on.
 

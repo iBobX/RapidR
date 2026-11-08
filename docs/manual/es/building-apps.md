@@ -196,10 +196,16 @@ archivo que cambió en tu disco tampoco se usa (se borra).
 ### Qué se envía
 
 La descarga le pide a studio.rapidr.dev tres archivos (`https://studio.rapidr.dev/runners/2.123.1/`:
-la lista, su firma y el ejecutor), como hace una página web, así que el servidor
-ve la dirección de tu computadora y `RapidR/2.123.1`. Nada más sale de tu computadora: ni tu programa, ni tu nombre,
-ni lo que compilas. No se envía nada cuando el ejecutor está en la instalación o
-ya guardado.
+la lista, su firma y el ejecutor), como hace una página web. Cualquier servidor
+web ve la dirección desde la que se conecta tu computadora, la hora, el archivo
+pedido y el nombre del programa, `RapidR/2.123.1`. Este se sirve a través de
+Amazon CloudFront (Amazon Web Services), que atiende esas solicitudes por
+cuenta de RapidR para entregar los archivos y defenderse de ataques; RapidR no
+guarda un registro de accesos. Nada más sale de tu computadora: ni tu programa,
+ni tu nombre, ni lo que compilas; ni cookies ni identificadores. No se envía
+nada cuando el ejecutor está en la instalación o ya guardado. Quién es el
+responsable y cómo consultar tus datos: la política de privacidad en
+https://rapidr.dev/privacidad.
 
 ### Sin conexión
 

@@ -1,8 +1,9 @@
 //! `README.txt` in every archive: how to open the app the first time on
 //! that system, in the app's language (English or Spanish for now).
 //!
-//! DRAFT TEXTS: the lawyer agent reviews their wording before release
-//! (docs/build-for-every-platform-plan.md §5).
+//! TEXTS: reviewed by the lawyer agent (docs/legal/review-2026-11-08-release-2.123.1.md,
+//! item 1). The Spanish macOS labels (Latin-American set) still want a check on
+//! a Spanish Mac before release (docs/build-for-every-platform-plan.md §5).
 
 use crate::info::AppInfo;
 use crate::Target;
@@ -42,11 +43,58 @@ pub fn readme(info: &AppInfo, target: Target, language: &str, app: bool) -> Stri
     };
     out.push_str(&body);
     out.push('\n');
-    out.push_str(&t(
-        "THIRD-PARTY-NOTICES.txt lists the open-source software inside this app and\ntheir licences; keep it with the app when you share it.\n\nMade with RapidR.\n",
-        "THIRD-PARTY-NOTICES.txt lista el software de código abierto que esta app\nlleva dentro y sus licencias; consérvalo junto a la app al compartirla.\n\nHecha con RapidR.\n",
-    ));
+    out.push_str(&closing(target, app, es));
     out.replace('\n', if target.system() == Some(crate::System::Windows) { "\r\n" } else { "\n" })
+}
+
+/// The closing paragraphs: where the notices file is, the trademark credit
+/// for the system named above, and that RapidR does not vouch for the app.
+/// (Texts: docs/legal/review-2026-11-08-release-2.123.1.md, item 1, C5 and C6.)
+fn closing(target: Target, app: bool, es: bool) -> String {
+    let t = |en: &'static str, es_text: &'static str| if es { es_text } else { en };
+    // On a Mac the notices file is inside the .app (Contents/Resources); a
+    // console program has it beside the executable.
+    let notices = if target.system() == Some(crate::System::MacOs) && app {
+        t(
+            "THIRD-PARTY-NOTICES.txt (inside the app: right-click it, Show Package\nContents > Contents > Resources) lists the open-source software inside this\napp and its licences; it stays inside the app when you share it.\n",
+            "THIRD-PARTY-NOTICES.txt (dentro de la app: clic derecho, Mostrar contenido\ndel paquete > Contents > Resources) lista el software de código abierto que\nesta app lleva dentro y sus licencias; se queda dentro de la app al\ncompartirla.\n",
+        )
+    } else {
+        t(
+            "THIRD-PARTY-NOTICES.txt lists the open-source software inside this app and\ntheir licences; keep it with the app when you share it.\n",
+            "THIRD-PARTY-NOTICES.txt lista el software de código abierto que esta app\nlleva dentro y sus licencias; consérvalo junto a la app al compartirla.\n",
+        )
+    };
+    let credit = match target.system() {
+        Some(crate::System::Windows) => Some(t(
+            "Windows and SmartScreen are trademarks of the Microsoft group of companies.\n",
+            "Windows y SmartScreen son marcas del grupo de empresas de Microsoft.\n",
+        )),
+        Some(crate::System::MacOs) => Some(t(
+            "Apple, Mac, macOS and Touch ID are trademarks of Apple Inc., registered in\nthe U.S. and other countries and regions. Intel is a trademark of Intel\nCorporation or its subsidiaries.\n",
+            "Apple, Mac, macOS y Touch ID son marcas de Apple Inc., registradas en\nEE. UU. y en otros países y regiones. Intel es una marca de Intel\nCorporation o sus filiales.\n",
+        )),
+        Some(crate::System::Linux) => Some(t(
+            "Linux is the registered trademark of Linus Torvalds in the U.S. and other\ncountries.\n",
+            "Linux es una marca registrada de Linus Torvalds en EE. UU. y en otros\npaíses.\n",
+        )),
+        None => None,
+    };
+    let mut out = String::from(notices);
+    out.push('\n');
+    // The web names no system, so it has no credit and only the last sentence.
+    if let Some(credit) = credit {
+        out.push_str(credit);
+        out.push_str(t(
+            "These names belong to their owners and are used only to say where the app\nruns. The app and RapidR are independent of them and not endorsed by them.\n",
+            "Esos nombres pertenecen a sus dueños y se usan solo para decir dónde\nfunciona la app. La app y RapidR son independientes de ellos y ninguno los\nrespalda.\n",
+        ));
+    }
+    out.push_str(t(
+        "RapidR is the tool the app was made with; it does not vouch for what the app\ndoes.\n\nMade with RapidR.\n",
+        "RapidR es la herramienta con la que se hizo la app; no garantiza lo que la\napp hace.\n\nHecha con RapidR.\n",
+    ));
+    out
 }
 
 fn label_es(target: Target) -> &'static str {
@@ -65,12 +113,12 @@ fn label_es(target: Target) -> &'static str {
 
 fn windows(exe: &str, target: Target, app: bool, es: bool) -> String {
     let runs_on = match (target, es) {
-        (Target::WindowsX86, false) => "It runs on Windows 7, 8, 8.1, 10 and 11, 32-bit and 64-bit.\n\n",
-        (Target::WindowsX86, true) => "Funciona en Windows 7, 8, 8.1, 10 y 11, de 32 y de 64 bits.\n\n",
-        (Target::WindowsArm64, false) => "It is for Windows PCs with an ARM processor (Snapdragon and others).\n\n",
-        (Target::WindowsArm64, true) => "Es para PC con Windows y procesador ARM (Snapdragon y otros).\n\n",
-        (_, false) => "It runs on 64-bit Windows 10 and 11 (most PCs).\n\n",
-        (_, true) => "Funciona en Windows 10 y 11 de 64 bits (la mayoría de los PC).\n\n",
+        (Target::WindowsX86, false) => "It is made for Windows 7, 8, 8.1, 10 and 11, 32-bit and 64-bit.\n\n",
+        (Target::WindowsX86, true) => "Está hecha para Windows 7, 8, 8.1, 10 y 11, de 32 y de 64 bits.\n\n",
+        (Target::WindowsArm64, false) => "It is for Windows PCs with an ARM processor.\n\n",
+        (Target::WindowsArm64, true) => "Es para PC con Windows y procesador ARM.\n\n",
+        (_, false) => "It is made for 64-bit Windows 10 and 11 (most PCs).\n\n",
+        (_, true) => "Está hecha para Windows 10 y 11 de 64 bits (la mayoría de los PC).\n\n",
     };
     let mut s = runs_on.to_string();
     if es {
@@ -83,7 +131,7 @@ fn windows(exe: &str, target: Target, app: bool, es: bool) -> String {
             ));
         }
         s.push_str(
-            "\nLa primera vez Windows puede mostrar \"Windows protegió su PC\" (SmartScreen),\nporque la app es nueva y no está firmada con un certificado. Si confías en\nquien te la dio, haz clic en \"Más información\" y luego en \"Ejecutar de todas\nformas\". Windows lo recuerda.\n\nMantén juntos los archivos de esta carpeta: la app lee los suyos de al lado\nde su .exe.\n",
+            "\nLa primera vez Windows puede mostrar \"Windows protegió su PC\" (SmartScreen),\nporque la app es nueva y no está firmada con un certificado. Si confías en\nquien te la dio, haz clic en \"Más información\" y luego en \"Ejecutar de todas\nformas\". Windows normalmente no vuelve a preguntar por ese archivo.\n\nMantén juntos los archivos de esta carpeta: la app lee los suyos de al lado\nde su .exe.\n",
         );
     } else {
         s.push_str("1. Unzip this file: right-click the .zip, \"Extract All...\", \"Extract\".\n");
@@ -95,7 +143,7 @@ fn windows(exe: &str, target: Target, app: bool, es: bool) -> String {
             ));
         }
         s.push_str(
-            "\nThe first time, Windows may show \"Windows protected your PC\" (SmartScreen),\nbecause the app is new and not signed with a certificate. If you trust\nwhoever gave it to you, click \"More info\", then \"Run anyway\". Windows\nremembers it.\n\nKeep the files of this folder together: the app reads its own from beside\nits .exe.\n",
+            "\nThe first time, Windows may show \"Windows protected your PC\" (SmartScreen),\nbecause the app is new and not signed with a certificate. If you trust\nwhoever gave it to you, click \"More info\", then \"Run anyway\". Windows\nnormally doesn't ask again for that file.\n\nKeep the files of this folder together: the app reads its own from beside\nits .exe.\n",
         );
     }
     s
@@ -103,12 +151,12 @@ fn windows(exe: &str, target: Target, app: bool, es: bool) -> String {
 
 fn macos(name: &str, exe: &str, target: Target, app: bool, es: bool) -> String {
     let runs_on = match (target, es) {
-        (Target::MacosArm64, false) => "It runs on Macs with Apple silicon (macOS 11 or later).\n\n",
-        (Target::MacosArm64, true) => "Funciona en Mac con Apple silicon (macOS 11 o posterior).\n\n",
-        (Target::MacosX64, false) => "It runs on Intel Macs (macOS 10.13 or later).\n\n",
-        (Target::MacosX64, true) => "Funciona en Mac con Intel (macOS 10.13 o posterior).\n\n",
-        (_, false) => "It runs on every Mac: Apple silicon (macOS 11 or later) and Intel\n(macOS 10.13 or later).\n\n",
-        (_, true) => "Funciona en todos los Mac: Apple silicon (macOS 11 o posterior) e Intel\n(macOS 10.13 o posterior).\n\n",
+        (Target::MacosArm64, false) => "It is made for Macs with Apple silicon (macOS 11 or later).\n\n",
+        (Target::MacosArm64, true) => "Está hecha para Mac con Apple silicon (macOS 11 o posterior).\n\n",
+        (Target::MacosX64, false) => "It is made for Intel Macs (macOS 10.13 or later).\n\n",
+        (Target::MacosX64, true) => "Está hecha para Mac con Intel (macOS 10.13 o posterior).\n\n",
+        (_, false) => "It is made for Macs with Apple silicon (macOS 11 or later) and Intel\nMacs (macOS 10.13 or later).\n\n",
+        (_, true) => "Está hecha para Mac con Apple silicon (macOS 11 o posterior) y Mac con\nIntel (macOS 10.13 o posterior).\n\n",
     };
     let mut s = runs_on.to_string();
     if es {
@@ -116,7 +164,7 @@ fn macos(name: &str, exe: &str, target: Target, app: bool, es: bool) -> String {
         if app {
             s.push_str(&format!("2. Arrastra {name}.app a tu carpeta Aplicaciones (o déjala donde quieras).\n3. Haz doble clic en ella.\n"));
             s.push_str(&format!(
-                "\nLa primera vez, macOS dice que no abrió {name}: Apple no pudo verificar\nque no tenga software malicioso, porque la app no está firmada con un\nDeveloper ID de Apple. Si confías en quien te la dio:\n  1. Haz clic en \"Listo\" (no en \"Mover a la papelera\").\n  2. Abre Configuración del Sistema > Privacidad y seguridad, baja hasta el\n     aviso sobre {name} y haz clic en \"Abrir de todos modos\"; confirma con\n     tu contraseña o Touch ID, y haz clic en \"Abrir\". macOS lo recuerda.\n  (En macOS 14 y anteriores también sirve: clic derecho sobre la app,\n  \"Abrir\", y otra vez \"Abrir\".)\n"
+                "\nLa primera vez, macOS puede decir que no abrió {name} porque Apple no pudo\ncomprobar que esté libre de software malicioso (las palabras exactas\ndependen de tu versión de macOS). Es porque la app no está firmada con un\nDeveloper ID de Apple ni notarizada por Apple. Si confías en quien te la dio:\n  1. Haz clic en \"Listo\" (o \"Cancelar\"), no en \"Mover a la papelera\".\n  2. Abre Configuración del Sistema > Privacidad y seguridad, baja hasta el\n     aviso sobre {name} y haz clic en \"Abrir de todos modos\" (el botón queda\n     disponible cerca de una hora después del intento); confirma con tu\n     contraseña o Touch ID y haz clic en \"Abrir\". macOS lo recuerda.\n  (En macOS 12 y anteriores: Preferencias del Sistema > Seguridad y\n  privacidad > General > \"Abrir igualmente\". En macOS 14 y anteriores también\n  sirve: clic derecho sobre la app, \"Abrir\", y otra vez \"Abrir\".)\n"
             ));
         } else {
             s.push_str(&format!(
@@ -128,7 +176,7 @@ fn macos(name: &str, exe: &str, target: Target, app: bool, es: bool) -> String {
         if app {
             s.push_str(&format!("2. Drag {name}.app to your Applications folder (or keep it anywhere).\n3. Double-click it.\n"));
             s.push_str(&format!(
-                "\nThe first time, macOS says \"{name}\" Not Opened: \"Apple could not verify\n{name} is free of malware...\", because the app is not signed with an Apple\nDeveloper ID. If you trust whoever gave it to you:\n  1. Click \"Done\" (not \"Move to Trash\").\n  2. Open System Settings > Privacy & Security, scroll down to the message\n     about {name} and click \"Open Anyway\"; confirm with your password or\n     Touch ID, then click \"Open\". macOS remembers it.\n  (On macOS 14 and earlier this works too: right-click the app, choose\n  \"Open\", then \"Open\" again.)\n"
+                "\nThe first time, macOS may say it did not open {name} because Apple could not\ncheck it for malware (the exact words depend on your macOS version). That is\nbecause the app is not signed with an Apple Developer ID and notarized by\nApple. If you trust whoever gave it to you:\n  1. Click \"Done\" (or \"Cancel\"), not \"Move to Trash\".\n  2. Open System Settings > Privacy & Security, scroll down to the message\n     about {name} and click \"Open Anyway\" (the button stays for about an\n     hour after the attempt); confirm with your password or Touch ID, then\n     click \"Open\". macOS remembers it.\n  (On macOS 12 and earlier: System Preferences > Security & Privacy >\n  General > \"Open Anyway\". On macOS 14 and earlier, right-click the app,\n  choose \"Open\", then \"Open\" again, works too.)\n"
             ));
         } else {
             s.push_str(&format!(
@@ -188,7 +236,48 @@ mod tests {
         assert!(readme(&info, Target::WindowsX64, "en", true).contains("Run anyway"));
         assert!(readme(&info, Target::WindowsX64, "es", true).contains("Ejecutar de todas"));
         let mac = readme(&info, Target::MacosUniversal, "en", true);
-        assert!(mac.contains("\"Tip Calculator\" Not Opened") && mac.contains("Click \"Done\" (not \"Move to Trash\")") && mac.contains("Open Anyway"), "{mac}");
+        assert!(
+            mac.contains("macOS may say it did not open Tip Calculator because Apple could not\ncheck it for malware")
+                && mac.contains("Click \"Done\" (or \"Cancel\"), not \"Move to Trash\".")
+                && mac.contains("click \"Open Anyway\" (the button stays for about an\n     hour after the attempt)")
+                && mac.contains("On macOS 12 and earlier: System Preferences > Security & Privacy >\n  General > \"Open Anyway\".")
+                && mac.contains("It is made for Macs with Apple silicon (macOS 11 or later) and Intel\nMacs (macOS 10.13 or later).")
+                && mac.contains("THIRD-PARTY-NOTICES.txt (inside the app: right-click it, Show Package\nContents > Contents > Resources)")
+                && mac.contains("Apple, Mac, macOS and Touch ID are trademarks of Apple Inc.")
+                && mac.contains("it does not vouch for what the app\ndoes."),
+            "{mac}"
+        );
+        let mac_es = readme(&info, Target::MacosUniversal, "es", true);
+        assert!(
+            mac_es.contains("Está hecha para Mac con Apple silicon")
+                && mac_es.contains("Haz clic en \"Listo\" (o \"Cancelar\"), no en \"Mover a la papelera\".")
+                && mac_es.contains("Configuración del Sistema > Privacidad y seguridad")
+                && mac_es.contains("\"Abrir de todos modos\" (el botón queda")
+                && mac_es.contains("(dentro de la app: clic derecho, Mostrar contenido")
+                && mac_es.contains("no garantiza lo que la\napp hace."),
+            "{mac_es}"
+        );
+        // A console program on a Mac has its notices beside it, not inside an app.
+        assert!(!readme(&info, Target::MacosArm64, "en", false).contains("inside the app: right-click"));
+        // Windows: SmartScreen's memory is per file and not guaranteed; the credit is per target.
+        let win = readme(&info, Target::WindowsX64, "en", true);
+        assert!(win.contains("is made for 64-bit Windows 10 and 11") && win.contains("normally doesn't ask again for that file.") && !win.contains("remembers it"), "{win}");
+        assert!(win.contains("Windows and SmartScreen are trademarks of the Microsoft group of companies."), "{win}");
+        assert!(readme(&info, Target::WindowsX64, "es", true).contains("Windows normalmente no vuelve a preguntar por ese archivo."));
+        let arm = readme(&info, Target::WindowsArm64, "en", true);
+        assert!(arm.contains("with an ARM processor.\r\n") && !arm.contains("Snapdragon"), "{arm}");
+        assert!(readme(&info, Target::LinuxX64, "en", true).contains("Linux is the registered trademark of Linus Torvalds"));
+        assert!(readme(&info, Target::LinuxX64, "es", true).contains("Linux es una marca registrada de Linus Torvalds"));
+        // The web names no system: no trademark credit, but the "does not vouch" sentence stays.
+        let web = readme(&info, Target::Web, "en", true);
+        assert!(!web.contains("trademark") && web.contains("it does not vouch for what the app\ndoes."), "{web}");
+        // "made for", never "runs on" (nobody has opened it on every system it is made for).
+        for t in Target::ALL {
+            for lang in LANGUAGES {
+                let r = readme(&info, t, lang, true);
+                assert!(!r.contains("It runs on") && !r.contains("Funciona en Windows") && !r.contains("Funciona en Mac") && !r.contains("Funciona en todos"), "{t} {lang}");
+            }
+        }
         assert!(readme(&info, Target::LinuxX64, "en", true).contains("./install.sh"));
         assert!(readme(&info, Target::WindowsX86, "en", true).contains("Windows 7"));
         assert!(readme(&info, Target::Web, "es", true).contains("alojamiento web"));
