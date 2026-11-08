@@ -57,14 +57,8 @@ impl Home {
         self.release.as_ref().is_none_or(|r| r.kind == "sdk")
     }
 
-    /// Where `--interp` executables for `target` (`<os>-<arch>`) start
-    /// from in an install: the runner `name` (`rapidrintr-runner`, or
-    /// Windows' windowed `rapidrintr-runnerw`).
-    pub fn runner(&self, target: &str, name: &str) -> PathBuf {
-        self.root.join("runners").join(target).join(format!("{name}{}", exe_suffix(target)))
-    }
-
-    /// The runner targets an install ships.
+    /// The runner targets an install ships (`runners/<target>/`: runners.rs
+    /// reads them).
     pub fn runner_targets(&self) -> Vec<String> {
         let mut out: Vec<String> = fs::read_dir(self.root.join("runners"))
             .map(|d| d.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().into_owned()).collect())
@@ -188,15 +182,6 @@ pub fn system_name(target: &str) -> String {
     if arch.is_empty() { os.to_string() } else { format!("{os} ({arch})") }
 }
 
-/// `.exe` for Windows targets.
-pub fn exe_suffix(target: &str) -> &'static str {
-    if target.starts_with("windows-") {
-        ".exe"
-    } else {
-        ""
-    }
-}
-
 /// `<exe folder>/../lib/rapidr` when it is an install's home.
 /// Whether `program` (a canonical path) is RapidR Studio itself — the
 /// `ide/studio.rr` or `ide/rapidr-ide.rrbc` of this executable's own home:
@@ -294,7 +279,6 @@ mod tests {
         let home = Home { root: dir.clone(), release: Some(r) };
         assert!(home.can_build());
         assert_eq!(home.runner_targets(), ["linux-x86_64", "windows-aarch64"]);
-        assert!(home.runner("windows-aarch64", "rapidrintr-runnerw").ends_with("runners/windows-aarch64/rapidrintr-runnerw.exe"));
         fs::remove_dir_all(&dir).unwrap();
     }
 

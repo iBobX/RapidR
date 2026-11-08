@@ -290,6 +290,9 @@ pub struct Entry {
     pub kind: Kind,
     pub encrypted: bool,
     pub modified: Option<Modified>,
+    /// Marked executable (Unix mode 0755: a zip's or tar's; never set by
+    /// formats that don't keep modes).
+    pub executable: bool,
 }
 
 /// An opened archive: its entries, and what's needed to unpack them.
@@ -412,7 +415,7 @@ impl Archive {
             }
         });
         let size = unpacked.data.len() as u64;
-        let entry = Entry { name, size, compressed_size: bytes.len() as u64, kind: Kind::File, encrypted: false, modified: unpacked.mtime.map(Modified::Unix) };
+        let entry = Entry { name, size, compressed_size: bytes.len() as u64, kind: Kind::File, encrypted: false, modified: unpacked.mtime.map(Modified::Unix), executable: false };
         Ok(Archive { format, entries: vec![entry], body: Body::Single(unpacked.data) })
     }
 
@@ -618,6 +621,8 @@ struct NewEntry {
     folder: bool,
     /// Seconds since 1970 (UTC).
     mtime: i64,
+    /// Unix mode 0755 rather than 0644 (a program, a script).
+    executable: bool,
 }
 
 /// A new archive, built in memory and made by [`Writer::finish`].
@@ -667,12 +672,23 @@ impl Writer {
     /// modified at `mtime` (seconds since 1970, UTC). A name already there
     /// is replaced.
     pub fn add(&mut self, name: &str, data: Vec<u8>, mtime: i64) -> Result<(), String> {
+        self.add_file(name, data, mtime, false)
+    }
+
+    /// [`Writer::add`] for a program or a script: kept executable (Unix
+    /// mode 0755) in a zip or tar, so it runs where it is unpacked —
+    /// macOS' Archive Utility, `unzip` and `tar` keep the mode.
+    pub fn add_executable(&mut self, name: &str, data: Vec<u8>, mtime: i64) -> Result<(), String> {
+        self.add_file(name, data, mtime, true)
+    }
+
+    fn add_file(&mut self, name: &str, data: Vec<u8>, mtime: i64, executable: bool) -> Result<(), String> {
         let name = Self::entry_name(name, false)?;
         if self.format == Format::Gzip && self.entries.iter().any(|e| e.name != name) {
             return Err("a .gz file holds one file: make a .tar.gz or .zip for more".into());
         }
         self.entries.retain(|e| e.name != name);
-        self.entries.push(NewEntry { name, data, folder: false, mtime });
+        self.entries.push(NewEntry { name, data, folder: false, mtime, executable });
         Ok(())
     }
 
@@ -683,7 +699,7 @@ impl Writer {
         }
         let name = Self::entry_name(name, true)?;
         if !self.entries.iter().any(|e| e.name == name) {
-            self.entries.push(NewEntry { name, data: Vec::new(), folder: true, mtime });
+            self.entries.push(NewEntry { name, data: Vec::new(), folder: true, mtime, executable: false });
         }
         Ok(())
     }

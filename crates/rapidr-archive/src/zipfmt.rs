@@ -45,7 +45,8 @@ pub(crate) fn list(bytes: Vec<u8>) -> Result<(Zip, Vec<Entry>), String> {
         let modified = f.last_modified().map(|d| {
             Modified::Local(Stamp { year: i64::from(d.year()), month: u32::from(d.month()), day: u32::from(d.day()), hour: u32::from(d.hour()), minute: u32::from(d.minute()), second: u32::from(d.second()) })
         });
-        out.push(Entry { name, size: f.size(), compressed_size: f.compressed_size(), kind, encrypted: f.encrypted(), modified });
+        let executable = kind == Kind::File && f.unix_mode().is_some_and(|m| m & 0o111 != 0);
+        out.push(Entry { name, size: f.size(), compressed_size: f.compressed_size(), kind, encrypted: f.encrypted(), modified, executable });
     }
     Ok((z, out))
 }
@@ -81,7 +82,7 @@ pub(crate) fn write(entries: &[NewEntry], level: u32, offset: i64) -> Result<Vec
             continue;
         }
         let opts = if level == 0 { base.compression_method(CompressionMethod::Stored) } else { base.compression_method(CompressionMethod::Deflated).compression_level(Some(i64::from(level))) };
-        let opts = opts.unix_permissions(0o644).large_file(e.data.len() as u64 >= u64::from(u32::MAX));
+        let opts = opts.unix_permissions(if e.executable { 0o755 } else { 0o644 }).large_file(e.data.len() as u64 >= u64::from(u32::MAX));
         w.start_file(e.name.as_str(), opts).map_err(words)?;
         w.write_all(&e.data).map_err(|e| e.to_string())?;
     }

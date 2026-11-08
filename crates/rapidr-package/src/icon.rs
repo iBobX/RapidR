@@ -3,8 +3,6 @@
 //! `.ico`, `.png` (ideally 1024 × 1024) or `.svg` — drawn at every size each
 //! system wants.
 
-use std::path::Path;
-
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg;
 
@@ -72,17 +70,8 @@ impl Icon {
         Icon { source: Source::Default, origin: "RapidR's default icon".into() }
     }
 
-    /// An icon file: `.icns`, `.ico`, `.png` or `.svg` (told by its content).
-    pub fn load(path: &Path) -> Result<Icon, String> {
-        let shown = path.display();
-        let bytes = std::fs::read(path).map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => format!("{shown}: the icon file isn't there"),
-            _ => format!("{shown}: can't read the icon ({e})"),
-        })?;
-        Icon::from_bytes(&bytes, &shown.to_string())
-    }
-
-    /// An icon from a file's bytes; `origin` names it in messages.
+    /// An icon from a file's bytes (`.icns`, `.ico`, `.png` or `.svg`, told
+    /// by its content); `origin` names it in messages.
     pub fn from_bytes(bytes: &[u8], origin: &str) -> Result<Icon, String> {
         let bad = |why: String| format!("{origin}: {why}. An icon is a {FORMATS} file");
         let source = if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
@@ -116,22 +105,29 @@ impl Icon {
         matches!(self.source, Source::Default)
     }
 
-    /// Advice about the icon: a small picture scaled up looks blurry.
+    /// Advice about the icon: a small picture scaled up looks blurry; one
+    /// that isn't square is centred on a transparent square.
     pub fn notes(&self) -> Vec<String> {
-        match &self.source {
+        let mut out = Vec::new();
+        let (w, h) = match &self.source {
             Source::Pictures(p) => {
-                let side = p.first().map_or(0, |p| p.width().max(p.height()));
+                let (w, h) = p.first().map_or((0, 0), |p| (p.width(), p.height()));
+                let side = w.max(h);
                 if side < 512 {
-                    vec![format!(
-                        "{}: its largest picture is {side} × {side}: larger sizes are scaled up and look blurry (a 1024 × 1024 PNG or an SVG is sharp everywhere)",
+                    out.push(format!(
+                        "{}: its largest picture is {w} × {h}: larger sizes are scaled up and look blurry (a 1024 × 1024 PNG or an SVG is sharp everywhere)",
                         self.origin
-                    )]
-                } else {
-                    Vec::new()
+                    ));
                 }
+                (w as f32, h as f32)
             }
-            _ => Vec::new(),
+            Source::Svg(tree, _) => (tree.size().width(), tree.size().height()),
+            Source::Default => return out,
+        };
+        if w > 0.0 && h > 0.0 && ((w - h).abs() / w.max(h)) > 0.01 {
+            out.push(format!("{}: it isn't square ({} × {}): it is centred on a transparent square (a square picture fills the icon)", self.origin, w.round(), h.round()));
         }
+        out
     }
 
     /// The icon at `px` × `px` for `look`.
@@ -224,8 +220,6 @@ mod tests {
 
     #[test]
     fn loads_each_format() {
-        let dir = std::env::temp_dir().join(format!("rapidr-package-icon-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
         let png = picture::encode_png(&picture::from_rgba(1024, 1024, &[0, 128, 255, 255].repeat(1024 * 1024)));
         let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect width="100" height="50" fill="#f00"/></svg>"##;
         let files = [
@@ -235,34 +229,33 @@ mod tests {
             ("a.icns", Icon::rapidr_default().icns()),
             ("rq.ico", crate::ico::tests::rapidq_icon()),
         ];
-        for (name, bytes) in &files {
-            let path = dir.join(name);
-            std::fs::write(&path, bytes).unwrap();
-            let icon = Icon::load(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let load = |name: &str| Icon::from_bytes(&files.iter().find(|(n, _)| *n == name).unwrap().1, name);
+        for (name, _) in &files {
+            let icon = load(name).unwrap_or_else(|e| panic!("{name}: {e}"));
             for px in [16, 32, 256, 1024] {
                 let p = icon.picture(px, Look::Full);
                 assert_eq!((p.width(), p.height()), (px, px), "{name}");
             }
             assert!(icns::read(&icon.icns()).is_ok() && ico::read(&icon.ico()).is_ok(), "{name}");
         }
-        // a wide SVG is centred: see-through above and below
-        let wide = Icon::load(&dir.join("a.svg")).unwrap().picture(100, Look::Full);
+        // a wide SVG is centred: see-through above and below — and said
+        let wide_icon = load("a.svg").unwrap();
+        let wide = wide_icon.picture(100, Look::Full);
         let rgba = picture::to_rgba(&wide);
         assert_eq!(rgba[3], 0);
         assert_eq!(&rgba[(50 * 100 + 50) * 4..][..4], &[255, 0, 0, 255]);
+        assert!(wide_icon.notes().iter().any(|n| n.contains("isn't square")), "{:?}", wide_icon.notes());
         // RapidQ's 32 px icon is used, with a note that it's small
-        let rq = Icon::load(&dir.join("rq.ico")).unwrap();
+        let rq = load("rq.ico").unwrap();
         assert_eq!(rq.notes().len(), 1);
-        assert!(Icon::load(&dir.join("a.png")).unwrap().notes().is_empty());
+        assert!(load("a.png").unwrap().notes().is_empty());
+        // a small, wide PNG: both notes
+        let small = picture::encode_png(&picture::blank(64, 32));
+        assert_eq!(Icon::from_bytes(&small, "s.png").unwrap().notes().len(), 2);
 
         // clear errors
-        let missing = Icon::load(&dir.join("nowhere.ico")).unwrap_err();
-        assert!(missing.contains("isn't there"), "{missing}");
-        std::fs::write(dir.join("bad.png"), b"\x89PNG\r\n\x1a\nbroken").unwrap();
-        let broken = Icon::load(&dir.join("bad.png")).unwrap_err();
+        let broken = Icon::from_bytes(b"\x89PNG\r\n\x1a\nbroken", "bad.png").unwrap_err();
         assert!(broken.contains("not a PNG") && broken.contains(".icns, .ico"), "{broken}");
-        std::fs::write(dir.join("x.txt"), b"hello").unwrap();
-        assert!(Icon::load(&dir.join("x.txt")).unwrap_err().contains("not a picture"));
-        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(Icon::from_bytes(b"hello", "x.txt").unwrap_err().contains("not a picture"));
     }
 }

@@ -187,6 +187,29 @@ fn what_rapidr_writes_reads_back_and_other_tools_agree() {
     assert_eq!(Writer::new(Format::Rar, 6, 0).err().as_deref(), Some(RAR_REFUSED));
 }
 
+/// A program packed with [`Writer::add_executable`] keeps its exec bit
+/// (Unix mode 0755) in a zip and a tar, read back as `executable`; other
+/// files stay 0644 — what makes an app run where it is unpacked.
+#[test]
+fn executables_keep_their_mode() {
+    for format in [Format::Zip, Format::Tar, Format::TarGz] {
+        let mut w = Writer::new(format, 6, 0).unwrap();
+        w.add_executable("App.app/Contents/MacOS/app", b"\xcf\xfa\xed\xfe".to_vec(), 1_793_000_000).unwrap();
+        w.add("App.app/Contents/Info.plist", b"<plist/>".to_vec(), 1_793_000_000).unwrap();
+        let bytes = w.finish().unwrap();
+        let a = Archive::open(bytes.clone(), "", &limits()).unwrap();
+        let exe = a.find("App.app/Contents/MacOS/app", true).unwrap();
+        let plist = a.find("App.app/Contents/Info.plist", true).unwrap();
+        assert!(a.entries()[exe].executable, "{format:?}");
+        assert!(!a.entries()[plist].executable, "{format:?}");
+        if format == Format::Zip {
+            // (the zip crate's own reading agrees: mode 0755, made on Unix)
+            let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+            assert_eq!(z.by_name("App.app/Contents/MacOS/app").unwrap().unix_mode().map(|m| m & 0o777), Some(0o755));
+        }
+    }
+}
+
 /// RapidR's zip and tar.gz checked by the system's own tools (unzip -t,
 /// bsdtar, gzip -t) where they are.
 #[cfg(unix)]

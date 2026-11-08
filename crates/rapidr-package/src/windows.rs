@@ -10,7 +10,66 @@ use editpe::types::{FixedFileInfo, VersionU16, VersionU32};
 use crate::info::AppInfo;
 use crate::Icon;
 
-/// `exe` (a Windows executable) with `icon` and `info` as its resources.
+/// PE machine types (`IMAGE_FILE_MACHINE_*`).
+pub const MACHINE_X64: u16 = 0x8664;
+pub const MACHINE_ARM64: u16 = 0xAA64;
+pub const MACHINE_X86: u16 = 0x014C;
+
+/// The machine's name for messages.
+pub fn machine_name(machine: u16) -> &'static str {
+    match machine {
+        MACHINE_X64 => "x64",
+        MACHINE_ARM64 => "ARM64",
+        MACHINE_X86 => "32-bit x86",
+        _ => "another processor",
+    }
+}
+
+/// Where the PE header is (`PE\0\0`), from the DOS header's `e_lfanew`.
+fn pe_header(exe: &[u8]) -> Result<usize, String> {
+    let not = || "not a Windows executable (PE)".to_string();
+    if exe.get(0..2) != Some(b"MZ") {
+        return Err(not());
+    }
+    let at = u32::from_le_bytes(exe.get(0x3C..0x40).ok_or_else(not)?.try_into().map_err(|_| not())?) as usize;
+    if exe.get(at..at + 4) != Some(b"PE\0\0") {
+        return Err(not());
+    }
+    Ok(at)
+}
+
+/// The processor a Windows executable is for (its COFF header's Machine).
+pub fn machine(exe: &[u8]) -> Result<u16, String> {
+    let at = pe_header(exe)?;
+    exe.get(at + 4..at + 6).map(|b| u16::from_le_bytes([b[0], b[1]])).ok_or_else(|| "not a Windows executable (PE)".into())
+}
+
+/// The subsystem Windows starts an executable in: a GUI program opens no
+/// console window, a console one gets one. RapidR's windowed runner
+/// (`rapidrintr-runnerw.exe`) is its console runner with this one field
+/// changed (the optional header's `Subsystem`: 2 GUI, 3 console — at the
+/// same place in PE32 and PE32+), so one runner makes both.
+pub fn set_subsystem(exe: &mut [u8], gui: bool) -> Result<(), String> {
+    let at = pe_header(exe)? + 24 + 68;
+    let field = exe.get_mut(at..at + 2).ok_or("a damaged Windows executable (its optional header is cut short)")?;
+    let now = u16::from_le_bytes([field[0], field[1]]);
+    if now != 2 && now != 3 {
+        return Err(format!("the executable's subsystem is {now}, not a Windows console or GUI program"));
+    }
+    field.copy_from_slice(&(if gui { 2u16 } else { 3u16 }).to_le_bytes());
+    Ok(())
+}
+
+/// The executable's subsystem: true for GUI (2), false for console (3).
+pub fn is_gui(exe: &[u8]) -> Result<bool, String> {
+    let at = pe_header(exe)? + 24 + 68;
+    let f = exe.get(at..at + 2).ok_or("a damaged Windows executable")?;
+    Ok(u16::from_le_bytes([f[0], f[1]]) == 2)
+}
+
+/// `exe` (a Windows executable) with `icon` and `info` as its resources,
+/// and [`LINK_MANIFEST`] when it has no manifest (a runner has none; a
+/// native program is linked with it).
 pub fn stamp(exe: &[u8], info: &AppInfo, icon: &Icon) -> Result<Vec<u8>, String> {
     info.check()?;
     let v = info.version_numbers()?;
@@ -18,6 +77,9 @@ pub fn stamp(exe: &[u8], info: &AppInfo, icon: &Icon) -> Result<Vec<u8>, String>
     let mut resources: ResourceDirectory = image.resource_directory().cloned().unwrap_or_default();
     resources.remove_main_icon().map_err(|e| format!("the executable's icon: {e}"))?;
     resources.set_main_icon(icon.ico()).map_err(|e| format!("the icon: {e}"))?;
+    if resources.get_manifest().map_err(|e| format!("the executable's manifest: {e}"))?.is_none() {
+        resources.set_manifest(LINK_MANIFEST).map_err(|e| format!("the manifest: {e}"))?;
+    }
 
     let version_text = format!("{}.{}.{}.{}", v[0], v[1], v[2], v[3]);
     let mut strings = Vec::new();
@@ -26,6 +88,7 @@ pub fn stamp(exe: &[u8], info: &AppInfo, icon: &Icon) -> Result<Vec<u8>, String>
             strings.push((k.to_string(), val.to_string()));
         }
     };
+    put("Comments", info.website.trim());
     put("CompanyName", info.company.trim());
     put("FileDescription", if info.description.trim().is_empty() { info.name.trim() } else { info.description.trim() });
     put("FileVersion", &version_text);
@@ -127,13 +190,41 @@ pub fn inspect(exe: &[u8]) -> Result<(bool, String, String), String> {
     Ok((icon, product, version))
 }
 
+/// What a Windows executable says about itself, as Explorer's Properties
+/// shows it: its version strings (ProductName, FileVersion, CompanyName …),
+/// whether it has an icon, its manifest, its subsystem and machine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Details {
+    pub strings: std::collections::BTreeMap<String, String>,
+    pub icon: bool,
+    pub manifest: Option<String>,
+    pub gui: bool,
+    pub machine: u16,
+}
+
+/// The [`Details`] of `exe`.
+pub fn details(exe: &[u8]) -> Result<Details, String> {
+    let image = Image::parse(exe).map_err(|e| e.to_string())?;
+    let mut d = Details { strings: Default::default(), icon: false, manifest: None, gui: is_gui(exe)?, machine: machine(exe)? };
+    if let Some(res) = image.resource_directory() {
+        d.icon = res.get_main_icon().map_err(|e| e.to_string())?.is_some();
+        d.manifest = res.get_manifest().map_err(|e| e.to_string())?;
+        if let Some(v) = res.get_version_info().map_err(|e| e.to_string())? {
+            for t in &v.strings {
+                d.strings.extend(t.strings.iter().map(|(k, v)| (k.clone(), v.clone())));
+            }
+        }
+    }
+    Ok(d)
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// The smallest PE32+ executable editpe reads: headers and one code
-    /// section (a `ret`), no resources.
-    fn tiny_exe() -> Vec<u8> {
+    /// section (a `ret`), no resources; a console program for x64.
+    pub(crate) fn tiny_exe() -> Vec<u8> {
         let mut b = vec![0u8; 0x400];
         b[0..2].copy_from_slice(b"MZ");
         b[0x3C..0x40].copy_from_slice(&0x40u32.to_le_bytes());
@@ -158,7 +249,7 @@ mod tests {
         put16(&mut b, opt + 48, 6); // subsystem version
         put32(&mut b, opt + 56, 0x2000); // size of image
         put32(&mut b, opt + 60, 0x200); // size of headers
-        put16(&mut b, opt + 68, 2); // GUI
+        put16(&mut b, opt + 68, 3); // console
         put64(&mut b, opt + 72, 0x10_0000);
         put64(&mut b, opt + 80, 0x1000);
         put64(&mut b, opt + 88, 0x10_0000);
@@ -192,6 +283,47 @@ mod tests {
         let again = stamp(&stamped, &info, &Icon::rapidr_default()).unwrap();
         assert_eq!(inspect(&again).unwrap().1, "Other");
         assert!(stamp(b"MZ not really", &info, &Icon::rapidr_default()).is_err());
+    }
+
+    /// The windowed runner is the console runner with its subsystem set to
+    /// GUI: one field, nothing else changes.
+    #[test]
+    fn the_subsystem_is_one_field() {
+        let exe = tiny_exe();
+        assert_eq!(machine(&exe).unwrap(), MACHINE_X64);
+        assert!(!is_gui(&exe).unwrap());
+        let mut w = exe.clone();
+        set_subsystem(&mut w, true).unwrap();
+        assert!(is_gui(&w).unwrap());
+        let changed: Vec<usize> = exe.iter().zip(&w).enumerate().filter(|(_, (a, b))| a != b).map(|(i, _)| i).collect();
+        assert_eq!(changed, [0x44 + 20 + 68], "only the subsystem's low byte");
+        set_subsystem(&mut w, false).unwrap();
+        assert_eq!(w, exe);
+        // (not a PE; a PE whose subsystem is neither: refused)
+        assert!(set_subsystem(&mut b"MZ".to_vec(), true).is_err());
+        assert!(machine(b"\x7fELF").unwrap_err().contains("not a Windows executable"));
+        let mut driver = exe.clone();
+        driver[0x44 + 20 + 68] = 1;
+        assert!(set_subsystem(&mut driver, true).unwrap_err().contains("subsystem is 1"));
+    }
+
+    /// A stamped runner says everything Properties > Details shows, and
+    /// runs as the person who starts it (the manifest).
+    #[test]
+    fn a_stamped_runner_says_who_it_is() {
+        let mut info = AppInfo::new("Tip Calculator", "Tip-Calculator");
+        info.version = "1.2.3".into();
+        info.company = "Example Ltd".into();
+        info.description = "Splits the bill".into();
+        info.website = "https://example.com/tips".into();
+        let d = details(&stamp(&tiny_exe(), &info, &Icon::rapidr_default()).unwrap()).unwrap();
+        let s = |k: &str| d.strings.get(k).cloned().unwrap_or_default();
+        assert_eq!(
+            [s("ProductName"), s("FileVersion"), s("ProductVersion"), s("CompanyName"), s("FileDescription"), s("LegalCopyright"), s("OriginalFilename"), s("Comments")],
+            ["Tip Calculator", "1.2.3.0", "1.2.3", "Example Ltd", "Splits the bill", "© Example Ltd", "Tip-Calculator.exe", "https://example.com/tips"]
+        );
+        assert!(d.icon && !d.gui && d.machine == MACHINE_X64);
+        assert_eq!(d.manifest.as_deref(), Some(LINK_MANIFEST));
     }
 
     #[test]

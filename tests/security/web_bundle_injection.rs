@@ -50,6 +50,7 @@ fn bundle(name: &str, assets: &HashMap<String, String>, needs: &WebNeeds) -> Has
         fonts: &[],
         notices: "NOTICES",
         needs,
+        meta: None,
     })
     .expect("bundle");
     unzip(&bytes)

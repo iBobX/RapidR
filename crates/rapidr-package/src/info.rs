@@ -17,11 +17,129 @@ pub struct AppInfo {
     pub company: String,
     /// A copyright line; empty: "© <company>" when there's a company.
     pub copyright: String,
-    /// One line about it (Windows' FileDescription, Linux' Comment).
+    /// One line about it (Windows' FileDescription, Linux' Comment, the
+    /// web page's description).
     pub description: String,
-    /// A console program (Linux: `Terminal=true`).
+    /// Its web site (`https://example.com`): the README's, Windows'
+    /// Comments.
+    pub website: String,
+    /// What kind of app it is (macOS' LSApplicationCategoryType, Linux'
+    /// Categories).
+    pub category: Category,
+    /// The web app's colour (`#RRGGBB`: its manifest's and its page's
+    /// theme-color); empty: the page's background.
+    pub theme_color: String,
+    /// A console program (Linux: `Terminal=true`; Windows: the console
+    /// runner).
     pub console: bool,
 }
+
+/// What kind of app it is: one word for every system's own list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Category {
+    #[default]
+    Utilities,
+    Productivity,
+    Education,
+    Games,
+    DeveloperTools,
+    Graphics,
+    Music,
+    Video,
+    Business,
+    Finance,
+    Science,
+}
+
+impl Category {
+    pub const ALL: [Category; 11] = [
+        Category::Utilities,
+        Category::Productivity,
+        Category::Education,
+        Category::Games,
+        Category::DeveloperTools,
+        Category::Graphics,
+        Category::Music,
+        Category::Video,
+        Category::Business,
+        Category::Finance,
+        Category::Science,
+    ];
+
+    /// Its name in a project (`[build] category`) and on the command line.
+    pub fn name(self) -> &'static str {
+        match self {
+            Category::Utilities => "utilities",
+            Category::Productivity => "productivity",
+            Category::Education => "education",
+            Category::Games => "games",
+            Category::DeveloperTools => "developer-tools",
+            Category::Graphics => "graphics",
+            Category::Music => "music",
+            Category::Video => "video",
+            Category::Business => "business",
+            Category::Finance => "finance",
+            Category::Science => "science",
+        }
+    }
+
+    /// The category a word names (`""`: utilities).
+    pub fn parse(word: &str) -> Result<Category, String> {
+        let w = word.trim().to_ascii_lowercase().replace([' ', '_'], "-");
+        if w.is_empty() {
+            return Ok(Category::default());
+        }
+        let alias = match w.as_str() {
+            "utility" | "tools" => "utilities",
+            "game" => "games",
+            "developer" | "development" | "developer-tool" => "developer-tools",
+            "audio" => "music",
+            "office" => "productivity",
+            other => other,
+        };
+        Category::ALL.into_iter().find(|c| c.name() == alias).ok_or_else(|| {
+            let names: Vec<&str> = Category::ALL.iter().map(|c| c.name()).collect();
+            format!("category \"{word}\": one of {}", names.join(", "))
+        })
+    }
+
+    /// macOS' LSApplicationCategoryType.
+    pub fn mac(self) -> &'static str {
+        match self {
+            Category::Utilities => "public.app-category.utilities",
+            Category::Productivity => "public.app-category.productivity",
+            Category::Education | Category::Science => "public.app-category.education",
+            Category::Games => "public.app-category.games",
+            Category::DeveloperTools => "public.app-category.developer-tools",
+            Category::Graphics => "public.app-category.graphics-design",
+            Category::Music => "public.app-category.music",
+            Category::Video => "public.app-category.video",
+            Category::Business => "public.app-category.business",
+            Category::Finance => "public.app-category.finance",
+        }
+    }
+
+    /// A desktop entry's Categories (freedesktop.org's main categories,
+    /// with an additional one where it says more).
+    pub fn linux(self) -> &'static str {
+        match self {
+            Category::Utilities => "Utility;",
+            Category::Productivity => "Office;",
+            Category::Education => "Education;",
+            Category::Games => "Game;",
+            Category::DeveloperTools => "Development;",
+            Category::Graphics => "Graphics;",
+            Category::Music => "AudioVideo;Audio;",
+            Category::Video => "AudioVideo;Video;",
+            Category::Business => "Office;",
+            Category::Finance => "Office;Finance;",
+            Category::Science => "Education;Science;",
+        }
+    }
+}
+
+/// The version an app has unless it says.
+pub const DEFAULT_VERSION: &str = "1.0.0";
 
 /// The identifier an app gets unless it says: `dev.rapidr.app.` and its
 /// name in lower-case letters, digits and hyphens.
@@ -74,17 +192,20 @@ pub fn exe_name_for(name: &str) -> Option<String> {
 }
 
 impl AppInfo {
-    /// `name`'s app whose executable is `exe`, version 1.0, everything else
-    /// the defaults.
+    /// `name`'s app whose executable is `exe`, version 1.0.0, everything
+    /// else the defaults.
     pub fn new(name: &str, exe: &str) -> AppInfo {
         AppInfo {
             name: name.to_string(),
             exe: exe.to_string(),
             bundle_id: default_bundle_id(name),
-            version: "1.0".into(),
+            version: DEFAULT_VERSION.into(),
             company: String::new(),
             copyright: String::new(),
             description: String::new(),
+            website: String::new(),
+            category: Category::default(),
+            theme_color: String::new(),
             console: false,
         }
     }
@@ -142,13 +263,57 @@ impl AppInfo {
         if !ok {
             return Err(format!("bundle ID \"{id}\": letters, digits, - and dots, like com.example.notepad"));
         }
-        self.version_numbers().map(|_| ())
+        self.version_numbers()?;
+        let c = self.theme_color.trim();
+        if !c.is_empty() && !(c.len() == 7 && c.starts_with('#') && c[1..].bytes().all(|b| b.is_ascii_hexdigit())) {
+            return Err(format!("theme colour \"{c}\": #RRGGBB, like #1E88E5"));
+        }
+        let w = self.website.trim();
+        let web_address = (w.starts_with("https://") || w.starts_with("http://")) && w.len() > 8 && !w.chars().any(|c| c.is_whitespace() || c.is_control() || "\"<>`".contains(c));
+        if !w.is_empty() && !web_address {
+            return Err(format!("website \"{w}\": a web address starting with https://"));
+        }
+        Ok(())
+    }
+
+    /// What an archive of it is named before its target: `Name-1.0.0`
+    /// (the name made a file name, as the executable's).
+    pub fn file_stem(&self) -> String {
+        let name = exe_name_for(&self.name).unwrap_or_else(|| self.exe.clone());
+        format!("{name}-{}", self.version.trim())
     }
 }
 
 /// `text` escaped for XML (Info.plist).
 pub(crate) fn xml(text: &str) -> String {
     text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+}
+
+/// `text` as a JSON string, quotes included (the web manifest).
+pub(crate) fn json_string(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            // (`<` too: the text can never close a script it is put in)
+            '<' => out.push_str("\\u003c"),
+            c if (c as u32) < 0x20 || c == '\u{2028}' || c == '\u{2029}' => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// `text` as one word for a POSIX shell: in single quotes, a quote in it
+/// as `'\''` (install.sh: nothing in it is ever run or expanded).
+pub(crate) fn sh_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 #[cfg(test)]

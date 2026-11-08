@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Tip Calculator's icon (RapidR's example): a receipt with a percent sign on a teal tile. -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#0B7B5E"/>
+  <path d="M312 208h400a32 32 0 0 1 32 32v568l-72-48-72 48-72-48-72 48-72-48-72 48-72-48-32 21V240a32 32 0 0 1 32-32z" fill="#FFFFFF"/>
+  <rect x="368" y="296" width="288" height="36" rx="18" fill="#B9E6D8"/>
+  <rect x="368" y="376" width="208" height="36" rx="18" fill="#B9E6D8"/>
+  <circle cx="418" cy="520" r="44" fill="none" stroke="#0B7B5E" stroke-width="36"/>
+  <circle cx="606" cy="668" r="44" fill="none" stroke="#0B7B5E" stroke-width="36"/>
+  <path d="M640 486 384 702" stroke="#0B7B5E" stroke-width="40" stroke-linecap="round"/>
+</svg>
