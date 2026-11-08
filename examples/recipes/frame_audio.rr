@@ -4,11 +4,11 @@
 ' the way an emulator plays it: run a frame (here 70560 cycles), note the
 ' cycle of every flip, then turn the flips into the frame's 882 samples
 ' (44100 / 50): each sample is the share of its 80 cycles the bit was
-' high. An RTimer checks every 10 ms (its ticks come on the system
-' timer's 15.6 ms steps, and the next one an Interval after its handler
-' ended) and runs frames until about 60 ms is queued, so a late tick is
-' caught up. Another way: Interval = 20 with FixedRate = 1, a tick exactly
-' every 20 ms by the clock, one frame each.
+' high. An RTimer checks every 10 ms (a RapidR program's ticks
+' come exactly by the clock; a classic program's, and FixedRate = 0, on the
+' system timer's 15.6 ms steps) and runs frames until about 60 ms is queued,
+' so a late tick is caught up. Another way: Interval = 20, a tick exactly
+' every 20 ms, one frame each.
 '
 '   rapidr run frame_audio.rr
 $THEME rapidr

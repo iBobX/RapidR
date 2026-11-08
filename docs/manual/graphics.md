@@ -233,29 +233,37 @@ for 50,000 elements, which hid in every `RAudioOut.Write buf` too; that is gone.
 
 ## A picture every 20 milliseconds
 
-A timer's `Interval` is counted in the system timer's steps of 15.6 ms,
-rounded up: `Interval = 20` is 31.25 ms, about 32 ticks a second, not 50. And
-when the handler takes a good part of the Interval, how the ticks follow one
-another depends on the timer:
+In a RapidR program an `RTimer` ticks **every `Interval` milliseconds,
+exactly**, by the clock (`FixedRate`, on by default): `Interval = 20` is 50
+ticks a second. A handler never runs inside itself, so when one takes longer
+than the Interval the tick that fell due runs the moment it ends, and the ticks
+missed besides it one after another until the timer has caught up; if the
+program is more than 250 ms behind (a dragged window, a long dialog) it counts
+again from then.
+
+Set `FixedRate = 0` and each tick comes one Interval after the last handler
+*ended* instead, the Interval counted in the system timer's steps of 15.6 ms,
+rounded up (`Interval = 20` is 31.25 ms, about 32 ticks a second). A classic
+program's `QTimer` (a `.bas` file) keeps the system timer's own beat. How the
+three differ when the handler takes a good part of the Interval:
 
 | The timer | The next tick comes |
 |---|---|
-| an `RTimer` in a RapidR program (the default) | one Interval after the handler has **ended**: a 24 ms handler at `Interval = 20` ticks about every 55 ms |
-| an `RTimer` with `FixedRate = 1` | every Interval **exactly**, by the clock: `Interval = 20` is 50 a second. A tick that fell due while a long handler ran runs the moment it ends, and the ones missed besides it one after another (handlers never overlap), up to 250 ms behind; further behind (a dragged window, a long dialog) and it counts again from then |
-| a classic program's `QTimer` (a `.bas` file) | on the beat: an Interval from where the last tick was **due**, so a 24 ms handler still ticks every 31 ms; a tick that fell due during the handler runs the moment it ends, the ones missed besides it are dropped |
+| an `RTimer` in a RapidR program (`FixedRate` True, the default) | every Interval **exactly**, by the clock: `Interval = 20` is 50 a second whatever a 4 ms handler does. A tick that fell due while a long handler ran runs the moment it ends, and the ones missed besides it one after another, up to 250 ms behind |
+| an `RTimer` with `FixedRate = 0` | one Interval after the handler has **ended**, in 15.6 ms steps: a 24 ms handler at `Interval = 20` ticks about every 55 ms |
+| a classic program's `QTimer` (a `.bas` file) | on the beat: a period (the Interval in 15.6 ms steps) from where the last tick was **due**, so a 24 ms handler still ticks every 31 ms; a tick that fell due during the handler runs the moment it ends, the ones missed besides it are dropped |
 
-A program that wants a steady beat — an emulator's 50 frames a second, a
-clock hand, a metronome — sets `FixedRate = 1`:
+A program that wants a steady beat — an emulator's 50 frames a second, a clock
+hand, a metronome — needs nothing more than the Interval:
 
 ```basic
-Clock.Interval = 20
-Clock.FixedRate = 1            ' every 20 ms by the clock, not 20 ms after the last frame
+Clock.Interval = 20            ' every 20 ms by the clock, not 20 ms after the last frame
 ```
 
-![steady_timer.rr: two timers at Interval = 20 with 4 ms of work in each tick; the default one counted 25 ticks in the last second, the one with FixedRate 50](images/graphics/steady-timer.png)
+![steady_timer.rr: two timers at Interval = 20 with 4 ms of work in each tick; the one with FixedRate = 0 counted 25 ticks in the last second, the default one 50](images/graphics/steady-timer.png)
 
 [steady_timer.rr](../../examples/gui/steady_timer.rr) runs both side by side
-and counts their ticks. The other way, which works without `FixedRate` and
+and counts their ticks. The other way, which works in a classic program too and
 cares nothing for the ticks' rhythm: let the timer look at every tick and draw a
 picture only when one is **due**, keeping the due time yourself:
 
@@ -271,8 +279,8 @@ END SUB
 ```
 
 with `Interval = 10` on the timer. The frames are exactly 20 ms apart on
-average whatever the ticks do, as long as one frame's own work is under about
-4 ms. [pixels_fast.rr](../../examples/graphics/pixels_fast.rr) is this loop:
+average whatever the ticks do, as long as one frame's own work is well under
+the 20 ms. [pixels_fast.rr](../../examples/graphics/pixels_fast.rr) is this loop:
 its readout says how many frames a second it really draws, and how long it
 spent working the picture out, putting it into the bitmap and drawing it.
 
@@ -282,7 +290,7 @@ spent working the picture out, putting it into the bitmap and drawing it.
 |---|---|
 | [round_rect.rr](../../examples/graphics/round_rect.rr) | `RoundRect` with a border and an inside in one call: a card, three status chips and the three forms, in the look's own colours (light, dark, high contrast) |
 | [copy_modes.rr](../../examples/graphics/copy_modes.rr) | `CopyMode` on one picture: replace, XOR, a negative, OR, scanlines (`cmSrcAnd`) and a selection box (`cmPatInvert`) |
-| [steady_timer.rr](../../examples/gui/steady_timer.rr) | An `RTimer` and an `RTimer` with `FixedRate` counting their ticks side by side: about 25 a second against 50 |
+| [steady_timer.rr](../../examples/gui/steady_timer.rr) | Two `RTimer`s counting their ticks side by side: the default, 50 a second, and one with `FixedRate = 0`, about 25 |
 | [pixels_fast.rr](../../examples/graphics/pixels_fast.rr) | A plasma (palette cycling, 256 x 192) and the Game of Life (64 x 48 cells worked out every frame) at 50 frames a second, with the readout. **Method** switches to a `Pset` for every pixel, to see the difference: the plasma drops to about 12 pictures a second |
 | [video_memory.rr](../../examples/recipes/video_memory.rr) | The systems recipe: a machine's bitmap and colour attributes kept decoded in a `BYTE` array and drawn with `SetPixels8`; **Repaint** times a full repaint (about 0.2 ms; the first version of the recipe took 8 to 13 ms) |
 | [tools/bench/pixels.rr](../../tools/bench/pixels.rr) | The benchmark above, to run on your own computer |

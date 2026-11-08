@@ -139,7 +139,7 @@ export const cases = [
     expect: ["answer.caption=Hello, World! (2)"] },
   // (steady_timer: two timers and the second that reads them; the counts depend on the clock, the words do not)
   { file: "gui/steady_timer.rr", runtimes: ["run", "interp", "native", "web"], dump: "heading.caption,plainwords.caption",
-    expect: ["heading.caption=Two timers, Interval = 20", "plainwords.caption=The default: a tick one Interval after the handler ended"] },
+    expect: ["heading.caption=Two timers, Interval = 20", "plainwords.caption=FixedRate = 0: a tick one Interval after the handler ended"] },
   // (Tab out of each box: its OnExit checks it, the next one's OnEnter
   // shows its help)
   // snapshot.rr: RWindowCapture — a picture of its own window saved beside it

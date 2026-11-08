@@ -109,8 +109,12 @@ CREATE Studio AS RForm
     Enabled = 0
     OnTimer = LayoutProbeTick
   END CREATE
+  ' (a turn later: Interval 1 as a RapidR program's RTimer reads it would
+  ' tick a millisecond on — before the host's next frame has laid the new
+  ' pane out; FixedRate = 0 keeps the system timer's first step, 15.6 ms)
   CREATE EditorFocus AS RTimer
     Interval = 1
+    FixedRate = 0
     Enabled = 0
     OnTimer = EditorFocusTick
   END CREATE

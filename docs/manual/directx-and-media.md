@@ -168,12 +168,12 @@ program at exact moments. An emulator plays it a frame at a time
 
 An `RTimer` checks often and runs frames until about 60 ms is queued, so a
 tick that comes late catches up and the sound never gaps. Use
-`Interval = 10`: an `RTimer`'s ticks come on the system timer's 15.6 ms
-steps (`Interval = 20` ticks only every 31 ms, and a RapidR program's timer
-ticks one Interval after its handler has *ended*, which leaves a 60 ms queue
-little room for a late one). Or set `FixedRate = 1` with `Interval = 20`: a
-tick exactly every 20 ms by the clock, one frame each, a late one made up at
-once ([A picture every 20 milliseconds](graphics.md#a-picture-every-20-milliseconds)).
+`Interval = 10`, or simply `Interval = 20`: in a RapidR program an `RTimer`
+ticks exactly every Interval by the clock (`FixedRate`, on by default), one
+frame each at 20, and a late tick is made up at once. (With `FixedRate = 0`, and
+in a classic program, the ticks come on the system timer's 15.6 ms steps:
+`Interval = 20` ticks only every 31 ms, which leaves a 60 ms queue little room
+for a late one — [A picture every 20 milliseconds](graphics.md#a-picture-every-20-milliseconds).)
 RapidR's interpreter makes such a frame in 0.2 to 0.6 ms, a small part of the
 20 ms it has.
 

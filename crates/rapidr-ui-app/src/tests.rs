@@ -391,7 +391,9 @@ fn a_classic_timer_keeps_its_beat_whatever_its_handler_takes() {
     // at once; the beat goes on from 93.75
     advance(Duration::from_millis(50));
     run_queued();
-    assert_eq!(timers::next_due(), Some(at(112.5)));
+    // (already due: the loop's other work first, a millisecond)
+    assert_eq!(timers::next_due(), Some(at(113.5)));
+    advance(Duration::from_millis(1));
     assert!(timers::fire_due(Mem));
     run_queued();
     assert_eq!(timers::next_due(), Some(at(125.0)), "back on the beat: 93.75 + 31.25");
@@ -416,8 +418,11 @@ fn a_timer_that_is_behind_runs_once_a_turn() {
     });
     advance(Duration::from_micros(31_250));
     assert!(!timers::fire_due(Mem));
-    assert_eq!(fired().len(), 1, "its next tick fell due during the handler: it waits for the next turn");
-    assert_eq!(timers::next_due().map(|d| d <= NOW.with(|n| n.get()).unwrap()), Some(true));
+    assert_eq!(fired().len(), 1, "its next tick fell due during the handler: it waits for the loop's other work");
+    // (a millisecond, not more: the loop's turn, then it runs again)
+    let now = NOW.with(|n| n.get()).unwrap();
+    assert_eq!(timers::next_due(), Some(now + timers::OVERDUE_WAIT));
+    advance(timers::OVERDUE_WAIT);
     assert!(!timers::fire_due(Mem));
     assert_eq!(fired().len(), 2);
 }
@@ -445,16 +450,18 @@ fn a_fixed_rate_timer_ticks_every_interval_and_catches_up() {
     // beat goes on from it
     advance(Duration::from_millis(35));
     run_queued();
-    assert_eq!(timers::next_due(), Some(at(55)));
+    assert_eq!(timers::next_due(), Some(at(56)), "the tick of 40 is due: the loop's other work first, a millisecond");
+    advance(Duration::from_millis(1));
     assert!(timers::fire_due(Mem));
     run_queued();
     assert_eq!(timers::next_due(), Some(at(60)));
-    advance(Duration::from_millis(5));
+    advance(Duration::from_millis(4));
     assert!(timers::fire_due(Mem));
     // a handler of 600 ms (a dialog): too far behind to replay, it counts again from then
     advance(Duration::from_millis(600));
     run_queued();
-    assert_eq!(timers::next_due(), Some(at(660)));
+    assert_eq!(timers::next_due(), Some(at(661)), "behind: a millisecond for the loop, then it counts again");
+    advance(Duration::from_millis(1));
     assert!(timers::fire_due(Mem));
     run_queued();
     assert_eq!(timers::next_due(), Some(at(680)));

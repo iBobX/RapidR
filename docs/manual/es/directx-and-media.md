@@ -186,13 +186,13 @@ vez (examples/media/beeper.rr, y la receta examples/recipes/frame_audio.rr):
 
 Un `RTimer` revisa con frecuencia y ejecuta cuadros hasta que hay unos 60 ms en
 cola, así que un tic que llega tarde se pone al día y el sonido nunca tiene
-huecos. Usa `Interval = 10`: los tics de un `RTimer` llegan en los pasos de
-15.6 ms del temporizador del sistema (`Interval = 20` solo marca cada 31 ms, y el
-temporizador de un programa de RapidR marca un Interval después de que su
-controlador *terminó*, lo que le deja a una cola de 60 ms poco margen para un tic
-tardío). O pon `FixedRate = 1` con `Interval = 20`: un tic exactamente cada 20 ms
-según el reloj, un cuadro por tic, y uno tardío se recupera de inmediato
-([Una imagen cada 20 milisegundos](graphics.md#una-imagen-cada-20-milisegundos)).
+huecos. Usa `Interval = 10`, o sencillamente `Interval = 20`: en un programa de
+RapidR un `RTimer` marca exactamente cada Interval según el reloj (`FixedRate`,
+activado por defecto), un cuadro por tic con 20, y un tic tardío se recupera de
+inmediato. (Con `FixedRate = 0`, y en un programa clásico, los tics llegan en los
+pasos de 15.6 ms del temporizador del sistema: `Interval = 20` solo marca cada 31
+ms, lo que le deja a una cola de 60 ms poco margen para un tic tardío —
+[Una imagen cada 20 milisegundos](graphics.md#una-imagen-cada-20-milisegundos).)
 El intérprete de RapidR hace un cuadro así en 0.2 a 0.6 ms, una pequeña parte de
 los 20 ms de que dispone.
 

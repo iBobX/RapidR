@@ -221,7 +221,7 @@ SUB FillExamples
   AddMoreExample "graphics/pixels_fast.rr", "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
   AddMoreExample "graphics/round_rect.rr", "RoundRect with a border and an inside in one call: a card, chips, the three forms"
   AddMoreExample "graphics/copy_modes.rr", "CopyMode: replace, XOR, a negative, OR, scanlines, a selection box"
-  AddMoreExample "gui/steady_timer.rr", "Two timers, one with FixedRate: about 25 ticks a second against 50"
+  AddMoreExample "gui/steady_timer.rr", "Two timers: the default ticks 50 a second, one with FixedRate = 0 about 25"
   AddMoreExample "media/audio_errors.rr", "What an RAudioOut says when the sound goes wrong (OnError)"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"

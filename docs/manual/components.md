@@ -122,9 +122,10 @@ DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
   timer's next tick. When the handler takes longer than the `Interval`, what
   follows depends on the timer (the table in [A picture every 20
   milliseconds](graphics.md#a-picture-every-20-milliseconds)): a RapidR
-  program's `RTimer` ticks again one Interval after the handler ends; an
-  `RTimer` with `FixedRate = 1` ticks at once and makes up the ticks it missed;
-  a classic `QTimer` ticks at once and does not make them up.
+  program's `RTimer` ticks at once and makes up the ticks it missed
+  (`FixedRate`, on by default); with `FixedRate = 0` it ticks again one
+  Interval after the handler ends; a classic `QTimer` ticks at once and does
+  not make them up.
 - **A handler that calls `DOEVENTS`** lets the waiting events run there and
   then — another timer's tick, a click —, then goes on.
 - **The events your own code fires run at once**, inside the line that

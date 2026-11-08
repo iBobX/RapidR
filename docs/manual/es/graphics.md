@@ -245,32 +245,41 @@ eso ya no pasa.
 
 ## Una imagen cada 20 milisegundos
 
-El `Interval` de un temporizador se cuenta en los pasos de 15.6 ms del
-temporizador del sistema, redondeado hacia arriba: `Interval = 20` son 31.25 ms,
-unas 32 marcas por segundo, no 50. Y cuando el controlador tarda buena parte del
-Interval, cómo se siguen las marcas depende del temporizador:
+En un programa de RapidR un `RTimer` marca **cada `Interval` milisegundos,
+exactos**, según el reloj (`FixedRate`, activado por defecto): `Interval = 20`
+son 50 marcas por segundo. Un controlador nunca se ejecuta dentro de sí mismo,
+así que cuando uno tarda más que el Interval, la marca que venció corre en cuanto
+termina, y las perdidas además de ella una tras otra hasta alcanzar el ritmo; si
+el programa va más de 250 ms atrasado (una ventana arrastrada, un diálogo largo)
+cuenta de nuevo desde ese momento.
+
+Pon `FixedRate = 0` y cada marca llega un Interval después de que el último
+controlador *terminó*, con el Interval contado en los pasos de 15.6 ms del
+temporizador del sistema, redondeado hacia arriba (`Interval = 20` son 31.25 ms,
+unas 32 marcas por segundo). El `QTimer` de un programa clásico (un archivo
+`.bas`) conserva el compás propio del temporizador del sistema. Cómo se
+diferencian los tres cuando el controlador tarda buena parte del Interval:
 
 | El temporizador | La siguiente marca llega |
 |---|---|
-| un `RTimer` en un programa de RapidR (lo predeterminado) | un Interval después de que el controlador **terminó**: con un controlador de 24 ms y `Interval = 20` marca cada 55 ms más o menos |
-| un `RTimer` con `FixedRate = 1` | cada Interval **exacto**, según el reloj: `Interval = 20` son 50 por segundo. Una marca que venció mientras un controlador largo se ejecutaba corre en cuanto este termina, y las perdidas además de ella una tras otra (los controladores nunca se solapan), hasta 250 ms de atraso; más atrasado (una ventana arrastrada, un diálogo largo) y vuelve a contar desde ese momento |
-| el `QTimer` de un programa clásico (un archivo `.bas`) | al compás: un Interval después de cuando le tocaba a la última marca, así que con un controlador de 24 ms sigue marcando cada 31 ms; una marca que venció durante el controlador corre en cuanto este termina, y las perdidas además de ella se descartan |
+| un `RTimer` en un programa de RapidR (`FixedRate` True, lo predeterminado) | cada Interval **exacto**, según el reloj: `Interval = 20` son 50 por segundo haga lo que haga un controlador de 4 ms. Una marca que venció mientras un controlador largo se ejecutaba corre en cuanto este termina, y las perdidas además de ella una tras otra, hasta 250 ms de atraso |
+| un `RTimer` con `FixedRate = 0` | un Interval después de que el controlador **terminó**, en pasos de 15.6 ms: con un controlador de 24 ms y `Interval = 20` marca cada 55 ms más o menos |
+| el `QTimer` de un programa clásico (un archivo `.bas`) | al compás: un período (el Interval en pasos de 15.6 ms) después de cuando le tocaba a la última marca, así que con un controlador de 24 ms sigue marcando cada 31 ms; una marca que venció durante el controlador corre en cuanto este termina, y las perdidas además de ella se descartan |
 
 Un programa que quiere un compás parejo — los 50 cuadros por segundo de un
-emulador, la aguja de un reloj, un metrónomo — pone `FixedRate = 1`:
+emulador, la aguja de un reloj, un metrónomo — no necesita más que el Interval:
 
 ```basic
-Clock.Interval = 20
-Clock.FixedRate = 1            ' cada 20 ms según el reloj, no 20 ms después del último cuadro
+Clock.Interval = 20            ' cada 20 ms según el reloj, no 20 ms después del último cuadro
 ```
 
-![steady_timer.rr: dos temporizadores con Interval = 20 y 4 ms de trabajo en cada marca; el predeterminado contó 25 marcas en el último segundo, el de FixedRate 50](../images/graphics/steady-timer.png)
+![steady_timer.rr: dos temporizadores con Interval = 20 y 4 ms de trabajo en cada marca; el de FixedRate = 0 contó 25 marcas en el último segundo, el predeterminado 50](../images/graphics/steady-timer.png)
 
 [steady_timer.rr](../../../examples/gui/steady_timer.rr) ejecuta los dos lado a
-lado y cuenta sus marcas. La otra forma, que funciona sin `FixedRate` y no
-depende del ritmo de las marcas: deja que el temporizador mire cada marca y
-dibuje una imagen solo cuando **toca** una, llevando tú mismo la cuenta de la
-hora en que toca:
+lado y cuenta sus marcas. La otra forma, que funciona también en un programa
+clásico y no depende del ritmo de las marcas: deja que el temporizador mire cada
+marca y dibuje una imagen solo cuando **toca** una, llevando tú mismo la cuenta de
+la hora en que toca:
 
 ```basic
 SUB Tick
@@ -284,8 +293,8 @@ END SUB
 ```
 
 con `Interval = 10` en el temporizador. Los cuadros están separados exactamente
-20 ms en promedio, hagan lo que hagan las marcas, siempre que el trabajo propio
-de un cuadro sea menor que unos 4 ms.
+20 ms en promedio, hagan lo que hagan las marcas, siempre que el trabajo propio
+de un cuadro sea bastante menor que los 20 ms.
 [pixels_fast.rr](../../../examples/graphics/pixels_fast.rr) es este ciclo: su
 lectura en pantalla dice cuántos cuadros por segundo dibuja de verdad, y cuánto
 tardó en calcular la imagen, ponerla en el mapa de bits y dibujarla.
@@ -296,7 +305,7 @@ tardó en calcular la imagen, ponerla en el mapa de bits y dibujarla.
 |---|---|
 | [round_rect.rr](../../../examples/graphics/round_rect.rr) | `RoundRect` con un borde y un interior en una sola llamada: una tarjeta, tres chips de estado y las tres formas, con los colores propios de la apariencia (clara, oscura, alto contraste) |
 | [copy_modes.rr](../../../examples/graphics/copy_modes.rr) | `CopyMode` en una misma imagen: reemplazar, XOR, un negativo, OR, líneas de barrido (`cmSrcAnd`) y un cuadro de selección (`cmPatInvert`) |
-| [steady_timer.rr](../../../examples/gui/steady_timer.rr) | Un `RTimer` y un `RTimer` con `FixedRate` contando sus marcas lado a lado: unas 25 por segundo contra 50 |
+| [steady_timer.rr](../../../examples/gui/steady_timer.rr) | Dos `RTimer` contando sus marcas lado a lado: el predeterminado, 50 por segundo, y uno con `FixedRate = 0`, unas 25 |
 | [pixels_fast.rr](../../../examples/graphics/pixels_fast.rr) | Un plasma (rotación de paleta, 256 x 192) y el Juego de la vida (64 x 48 celdas calculadas en cada cuadro) a 50 cuadros por segundo, con la lectura en pantalla. **Method** cambia a un `Pset` para cada píxel, para ver la diferencia: el plasma baja a unas 12 imágenes por segundo |
 | [video_memory.rr](../../../examples/recipes/video_memory.rr) | La receta de sistemas: el mapa de bits y los atributos de color de una máquina, guardados decodificados en un arreglo `BYTE` y dibujados con `SetPixels8`; **Repaint** mide el tiempo de un repintado completo (unos 0.2 ms; la primera versión de la receta tardaba de 8 a 13 ms) |
 | [tools/bench/pixels.rr](../../../tools/bench/pixels.rr) | La prueba de rendimiento de arriba, para ejecutarla en tu propia computadora |
